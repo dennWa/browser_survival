@@ -4,7 +4,7 @@
  */
 
 export const SPIEL_NAME = 'Browser Survival';
-export const SPIEL_VERSION = '0.1.0';
+export const SPIEL_VERSION = '0.2.0';
 
 /** Wird beim Login verglichen. Erhöhen, sobald sich das Nachrichtenformat inkompatibel ändert. */
 export const PROTOKOLL_VERSION = 1;

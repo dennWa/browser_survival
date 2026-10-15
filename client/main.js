@@ -1,16 +1,18 @@
 import { SERVER_LISTE, DEBUG_START } from './konfiguration.js';
 import { Renderer } from './darstellung/renderer.js';
+import { ladeAssets } from './darstellung/assets.js';
 import { Eingabe } from './kern/eingabe.js';
 import { ClientSpiel } from './kern/clientSpiel.js';
 import { verbindungAufbauen } from './netzwerk/verbindungAufbauen.js';
 import { anmelden } from './netzwerk/anmeldung.js';
 import { LoginBildschirm } from './ui/loginBildschirm.js';
 import { Hud } from './ui/hud.js';
+import { zeigeCredits } from './ui/credits.js';
 
 /**
  * Einstiegspunkt des Clients. Verdrahtet nur die Bausteine – keine Spiellogik hier.
  *
- * Ablauf:  Login-Bildschirm → Verbindung aufbauen → Anmelden → ClientSpiel läuft
+ * Ablauf:  Grafiken laden → Login-Bildschirm → Verbindung aufbauen → Anmelden → ClientSpiel läuft
  *          → bei Trennung/Abmelden zurück zum Login
  */
 const leinwand = document.getElementById('spielflaeche');
@@ -20,9 +22,11 @@ const login = new LoginBildschirm(document, SERVER_LISTE);
 const hud = new Hud(document, { debug: DEBUG_START });
 
 let aktuellesSpiel = null;
+let assets = null;
 
 eingabe.beiTaste('debug', () => hud.debugUmschalten());
 hud.beiAbmelden(() => aktuellesSpiel?.beenden('Abgemeldet'));
+document.getElementById('credits-knopf').addEventListener('click', () => zeigeCredits(document, assets));
 
 login.beiAnmeldung(async ({ server, adresse, benutzername, passwort }) => {
   login.setzeBeschaeftigt(true);
@@ -39,8 +43,8 @@ login.beiAnmeldung(async ({ server, adresse, benutzername, passwort }) => {
 
 function spielStarten(verbindung, anmeldeDaten) {
   login.verbergen();
-  hud.anzeigen();
   eingabe.aktiv = true;
+  hud.anzeigen(eingabe.touch.istTouchGeraet);
   leinwand.focus();
   aktuellesSpiel = new ClientSpiel({
     verbindung,
@@ -51,7 +55,6 @@ function spielStarten(verbindung, anmeldeDaten) {
     beiEnde: (grund) => {
       aktuellesSpiel = null;
       eingabe.aktiv = false;
-      eingabe.zuruecksetzen();
       hud.verbergen();
       renderer.leeren();
       login.anzeigen(grund === 'Abgemeldet' ? '' : grund);
@@ -59,5 +62,19 @@ function spielStarten(verbindung, anmeldeDaten) {
   });
 }
 
-renderer.leeren();
-login.anzeigen();
+async function starten() {
+  renderer.leeren();
+  const ladeBildschirm = document.getElementById('laden');
+  const fuellung = document.getElementById('ladebalken-fuellung');
+  try {
+    assets = await ladeAssets((anteil) => (fuellung.style.width = `${Math.round(anteil * 100)}%`));
+    renderer.setzeAssets(assets);
+  } catch (fehler) {
+    // Ohne Grafiken läuft das Spiel mit Platzhalter-Formen weiter
+    console.warn('[Assets] Laden fehlgeschlagen:', fehler);
+  }
+  ladeBildschirm.hidden = true;
+  login.anzeigen();
+}
+
+starten();

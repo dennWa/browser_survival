@@ -119,7 +119,7 @@ export class ClientSpiel {
 
   #festerTakt() {
     const richtung = this.eingabe.richtung();
-    const eingabe = { seq: ++this.seq, x: richtung.x, y: richtung.y, blick: this.#blickZurMaus() };
+    const eingabe = { seq: ++this.seq, x: richtung.x, y: richtung.y, blick: this.#blick() };
 
     this.lokalVorher.x = this.lokal.x;
     this.lokalVorher.y = this.lokal.y;
@@ -130,25 +130,30 @@ export class ClientSpiel {
     this.verbindung.senden({ typ: NACHRICHT.EINGABE, ...eingabe });
   }
 
-  #blickZurMaus() {
-    const maus = this.renderer.kamera.bildschirmZuWelt(this.eingabe.mausX, this.eingabe.mausY);
-    return Math.atan2(maus.y - this.lokal.y, maus.x - this.lokal.x);
+  /** Blickrichtung von Maus oder Touch-Stick; ohne Vorgabe bleibt die bisherige erhalten. */
+  #blick() {
+    const winkel = this.eingabe.blickWinkel(this.renderer.kamera.weltZuBildschirm(this.lokal.x, this.lokal.y));
+    return winkel ?? this.lokal.blick;
   }
 
   // ---------------------------------------------------------------------------
   // Darstellung
 
   #zeichne(alpha, jetzt) {
+    const dx = this.lokal.x - this.lokalVorher.x;
+    const dy = this.lokal.y - this.lokalVorher.y;
     const eigen = {
       ...(this.eigeneDaten ?? { id: this.eigeneId, typ: 'spieler', name: '' }),
       x: lerp(this.lokalVorher.x, this.lokal.x, alpha),
       y: lerp(this.lokalVorher.y, this.lokal.y, alpha),
       blick: this.lokal.blick,
+      geschwindigkeit: Math.hypot(dx, dy) / TICK_DAUER_S,
+      bewegungsWinkel: Math.atan2(dy, dx),
       istEigener: true,
     };
     const andere = this.#interpolierteEntitaeten(jetzt - INTERPOLATIONS_VERZOEGERUNG_MS);
 
-    this.renderer.zeichne({ fokus: eigen, entitaeten: [...andere, eigen], gegenstaende: this.gegenstaende });
+    this.renderer.zeichne({ fokus: eigen, entitaeten: [...andere, eigen], gegenstaende: this.gegenstaende, jetzt });
     this.hud.aktualisiere({
       serverName: this.serverName,
       verbindung: this.verbindung.beschreibung,
@@ -180,6 +185,7 @@ export class ClientSpiel {
     }
 
     const t = (renderZeit - a.empfangen) / (b.empfangen - a.empfangen);
+    const dauer = Math.max(1, b.tick - a.tick) * TICK_DAUER_S;
     for (const neu of b.entitaeten.values()) {
       if (neu.id === this.eigeneId) continue;
       const alt = a.entitaeten.get(neu.id);
@@ -187,7 +193,16 @@ export class ClientSpiel {
         ergebnis.push(neu);
         continue;
       }
-      ergebnis.push({ ...neu, x: lerp(alt.x, neu.x, t), y: lerp(alt.y, neu.y, t), blick: lerpWinkel(alt.blick, neu.blick, t) });
+      const dx = neu.x - alt.x;
+      const dy = neu.y - alt.y;
+      ergebnis.push({
+        ...neu,
+        x: lerp(alt.x, neu.x, t),
+        y: lerp(alt.y, neu.y, t),
+        blick: lerpWinkel(alt.blick, neu.blick, t),
+        geschwindigkeit: Math.hypot(dx, dy) / dauer, // für Lauf-Animationen
+        bewegungsWinkel: Math.atan2(dy, dx),
+      });
     }
     return ergebnis;
   }

@@ -22,7 +22,14 @@ export const SERVER_LISTE = [
 export const INTERPOLATIONS_VERZOEGERUNG_MS = 100;
 
 export const PING_INTERVALL_MS = 2000;
-export const KAMERA_ZOOM = 1.5;
+
+/**
+ * Kamera-Zoom passt sich der Bildschirmgröße an: zoom = √(Breite × Höhe) / KAMERA_SICHTFELD.
+ * Größerer Wert = mehr Überblick. Begrenzung durch ZOOM_MIN/ZOOM_MAX.
+ */
+export const KAMERA_SICHTFELD = 760;
+export const ZOOM_MIN = 0.65;
+export const ZOOM_MAX = 2.4;
 
 /** Künstliche Verzögerung im Lokal-Modus (ms), um Netzwerk-Lag zu simulieren. 0 = aus. */
 export const LOKALE_LATENZ_MS = 0;

@@ -73,8 +73,15 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE) {
     y: punkte.reduce((s, p) => s + p.y, 0) / punkte.length,
   }));
 
+  const objekte = (definition.objekte ?? []).map((o, i) => {
+    if (!o.typ || ![o.x, o.y, o.b, o.h].every(Number.isFinite)) {
+      throw new Error(`Karte "${definition.id}": Objekt #${i} unvollständig (typ, x, y, b, h nötig)`);
+    }
+    return { typ: o.typ, x: o.x, y: o.y, b: o.b, h: o.h, blockiert: !!o.blockiert, ebene: o.ebene ?? 'moebel', drehung: o.drehung ?? 0 };
+  });
+
   return {
-    daten: { id: definition.id, name: definition.name, breite, hoehe, kachelGroesse, kacheln, raeume },
+    daten: { id: definition.id, name: definition.name, breite, hoehe, kachelGroesse, kacheln, raeume, objekte },
     spielerStarts,
     zombieSpawns,
     lootPunkte,

@@ -1,3 +1,5 @@
+import { STANDARD_AUSRUESTUNG } from '../konfiguration/gegenstaende.js';
+
 /**
  * Spieler-Entität ("Männeken").
  * Entitäten sind reine Datenobjekte; Verhalten steckt in den Systemen (server/spiel/systeme/).
@@ -13,6 +15,8 @@ export function erzeugeSpieler({ id, benutzername, x, y, konfiguration }) {
     blick: 0,
     leben: konfiguration.spieler.leben,
     maxLeben: konfiguration.spieler.leben,
+    /** Was der Spieler in der Hand hält → bestimmt das Animationsset im Client */
+    ausruestung: STANDARD_AUSRUESTUNG,
     // [intern]
     eingabePuffer: [],
     letzteEmpfangeneSeq: 0,
@@ -23,5 +27,5 @@ export function erzeugeSpieler({ id, benutzername, x, y, konfiguration }) {
 
 /** Was andere Clients über einen Spieler erfahren. `seq` braucht der eigene Client zum Abgleich. */
 export function spielerZuNetzwerk(s) {
-  return { id: s.id, typ: s.typ, name: s.name, x: s.x, y: s.y, blick: s.blick, leben: s.leben, maxLeben: s.maxLeben, seq: s.letzteVerarbeiteteSeq };
+  return { id: s.id, typ: s.typ, name: s.name, x: s.x, y: s.y, blick: s.blick, leben: s.leben, maxLeben: s.maxLeben, ausruestung: s.ausruestung, seq: s.letzteVerarbeiteteSeq };
 }

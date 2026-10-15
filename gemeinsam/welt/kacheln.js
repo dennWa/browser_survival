@@ -1,12 +1,16 @@
 /**
  * Kacheltypen (Tiles) der Karten. Jedes Zeichen in einer Kartendatei steht für eine Kachel.
- * Neue Bodenarten/Wände hier eintragen – und eine Farbe in client/darstellung/farben.js.
+ * Neue Bodenarten/Wände hier eintragen – Darstellung in client/darstellung/weltZeichner.js
+ * (Textur aus dem Asset-Atlas oder Ersatzfarbe in farben.js).
+ * innen: true = Innenraumboden (Türen übernehmen diesen Boden).
  */
 export const KACHELN = Object.freeze({
   ',': { name: 'gras', blockiert: false },
   '_': { name: 'asphalt', blockiert: false },
   '=': { name: 'strasse', blockiert: false },
-  '.': { name: 'boden', blockiert: false },
+  '.': { name: 'fliesen', blockiert: false, innen: true },
+  ':': { name: 'beton', blockiert: false, innen: true },
+  '+': { name: 'holz', blockiert: false, innen: true },
   'T': { name: 'tuer', blockiert: false },
   '#': { name: 'wand', blockiert: true },
   'F': { name: 'fenster', blockiert: true },

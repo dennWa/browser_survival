@@ -2,22 +2,44 @@
 <html lang="de">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#0d0f12" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Browser Survival</title>
     <link rel="stylesheet" href="stil.css" />
   </head>
   <body>
     <canvas id="spielflaeche" tabindex="0"></canvas>
 
+    <!-- Touch-Joysticks (nur auf Handy/Tablet sichtbar) -->
+    <div id="touch" hidden>
+      <div class="stick" id="stick-links"><div class="stick-knopf"></div></div>
+      <div class="stick" id="stick-rechts"><div class="stick-knopf"></div></div>
+    </div>
+
     <!-- HUD über dem Spiel -->
     <div id="hud" hidden>
       <div id="hud-oben">
         <span id="hud-status"></span>
-        <button id="hud-abmelden" type="button">Abmelden</button>
+        <div class="hud-knoepfe">
+          <button id="hud-vollbild" type="button" hidden>⛶</button>
+          <button id="hud-abmelden" type="button">Abmelden</button>
+        </div>
       </div>
       <div id="hud-leben"></div>
       <pre id="hud-debug" hidden></pre>
-      <div id="hud-hilfe">WASD bewegen · Maus zielen · F3 Debug</div>
+      <div id="hud-hilfe"></div>
+    </div>
+
+    <!-- Ladebildschirm -->
+    <div id="laden" class="overlay">
+      <div class="lade-box">
+        <h1>Browser Survival</h1>
+        <div class="ladebalken"><div id="ladebalken-fuellung"></div></div>
+        <p id="lade-text">Lade Grafiken …</p>
+      </div>
     </div>
 
     <!-- Login -->
@@ -30,10 +52,10 @@
           <select id="login-server"></select>
         </label>
         <label id="login-adresse-feld" hidden>Serveradresse
-          <input id="login-adresse" type="text" placeholder="ws://192.168.0.10:8080/ws" spellcheck="false" />
+          <input id="login-adresse" type="text" placeholder="ws://192.168.0.10:8080/ws" spellcheck="false" autocapitalize="off" />
         </label>
         <label>Benutzername
-          <input id="login-name" type="text" autocomplete="username" required minlength="2" maxlength="20" spellcheck="false" />
+          <input id="login-name" type="text" autocomplete="username" required minlength="2" maxlength="20" spellcheck="false" autocapitalize="off" />
         </label>
         <label id="login-passwort-feld">Passwort
           <input id="login-passwort" type="password" autocomplete="current-password" />
@@ -42,8 +64,17 @@
         <button id="login-knopf" type="submit">Login</button>
         <p id="login-meldung" role="status" aria-live="polite"></p>
         <p class="hinweis">Keine Registrierung – Accounts vergibt der Server-Admin.<br />Lokal-Modus braucht kein Passwort.</p>
+        <button id="credits-knopf" class="link-knopf" type="button">Credits &amp; Lizenzen</button>
       </form>
     </div>
+
+    <!-- Credits (Namensnennung der Grafik-Urheber, Pflicht bei CC-BY) -->
+    <dialog id="credits">
+      <h2>Credits</h2>
+      <p>Grafiken aus freien Paketen – vielen Dank an die Künstler:innen!</p>
+      <ul id="credits-liste"></ul>
+      <form method="dialog"><button type="submit">Schließen</button></form>
+    </dialog>
 
     <script type="module" src="main.js"></script>
   </body>

@@ -21,6 +21,10 @@ export class Kamera {
     this.hoehe = hoehe;
   }
 
+  weltZuBildschirm(wx, wy) {
+    return { x: (wx - this.x) * this.zoom + this.breite / 2, y: (wy - this.y) * this.zoom + this.hoehe / 2 };
+  }
+
   bildschirmZuWelt(sx, sy) {
     return { x: (sx - this.breite / 2) / this.zoom + this.x, y: (sy - this.hoehe / 2) / this.zoom + this.y };
   }

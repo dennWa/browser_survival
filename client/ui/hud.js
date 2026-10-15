@@ -11,8 +11,14 @@ export class Hud {
       status: dokument.getElementById('hud-status'),
       leben: dokument.getElementById('hud-leben'),
       debug: dokument.getElementById('hud-debug'),
+      hilfe: dokument.getElementById('hud-hilfe'),
       abmelden: dokument.getElementById('hud-abmelden'),
+      vollbild: dokument.getElementById('hud-vollbild'),
     };
+    this.el.vollbild.addEventListener('click', () => {
+      if (dokument.fullscreenElement) dokument.exitFullscreen?.();
+      else dokument.documentElement.requestFullscreen?.().catch(() => {});
+    });
     this.debug = debug;
     this.letzteAktualisierung = 0;
   }
@@ -21,9 +27,14 @@ export class Hud {
     this.el.abmelden.addEventListener('click', fn);
   }
 
-  anzeigen() {
+  /** @param istTouch true → Touch-Hinweise und Vollbild-Knopf */
+  anzeigen(istTouch = false) {
     this.el.hud.hidden = false;
     this.el.debug.hidden = !this.debug;
+    this.el.vollbild.hidden = !istTouch || !document.fullscreenEnabled;
+    this.el.hilfe.textContent = istTouch
+      ? 'Linker Daumen: laufen · Rechter Daumen: zielen'
+      : 'WASD bewegen · Maus zielen · F3 Debug';
   }
 
   verbergen() {

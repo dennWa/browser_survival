@@ -1,0 +1,775 @@
+{
+ "version": 1,
+ "figuren": {
+  "survivor": {
+   "animationen": {
+    "taschenlampe_idle": {
+     "bild": "figuren/survivor/taschenlampe_idle.webp",
+     "frames": 20,
+     "spalten": 4,
+     "frameBreite": 106,
+     "frameHoehe": 67,
+     "pivotX": 25.2,
+     "pivotY": 33.6,
+     "massstab": 0.525,
+     "fps": 15,
+     "schleife": true
+    },
+    "taschenlampe_laufen": {
+     "bild": "figuren/survivor/taschenlampe_laufen.webp",
+     "frames": 20,
+     "spalten": 4,
+     "frameBreite": 108,
+     "frameHoehe": 69,
+     "pivotX": 26.0,
+     "pivotY": 36.0,
+     "massstab": 0.525,
+     "fps": 24,
+     "schleife": true
+    },
+    "taschenlampe_nahkampf": {
+     "bild": "figuren/survivor/taschenlampe_nahkampf.webp",
+     "frames": 15,
+     "spalten": 4,
+     "frameBreite": 113,
+     "frameHoehe": 80,
+     "pivotX": 31.6,
+     "pivotY": 44.4,
+     "massstab": 0.525,
+     "fps": 30,
+     "schleife": false
+    },
+    "pistole_idle": {
+     "bild": "figuren/survivor/pistole_idle.webp",
+     "frames": 20,
+     "spalten": 4,
+     "frameBreite": 84,
+     "frameHoehe": 62,
+     "pivotX": 26.8,
+     "pivotY": 33.2,
+     "massstab": 0.525,
+     "fps": 15,
+     "schleife": true
+    },
+    "pistole_laufen": {
+     "bild": "figuren/survivor/pistole_laufen.webp",
+     "frames": 20,
+     "spalten": 4,
+     "frameBreite": 85,
+     "frameHoehe": 64,
+     "pivotX": 28.0,
+     "pivotY": 32.4,
+     "massstab": 0.525,
+     "fps": 24,
+     "schleife": true
+    },
+    "pistole_schiessen": {
+     "bild": "figuren/survivor/pistole_schiessen.webp",
+     "frames": 3,
+     "spalten": 2,
+     "frameBreite": 84,
+     "frameHoehe": 62,
+     "pivotX": 27.2,
+     "pivotY": 32.4,
+     "massstab": 0.525,
+     "fps": 20,
+     "schleife": false
+    },
+    "pistole_nachladen": {
+     "bild": "figuren/survivor/pistole_nachladen.webp",
+     "frames": 15,
+     "spalten": 4,
+     "frameBreite": 85,
+     "frameHoehe": 69,
+     "pivotX": 27.2,
+     "pivotY": 32.4,
+     "massstab": 0.525,
+     "fps": 20,
+     "schleife": false
+    },
+    "pistole_nahkampf": {
+     "bild": "figuren/survivor/pistole_nahkampf.webp",
+     "frames": 15,
+     "spalten": 4,
+     "frameBreite": 101,
+     "frameHoehe": 89,
+     "pivotX": 33.2,
+     "pivotY": 45.6,
+     "massstab": 0.525,
+     "fps": 30,
+     "schleife": false
+    },
+    "schrotflinte_idle": {
+     "bild": "figuren/survivor/schrotflinte_idle.webp",
+     "frames": 20,
+     "spalten": 4,
+     "frameBreite": 104,
+     "frameHoehe": 62,
+     "pivotX": 26.0,
+     "pivotY": 34.4,
+     "massstab": 0.525,
+     "fps": 15,
+     "schleife": true
+    },
+    "schrotflinte_laufen": {
+     "bild": "figuren/survivor/schrotflinte_laufen.webp",
+     "frames": 20,
+     "spalten": 4,
+     "frameBreite": 105,
+     "frameHoehe": 62,
+     "pivotX": 26.4,
+     "pivotY": 34.4,
+     "massstab": 0.525,
+     "fps": 24,
+     "schleife": true
+    },
+    "schrotflinte_schiessen": {
+     "bild": "figuren/survivor/schrotflinte_schiessen.webp",
+     "frames": 3,
+     "spalten": 2,
+     "frameBreite": 104,
+     "frameHoehe": 61,
+     "pivotX": 25.6,
+     "pivotY": 33.6,
+     "massstab": 0.525,
+     "fps": 20,
+     "schleife": false
+    },
+    "schrotflinte_nachladen": {
+     "bild": "figuren/survivor/schrotflinte_nachladen.webp",
+     "frames": 20,
+     "spalten": 4,
+     "frameBreite": 107,
+     "frameHoehe": 64,
+     "pivotX": 27.6,
+     "pivotY": 33.6,
+     "massstab": 0.525,
+     "fps": 20,
+     "schleife": false
+    },
+    "schrotflinte_nahkampf": {
+     "bild": "figuren/survivor/schrotflinte_nahkampf.webp",
+     "frames": 15,
+     "spalten": 4,
+     "frameBreite": 128,
+     "frameHoehe": 126,
+     "pivotX": 41.6,
+     "pivotY": 72.8,
+     "massstab": 0.525,
+     "fps": 30,
+     "schleife": false
+    },
+    "messer_idle": {
+     "bild": "figuren/survivor/messer_idle.webp",
+     "frames": 20,
+     "spalten": 4,
+     "frameBreite": 94,
+     "frameHoehe": 69,
+     "pivotX": 29.2,
+     "pivotY": 38.4,
+     "massstab": 0.525,
+     "fps": 15,
+     "schleife": true
+    },
+    "messer_laufen": {
+     "bild": "figuren/survivor/messer_laufen.webp",
+     "frames": 20,
+     "spalten": 4,
+     "frameBreite": 93,
+     "frameHoehe": 70,
+     "pivotX": 30.8,
+     "pivotY": 37.6,
+     "massstab": 0.525,
+     "fps": 24,
+     "schleife": true
+    },
+    "messer_nahkampf": {
+     "bild": "figuren/survivor/messer_nahkampf.webp",
+     "frames": 15,
+     "spalten": 4,
+     "frameBreite": 110,
+     "frameHoehe": 107,
+     "pivotX": 28.4,
+     "pivotY": 38.8,
+     "massstab": 0.525,
+     "fps": 30,
+     "schleife": false
+    }
+   },
+   "fuesse": {
+    "stehen": {
+     "bild": "figuren/survivor/fuesse_stehen.webp",
+     "frames": 1,
+     "spalten": 1,
+     "frameBreite": 39,
+     "frameHoehe": 46,
+     "pivotX": 18.8,
+     "pivotY": 23.0,
+     "massstab": 0.525,
+     "fps": 1,
+     "schleife": true
+    },
+    "gehen": {
+     "bild": "figuren/survivor/fuesse_gehen.webp",
+     "frames": 20,
+     "spalten": 4,
+     "frameBreite": 59,
+     "frameHoehe": 40,
+     "pivotX": 29.6,
+     "pivotY": 20.0,
+     "massstab": 0.525,
+     "fps": 24,
+     "schleife": true
+    },
+    "rennen": {
+     "bild": "figuren/survivor/fuesse_rennen.webp",
+     "frames": 20,
+     "spalten": 4,
+     "frameBreite": 72,
+     "frameHoehe": 40,
+     "pivotX": 36.0,
+     "pivotY": 20.0,
+     "massstab": 0.525,
+     "fps": 30,
+     "schleife": true
+    },
+    "seitlich_links": {
+     "bild": "figuren/survivor/fuesse_seitlich_links.webp",
+     "frames": 20,
+     "spalten": 5,
+     "frameBreite": 52,
+     "frameHoehe": 58,
+     "pivotX": 26.2,
+     "pivotY": 28.4,
+     "massstab": 0.525,
+     "fps": 24,
+     "schleife": true
+    },
+    "seitlich_rechts": {
+     "bild": "figuren/survivor/fuesse_seitlich_rechts.webp",
+     "frames": 20,
+     "spalten": 5,
+     "frameBreite": 52,
+     "frameHoehe": 58,
+     "pivotX": 26.0,
+     "pivotY": 29.2,
+     "massstab": 0.525,
+     "fps": 24,
+     "schleife": true
+    }
+   }
+  },
+  "zombie": {
+   "animationen": {
+    "idle": {
+     "bild": "figuren/zombie/idle.webp",
+     "frames": 17,
+     "spalten": 4,
+     "frameBreite": 79,
+     "frameHoehe": 72,
+     "pivotX": 32.4,
+     "pivotY": 38.4,
+     "massstab": 0.5,
+     "fps": 15,
+     "schleife": true
+    },
+    "laufen": {
+     "bild": "figuren/zombie/laufen.webp",
+     "frames": 17,
+     "spalten": 5,
+     "frameBreite": 90,
+     "frameHoehe": 100,
+     "pivotX": 36.8,
+     "pivotY": 52.6,
+     "massstab": 0.5,
+     "fps": 24,
+     "schleife": true
+    },
+    "angriff": {
+     "bild": "figuren/zombie/angriff.webp",
+     "frames": 9,
+     "spalten": 4,
+     "frameBreite": 92,
+     "frameHoehe": 94,
+     "pivotX": 34.0,
+     "pivotY": 51.2,
+     "massstab": 0.5,
+     "fps": 18,
+     "schleife": false
+    }
+   }
+  }
+ },
+ "items": {
+  "bild": "items.webp",
+  "icons": {
+   "konservendose": {
+    "x": 3,
+    "y": 0,
+    "b": 66,
+    "h": 72,
+    "weltGroesse": 24
+   },
+   "marmelade": {
+    "x": 86,
+    "y": 0,
+    "b": 43,
+    "h": 72,
+    "weltGroesse": 20
+   },
+   "apfel": {
+    "x": 144,
+    "y": 11,
+    "b": 72,
+    "h": 49,
+    "weltGroesse": 18
+   },
+   "broetchen": {
+    "x": 216,
+    "y": 14,
+    "b": 72,
+    "h": 43,
+    "weltGroesse": 22
+   },
+   "kaese": {
+    "x": 288,
+    "y": 16,
+    "b": 72,
+    "h": 40,
+    "weltGroesse": 20
+   },
+   "muesliriegel": {
+    "x": 360,
+    "y": 14,
+    "b": 72,
+    "h": 44,
+    "weltGroesse": 20
+   },
+   "sandwich": {
+    "x": 432,
+    "y": 12,
+    "b": 72,
+    "h": 48,
+    "weltGroesse": 24
+   },
+   "wasserflasche": {
+    "x": 513,
+    "y": 0,
+    "b": 53,
+    "h": 72,
+    "weltGroesse": 24
+   },
+   "energydrink": {
+    "x": 17,
+    "y": 72,
+    "b": 37,
+    "h": 72,
+    "weltGroesse": 18
+   },
+   "milch": {
+    "x": 93,
+    "y": 72,
+    "b": 30,
+    "h": 72,
+    "weltGroesse": 22
+   },
+   "kaffee": {
+    "x": 144,
+    "y": 83,
+    "b": 72,
+    "h": 50,
+    "weltGroesse": 18
+   },
+   "verband": {
+    "x": 216,
+    "y": 83,
+    "b": 72,
+    "h": 50,
+    "weltGroesse": 22
+   },
+   "schmerzmittel": {
+    "x": 309,
+    "y": 72,
+    "b": 30,
+    "h": 72,
+    "weltGroesse": 18
+   },
+   "erste_hilfe_kasten": {
+    "x": 360,
+    "y": 72,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 26
+   },
+   "skalpell": {
+    "x": 461,
+    "y": 72,
+    "b": 14,
+    "h": 72,
+    "weltGroesse": 20
+   },
+   "kuechenmesser": {
+    "x": 515,
+    "y": 72,
+    "b": 50,
+    "h": 72,
+    "weltGroesse": 24
+   },
+   "hammer": {
+    "x": 18,
+    "y": 144,
+    "b": 36,
+    "h": 72,
+    "weltGroesse": 26
+   },
+   "machete": {
+    "x": 72,
+    "y": 173,
+    "b": 72,
+    "h": 14,
+    "weltGroesse": 32
+   },
+   "feuerwehrbeil": {
+    "x": 153,
+    "y": 144,
+    "b": 53,
+    "h": 72,
+    "weltGroesse": 28
+   },
+   "pistole": {
+    "x": 216,
+    "y": 151,
+    "b": 72,
+    "h": 57,
+    "weltGroesse": 24
+   },
+   "schrotflinte": {
+    "x": 288,
+    "y": 167,
+    "b": 72,
+    "h": 26,
+    "weltGroesse": 40
+   },
+   "munition_9mm": {
+    "x": 360,
+    "y": 155,
+    "b": 72,
+    "h": 50,
+    "weltGroesse": 22
+   },
+   "munition_12": {
+    "x": 432,
+    "y": 163,
+    "b": 72,
+    "h": 33,
+    "weltGroesse": 24
+   }
+  }
+ },
+ "umgebung": {
+  "bild": "umgebung.webp",
+  "kachelGroesse": 64,
+  "boden": {
+   "gras": [
+    {
+     "x": 638,
+     "y": 258,
+     "b": 64,
+     "h": 64
+    },
+    {
+     "x": 704,
+     "y": 258,
+     "b": 64,
+     "h": 64
+    },
+    {
+     "x": 770,
+     "y": 258,
+     "b": 64,
+     "h": 64
+    },
+    {
+     "x": 836,
+     "y": 258,
+     "b": 64,
+     "h": 64
+    }
+   ],
+   "beton": [
+    {
+     "x": 902,
+     "y": 258,
+     "b": 64,
+     "h": 64
+    },
+    {
+     "x": 0,
+     "y": 388,
+     "b": 64,
+     "h": 64
+    }
+   ],
+   "fliesen": [
+    {
+     "x": 66,
+     "y": 388,
+     "b": 64,
+     "h": 64
+    }
+   ],
+   "holz": [
+    {
+     "x": 132,
+     "y": 388,
+     "b": 64,
+     "h": 64
+    }
+   ]
+  },
+  "objekte": {
+   "bett": {
+    "x": 0,
+    "y": 0,
+    "b": 128,
+    "h": 256
+   },
+   "bett_orange": {
+    "x": 130,
+    "y": 0,
+    "b": 128,
+    "h": 256
+   },
+   "teppich": {
+    "x": 260,
+    "y": 0,
+    "b": 192,
+    "h": 192
+   },
+   "teppich_gruen": {
+    "x": 454,
+    "y": 0,
+    "b": 192,
+    "h": 192
+   },
+   "auto_schwarz": {
+    "x": 648,
+    "y": 0,
+    "b": 71,
+    "h": 131
+   },
+   "auto_blau": {
+    "x": 721,
+    "y": 0,
+    "b": 71,
+    "h": 131
+   },
+   "auto_gruen": {
+    "x": 794,
+    "y": 0,
+    "b": 70,
+    "h": 131
+   },
+   "auto_gelb": {
+    "x": 866,
+    "y": 0,
+    "b": 71,
+    "h": 131
+   },
+   "transporter": {
+    "x": 939,
+    "y": 0,
+    "b": 70,
+    "h": 131
+   },
+   "baum": {
+    "x": 0,
+    "y": 258,
+    "b": 128,
+    "h": 128
+   },
+   "baum_herbst": {
+    "x": 130,
+    "y": 258,
+    "b": 128,
+    "h": 128
+   },
+   "tisch": {
+    "x": 260,
+    "y": 258,
+    "b": 192,
+    "h": 128
+   },
+   "auto_rot": {
+    "x": 454,
+    "y": 258,
+    "b": 71,
+    "h": 116
+   },
+   "oelfleck": {
+    "x": 527,
+    "y": 258,
+    "b": 109,
+    "h": 95
+   },
+   "kiste": {
+    "x": 198,
+    "y": 388,
+    "b": 64,
+    "h": 64
+   },
+   "kiste_klein": {
+    "x": 264,
+    "y": 388,
+    "b": 64,
+    "h": 64
+   },
+   "pflanze": {
+    "x": 330,
+    "y": 388,
+    "b": 64,
+    "h": 64
+   },
+   "busch": {
+    "x": 396,
+    "y": 388,
+    "b": 64,
+    "h": 64
+   },
+   "kueche_theke": {
+    "x": 462,
+    "y": 388,
+    "b": 128,
+    "h": 64
+   },
+   "kueche_herd": {
+    "x": 592,
+    "y": 388,
+    "b": 64,
+    "h": 64
+   },
+   "kueche_spuele": {
+    "x": 658,
+    "y": 388,
+    "b": 64,
+    "h": 64
+   },
+   "kueche_kochfeld": {
+    "x": 724,
+    "y": 388,
+    "b": 64,
+    "h": 64
+   },
+   "sofa": {
+    "x": 790,
+    "y": 388,
+    "b": 192,
+    "h": 64
+   },
+   "sofa_dunkel": {
+    "x": 0,
+    "y": 454,
+    "b": 192,
+    "h": 64
+   },
+   "sessel": {
+    "x": 194,
+    "y": 454,
+    "b": 64,
+    "h": 64
+   },
+   "sessel_blau": {
+    "x": 260,
+    "y": 454,
+    "b": 64,
+    "h": 64
+   },
+   "stuhl": {
+    "x": 326,
+    "y": 454,
+    "b": 64,
+    "h": 64
+   },
+   "tisch_rund": {
+    "x": 392,
+    "y": 454,
+    "b": 64,
+    "h": 64
+   },
+   "blutfleck": {
+    "x": 458,
+    "y": 454,
+    "b": 64,
+    "h": 64
+   },
+   "blutlache": {
+    "x": 524,
+    "y": 454,
+    "b": 64,
+    "h": 64
+   },
+   "fass": {
+    "x": 590,
+    "y": 454,
+    "b": 56,
+    "h": 56
+   },
+   "pylone": {
+    "x": 648,
+    "y": 454,
+    "b": 45,
+    "h": 44
+   }
+  }
+ },
+ "lizenzen": [
+  {
+   "paket": "Animated Top Down Survivor Player",
+   "urheber": "rileygombart",
+   "lizenz": "CC-BY 3.0",
+   "url": "https://opengameart.org/content/animated-top-down-survivor-player"
+  },
+  {
+   "paket": "Animated Top Down Zombie",
+   "urheber": "rileygombart",
+   "lizenz": "CC0",
+   "url": "https://opengameart.org/content/animated-top-down-zombie"
+  },
+  {
+   "paket": "Top-down Shooter",
+   "urheber": "Kenney (kenney.nl)",
+   "lizenz": "CC0",
+   "url": "https://kenney.nl/assets/top-down-shooter"
+  },
+  {
+   "paket": "Racing Pack",
+   "urheber": "Kenney (kenney.nl)",
+   "lizenz": "CC0",
+   "url": "https://kenney.nl/assets/racing-pack"
+  },
+  {
+   "paket": "Generic Items",
+   "urheber": "Kenney (kenney.nl)",
+   "lizenz": "CC0",
+   "url": "https://opengameart.org/content/generic-items"
+  },
+  {
+   "paket": "Free Survival Props Pack",
+   "urheber": "Olga Bikmullina (http://ahninniah.graphics)",
+   "lizenz": "CC-BY 3.0",
+   "url": "https://opengameart.org/content/free-survival-props-pack"
+  },
+  {
+   "paket": "2D Guns",
+   "urheber": "opengameart.org/content/2d-guns",
+   "lizenz": "CC0",
+   "url": "https://opengameart.org/content/2d-guns"
+  },
+  {
+   "paket": "Glitch Food & Drink Items",
+   "urheber": "Tiny Speck (Glitch)",
+   "lizenz": "CC0",
+   "url": "https://opengameart.org/content/glitch-food-drink-items-svg"
+  }
+ ]
+}

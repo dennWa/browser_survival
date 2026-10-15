@@ -3,3 +3,7 @@ node_modules/
 server/daten/konten.json
 server/daten/einstellungen.json
 .DS_Store
+
+# Asset-Pipeline
+werkzeuge/assets/.cache/
+.venv/

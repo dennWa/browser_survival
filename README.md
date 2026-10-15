@@ -15,6 +15,7 @@ Im Login **"Lokal (im Browser)"** wählen, um ohne Account allein zu testen,
 oder **"Dieser Server"** für Mehrspieler mit Account.
 
 Steuerung: **WASD** bewegen · **Maus** zielen · **F3** Debug-Overlay
+Handy/Tablet: **linker Daumen** laufen · **rechter Daumen** zielen
 
 ## Weitere Befehle
 
@@ -25,5 +26,9 @@ Steuerung: **WASD** bewegen · **Maus** zielen · **F3** Debug-Overlay
 | `PORT=3000 npm start` | Anderer Port |
 
 Server-Balancing anpassen: `server/daten/einstellungen.beispiel.json` nach `einstellungen.json` kopieren und Werte ändern.
+
+Grafiken neu erzeugen (nur bei Grafik-Änderungen, braucht Python 3):
+`python3 -m venv .venv && .venv/bin/pip install -r werkzeuge/assets/anforderungen.txt && .venv/bin/python werkzeuge/assets/baue_assets.py`
+Lizenzen der Grafiken: [`client/assets/LIZENZEN.md`](client/assets/LIZENZEN.md).
 
 **Architektur, Dateistruktur und Entwicklungsstand:** siehe [`project_manifest.md`](project_manifest.md).

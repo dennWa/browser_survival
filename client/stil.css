@@ -18,6 +18,8 @@ html, body {
   background: var(--hintergrund);
   color: var(--text);
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 [hidden] { display: none !important; }
@@ -29,16 +31,23 @@ html, body {
   height: 100vh;
   display: block;
   outline: none;
+  touch-action: none; /* keine Browser-Gesten (Scrollen/Zoomen) über dem Spiel */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /* ---------- Login ---------- */
 .overlay {
   position: fixed;
   inset: 0;
-  display: grid;
-  place-items: center;
+  display: flex;
+  overflow-y: auto; /* kleine Bildschirme (Handy quer): Formular scrollbar */
   padding: 16px;
   background: radial-gradient(circle at 50% 30%, #1f2329 0%, #0b0c0e 80%);
+}
+
+#login-formular, .lade-box {
+  margin: auto; /* zentriert, aber scrollbar wenn zu hoch */
 }
 
 #login-formular {
@@ -127,8 +136,13 @@ button {
   font-size: 0.85rem;
 }
 
-#hud-abmelden {
+#hud-oben { padding-top: env(safe-area-inset-top); }
+
+.hud-knoepfe { display: flex; gap: 8px; }
+
+.hud-knoepfe button {
   pointer-events: auto;
+  min-height: 34px;
   padding: 6px 12px;
   color: var(--text);
   background: rgba(0, 0, 0, 0.55);
@@ -148,4 +162,94 @@ button {
   font-family: ui-monospace, Consolas, monospace;
   font-size: 0.75rem;
   line-height: 1.5;
+}
+
+/* ---------- Ladebildschirm ---------- */
+.lade-box { width: min(360px, 100%); text-align: center; }
+.lade-box h1 { font-size: 1.6rem; letter-spacing: 0.04em; text-transform: uppercase; }
+
+.ladebalken {
+  height: 8px;
+  overflow: hidden;
+  background: #1b1e23;
+  border: 1px solid var(--rand);
+  border-radius: 4px;
+}
+
+#ladebalken-fuellung { width: 0; height: 100%; background: var(--akzent); transition: width 0.15s; }
+#lade-text { color: var(--text-gedimmt); font-size: 0.85rem; }
+
+/* ---------- Credits ---------- */
+.link-knopf {
+  align-self: center;
+  padding: 2px;
+  color: var(--text-gedimmt);
+  background: none;
+  font-size: 0.75rem;
+  text-decoration: underline;
+}
+
+#credits {
+  width: min(520px, calc(100% - 32px));
+  max-height: 80vh;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--rand);
+  border-radius: 10px;
+}
+
+#credits::backdrop { background: rgba(0, 0, 0, 0.6); }
+#credits h2 { margin-top: 0; }
+#credits li { margin-bottom: 8px; font-size: 0.85rem; line-height: 1.4; }
+#credits a { color: #8cc8e2; }
+#credits button { padding: 8px 16px; color: #fff; background: var(--akzent); }
+
+/* ---------- Touch-Joysticks ---------- */
+#touch { position: fixed; inset: 0; pointer-events: none; }
+
+.stick {
+  position: absolute;
+  width: 112px;
+  height: 112px;
+  margin: -56px 0 0 -56px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.2);
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.stick.aktiv { opacity: 1; }
+
+.stick-knopf {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 48px;
+  height: 48px;
+  margin: -24px 0 0 -24px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.45);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+#stick-rechts .stick-knopf { background: rgba(231, 76, 60, 0.6); }
+
+/* Ruheposition der Sticks als Hinweis, solange kein Daumen aufliegt */
+#stick-links:not(.aktiv) { left: 90px; top: calc(100% - 110px); opacity: 0.35; }
+#stick-rechts:not(.aktiv) { left: calc(100% - 90px); top: calc(100% - 110px); opacity: 0.35; }
+
+/* Auf kleinen Bildschirmen HUD kompakter */
+@media (max-width: 700px), (max-height: 500px) {
+  #hud-status, #hud-leben, #hud-hilfe { font-size: 0.75rem; padding: 4px 8px; }
+  #hud-hilfe { display: none; }
+  #hud-leben { left: 50%; transform: translateX(-50%); bottom: auto; top: calc(52px + env(safe-area-inset-top)); }
+}
+
+@media (max-height: 520px) {
+  #login-formular { gap: 8px; padding: 16px 20px; }
+  #login-formular h1 { font-size: 1.2rem; }
+  .untertitel, .hinweis { display: none; }
+  input, select { padding: 7px 10px; }
+  #login-knopf { padding: 9px; }
 }

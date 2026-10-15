@@ -8,13 +8,16 @@
 
 ## 1. Überblick
 
-Top-Down-Survival (2D, Vogelperspektive) im Browser. Platzhaltergrafik (Kreise/Rechtecke).
+Top-Down-Survival (2D, Vogelperspektive) im Browser – für PC/Laptop, spielbar auch auf Handy & Tablet.
+Echte Grafiken (animierte Figuren, Texturen, Möbel, Item-Icons) aus freien Paketen.
 Startkarte: **St.-Elisabeth-Krankenhaus**.
 
 | Thema | Entscheidung |
 |---|---|
 | Sprache | Vanilla JavaScript (ES-Module), kein Build-Schritt. Bezeichner & Kommentare **Deutsch** (ohne Umlaute in Bezeichnern) |
-| Darstellung | HTML5 Canvas 2D |
+| Darstellung | HTML5 Canvas 2D, Spritesheets (WebP) + Atlas, Karte in vorgerenderten 16×16-Blöcken |
+| Grafiken | Freie Pakete (CC0 / CC-BY), aufbereitet durch `werkzeuge/assets/baue_assets.py` → `client/assets/` (~0,8 MB) |
+| Geräte | Tastatur + Maus; Touch: zwei virtuelle Joysticks (links laufen, rechts zielen), Zoom passt sich der Bildschirmgröße an |
 | Server | Node.js (≥ 20) + Paket `ws` (WebSockets), eingebauter HTTP-Server liefert auch die Spieldateien |
 | Netzwerkmodell | **Autoritativer Server** – Client schickt nur Eingaben; Positionen, Treffer, Schaden und Loot bestimmt der Server |
 | Netcode | Fester Tick (30/s), Client-Side Prediction + Server Reconciliation (eigener Spieler), Entity Interpolation (alle anderen) |
@@ -61,6 +64,21 @@ im Node-Server (Mehrspieler) und im Browser (Lokal-Modus). Client und Server spr
 4. Server: `ZUSTAND` (Schnappschuss aller Spieler & Zombies) an alle; `GEGENSTAENDE` nur bei Änderung
 5. Client: eigene Position vom Server übernehmen, unbestätigte Eingaben nachspielen (Reconciliation);
    andere Entitäten 100 ms verzögert zwischen zwei Schnappschüssen interpolieren
+
+### Grafik-Pipeline
+`werkzeuge/assets/baue_assets.py` (Python, nur bei Grafik-Änderungen nötig) lädt die Quellpakete, ermittelt per
+Template-Matching den Drehpunkt (Kopfmitte) jeder Figuren-Animation, schneidet zu, verkleinert, packt WebP-Spritesheets
+und schreibt `client/assets/atlas.json` + `LIZENZEN.md`. Der Client lädt beim Start den Atlas (Ladebalken);
+fehlt eine Grafik, zeichnet er Platzhalter-Formen – das Spiel bleibt immer lauffähig.
+
+**Lizenzpflicht:** CC-BY-Grafiken (Survivor, Survival Props) verlangen Namensnennung → Credits-Dialog im Login
+(Daten aus `atlas.json → lizenzen`). Nicht entfernen!
+
+### Darstellung pro Frame
+Welt-Blöcke (Böden, Teppiche, Schatten, Möbel, Wände – gecacht) → Gegenstände → Figuren (Schatten, Füße, Oberkörper,
+gedreht um den Kopf) → Baumkronen (transparent, wenn man drunter steht) → Namen/Lebensbalken → Vignette.
+Animationen: `${ausruestung}_${aktion}` für den Survivor (taschenlampe/messer/pistole/schrotflinte × idle/laufen/
+schiessen/nachladen/nahkampf), Füße je nach Laufrichtung relativ zur Blickrichtung (vor/zurück/seitwärts).
 
 ### Login-Ablauf
 `LoginBildschirm` → `verbindungAufbauen()` (Lokal oder WebSocket) → `anmelden()` sendet `ANMELDEN`
@@ -123,15 +141,21 @@ browser_survival/
 │   ├── werkzeuge/kontoAnlegen.js  CLI: npm run konto -- <name> <passwort>
 │   └── daten/                     konten.json, einstellungen.json (beide gitignored) + einstellungen.beispiel.json
 │
+├── werkzeuge/assets/              ── Grafik-Pipeline (Python) ──
+│   ├── baue_assets.py             Quellen, Item-/Möbel-Zuordnung, Drehpunkte, Spritesheets → client/assets/
+│   └── anforderungen.txt          pip-Pakete (pillow, numpy, cairosvg, py7zr)
+│
 ├── client/                        ── Nur Browser ──
-│   ├── index.html                 Canvas, HUD, Login-Formular
+│   ├── assets/                    GENERIERT: atlas.json, Spritesheets (figuren/, items.webp, umgebung.webp), LIZENZEN.md
+│   ├── index.html                 Canvas, Touch-Sticks, HUD, Ladebildschirm, Login, Credits-Dialog
 │   ├── stil.css                   Gesamtes UI-Styling
 │   ├── main.js                    Einstieg: verdrahtet Login → Verbindung → ClientSpiel
 │   ├── konfiguration.js           Serverliste, Zoom, Interpolationsverzögerung, Lokal-Latenz
 │   ├── kern/
 │   │   ├── clientSpiel.js         Laufende Sitzung: Vorhersage, Reconciliation, Interpolation
 │   │   ├── spielSchleife.js       requestAnimationFrame-Loop mit festem Takt
-│   │   └── eingabe.js             Tastatur/Maus, Tastenbelegung (TASTEN)
+│   │   ├── eingabe.js             Tastatur/Maus/Touch vereint: richtung(), blickWinkel(), Tastenbelegung (TASTEN)
+│   │   └── touchSteuerung.js      Virtuelle Joysticks (Pointer Events)
 │   ├── netzwerk/
 │   │   ├── verbindungAufbauen.js  Fabrik: Lokal vs. WebSocket
 │   │   ├── jsonVerbindung.js      Text-Kanal → Objekt-Nachrichten
@@ -139,16 +163,19 @@ browser_survival/
 │   │   ├── lokalerServer.js       Startet SpielServer im Tab (Lokal-Modus)
 │   │   └── anmeldung.js           Login-Handshake (Promise)
 │   ├── darstellung/
-│   │   ├── renderer.js            Zeichnet Szene, Fenstergröße/HiDPI, Culling, Ebenen
+│   │   ├── renderer.js            Szene zeichnen, Ebenen, adaptiver Zoom, HiDPI, Culling, Vignette
+│   │   ├── assets.js              Atlas + Bilder laden, Zugriff auf Figuren/Items/Böden/Objekte
+│   │   ├── animationen.js         Frame-Zustand pro Figur, zeichneFrame()
 │   │   ├── kamera.js              Folgt Spieler, Welt ↔ Bildschirm
-│   │   ├── weltZeichner.js        Karte einmalig vorrendern
-│   │   ├── entitaetZeichner.js    Zeichenfunktion pro Entitätstyp
-│   │   └── farben.js              Platzhalter-Farben (später: Sprites/Texturen)
+│   │   ├── weltZeichner.js        Karte in Blöcken vorrendern: Texturen, Wände, Schatten, Möbel; Baumkronen
+│   │   ├── entitaetZeichner.js    Survivor (Füße+Körper), Zombie, Items, Namen/Lebensbalken, Platzhalter
+│   │   └── farben.js              Farben für Prozedurales (Wände, Asphalt) + Ersatzfarben
 │   └── ui/
 │       ├── loginBildschirm.js     Login-Formular, Serverauswahl
-│       └── hud.js                 Statusleiste, Leben, Debug-Overlay (F3)
+│       ├── hud.js                 Statusleiste, Leben, Debug (F3), Vollbild-Knopf (Touch)
+│       └── credits.js             Credits-Dialog (Grafik-Lizenzen)
 │
-└── tests/                         node:test – Karte, Bewegung, Server-Ablauf, Konten
+└── tests/                         node:test – Karte, Bewegung, Server-Ablauf, Konten, Inhalte (Erreichbarkeit, Grafiken)
 ```
 
 ---
@@ -158,13 +185,19 @@ browser_survival/
 | Wunsch | Datei(en) |
 |---|---|
 | Zombie-Verhalten (Aggro, Verfolgen, Angriff) | `server/spiel/systeme/zombieSystem.js` (+ Werte in `spielKonfiguration.js` → `zombie`) |
-| Zombie-Aussehen | `client/darstellung/entitaetZeichner.js` → `zeichneZombie`, Farben in `farben.js` |
+| Zombie-Aussehen / Animationen | Grafik: `werkzeuge/assets/baue_assets.py` (`baue_zombie`); Auswahl der Animation: `client/darstellung/entitaetZeichner.js` → `zeichneZombie` |
+| Spieler-Animationen / Waffen in der Hand | `entitaetZeichner.js` → `zeichneSpieler`; Ausrüstung je Waffe: `gegenstaende.js` → `ausruestung` |
+| Neue Grafik / anderes Icon / Möbelstück | `werkzeuge/assets/baue_assets.py` (`ITEMS`, `OBJEKTE`, `EINZEL_OBJEKTE`) → Skript ausführen |
+| Möbel/Deko platzieren | `server/spiel/karten/krankenhaus.js` → `objekte` (Kollision über `blockiert`) |
+| Touch-Steuerung | `client/kern/touchSteuerung.js`, Optik in `client/stil.css` (`.stick`) |
+| Zoom / Sichtweite | `client/konfiguration.js` → `KAMERA_SICHTFELD`, `ZOOM_MIN/MAX` |
+| Wände, Schatten, Böden | `client/darstellung/weltZeichner.js` |
 | Schaden, Lebenspunkte, Geschwindigkeit | `server/spiel/konfiguration/spielKonfiguration.js` oder `server/daten/einstellungen.json` |
-| Neues Item | `server/spiel/konfiguration/gegenstaende.js` + in `lootTabellen.js` eintragen |
+| Neues Item | `server/spiel/konfiguration/gegenstaende.js` + Icon in `baue_assets.py` (`ITEMS`) + in `lootTabellen.js` eintragen |
 | Was wo spawnt | `server/spiel/konfiguration/lootTabellen.js`, Raumzuordnung in der Kartendatei |
 | Karte bearbeiten | `server/spiel/karten/krankenhaus.js` (ASCII) |
 | Neue Karte | neue Datei in `server/spiel/karten/` + in `KARTEN` (`kartenLader.js`) registrieren; Auswahl via `welt.karte` |
-| Neuer Kacheltyp (z. B. Wasser) | `gemeinsam/welt/kacheln.js` + Farbe in `client/darstellung/farben.js` |
+| Neuer Kacheltyp (z. B. Wasser) | `gemeinsam/welt/kacheln.js` + Textur in `baue_assets.py` (`BODEN`) oder Farbe in `farben.js` |
 | Kollision / Bewegungsphysik | `gemeinsam/physik/bewegung.js` (wirkt auf Server UND Client-Vorhersage) |
 | Kampf, Treffer, Schaden zufügen | `server/spiel/systeme/kampfSystem.js` |
 | Neue Netzwerk-Nachricht | `gemeinsam/protokoll.js` → Server: `spielServer.js` (`#nachrichtEmpfangen`) → Client: `clientSpiel.js` (`#nachricht`) |
@@ -173,7 +206,6 @@ browser_survival/
 | Login-Formular / Serverliste | `client/index.html`, `client/ui/loginBildschirm.js`, `client/konfiguration.js` → `SERVER_LISTE` |
 | Login-Prüfung / Accounts | `server/node/kontenAuthentifizierung.js`, `server/werkzeuge/kontoAnlegen.js` |
 | HUD / Anzeigen | `client/ui/hud.js`, `client/index.html`, `client/stil.css` |
-| Kamera / Zoom | `client/darstellung/kamera.js`, `KAMERA_ZOOM` in `client/konfiguration.js` |
 | Tickrate | `gemeinsam/konstanten.js` → `TICK_RATE` |
 | Port, Server starten | `server/node/start.js` |
 
@@ -188,7 +220,10 @@ browser_survival/
 - **Eingaben nie vertrauen:** Server prüft Typen, Wertebereiche, Reihenfolge, Puffergröße.
 - **Physik deterministisch:** fester Zeitschritt `TICK_DAUER_S`; Client und Server nutzen dieselbe Funktion.
 - **Protokoll inkompatibel geändert?** → `PROTOKOLL_VERSION` erhöhen.
-- **Platzhalter-Grafik:** Farben nur in `client/darstellung/farben.js`.
+- **Grafiken nie von Hand in `client/assets/` ändern** – immer über `baue_assets.py` (sonst beim nächsten Lauf weg).
+- **Nur frei lizenzierte Grafiken** (CC0/CC-BY); neue Quelle → in `LIZENZEN` im Skript eintragen.
+- **Ohne Grafik spielbar:** Jeder Zeichner hat einen Platzhalter-Fallback.
+- **Touch mitdenken:** Jede neue Aktion braucht auch eine Touch-Bedienung.
 - Bezeichner deutsch, ohne Umlaute (`groesse`, `gegenstaende`); Kommentare/Texte dürfen Umlaute haben.
 - Tests: `npm test` muss grün sein, bevor etwas committet wird.
 
@@ -208,7 +243,17 @@ browser_survival/
 - HUD (Server, Spieler online, Ping, Leben), Debug-Overlay F3, Abmelden
 - Tests: Karte, Bewegung/Kollision, Server-Ablauf, Konten (14 Tests)
 
+### ✅ Phase 1.5 – Grafik & Mobil (fertig, v0.2.0)
+- Grafik-Pipeline mit 9 freien Paketen, WebP-Spritesheets, Atlas, Credits-Dialog
+- Animierter Survivor (4 Ausrüstungen × bis zu 5 Aktionen + Beinanimationen), animierter Zombie (idle/laufen/angriff)
+- 23 Items mit Icons (Essen, Trinken, Medizin, Nahkampf, Fernkampf, Munition)
+- Texturierte Böden je Raumtyp (Fliesen, Beton, Holz, Gras), Wände mit Kanten & Schattenwurf, Fenster, Türschwellen
+- Möbel mit Kollision (Betten, Tische, Küche, Sofas, Kisten …), Parkplatz mit Autos, Bäume mit Kronen über den Figuren
+- Touch-Steuerung (2 Joysticks), adaptiver Zoom, Vollbild, Handy-taugliches Login, Ladebildschirm
+- Tests: Erreichbarkeit aller Loot-/Spawnpunkte, jede Grafik vorhanden (19 Tests)
+
 ### ⏳ Phase 2 – Core Gameplay (nächster Schritt, wartet auf Freigabe)
+Animationen für Schießen, Nachladen, Nahkampf und Zombie-Angriff liegen bereits im Atlas.
 - [ ] Zombie-KI: Aggro-Radius, Verfolgen (zuerst direkt, später Pfadfindung A*), Angriff
 - [ ] Aufsammeln von Items (Taste E, Server prüft Reichweite) + Inventar
 - [ ] Nahkampf (Treffer-Kegel) und Fernkampf (Hitscan/Raycast, Munition)
@@ -216,11 +261,12 @@ browser_survival/
 - [ ] Hunger/Durst (Essen & Trinken bekommen Sinn)
 
 ### 🔭 Später
-- Sichtlinie / Nebel des Krieges (Räume nur sichtbar, wenn man drin ist)
+- Dunkelheit + Taschenlampen-Lichtkegel (Atmosphäre!), Sichtlinie / Nebel des Krieges
+- Eigene Animationen für Hammer/Beil/Machete (aktuell nutzen alle Nahkampfwaffen das Messer-Set)
 - Türen öffnen/schließen, Loot-Respawn
 - Interest Management (nur nahe Entitäten senden), Delta-Kompression – sobald Spielerzahl/Karte wächst
 - Persistenz pro Account (Position, Inventar) – Datei oder SQLite
-- Sprites/Texturen statt Farben, Sound
+- Sound & Musik, Partikel (Mündungsfeuer, Blutspritzer)
 - Mehrere Karten / Serverbrowser mit Live-Status
 - HTTPS/WSS hinter Reverse Proxy (z. B. Caddy/nginx) für Betrieb im Internet
 
@@ -236,3 +282,4 @@ browser_survival/
 | Version | Datum | Änderung |
 |---|---|---|
 | 0.1.0 | 2026-10-15 | Grundgerüst: Architektur, Netzwerk, Login, Bewegung, Krankenhauskarte, Platzhalter für Zombies/Loot |
+| 0.2.0 | 2026-10-15 | Echte Grafiken & Animationen, Möbel mit Kollision, Parkplatz, Touch-Steuerung, adaptiver Zoom, Credits |
