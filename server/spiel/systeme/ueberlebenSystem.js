@@ -36,6 +36,8 @@ function wiederbeleben(spielWelt, spieler) {
     hunger: k.startHunger,
     durst: k.startDurst,
     respawnRest: 0,
+    ausdauer: k.ausdauerMax,
+    erschoepft: false,
     ausgeruestet: null,
     ausruestung: STANDARD_AUSRUESTUNG,
   });

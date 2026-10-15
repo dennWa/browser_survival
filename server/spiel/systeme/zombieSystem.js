@@ -1,17 +1,20 @@
 import { bewegeKoerper } from '../../../gemeinsam/physik/bewegung.js';
 import { sichtlinieFrei, wegFrei } from '../../../gemeinsam/physik/strahl.js';
 import { lerpWinkel } from '../../../gemeinsam/mathe.js';
-import { erzeugeZombie } from '../entitaeten/zombie.js';
 import { findePfad } from './pfadfindung.js';
 import { fuegeSchadenZu } from './kampfSystem.js';
 
 /**
  * Zombie-KI pro Tick:
- *   ruhend      → sucht sichtbare Spieler im aggroRadius (Wände blockieren die Sicht; Lärm weckt sie, siehe kampfSystem)
+ *   ruhend      → schlurft langsam um seinen Spawnpunkt; sucht sichtbare Spieler im aggroRadius
+ *                 (Wände blockieren die Sicht; Lärm weckt sie, siehe kampfSystem.alarmiereZombies)
  *   verfolgend  → direkt auf das Ziel zu (wenn Sicht UND Weg frei), sonst per A*-Weg um Möbel/Wände herum
  *                 zum Ziel bzw. zur zuletzt bekannten Position
  *   angreifend  → in Reichweite: Schaden mit Abklingzeit
  * Ziel weg / tot / zu weit → zurück zu ruhend. Zombies schieben sich gegenseitig auseinander.
+ *
+ * Tempo, Schaden, Radius usw. kommen aus der Variante des Zombies (z.jagdGeschwindigkeit …),
+ * Wahrnehmung (aggroRadius, verlierRadius …) aus konfiguration.zombie.
  */
 const DREHGESCHWINDIGKEIT = 8; // je höher, desto schneller drehen sie sich zum Ziel
 const WEGPUNKT_ERREICHT = 8;
@@ -30,8 +33,10 @@ export function aktualisiereZombies(spielWelt, dt) {
       z.zustand = 'ruhend';
       z.zielId = null;
       z.pfad = null;
+      schlurfe(spielWelt, z, dt, k);
       continue;
     }
+    z.wanderZiel = null;
 
     const abstand = Math.hypot(ziel.x - z.x, ziel.y - z.y);
     const sicht = sichtlinieFrei(spielWelt.welt, z.x, z.y, ziel.x, ziel.y);
@@ -40,14 +45,14 @@ export function aktualisiereZombies(spielWelt, dt) {
       z.letztesZielY = ziel.y;
     }
 
-    const kontakt = k.radius + spielerRadius + 2;
-    if (sicht && abstand <= k.angriffsReichweite + spielerRadius) {
+    const kontakt = z.radius + spielerRadius + 2;
+    if (sicht && abstand <= k.angriffsReichweite + spielerRadius + (z.radius - k.radius)) {
       z.zustand = 'angreifend';
       z.blick = Math.atan2(ziel.y - z.y, ziel.x - z.x);
       if (z.angriffsAbklingzeit <= 0) {
-        z.angriffsAbklingzeit = k.angriffsAbklingzeit;
+        z.angriffsAbklingzeit = z.angriffsAbklingzeitMax;
         spielWelt.setzeAktion(z, 'angriff', ANGRIFF_ANIMATION);
-        fuegeSchadenZu(spielWelt, ziel, k.angriffsSchaden, z, z.blick);
+        fuegeSchadenZu(spielWelt, ziel, z.angriffsSchaden, z, z.blick);
       }
     } else {
       z.zustand = 'verfolgend';
@@ -55,7 +60,7 @@ export function aktualisiereZombies(spielWelt, dt) {
     if (abstand > kontakt) bewegeZuZiel(spielWelt, z, ziel, sicht, dt, k);
   }
 
-  trenneZombies(spielWelt, zombies, k.radius);
+  trenneZombies(spielWelt, zombies);
   aktualisiereRespawns(spielWelt, dt, k);
 }
 
@@ -86,7 +91,7 @@ function waehleZiel(spielWelt, z, lebendeSpieler, k) {
 
 function bewegeZuZiel(spielWelt, z, ziel, sicht, dt, k) {
   let punkt;
-  if (sicht && wegFrei(spielWelt.welt, z.x, z.y, ziel.x, ziel.y, k.radius)) {
+  if (sicht && wegFrei(spielWelt.welt, z.x, z.y, ziel.x, ziel.y, z.radius)) {
     punkt = ziel;
     z.pfad = null;
   } else {
@@ -110,19 +115,47 @@ function bewegeZuZiel(spielWelt, z, ziel, sicht, dt, k) {
     }
     punkt = z.pfad[0];
   }
+  gehe(spielWelt, z, punkt, z.jagdGeschwindigkeit, dt);
+}
+
+/** Ruhende Zombies schlurfen ziellos in der Nähe ihres Spawnpunkts herum. */
+function schlurfe(spielWelt, z, dt, k) {
+  if (z.wanderZiel) {
+    const vorherX = z.x;
+    const vorherY = z.y;
+    gehe(spielWelt, z, z.wanderZiel, z.wanderGeschwindigkeit, dt);
+    const angekommen = Math.hypot(z.wanderZiel.x - z.x, z.wanderZiel.y - z.y) < WEGPUNKT_ERREICHT;
+    const steckt = Math.hypot(z.x - vorherX, z.y - vorherY) < 0.05;
+    if (angekommen || steckt) z.wanderZiel = null;
+    return;
+  }
+  z.wanderTimer -= dt;
+  if (z.wanderTimer > 0) return;
+  z.wanderTimer = 3 + spielWelt.zufall.zahl() * 5;
+
+  // Zu weit weg vom Spawn → in Richtung Heimat, sonst irgendwohin
+  const weitWeg = Math.hypot(z.x - z.spawnX, z.y - z.spawnY) > k.wanderRadius * 0.6;
+  const winkel = weitWeg ? Math.atan2(z.spawnY - z.y, z.spawnX - z.x) + (spielWelt.zufall.zahl() - 0.5) : spielWelt.zufall.zahl() * Math.PI * 2;
+  const weite = 40 + spielWelt.zufall.zahl() * 90;
+  const ziel = { x: z.x + Math.cos(winkel) * weite, y: z.y + Math.sin(winkel) * weite };
+  if (Math.hypot(ziel.x - z.spawnX, ziel.y - z.spawnY) > k.wanderRadius) return;
+  if (wegFrei(spielWelt.welt, z.x, z.y, ziel.x, ziel.y, z.radius)) z.wanderZiel = ziel;
+}
+
+function gehe(spielWelt, z, punkt, tempo, dt) {
   const winkel = Math.atan2(punkt.y - z.y, punkt.x - z.x);
-  const weg = k.jagdGeschwindigkeit * dt;
-  bewegeKoerper(z, Math.cos(winkel) * weg, Math.sin(winkel) * weg, k.radius, spielWelt.welt);
+  const weg = tempo * dt;
+  bewegeKoerper(z, Math.cos(winkel) * weg, Math.sin(winkel) * weg, z.radius, spielWelt.welt);
   z.blick = lerpWinkel(z.blick, winkel, Math.min(1, dt * DREHGESCHWINDIGKEIT));
 }
 
 /** Überlappende Zombies auseinanderschieben (sonst stapeln sie sich zu einem Super-Zombie). */
-function trenneZombies(spielWelt, zombies, radius) {
-  const mindestAbstand = radius * 2;
+function trenneZombies(spielWelt, zombies) {
   for (let i = 0; i < zombies.length; i++) {
     for (let j = i + 1; j < zombies.length; j++) {
       const a = zombies[i];
       const b = zombies[j];
+      const mindestAbstand = a.radius + b.radius;
       const dx = b.x - a.x;
       const dy = b.y - a.y;
       const abstand = Math.hypot(dx, dy);
@@ -130,8 +163,8 @@ function trenneZombies(spielWelt, zombies, radius) {
       const nx = abstand > 0.01 ? dx / abstand : 1;
       const ny = abstand > 0.01 ? dy / abstand : 0;
       const schub = (mindestAbstand - abstand) / 2;
-      bewegeKoerper(a, -nx * schub, -ny * schub, radius, spielWelt.welt);
-      bewegeKoerper(b, nx * schub, ny * schub, radius, spielWelt.welt);
+      bewegeKoerper(a, -nx * schub, -ny * schub, a.radius, spielWelt.welt);
+      bewegeKoerper(b, nx * schub, ny * schub, b.radius, spielWelt.welt);
     }
   }
 }
@@ -151,8 +184,6 @@ function aktualisiereRespawns(spielWelt, dt, k) {
       continue;
     }
     spielWelt.zombieRespawns.splice(i, 1);
-    spielWelt.hinzufuegen(
-      erzeugeZombie({ id: spielWelt.neueId(), x: spawn.x, y: spawn.y, konfiguration: spielWelt.konfiguration, spawnIndex: eintrag.spawnIndex }),
-    );
+    spielWelt.spawneZombie(eintrag.spawnIndex);
   }
 }

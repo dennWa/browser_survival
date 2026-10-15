@@ -240,6 +240,8 @@ button {
 }
 
 #stick-rechts .stick-knopf { background: rgba(231, 76, 60, 0.6); }
+.stick.sprint { border-color: rgba(201, 217, 74, 0.9); }
+.stick.sprint .stick-knopf { background: rgba(201, 217, 74, 0.85); }
 
 /* Ruheposition der Sticks als Hinweis, solange kein Daumen aufliegt */
 #stick-links:not(.aktiv) { left: 90px; top: calc(100% - 110px); opacity: 0.35; }
@@ -265,6 +267,9 @@ button {
 #wert-leben .fuellung { background: #d64541; }
 #wert-hunger .fuellung { background: #e0902b; }
 #wert-durst .fuellung { background: #3a9be0; }
+#wert-ausdauer .fuellung { background: #c9d94a; transition: width 0.08s; }
+#wert-ausdauer.erschoepft .fuellung { background: #7a7f60; }
+#wert-ausdauer.kritisch .fuellung { animation: none; }
 .wert.kritisch .fuellung { animation: blinken 0.8s infinite alternate; }
 @keyframes blinken { to { opacity: 0.35; } }
 

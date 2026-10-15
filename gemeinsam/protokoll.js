@@ -12,7 +12,7 @@ export const NACHRICHT = Object.freeze({
   // ---- Client → Server ----
   /** { benutzername, passwort, protokoll } */
   ANMELDEN: 'anmelden',
-  /** { seq, x, y, blick, angriff } – x/y: Bewegungsrichtung -1..1, blick: Winkel (Radiant), angriff: Taste gehalten */
+  /** { seq, x, y, blick, angriff, sprint } – x/y: Bewegungsrichtung -1..1, blick: Winkel (Radiant), angriff/sprint: Taste gehalten */
   EINGABE: 'eingabe',
   /** { art, slot? } – einmalige Aktion: 'aufheben' | 'benutzen' | 'ablegen' | 'nachladen' (siehe AKTIONEN) */
   AKTION: 'aktion',

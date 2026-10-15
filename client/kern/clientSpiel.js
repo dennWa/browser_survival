@@ -161,6 +161,8 @@ export class ClientSpiel {
     this.offeneEingaben = this.offeneEingaben.filter((e) => e.seq > eigene.seq);
     this.lokal.x = eigene.x;
     this.lokal.y = eigene.y;
+    this.lokal.ausdauer = eigene.ausdauer;
+    this.lokal.erschoepft = eigene.erschoepft;
     if (eigene.tot) {
       this.lokalVorher.x = eigene.x;
       this.lokalVorher.y = eigene.y;
@@ -183,6 +185,7 @@ export class ClientSpiel {
       y: richtung.y,
       blick: this.#blick(),
       angriff: !tot && this.eingabe.angriff(),
+      sprint: !tot && this.eingabe.sprint(),
     };
 
     this.lokalVorher.x = this.lokal.x;
@@ -229,6 +232,7 @@ export class ClientSpiel {
       bewegungsWinkel: Math.atan2(dy, dx),
       istEigener: true,
     };
+    if (this.physik.ausdauerMax) this.hud.setzeAusdauer(this.lokal.ausdauer / this.physik.ausdauerMax, this.lokal.erschoepft);
     const andere = this.#interpolierteEntitaeten(jetzt - INTERPOLATIONS_VERZOEGERUNG_MS);
     const aufhebbar = this.spielerDaten?.tot ? null : this.#naechsterGegenstand();
 

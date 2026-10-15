@@ -83,7 +83,7 @@ function* moeglicheZiele(spielWelt, angreifer) {
 }
 
 function radiusVon(spielWelt, entitaet) {
-  return entitaet.typ === 'zombie' ? spielWelt.konfiguration.zombie.radius : spielWelt.konfiguration.spieler.radius;
+  return entitaet.typ === 'zombie' ? entitaet.radius : spielWelt.konfiguration.spieler.radius;
 }
 
 /**
@@ -95,8 +95,8 @@ export function fuegeSchadenZu(spielWelt, ziel, menge, quelle, winkel = 0) {
   spielWelt.ereignis({ typ: 'treffer', x: ziel.x, y: ziel.y, winkel, ziel: ziel.typ });
 
   if (ziel.typ === 'zombie') {
-    const r = spielWelt.konfiguration.kampf.rueckstoss;
-    bewegeKoerper(ziel, Math.cos(winkel) * r, Math.sin(winkel) * r, spielWelt.konfiguration.zombie.radius, spielWelt.welt);
+    const r = spielWelt.konfiguration.kampf.rueckstoss * ziel.rueckstossFaktor;
+    bewegeKoerper(ziel, Math.cos(winkel) * r, Math.sin(winkel) * r, ziel.radius, spielWelt.welt);
     if (quelle?.typ === 'spieler') {
       ziel.zielId = quelle.id;
       ziel.zustand = 'verfolgend';

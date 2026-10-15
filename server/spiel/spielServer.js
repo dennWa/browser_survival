@@ -224,6 +224,7 @@ export class SpielServer {
       y: n.y,
       blick: Number.isFinite(n.blick) ? n.blick : spieler.blick,
       angriff: n.angriff === true,
+      sprint: n.sprint === true,
     });
   }
 

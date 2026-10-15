@@ -13,6 +13,7 @@ export const TASTEN = Object.freeze({
   links: ['KeyA', 'ArrowLeft'],
   rechts: ['KeyD', 'ArrowRight'],
   angriff: ['Space'], // zusätzlich: linke Maustaste
+  sprint: ['ShiftLeft', 'ShiftRight'],
   aufheben: ['KeyE'],
   nachladen: ['KeyR'],
   debug: ['F3'],
@@ -86,6 +87,12 @@ export class Eingabe {
   angriff() {
     if (!this.#aktiv) return false;
     return this.#mausGedrueckt || TASTEN.angriff.some((c) => this.#gedrueckt.has(c)) || this.touch.zielStaerke() >= TOUCH_FEUER_SCHWELLE;
+  }
+
+  /** Sprinten? (Shift gehalten oder linker Touch-Stick über den Rand gezogen) */
+  sprint() {
+    if (!this.#aktiv) return false;
+    return TASTEN.sprint.some((c) => this.#gedrueckt.has(c)) || this.touch.sprint();
   }
 
   /** fn(slotIndex) bei Tasten 1–8 */

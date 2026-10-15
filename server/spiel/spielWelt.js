@@ -3,7 +3,7 @@ import { Welt } from '../../gemeinsam/welt/welt.js';
 import { ladeKarte, verarbeiteKarte } from './karten/kartenLader.js';
 import { Zufall } from './zufall.js';
 import { erzeugeSpieler, spielerZuNetzwerk } from './entitaeten/spieler.js';
-import { erzeugeZombie, zombieZuNetzwerk } from './entitaeten/zombie.js';
+import { erzeugeZombie, waehleZombieVariante, zombieZuNetzwerk } from './entitaeten/zombie.js';
 import { gegenstandZuNetzwerk } from './entitaeten/gegenstand.js';
 import { verarbeiteSpielerEingaben } from './systeme/bewegungsSystem.js';
 import { verarbeiteAktionen, aktualisiereNachladen } from './systeme/inventarSystem.js';
@@ -43,9 +43,7 @@ export class SpielWelt {
     this.zombieRespawns = []; // [{ spawnIndex, rest }]
     this.lootZustand = [];
 
-    this.karte.zombieSpawns.forEach((spawn, spawnIndex) => {
-      this.hinzufuegen(erzeugeZombie({ id: this.neueId(), x: spawn.x, y: spawn.y, konfiguration, spawnIndex }));
-    });
+    this.karte.zombieSpawns.forEach((spawn, spawnIndex) => this.spawneZombie(spawnIndex));
     verteileStartLoot(this);
   }
 
@@ -82,8 +80,24 @@ export class SpielWelt {
 
   /** Bewegungsparameter für Spieler – gehen beim Login auch an den Client (für die Vorhersage). */
   physikParameter() {
-    const { geschwindigkeit, radius } = this.konfiguration.spieler;
-    return { geschwindigkeit, radius };
+    const { geschwindigkeit, radius, sprintFaktor, ausdauerMax, ausdauerVerbrauch, ausdauerRegeneration, sprintMinimum } =
+      this.konfiguration.spieler;
+    return { geschwindigkeit, radius, sprintFaktor, ausdauerMax, ausdauerVerbrauch, ausdauerRegeneration, sprintMinimum };
+  }
+
+  /** Zombie an einem Spawnpunkt der Karte erzeugen (Variante zufällig nach Gewicht). */
+  spawneZombie(spawnIndex) {
+    const spawn = this.karte.zombieSpawns[spawnIndex];
+    return this.hinzufuegen(
+      erzeugeZombie({
+        id: this.neueId(),
+        x: spawn.x,
+        y: spawn.y,
+        konfiguration: this.konfiguration,
+        spawnIndex,
+        variante: waehleZombieVariante(this.zufall, this.konfiguration),
+      }),
+    );
   }
 
   spielerBetrittWelt(benutzername) {

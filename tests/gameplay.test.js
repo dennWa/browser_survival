@@ -6,8 +6,10 @@ import { strahlGegenWaende, sichtlinieFrei } from '../gemeinsam/physik/strahl.js
 import { erstelleKonfiguration } from '../server/spiel/konfiguration/spielKonfiguration.js';
 import { SpielWelt } from '../server/spiel/spielWelt.js';
 import { erzeugeGegenstand } from '../server/spiel/entitaeten/gegenstand.js';
-import { erzeugeZombie } from '../server/spiel/entitaeten/zombie.js';
+import { erzeugeZombie, waehleZombieVariante } from '../server/spiel/entitaeten/zombie.js';
 import { findePfad } from '../server/spiel/systeme/pfadfindung.js';
+import { wendeEingabeAn } from '../gemeinsam/physik/bewegung.js';
+import { Zufall } from '../server/spiel/zufall.js';
 
 // Kachel = 32 px. Wand in Spalte 5 (Zeilen 3–5) trennt links/rechts teilweise.
 const TESTKARTE = {
@@ -294,4 +296,83 @@ test('Zombie läuft um ein Möbelstück herum, statt dagegen zu laufen', () => {
   ticks(welt, Math.ceil(6 / TICK_DAUER_S));
   assert.ok(Math.hypot(zombie.x - spieler.x, zombie.y - spieler.y) < 45, `Zombie hängt bei ${Math.round(zombie.x)}|${Math.round(zombie.y)}`);
   assert.ok(spieler.leben < 100);
+});
+
+// ---------------------------------------------------------------------------
+// Sprinten, Zombie-Varianten, Umherschlurfen
+
+test('Sprinten ist schneller, verbraucht Ausdauer und erschöpft', () => {
+  const { welt } = neueWelt();
+  const p = welt.physikParameter();
+  const gehend = { x: mitte(2), y: mitte(1), blick: 0 };
+  const rennend = { x: mitte(2), y: mitte(1), blick: 0 };
+  for (let i = 0; i < 10; i++) {
+    wendeEingabeAn(gehend, { x: 1, y: 0 }, welt.welt, p, TICK_DAUER_S);
+    wendeEingabeAn(rennend, { x: 1, y: 0, sprint: true }, welt.welt, p, TICK_DAUER_S);
+  }
+  assert.ok(rennend.x - gehend.x > 20, 'Sprinter sollte deutlich weiter sein');
+  assert.ok(rennend.ausdauer < p.ausdauerMax);
+
+  // Bis zur Erschöpfung sprinten → danach nur noch normales Tempo
+  const k = { x: mitte(2), y: mitte(1), blick: 0, ausdauer: 1, erschoepft: false };
+  for (let i = 0; i < 5; i++) wendeEingabeAn(k, { x: 0, y: 1, sprint: true }, welt.welt, p, TICK_DAUER_S);
+  assert.equal(k.erschoepft, true);
+  const vorher = k.y;
+  wendeEingabeAn(k, { x: 0, y: 1, sprint: true }, welt.welt, p, TICK_DAUER_S);
+  assert.ok(Math.abs(k.y - vorher - p.geschwindigkeit * TICK_DAUER_S) < 0.001, 'Erschöpft: nur normales Tempo');
+});
+
+test('Server und Client rechnen Sprint identisch (Vorhersage bleibt synchron)', () => {
+  const { welt } = neueWelt();
+  const p = welt.physikParameter();
+  const server = { x: mitte(2), y: mitte(2), blick: 0 };
+  const client = { x: mitte(2), y: mitte(2), blick: 0 };
+  const eingaben = Array.from({ length: 200 }, (_, i) => ({ x: Math.sin(i / 7), y: Math.cos(i / 11), sprint: i % 40 < 30 }));
+  for (const e of eingaben) wendeEingabeAn(server, e, welt.welt, p, TICK_DAUER_S);
+  for (const e of eingaben) wendeEingabeAn(client, e, welt.welt, p, TICK_DAUER_S);
+  assert.deepEqual(client, server);
+});
+
+test('Sprinten lockt Zombies in der Nähe an – auch hinter der Wand', () => {
+  const { welt, spieler } = neueWelt();
+  platziere(spieler, 3, 4);
+  const zombie = zombieBei(welt, 7, 4);
+  for (let i = 0; i < 5; i++) spieler.eingabePuffer.push({ seq: i + 1, x: 0, y: -1, blick: 0, sprint: true });
+  ticks(welt, 1);
+  assert.equal(zombie.zielId, spieler.id);
+});
+
+test('Zombie-Varianten: Läufer schnell & schwach, Brocken langsam & zäh', () => {
+  const { welt } = neueWelt();
+  const k = welt.konfiguration;
+  const laeufer = erzeugeZombie({ id: 1, x: 0, y: 0, konfiguration: k, variante: 'laeufer' });
+  const brocken = erzeugeZombie({ id: 2, x: 0, y: 0, konfiguration: k, variante: 'brocken' });
+  const normal = erzeugeZombie({ id: 3, x: 0, y: 0, konfiguration: k });
+  assert.ok(laeufer.jagdGeschwindigkeit > normal.jagdGeschwindigkeit && laeufer.maxLeben < normal.maxLeben);
+  assert.ok(brocken.jagdGeschwindigkeit < normal.jagdGeschwindigkeit && brocken.maxLeben > normal.maxLeben);
+  assert.ok(brocken.radius <= 15, 'Brocken muss durch 1 Kachel breite Lücken passen');
+
+  const zaehler = { normal: 0, laeufer: 0, brocken: 0 };
+  const zufall = new Zufall(1);
+  for (let i = 0; i < 900; i++) zaehler[waehleZombieVariante(zufall, k)]++;
+  assert.ok(zaehler.normal > zaehler.laeufer && zaehler.laeufer > zaehler.brocken && zaehler.brocken > 0);
+});
+
+test('Ruhende Zombies schlurfen herum, bleiben aber in der Nähe ihres Spawns', () => {
+  const { welt, spieler } = neueWelt();
+  platziere(spieler, 1, 6);
+  welt.konfiguration.zombie.aggroRadius = 0;
+  const zombie = zombieBei(welt, 9, 2);
+  zombie.wanderTimer = 0;
+  let maxAbstand = 0;
+  let bewegt = false;
+  for (let i = 0; i < Math.ceil(30 / TICK_DAUER_S); i++) {
+    const vorher = zombie.x + zombie.y;
+    welt.aktualisiere(TICK_DAUER_S);
+    if (zombie.x + zombie.y !== vorher) bewegt = true;
+    maxAbstand = Math.max(maxAbstand, Math.hypot(zombie.x - zombie.spawnX, zombie.y - zombie.spawnY));
+  }
+  assert.ok(bewegt, 'Zombie sollte sich bewegt haben');
+  assert.equal(zombie.zustand, 'ruhend');
+  assert.ok(maxAbstand <= welt.konfiguration.zombie.wanderRadius + 5);
 });

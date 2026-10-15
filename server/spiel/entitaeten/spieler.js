@@ -24,6 +24,9 @@ export function erzeugeSpieler({ id, benutzername, x, y, konfiguration }) {
     aktionTick: 0,
     aktionDauer: 0,
     tot: false,
+    ausdauer: k.ausdauerMax,
+    erschoepft: false,
+    sprintet: false,
     // [privat]
     hunger: k.startHunger, // 100 = satt, 0 = verhungert
     durst: k.startDurst,
@@ -58,6 +61,10 @@ export function spielerZuNetzwerk(s) {
     aktionTick: s.aktionTick,
     aktionDauer: s.aktionDauer,
     tot: s.tot,
+    // Ausdauer exakt (nicht gerundet): der eigene Client rechnet damit die Sprint-Vorhersage nach
+    ausdauer: s.ausdauer,
+    erschoepft: s.erschoepft,
+    sprintet: s.sprintet,
     seq: s.letzteVerarbeiteteSeq,
   };
 }

@@ -28,9 +28,15 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     respawnZeit: 6, // Sekunden bis zur Wiederbelebung
     startHunger: 85,
     startDurst: 85,
+    sprintFaktor: 1.6, // Sprint = 1,6 × Gehgeschwindigkeit
+    ausdauerMax: 100,
+    ausdauerVerbrauch: 22, // pro Sekunde Sprint (≈ 4,5 s am Stück)
+    ausdauerRegeneration: 14, // pro Sekunde ohne Sprint
+    sprintMinimum: 25, // nach völliger Erschöpfung erst ab diesem Wert wieder sprinten
+    sprintHoerRadius: 150, // Rennen ist laut: Zombies in diesem Umkreis hören es
   },
   zombie: {
-    geschwindigkeit: 70, // ruhend/schlurfend
+    geschwindigkeit: 70, // Grundtempo (Umherschlurfen = halbes Grundtempo)
     jagdGeschwindigkeit: 105, // beim Verfolgen (Spieler: 150 → man kann entkommen)
     radius: 13,
     leben: 60,
@@ -44,6 +50,16 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     respawnMindestAbstand: 360, // nicht respawnen, wenn ein Spieler so nah am Spawnpunkt ist
     lootChance: 0.25, // Wahrscheinlichkeit, dass ein toter Zombie etwas fallen lässt
     pfadIntervall: 0.5, // Sekunden zwischen Neuberechnungen des Weges
+    wanderRadius: 150, // so weit schlurfen ruhende Zombies von ihrem Spawnpunkt weg
+    /**
+     * Zombie-Typen: überschreiben die Grundwerte oben. gewicht = Häufigkeit beim Spawnen.
+     * groesse = nur Optik (Sprite-Skalierung). radius ≤ 15, sonst passen sie nicht durch 1 Kachel breite Lücken.
+     */
+    varianten: {
+      normal: { gewicht: 6 },
+      laeufer: { gewicht: 2, leben: 35, jagdGeschwindigkeit: 140, angriffsSchaden: 8, angriffsAbklingzeit: 0.7, groesse: 0.92 },
+      brocken: { gewicht: 1, leben: 180, jagdGeschwindigkeit: 78, angriffsSchaden: 25, angriffsAbklingzeit: 1.5, radius: 15, groesse: 1.3, rueckstossFaktor: 0.2 },
+    },
   },
   kampf: {
     pvp: false, // Spieler können sich gegenseitig verletzen

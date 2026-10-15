@@ -1,6 +1,6 @@
 /**
  * Touch-Steuerung für Handy & Tablet: zwei virtuelle Joysticks.
- *   linke Bildschirmhälfte  → Bewegungs-Stick (analog: wenig gedrückt = langsam)
+ *   linke Bildschirmhälfte  → Bewegungs-Stick (analog: wenig gedrückt = langsam, über den Rand ziehen = sprinten)
  *   rechte Bildschirmhälfte → Ziel-Stick (Blickrichtung; später: weit gedrückt = Angriff)
  *
  * Die Sticks erscheinen dort, wo der Daumen aufsetzt ("dynamische Joysticks") – bequem bei
@@ -9,6 +9,8 @@
 const STICK_RADIUS = 56; // CSS-Pixel
 const TOTZONE = 0.15;
 const ZIEL_SCHWELLE = 0.25;
+/** Daumen weiter als 1,35 × Stick-Radius vom Startpunkt → Sprint (Stick "über den Rand ziehen"). */
+const SPRINT_SCHWELLE = 1.35;
 
 export class TouchSteuerung {
   #sticks = { links: neuerStick(), rechts: neuerStick() };
@@ -56,6 +58,12 @@ export class TouchSteuerung {
     const s = this.#sticks.links;
     if (s.zeiger === null) return null;
     return mitTotzone(s.x, s.y);
+  }
+
+  /** Linken Stick über den Rand hinaus gezogen? */
+  sprint() {
+    const s = this.#sticks.links;
+    return s.zeiger !== null && s.roh >= SPRINT_SCHWELLE;
   }
 
   /** Blickwinkel vom rechten Stick, sonst null. */
@@ -115,6 +123,8 @@ export class TouchSteuerung {
     }
     stick.x = dx;
     stick.y = dy;
+    stick.roh = laenge;
+    this.el[seite].classList.toggle('sprint', seite === 'links' && laenge >= SPRINT_SCHWELLE);
     this.#knopf(seite);
   }
 
@@ -125,7 +135,7 @@ export class TouchSteuerung {
 
   #loslassen(seite) {
     Object.assign(this.#sticks[seite], neuerStick());
-    this.el[seite]?.classList.remove('aktiv');
+    this.el[seite]?.classList.remove('aktiv', 'sprint');
   }
 
   #seiteVon(zeiger) {
@@ -142,7 +152,7 @@ export class TouchSteuerung {
 }
 
 function neuerStick() {
-  return { zeiger: null, startX: 0, startY: 0, x: 0, y: 0 };
+  return { zeiger: null, startX: 0, startY: 0, x: 0, y: 0, roh: 0 };
 }
 
 function mitTotzone(x, y) {

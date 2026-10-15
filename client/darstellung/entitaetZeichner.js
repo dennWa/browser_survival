@@ -46,22 +46,26 @@ function zeichneSpieler(ctx, s, k) {
   ctx.rotate(s.blick);
 
   // Füße unter dem Oberkörper – Lauf-/Seitwärts-/Rückwärtsschritte je nach Bewegung relativ zur Blickrichtung
-  const fuss = bewegt ? fussAnimation(s.bewegungsWinkel - s.blick) : { name: 'stehen', richtung: 1 };
+  const fuss = bewegt ? fussAnimation(s.bewegungsWinkel - s.blick, s.geschwindigkeit) : { name: 'stehen', richtung: 1 };
   const fussAnim = assets.fuesse(fuss.name);
   const fussBild = fussAnim && assets.bild(fussAnim.bild);
   if (fussBild) {
-    zeichneFrame(ctx, fussBild, fussAnim, k.animationen.frame(`${s.id}:fuesse`, fussAnim, k.dt, k.jetzt, laufTempo * fuss.richtung));
+    // Renn-Animation ist für Sprinttempo gemacht → auf Sprintgeschwindigkeit normieren
+    const fussTempo = fuss.name === 'rennen' ? s.geschwindigkeit / (SPIELER_REFERENZ_TEMPO * 1.6) : laufTempo;
+    zeichneFrame(ctx, fussBild, fussAnim, k.animationen.frame(`${s.id}:fuesse`, fussAnim, k.dt, k.jetzt, fussTempo * fuss.richtung));
   }
   zeichneFrame(ctx, koerperBild, koerper, k.animationen.frame(`${s.id}:koerper`, koerper, k.dt, k.jetzt, tempo, token));
   ctx.restore();
 }
 
 function zeichneZombie(ctx, z, k) {
-  bodenSchatten(ctx, z.x, z.y, 15);
+  const groesse = z.groesse ?? 1;
+  bodenSchatten(ctx, z.x, z.y, 15 * groesse);
   const bewegt = (z.geschwindigkeit ?? 0) > BEWEGUNGS_SCHWELLE;
   const greiftAn = z.aktion === 'angriff';
   const name = greiftAn ? 'angriff' : bewegt ? 'laufen' : 'idle';
-  const animation = k.assets?.figur('zombie', name);
+  // Varianten (Läufer, Brocken) haben eigene, umgefärbte Sprites – sonst Standard-Zombie
+  const animation = k.assets?.figur(`zombie_${z.variante}`, name) ?? k.assets?.figur('zombie', name);
   const bild = animation && k.assets.bild(animation.bild);
   if (!bild) return platzhalterKreis(ctx, z, 13, z.zustand === 'ruhend' ? FARBEN.zombie : FARBEN.zombieAggro);
 
@@ -69,6 +73,7 @@ function zeichneZombie(ctx, z, k) {
   ctx.save();
   ctx.translate(z.x, z.y);
   ctx.rotate(z.blick);
+  ctx.scale(groesse, groesse);
   zeichneFrame(ctx, bild, animation, k.animationen.frame(`${z.id}:koerper`, animation, k.dt, k.jetzt, tempo, greiftAn ? z.aktionTick : 0));
   ctx.restore();
 }
@@ -82,10 +87,10 @@ function aktionsTempo(animation, dauer) {
  * Welche Fuß-Animation passt zur Laufrichtung relativ zur Blickrichtung?
  * vorwärts → gehen, rückwärts → gehen rückwärts abgespielt, sonst seitwärts.
  */
-function fussAnimation(relativ) {
+function fussAnimation(relativ, geschwindigkeit) {
   const w = Math.atan2(Math.sin(relativ), Math.cos(relativ)); // auf -π..π normalisieren
   const betrag = Math.abs(w);
-  if (betrag <= Math.PI / 4) return { name: 'gehen', richtung: 1 };
+  if (betrag <= Math.PI / 4) return { name: geschwindigkeit > SPIELER_REFERENZ_TEMPO * 1.25 ? 'rennen' : 'gehen', richtung: 1 };
   if (betrag >= (3 * Math.PI) / 4) return { name: 'gehen', richtung: -1 };
   return { name: w > 0 ? 'seitlich_rechts' : 'seitlich_links', richtung: 1 };
 }

@@ -19,6 +19,8 @@ export class Hud {
   #istTouch = false;
   #slots = [];
   #letzterHinweis = null;
+  #letzteAusdauer = -1;
+  #letztErschoepft = false;
 
   constructor(dokument, { debug = false } = {}) {
     this.dokument = dokument;
@@ -33,6 +35,7 @@ export class Hud {
       leben: el('wert-leben'),
       hunger: el('wert-hunger'),
       durst: el('wert-durst'),
+      ausdauer: el('wert-ausdauer'),
       hotbar: el('hotbar'),
       munition: el('hud-munition'),
       aufheben: el('knopf-aufheben'),
@@ -95,6 +98,16 @@ export class Hud {
     this.el.meldungen.append(div);
     while (this.el.meldungen.children.length > MAX_MELDUNGEN) this.el.meldungen.firstElementChild.remove();
     setTimeout(() => div.remove(), MELDUNG_DAUER_MS);
+  }
+
+  /** Ausdauer kommt aus der Vorhersage (jeden Frame) – DOM nur bei spürbarer Änderung anfassen. */
+  setzeAusdauer(anteil, erschoepft) {
+    const gerundet = Math.round((anteil || 0) * 50) / 50;
+    if (gerundet === this.#letzteAusdauer && erschoepft === this.#letztErschoepft) return;
+    this.#letzteAusdauer = gerundet;
+    this.#letztErschoepft = erschoepft;
+    setzeBalken(this.el.ausdauer, gerundet);
+    this.el.ausdauer.classList.toggle('erschoepft', !!erschoepft);
   }
 
   /** Private Spielerdaten vom Server (bei jeder Änderung). */

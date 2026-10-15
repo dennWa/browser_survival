@@ -16,15 +16,46 @@ export function richtungAusEingabe(eingabe) {
 }
 
 /**
- * Wendet eine Eingabe auf einen Körper an ({ x, y, blick }).
- * @param parameter { geschwindigkeit (px/s), radius (px) }
+ * Wendet eine Eingabe auf einen Körper an ({ x, y, blick, ausdauer?, erschoepft? }).
+ * @param parameter { geschwindigkeit (px/s), radius (px), optional Sprint: sprintFaktor, ausdauerMax,
+ *                    ausdauerVerbrauch (/s), ausdauerRegeneration (/s), sprintMinimum }
  * @param dt Zeitschritt in Sekunden (immer TICK_DAUER_S → deterministisch)
+ * @returns true, wenn in diesem Schritt gesprintet wurde
  */
 export function wendeEingabeAn(koerper, eingabe, welt, parameter, dt) {
   const richtung = richtungAusEingabe(eingabe);
-  const weg = parameter.geschwindigkeit * dt;
+  const willSprinten = eingabe.sprint === true && Math.hypot(richtung.x, richtung.y) > 0.1;
+  const sprintet = aktualisiereAusdauer(koerper, willSprinten, parameter, dt);
+  const weg = parameter.geschwindigkeit * (sprintet ? parameter.sprintFaktor : 1) * dt;
   bewegeKoerper(koerper, richtung.x * weg, richtung.y * weg, parameter.radius, welt);
   if (Number.isFinite(eingabe.blick)) koerper.blick = eingabe.blick;
+  koerper.sprintet = sprintet;
+  return sprintet;
+}
+
+/**
+ * Ausdauer: Sprinten verbraucht sie, sonst lädt sie sich auf. Wer bei 0 ankommt, ist erschöpft und
+ * kann erst ab sprintMinimum wieder sprinten (verhindert Stottern an der Grenze).
+ * Ohne Sprint-Parameter (ausdauerMax fehlt) gibt es keinen Sprint.
+ */
+export function aktualisiereAusdauer(koerper, willSprinten, p, dt) {
+  if (p.ausdauerMax === undefined) return false;
+  if (!Number.isFinite(koerper.ausdauer)) {
+    koerper.ausdauer = p.ausdauerMax;
+    koerper.erschoepft = false;
+  }
+  const sprintet = willSprinten && !koerper.erschoepft && koerper.ausdauer > 0;
+  if (sprintet) {
+    koerper.ausdauer -= p.ausdauerVerbrauch * dt;
+    if (koerper.ausdauer <= 0) {
+      koerper.ausdauer = 0;
+      koerper.erschoepft = true;
+    }
+  } else {
+    koerper.ausdauer = Math.min(p.ausdauerMax, koerper.ausdauer + p.ausdauerRegeneration * dt);
+    if (koerper.erschoepft && koerper.ausdauer >= p.sprintMinimum) koerper.erschoepft = false;
+  }
+  return sprintet;
 }
 
 /**

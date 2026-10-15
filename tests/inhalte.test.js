@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { KARTEN, ladeKarte } from '../server/spiel/karten/kartenLader.js';
 import { GEGENSTAENDE, STANDARD_AUSRUESTUNG } from '../server/spiel/konfiguration/gegenstaende.js';
 import { Welt } from '../gemeinsam/welt/welt.js';
+import { STANDARD_KONFIGURATION } from '../server/spiel/konfiguration/spielKonfiguration.js';
 
 const atlas = JSON.parse(readFileSync(new URL('../client/assets/atlas.json', import.meta.url), 'utf8'));
 /** Objekttypen, die prozedural gezeichnet werden und keine Grafik brauchen */
@@ -52,6 +53,10 @@ test('Jede Ausrüstung hat Idle- und Lauf-Animation', () => {
   }
 });
 
-test('Zombie hat alle Animationen', () => {
-  for (const a of ['idle', 'laufen', 'angriff']) assert.ok(atlas.figuren.zombie.animationen[a]);
+test('Jede Zombie-Variante hat alle Animationen', () => {
+  for (const variante of Object.keys(STANDARD_KONFIGURATION.zombie.varianten)) {
+    const figur = atlas.figuren[variante === 'normal' ? 'zombie' : `zombie_${variante}`];
+    assert.ok(figur, `Grafiken für Zombie-Variante "${variante}" fehlen`);
+    for (const a of ['idle', 'laufen', 'angriff']) assert.ok(figur.animationen[a], `${variante}: "${a}" fehlt`);
+  }
 });

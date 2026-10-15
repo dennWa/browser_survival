@@ -281,12 +281,28 @@ def baue_survivor():
     return {'animationen': animationen, 'fuesse': fuesse}
 
 
+# Zombie-Varianten (siehe konfiguration.zombie.varianten) als umgefärbte Kopien
+ZOMBIE_FARBEN = {
+    'zombie': None,
+    'zombie_laeufer': {'saettigung': 0.35, 'helligkeit': 1.1, 'toenung': (0.9, 0.98, 1.1)},  # blass, bläulich
+    'zombie_brocken': {'saettigung': 0.9, 'helligkeit': 0.7, 'toenung': (1.15, 0.9, 0.8)},  # dunkel, rötlich
+}
+
+
+def faerbe(bild, saettigung, helligkeit, toenung):
+    a = np.asarray(bild.convert('RGBA')).astype(np.float32)
+    rgb = a[..., :3]
+    grau = rgb.mean(axis=2, keepdims=True)
+    rgb = (grau + (rgb - grau) * saettigung) * helligkeit * np.array(toenung, dtype=np.float32)
+    return Image.fromarray(np.concatenate([np.clip(rgb, 0, 255), a[..., 3:4]], axis=2).astype(np.uint8), 'RGBA')
+
+
 def baue_zombie():
     basis = finde(lade('zombie'), 'export')
     def dateien(aktion):
         return frames_in(basis, f'skeleton-{aktion}_')
     referenz = als_grau_array(Image.open(dateien('idle')[0]))
-    animationen = {}
+    figuren = {name: {'animationen': {}} for name in ZOMBIE_FARBEN}
     for aktion, quelle in [('idle', 'idle'), ('laufen', 'move'), ('angriff', 'attack')]:
         liste = dateien(quelle)
         if aktion == 'laufen':
@@ -295,11 +311,14 @@ def baue_zombie():
             pivot = (sum(p[0] for p in punkte) / len(punkte), sum(p[1] for p in punkte) / len(punkte))
         else:
             pivot = finde_kopf(referenz, ZOMBIE_REFERENZ[1], als_grau_array(Image.open(liste[0])))
-        eintrag = packe_animation([Image.open(d) for d in liste], pivot, aktion, 'figuren/zombie', ZOMBIE_WELT_MASSSTAB)
-        eintrag.update(fps=FPS[aktion], schleife=SCHLEIFE.get(aktion, True))
-        animationen[aktion] = eintrag
-        print(f'    zombie {aktion}: {eintrag["frames"]} Frames, Drehpunkt {tuple(round(v) for v in pivot)}')
-    return {'animationen': animationen}
+        bilder = [Image.open(d).convert('RGBA') for d in liste]
+        for name, farbe in ZOMBIE_FARBEN.items():
+            varianten_bilder = bilder if farbe is None else [faerbe(b, **farbe) for b in bilder]
+            eintrag = packe_animation(varianten_bilder, pivot, aktion, f'figuren/{name}', ZOMBIE_WELT_MASSSTAB)
+            eintrag.update(fps=FPS[aktion], schleife=SCHLEIFE.get(aktion, True))
+            figuren[name]['animationen'][aktion] = eintrag
+        print(f'    zombie {aktion}: {len(liste)} Frames × {len(ZOMBIE_FARBEN)} Varianten, Drehpunkt {tuple(round(v) for v in pivot)}')
+    return figuren
 
 
 def rendere_svg(pfad, groesse):
@@ -393,7 +412,7 @@ def main():
         shutil.rmtree(ZIEL)
     ZIEL.mkdir(parents=True)
     print('Figuren …')
-    figuren = {'survivor': baue_survivor(), 'zombie': baue_zombie()}
+    figuren = {'survivor': baue_survivor(), **baue_zombie()}
     print('Gegenstände …')
     items = baue_items()
     print('Umgebung …')

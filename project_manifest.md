@@ -82,6 +82,11 @@ im Node-Server (Mehrspieler) und im Browser (Lokal-Modus). Client und Server spr
   Magazin auch beim Ablegen.
 - **Überleben:** Hunger/Durst sinken; bei 0 → Schaden. Beide ≥ 70 → langsame Heilung. Tod → Inventar fällt auf
   den Boden, Respawn nach `respawnZeit` am Startpunkt.
+- **Sprinten:** Shift (Touch: linken Stick über den Rand ziehen) = 1,6× Tempo, kostet Ausdauer. Bei 0 erschöpft →
+  erst ab `sprintMinimum` wieder. Ausdauer wird in `gemeinsam/physik/bewegung.js` berechnet (Server + Vorhersage
+  identisch). Sprinten ist laut (`sprintHoerRadius`).
+- **Zombie-Varianten** (`konfiguration.zombie.varianten`): normal, Läufer (schnell, schwach, blass), Brocken
+  (langsam, zäh, starker Biss, groß). Ruhende Zombies schlurfen im `wanderRadius` um ihren Spawnpunkt.
 
 ### Grafik-Pipeline
 `werkzeuge/assets/baue_assets.py` (Python, nur bei Grafik-Änderungen nötig) lädt die Quellpakete, ermittelt per
@@ -208,7 +213,9 @@ browser_survival/
 
 | Wunsch | Datei(en) |
 |---|---|
-| Zombie-Verhalten (Aggro, Verfolgen, Angriff) | `server/spiel/systeme/zombieSystem.js` (+ Werte in `spielKonfiguration.js` → `zombie`) |
+| Zombie-Verhalten (Aggro, Verfolgen, Angriff, Umherschlurfen) | `server/spiel/systeme/zombieSystem.js` (+ Werte in `spielKonfiguration.js` → `zombie`) |
+| Zombie-Typen (Werte, Häufigkeit) | `spielKonfiguration.js` → `zombie.varianten`; Farbe der Sprites: `ZOMBIE_FARBEN` in `baue_assets.py` |
+| Sprint / Ausdauer | Werte: `spielKonfiguration.js` → `spieler`; Logik: `aktualisiereAusdauer` in `gemeinsam/physik/bewegung.js` |
 | Zombie-Wegfindung | `server/spiel/systeme/pfadfindung.js` (A*), "geradeaus oder Umweg?" → `wegFrei` in `gemeinsam/physik/strahl.js` |
 | Waffenwerte (Schaden, Magazin, Streuung, Nachladezeit) | `server/spiel/konfiguration/gegenstaende.js`; Schlag ohne Waffe: `UNBEWAFFNET` |
 | Wirkung von Essen/Trinken/Medizin | `gegenstaende.js` (`naehrwert`, `durstwert`, `heilung`), Logik: `inventarSystem.js` → `benutzen` |
@@ -298,7 +305,7 @@ browser_survival/
 - 3D-Prototyp (Three.js, schräge Kamera) zum Vergleich mit 2D – siehe Gespräch: Logik bleibt, nur `client/darstellung/` wechselt
 - Dunkelheit + Taschenlampen-Lichtkegel, Sound & Musik
 - Persistenz pro Account (Inventar/Position bleiben nach Logout)
-- Sprinten mit Ausdauer, Zombie-Varianten (schnell, zäh), umherwandernde Zombies
+- ~~Sprinten mit Ausdauer, Zombie-Varianten, umherwandernde Zombies~~ ✅ (v0.4.0)
 
 ### 🔭 Später
 - Dunkelheit + Taschenlampen-Lichtkegel (Atmosphäre!), Sichtlinie / Nebel des Krieges
@@ -316,7 +323,6 @@ browser_survival/
 - Schnappschüsse enthalten alle Spieler + Zombies (für ~32 Spieler auf einer Karte unkritisch)
 - Schuss-/Treffer-Feedback kommt erst nach einer Server-Runde (bei 50 ms Ping kaum spürbar, bei 200 ms schon)
 - Nahkampf trifft sofort beim Tastendruck (nicht erst im passenden Animationsframe)
-- Ruhende Zombies stehen still (kein Umherwandern)
 
 ---
 
