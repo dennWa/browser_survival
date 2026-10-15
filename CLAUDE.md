@@ -8,3 +8,4 @@
    Neue Renderer-Funktion? Beide Renderer (2D `client/darstellung/`, 3D `client/darstellung3d/`) mitdenken.
 6. Touch-Bedienung (Handy/Tablet) bei jeder neuen Aktion mitdenken.
 7. Vor jedem Commit: `npm test`.
+8. Am Ende jeder Antwort den Link zum Spiel posten: https://dennwa.github.io/browser_survival/
