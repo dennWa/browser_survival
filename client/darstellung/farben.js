@@ -6,6 +6,7 @@ export const KACHEL_FARBEN = {
   gras: '#3d6b35',
   asphalt: '#4b4e53',
   strasse: '#36383c',
+  gehweg: '#86888c',
   fliesen: '#e6e6e2',
   beton: '#a9c0c4',
   holz: '#c9925a',

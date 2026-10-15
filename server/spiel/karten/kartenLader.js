@@ -1,10 +1,10 @@
 import { KACHEL_GROESSE } from '../../../gemeinsam/konstanten.js';
 import { KACHELN, MARKER, istKachel, istLootMarker } from '../../../gemeinsam/welt/kacheln.js';
-import { KRANKENHAUS } from './krankenhaus.js';
+import { STADTRAND } from './stadtrand.js';
 
 /** Registrierte Karten. Neue Karte: Datei in diesem Ordner anlegen und hier eintragen. */
 export const KARTEN = Object.freeze({
-  krankenhaus: KRANKENHAUS,
+  stadtrand: STADTRAND,
 });
 
 /**

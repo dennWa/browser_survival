@@ -15,7 +15,7 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     zufallsStartwert: null,
   },
   welt: {
-    karte: 'krankenhaus',
+    karte: 'stadtrand',
   },
   spieler: {
     geschwindigkeit: 150, // Pixel pro Sekunde

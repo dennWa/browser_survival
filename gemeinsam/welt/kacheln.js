@@ -8,6 +8,7 @@ export const KACHELN = Object.freeze({
   ',': { name: 'gras', blockiert: false },
   '_': { name: 'asphalt', blockiert: false },
   '=': { name: 'strasse', blockiert: false },
+  '-': { name: 'gehweg', blockiert: false },
   '.': { name: 'fliesen', blockiert: false, innen: true },
   ':': { name: 'beton', blockiert: false, innen: true },
   '+': { name: 'holz', blockiert: false, innen: true },

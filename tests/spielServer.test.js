@@ -38,7 +38,7 @@ test('Login, Eingabe, Bewegung – kompletter Ablauf über den Kanal', async (t)
   client.senden({ typ: NACHRICHT.ANMELDEN, benutzername: 'Tester', passwort: '', protokoll: PROTOKOLL_VERSION });
   await warteAuf(() => client.empfangen.some((n) => n.typ === NACHRICHT.ANMELDUNG_OK), 'ANMELDUNG_OK');
   const ok = client.empfangen.find((n) => n.typ === NACHRICHT.ANMELDUNG_OK);
-  assert.equal(ok.karte.id, 'krankenhaus');
+  assert.equal(ok.karte.id, 'stadtrand');
   assert.ok(ok.gegenstaende.length > 0, 'Loot sollte verteilt sein');
 
   // 10 Ticks nach oben laufen

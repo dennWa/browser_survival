@@ -76,9 +76,9 @@ test('Kaputte oder manipulierte Spielstände werden bereinigt', () => {
     spieler,
     {
       version: 1,
-      karte: 'krankenhaus',
-      x: 4 * 32 + 16, // Wand!
-      y: 2 * 32 + 16,
+      karte: 'stadtrand',
+      x: 32 * 32 + 16, // Wand! (Krankenhaus-Außenwand)
+      y: 10 * 32 + 16,
       leben: 99999,
       hunger: -50,
       durst: 'viel',
@@ -106,7 +106,7 @@ test('Kaputte oder manipulierte Spielstände werden bereinigt', () => {
 test('Toter Spielstand → frischer Start; falsche Version wird ignoriert', () => {
   const welt = new SpielWelt(erstelleKonfiguration({}));
   const spieler = welt.spielerBetrittWelt('Neu');
-  const stand = erstelleSpielstand(spieler, 'krankenhaus');
+  const stand = erstelleSpielstand(spieler, 'stadtrand');
   assert.equal(wendeSpielstandAn(spieler, { ...stand, leben: 0 }, welt), false);
   assert.equal(wendeSpielstandAn(spieler, { ...stand, version: 999 }, welt), false);
   assert.equal(wendeSpielstandAn(spieler, null, welt), false);

@@ -32,6 +32,17 @@ for (const id of Object.keys(KARTEN)) {
     }
   });
 
+  test(`Karte "${id}": Möbel stehen weder in Wänden noch in Türen`, () => {
+    const karte = ladeKarte(id);
+    const welt = new Welt(karte.daten);
+    for (const index of welt.moebelBlockiert) {
+      const tx = index % welt.breite;
+      const ty = Math.floor(index / welt.breite);
+      const zeichen = welt.kachelAn(tx, ty);
+      assert.ok(!'#FT'.includes(zeichen), `Möbel auf "${zeichen}" bei ${tx}|${ty}`);
+    }
+  });
+
   test(`Karte "${id}": jedes Objekt hat eine Grafik`, () => {
     for (const o of ladeKarte(id).daten.objekte) {
       if (PROZEDURAL.has(o.typ)) continue;
@@ -61,13 +72,13 @@ test('Jede Zombie-Variante hat alle Animationen', () => {
   }
 });
 
-test('Krankenhaus: vom Spawn geradeaus durch den Haupteingang laufen', () => {
-  const karte = ladeKarte('krankenhaus');
+test('Stadtrand: vom Spawn geradeaus durch den Haupteingang in die Eingangshalle laufen', () => {
+  const karte = ladeKarte('stadtrand');
   const welt = new Welt(karte.daten);
   const g = welt.kachelGroesse;
   for (const start of karte.spielerStarts) {
-    // Gerade nach oben bis in die Eingangshalle (Zeile 30) – nichts darf im Weg stehen
-    for (let ty = Math.floor(start.y / g); ty >= 30; ty--) {
+    // Gerade nach oben bis in die Eingangshalle (Zeile 38) – nichts darf im Weg stehen
+    for (let ty = Math.floor(start.y / g); ty >= 38; ty--) {
       assert.equal(welt.istBlockiert(Math.floor(start.x / g), ty), false, `Weg bei ${Math.floor(start.x / g)}|${ty} blockiert`);
     }
   }

@@ -171,6 +171,21 @@ export class WeltZeichner {
     ctx.fillRect(x, y, g + 0.25, g + 0.25);
     if (name === 'asphalt' || name === 'strasse') this.#asphaltKoernung(ctx, tx, ty);
     if (name === 'strasse') this.#strassenMarkierung(ctx, tx, ty);
+    if (name === 'gehweg') this.#gehwegPlatten(ctx, tx, ty);
+  }
+
+  /** Gehwegplatten: 2 × 2 Platten pro Kachel mit dunklen Fugen und leichtem Farbrauschen. */
+  #gehwegPlatten(ctx, tx, ty) {
+    const g = this.g;
+    const h = streuwert(tx, ty);
+    ctx.fillStyle = `rgba(0, 0, 0, ${0.03 + (h % 5) * 0.012})`;
+    ctx.fillRect(tx * g, ty * g, g / 2, g / 2);
+    ctx.fillRect(tx * g + g / 2, ty * g + g / 2, g / 2, g / 2);
+    ctx.fillStyle = 'rgba(40, 42, 46, 0.45)';
+    ctx.fillRect(tx * g, ty * g, g, 1);
+    ctx.fillRect(tx * g, ty * g + g / 2, g, 1);
+    ctx.fillRect(tx * g, ty * g, 1, g);
+    ctx.fillRect(tx * g + g / 2, ty * g, 1, g);
   }
 
   #asphaltKoernung(ctx, tx, ty) {
@@ -186,10 +201,20 @@ export class WeltZeichner {
   #strassenMarkierung(ctx, tx, ty) {
     const g = this.g;
     const istStrasse = (x, y) => KACHELN[this.welt.kachelAn(x, y)]?.name === 'strasse';
+    // Richtung der Straße: lang in x → waagerecht, lang in y → senkrecht (Kreuzung: beides → keine Linien)
+    const waagerecht = istStrasse(tx - 2, ty) && istStrasse(tx + 2, ty);
+    const senkrecht = istStrasse(tx, ty - 2) && istStrasse(tx, ty + 2);
+    if (waagerecht && senkrecht) return;
     ctx.fillStyle = FARBEN.markierung;
-    if (istStrasse(tx, ty - 1) && istStrasse(tx, ty + 1) && tx % 3 !== 0) ctx.fillRect(tx * g, ty * g + g / 2 - 1.5, g, 3);
-    if (!istStrasse(tx, ty - 1)) ctx.fillRect(tx * g, ty * g + 2, g, 2);
-    if (!istStrasse(tx, ty + 1)) ctx.fillRect(tx * g, ty * g + g - 4, g, 2);
+    if (waagerecht || !senkrecht) {
+      if (istStrasse(tx, ty - 1) && istStrasse(tx, ty + 1) && tx % 3 !== 0) ctx.fillRect(tx * g, ty * g + g / 2 - 1.5, g, 3);
+      if (!istStrasse(tx, ty - 1)) ctx.fillRect(tx * g, ty * g + 2, g, 2);
+      if (!istStrasse(tx, ty + 1)) ctx.fillRect(tx * g, ty * g + g - 4, g, 2);
+    } else {
+      if (istStrasse(tx - 1, ty) && istStrasse(tx + 1, ty) && ty % 3 !== 0) ctx.fillRect(tx * g + g / 2 - 1.5, ty * g, 3, g);
+      if (!istStrasse(tx - 1, ty)) ctx.fillRect(tx * g + 2, ty * g, 2, g);
+      if (!istStrasse(tx + 1, ty)) ctx.fillRect(tx * g + g - 4, ty * g, 2, g);
+    }
   }
 
   /** Eine Tür übernimmt den Boden des angrenzenden Innenraums. */
