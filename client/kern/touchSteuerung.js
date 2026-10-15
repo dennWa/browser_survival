@@ -28,11 +28,25 @@ export class TouchSteuerung {
     flaeche.addEventListener('pointermove', (e) => this.#bewegen(e));
     flaeche.addEventListener('pointerup', (e) => this.#hoch(e));
     flaeche.addEventListener('pointercancel', (e) => this.#hoch(e));
+
+    // Mobile Browser (v. a. Safari auf dem iPhone) ziehen trotz CSS die ganze Seite mit, wenn man
+    // auf dem Spielfeld wischt ("Gummiband", Adressleiste, Neuladen). Im Spiel daher jede
+    // Wisch- und Zoomgeste abfangen. Nicht-passiv, sonst darf preventDefault nichts verhindern.
+    const blockiere = (e) => {
+      if (this.aktiv && e.cancelable) e.preventDefault();
+    };
+    dokument.addEventListener('touchmove', blockiere, { passive: false });
+    flaeche.addEventListener('touchstart', blockiere, { passive: false });
+    dokument.addEventListener('gesturestart', blockiere); // iOS: Pinch-Zoom
+    dokument.addEventListener('dblclick', blockiere); // Doppeltipp-Zoom
+    this.dokument = dokument;
   }
 
   /** Touch-Oberfläche ein-/ausblenden (nur im Spiel und nur auf Touch-Geräten). */
   setzeAktiv(aktiv) {
     this.aktiv = aktiv;
+    this.dokument.body.classList.toggle('im-spiel', aktiv);
+    if (aktiv) window.scrollTo(0, 0);
     if (!aktiv) this.zuruecksetzen();
     this.#aktualisiereSichtbarkeit();
   }

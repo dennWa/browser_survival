@@ -24,11 +24,18 @@ html, body {
 
 [hidden] { display: none !important; }
 
+/* Während des Spiels: Seite komplett festnageln (iOS-Gummiband, Adressleiste, Pull-to-Refresh) */
+body.im-spiel {
+  position: fixed;
+  inset: 0;
+  touch-action: none;
+}
+
 #spielflaeche {
   position: fixed;
   inset: 0;
-  width: 100vw;
-  height: 100vh;
+  width: 100%; /* NICHT 100vh: auf Handys ist das höher als der sichtbare Bereich → Seite scrollt */
+  height: 100%;
   display: block;
   outline: none;
   touch-action: none; /* keine Browser-Gesten (Scrollen/Zoomen) über dem Spiel */

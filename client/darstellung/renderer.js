@@ -29,6 +29,8 @@ export class Renderer {
     this.letzteZeit = 0;
     this.#groesseAnpassen();
     window.addEventListener('resize', () => this.#groesseAnpassen());
+    // Handy: Adressleiste ein/aus ändert den sichtbaren Bereich, ohne immer 'resize' auszulösen
+    window.visualViewport?.addEventListener('resize', () => this.#groesseAnpassen());
   }
 
   setzeAssets(assets) {
