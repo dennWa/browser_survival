@@ -8,7 +8,7 @@ import { STANDARD_KONFIGURATION } from '../server/spiel/konfiguration/spielKonfi
 
 const atlas = JSON.parse(readFileSync(new URL('../client/assets/atlas.json', import.meta.url), 'utf8'));
 /** Objekttypen, die prozedural gezeichnet werden und keine Grafik brauchen */
-const PROZEDURAL = new Set(['markierung']);
+const PROZEDURAL = new Set(['markierung', 'licht']);
 
 for (const id of Object.keys(KARTEN)) {
   test(`Karte "${id}": alles vom Spieler-Start aus erreichbar (keine zugestellten Türen)`, () => {
@@ -58,5 +58,17 @@ test('Jede Zombie-Variante hat alle Animationen', () => {
     const figur = atlas.figuren[variante === 'normal' ? 'zombie' : `zombie_${variante}`];
     assert.ok(figur, `Grafiken für Zombie-Variante "${variante}" fehlen`);
     for (const a of ['idle', 'laufen', 'angriff']) assert.ok(figur.animationen[a], `${variante}: "${a}" fehlt`);
+  }
+});
+
+test('Krankenhaus: vom Spawn geradeaus durch den Haupteingang laufen', () => {
+  const karte = ladeKarte('krankenhaus');
+  const welt = new Welt(karte.daten);
+  const g = welt.kachelGroesse;
+  for (const start of karte.spielerStarts) {
+    // Gerade nach oben bis in die Eingangshalle (Zeile 30) – nichts darf im Weg stehen
+    for (let ty = Math.floor(start.y / g); ty >= 30; ty--) {
+      assert.equal(welt.istBlockiert(Math.floor(start.x / g), ty), false, `Weg bei ${Math.floor(start.x / g)}|${ty} blockiert`);
+    }
   }
 });

@@ -29,6 +29,12 @@ export class Kamera {
     return { x: (sx - this.breite / 2) / this.zoom + this.x, y: (sy - this.hoehe / 2) / this.zoom + this.y };
   }
 
+  /** Liegt ein Kreis (Weltkoordinaten) zumindest teilweise im Bild? */
+  istSichtbar(x, y, radius = 0) {
+    const s = this.sichtbereich();
+    return x + radius > s.links && x - radius < s.rechts && y + radius > s.oben && y - radius < s.unten;
+  }
+
   /** Sichtbarer Weltausschnitt (für Culling: nur Sichtbares zeichnen). */
   sichtbereich() {
     const halbB = this.breite / 2 / this.zoom;

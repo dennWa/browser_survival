@@ -23,9 +23,17 @@ export class Effekte {
   #schwuenge = [];
   #schadenBlitz = 0;
 
+  /** Wird für jedes Ereignis aufgerufen, sobald es angezeigt wird (z. B. für Sound). */
+  beiEreignis = null;
+
   /** Ereignisse einreihen; `verzoegerung(e)` → ms, ab wann sie gezeigt werden. */
   hinzufuegen(ereignisse, jetzt, verzoegerung) {
     for (const ereignis of ereignisse) this.#warteschlange.push({ ab: jetzt + verzoegerung(ereignis), ereignis });
+  }
+
+  /** Aktive Lichtblitze (Mündungsfeuer) für die Lichtebene: [{ x, y, staerke }] */
+  lichter() {
+    return this.#feuer.map((f) => ({ x: f.x, y: f.y, staerke: 1 - f.alter / f.dauer }));
   }
 
   /** Roter Rand bei eigenem Schaden (0..1). */
@@ -62,13 +70,19 @@ export class Effekte {
   // ---------------------------------------------------------------------------
 
   #starte(e) {
+    this.beiEreignis?.(e);
     switch (e.typ) {
+      case 'feuer': {
+        const x = e.x + Math.cos(e.winkel) * MUENDUNG_ABSTAND;
+        const y = e.y + Math.sin(e.winkel) * MUENDUNG_ABSTAND;
+        this.#feuer.push({ x, y, winkel: e.winkel, alter: 0, dauer: FEUER_DAUER });
+        break;
+      }
       case 'schuss': {
         const winkel = Math.atan2(e.zy - e.y, e.zx - e.x);
         const sx = e.x + Math.cos(winkel) * MUENDUNG_ABSTAND;
         const sy = e.y + Math.sin(winkel) * MUENDUNG_ABSTAND;
         this.#leuchtspuren.push({ x: sx, y: sy, zx: e.zx, zy: e.zy, alter: 0, dauer: LEUCHTSPUR_DAUER });
-        this.#feuer.push({ x: sx, y: sy, winkel, alter: 0, dauer: FEUER_DAUER });
         this.#spritzer(e.zx, e.zy, winkel + Math.PI, 3, '#c9c2b0', 40, 1.2); // Staub/Funken am Einschlag
         break;
       }

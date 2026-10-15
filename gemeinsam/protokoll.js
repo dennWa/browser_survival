@@ -48,7 +48,8 @@ export const AKTIONEN = Object.freeze({
 
 /**
  * Ereignistypen in ZUSTAND.ereignisse (für Effekte im Client – rein optisch):
- *   schuss    { von, x, y, zx, zy }        Schuss von (x,y) bis Einschlag (zx,zy)
+ *   feuer     { von, x, y, winkel, waffe }   ein Abzug (Knall, Mündungsfeuer); waffe = Ausrüstungsname
+ *   schuss    { von, x, y, zx, zy }        ein Projektil von (x,y) bis Einschlag (zx,zy) – Schrotflinte: mehrere
  *   treffer   { x, y, winkel, ziel }        ziel: 'zombie' | 'spieler'
  *   tod       { id, x, y, ziel }
  *   nahkampf  { von, x, y, winkel }

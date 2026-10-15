@@ -108,8 +108,17 @@ fehlt eine Grafik, zeichnet er Platzhalter-Formen – das Spiel bleibt immer lau
 (Daten aus `atlas.json → lizenzen`). Nicht entfernen!
 
 ### Darstellung pro Frame
-Welt-Blöcke (Böden, Teppiche, Schatten, Möbel, Wände – gecacht) → Gegenstände → Figuren (Schatten, Füße, Oberkörper,
-gedreht um den Kopf) → Baumkronen (transparent, wenn man drunter steht) → Namen/Lebensbalken → Vignette.
+Welt-Blöcke (Böden, Teppiche, Schatten, Möbel, Wände – gecacht) → Blut am Boden → Gegenstände → Figuren (Schatten,
+Füße, Oberkörper, gedreht um den Kopf) → Baumkronen → **Dunkelheit mit Lichtern** → Schüsse/Partikel →
+Namen/Lebensbalken → Vignette → Schadensblitz.
+
+### Licht & Sound
+- **Licht** (`client/darstellung/licht.js`): Dunkelheitsebene in halber Auflösung; Grunddunkelheit pro Kachel
+  (drinnen/draußen, weiche Übergänge). Taschenlampen als **Sichtpolygon** (Strahlen bis zur Wand → echte Schatten),
+  Lampen der Karte (`typ: 'licht'`, mit Farbe/Flackern), Mündungsfeuer. Werte: `LICHT` in `client/konfiguration.js`, Taste L.
+- **Sound** (`client/audio/sound.js`): komplett synthetisch (Web Audio, keine Dateien). Räumlich (Entfernung +
+  Stereo). Auslöser: Server-Ereignisse (`feuer`, `treffer`, `tod`, `nahkampf`, `leer`), Änderungen der eigenen
+  Daten (essen, trinken, aufheben, nachladen), Schritte (Vorhersage), zufälliges Zombie-Stöhnen. Taste M / 🔊.
 Animationen: `${ausruestung}_${aktion}` für den Survivor (taschenlampe/messer/pistole/schrotflinte × idle/laufen/
 schiessen/nachladen/nahkampf), Füße je nach Laufrichtung relativ zur Blickrichtung (vor/zurück/seitwärts).
 
@@ -204,8 +213,11 @@ browser_survival/
 │   │   ├── lokalerServer.js       Startet SpielServer im Tab (Lokal-Modus)
 │   │   ├── browserSpeicher.js     Spielstände im localStorage (Lokal-Modus)
 │   │   └── anmeldung.js           Login-Handshake (Promise)
+│   ├── audio/
+│   │   └── sound.js               Synthetisierte Geräusche (Rezepte), räumlicher Klang, Atmosphäre
 │   ├── darstellung/
 │   │   ├── renderer.js            Szene zeichnen, Ebenen, adaptiver Zoom, HiDPI, Culling, Vignette
+│   │   ├── licht.js               Dunkelheit, Taschenlampen-Sichtpolygone, Lampen, Mündungslicht
 │   │   ├── effekte.js             Mündungsfeuer, Leuchtspuren, Blut, Blutlachen, Schadensblitz
 │   │   ├── assets.js              Atlas + Bilder laden, Zugriff auf Figuren/Items/Böden/Objekte
 │   │   ├── animationen.js         Frame-Zustand pro Figur, zeichneFrame()
@@ -237,6 +249,9 @@ browser_survival/
 | Inventargröße / Aufheb-Reichweite | `gemeinsam/konstanten.js` → `INVENTAR_PLAETZE`, `AUFHEB_REICHWEITE` |
 | Loot-Nachschub, Zombie-Beute | `lootSystem.js`; Zeiten in `spielKonfiguration.js` → `loot`, `zombie.lootChance`; Tabelle `zombie` in `lootTabellen.js` |
 | Effekte (Blut, Mündungsfeuer …) | `client/darstellung/effekte.js` |
+| Dunkelheit, Taschenlampe | `client/darstellung/licht.js`, Werte `LICHT` in `client/konfiguration.js` |
+| Lampen auf der Karte | Kartendatei → `objekte` mit `typ: 'licht'` (radius, farbe, staerke, flackern) |
+| Geräusche ändern / neue Geräusche | `client/audio/sound.js` → `REZEPTE`; Auslöser in `clientSpiel.js` (`#ereignisSound`, `#datenSound`) |
 | Schnellleiste, Balken, Todesbildschirm | `client/ui/hud.js`, Markup `client/index.html`, Stil `client/stil.css` |
 | Zombie-Aussehen / Animationen | Grafik: `werkzeuge/assets/baue_assets.py` (`baue_zombie`); Auswahl der Animation: `client/darstellung/entitaetZeichner.js` → `zeichneZombie` |
 | Spieler-Animationen / Waffen in der Hand | `entitaetZeichner.js` → `zeichneSpieler`; Ausrüstung je Waffe: `gegenstaende.js` → `ausruestung` |
@@ -319,12 +334,12 @@ browser_survival/
 
 ### ⏳ Phase 3 – Vorschläge (wartet auf Entscheidung)
 - 3D-Prototyp (Three.js, schräge Kamera) zum Vergleich mit 2D – siehe Gespräch: Logik bleibt, nur `client/darstellung/` wechselt
-- Dunkelheit + Taschenlampen-Lichtkegel, Sound & Musik
+- ~~Dunkelheit + Taschenlampen-Lichtkegel, Sound~~ ✅ (v0.4.0) – Musik & echte Aufnahmen später
 - ~~Persistenz pro Account (Inventar/Position bleiben nach Logout)~~ ✅ (v0.4.0)
 - ~~Sprinten mit Ausdauer, Zombie-Varianten, umherwandernde Zombies~~ ✅ (v0.4.0)
 
 ### 🔭 Später
-- Dunkelheit + Taschenlampen-Lichtkegel (Atmosphäre!), Sichtlinie / Nebel des Krieges
+- Sichtlinie / Nebel des Krieges serverseitig (aktuell sieht der Client alle Zombies, nur die Grafik verdeckt sie)
 - Eigene Animationen für Hammer/Beil/Machete (aktuell nutzen alle Nahkampfwaffen das Messer-Set)
 - Türen öffnen/schließen, Inventar-Fenster mit Drag & Drop, Crafting
 - Interest Management (nur nahe Entitäten senden), Delta-Kompression – sobald Spielerzahl/Karte wächst

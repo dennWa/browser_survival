@@ -36,6 +36,8 @@ function schiessen(spielWelt, spieler, eintrag, def) {
   eintrag.magazin -= 1;
   spieler.angriffsAbklingzeit = def.abklingzeit;
   spielWelt.setzeAktion(spieler, 'schiessen', SCHUSS_ANIMATION);
+  // Ein "feuer" pro Abzug (Knall, Mündungsfeuer) – die Projektile kommen als einzelne "schuss"-Ereignisse
+  spielWelt.ereignis({ typ: 'feuer', von: spieler.id, x: spieler.x, y: spieler.y, winkel: spieler.blick, waffe: def.ausruestung });
 
   for (let i = 0; i < (def.projektile ?? 1); i++) {
     const winkel = spieler.blick + (spielWelt.zufall.zahl() * 2 - 1) * (def.streuung ?? 0);

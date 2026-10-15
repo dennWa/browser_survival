@@ -77,7 +77,10 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE) {
     if (!o.typ || ![o.x, o.y, o.b, o.h].every(Number.isFinite)) {
       throw new Error(`Karte "${definition.id}": Objekt #${i} unvollständig (typ, x, y, b, h nötig)`);
     }
-    return { typ: o.typ, x: o.x, y: o.y, b: o.b, h: o.h, blockiert: !!o.blockiert, ebene: o.ebene ?? 'moebel', drehung: o.drehung ?? 0 };
+    const objekt = { typ: o.typ, x: o.x, y: o.y, b: o.b, h: o.h, blockiert: !!o.blockiert, ebene: o.ebene ?? 'moebel', drehung: o.drehung ?? 0 };
+    // Lampen: Radius (Kacheln), Farbe, Stärke 0..1, Flackern
+    if (o.typ === 'licht') Object.assign(objekt, { ebene: 'licht', radius: o.radius ?? 4, farbe: o.farbe ?? '#ffd9a0', staerke: o.staerke ?? 0.85, flackern: !!o.flackern });
+    return objekt;
   });
 
   return {

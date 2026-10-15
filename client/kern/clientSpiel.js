@@ -9,6 +9,10 @@ import { SpielSchleife } from './spielSchleife.js';
 
 /** Maximal gemerkte, vom Server noch nicht bestätigte Eingaben (~4 s). */
 const MAX_OFFENE_EINGABEN = 120;
+const SCHRITT_ABSTAND = 44; // px zwischen zwei Schrittgeräuschen
+const STOEHN_REICHWEITE = 650; // Zombies in diesem Umkreis stöhnen gelegentlich
+const STOEHN_PAUSE_MS = 900; // höchstens ein Stöhnen pro Pause (sonst Chor)
+const ZOMBIE_TONHOEHE = { normal: 1, laeufer: 1.35, brocken: 0.7 };
 
 /**
  * Eine laufende Spielsitzung im Client (existiert ab erfolgreichem Login bis zur Trennung).
@@ -24,11 +28,12 @@ const MAX_OFFENE_EINGABEN = 120;
  * (EINGABE.angriff, AKTION) und zeigt das Ergebnis an.
  */
 export class ClientSpiel {
-  constructor({ verbindung, anmeldeDaten, eingabe, renderer, hud, beiEnde }) {
+  constructor({ verbindung, anmeldeDaten, eingabe, renderer, hud, sound, beiEnde }) {
     this.verbindung = verbindung;
     this.eingabe = eingabe;
     this.renderer = renderer;
     this.hud = hud;
+    this.sound = sound;
     this.beiEnde = beiEnde;
 
     this.serverName = anmeldeDaten.serverName;
@@ -39,6 +44,9 @@ export class ClientSpiel {
     this.itemDefinitionen = anmeldeDaten.itemDefinitionen ?? {};
     this.spielerDaten = anmeldeDaten.spielerDaten;
     this.effekte = new Effekte();
+    this.effekte.beiEreignis = (e) => this.#ereignisSound(e);
+    this.schrittWeg = 0;
+    this.letztesStoehnen = 0;
 
     // Vorhergesagter eigener Spieler (+ Position vom vorherigen Takt für weiche Darstellung)
     this.lokal = { x: anmeldeDaten.start.x, y: anmeldeDaten.start.y, blick: 0 };
@@ -68,6 +76,7 @@ export class ClientSpiel {
       zeichne: (alpha, jetzt) => this.#zeichne(alpha, jetzt),
     });
     this.schleife.starten();
+    this.sound?.starteAtmosphaere();
   }
 
   /** Sitzung beenden (Logout, Kick, Verbindungsverlust). Idempotent. */
@@ -75,6 +84,7 @@ export class ClientSpiel {
     if (this.beendet) return;
     this.beendet = true;
     this.schleife.stoppen();
+    this.sound?.stoppeAtmosphaere();
     clearInterval(this.pingTimer);
     for (const ab of this.abmelden) ab();
     if (!this.verbindung.getrennt) this.verbindung.trennen('Abgemeldet');
@@ -134,6 +144,7 @@ export class ClientSpiel {
   #spielerDatenEmpfangen(daten) {
     const vorher = this.spielerDaten;
     if (vorher && daten.leben < vorher.leben && !daten.tot) this.effekte.schaden((vorher.leben - daten.leben) / 25);
+    if (vorher) this.#datenSound(vorher, daten);
     if (vorher?.tot && !daten.tot) this.offeneEingaben = []; // Respawn: neue Position kommt vom Server
     this.spielerDaten = daten;
     this.hud.setzeSpielerDaten(daten, this.itemDefinitionen);
@@ -191,6 +202,8 @@ export class ClientSpiel {
     this.lokalVorher.x = this.lokal.x;
     this.lokalVorher.y = this.lokal.y;
     if (!tot) wendeEingabeAn(this.lokal, eingabe, this.welt, this.physik, TICK_DAUER_S);
+    this.#schritte();
+    this.#zombieStoehnen();
 
     this.offeneEingaben.push(eingabe);
     if (this.offeneEingaben.length > MAX_OFFENE_EINGABEN) this.offeneEingaben.shift();
@@ -218,11 +231,77 @@ export class ClientSpiel {
   }
 
   // ---------------------------------------------------------------------------
+  // Sound
+
+  #ereignisSound(e) {
+    if (!this.sound) return;
+    switch (e.typ) {
+      case 'feuer':
+        this.sound.spiele(e.waffe === 'schrotflinte' ? 'schrotflinte' : 'pistole', { x: e.x, y: e.y });
+        break;
+      case 'treffer':
+        this.sound.spiele(e.ziel === 'zombie' ? 'treffer_zombie' : 'treffer_spieler', { x: e.x, y: e.y });
+        break;
+      case 'tod':
+        this.sound.spiele(e.ziel === 'zombie' ? 'zombie_tod' : 'spieler_tod', { x: e.x, y: e.y });
+        break;
+      case 'nahkampf':
+        this.sound.spiele('nahkampf', { x: e.x, y: e.y });
+        break;
+      case 'leer':
+        if (e.von === this.eigeneId) this.sound.spiele('leer');
+        break;
+    }
+  }
+
+  /** Geräusche aus Änderungen der eigenen Daten (Essen, Trinken, Aufheben, Nachladen …). */
+  #datenSound(vorher, daten) {
+    if (!this.sound) return;
+    const anzahl = (d) => d.inventar.reduce((s, e) => s + (e ? e.menge : 0), 0);
+    if (daten.hunger > vorher.hunger + 1) this.sound.spiele('essen');
+    else if (daten.durst > vorher.durst + 1) this.sound.spiele('trinken');
+    else if (daten.leben > vorher.leben + 5 && !vorher.tot) this.sound.spiele('heilen');
+    else if (anzahl(daten) > anzahl(vorher) && !daten.nachladen) this.sound.spiele('aufheben');
+    if (daten.nachladen && !vorher.nachladen) this.sound.spiele('nachladen');
+  }
+
+  #schritte() {
+    const weg = Math.hypot(this.lokal.x - this.lokalVorher.x, this.lokal.y - this.lokalVorher.y);
+    this.schrittWeg += weg;
+    if (this.schrittWeg < SCHRITT_ABSTAND * (this.lokal.sprintet ? 1.35 : 1)) return;
+    this.schrittWeg = 0;
+    this.sound?.spiele('schritt', { lautstaerke: this.lokal.sprintet ? 0.5 : 0.3, tonhoehe: 0.8 + Math.random() * 0.4 });
+  }
+
+  /** Zombies in der Nähe stöhnen ab und zu – Richtung und Entfernung hört man. */
+  #zombieStoehnen() {
+    const jetzt = performance.now();
+    if (!this.sound || jetzt - this.letztesStoehnen < STOEHN_PAUSE_MS) return;
+    const letzter = this.schnappschuesse[this.schnappschuesse.length - 1];
+    if (!letzter) return;
+    for (const z of letzter.entitaeten.values()) {
+      if (z.typ !== 'zombie') continue;
+      if (Math.hypot(z.x - this.lokal.x, z.y - this.lokal.y) > STOEHN_REICHWEITE) continue;
+      const chance = z.zustand === 'ruhend' ? 0.003 : 0.012; // jagende Zombies sind lauter
+      if (Math.random() > chance) continue;
+      this.letztesStoehnen = jetzt;
+      this.sound.spiele(z.zustand === 'ruhend' ? 'zombie_stoehnen' : 'zombie_angriff', {
+        x: z.x,
+        y: z.y,
+        tonhoehe: ZOMBIE_TONHOEHE[z.variante] ?? 1,
+        lautstaerke: z.zustand === 'ruhend' ? 0.7 : 0.9,
+      });
+      return;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Darstellung
 
   #zeichne(alpha, jetzt) {
     const dx = this.lokal.x - this.lokalVorher.x;
     const dy = this.lokal.y - this.lokalVorher.y;
+    this.sound?.setzeHoerer(this.lokal.x, this.lokal.y);
     const eigen = {
       ...(this.eigeneDaten ?? { id: this.eigeneId, typ: 'spieler', name: '' }),
       x: lerp(this.lokalVorher.x, this.lokal.x, alpha),

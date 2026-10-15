@@ -32,6 +32,7 @@ export class Hud {
       hilfe: el('hud-hilfe'),
       abmelden: el('hud-abmelden'),
       vollbild: el('hud-vollbild'),
+      ton: el('hud-ton'),
       leben: el('wert-leben'),
       hunger: el('wert-hunger'),
       durst: el('wert-durst'),
@@ -62,6 +63,14 @@ export class Hud {
 
   beiAbmelden(fn) {
     this.el.abmelden.addEventListener('click', fn);
+  }
+
+  beiTon(fn) {
+    this.el.ton.addEventListener('click', fn);
+  }
+
+  zeigeTon(stumm) {
+    this.el.ton.textContent = stumm ? '🔇' : '🔊';
   }
 
   /** @param aktionen { benutzen(slot), ablegen(slot), aufheben(), nachladen() } */

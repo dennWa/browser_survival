@@ -8,6 +8,7 @@ import { anmelden } from './netzwerk/anmeldung.js';
 import { LoginBildschirm } from './ui/loginBildschirm.js';
 import { Hud } from './ui/hud.js';
 import { zeigeCredits } from './ui/credits.js';
+import { Sound } from './audio/sound.js';
 
 /**
  * Einstiegspunkt des Clients. Verdrahtet nur die Bausteine – keine Spiellogik hier.
@@ -20,15 +21,24 @@ const renderer = new Renderer(leinwand);
 const eingabe = new Eingabe(window, leinwand);
 const login = new LoginBildschirm(document, SERVER_LISTE);
 const hud = new Hud(document, { debug: DEBUG_START });
+const sound = new Sound();
+hud.zeigeTon(sound.stumm);
 
 let aktuellesSpiel = null;
 let assets = null;
 
 eingabe.beiTaste('debug', () => hud.debugUmschalten());
+eingabe.beiTaste('licht', () => hud.meldung(renderer.lichtUmschalten() ? 'Dunkelheit an' : 'Dunkelheit aus (L)'));
 eingabe.beiTaste('aufheben', () => aktuellesSpiel?.aufheben());
 eingabe.beiTaste('nachladen', () => aktuellesSpiel?.nachladen());
 eingabe.beiSlotTaste((slot) => aktuellesSpiel?.benutzen(slot));
 hud.beiAbmelden(() => aktuellesSpiel?.beenden('Abgemeldet'));
+const tonUmschalten = () => {
+  sound.entsperren();
+  hud.zeigeTon(sound.umschalten());
+};
+hud.beiTon(tonUmschalten);
+eingabe.beiTaste('ton', tonUmschalten);
 hud.beiAktionen({
   aufheben: () => aktuellesSpiel?.aufheben(),
   nachladen: () => aktuellesSpiel?.nachladen(),
@@ -38,6 +48,7 @@ hud.beiAktionen({
 document.getElementById('credits-knopf').addEventListener('click', () => zeigeCredits(document, assets));
 
 login.beiAnmeldung(async ({ server, adresse, benutzername, passwort }) => {
+  sound.entsperren(); // Klick auf "Login" = Nutzeraktion → Browser erlaubt ab jetzt Ton
   login.setzeBeschaeftigt(true);
   let verbindung = null;
   try {
@@ -61,6 +72,7 @@ function spielStarten(verbindung, anmeldeDaten) {
     eingabe,
     renderer,
     hud,
+    sound,
     beiEnde: (grund) => {
       aktuellesSpiel = null;
       eingabe.aktiv = false;

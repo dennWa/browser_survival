@@ -36,3 +36,17 @@ export const LOKALE_LATENZ_MS = 0;
 
 /** Debug-Overlay (Taste F3) beim Start anzeigen. */
 export const DEBUG_START = false;
+
+/**
+ * Licht & Dunkelheit (client/darstellung/licht.js). Taste L schaltet die Dunkelheit aus/an.
+ * dunkelheit*: 0 = taghell, 1 = schwarz.
+ */
+export const LICHT = {
+  aktiv: true,
+  farbe: '#04070d',
+  dunkelheitInnen: 0.93, // Krankenhaus ohne Strom
+  dunkelheitAussen: 0.68, // Mondlicht
+  scheinRadius: 85, // schwacher Schein um jeden Spieler
+  scheinStaerke: 0.5,
+  taschenlampe: { reichweite: 430, halbwinkel: 0.42 },
+};

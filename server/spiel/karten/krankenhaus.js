@@ -16,6 +16,8 @@
  *   blockiert  true = Kollision (alle Kacheln, deren Mitte im Objekt liegt)
  *   ebene      'boden' (unter allem, z. B. Teppich/Blut) · 'moebel' (Standard) · 'oben' (über Figuren, z. B. Baumkronen)
  *   drehung    0 | 90 | 180 | 270 Grad
+ *
+ * Lampen: { typ: 'licht', x, y, b: 1, h: 1, radius (Kacheln), farbe, staerke (0..1), flackern }
  */
 const M = { blockiert: true }; // Kurzschreibweise für Möbel mit Kollision
 
@@ -205,9 +207,21 @@ export const KRANKENHAUS = {
     { typ: 'busch', x: 40, y: 32, b: 1.6, h: 1.6, ebene: 'oben' },
     { typ: 'busch', x: 46, y: 32.2, b: 1.4, h: 1.4, ebene: 'oben' },
     { typ: 'busch', x: 52, y: 32, b: 1.6, h: 1.6, ebene: 'oben' },
+    // --- Licht: Notbeleuchtung (Strom ist weg …) und Straßenlaternen ---
+    { typ: 'licht', x: 11, y: 13, b: 1, h: 1, radius: 3.5, farbe: '#ff3b2f', staerke: 0.55, flackern: true },
+    { typ: 'licht', x: 31, y: 13, b: 1, h: 1, radius: 3.5, farbe: '#ff3b2f', staerke: 0.55 },
+    { typ: 'licht', x: 51, y: 13, b: 1, h: 1, radius: 3.5, farbe: '#ff3b2f', staerke: 0.55, flackern: true },
+    { typ: 'licht', x: 31, y: 19, b: 1, h: 1, radius: 3, farbe: '#46ff8a', staerke: 0.45 },
+    { typ: 'licht', x: 38, y: 26, b: 1, h: 1, radius: 5, farbe: '#bfe4ff', staerke: 0.7, flackern: true },
+    { typ: 'licht', x: 40, y: 18, b: 1, h: 1, radius: 3.5, farbe: '#ffc46b', staerke: 0.5 },
+    { typ: 'licht', x: 12, y: 27, b: 1, h: 1, radius: 3, farbe: '#ff3b2f', staerke: 0.5, flackern: true },
+    { typ: 'licht', x: 13, y: 37, b: 1, h: 1, radius: 6, farbe: '#ffb35c', staerke: 0.8 },
+    { typ: 'licht', x: 31, y: 33, b: 1, h: 1, radius: 5, farbe: '#ffb35c', staerke: 0.75 },
+    { typ: 'licht', x: 51, y: 37, b: 1, h: 1, radius: 6, farbe: '#ffb35c', staerke: 0.8, flackern: true },
     // --- Parkplatz & Straße ---
     ...parkplatz({
-      belegtOben: { 0: 'auto_rot', 2: 'auto_schwarz', 3: 'auto_gruen', 5: 'transporter', 6: 'auto_gelb' },
+      // Bucht 3 und 4 bleiben frei: Weg vom Spawn zum Haupteingang
+      belegtOben: { 0: 'auto_rot', 1: 'auto_gruen', 2: 'auto_schwarz', 5: 'transporter', 6: 'auto_gelb' },
       belegtUnten: { 0: 'auto_blau', 4: 'auto_schwarz', 6: 'auto_rot' },
     }),
     { typ: 'oelfleck', x: 22, y: 38.5, b: 1.6, h: 1.4, ebene: 'boden' },

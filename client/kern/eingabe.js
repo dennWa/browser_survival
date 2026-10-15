@@ -16,6 +16,8 @@ export const TASTEN = Object.freeze({
   sprint: ['ShiftLeft', 'ShiftRight'],
   aufheben: ['KeyE'],
   nachladen: ['KeyR'],
+  licht: ['KeyL'], // Dunkelheit an/aus
+  ton: ['KeyM'], // Ton an/aus
   debug: ['F3'],
 });
 

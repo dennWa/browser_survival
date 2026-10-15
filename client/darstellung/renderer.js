@@ -2,8 +2,9 @@ import { Kamera } from './kamera.js';
 import { FARBEN } from './farben.js';
 import { WeltZeichner } from './weltZeichner.js';
 import { Animationen } from './animationen.js';
+import { Licht } from './licht.js';
 import { ZEICHNER, zeichneBeschriftung, zeichneGegenstand } from './entitaetZeichner.js';
-import { KAMERA_SICHTFELD, ZOOM_MIN, ZOOM_MAX } from '../konfiguration.js';
+import { KAMERA_SICHTFELD, ZOOM_MIN, ZOOM_MAX, LICHT } from '../konfiguration.js';
 
 /** Zeichenreihenfolge (Ebenen): Zombies unter Spielern. */
 const EBENEN = { zombie: 1, spieler: 2 };
@@ -13,8 +14,8 @@ const CULLING_RAND = 80;
  * Zeichnet eine komplette Szene ins Canvas. Kennt KEINE Spiellogik – bekommt fertige Daten.
  *
  * Ebenen pro Frame:
- *   Welt (Böden, Möbel, Wände – vorgerendert) → Gegenstände → Figuren → Baumkronen
- *   → Namen/Lebensbalken → Vignette (Bildschirmrand abdunkeln)
+ *   Welt (Böden, Möbel, Wände – vorgerendert) → Blut am Boden → Gegenstände → Figuren → Baumkronen
+ *   → DUNKELHEIT mit Lichtern (licht.js) → Schüsse/Funken → Namen/Lebensbalken → Vignette → Schadensblitz
  */
 export class Renderer {
   constructor(leinwand) {
@@ -23,6 +24,8 @@ export class Renderer {
     this.kamera = new Kamera(1);
     this.assets = null;
     this.weltZeichner = null;
+    this.licht = null;
+    this.lichtAn = LICHT.aktiv;
     this.animationen = new Animationen();
     this.pixelVerhaeltnis = 1;
     this.vignette = null;
@@ -39,6 +42,13 @@ export class Renderer {
 
   setzeWelt(welt) {
     this.weltZeichner = new WeltZeichner(welt, this.assets);
+    this.licht = new Licht(welt);
+  }
+
+  /** Dunkelheit ein/aus (Taste L) – z. B. für schwache Geräte. */
+  lichtUmschalten() {
+    this.lichtAn = !this.lichtAn;
+    return this.lichtAn;
   }
 
   /** Zoom passt sich der Bildschirmgröße an: ähnlich viel Spielwelt auf Handy und Monitor. */
@@ -89,9 +99,15 @@ export class Renderer {
     const kontext = { assets: this.assets, animationen: this.animationen, dt, jetzt };
     const figuren = entitaeten.filter(sichtbar).sort((a, b) => (EBENEN[a.typ] ?? 0) - (EBENEN[b.typ] ?? 0));
     for (const e of figuren) ZEICHNER[e.typ]?.(ctx, e, kontext);
-    effekte?.zeichneOben(ctx);
-
     this.weltZeichner?.zeichneObereEbene(ctx, sicht, fokus);
+
+    // Taschenlampen auch von Spielern knapp außerhalb des Bildes (ihr Kegel reicht herein)
+    if (this.lichtAn && this.licht) {
+      const lichtReichweite = LICHT.taschenlampe.reichweite;
+      const lichtFiguren = entitaeten.filter((e) => e.typ === 'spieler' && kamera.istSichtbar(e.x, e.y, lichtReichweite));
+      this.licht.zeichne(ctx, kamera, this.pixelVerhaeltnis, lichtFiguren, effekte?.lichter() ?? [], jetzt);
+    }
+    effekte?.zeichneOben(ctx);
     for (const e of figuren) zeichneBeschriftung(ctx, e);
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
