@@ -9,7 +9,7 @@ import { LICHT } from '../konfiguration.js';
  *   1. Eine Dunkelheitsebene (halbe Auflösung, wird weich hochskaliert) wird über die Szene gelegt.
  *      Grunddunkelheit pro Kachel: drinnen fast schwarz, draußen Mondlicht → vorberechnete "Dunkelkarte".
  *   2. Lichtquellen STANZEN Löcher in die Dunkelheit ('destination-out'):
- *      - Taschenlampen-Kegel jedes Spielers als Sichtpolygon: Strahlen bis zur nächsten Wand → Wände werfen Schatten
+ *      - Taschenlampen-Kegel jedes Spielers (falls an) als Sichtpolygon: Strahlen bis zur nächsten Wand → Wände werfen Schatten
  *      - schwacher Schein um jeden Spieler
  *      - Lampen der Karte (Objekte vom Typ 'licht'), Mündungsfeuer
  *   3. Farbiges Glühen der Lampen wird additiv ('lighter') auf die Szene gemalt.
@@ -60,6 +60,11 @@ export class Licht {
     l.globalCompositeOperation = 'destination-out';
     for (const e of figuren) {
       if (e.typ !== 'spieler' || e.tot) continue;
+      if (e.lichtAn === false) {
+        // Lampe aus: nur ein schwacher Rest-Schein, damit man sich selbst noch findet
+        this.#schein(l, e.x, e.y, LICHT.scheinRadius * 0.7, LICHT.scheinStaerke * 0.6);
+        continue;
+      }
       this.#schein(l, e.x, e.y, LICHT.scheinRadius, LICHT.scheinStaerke);
       this.#taschenlampe(l, e);
     }

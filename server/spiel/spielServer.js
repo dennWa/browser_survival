@@ -7,7 +7,7 @@ import {
   TICK_DAUER_S,
   TICK_RATE,
 } from '../../gemeinsam/konstanten.js';
-import { AKTIONEN, NACHRICHT, dekodiere, kodiere } from '../../gemeinsam/protokoll.js';
+import { ADMIN_BEFEHLE, AKTIONEN, NACHRICHT, dekodiere, kodiere } from '../../gemeinsam/protokoll.js';
 import { erstelleKonfiguration } from './konfiguration/spielKonfiguration.js';
 import { GEGENSTAENDE } from './konfiguration/gegenstaende.js';
 import { spielerDatenPrivat } from './entitaeten/spieler.js';
@@ -21,6 +21,7 @@ const MAX_FEHLVERSUCHE = 5;
 /** Maximal gepufferte Aktionen (Aufheben, Benutzen …) pro Spieler und Tick. */
 const MAX_AKTIONS_PUFFER = 8;
 const GUELTIGE_AKTIONEN = new Set(Object.values(AKTIONEN));
+const GUELTIGE_ADMIN_BEFEHLE = new Set(Object.values(ADMIN_BEFEHLE));
 
 /**
  * Autoritativer Spielserver – umgebungsunabhängig (läuft in Node UND im Browser).
@@ -219,7 +220,7 @@ export class SpielServer {
     }
     if (!this.sitzungen.has(sitzung) || this.gestoppt) return;
 
-    const spieler = this.spielWelt.spielerBetrittWelt(name);
+    const spieler = this.spielWelt.spielerBetrittWelt(name, { admin: ergebnis.admin === true });
     const geladen = wendeSpielstandAn(spieler, spielstand, this.spielWelt);
     clearTimeout(sitzung.loginTimer);
     sitzung.status = 'imSpiel';
@@ -283,8 +284,9 @@ export class SpielServer {
     if (!spieler || !GUELTIGE_AKTIONEN.has(n.art)) return;
     const slot = n.slot === undefined ? null : n.slot;
     if (slot !== null && !(Number.isInteger(slot) && slot >= 0 && slot < INVENTAR_PLAETZE)) return;
+    if (n.art === AKTIONEN.ADMIN && !GUELTIGE_ADMIN_BEFEHLE.has(n.befehl)) return;
     if (spieler.aktionsPuffer.length >= MAX_AKTIONS_PUFFER) return;
-    spieler.aktionsPuffer.push({ art: n.art, slot });
+    spieler.aktionsPuffer.push(n.art === AKTIONEN.ADMIN ? { art: n.art, slot, befehl: n.befehl } : { art: n.art, slot });
   }
 
   #verbindungGetrennt(sitzung, grund) {

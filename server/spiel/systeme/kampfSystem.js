@@ -92,7 +92,7 @@ function radiusVon(spielWelt, entitaet) {
  * Schaden zufügen. @param quelle Angreifer (oder null) · @param winkel Trefferrichtung (für Blut & Rückstoß)
  */
 export function fuegeSchadenZu(spielWelt, ziel, menge, quelle, winkel = 0) {
-  if (ziel.tot || ziel.leben <= 0) return;
+  if (ziel.tot || ziel.leben <= 0 || ziel.gottmodus) return;
   ziel.leben -= menge;
   spielWelt.ereignis({ typ: 'treffer', x: ziel.x, y: ziel.y, winkel, ziel: ziel.typ });
 

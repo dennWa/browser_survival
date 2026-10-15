@@ -1,5 +1,5 @@
 import { KACHEL_GROESSE } from '../../../gemeinsam/konstanten.js';
-import { MARKER, istKachel, istLootMarker } from '../../../gemeinsam/welt/kacheln.js';
+import { KACHELN, MARKER, istKachel, istLootMarker } from '../../../gemeinsam/welt/kacheln.js';
 import { KRANKENHAUS } from './krankenhaus.js';
 
 /** Registrierte Karten. Neue Karte: Datei in diesem Ordner anlegen und hier eintragen. */
@@ -91,8 +91,11 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE) {
   };
 }
 
-/** Unter einem Marker liegt die Kachel des ersten echten Nachbarn (links, rechts, oben, unten). */
+/**
+ * Unter einem Marker liegt die Kachel des ersten begehbaren Nachbarn (links, rechts, oben, unten) –
+ * nie eine Wand, sonst stünde der Spawn in der Mauer.
+ */
 function ermittleUntergrund(zeilen, x, y) {
   const nachbarn = [zeilen[y][x - 1], zeilen[y][x + 1], zeilen[y - 1]?.[x], zeilen[y + 1]?.[x]];
-  return nachbarn.find((z) => z !== undefined && istKachel(z)) ?? '.';
+  return nachbarn.find((z) => z !== undefined && istKachel(z) && !KACHELN[z].blockiert) ?? '.';
 }

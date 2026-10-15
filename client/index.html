@@ -28,6 +28,8 @@
       <div id="hud-oben">
         <span id="hud-status"></span>
         <div class="hud-knoepfe">
+          <button id="hud-licht" type="button" title="Taschenlampe an/aus (L) – aus = Zombies sehen dich schlechter">🔦</button>
+          <button id="hud-admin" type="button" title="Admin-Menü (P)" hidden>🛡</button>
           <button id="hud-ton" type="button" title="Ton an/aus (M)">🔊</button>
           <button id="hud-vollbild" type="button" hidden>⛶</button>
           <button id="hud-abmelden" type="button">Abmelden</button>
@@ -40,6 +42,17 @@
         <div class="wert" id="wert-ausdauer" title="Ausdauer (Shift = sprinten)"><span class="symbol">⚡</span><div class="balken"><div class="fuellung"></div></div></div>
       </div>
       <pre id="hud-debug" hidden></pre>
+      <!-- Admin-Menü (nur für Accounts mit Admin-Recht; der Server prüft jeden Befehl) -->
+      <div id="admin-panel" hidden>
+        <h3>Admin</h3>
+        <button type="button" data-befehl="gottmodus">Gottmodus</button>
+        <button type="button" data-befehl="unsichtbar">Unsichtbar</button>
+        <button type="button" data-befehl="heilen">Heilen &amp; satt</button>
+        <button type="button" data-befehl="ausruesten">Waffen &amp; Munition</button>
+        <button type="button" data-befehl="zombieSpawnen">Zombie spawnen</button>
+        <button type="button" data-befehl="zombiesToeten">Alle Zombies töten</button>
+        <button type="button" data-nachtsicht>Nachtsicht</button>
+      </div>
       <div id="hud-meldungen" aria-live="polite"></div>
       <div id="hud-unten">
         <button id="knopf-aufheben" type="button" hidden></button>
@@ -54,6 +67,7 @@
     <div id="tod-overlay" hidden>
       <h2>Du bist gestorben</h2>
       <p id="tod-countdown"></p>
+      <button id="tod-wiederbeleben" type="button">Sofort wiederbeleben</button>
     </div>
 
     <!-- Ladebildschirm -->

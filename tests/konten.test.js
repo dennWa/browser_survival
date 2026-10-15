@@ -13,10 +13,18 @@ test('Konten-Login prüft Passwörter korrekt', async (t) => {
   await writeFile(datei, JSON.stringify({ konten: [{ benutzername: 'Anna', passwortHash: await hashePasswort('geheim123') }] }));
 
   const auth = new KontenAuthentifizierung(datei);
-  assert.deepEqual(await auth.pruefe('anna', 'geheim123'), { ok: true, benutzername: 'Anna' });
+  assert.deepEqual(await auth.pruefe('anna', 'geheim123'), { ok: true, benutzername: 'Anna', admin: false });
   assert.equal((await auth.pruefe('Anna', 'falsch')).ok, false);
   assert.equal((await auth.pruefe('Bob', 'geheim123')).ok, false);
   assert.equal((await auth.pruefe('Anna', '')).ok, false);
+});
+
+test('Konten mit "admin": true bekommen Admin-Recht', async (t) => {
+  const ordner = await mkdtemp(path.join(tmpdir(), 'konten-'));
+  t.after(() => rm(ordner, { recursive: true, force: true }));
+  const datei = path.join(ordner, 'konten.json');
+  await writeFile(datei, JSON.stringify({ konten: [{ benutzername: 'Chef', passwortHash: await hashePasswort('geheim123'), admin: true }] }));
+  assert.equal((await new KontenAuthentifizierung(datei).pruefe('chef', 'geheim123')).admin, true);
 });
 
 test('Fehlende Kontendatei → niemand kann sich einloggen (kein Absturz)', async () => {

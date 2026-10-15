@@ -3,7 +3,7 @@ import { toeten } from './kampfSystem.js';
 
 /**
  * Überleben: Hunger & Durst sinken, bei 0 verliert man Leben; satt & getränkt heilt man langsam.
- * Tote Spieler werden nach respawnZeit an einem Startpunkt wiederbelebt.
+ * Tote Spieler werden nach respawnZeit an einem Startpunkt wiederbelebt – oder sofort per AKTION 'wiederbeleben'.
  */
 export function aktualisiereUeberleben(spielWelt, dt) {
   const k = spielWelt.konfiguration.spieler;
@@ -13,6 +13,7 @@ export function aktualisiereUeberleben(spielWelt, dt) {
       if (spieler.respawnRest <= 0) wiederbeleben(spielWelt, spieler);
       continue;
     }
+    if (spieler.gottmodus) continue; // Götter essen nicht
     spieler.hunger = Math.max(0, spieler.hunger - (k.hungerProMinute / 60) * dt);
     spieler.durst = Math.max(0, spieler.durst - (k.durstProMinute / 60) * dt);
 
@@ -25,7 +26,8 @@ export function aktualisiereUeberleben(spielWelt, dt) {
   }
 }
 
-function wiederbeleben(spielWelt, spieler) {
+/** Am zufälligen Startpunkt neu beginnen (nach Countdown oder sofort per Knopf). */
+export function wiederbeleben(spielWelt, spieler) {
   const k = spielWelt.konfiguration.spieler;
   const start = spielWelt.zufall.auswahl(spielWelt.karte.spielerStarts);
   Object.assign(spieler, {

@@ -2,9 +2,12 @@ import { AUFHEB_REICHWEITE } from '../../../gemeinsam/konstanten.js';
 import { AKTIONEN } from '../../../gemeinsam/protokoll.js';
 import { GEGENSTAENDE, STANDARD_AUSRUESTUNG, UNBEWAFFNET } from '../konfiguration/gegenstaende.js';
 import { erzeugeGegenstand } from '../entitaeten/gegenstand.js';
+import { wiederbeleben } from './ueberlebenSystem.js';
+import { fuehreAdminBefehlAus } from './adminSystem.js';
 
 /**
  * Inventar: Aufheben, Benutzen (Essen/Trinken/Medizin), Aus-/Abrüsten, Ablegen, Nachladen.
+ * Außerdem die übrigen AKTIONEN: Taschenlampe, Wiederbeleben, Admin-Befehle (→ adminSystem.js).
  * Aktionen kommen als Nachricht AKTION, werden gepuffert und hier pro Tick abgearbeitet.
  */
 
@@ -21,8 +24,19 @@ export function verarbeiteAktionen(spielWelt) {
   for (const spieler of spielWelt.alleVomTyp('spieler')) {
     while (spieler.aktionsPuffer.length > 0) {
       const aktion = spieler.aktionsPuffer.shift();
+      if (aktion.art === AKTIONEN.WIEDERBELEBEN) {
+        if (spieler.tot) wiederbeleben(spielWelt, spieler);
+        continue;
+      }
+      if (aktion.art === AKTIONEN.ADMIN) {
+        fuehreAdminBefehlAus(spielWelt, spieler, aktion.befehl); // geht auch im Tod (z. B. Zombies wegräumen)
+        continue;
+      }
       if (spieler.tot) continue;
       switch (aktion.art) {
+        case AKTIONEN.LICHT:
+          spieler.lichtAn = !spieler.lichtAn;
+          break;
         case AKTIONEN.AUFHEBEN:
           aufheben(spielWelt, spieler);
           break;

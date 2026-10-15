@@ -14,7 +14,7 @@ export const NACHRICHT = Object.freeze({
   ANMELDEN: 'anmelden',
   /** { seq, x, y, blick, angriff, sprint } – x/y: Bewegungsrichtung -1..1, blick: Winkel (Radiant), angriff/sprint: Taste gehalten */
   EINGABE: 'eingabe',
-  /** { art, slot? } – einmalige Aktion: 'aufheben' | 'benutzen' | 'ablegen' | 'nachladen' (siehe AKTIONEN) */
+  /** { art, slot?, befehl? } – einmalige Aktion (siehe AKTIONEN); befehl nur bei art 'admin' (siehe ADMIN_BEFEHLE) */
   AKTION: 'aktion',
   /** { t } – Zeitstempel des Clients, kommt als PONG zurück */
   PING: 'ping',
@@ -26,7 +26,7 @@ export const NACHRICHT = Object.freeze({
   ANMELDUNG_FEHLER: 'anmeldungFehler',
   /** { tick, entitaeten: [...], ereignisse: [...] } – Schnappschuss aller dynamischen Entitäten + Ereignisse dieses Ticks */
   ZUSTAND: 'zustand',
-  /** { leben, maxLeben, hunger, durst, inventar, ausgeruestet, nachladen, tot, respawnIn } – nur an den eigenen Spieler, bei Änderung */
+  /** { leben, maxLeben, hunger, durst, inventar, ausgeruestet, nachladen, tot, respawnIn, admin } – nur an den eigenen Spieler, bei Änderung */
   SPIELER_DATEN: 'spielerDaten',
   /** { text } – kurze Info nur für diesen Spieler (z. B. "Inventar voll") */
   MELDUNG: 'meldung',
@@ -44,6 +44,19 @@ export const AKTIONEN = Object.freeze({
   BENUTZEN: 'benutzen', // Essen/Trinken/Medizin verbrauchen, Waffe aus-/abrüsten
   ABLEGEN: 'ablegen', // ganzen Stapel auf den Boden legen
   NACHLADEN: 'nachladen', // ausgerüstete Schusswaffe nachladen
+  LICHT: 'licht', // Taschenlampe an/aus (aus = Zombies bemerken einen erst aus der Nähe)
+  WIEDERBELEBEN: 'wiederbeleben', // tot → sofort am Startpunkt neu spawnen (statt Countdown abzuwarten)
+  ADMIN: 'admin', // Admin-Befehl (nur für Accounts mit Admin-Recht, prüft der Server)
+});
+
+/** Admin-Befehle (AKTION { art: 'admin', befehl }). Der Server prüft das Admin-Recht des Spielers. */
+export const ADMIN_BEFEHLE = Object.freeze({
+  GOTTMODUS: 'gottmodus', // an/aus: kein Schaden, kein Hunger/Durst
+  UNSICHTBAR: 'unsichtbar', // an/aus: Zombies ignorieren einen
+  HEILEN: 'heilen', // Leben, Hunger, Durst, Ausdauer voll
+  AUSRUESTEN: 'ausruesten', // Waffen + Munition ins Inventar
+  ZOMBIE_SPAWNEN: 'zombieSpawnen', // Zombie vor einem erscheinen lassen
+  ZOMBIES_TOETEN: 'zombiesToeten', // alle Zombies umfallen lassen (sie respawnen normal)
 });
 
 /**

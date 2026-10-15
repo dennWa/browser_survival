@@ -390,6 +390,54 @@ button {
 #tod-overlay h2 { margin: 0; font-size: 2.2rem; letter-spacing: 0.06em; text-transform: uppercase; color: #ff6b5b; }
 #tod-overlay p { color: var(--text); }
 
+#tod-wiederbeleben {
+  pointer-events: auto;
+  min-height: 48px;
+  padding: 10px 28px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(192, 57, 43, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 24px;
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.5);
+}
+
+#tod-wiederbeleben:hover { background: rgba(231, 76, 60, 0.95); }
+
+/* ---------- Taschenlampe & Admin ---------- */
+#hud-licht.aus { opacity: 0.5; filter: grayscale(1); }
+
+#hud-admin.aktiv, #admin-panel button.an { background: rgba(212, 160, 23, 0.85); color: #111; }
+
+#admin-panel {
+  position: absolute;
+  top: calc(60px + env(safe-area-inset-top));
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 190px;
+  padding: 10px;
+  pointer-events: auto;
+  background: rgba(0, 0, 0, 0.72);
+  border: 1px solid rgba(212, 160, 23, 0.6);
+  border-radius: 8px;
+}
+
+#admin-panel h3 { margin: 0 0 2px; font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase; color: #d4a017; }
+
+#admin-panel button {
+  min-height: 36px;
+  padding: 6px 10px;
+  text-align: left;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--rand);
+}
+
+#admin-panel button:hover { background: rgba(255, 255, 255, 0.18); }
+
 /* ---------- Touch-Anpassungen ---------- */
 #hud.touch #hud-werte { bottom: auto; top: calc(52px + env(safe-area-inset-top)); }
 #hud.touch #hud-hilfe { display: none; }
@@ -404,6 +452,14 @@ button {
   #hotbar { gap: 3px; }
   #knopf-nachladen { bottom: 150px; right: 16px; }
   #hud-meldungen { top: 52px; }
+  #admin-panel { top: 48px; width: 165px; gap: 4px; padding: 8px; }
+  #admin-panel button { min-height: 32px; font-size: 0.8rem; }
+}
+
+/* Handy quer: zweispaltig und flach, damit der rechte Stick frei bleibt */
+@media (max-height: 500px) {
+  #admin-panel { display: grid; grid-template-columns: 1fr 1fr; width: 300px; }
+  #admin-panel h3 { grid-column: 1 / -1; }
 }
 
 @media (max-height: 520px) {

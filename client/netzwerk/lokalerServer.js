@@ -14,7 +14,7 @@ let server = null;
 export function oeffneLokalenKanal() {
   if (!server) {
     server = new SpielServer({
-      authentifizierung: new GastAuthentifizierung(),
+      authentifizierung: new GastAuthentifizierung({ admin: true }), // lokal = eigenes Spiel → Admin-Menü frei
       konfiguration: { server: { name: 'Lokaler Server' } },
       speicher: new BrowserSpeicher(),
     });

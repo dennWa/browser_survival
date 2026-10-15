@@ -6,13 +6,16 @@ import { hashePasswort } from '../node/passwort.js';
 
 /**
  * Legt einen Account an oder setzt das Passwort eines bestehenden neu.
- *   npm run konto -- <benutzername> <passwort>
+ *   npm run konto -- <benutzername> <passwort> [--admin | --kein-admin]
+ * --admin schaltet Admin-Befehle (Gottmodus …) frei, --kein-admin nimmt sie wieder weg.
  */
 const DATEI = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../daten/konten.json');
 
-const [benutzername, passwort] = process.argv.slice(2);
+const argumente = process.argv.slice(2);
+const adminSchalter = argumente.includes('--admin') ? true : argumente.includes('--kein-admin') ? false : null;
+const [benutzername, passwort] = argumente.filter((a) => !a.startsWith('--'));
 if (!benutzername || !passwort) {
-  console.error('Aufruf: npm run konto -- <benutzername> <passwort>');
+  console.error('Aufruf: npm run konto -- <benutzername> <passwort> [--admin | --kein-admin]');
   process.exit(1);
 }
 if (!BENUTZERNAME_MUSTER.test(benutzername)) {
@@ -33,9 +36,11 @@ try {
 
 const passwortHash = await hashePasswort(passwort);
 const vorhanden = daten.konten.find((k) => k.benutzername.toLowerCase() === benutzername.toLowerCase());
-if (vorhanden) vorhanden.passwortHash = passwortHash;
-else daten.konten.push({ benutzername, passwortHash, angelegt: new Date().toISOString() });
+const konto = vorhanden ?? { benutzername, angelegt: new Date().toISOString() };
+konto.passwortHash = passwortHash;
+if (adminSchalter !== null) konto.admin = adminSchalter;
+if (!vorhanden) daten.konten.push(konto);
 
 await mkdir(path.dirname(DATEI), { recursive: true });
 await writeFile(DATEI, JSON.stringify(daten, null, 2) + '\n');
-console.info(vorhanden ? `Passwort für "${benutzername}" geändert.` : `Account "${benutzername}" angelegt.`);
+console.info((vorhanden ? `Passwort für "${benutzername}" geändert.` : `Account "${benutzername}" angelegt.`) + (konto.admin ? ' (Admin)' : ''));

@@ -100,10 +100,10 @@ export class SpielWelt {
     );
   }
 
-  spielerBetrittWelt(benutzername) {
+  spielerBetrittWelt(benutzername, { admin = false } = {}) {
     const start = this.zufall.auswahl(this.karte.spielerStarts);
     return this.hinzufuegen(
-      erzeugeSpieler({ id: this.neueId(), benutzername, x: start.x, y: start.y, konfiguration: this.konfiguration }),
+      erzeugeSpieler({ id: this.neueId(), benutzername, x: start.x, y: start.y, konfiguration: this.konfiguration, admin }),
     );
   }
 

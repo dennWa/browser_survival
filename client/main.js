@@ -33,7 +33,9 @@ let aktuellesSpiel = null;
 let assets = null;
 
 eingabe.beiTaste('debug', () => hud.debugUmschalten());
-eingabe.beiTaste('licht', () => hud.meldung(aktiverRenderer.lichtUmschalten() ? 'Dunkelheit an' : 'Dunkelheit aus (L)'));
+eingabe.beiTaste('licht', () => aktuellesSpiel?.licht());
+eingabe.beiTaste('wiederbeleben', () => aktuellesSpiel?.wiederbeleben());
+eingabe.beiTaste('admin', () => hud.adminMenuUmschalten());
 eingabe.beiTaste('aufheben', () => aktuellesSpiel?.aufheben());
 eingabe.beiTaste('nachladen', () => aktuellesSpiel?.nachladen());
 eingabe.beiSlotTaste((slot) => aktuellesSpiel?.benutzen(slot));
@@ -49,6 +51,11 @@ hud.beiAktionen({
   nachladen: () => aktuellesSpiel?.nachladen(),
   benutzen: (slot) => aktuellesSpiel?.benutzen(slot),
   ablegen: (slot) => aktuellesSpiel?.ablegen(slot),
+  licht: () => aktuellesSpiel?.licht(),
+  wiederbeleben: () => aktuellesSpiel?.wiederbeleben(),
+  admin: (befehl) => aktuellesSpiel?.admin(befehl),
+  // Nachtsicht: Dunkelheit im Renderer aus – rein optisch, daher nur im Admin-Menü
+  nachtsicht: () => hud.setzeNachtsicht(!aktiverRenderer.lichtUmschalten()),
 });
 document.getElementById('credits-knopf').addEventListener('click', () => zeigeCredits(document, assets));
 
@@ -90,6 +97,7 @@ async function waehleRenderer(grafik) {
 
 function spielStarten(verbindung, anmeldeDaten, renderer) {
   aktiverRenderer = renderer;
+  if (renderer.lichtAn === false) renderer.lichtUmschalten(); // Nachtsicht aus der letzten Runde zurücksetzen
   login.verbergen();
   eingabe.aktiv = true;
   hud.anzeigen(eingabe.touch.istTouchGeraet);

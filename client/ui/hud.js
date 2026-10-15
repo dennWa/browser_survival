@@ -3,7 +3,8 @@ import { INVENTAR_PLAETZE } from '../../gemeinsam/konstanten.js';
 /**
  * HUD (Head-Up-Display) über dem Spiel:
  *   Statuszeile, Balken (Leben/Hunger/Durst), Schnellleiste (Inventar 1–8), Munition,
- *   Aufheben-Knopf, Nachladen-Knopf (Touch), Meldungen, Todesbildschirm, Debug (F3).
+ *   Aufheben-Knopf, Nachladen-Knopf (Touch), Taschenlampen-Knopf, Meldungen,
+ *   Todesbildschirm (mit "Sofort wiederbeleben"), Admin-Menü (nur Admins), Debug (F3).
  *
  * Bedienung Schnellleiste: Klick/Tippen = benutzen bzw. ausrüsten · Rechtsklick/lange drücken = ablegen.
  */
@@ -21,6 +22,9 @@ export class Hud {
   #letzterHinweis = null;
   #letzteAusdauer = -1;
   #letztErschoepft = false;
+  #istAdmin = false;
+  #nachtsicht = false;
+  #schalterStand = '';
 
   constructor(dokument, { debug = false } = {}) {
     this.dokument = dokument;
@@ -44,6 +48,10 @@ export class Hud {
       meldungen: el('hud-meldungen'),
       tod: el('tod-overlay'),
       todText: el('tod-countdown'),
+      wiederbeleben: el('tod-wiederbeleben'),
+      licht: el('hud-licht'),
+      admin: el('hud-admin'),
+      adminPanel: el('admin-panel'),
     };
     this.debug = debug;
     this.letzteAktualisierung = 0;
@@ -54,6 +62,13 @@ export class Hud {
     });
     this.el.aufheben.addEventListener('click', () => this.#aktionen.aufheben?.());
     this.el.nachladen.addEventListener('click', () => this.#aktionen.nachladen?.());
+    this.el.wiederbeleben.addEventListener('click', () => this.#aktionen.wiederbeleben?.());
+    this.el.licht.addEventListener('click', () => this.#aktionen.licht?.());
+    this.el.admin.addEventListener('click', () => this.adminMenuUmschalten());
+    for (const knopf of this.el.adminPanel.querySelectorAll('button[data-befehl]')) {
+      knopf.addEventListener('click', () => this.#aktionen.admin?.(knopf.dataset.befehl));
+    }
+    this.el.adminPanel.querySelector('[data-nachtsicht]').addEventListener('click', () => this.#aktionen.nachtsicht?.());
     this.#baueHotbar();
   }
 
@@ -73,7 +88,7 @@ export class Hud {
     this.el.ton.textContent = stumm ? '🔇' : '🔊';
   }
 
-  /** @param aktionen { benutzen(slot), ablegen(slot), aufheben(), nachladen() } */
+  /** @param aktionen { benutzen(slot), ablegen(slot), aufheben(), nachladen(), licht(), wiederbeleben(), admin(befehl), nachtsicht() } */
   beiAktionen(aktionen) {
     this.#aktionen = aktionen;
   }
@@ -87,14 +102,31 @@ export class Hud {
     this.el.vollbild.hidden = !istTouch || !document.fullscreenEnabled;
     this.el.hilfe.textContent = istTouch
       ? 'Links: laufen · Rechts: zielen, ganz drücken = Angriff'
-      : 'WASD laufen · Maus zielen · Klick/Leertaste Angriff · E aufheben · R nachladen · 1–8 Inventar · F3 Debug';
+      : 'WASD laufen · Maus zielen · Klick/Leertaste Angriff · E aufheben · R nachladen · L Lampe · 1–8 Inventar · F3 Debug';
     this.#letzterHinweis = null;
   }
 
   verbergen() {
     this.el.hud.hidden = true;
     this.el.tod.hidden = true;
+    this.el.adminPanel.hidden = true;
+    this.#istAdmin = false;
+    this.#nachtsicht = false;
+    this.#schalterStand = '';
     this.el.meldungen.replaceChildren();
+  }
+
+  /** Admin-Menü auf/zu (nur wenn der Server Admin-Recht gemeldet hat). */
+  adminMenuUmschalten() {
+    if (!this.#istAdmin) return;
+    this.el.adminPanel.hidden = !this.el.adminPanel.hidden;
+    this.el.admin.classList.toggle('aktiv', !this.el.adminPanel.hidden);
+  }
+
+  /** Nachtsicht = Dunkelheit im Renderer aus (rein optisch, nur Admin-Menü). */
+  setzeNachtsicht(an) {
+    this.#nachtsicht = an;
+    this.#schalterStand = '';
   }
 
   debugUmschalten() {
@@ -142,11 +174,31 @@ export class Hud {
     }
 
     this.el.tod.hidden = !daten.tot;
-    if (daten.tot) this.el.todText.textContent = `Wiederbelebung in ${Math.max(0, daten.respawnIn)} s`;
+    if (daten.tot) this.el.todText.textContent = `Automatische Wiederbelebung in ${Math.max(0, daten.respawnIn)} s`;
+
+    this.#istAdmin = !!daten.admin;
+    this.el.admin.hidden = !this.#istAdmin;
+    if (!this.#istAdmin) this.el.adminPanel.hidden = true;
+  }
+
+  /** Schalter-Zustände (Taschenlampe, Gottmodus …) aus dem öffentlichen Spielerzustand – DOM nur bei Änderung. */
+  #zeigeSchalter(spieler) {
+    const stand = `${spieler.lichtAn !== false}|${!!spieler.gottmodus}|${!!spieler.unsichtbar}|${this.#nachtsicht}`;
+    if (stand === this.#schalterStand) return;
+    this.#schalterStand = stand;
+    const lichtAn = spieler.lichtAn !== false;
+    this.el.licht.classList.toggle('aus', !lichtAn);
+    this.el.licht.title = `Taschenlampe ${lichtAn ? 'an' : 'aus'} (L) – aus = Zombies sehen dich schlechter`;
+    const an = { gottmodus: !!spieler.gottmodus, unsichtbar: !!spieler.unsichtbar };
+    for (const knopf of this.el.adminPanel.querySelectorAll('button[data-befehl]')) {
+      if (knopf.dataset.befehl in an) knopf.classList.toggle('an', an[knopf.dataset.befehl]);
+    }
+    this.el.adminPanel.querySelector('[data-nachtsicht]').classList.toggle('an', this.#nachtsicht);
   }
 
   /** Jeden Frame aufgerufen – teure DOM-Updates gedrosselt. */
   aktualisiere(d) {
+    if (d.spieler) this.#zeigeSchalter(d.spieler);
     const hinweis = d.aufhebbar ? `${this.#istTouch ? '✋' : '[E]'} ${d.aufhebbar} aufheben` : null;
     if (hinweis !== this.#letzterHinweis) {
       this.#letzterHinweis = hinweis;

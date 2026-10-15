@@ -37,17 +37,18 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     sprintHoerRadius: 150, // Rennen ist laut: Zombies in diesem Umkreis hören es
   },
   zombie: {
-    geschwindigkeit: 70, // Grundtempo (Umherschlurfen = halbes Grundtempo)
-    jagdGeschwindigkeit: 105, // beim Verfolgen (Spieler: 150 → man kann entkommen)
+    geschwindigkeit: 60, // Grundtempo (Umherschlurfen = knapp halbes Grundtempo)
+    jagdGeschwindigkeit: 85, // beim Verfolgen (Spieler: 150 → man kann entkommen)
     radius: 13,
     leben: 60,
-    aggroRadius: 260, // ab dieser Entfernung (px) wird ein sichtbarer Spieler bemerkt
+    aggroRadius: 240, // ab dieser Entfernung (px) wird ein sichtbarer Spieler bemerkt
+    dunkelFaktor: 0.45, // Taschenlampe aus → Spieler wird erst ab aggroRadius × dunkelFaktor bemerkt
     verlierRadius: 520, // weiter weg → Zombie gibt auf
     hoerRadius: 480, // Schüsse in diesem Umkreis locken Zombies an
     angriffsReichweite: 30,
     angriffsSchaden: 12,
     angriffsAbklingzeit: 1.0, // Sekunden zwischen zwei Angriffen
-    respawnZeit: 90, // Sekunden bis ein getöteter Zombie nachkommt
+    respawnZeit: 120, // Sekunden bis ein getöteter Zombie nachkommt
     respawnMindestAbstand: 360, // nicht respawnen, wenn ein Spieler so nah am Spawnpunkt ist
     lootChance: 0.25, // Wahrscheinlichkeit, dass ein toter Zombie etwas fallen lässt
     pfadIntervall: 0.5, // Sekunden zwischen Neuberechnungen des Weges
@@ -58,8 +59,8 @@ export const STANDARD_KONFIGURATION = Object.freeze({
      */
     varianten: {
       normal: { gewicht: 6 },
-      laeufer: { gewicht: 2, leben: 35, jagdGeschwindigkeit: 140, angriffsSchaden: 8, angriffsAbklingzeit: 0.7, groesse: 0.92 },
-      brocken: { gewicht: 1, leben: 180, jagdGeschwindigkeit: 78, angriffsSchaden: 25, angriffsAbklingzeit: 1.5, radius: 15, groesse: 1.3, rueckstossFaktor: 0.2 },
+      laeufer: { gewicht: 2, leben: 35, jagdGeschwindigkeit: 115, angriffsSchaden: 8, angriffsAbklingzeit: 0.7, groesse: 0.92 },
+      brocken: { gewicht: 1, leben: 180, jagdGeschwindigkeit: 62, angriffsSchaden: 25, angriffsAbklingzeit: 1.5, radius: 15, groesse: 1.3, rueckstossFaktor: 0.2 },
     },
   },
   kampf: {

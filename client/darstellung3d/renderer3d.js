@@ -423,10 +423,10 @@ export class Renderer3D {
     return { gruppe, mixer, aktionen, aktuell: 'stehen' };
   }
 
-  /** Taschenlampen der nächsten Spieler (eigene zuerst, mit Schatten). */
+  /** Taschenlampen der nächsten Spieler (eigene zuerst, mit Schatten) – nur wenn deren Lampe an ist. */
   #aktualisiereTaschenlampen(entitaeten, fokus) {
     const spieler = entitaeten
-      .filter((e) => e.typ === 'spieler' && !e.tot)
+      .filter((e) => e.typ === 'spieler' && !e.tot && e.lichtAn !== false)
       .sort((a, b) => (b.istEigener ? 1 : 0) - (a.istEigener ? 1 : 0) || Math.hypot(a.x - fokus.x, a.y - fokus.y) - Math.hypot(b.x - fokus.x, b.y - fokus.y));
     this.taschenlampen.forEach((spot, i) => {
       const s = spieler[i];

@@ -8,16 +8,17 @@ Aktuelle Testkarte: ein Krankenhaus voller Zombies. Plündern, kämpfen, satt bl
 ```bash
 npm install
 npm run konto -- Spieler1 meinPasswort   # Account anlegen (keine Registrierung im Spiel)
+npm run konto -- Chef meinPasswort --admin   # Account mit Admin-Menü (Gottmodus & Co.)
 npm start                                # → http://localhost:8080
 ```
 
 Im Login **"Lokal (im Browser)"** wählen, um ohne Account allein zu testen,
 oder **"Dieser Server"** für Mehrspieler mit Account. Unter **Grafik** gibt es neben 2D einen **3D-Prototyp**.
-Spielstände werden automatisch gespeichert (Server: `server/daten/spielstaende/`, Lokal: im Browser).
+Im Lokal-Modus bist du automatisch Admin (🛡-Menü). Spielstände werden automatisch gespeichert (Server: `server/daten/spielstaende/`, Lokal: im Browser).
 
 Steuerung: **WASD** laufen · **Maus** zielen · **Klick/Leertaste** Angriff · **E** aufheben · **R** nachladen ·
-**1–8** Inventar benutzen/ausrüsten · **Rechtsklick** auf Inventarplatz = ablegen · **Shift** sprinten · **L** Dunkelheit an/aus · **M** Ton · **F3** Debug
-Handy/Tablet: **linker Daumen** laufen · **rechter Daumen** zielen (ganz durchdrücken = Angriff) · Knöpfe für Aufheben/Nachladen · Inventarplatz lange drücken = ablegen
+**1–8** Inventar benutzen/ausrüsten · **Rechtsklick** auf Inventarplatz = ablegen · **Shift** sprinten · **L** Taschenlampe an/aus (aus = Zombies sehen dich schlechter) · **Enter** (tot) sofort wiederbeleben · **P** Admin-Menü · **M** Ton · **F3** Debug
+Handy/Tablet: **linker Daumen** laufen · **rechter Daumen** zielen (ganz durchdrücken = Angriff) · Knöpfe für Aufheben/Nachladen/🔦/🛡 · Inventarplatz lange drücken = ablegen
 
 ## Weitere Befehle
 

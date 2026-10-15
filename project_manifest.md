@@ -22,13 +22,15 @@ Startkarte: **St.-Elisabeth-Krankenhaus**.
 | Netzwerkmodell | **Autoritativer Server** – Client schickt nur Eingaben; Positionen, Treffer, Schaden und Loot bestimmt der Server |
 | Netcode | Fester Tick (30/s), Client-Side Prediction + Server Reconciliation (eigener Spieler), Entity Interpolation (alle anderen) |
 | Modi | **Lokal**: echter SpielServer läuft im Browser-Tab (ohne Account) · **Mehrspieler**: Node-Server, Login mit Account |
-| Accounts | Keine Registrierung. Admin legt Accounts an: `npm run konto -- <name> <passwort>` (scrypt-Hash in `server/daten/konten.json`) |
+| Accounts | Keine Registrierung. Admin legt Accounts an: `npm run konto -- <name> <passwort> [--admin]` (scrypt-Hash in `server/daten/konten.json`) |
+| Admin-Recht | `"admin": true` im Konto (bzw. `--admin`) → Admin-Menü 🛡 (Taste P): Gottmodus, Unsichtbar, Heilen, Waffen, Zombie spawnen/alle töten, Nachtsicht. Lokal-Modus: immer Admin. Der Server prüft jeden Befehl. |
 | Zielgröße | Einige bis ein paar Dutzend gleichzeitige Spieler pro Server (Standard: max. 32) |
 
 ### Starten
 ```bash
 npm install                              # einmalig (installiert nur "ws")
 npm run konto -- Spieler1 meinPasswort   # Account anlegen (beliebig oft)
+npm run konto -- Chef meinPasswort --admin   # Account mit Admin-Recht (--kein-admin nimmt es weg)
 npm start                                # → http://localhost:8080
 npm run start:gast                       # Server ohne Account-Pflicht (nur Tests!)
 npm test                                 # automatische Tests
@@ -59,7 +61,7 @@ im Node-Server (Mehrspieler) und im Browser (Lokal-Modus). Client und Server spr
 
 ### Datenfluss pro Tick (30×/s)
 1. Client: Tasten lesen → `EINGABE {seq, x, y, blick, angriff}` senden **und** Bewegung sofort lokal anwenden (Vorhersage).
-   Einmalige Aktionen (aufheben, benutzen, ablegen, nachladen) gehen als `AKTION {art, slot?}`.
+   Einmalige Aktionen (aufheben, benutzen, ablegen, nachladen, licht, wiederbeleben, admin) gehen als `AKTION {art, slot?, befehl?}`.
 2. Server: Eingaben/Aktionen prüfen → Puffer des Spielers (je max. 8)
 3. Server-Tick `SpielWelt.aktualisiere()` – Systeme in fester Reihenfolge:
    Aktionen ablaufen lassen → Bewegung → Inventar-Aktionen → Nachladen → Kampf (Spielerangriffe)
@@ -74,14 +76,18 @@ im Node-Server (Mehrspieler) und im Browser (Lokal-Modus). Client und Server spr
 - **Zombies:** sehen Spieler im `aggroRadius` nur bei freier Sicht (Wände/Fenster blockieren, Möbel nicht), hören
   Schüsse im `hoerRadius`. Laufen direkt aufs Ziel, wenn der Weg begehbar ist (3 Strahlen in Körperbreite), sonst A*
   um Wände & Möbel. Geben auf jenseits `verlierRadius` oder wenn das Ziel unerreichbar ist. Respawn am Spawnpunkt,
-  aber nie in Spielernähe. Lassen mit `lootChance` etwas fallen.
+  aber nie in Spielernähe. Lassen mit `lootChance` etwas fallen. Spawnpunkte (`Z`) liegen nur draußen (5 Stück).
+- **Taschenlampe:** L / 🔦 schaltet sie (Server-Zustand `lichtAn`, für alle sichtbar). Aus → Zombies bemerken einen
+  erst im `aggroRadius × dunkelFaktor` (0,45); Hören (Schüsse, Sprint) bleibt gleich.
 - **Kampf:** Schusswaffen = Strahl (Hitscan) bis zur ersten Wand, Schrotflinte mit 7 Projektilen + Streuung;
   leeres Magazin → automatisch nachladen (falls Munition da), sonst "Klick". Nahkampf = Trefferkegel ±57° vor der
-  Figur; ohne Waffe Schlag mit der Taschenlampe. PvP standardmäßig aus (`kampf.pvp`).
+  Figur; ohne Waffe **Faustschlag** (5 Schaden, `UNBEWAFFNET` in `gegenstaende.js`). PvP standardmäßig aus (`kampf.pvp`).
 - **Inventar:** 8 Plätze, Stapel bis `stapelbar`, erste Waffe wird automatisch ausgerüstet, Schusswaffen merken ihr
   Magazin auch beim Ablegen.
 - **Überleben:** Hunger/Durst sinken; bei 0 → Schaden. Beide ≥ 70 → langsame Heilung. Tod → Inventar fällt auf
-  den Boden, Respawn nach `respawnZeit` am Startpunkt.
+  den Boden, Respawn nach `respawnZeit` am Startpunkt – oder sofort per Knopf "Sofort wiederbeleben" (Enter).
+- **Admin:** Gottmodus = kein Schaden (`fuegeSchadenZu`) + kein Hunger/Durst; Unsichtbar = Zombies ignorieren einen
+  (`server/spiel/systeme/adminSystem.js`).
 - **Sprinten:** Shift (Touch: linken Stick über den Rand ziehen) = 1,6× Tempo, kostet Ausdauer. Bei 0 erschöpft →
   erst ab `sprintMinimum` wieder. Ausdauer wird in `gemeinsam/physik/bewegung.js` berechnet (Server + Vorhersage
   identisch). Sprinten ist laut (`sprintHoerRadius`).
@@ -174,7 +180,8 @@ browser_survival/
 │   │   │   └── gegenstand.js      erzeugeGegenstand + gegenstandZuNetzwerk
 │   │   ├── systeme/
 │   │   │   ├── bewegungsSystem.js Spieler-Eingaben anwenden (inkl. Angriffstaste)
-│   │   │   ├── inventarSystem.js  Aufheben, Benutzen, Ausrüsten, Ablegen, Nachladen
+│   │   │   ├── inventarSystem.js  Aufheben, Benutzen, Ausrüsten, Ablegen, Nachladen + Verteiler aller AKTIONEN
+│   │   │   ├── adminSystem.js     Admin-Befehle (Gottmodus, Unsichtbar, Heilen, Ausrüsten, Zombies spawnen/töten)
 │   │   │   ├── kampfSystem.js     Schüsse (Strahl), Nahkampf (Kegel), fuegeSchadenZu, toeten, Lärm → Zombies
 │   │   │   ├── zombieSystem.js    Zombie-KI: Sicht, Verfolgen, Angriff, Abstand halten, Respawn
 │   │   │   ├── pfadfindung.js     A* auf dem Kachelraster
@@ -292,6 +299,8 @@ browser_survival/
 | Login-Formular / Serverliste | `client/index.html`, `client/ui/loginBildschirm.js`, `client/konfiguration.js` → `SERVER_LISTE` |
 | Was im Spielstand steht / Prüfung beim Laden | `server/spiel/spielstand.js` |
 | Wo Spielstände liegen | `server/node/start.js` (DateiSpeicher), `client/netzwerk/lokalerServer.js` (BrowserSpeicher) |
+| Admin-Befehl hinzufügen | `ADMIN_BEFEHLE` in `gemeinsam/protokoll.js` → `adminSystem.js` → Knopf `data-befehl` im `#admin-panel` (`client/index.html`) |
+| Zombie-Anzahl / Spawnorte | `Z` in `server/spiel/karten/krankenhaus.js` (nur draußen!), Tempo/Sicht in `spielKonfiguration.js` → `zombie` |
 | Login-Prüfung / Accounts | `server/node/kontenAuthentifizierung.js`, `server/werkzeuge/kontoAnlegen.js` |
 | HUD / Anzeigen | `client/ui/hud.js`, `client/index.html`, `client/stil.css` |
 | Tickrate | `gemeinsam/konstanten.js` → `TICK_RATE` |
@@ -357,6 +366,14 @@ browser_survival/
 - 3D-Prototyp mit Three.js (im Login wählbar), gleiche Renderer-Schnittstelle
 - Tests: 47
 
+### ✅ Phase 3.5 – Fairer & Admin (fertig, v0.5.0)
+- Zombies: 16 → 5, nur noch draußen; langsamer (Jagd 85 / Läufer 115 / Brocken 62), Respawn 120 s
+- Faustschlag statt Taschenlampen-Hieb (5 Schaden); Taschenlampe an/aus (L, 🔦) – im Dunkeln schlechter sichtbar
+- Tod: Knopf "Sofort wiederbeleben" (Enter); Countdown läuft weiter als Alternative
+- Admin-Modus: Recht aus der Authentifizierung, Admin-Menü 🛡 (P), alle Befehle serverseitig geprüft
+- Fix: Marker-Kacheln (S/Z/Loot) erben nie eine Wand als Untergrund
+- Tests: 53
+
 ### ⏳ Nächste Ideen (wartet auf Entscheidung)
 - **2D oder 3D?** Entscheidung nach Vergleich; bei 3D: Waffenmodelle, Angriffs-/Schussanimationen, Leistung auf Handys
 - Mehrspieler online: Render-Konfiguration (`render.yaml`), Accounts als Umgebungsvariable statt Datei
@@ -389,3 +406,4 @@ browser_survival/
 | 0.2.0 | 2026-10-15 | Echte Grafiken & Animationen, Möbel mit Kollision, Parkplatz, Touch-Steuerung, adaptiver Zoom, Credits |
 | 0.3.0 | 2026-10-15 | Gameplay: Zombie-KI mit A*, Inventar, Fern-/Nahkampf, Hunger/Durst, Tod & Respawn, Effekte, HUD (Protokoll v2) |
 | 0.4.0 | 2026-10-15 | Handy-Scroll-Fix, Sprint/Ausdauer, Zombie-Varianten, Umherschlurfen, Spielstände, Dunkelheit + Taschenlampe, Sound, 3D-Prototyp |
+| 0.5.0 | 2026-10-15 | Weniger/langsamere Zombies (nur draußen), Faust, Taschenlampe schaltbar (Tarnung), Sofort-Wiederbeleben, Admin-Modus (Gottmodus …) |

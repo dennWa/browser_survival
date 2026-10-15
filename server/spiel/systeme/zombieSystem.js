@@ -23,7 +23,7 @@ const ANGRIFF_ANIMATION = 0.5;
 export function aktualisiereZombies(spielWelt, dt) {
   const k = spielWelt.konfiguration.zombie;
   const spielerRadius = spielWelt.konfiguration.spieler.radius;
-  const lebendeSpieler = [...spielWelt.alleVomTyp('spieler')].filter((s) => !s.tot);
+  const lebendeSpieler = [...spielWelt.alleVomTyp('spieler')].filter((s) => !s.tot && !s.unsichtbar);
   const zombies = [...spielWelt.alleVomTyp('zombie')];
 
   for (const z of zombies) {
@@ -64,18 +64,20 @@ export function aktualisiereZombies(spielWelt, dt) {
   aktualisiereRespawns(spielWelt, dt, k);
 }
 
-/** Behält das aktuelle Ziel, solange es gültig ist – sonst nächster sichtbarer Spieler im Aggro-Radius. */
+/** Behält das aktuelle Ziel, solange es gültig ist – sonst nächster sichtbarer Spieler im Aggro-Radius (im Dunkeln kleiner). */
 function waehleZiel(spielWelt, z, lebendeSpieler, k) {
   if (z.zielId !== null) {
     const ziel = spielWelt.holen(z.zielId);
-    if (ziel && !ziel.tot && Math.hypot(ziel.x - z.x, ziel.y - z.y) <= k.verlierRadius) return ziel;
+    if (ziel && !ziel.tot && !ziel.unsichtbar && Math.hypot(ziel.x - z.x, ziel.y - z.y) <= k.verlierRadius) return ziel;
     z.zielId = null;
   }
   let bester = null;
-  let bestAbstand = k.aggroRadius;
+  let bestAbstand = Infinity;
   for (const s of lebendeSpieler) {
     const abstand = Math.hypot(s.x - z.x, s.y - z.y);
-    if (abstand < bestAbstand && sichtlinieFrei(spielWelt.welt, z.x, z.y, s.x, s.y)) {
+    // Im Dunkeln (Taschenlampe aus) fällt man erst aus der Nähe auf
+    const bemerkRadius = s.lichtAn ? k.aggroRadius : k.aggroRadius * k.dunkelFaktor;
+    if (abstand < bemerkRadius && abstand < bestAbstand && sichtlinieFrei(spielWelt.welt, z.x, z.y, s.x, s.y)) {
       bester = s;
       bestAbstand = abstand;
     }

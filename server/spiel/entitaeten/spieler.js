@@ -6,7 +6,7 @@ import { STANDARD_AUSRUESTUNG } from '../konfiguration/gegenstaende.js';
  * Entitäten sind reine Datenobjekte; Verhalten steckt in den Systemen (server/spiel/systeme/).
  * Felder unter [intern] verlassen nie den Server; [privat] geht nur an den Spieler selbst (SPIELER_DATEN).
  */
-export function erzeugeSpieler({ id, benutzername, x, y, konfiguration }) {
+export function erzeugeSpieler({ id, benutzername, x, y, konfiguration, admin = false }) {
   const k = konfiguration.spieler;
   return {
     id,
@@ -27,7 +27,13 @@ export function erzeugeSpieler({ id, benutzername, x, y, konfiguration }) {
     ausdauer: k.ausdauerMax,
     erschoepft: false,
     sprintet: false,
+    /** Taschenlampe an? Aus = schlechter zu sehen (für Zombies UND Mitspieler) */
+    lichtAn: true,
+    /** Admin-Schalter (nur mit Admin-Recht setzbar) – öffentlich, damit alle sehen, wer schummelt */
+    gottmodus: false,
+    unsichtbar: false,
     // [privat]
+    admin, // darf Admin-Befehle benutzen (kommt von der Authentifizierung)
     hunger: k.startHunger, // 100 = satt, 0 = verhungert
     durst: k.startDurst,
     /** INVENTAR_PLAETZE Plätze: null oder { defId, menge, magazin? } */
@@ -65,6 +71,9 @@ export function spielerZuNetzwerk(s) {
     ausdauer: s.ausdauer,
     erschoepft: s.erschoepft,
     sprintet: s.sprintet,
+    lichtAn: s.lichtAn,
+    gottmodus: s.gottmodus,
+    unsichtbar: s.unsichtbar,
     seq: s.letzteVerarbeiteteSeq,
   };
 }
@@ -81,5 +90,6 @@ export function spielerDatenPrivat(s) {
     nachladen: s.nachladenRest > 0,
     tot: s.tot,
     respawnIn: Math.ceil(s.respawnRest),
+    admin: s.admin,
   };
 }

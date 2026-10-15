@@ -3,8 +3,8 @@ import { pruefePasswort } from './passwort.js';
 
 /**
  * Accounts aus einer JSON-Datei (Standard: server/daten/konten.json).
- * Format: { "konten": [ { "benutzername": "Dennis", "passwortHash": "scrypt$…" } ] }
- * Anlegen per: npm run konto -- <name> <passwort>
+ * Format: { "konten": [ { "benutzername": "Dennis", "passwortHash": "scrypt$…", "admin": true } ] }
+ * Anlegen per: npm run konto -- <name> <passwort> [--admin]
  *
  * Die Datei wird bei jedem Login frisch gelesen → neue Accounts gelten ohne Server-Neustart.
  */
@@ -20,7 +20,7 @@ export class KontenAuthentifizierung {
     const fehler = { ok: false, grund: 'Benutzername oder Passwort falsch' };
     if (!konto || !passwort) return fehler;
     if (!(await pruefePasswort(passwort, konto.passwortHash))) return fehler;
-    return { ok: true, benutzername: konto.benutzername };
+    return { ok: true, benutzername: konto.benutzername, admin: konto.admin === true };
   }
 
   async #ladeKonten() {

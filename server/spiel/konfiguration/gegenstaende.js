@@ -43,9 +43,9 @@ export const GEGENSTAENDE = Object.freeze({
 /** Ausrüstung ohne Waffe in der Hand. */
 export const STANDARD_AUSRUESTUNG = 'taschenlampe';
 
-/** Angriff ohne ausgerüstete Waffe: Schlag mit der Taschenlampe. */
+/** Angriff ohne ausgerüstete Waffe: Faustschlag – geht immer, macht aber kaum Schaden (Notlösung!). */
 export const UNBEWAFFNET = Object.freeze({
-  name: 'Taschenlampe', kategorie: 'nahkampf', ausruestung: STANDARD_AUSRUESTUNG, schaden: 10, reichweite: 30, abklingzeit: 0.55,
+  name: 'Faust', kategorie: 'nahkampf', ausruestung: STANDARD_AUSRUESTUNG, schaden: 5, reichweite: 28, abklingzeit: 0.5,
 });
 
 /** Öffnungswinkel (± Radiant) des Nahkampf-Trefferkegels vor der Figur. */

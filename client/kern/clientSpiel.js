@@ -110,9 +110,30 @@ export class ClientSpiel {
     this.#aktion(AKTIONEN.ABLEGEN, slot);
   }
 
+  /** Taschenlampe an/aus – aus = Zombies bemerken einen erst aus der Nähe. */
+  licht() {
+    if (this.spielerDaten?.tot) return;
+    this.sound?.spiele('leer', { tonhoehe: 1.6, lautstaerke: 0.6 }); // Klick
+    this.#aktion(AKTIONEN.LICHT);
+  }
+
+  /** Tot → sofort neu spawnen statt Countdown abzuwarten. */
+  wiederbeleben() {
+    if (this.spielerDaten?.tot) this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.WIEDERBELEBEN });
+  }
+
+  /** Admin-Befehl (siehe ADMIN_BEFEHLE) – der Server prüft das Recht, der Client zeigt den Knopf nur Admins. */
+  admin(befehl) {
+    if (this.spielerDaten?.admin) this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.ADMIN, befehl });
+  }
+
   #aktion(art, slot) {
     if (this.spielerDaten?.tot) return;
-    this.verbindung.senden(slot === undefined ? { typ: NACHRICHT.AKTION, art } : { typ: NACHRICHT.AKTION, art, slot });
+    this.#senden(slot === undefined ? { typ: NACHRICHT.AKTION, art } : { typ: NACHRICHT.AKTION, art, slot });
+  }
+
+  #senden(nachricht) {
+    if (!this.verbindung.getrennt) this.verbindung.senden(nachricht);
   }
 
   // ---------------------------------------------------------------------------

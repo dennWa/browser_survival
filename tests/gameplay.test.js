@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { TICK_DAUER_S } from '../gemeinsam/konstanten.js';
-import { AKTIONEN } from '../gemeinsam/protokoll.js';
+import { AKTIONEN, ADMIN_BEFEHLE } from '../gemeinsam/protokoll.js';
+import { UNBEWAFFNET } from '../server/spiel/konfiguration/gegenstaende.js';
 import { strahlGegenWaende, sichtlinieFrei } from '../gemeinsam/physik/strahl.js';
 import { erstelleKonfiguration } from '../server/spiel/konfiguration/spielKonfiguration.js';
 import { SpielWelt } from '../server/spiel/spielWelt.js';
@@ -207,7 +208,7 @@ test('Nahkampf trifft nur im Kegel vor dem Spieler', () => {
   spieler.blick = 0;
   spieler.angriff = true;
   welt.aktualisiere(TICK_DAUER_S);
-  assert.equal(vorne.leben, 50);
+  assert.equal(vorne.leben, 60 - UNBEWAFFNET.schaden);
   assert.equal(hinten.leben, 60);
 });
 
@@ -375,4 +376,83 @@ test('Ruhende Zombies schlurfen herum, bleiben aber in der Nähe ihres Spawns', 
   assert.ok(bewegt, 'Zombie sollte sich bewegt haben');
   assert.equal(zombie.zustand, 'ruhend');
   assert.ok(maxAbstand <= welt.konfiguration.zombie.wanderRadius + 5);
+});
+
+// ---------------------------------------------------------------------------
+// Faust, Taschenlampe, Wiederbeleben, Admin
+
+test('Faust macht wenig Schaden – deutlich weniger als jede Nahkampfwaffe', () => {
+  assert.equal(UNBEWAFFNET.name, 'Faust');
+  assert.ok(UNBEWAFFNET.schaden <= 6);
+});
+
+test('Taschenlampe aus → Zombie bemerkt den Spieler erst aus der Nähe', () => {
+  const { welt, spieler, konfiguration } = neueWelt();
+  platziere(spieler, 1, 1);
+  const zombie = zombieBei(welt, 6, 1); // 160 px: innerhalb aggroRadius, außerhalb aggroRadius × dunkelFaktor
+  assert.ok(160 < konfiguration.zombie.aggroRadius && 160 > konfiguration.zombie.aggroRadius * konfiguration.zombie.dunkelFaktor);
+  spieler.aktionsPuffer.push({ art: AKTIONEN.LICHT, slot: null });
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(spieler.lichtAn, false);
+  assert.equal(zombie.zielId, null, 'im Dunkeln unbemerkt');
+  spieler.aktionsPuffer.push({ art: AKTIONEN.LICHT, slot: null });
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(spieler.lichtAn, true);
+  assert.equal(zombie.zielId, spieler.id, 'mit Licht sofort gesehen');
+});
+
+test('Tot → Wiederbeleben-Knopf spawnt sofort, lebend passiert nichts', () => {
+  const { welt, spieler } = neueWelt();
+  platziere(spieler, 8, 4);
+  spieler.aktionsPuffer.push({ art: AKTIONEN.WIEDERBELEBEN, slot: null });
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(spieler.x, mitte(8), 'lebend: kein Teleport');
+  spieler.leben = 1;
+  zombieBei(welt, 9, 4).blick = Math.PI;
+  ticks(welt, 3);
+  assert.equal(spieler.tot, true);
+  spieler.aktionsPuffer.push({ art: AKTIONEN.WIEDERBELEBEN, slot: null });
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(spieler.tot, false);
+  assert.equal(spieler.leben, spieler.maxLeben);
+});
+
+test('Admin-Befehle nur mit Admin-Recht; Gottmodus verhindert Schaden und Hunger', () => {
+  const { welt, spieler } = neueWelt();
+  const admin = (befehl, s = spieler) => s.aktionsPuffer.push({ art: AKTIONEN.ADMIN, slot: null, befehl });
+  admin(ADMIN_BEFEHLE.GOTTMODUS);
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(spieler.gottmodus, false, 'ohne Admin-Recht wirkungslos');
+
+  spieler.admin = true;
+  admin(ADMIN_BEFEHLE.GOTTMODUS);
+  platziere(spieler, 8, 4);
+  const hunger = spieler.hunger;
+  zombieBei(welt, 9, 4).blick = Math.PI;
+  ticks(welt, Math.ceil(3 / TICK_DAUER_S));
+  assert.equal(spieler.gottmodus, true);
+  assert.equal(spieler.leben, spieler.maxLeben);
+  assert.equal(spieler.hunger, hunger);
+
+  admin(ADMIN_BEFEHLE.ZOMBIES_TOETEN);
+  admin(ADMIN_BEFEHLE.AUSRUESTEN);
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.equal([...welt.alleVomTyp('zombie')].length, 0);
+  assert.ok(spieler.inventar.some((e) => e?.defId === 'pistole'));
+
+  admin(ADMIN_BEFEHLE.ZOMBIE_SPAWNEN);
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.equal([...welt.alleVomTyp('zombie')].length, 1);
+});
+
+test('Unsichtbare Admins werden von Zombies ignoriert', () => {
+  const { welt, spieler } = neueWelt();
+  spieler.admin = true;
+  platziere(spieler, 2, 1);
+  const zombie = zombieBei(welt, 4, 1);
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(zombie.zielId, spieler.id);
+  spieler.aktionsPuffer.push({ art: AKTIONEN.ADMIN, slot: null, befehl: ADMIN_BEFEHLE.UNSICHTBAR });
+  ticks(welt, 2);
+  assert.equal(zombie.zielId, null);
 });
