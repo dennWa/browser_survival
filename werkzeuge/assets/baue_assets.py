@@ -11,6 +11,7 @@ Ausführen:
     .venv/bin/python werkzeuge/assets/baue_assets.py
 
 Downloads werden in werkzeuge/assets/.cache zwischengespeichert (gitignored).
+Danach für den 3D-Prototyp:  npm run assets:3d  (Animationen extrahieren, Three.js bereitstellen)
 """
 import glob
 import io
@@ -40,6 +41,7 @@ QUELLEN = {
     'kenney_tds': 'https://kenney.nl/media/pages/assets/top-down-shooter/230204340a-1677694684/kenney_top-down-shooter.zip',
     'kenney_items': OGA + 'kenney_genericItems_updatedCross.zip',
     'kenney_racing': 'https://kenney.nl/media/pages/assets/racing-pack/c4cd68480a-1677662443/kenney_racing-pack.zip',
+    'kenney_ac3': OGA + 'kenney_animated-characters-3.zip',
     'props': OGA + 'survival_props_pack_free.zip',
     'guns': OGA + 'guns_gameassets.zip',
     'glitch_food': OGA + 'food_0.7z',
@@ -52,6 +54,7 @@ LIZENZEN = [
     ('Animated Top Down Zombie', 'rileygombart', 'CC0', 'https://opengameart.org/content/animated-top-down-zombie', 'Zombie'),
     ('Top-down Shooter', 'Kenney (kenney.nl)', 'CC0', 'https://kenney.nl/assets/top-down-shooter', 'Böden, Möbel, Pflanzen'),
     ('Racing Pack', 'Kenney (kenney.nl)', 'CC0', 'https://kenney.nl/assets/racing-pack', 'Autos, Pylonen, Ölflecken'),
+    ('Animated Characters 3', 'Kenney (kenney.nl)', 'CC0', 'https://opengameart.org/content/animated-characters-3', '3D-Figuren (Prototyp)'),
     ('Generic Items', 'Kenney (kenney.nl)', 'CC0', 'https://opengameart.org/content/generic-items', 'Erste-Hilfe-Kasten, Messer, Beil'),
     ('Free Survival Props Pack', 'Olga Bikmullina (http://ahninniah.graphics)', 'CC-BY 3.0',
      'https://opengameart.org/content/free-survival-props-pack', 'Verband, Pillen, Hammer, Machete, Schrotpatronen'),
@@ -397,6 +400,19 @@ def baue_umgebung():
     return {'bild': 'umgebung.webp', 'kachelGroesse': k, **atlas}
 
 
+def baue_3d_figuren():
+    """3D-Prototyp: Figurenmodell (FBX) + Hauttexturen kopieren. Die Animationen extrahiert baue_3d.mjs."""
+    basis = lade('kenney_ac3')
+    ziel = ZIEL / '3d'
+    (ziel / 'skins').mkdir(parents=True, exist_ok=True)
+    shutil.copy(finde(basis, 'Model/characterMedium.fbx'), ziel / 'figur.fbx')
+    for skin in ['humanMaleA', 'humanFemaleA', 'zombieMaleA', 'zombieFemaleA']:
+        Image.open(finde(basis, f'Skins/{skin}.png')).convert('RGB').save(ziel / 'skins' / f'{skin}.webp', 'WEBP', quality=90)
+    print('    3D-Figur + 4 Skins')
+    return {'modell': '3d/figur.fbx', 'skins': {n: f'3d/skins/{n}.webp' for n in ['humanMaleA', 'humanFemaleA', 'zombieMaleA', 'zombieFemaleA']},
+            'animationen': '3d/animationen.json'}
+
+
 def schreibe_lizenzen():
     zeilen = ['# Grafik-Lizenzen', '', 'Alle Grafiken stammen aus frei nutzbaren Paketen. '
               'Bei **CC-BY** ist die Namensnennung Pflicht (steht auch im Spiel unter "Credits").', '',
@@ -417,7 +433,10 @@ def main():
     items = baue_items()
     print('Umgebung …')
     umgebung = baue_umgebung()
-    atlas = {'version': 1, 'figuren': figuren, 'items': items, 'umgebung': umgebung, 'lizenzen': schreibe_lizenzen()}
+    print('3D-Prototyp …')
+    figuren3d = baue_3d_figuren()
+    atlas = {'version': 1, 'figuren': figuren, 'items': items, 'umgebung': umgebung, 'figuren3d': figuren3d,
+             'lizenzen': schreibe_lizenzen()}
     (ZIEL / 'atlas.json').write_text(json.dumps(atlas, ensure_ascii=False, indent=1), encoding='utf-8')
     gesamt = sum(p.stat().st_size for p in ZIEL.rglob('*') if p.is_file())
     print(f'Fertig: {ZIEL.relative_to(WURZEL)} ({gesamt / 1024 / 1024:.1f} MB)')

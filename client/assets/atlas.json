@@ -802,6 +802,16 @@
    }
   }
  },
+ "figuren3d": {
+  "modell": "3d/figur.fbx",
+  "skins": {
+   "humanMaleA": "3d/skins/humanMaleA.webp",
+   "humanFemaleA": "3d/skins/humanFemaleA.webp",
+   "zombieMaleA": "3d/skins/zombieMaleA.webp",
+   "zombieFemaleA": "3d/skins/zombieFemaleA.webp"
+  },
+  "animationen": "3d/animationen.json"
+ },
  "lizenzen": [
   {
    "paket": "Animated Top Down Survivor Player",
@@ -826,6 +836,12 @@
    "urheber": "Kenney (kenney.nl)",
    "lizenz": "CC0",
    "url": "https://kenney.nl/assets/racing-pack"
+  },
+  {
+   "paket": "Animated Characters 3",
+   "urheber": "Kenney (kenney.nl)",
+   "lizenz": "CC0",
+   "url": "https://opengameart.org/content/animated-characters-3"
   },
   {
    "paket": "Generic Items",

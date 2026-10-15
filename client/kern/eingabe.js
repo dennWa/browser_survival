@@ -52,7 +52,8 @@ export class Eingabe {
     });
     fenster.addEventListener('keyup', (e) => this.#gedrueckt.delete(e.code));
     fenster.addEventListener('blur', () => this.zuruecksetzen());
-    leinwand.addEventListener('pointermove', (e) => {
+    // Auf dem ganzen Fenster: auch über HUD/Schnellleiste soll weiter gezielt werden
+    fenster.addEventListener('pointermove', (e) => {
       if (e.pointerType !== 'mouse') return;
       this.mausX = e.clientX;
       this.mausY = e.clientY;
@@ -103,18 +104,22 @@ export class Eingabe {
   }
 
   /**
-   * Blickwinkel (Radiant) oder null = "Blickrichtung beibehalten".
+   * Blickwinkel in der Welt (Radiant) oder null = "Blickrichtung beibehalten".
    * Priorität: rechter Touch-Stick → Maus → Laufrichtung (Touch ohne Ziel-Stick).
-   * @param spielerBildschirm Position des eigenen Spielers auf dem Bildschirm (CSS-Pixel)
+   * @param spieler { x, y } eigene Position in der Welt
+   * @param kamera  braucht bildschirmZuWelt(sx, sy) – funktioniert so auch mit schräger 3D-Kamera
    */
-  blickWinkel(spielerBildschirm) {
+  blickWinkel(spieler, kamera) {
     const ziel = this.touch.zielWinkel();
     if (ziel !== null) return ziel;
     if (this.touch.sichtbar) {
       const r = this.touch.richtung();
       return r && (r.x !== 0 || r.y !== 0) ? Math.atan2(r.y, r.x) : null;
     }
-    if (this.mausBenutzt) return Math.atan2(this.mausY - spielerBildschirm.y, this.mausX - spielerBildschirm.x);
+    if (this.mausBenutzt) {
+      const punkt = kamera.bildschirmZuWelt(this.mausX, this.mausY);
+      if (punkt) return Math.atan2(punkt.y - spieler.y, punkt.x - spieler.x);
+    }
     return null;
   }
 

@@ -9,6 +9,10 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Browser Survival</title>
     <link rel="stylesheet" href="stil.css" />
+    <!-- Three.js (nur für den 3D-Prototyp, wird erst bei Bedarf geladen) -->
+    <script type="importmap">
+      { "imports": { "three": "./vendor/three/three.module.js" } }
+    </script>
   </head>
   <body>
     <canvas id="spielflaeche" tabindex="0"></canvas>
@@ -78,6 +82,12 @@
         </label>
         <label id="login-passwort-feld">Passwort
           <input id="login-passwort" type="password" autocomplete="current-password" />
+        </label>
+        <label>Grafik
+          <select id="login-grafik">
+            <option value="2d">2D (Standard)</option>
+            <option value="3d">3D (Prototyp)</option>
+          </select>
         </label>
 
         <button id="login-knopf" type="submit">Login</button>

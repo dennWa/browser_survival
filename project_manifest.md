@@ -15,7 +15,7 @@ Startkarte: **St.-Elisabeth-Krankenhaus**.
 | Thema | Entscheidung |
 |---|---|
 | Sprache | Vanilla JavaScript (ES-Module), kein Build-Schritt. Bezeichner & Kommentare **Deutsch** (ohne Umlaute in Bezeichnern) |
-| Darstellung | HTML5 Canvas 2D, Spritesheets (WebP) + Atlas, Karte in vorgerenderten 16×16-Blöcken |
+| Darstellung | HTML5 Canvas 2D, Spritesheets (WebP) + Atlas, Karte in vorgerenderten 16×16-Blöcken. **3D-Prototyp** wahlweise (Three.js/WebGL) |
 | Grafiken | Freie Pakete (CC0 / CC-BY), aufbereitet durch `werkzeuge/assets/baue_assets.py` → `client/assets/` (~0,8 MB) |
 | Geräte | Tastatur + Maus; Touch: zwei virtuelle Joysticks (links laufen, rechts zielen), Zoom passt sich der Bildschirmgröße an |
 | Server | Node.js (≥ 20) + Paket `ws` (WebSockets), eingebauter HTTP-Server liefert auch die Spieldateien |
@@ -122,6 +122,17 @@ Namen/Lebensbalken → Vignette → Schadensblitz.
 Animationen: `${ausruestung}_${aktion}` für den Survivor (taschenlampe/messer/pistole/schrotflinte × idle/laufen/
 schiessen/nachladen/nahkampf), Füße je nach Laufrichtung relativ zur Blickrichtung (vor/zurück/seitwärts).
 
+### 3D-Prototyp (im Login "Grafik: 3D")
+`client/darstellung3d/renderer3d.js` hat dieselbe Schnittstelle wie der 2D-Renderer (`setzeWelt`, `zeichne`,
+`kamera.bildschirmZuWelt` …) → Spiellogik, Netzwerk, HUD unverändert. Gameplay bleibt flach (x/y), nur die Darstellung
+ist 3D: Weltpixel x → three.x, y → three.z, Höhe → three.y.
+- Boden = 2D-Bodenbild (`WeltZeichner.rendereBoden`) als Textur, Innenräume abgedunkelt (kein Dach)
+- Wände = InstancedMesh-Blöcke, Fenster mit Glas; Möbel = Quader mit Sprite-Deckel (`MOEBEL_HOEHE`); Bäume Stamm + Krone
+- Figuren = Kenney "Animated Characters 3" (FBX, Skins pro Zombie-Variante), Animationen stehen/rennen/springen
+- Licht: Mond (Schatten), Taschenlampen als SpotLights (eigene mit Schatten), Kartenlampen als PointLights, Mündungsfeuer
+- Das 2D-Canvas liegt durchsichtig darüber: Eingaben, Namen, Lebensbalken, Vignette, Schadensblitz
+- Three.js + Addons liegen in `client/vendor/three/` (erzeugt von `npm run assets:3d`) und werden nur im 3D-Modus geladen
+
 ### Login-Ablauf
 `LoginBildschirm` → `verbindungAufbauen()` (Lokal oder WebSocket) → `anmelden()` sendet `ANMELDEN`
 → Server: Protokollversion prüfen → Name prüfen → `authentifizierung.pruefe()` → Doppel-Login/Server-voll prüfen
@@ -191,12 +202,16 @@ browser_survival/
 │   ├── werkzeuge/kontoAnlegen.js  CLI: npm run konto -- <name> <passwort>
 │   └── daten/                     konten.json, einstellungen.json, spielstaende/ (gitignored) + einstellungen.beispiel.json
 │
-├── werkzeuge/assets/              ── Grafik-Pipeline (Python) ──
-│   ├── baue_assets.py             Quellen, Item-/Möbel-Zuordnung, Drehpunkte, Spritesheets → client/assets/
+├── werkzeuge/assets/              ── Grafik-Pipeline ──
+│   ├── baue_assets.py             (Python) Quellen, Item-/Möbel-Zuordnung, Drehpunkte, Spritesheets → client/assets/
+│   ├── baue_3d.mjs                (Node, danach) 3D-Animationen → JSON, Three.js verkleinert → client/vendor/three/
 │   └── anforderungen.txt          pip-Pakete (pillow, numpy, cairosvg, py7zr)
 │
 ├── client/                        ── Nur Browser ──
-│   ├── assets/                    GENERIERT: atlas.json, Spritesheets (figuren/, items.webp, umgebung.webp), LIZENZEN.md
+│   ├── assets/                    GENERIERT: atlas.json, Spritesheets (figuren/, items.webp, umgebung.webp), 3d/, LIZENZEN.md
+│   ├── vendor/three/              GENERIERT: Three.js (MIT) für den 3D-Prototyp
+│   ├── darstellung3d/
+│   │   └── renderer3d.js          3D-Prototyp: Szene, Kamera, Licht, Figuren, Effekte, 2D-Overlay
 │   ├── index.html                 Canvas, Touch-Sticks, HUD, Ladebildschirm, Login, Credits-Dialog
 │   ├── stil.css                   Gesamtes UI-Styling
 │   ├── main.js                    Einstieg: verdrahtet Login → Verbindung → ClientSpiel
@@ -260,6 +275,8 @@ browser_survival/
 | Touch-Steuerung | `client/kern/touchSteuerung.js`, Optik in `client/stil.css` (`.stick`) |
 | Zoom / Sichtweite | `client/konfiguration.js` → `KAMERA_SICHTFELD`, `ZOOM_MIN/MAX` |
 | Wände, Schatten, Böden | `client/darstellung/weltZeichner.js` |
+| 3D: Kamera, Wandhöhe, Möbelhöhen, Lichter | `client/darstellung3d/renderer3d.js` (`KAMERA_VERSATZ`, `WANDHOEHE`, `MOEBEL_HOEHE` …) |
+| 3D: andere Figuren/Animationen | `baue_assets.py` (`baue_3d_figuren`) + `baue_3d.mjs` (`ANIMATIONEN`), dann `npm run assets:3d` |
 | Schaden, Lebenspunkte, Geschwindigkeit | `server/spiel/konfiguration/spielKonfiguration.js` oder `server/daten/einstellungen.json` |
 | Neues Item | `server/spiel/konfiguration/gegenstaende.js` + Icon in `baue_assets.py` (`ITEMS`) + in `lootTabellen.js` eintragen |
 | Was wo spawnt | `server/spiel/konfiguration/lootTabellen.js`, Raumzuordnung in der Kartendatei |
@@ -332,11 +349,18 @@ browser_survival/
 - Touch: rechter Stick voll = Angriff, Knöpfe für Aufheben/Nachladen, Schnellleiste antippbar
 - Tests: 36 (u. a. Strahlen, A*, Inventar, Kampf, Zombie-KI inkl. Umweg um Möbel, Tod/Respawn)
 
-### ⏳ Phase 3 – Vorschläge (wartet auf Entscheidung)
-- 3D-Prototyp (Three.js, schräge Kamera) zum Vergleich mit 2D – siehe Gespräch: Logik bleibt, nur `client/darstellung/` wechselt
-- ~~Dunkelheit + Taschenlampen-Lichtkegel, Sound~~ ✅ (v0.4.0) – Musik & echte Aufnahmen später
-- ~~Persistenz pro Account (Inventar/Position bleiben nach Logout)~~ ✅ (v0.4.0)
-- ~~Sprinten mit Ausdauer, Zombie-Varianten, umherwandernde Zombies~~ ✅ (v0.4.0)
+### ✅ Phase 3 – Tiefe, Atmosphäre, Spielstand, 3D-Prototyp (fertig, v0.4.0)
+- Handy: Seite scrollt beim Steuern nicht mehr (Fixierung + nicht-passive Touch-Listener)
+- Sprinten mit Ausdauer (deterministisch für die Vorhersage), Sprint-Lärm; Zombie-Varianten Läufer & Brocken; Umherschlurfen
+- Spielstände: Datei (Server) / localStorage (Lokal), Autosave, Prüfung beim Laden
+- Dunkelheit mit Taschenlampen-Sichtpolygonen, flackernde Lampen; synthetischer Sound mit Richtung
+- 3D-Prototyp mit Three.js (im Login wählbar), gleiche Renderer-Schnittstelle
+- Tests: 47
+
+### ⏳ Nächste Ideen (wartet auf Entscheidung)
+- **2D oder 3D?** Entscheidung nach Vergleich; bei 3D: Waffenmodelle, Angriffs-/Schussanimationen, Leistung auf Handys
+- Mehrspieler online: Render-Konfiguration (`render.yaml`), Accounts als Umgebungsvariable statt Datei
+- Musik & echte Geräusch-Aufnahmen (statt Synthese)
 
 ### 🔭 Später
 - Sichtlinie / Nebel des Krieges serverseitig (aktuell sieht der Client alle Zombies, nur die Grafik verdeckt sie)
@@ -353,6 +377,7 @@ browser_survival/
 - Schnappschüsse enthalten alle Spieler + Zombies (für ~32 Spieler auf einer Karte unkritisch)
 - Schuss-/Treffer-Feedback kommt erst nach einer Server-Runde (bei 50 ms Ping kaum spürbar, bei 200 ms schon)
 - Nahkampf trifft sofort beim Tastendruck (nicht erst im passenden Animationsframe)
+- 3D-Prototyp: keine Waffenmodelle, nur Animationen stehen/rennen/springen, Leistung auf Handys ungetestet
 
 ---
 
@@ -363,3 +388,4 @@ browser_survival/
 | 0.1.0 | 2026-10-15 | Grundgerüst: Architektur, Netzwerk, Login, Bewegung, Krankenhauskarte, Platzhalter für Zombies/Loot |
 | 0.2.0 | 2026-10-15 | Echte Grafiken & Animationen, Möbel mit Kollision, Parkplatz, Touch-Steuerung, adaptiver Zoom, Credits |
 | 0.3.0 | 2026-10-15 | Gameplay: Zombie-KI mit A*, Inventar, Fern-/Nahkampf, Hunger/Durst, Tod & Respawn, Effekte, HUD (Protokoll v2) |
+| 0.4.0 | 2026-10-15 | Handy-Scroll-Fix, Sprint/Ausdauer, Zombie-Varianten, Umherschlurfen, Spielstände, Dunkelheit + Taschenlampe, Sound, 3D-Prototyp |

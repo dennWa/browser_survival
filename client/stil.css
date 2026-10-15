@@ -24,6 +24,15 @@ html, body {
 
 [hidden] { display: none !important; }
 
+/* 3D-Prototyp: WebGL-Canvas liegt unter dem (dann durchsichtigen) 2D-Canvas */
+#spielflaeche3d {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
 /* Während des Spiels: Seite komplett festnageln (iOS-Gummiband, Adressleiste, Pull-to-Refresh) */
 body.im-spiel {
   position: fixed;

@@ -152,7 +152,7 @@ function istDrinnen(welt, tx, ty) {
 }
 
 /** Manche Lampen flackern (Notstrom!). Deterministisch pro Lampe, ohne Zufallszahlen pro Frame. */
-function flackern(lampe, jetzt) {
+export function flackern(lampe, jetzt) {
   if (!lampe.flackern) return 1;
   const t = jetzt / 1000 + lampe.x * 7.3 + lampe.y * 3.1;
   const welle = Math.sin(t * 13) * Math.sin(t * 7.7) * Math.sin(t * 2.3);

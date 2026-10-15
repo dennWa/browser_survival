@@ -31,6 +31,17 @@ export class Effekte {
     for (const ereignis of ereignisse) this.#warteschlange.push({ ab: jetzt + verzoegerung(ereignis), ereignis });
   }
 
+  /** Nur lesen! Für andere Renderer (3D-Prototyp), die die Effekte selbst darstellen. */
+  get zustand() {
+    return {
+      leuchtspuren: this.#leuchtspuren,
+      feuer: this.#feuer,
+      partikel: this.#partikel,
+      flecken: this.#flecken,
+      schadenBlitz: this.#schadenBlitz,
+    };
+  }
+
   /** Aktive Lichtblitze (Mündungsfeuer) für die Lichtebene: [{ x, y, staerke }] */
   lichter() {
     return this.#feuer.map((f) => ({ x: f.x, y: f.y, staerke: 1 - f.alter / f.dauer }));

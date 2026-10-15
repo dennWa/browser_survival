@@ -212,7 +212,7 @@ export class ClientSpiel {
 
   /** Blickrichtung von Maus oder Touch-Stick; ohne Vorgabe bleibt die bisherige erhalten. */
   #blick() {
-    const winkel = this.eingabe.blickWinkel(this.renderer.kamera.weltZuBildschirm(this.lokal.x, this.lokal.y));
+    const winkel = this.eingabe.blickWinkel(this.lokal, this.renderer.kamera);
     return winkel ?? this.lokal.blick;
   }
 

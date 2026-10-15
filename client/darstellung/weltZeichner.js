@@ -67,6 +67,24 @@ export class WeltZeichner {
     ctx.globalAlpha = 1;
   }
 
+  /**
+   * Nur Böden, Bodendeko (Teppiche, Blut, Markierungen) und Türschwellen der GANZEN Karte in ein Canvas –
+   * ohne Wände und Möbel. Für den 3D-Prototyp (dort sind Wände/Möbel echte 3D-Körper).
+   */
+  rendereBoden(massstab = 1) {
+    const canvas = neuesCanvas(this.welt.pixelBreite * massstab, this.welt.pixelHoehe * massstab);
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(massstab, 0, 0, massstab, 0, 0);
+    for (let ty = 0; ty < this.welt.hoehe; ty++) for (let tx = 0; tx < this.welt.breite; tx++) this.#zeichneBoden(ctx, tx, ty);
+    for (const o of this.bodenObjekte) this.#zeichneObjekt(ctx, o);
+    for (let ty = 0; ty < this.welt.hoehe; ty++) {
+      for (let tx = 0; tx < this.welt.breite; tx++) {
+        if (KACHELN[this.welt.kachelAn(tx, ty)]?.name === 'tuer') this.#zeichneTuerschwelle(ctx, tx, ty);
+      }
+    }
+    return canvas;
+  }
+
   // ---------------------------------------------------------------------------
 
   #chunk(cx, cy) {

@@ -12,10 +12,11 @@ npm start                                # → http://localhost:8080
 ```
 
 Im Login **"Lokal (im Browser)"** wählen, um ohne Account allein zu testen,
-oder **"Dieser Server"** für Mehrspieler mit Account.
+oder **"Dieser Server"** für Mehrspieler mit Account. Unter **Grafik** gibt es neben 2D einen **3D-Prototyp**.
+Spielstände werden automatisch gespeichert (Server: `server/daten/spielstaende/`, Lokal: im Browser).
 
 Steuerung: **WASD** laufen · **Maus** zielen · **Klick/Leertaste** Angriff · **E** aufheben · **R** nachladen ·
-**1–8** Inventar benutzen/ausrüsten · **Rechtsklick** auf Inventarplatz = ablegen · **F3** Debug
+**1–8** Inventar benutzen/ausrüsten · **Rechtsklick** auf Inventarplatz = ablegen · **Shift** sprinten · **L** Dunkelheit an/aus · **M** Ton · **F3** Debug
 Handy/Tablet: **linker Daumen** laufen · **rechter Daumen** zielen (ganz durchdrücken = Angriff) · Knöpfe für Aufheben/Nachladen · Inventarplatz lange drücken = ablegen
 
 ## Weitere Befehle
@@ -29,7 +30,7 @@ Handy/Tablet: **linker Daumen** laufen · **rechter Daumen** zielen (ganz durchd
 Server-Balancing anpassen: `server/daten/einstellungen.beispiel.json` nach `einstellungen.json` kopieren und Werte ändern.
 
 Grafiken neu erzeugen (nur bei Grafik-Änderungen, braucht Python 3):
-`python3 -m venv .venv && .venv/bin/pip install -r werkzeuge/assets/anforderungen.txt && .venv/bin/python werkzeuge/assets/baue_assets.py`
+`python3 -m venv .venv && .venv/bin/pip install -r werkzeuge/assets/anforderungen.txt && .venv/bin/python werkzeuge/assets/baue_assets.py && npm run assets:3d`
 Lizenzen der Grafiken: [`client/assets/LIZENZEN.md`](client/assets/LIZENZEN.md).
 
 **Architektur, Dateistruktur und Entwicklungsstand:** siehe [`project_manifest.md`](project_manifest.md).
