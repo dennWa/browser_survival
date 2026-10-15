@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs';
 import { SpielServer } from '../spiel/spielServer.js';
 import { GastAuthentifizierung } from '../spiel/authentifizierung/gastAuthentifizierung.js';
 import { KontenAuthentifizierung } from './kontenAuthentifizierung.js';
+import { DateiSpeicher } from './dateiSpeicher.js';
 import { ladeEinstellungen } from './einstellungenLaden.js';
 import { erstelleStatischenServer } from './statischerServer.js';
 import { bindeWebsocketServer } from './websocketAnbindung.js';
@@ -14,6 +15,7 @@ import { bindeWebsocketServer } from './websocketAnbindung.js';
  * Umgebungsvariablen:
  *   PORT=8080        HTTP/WebSocket-Port
  *   GAST_MODUS=1     Login ohne Account (nur zum Testen!) – alternativ: npm run start:gast
+ *   SPIELSTAENDE=…   Ordner für Spielstände (Standard: server/daten/spielstaende)
  */
 const WURZEL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const DATEN = path.join(WURZEL, 'server/daten');
@@ -25,6 +27,7 @@ const authentifizierung = gastModus ? new GastAuthentifizierung() : new KontenAu
 
 const spielServer = new SpielServer({
   authentifizierung,
+  speicher: new DateiSpeicher(process.env.SPIELSTAENDE ?? path.join(DATEN, 'spielstaende')),
   konfiguration: ladeEinstellungen(path.join(DATEN, 'einstellungen.json')),
 });
 
@@ -40,11 +43,12 @@ httpServer.listen(PORT, () => {
   }
 });
 
-function beenden() {
-  console.info('[Server] Fahre herunter …');
-  spielServer.stoppen('Server wird neu gestartet');
+async function beenden() {
+  console.info('[Server] Fahre herunter, speichere Spielstände …');
+  setTimeout(() => process.exit(1), 5000).unref(); // Notbremse
+  await spielServer.stoppen('Server wird neu gestartet');
   httpServer.close(() => process.exit(0));
-  setTimeout(() => process.exit(0), 2000).unref();
+  setTimeout(() => process.exit(0), 1000).unref();
 }
 process.on('SIGINT', beenden);
 process.on('SIGTERM', beenden);

@@ -10,6 +10,7 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     name: 'Browser Survival Server',
     maxSpieler: 32,
     loginTimeoutMs: 20000,
+    autosaveSekunden: 30, // Spielstände regelmäßig sichern (zusätzlich beim Logout/Stopp)
     /** Startwert des Zufallsgenerators (gleicher Wert = gleiche Loot-Verteilung). null = zufällig */
     zufallsStartwert: null,
   },

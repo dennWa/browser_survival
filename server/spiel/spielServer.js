@@ -11,6 +11,8 @@ import { AKTIONEN, NACHRICHT, dekodiere, kodiere } from '../../gemeinsam/protoko
 import { erstelleKonfiguration } from './konfiguration/spielKonfiguration.js';
 import { GEGENSTAENDE } from './konfiguration/gegenstaende.js';
 import { spielerDatenPrivat } from './entitaeten/spieler.js';
+import { erstelleSpielstand, wendeSpielstandAn } from './spielstand.js';
+import { ArbeitsspeicherSpeicher } from './speicher/arbeitsspeicherSpeicher.js';
 import { SpielWelt } from './spielWelt.js';
 import { Taktgeber } from './taktgeber.js';
 
@@ -28,8 +30,9 @@ const GUELTIGE_AKTIONEN = new Set(Object.values(AKTIONEN));
  *   - Login-Ablauf über die injizierte Authentifizierung
  *   - Eingaben prüfen und puffern
  *   - Simulation im festen Takt (SpielWelt) und Schnappschüsse an alle Clients
+ *   - Spielstände laden (Login) und speichern (Logout, alle autosaveSekunden, Server-Stopp)
  *
- * Sitzungsstatus: 'wartetAufLogin' → 'prueftLogin' → 'imSpiel'
+ * Sitzungsstatus: 'wartetAufLogin' → 'prueftLogin' → 'laedtSpielstand' → 'imSpiel'
  */
 export class SpielServer {
   /**
@@ -38,10 +41,15 @@ export class SpielServer {
    * @param {object} [optionen.konfiguration]  Überschreibungen für STANDARD_KONFIGURATION
    * @param {Console} [optionen.protokoll]     Logger (console-kompatibel)
    * @param {object} [optionen.kartenDefinition] eigene Karte (z. B. für Tests)
+   * @param {{ laden: Function, speichern: Function }} [optionen.speicher] Spielstände (Standard: nur im Arbeitsspeicher)
    */
-  constructor({ authentifizierung, konfiguration = {}, protokoll = console, kartenDefinition }) {
+  constructor({ authentifizierung, konfiguration = {}, protokoll = console, kartenDefinition, speicher }) {
     if (!authentifizierung) throw new Error('SpielServer braucht eine Authentifizierung');
     this.authentifizierung = authentifizierung;
+    this.speicher = speicher ?? new ArbeitsspeicherSpeicher();
+    this.ausstehendeSpeicherungen = new Set();
+    this.ticksSeitAutosave = 0;
+    this.gestoppt = false;
     this.konfiguration = erstelleKonfiguration(konfiguration);
     this.log = protokoll;
     this.spielWelt = new SpielWelt(this.konfiguration, { kartenDefinition });
@@ -57,9 +65,19 @@ export class SpielServer {
     );
   }
 
-  stoppen(grund = 'Server wird beendet') {
+  /** Stoppt die Simulation, speichert alle Spielstände und trennt alle Verbindungen. */
+  async stoppen(grund = 'Server wird beendet') {
+    if (this.gestoppt) return;
+    this.gestoppt = true;
     this.taktgeber.stoppen();
+    await this.speichereAlle();
     for (const sitzung of this.sitzungen) sitzung.kanal.trennen(grund);
+  }
+
+  /** Spielstände aller eingeloggten Spieler sichern (wartet, bis alles geschrieben ist). */
+  async speichereAlle() {
+    for (const sitzung of this.sitzungen) if (sitzung.status === 'imSpiel') this.#speichere(sitzung);
+    await Promise.all([...this.ausstehendeSpeicherungen]);
   }
 
   get spielerAnzahl() {
@@ -92,6 +110,10 @@ export class SpielServer {
   /** Ein Simulationsschritt + Versand. Öffentlich, damit Tests den Takt selbst steuern können. */
   tickAusfuehren() {
     this.spielWelt.aktualisiere(TICK_DAUER_S);
+    if (++this.ticksSeitAutosave >= this.konfiguration.server.autosaveSekunden * TICK_RATE) {
+      this.ticksSeitAutosave = 0;
+      for (const sitzung of this.sitzungen) if (sitzung.status === 'imSpiel') this.#speichere(sitzung);
+    }
 
     const zustand = kodiere({ typ: NACHRICHT.ZUSTAND, ...this.spielWelt.schnappschuss() });
     let gegenstaende = null;
@@ -105,6 +127,7 @@ export class SpielServer {
       if (!meldungen.has(spielerId)) meldungen.set(spielerId, []);
       meldungen.get(spielerId).push(text);
     }
+    this.spielWelt.meldungen = []; // erst nach dem Einsammeln leeren (auch Meldungen zwischen zwei Ticks kommen an)
 
     for (const sitzung of this.sitzungen) {
       if (sitzung.status !== 'imSpiel') continue;
@@ -176,17 +199,32 @@ export class SpielServer {
     if (!ergebnis.ok) return this.#loginAblehnen(sitzung, ergebnis.grund ?? 'Login fehlgeschlagen');
     if (this.spielerAnzahl >= this.konfiguration.server.maxSpieler) return this.#loginAblehnen(sitzung, 'Server ist voll');
 
+    // Name ab jetzt reserviert – auch während der Spielstand lädt, darf sich niemand zweites Mal einloggen
     const name = ergebnis.benutzername;
     const bereitsDa = [...this.sitzungen].some(
-      (s) => s !== sitzung && s.status === 'imSpiel' && s.benutzername.toLowerCase() === name.toLowerCase(),
+      (s) =>
+        s !== sitzung &&
+        (s.status === 'imSpiel' || s.status === 'laedtSpielstand') &&
+        s.benutzername?.toLowerCase() === name.toLowerCase(),
     );
     if (bereitsDa) return this.#loginAblehnen(sitzung, 'Dieser Account ist bereits eingeloggt');
+    sitzung.status = 'laedtSpielstand';
+    sitzung.benutzername = name;
+
+    let spielstand = null;
+    try {
+      spielstand = await this.speicher.laden(name);
+    } catch (fehler) {
+      this.log.error?.(`[Server] Spielstand von ${name} nicht ladbar:`, fehler);
+    }
+    if (!this.sitzungen.has(sitzung) || this.gestoppt) return;
 
     const spieler = this.spielWelt.spielerBetrittWelt(name);
+    const geladen = wendeSpielstandAn(spieler, spielstand, this.spielWelt);
     clearTimeout(sitzung.loginTimer);
     sitzung.status = 'imSpiel';
-    sitzung.benutzername = name;
     sitzung.spielerId = spieler.id;
+    if (geladen) this.spielWelt.melde(spieler.id, 'Spielstand geladen');
 
     this.#senden(sitzung, {
       typ: NACHRICHT.ANMELDUNG_OK,
@@ -201,6 +239,18 @@ export class SpielServer {
       spielerDaten: spielerDatenPrivat(spieler),
     });
     this.log.info?.(`[Server] ${name} ist beigetreten (${this.spielerAnzahl} online)`);
+  }
+
+  /** Spielstand sichern – Daten werden SOFORT erfasst, das Schreiben läuft im Hintergrund. */
+  #speichere(sitzung) {
+    const spieler = this.spielWelt.holen(sitzung.spielerId);
+    if (!spieler) return;
+    const stand = erstelleSpielstand(spieler, this.spielWelt.karte.daten.id);
+    const auftrag = Promise.resolve()
+      .then(() => this.speicher.speichern(sitzung.benutzername, stand))
+      .catch((fehler) => this.log.error?.(`[Server] Spielstand von ${sitzung.benutzername} nicht gespeichert:`, fehler))
+      .finally(() => this.ausstehendeSpeicherungen.delete(auftrag));
+    this.ausstehendeSpeicherungen.add(auftrag);
   }
 
   #loginAblehnen(sitzung, grund) {
@@ -242,6 +292,7 @@ export class SpielServer {
     this.sitzungen.delete(sitzung);
     clearTimeout(sitzung.loginTimer);
     if (sitzung.spielerId !== null) {
+      if (!this.gestoppt) this.#speichere(sitzung); // beim Stopp ist schon gespeichert
       this.spielWelt.entfernen(sitzung.spielerId);
       this.log.info?.(`[Server] ${sitzung.benutzername} hat das Spiel verlassen (${grund ?? 'getrennt'})`);
     }

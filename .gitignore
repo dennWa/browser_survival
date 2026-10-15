@@ -1,7 +1,8 @@
 node_modules/
-# Accounts & Server-Einstellungen gehören nicht ins Repo
+# Accounts, Spielstände & Server-Einstellungen gehören nicht ins Repo
 server/daten/konten.json
 server/daten/einstellungen.json
+server/daten/spielstaende/
 .DS_Store
 
 # Asset-Pipeline

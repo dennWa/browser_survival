@@ -88,6 +88,16 @@ im Node-Server (Mehrspieler) und im Browser (Lokal-Modus). Client und Server spr
 - **Zombie-Varianten** (`konfiguration.zombie.varianten`): normal, Läufer (schnell, schwach, blass), Brocken
   (langsam, zäh, starker Biss, groß). Ruhende Zombies schlurfen im `wanderRadius` um ihren Spawnpunkt.
 
+### Spielstände
+Beim Login lädt der SpielServer den Stand über eine austauschbare **Speicher-Schnittstelle**
+(`laden(name)`, `speichern(name, stand)`), geprüft und bereinigt durch `server/spiel/spielstand.js`.
+Gespeichert wird beim Logout, alle `server.autosaveSekunden` und beim Server-Stopp (Strg+C wartet aufs Schreiben).
+| Umgebung | Speicher |
+|---|---|
+| Node-Server | `server/node/dateiSpeicher.js` → `server/daten/spielstaende/<name>.json` (Ordner per `SPIELSTAENDE=…`) |
+| Lokal-Modus | `client/netzwerk/browserSpeicher.js` → localStorage |
+| Tests / Fallback | `server/spiel/speicher/arbeitsspeicherSpeicher.js` |
+
 ### Grafik-Pipeline
 `werkzeuge/assets/baue_assets.py` (Python, nur bei Grafik-Änderungen nötig) lädt die Quellpakete, ermittelt per
 Template-Matching den Drehpunkt (Kopfmitte) jeder Figuren-Animation, schneidet zu, verkleinert, packt WebP-Spritesheets
@@ -158,6 +168,8 @@ browser_survival/
 │   │   │   ├── gegenstaende.js    Item-Datenbank (Essen, Trinken, Medizin, Waffen, Munition)
 │   │   │   └── lootTabellen.js    Welcher Raumtyp welche Items (gewichtet)
 │   │   ├── netz/speicherKanal.js  In-Memory-Kanal (Lokal-Modus, Tests) + Kanal-Schnittstelle
+│   │   ├── spielstand.js          Spielstand erstellen / prüfen & übernehmen
+│   │   ├── speicher/arbeitsspeicherSpeicher.js  Speicher-Schnittstelle + Variante im Arbeitsspeicher
 │   │   └── authentifizierung/gastAuthentifizierung.js   Auth-Schnittstelle + Gast-Variante
 │   ├── node/                      ── Nur Node.js ──
 │   │   ├── start.js               Einstieg: liest Einstellungen, startet HTTP + WS + Spiel
@@ -165,9 +177,10 @@ browser_survival/
 │   │   ├── websocketAnbindung.js  ws-Socket → Text-Kanal, Herzschlag, Größenlimits
 │   │   ├── kontenAuthentifizierung.js  Login gegen konten.json
 │   │   ├── passwort.js            scrypt-Hashing
+│   │   ├── dateiSpeicher.js       Spielstände als JSON-Dateien (atomar geschrieben)
 │   │   └── einstellungenLaden.js  einstellungen.json → Konfiguration
 │   ├── werkzeuge/kontoAnlegen.js  CLI: npm run konto -- <name> <passwort>
-│   └── daten/                     konten.json, einstellungen.json (beide gitignored) + einstellungen.beispiel.json
+│   └── daten/                     konten.json, einstellungen.json, spielstaende/ (gitignored) + einstellungen.beispiel.json
 │
 ├── werkzeuge/assets/              ── Grafik-Pipeline (Python) ──
 │   ├── baue_assets.py             Quellen, Item-/Möbel-Zuordnung, Drehpunkte, Spritesheets → client/assets/
@@ -189,6 +202,7 @@ browser_survival/
 │   │   ├── jsonVerbindung.js      Text-Kanal → Objekt-Nachrichten
 │   │   ├── websocketKanal.js      Browser-WebSocket als Text-Kanal
 │   │   ├── lokalerServer.js       Startet SpielServer im Tab (Lokal-Modus)
+│   │   ├── browserSpeicher.js     Spielstände im localStorage (Lokal-Modus)
 │   │   └── anmeldung.js           Login-Handshake (Promise)
 │   ├── darstellung/
 │   │   ├── renderer.js            Szene zeichnen, Ebenen, adaptiver Zoom, HiDPI, Culling, Vignette
@@ -244,6 +258,8 @@ browser_survival/
 | Neuer Entitätstyp | `server/spiel/entitaeten/<typ>.js`, Serialisierer in `spielWelt.js` (`NETZWERK_SERIALISIERER`), Zeichner in `entitaetZeichner.js` |
 | Tastenbelegung | `client/kern/eingabe.js` → `TASTEN`, `SLOT_TASTEN`; Touch-Feuerschwelle `TOUCH_FEUER_SCHWELLE` |
 | Login-Formular / Serverliste | `client/index.html`, `client/ui/loginBildschirm.js`, `client/konfiguration.js` → `SERVER_LISTE` |
+| Was im Spielstand steht / Prüfung beim Laden | `server/spiel/spielstand.js` |
+| Wo Spielstände liegen | `server/node/start.js` (DateiSpeicher), `client/netzwerk/lokalerServer.js` (BrowserSpeicher) |
 | Login-Prüfung / Accounts | `server/node/kontenAuthentifizierung.js`, `server/werkzeuge/kontoAnlegen.js` |
 | HUD / Anzeigen | `client/ui/hud.js`, `client/index.html`, `client/stil.css` |
 | Tickrate | `gemeinsam/konstanten.js` → `TICK_RATE` |
@@ -304,7 +320,7 @@ browser_survival/
 ### ⏳ Phase 3 – Vorschläge (wartet auf Entscheidung)
 - 3D-Prototyp (Three.js, schräge Kamera) zum Vergleich mit 2D – siehe Gespräch: Logik bleibt, nur `client/darstellung/` wechselt
 - Dunkelheit + Taschenlampen-Lichtkegel, Sound & Musik
-- Persistenz pro Account (Inventar/Position bleiben nach Logout)
+- ~~Persistenz pro Account (Inventar/Position bleiben nach Logout)~~ ✅ (v0.4.0)
 - ~~Sprinten mit Ausdauer, Zombie-Varianten, umherwandernde Zombies~~ ✅ (v0.4.0)
 
 ### 🔭 Später
@@ -312,7 +328,6 @@ browser_survival/
 - Eigene Animationen für Hammer/Beil/Machete (aktuell nutzen alle Nahkampfwaffen das Messer-Set)
 - Türen öffnen/schließen, Inventar-Fenster mit Drag & Drop, Crafting
 - Interest Management (nur nahe Entitäten senden), Delta-Kompression – sobald Spielerzahl/Karte wächst
-- Persistenz pro Account (Position, Inventar) – Datei oder SQLite
 - Treffer-Vorhersage im Client (sofortiges Feedback trotz Ping)
 - Mehrere Karten / Serverbrowser mit Live-Status
 - HTTPS/WSS hinter Reverse Proxy (z. B. Caddy/nginx) für Betrieb im Internet

@@ -24,7 +24,7 @@ const NETZWERK_SERIALISIERER = {
  *
  * Pro Tick gesammelt (und danach vom SpielServer verschickt):
  *   ereignisse  → an alle (Schüsse, Treffer, Tode … für Effekte)
- *   meldungen   → { spielerId, text } nur an den jeweiligen Spieler
+ *   meldungen   → { spielerId, text } nur an den jeweiligen Spieler (sammeln sich bis zum Versand)
  */
 export class SpielWelt {
   /** @param optionen.kartenDefinition  eigene Karte statt konfiguration.welt.karte (z. B. für Tests) */
@@ -130,8 +130,7 @@ export class SpielWelt {
   /** Ein Simulationsschritt. Reihenfolge der Systeme ist bewusst festgelegt. */
   aktualisiere(dt) {
     this.tick++;
-    this.ereignisse = [];
-    this.meldungen = [];
+    this.ereignisse = []; // Meldungen leert der SpielServer nach dem Versand
     this.#beendeAbgelaufeneAktionen();
     verarbeiteSpielerEingaben(this);
     verarbeiteAktionen(this);

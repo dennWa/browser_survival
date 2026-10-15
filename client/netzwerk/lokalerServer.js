@@ -1,6 +1,7 @@
 import { SpielServer } from '../../server/spiel/spielServer.js';
 import { GastAuthentifizierung } from '../../server/spiel/authentifizierung/gastAuthentifizierung.js';
 import { erstelleSpeicherKanalPaar } from '../../server/spiel/netz/speicherKanal.js';
+import { BrowserSpeicher } from './browserSpeicher.js';
 import { LOKALE_LATENZ_MS } from '../konfiguration.js';
 
 /**
@@ -15,8 +16,11 @@ export function oeffneLokalenKanal() {
     server = new SpielServer({
       authentifizierung: new GastAuthentifizierung(),
       konfiguration: { server: { name: 'Lokaler Server' } },
+      speicher: new BrowserSpeicher(),
     });
     server.starten();
+    // Tab wird geschlossen/neu geladen → Spielstand sichern (localStorage schreibt sofort)
+    window.addEventListener('pagehide', () => server.speichereAlle());
   }
   const { clientSeite, serverSeite } = erstelleSpeicherKanalPaar({ latenzMs: LOKALE_LATENZ_MS });
   server.verbindungHinzufuegen(serverSeite, { adresse: 'lokal' });
