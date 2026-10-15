@@ -62,6 +62,14 @@ export const LOOT_TABELLEN = Object.freeze({
     { id: 'feuerwehrbeil', gewicht: 1 },
     { id: 'schmerzmittel', gewicht: 2 },
   ],
+  // Was getötete Zombies manchmal fallen lassen
+  zombie: [
+    { id: 'munition_9mm', gewicht: 3 },
+    { id: 'munition_12', gewicht: 2 },
+    { id: 'verband', gewicht: 2 },
+    { id: 'muesliriegel', gewicht: 2 },
+    { id: 'energydrink', gewicht: 1 },
+  ],
   verwaltung: [
     { id: 'kaffee', gewicht: 2 },
     { id: 'muesliriegel', gewicht: 2 },

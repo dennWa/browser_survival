@@ -58,8 +58,11 @@ export class Renderer {
     ctx.fillRect(0, 0, this.leinwand.width, this.leinwand.height);
   }
 
-  /** @param szene { fokus: {x,y}, entitaeten: [], gegenstaende: [], jetzt: ms } */
-  zeichne({ fokus, entitaeten, gegenstaende, jetzt }) {
+  /**
+   * @param szene { fokus: {x,y}, entitaeten: [], gegenstaende: [], jetzt: ms, effekte?: Effekte, markiertId?: number }
+   *              markiertId = Gegenstand, der gerade aufgehoben werden kann (leuchtet stärker)
+   */
+  zeichne({ fokus, entitaeten, gegenstaende, jetzt, effekte = null, markiertId = null }) {
     const { ctx, kamera } = this;
     const dt = this.letzteZeit ? Math.min(0.1, (jetzt - this.letzteZeit) / 1000) : 0;
     this.letzteZeit = jetzt;
@@ -77,17 +80,21 @@ export class Renderer {
     const sichtbar = (e) =>
       e.x > sicht.links - CULLING_RAND && e.x < sicht.rechts + CULLING_RAND && e.y > sicht.oben - CULLING_RAND && e.y < sicht.unten + CULLING_RAND;
 
-    for (const g of gegenstaende) if (sichtbar(g)) zeichneGegenstand(ctx, g, this.assets, jetzt);
+    effekte?.aktualisiere(dt, jetzt);
+    effekte?.zeichneBoden(ctx, this.assets);
+    for (const g of gegenstaende) if (sichtbar(g)) zeichneGegenstand(ctx, g, this.assets, jetzt, g.id === markiertId);
 
     const kontext = { assets: this.assets, animationen: this.animationen, dt, jetzt };
     const figuren = entitaeten.filter(sichtbar).sort((a, b) => (EBENEN[a.typ] ?? 0) - (EBENEN[b.typ] ?? 0));
     for (const e of figuren) ZEICHNER[e.typ]?.(ctx, e, kontext);
+    effekte?.zeichneOben(ctx);
 
     this.weltZeichner?.zeichneObereEbene(ctx, sicht, fokus);
     for (const e of figuren) zeichneBeschriftung(ctx, e);
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.drawImage(this.vignette, 0, 0);
+    effekte?.zeichneBildschirm(ctx, this.leinwand.width, this.leinwand.height);
     this.animationen.aufraeumen(jetzt);
   }
 }

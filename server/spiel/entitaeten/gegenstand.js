@@ -1,11 +1,14 @@
 import { GEGENSTAENDE } from '../konfiguration/gegenstaende.js';
 
 /**
- * Gegenstand, der in der Welt liegt (Loot). Im Inventar wird später nur { defId, menge } gespeichert.
+ * Gegenstand, der in der Welt liegt (Loot). Im Inventar wird nur { defId, menge, magazin? } gespeichert.
+ * magazin: Patronen in einer abgelegten/gefundenen Schusswaffe.
  */
-export function erzeugeGegenstand({ id, defId, x, y, menge = 1 }) {
+export function erzeugeGegenstand({ id, defId, x, y, menge = 1, magazin }) {
   if (!GEGENSTAENDE[defId]) throw new Error(`Unbekannter Gegenstand: "${defId}"`);
-  return { id, typ: 'gegenstand', defId, x, y, menge };
+  const g = { id, typ: 'gegenstand', defId, x, y, menge };
+  if (magazin !== undefined) g.magazin = magazin;
+  return g;
 }
 
 export function gegenstandZuNetzwerk(g) {

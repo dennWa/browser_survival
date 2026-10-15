@@ -28,9 +28,26 @@
           <button id="hud-abmelden" type="button">Abmelden</button>
         </div>
       </div>
-      <div id="hud-leben"></div>
+      <div id="hud-werte">
+        <div class="wert" id="wert-leben" title="Leben"><span class="symbol">❤</span><div class="balken"><div class="fuellung"></div></div></div>
+        <div class="wert" id="wert-hunger" title="Hunger"><span class="symbol">🍖</span><div class="balken"><div class="fuellung"></div></div></div>
+        <div class="wert" id="wert-durst" title="Durst"><span class="symbol">💧</span><div class="balken"><div class="fuellung"></div></div></div>
+      </div>
       <pre id="hud-debug" hidden></pre>
+      <div id="hud-meldungen" aria-live="polite"></div>
+      <div id="hud-unten">
+        <button id="knopf-aufheben" type="button" hidden></button>
+        <div id="hud-munition" hidden></div>
+        <div id="hotbar"></div>
+      </div>
+      <button id="knopf-nachladen" type="button" hidden aria-label="Nachladen">↻</button>
       <div id="hud-hilfe"></div>
+    </div>
+
+    <!-- Todesbildschirm -->
+    <div id="tod-overlay" hidden>
+      <h2>Du bist gestorben</h2>
+      <p id="tod-countdown"></p>
     </div>
 
     <!-- Ladebildschirm -->

@@ -1,13 +1,16 @@
+import { TICK_DAUER_S } from '../../gemeinsam/konstanten.js';
 import { Welt } from '../../gemeinsam/welt/welt.js';
-import { ladeKarte } from './karten/kartenLader.js';
+import { ladeKarte, verarbeiteKarte } from './karten/kartenLader.js';
 import { Zufall } from './zufall.js';
 import { erzeugeSpieler, spielerZuNetzwerk } from './entitaeten/spieler.js';
 import { erzeugeZombie, zombieZuNetzwerk } from './entitaeten/zombie.js';
 import { gegenstandZuNetzwerk } from './entitaeten/gegenstand.js';
 import { verarbeiteSpielerEingaben } from './systeme/bewegungsSystem.js';
-import { aktualisiereZombies } from './systeme/zombieSystem.js';
+import { verarbeiteAktionen, aktualisiereNachladen } from './systeme/inventarSystem.js';
 import { aktualisiereKampf } from './systeme/kampfSystem.js';
-import { verteileStartLoot } from './systeme/lootSystem.js';
+import { aktualisiereZombies } from './systeme/zombieSystem.js';
+import { aktualisiereUeberleben } from './systeme/ueberlebenSystem.js';
+import { verteileStartLoot, aktualisiereLoot } from './systeme/lootSystem.js';
 
 /** Welche Entitätstypen jeden Tick im Schnappschuss landen (dynamisch) – und wie sie serialisiert werden. */
 const NETZWERK_SERIALISIERER = {
@@ -18,22 +21,31 @@ const NETZWERK_SERIALISIERER = {
 /**
  * Der komplette autoritative Spielzustand: Karte, alle Entitäten, Tick-Zähler.
  * Kennt KEINE Verbindungen oder Accounts – das macht der SpielServer.
+ *
+ * Pro Tick gesammelt (und danach vom SpielServer verschickt):
+ *   ereignisse  → an alle (Schüsse, Treffer, Tode … für Effekte)
+ *   meldungen   → { spielerId, text } nur an den jeweiligen Spieler
  */
 export class SpielWelt {
-  constructor(konfiguration) {
+  /** @param optionen.kartenDefinition  eigene Karte statt konfiguration.welt.karte (z. B. für Tests) */
+  constructor(konfiguration, { kartenDefinition } = {}) {
     this.konfiguration = konfiguration;
     this.zufall = new Zufall(konfiguration.server.zufallsStartwert ?? undefined);
-    this.karte = ladeKarte(konfiguration.welt.karte);
+    this.karte = kartenDefinition ? verarbeiteKarte(kartenDefinition) : ladeKarte(konfiguration.welt.karte);
     this.welt = new Welt(this.karte.daten);
     this.entitaeten = new Map();
     this.tick = 0;
-    /** Wird erhöht, wenn Gegenstände hinzukommen/verschwinden → Server schickt neue Liste. */
+    /** Wird erhöht, wenn Gegenstände hinzukommen/verschwinden/sich ändern → Server schickt neue Liste. */
     this.gegenstaendeVersion = 0;
     this.naechsteId = 1;
+    this.ereignisse = [];
+    this.meldungen = [];
+    this.zombieRespawns = []; // [{ spawnIndex, rest }]
+    this.lootZustand = [];
 
-    for (const spawn of this.karte.zombieSpawns) {
-      this.hinzufuegen(erzeugeZombie({ id: this.neueId(), x: spawn.x, y: spawn.y, konfiguration }));
-    }
+    this.karte.zombieSpawns.forEach((spawn, spawnIndex) => {
+      this.hinzufuegen(erzeugeZombie({ id: this.neueId(), x: spawn.x, y: spawn.y, konfiguration, spawnIndex }));
+    });
     verteileStartLoot(this);
   }
 
@@ -81,12 +93,45 @@ export class SpielWelt {
     );
   }
 
+  ereignis(ereignis) {
+    this.ereignisse.push(ereignis);
+  }
+
+  melde(spielerId, text) {
+    this.meldungen.push({ spielerId, text });
+  }
+
+  /** Startet eine Aktion für Animationen (Schuss, Nachladen, Angriff …); läuft nach `dauer` Sekunden ab. */
+  setzeAktion(entitaet, art, dauer) {
+    entitaet.aktion = art;
+    entitaet.aktionTick = this.tick;
+    entitaet.aktionDauer = dauer;
+  }
+
+  planeZombieRespawn(spawnIndex) {
+    if (spawnIndex === null || spawnIndex === undefined) return;
+    this.zombieRespawns.push({ spawnIndex, rest: this.konfiguration.zombie.respawnZeit });
+  }
+
   /** Ein Simulationsschritt. Reihenfolge der Systeme ist bewusst festgelegt. */
   aktualisiere(dt) {
     this.tick++;
+    this.ereignisse = [];
+    this.meldungen = [];
+    this.#beendeAbgelaufeneAktionen();
     verarbeiteSpielerEingaben(this);
-    aktualisiereZombies(this, dt);
+    verarbeiteAktionen(this);
+    aktualisiereNachladen(this, dt);
     aktualisiereKampf(this, dt);
+    aktualisiereZombies(this, dt);
+    aktualisiereUeberleben(this, dt);
+    aktualisiereLoot(this, dt);
+  }
+
+  #beendeAbgelaufeneAktionen() {
+    for (const e of this.entitaeten.values()) {
+      if (e.aktion && (this.tick - e.aktionTick) * TICK_DAUER_S >= e.aktionDauer) e.aktion = null;
+    }
   }
 
   schnappschuss() {
@@ -95,7 +140,7 @@ export class SpielWelt {
       const serialisierer = NETZWERK_SERIALISIERER[e.typ];
       if (serialisierer) entitaeten.push(serialisierer(e));
     }
-    return { tick: this.tick, entitaeten };
+    return { tick: this.tick, entitaeten, ereignisse: this.ereignisse };
   }
 
   gegenstaendeListe() {

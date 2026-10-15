@@ -58,12 +58,30 @@ im Node-Server (Mehrspieler) und im Browser (Lokal-Modus). Client und Server spr
 **Text-Kanal** – ob WebSocket oder Speicher-Kanal ist für beide Seiten unsichtbar.
 
 ### Datenfluss pro Tick (30×/s)
-1. Client: Tasten lesen → `EINGABE {seq, x, y, blick}` senden **und** sofort lokal anwenden (Vorhersage)
-2. Server: Eingabe prüfen → in Puffer des Spielers (max. 8)
-3. Server-Tick: `SpielWelt.aktualisiere()` → Systeme in fester Reihenfolge: Bewegung → Zombies → Kampf
-4. Server: `ZUSTAND` (Schnappschuss aller Spieler & Zombies) an alle; `GEGENSTAENDE` nur bei Änderung
-5. Client: eigene Position vom Server übernehmen, unbestätigte Eingaben nachspielen (Reconciliation);
-   andere Entitäten 100 ms verzögert zwischen zwei Schnappschüssen interpolieren
+1. Client: Tasten lesen → `EINGABE {seq, x, y, blick, angriff}` senden **und** Bewegung sofort lokal anwenden (Vorhersage).
+   Einmalige Aktionen (aufheben, benutzen, ablegen, nachladen) gehen als `AKTION {art, slot?}`.
+2. Server: Eingaben/Aktionen prüfen → Puffer des Spielers (je max. 8)
+3. Server-Tick `SpielWelt.aktualisiere()` – Systeme in fester Reihenfolge:
+   Aktionen ablaufen lassen → Bewegung → Inventar-Aktionen → Nachladen → Kampf (Spielerangriffe)
+   → Zombie-KI → Überleben (Hunger/Durst/Respawn) → Loot-Nachschub
+4. Server sendet an alle: `ZUSTAND` (Spieler & Zombies + `ereignisse` des Ticks: Schüsse, Treffer, Tode …),
+   `GEGENSTAENDE` nur bei Änderung. An jeden einzeln: `SPIELER_DATEN` (Inventar, Hunger, Durst … nur bei Änderung)
+   und `MELDUNG`en ("Inventar voll").
+5. Client: eigene Position übernehmen + unbestätigte Eingaben nachspielen (Reconciliation); andere Entitäten
+   100 ms verzögert interpolieren; Ereignisse → Effekte (fremde ebenfalls 100 ms verzögert, eigene sofort).
+
+### Gameplay-Regeln (Kurzfassung)
+- **Zombies:** sehen Spieler im `aggroRadius` nur bei freier Sicht (Wände/Fenster blockieren, Möbel nicht), hören
+  Schüsse im `hoerRadius`. Laufen direkt aufs Ziel, wenn der Weg begehbar ist (3 Strahlen in Körperbreite), sonst A*
+  um Wände & Möbel. Geben auf jenseits `verlierRadius` oder wenn das Ziel unerreichbar ist. Respawn am Spawnpunkt,
+  aber nie in Spielernähe. Lassen mit `lootChance` etwas fallen.
+- **Kampf:** Schusswaffen = Strahl (Hitscan) bis zur ersten Wand, Schrotflinte mit 7 Projektilen + Streuung;
+  leeres Magazin → automatisch nachladen (falls Munition da), sonst "Klick". Nahkampf = Trefferkegel ±57° vor der
+  Figur; ohne Waffe Schlag mit der Taschenlampe. PvP standardmäßig aus (`kampf.pvp`).
+- **Inventar:** 8 Plätze, Stapel bis `stapelbar`, erste Waffe wird automatisch ausgerüstet, Schusswaffen merken ihr
+  Magazin auch beim Ablegen.
+- **Überleben:** Hunger/Durst sinken; bei 0 → Schaden. Beide ≥ 70 → langsame Heilung. Tod → Inventar fällt auf
+  den Boden, Respawn nach `respawnZeit` am Startpunkt.
 
 ### Grafik-Pipeline
 `werkzeuge/assets/baue_assets.py` (Python, nur bei Grafik-Änderungen nötig) lädt die Quellpakete, ermittelt per
@@ -105,7 +123,9 @@ browser_survival/
 │   ├── mathe.js                   lerp, Winkel-Interpolation, normalisiere …
 │   ├── welt/kacheln.js            Kacheltypen (Zeichen → Name, blockiert?) + Marker (S, Z, a–z)
 │   ├── welt/welt.js               Klasse Welt: Kachelabfragen, istBlockiert
-│   └── physik/bewegung.js         wendeEingabeAn, bewegeKoerper (Kollision) – deterministisch!
+│   └── physik/
+│       ├── bewegung.js            wendeEingabeAn, bewegeKoerper (Kollision) – deterministisch!
+│       └── strahl.js              Raycasts: strahlGegenWaende, sichtlinieFrei, wegFrei, strahlTrifftKreis
 │
 ├── server/
 │   ├── spiel/                     ── Autoritative Spiellogik (läuft in Node UND Browser) ──
@@ -118,10 +138,13 @@ browser_survival/
 │   │   │   ├── zombie.js          erzeugeZombie + zombieZuNetzwerk
 │   │   │   └── gegenstand.js      erzeugeGegenstand + gegenstandZuNetzwerk
 │   │   ├── systeme/
-│   │   │   ├── bewegungsSystem.js Spieler-Eingaben anwenden
-│   │   │   ├── zombieSystem.js    Zombie-KI (PLATZHALTER)
-│   │   │   ├── kampfSystem.js     Nah-/Fernkampf, Schaden (PLATZHALTER)
-│   │   │   └── lootSystem.js      Start-Loot verteilen
+│   │   │   ├── bewegungsSystem.js Spieler-Eingaben anwenden (inkl. Angriffstaste)
+│   │   │   ├── inventarSystem.js  Aufheben, Benutzen, Ausrüsten, Ablegen, Nachladen
+│   │   │   ├── kampfSystem.js     Schüsse (Strahl), Nahkampf (Kegel), fuegeSchadenZu, toeten, Lärm → Zombies
+│   │   │   ├── zombieSystem.js    Zombie-KI: Sicht, Verfolgen, Angriff, Abstand halten, Respawn
+│   │   │   ├── pfadfindung.js     A* auf dem Kachelraster
+│   │   │   ├── ueberlebenSystem.js Hunger, Durst, Heilung, Wiederbelebung
+│   │   │   └── lootSystem.js      Start-Loot, Nachschub an Loot-Punkten, Zombie-Beute
 │   │   ├── karten/
 │   │   │   ├── kartenLader.js     Kartenregister + ASCII → Kacheln/Spawns/Loot-Punkte
 │   │   │   └── krankenhaus.js     Krankenhaus-Karte (ASCII) + Raumdefinitionen
@@ -164,6 +187,7 @@ browser_survival/
 │   │   └── anmeldung.js           Login-Handshake (Promise)
 │   ├── darstellung/
 │   │   ├── renderer.js            Szene zeichnen, Ebenen, adaptiver Zoom, HiDPI, Culling, Vignette
+│   │   ├── effekte.js             Mündungsfeuer, Leuchtspuren, Blut, Blutlachen, Schadensblitz
 │   │   ├── assets.js              Atlas + Bilder laden, Zugriff auf Figuren/Items/Böden/Objekte
 │   │   ├── animationen.js         Frame-Zustand pro Figur, zeichneFrame()
 │   │   ├── kamera.js              Folgt Spieler, Welt ↔ Bildschirm
@@ -172,7 +196,7 @@ browser_survival/
 │   │   └── farben.js              Farben für Prozedurales (Wände, Asphalt) + Ersatzfarben
 │   └── ui/
 │       ├── loginBildschirm.js     Login-Formular, Serverauswahl
-│       ├── hud.js                 Statusleiste, Leben, Debug (F3), Vollbild-Knopf (Touch)
+│       ├── hud.js                 Balken, Schnellleiste, Munition, Aufheben/Nachladen-Knöpfe, Meldungen, Tod, Debug
 │       └── credits.js             Credits-Dialog (Grafik-Lizenzen)
 │
 └── tests/                         node:test – Karte, Bewegung, Server-Ablauf, Konten, Inhalte (Erreichbarkeit, Grafiken)
@@ -185,6 +209,14 @@ browser_survival/
 | Wunsch | Datei(en) |
 |---|---|
 | Zombie-Verhalten (Aggro, Verfolgen, Angriff) | `server/spiel/systeme/zombieSystem.js` (+ Werte in `spielKonfiguration.js` → `zombie`) |
+| Zombie-Wegfindung | `server/spiel/systeme/pfadfindung.js` (A*), "geradeaus oder Umweg?" → `wegFrei` in `gemeinsam/physik/strahl.js` |
+| Waffenwerte (Schaden, Magazin, Streuung, Nachladezeit) | `server/spiel/konfiguration/gegenstaende.js`; Schlag ohne Waffe: `UNBEWAFFNET` |
+| Wirkung von Essen/Trinken/Medizin | `gegenstaende.js` (`naehrwert`, `durstwert`, `heilung`), Logik: `inventarSystem.js` → `benutzen` |
+| Hunger-/Durst-Tempo, Heilung, Respawn-Zeit | `spielKonfiguration.js` → `spieler` |
+| Inventargröße / Aufheb-Reichweite | `gemeinsam/konstanten.js` → `INVENTAR_PLAETZE`, `AUFHEB_REICHWEITE` |
+| Loot-Nachschub, Zombie-Beute | `lootSystem.js`; Zeiten in `spielKonfiguration.js` → `loot`, `zombie.lootChance`; Tabelle `zombie` in `lootTabellen.js` |
+| Effekte (Blut, Mündungsfeuer …) | `client/darstellung/effekte.js` |
+| Schnellleiste, Balken, Todesbildschirm | `client/ui/hud.js`, Markup `client/index.html`, Stil `client/stil.css` |
 | Zombie-Aussehen / Animationen | Grafik: `werkzeuge/assets/baue_assets.py` (`baue_zombie`); Auswahl der Animation: `client/darstellung/entitaetZeichner.js` → `zeichneZombie` |
 | Spieler-Animationen / Waffen in der Hand | `entitaetZeichner.js` → `zeichneSpieler`; Ausrüstung je Waffe: `gegenstaende.js` → `ausruestung` |
 | Neue Grafik / anderes Icon / Möbelstück | `werkzeuge/assets/baue_assets.py` (`ITEMS`, `OBJEKTE`, `EINZEL_OBJEKTE`) → Skript ausführen |
@@ -199,10 +231,11 @@ browser_survival/
 | Neue Karte | neue Datei in `server/spiel/karten/` + in `KARTEN` (`kartenLader.js`) registrieren; Auswahl via `welt.karte` |
 | Neuer Kacheltyp (z. B. Wasser) | `gemeinsam/welt/kacheln.js` + Textur in `baue_assets.py` (`BODEN`) oder Farbe in `farben.js` |
 | Kollision / Bewegungsphysik | `gemeinsam/physik/bewegung.js` (wirkt auf Server UND Client-Vorhersage) |
-| Kampf, Treffer, Schaden zufügen | `server/spiel/systeme/kampfSystem.js` |
+| Kampf, Treffer, Schaden zufügen | `server/spiel/systeme/kampfSystem.js` (`fuegeSchadenZu` = einzige Schadensstelle) |
+| Neue Aktion (z. B. "werfen") | `AKTIONEN` in `gemeinsam/protokoll.js` → `inventarSystem.js` (`verarbeiteAktionen`) → `clientSpiel.js` + Taste in `eingabe.js` + Touch-Knopf im HUD |
 | Neue Netzwerk-Nachricht | `gemeinsam/protokoll.js` → Server: `spielServer.js` (`#nachrichtEmpfangen`) → Client: `clientSpiel.js` (`#nachricht`) |
 | Neuer Entitätstyp | `server/spiel/entitaeten/<typ>.js`, Serialisierer in `spielWelt.js` (`NETZWERK_SERIALISIERER`), Zeichner in `entitaetZeichner.js` |
-| Tastenbelegung | `client/kern/eingabe.js` → `TASTEN` |
+| Tastenbelegung | `client/kern/eingabe.js` → `TASTEN`, `SLOT_TASTEN`; Touch-Feuerschwelle `TOUCH_FEUER_SCHWELLE` |
 | Login-Formular / Serverliste | `client/index.html`, `client/ui/loginBildschirm.js`, `client/konfiguration.js` → `SERVER_LISTE` |
 | Login-Prüfung / Accounts | `server/node/kontenAuthentifizierung.js`, `server/werkzeuge/kontoAnlegen.js` |
 | HUD / Anzeigen | `client/ui/hud.js`, `client/index.html`, `client/stil.css` |
@@ -252,21 +285,28 @@ browser_survival/
 - Touch-Steuerung (2 Joysticks), adaptiver Zoom, Vollbild, Handy-taugliches Login, Ladebildschirm
 - Tests: Erreichbarkeit aller Loot-/Spawnpunkte, jede Grafik vorhanden (19 Tests)
 
-### ⏳ Phase 2 – Core Gameplay (nächster Schritt, wartet auf Freigabe)
-Animationen für Schießen, Nachladen, Nahkampf und Zombie-Angriff liegen bereits im Atlas.
-- [ ] Zombie-KI: Aggro-Radius, Verfolgen (zuerst direkt, später Pfadfindung A*), Angriff
-- [ ] Aufsammeln von Items (Taste E, Server prüft Reichweite) + Inventar
-- [ ] Nahkampf (Treffer-Kegel) und Fernkampf (Hitscan/Raycast, Munition)
-- [ ] Spielertod & Respawn
-- [ ] Hunger/Durst (Essen & Trinken bekommen Sinn)
+### ✅ Phase 2 – Core Gameplay (fertig, v0.3.0)
+- Zombie-KI: Sicht mit Wandblockade, Gehör für Schüsse, direkte Verfolgung oder A*-Umweg, Angriff, Abstand untereinander, Respawn
+- Inventar (8 Plätze, Stapel), Aufheben (E), Benutzen/Ausrüsten (1–8), Ablegen (Rechtsklick / lange tippen), Nachladen (R)
+- Fernkampf per Strahl (Pistole, Schrotflinte mit Streuung), Nahkampf-Kegel (Messer, Hammer, Machete, Beil, Taschenlampe)
+- Hunger & Durst, Regeneration, Tod mit Item-Verlust, Respawn; Loot-Nachschub & Zombie-Beute
+- Aktionsanimationen (Schießen/Nachladen/Nahkampf/Zombie-Biss), Effekte, HUD mit Schnellleiste & Balken, Todesbildschirm
+- Touch: rechter Stick voll = Angriff, Knöpfe für Aufheben/Nachladen, Schnellleiste antippbar
+- Tests: 36 (u. a. Strahlen, A*, Inventar, Kampf, Zombie-KI inkl. Umweg um Möbel, Tod/Respawn)
+
+### ⏳ Phase 3 – Vorschläge (wartet auf Entscheidung)
+- 3D-Prototyp (Three.js, schräge Kamera) zum Vergleich mit 2D – siehe Gespräch: Logik bleibt, nur `client/darstellung/` wechselt
+- Dunkelheit + Taschenlampen-Lichtkegel, Sound & Musik
+- Persistenz pro Account (Inventar/Position bleiben nach Logout)
+- Sprinten mit Ausdauer, Zombie-Varianten (schnell, zäh), umherwandernde Zombies
 
 ### 🔭 Später
 - Dunkelheit + Taschenlampen-Lichtkegel (Atmosphäre!), Sichtlinie / Nebel des Krieges
 - Eigene Animationen für Hammer/Beil/Machete (aktuell nutzen alle Nahkampfwaffen das Messer-Set)
-- Türen öffnen/schließen, Loot-Respawn
+- Türen öffnen/schließen, Inventar-Fenster mit Drag & Drop, Crafting
 - Interest Management (nur nahe Entitäten senden), Delta-Kompression – sobald Spielerzahl/Karte wächst
 - Persistenz pro Account (Position, Inventar) – Datei oder SQLite
-- Sound & Musik, Partikel (Mündungsfeuer, Blutspritzer)
+- Treffer-Vorhersage im Client (sofortiges Feedback trotz Ping)
 - Mehrere Karten / Serverbrowser mit Live-Status
 - HTTPS/WSS hinter Reverse Proxy (z. B. Caddy/nginx) für Betrieb im Internet
 
@@ -274,6 +314,9 @@ Animationen für Schießen, Nachladen, Nahkampf und Zombie-Angriff liegen bereit
 - Login-Daten gehen über `ws://` unverschlüsselt → im Internet nur über `wss://` (HTTPS-Proxy) betreiben
 - Eingabepuffer verwirft bei extremem Lag Eingaben (Schutz vor Speedhacks) → leichte Korrektur-Ruckler möglich
 - Schnappschüsse enthalten alle Spieler + Zombies (für ~32 Spieler auf einer Karte unkritisch)
+- Schuss-/Treffer-Feedback kommt erst nach einer Server-Runde (bei 50 ms Ping kaum spürbar, bei 200 ms schon)
+- Nahkampf trifft sofort beim Tastendruck (nicht erst im passenden Animationsframe)
+- Ruhende Zombies stehen still (kein Umherwandern)
 
 ---
 
@@ -283,3 +326,4 @@ Animationen für Schießen, Nachladen, Nahkampf und Zombie-Angriff liegen bereit
 |---|---|---|
 | 0.1.0 | 2026-10-15 | Grundgerüst: Architektur, Netzwerk, Login, Bewegung, Krankenhauskarte, Platzhalter für Zombies/Loot |
 | 0.2.0 | 2026-10-15 | Echte Grafiken & Animationen, Möbel mit Kollision, Parkplatz, Touch-Steuerung, adaptiver Zoom, Credits |
+| 0.3.0 | 2026-10-15 | Gameplay: Zombie-KI mit A*, Inventar, Fern-/Nahkampf, Hunger/Durst, Tod & Respawn, Effekte, HUD (Protokoll v2) |

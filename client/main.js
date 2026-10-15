@@ -25,7 +25,16 @@ let aktuellesSpiel = null;
 let assets = null;
 
 eingabe.beiTaste('debug', () => hud.debugUmschalten());
+eingabe.beiTaste('aufheben', () => aktuellesSpiel?.aufheben());
+eingabe.beiTaste('nachladen', () => aktuellesSpiel?.nachladen());
+eingabe.beiSlotTaste((slot) => aktuellesSpiel?.benutzen(slot));
 hud.beiAbmelden(() => aktuellesSpiel?.beenden('Abgemeldet'));
+hud.beiAktionen({
+  aufheben: () => aktuellesSpiel?.aufheben(),
+  nachladen: () => aktuellesSpiel?.nachladen(),
+  benutzen: (slot) => aktuellesSpiel?.benutzen(slot),
+  ablegen: (slot) => aktuellesSpiel?.ablegen(slot),
+});
 document.getElementById('credits-knopf').addEventListener('click', () => zeigeCredits(document, assets));
 
 login.beiAnmeldung(async ({ server, adresse, benutzername, passwort }) => {
@@ -69,6 +78,7 @@ async function starten() {
   try {
     assets = await ladeAssets((anteil) => (fuellung.style.width = `${Math.round(anteil * 100)}%`));
     renderer.setzeAssets(assets);
+    hud.setzeAssets(assets);
   } catch (fehler) {
     // Ohne Grafiken läuft das Spiel mit Platzhalter-Formen weiter
     console.warn('[Assets] Laden fehlgeschlagen:', fehler);

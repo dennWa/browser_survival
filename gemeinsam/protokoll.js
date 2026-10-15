@@ -12,18 +12,24 @@ export const NACHRICHT = Object.freeze({
   // ---- Client → Server ----
   /** { benutzername, passwort, protokoll } */
   ANMELDEN: 'anmelden',
-  /** { seq, x, y, blick } – x/y: Bewegungsrichtung -1..1, blick: Winkel in Radiant */
+  /** { seq, x, y, blick, angriff } – x/y: Bewegungsrichtung -1..1, blick: Winkel (Radiant), angriff: Taste gehalten */
   EINGABE: 'eingabe',
+  /** { art, slot? } – einmalige Aktion: 'aufheben' | 'benutzen' | 'ablegen' | 'nachladen' (siehe AKTIONEN) */
+  AKTION: 'aktion',
   /** { t } – Zeitstempel des Clients, kommt als PONG zurück */
   PING: 'ping',
 
   // ---- Server → Client ----
-  /** { spielerId, serverName, tickRate, karte, physik, gegenstaende } */
+  /** { spielerId, serverName, tickRate, karte, physik, start, gegenstaende, itemDefinitionen, spielerDaten } */
   ANMELDUNG_OK: 'anmeldungOk',
   /** { grund } */
   ANMELDUNG_FEHLER: 'anmeldungFehler',
-  /** { tick, entitaeten: [...] } – Schnappschuss (Snapshot) aller dynamischen Entitäten, jeden Tick */
+  /** { tick, entitaeten: [...], ereignisse: [...] } – Schnappschuss aller dynamischen Entitäten + Ereignisse dieses Ticks */
   ZUSTAND: 'zustand',
+  /** { leben, maxLeben, hunger, durst, inventar, ausgeruestet, nachladen, tot, respawnIn } – nur an den eigenen Spieler, bei Änderung */
+  SPIELER_DATEN: 'spielerDaten',
+  /** { text } – kurze Info nur für diesen Spieler (z. B. "Inventar voll") */
+  MELDUNG: 'meldung',
   /** { gegenstaende: [...] } – komplette Item-Liste, nur wenn sie sich geändert hat */
   GEGENSTAENDE: 'gegenstaende',
   /** { t } */
@@ -31,6 +37,23 @@ export const NACHRICHT = Object.freeze({
   /** { text } – Hinweise vom Server (z. B. "Server startet neu") */
   SYSTEM: 'system',
 });
+
+/** Erlaubte Aktionen (Nachricht AKTION). slot = Inventarplatz 0..INVENTAR_PLAETZE-1 */
+export const AKTIONEN = Object.freeze({
+  AUFHEBEN: 'aufheben', // nächsten Gegenstand in Reichweite aufheben
+  BENUTZEN: 'benutzen', // Essen/Trinken/Medizin verbrauchen, Waffe aus-/abrüsten
+  ABLEGEN: 'ablegen', // ganzen Stapel auf den Boden legen
+  NACHLADEN: 'nachladen', // ausgerüstete Schusswaffe nachladen
+});
+
+/**
+ * Ereignistypen in ZUSTAND.ereignisse (für Effekte im Client – rein optisch):
+ *   schuss    { von, x, y, zx, zy }        Schuss von (x,y) bis Einschlag (zx,zy)
+ *   treffer   { x, y, winkel, ziel }        ziel: 'zombie' | 'spieler'
+ *   tod       { id, x, y, ziel }
+ *   nahkampf  { von, x, y, winkel }
+ *   leer      { von }                        Klick – Magazin leer
+ */
 
 /** Objekt → Text für den Transport. */
 export function kodiere(nachricht) {

@@ -33,8 +33,8 @@ export const GEGENSTAENDE = Object.freeze({
   machete: { name: 'Machete', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 40, reichweite: 40, abklingzeit: 0.8 },
   feuerwehrbeil: { name: 'Feuerwehrbeil', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 50, reichweite: 40, abklingzeit: 1.0 },
   // --- Fernkampf ---
-  pistole: { name: 'Pistole (9 mm)', kategorie: 'fernkampf', ausruestung: 'pistole', schaden: 30, munition: 'munition_9mm', magazin: 15, abklingzeit: 0.3, reichweite: 500 },
-  schrotflinte: { name: 'Schrotflinte (Kal. 12)', kategorie: 'fernkampf', ausruestung: 'schrotflinte', schaden: 18, projektile: 6, munition: 'munition_12', magazin: 5, abklingzeit: 0.9, reichweite: 260 },
+  pistole: { name: 'Pistole (9 mm)', kategorie: 'fernkampf', ausruestung: 'pistole', schaden: 25, munition: 'munition_9mm', magazin: 15, abklingzeit: 0.28, reichweite: 520, streuung: 0.03, nachladezeit: 1.1 },
+  schrotflinte: { name: 'Schrotflinte (Kal. 12)', kategorie: 'fernkampf', ausruestung: 'schrotflinte', schaden: 16, projektile: 7, munition: 'munition_12', magazin: 5, abklingzeit: 0.85, reichweite: 280, streuung: 0.2, nachladezeit: 1.8 },
   // --- Munition ---
   munition_9mm: { name: 'Munition 9 mm', kategorie: 'munition', stapelbar: 60, mengeBeimFund: [5, 15] },
   munition_12: { name: 'Schrotpatronen Kal. 12', kategorie: 'munition', stapelbar: 30, mengeBeimFund: [2, 6] },
@@ -42,3 +42,11 @@ export const GEGENSTAENDE = Object.freeze({
 
 /** Ausrüstung ohne Waffe in der Hand. */
 export const STANDARD_AUSRUESTUNG = 'taschenlampe';
+
+/** Angriff ohne ausgerüstete Waffe: Schlag mit der Taschenlampe. */
+export const UNBEWAFFNET = Object.freeze({
+  name: 'Taschenlampe', kategorie: 'nahkampf', ausruestung: STANDARD_AUSRUESTUNG, schaden: 10, reichweite: 30, abklingzeit: 0.55,
+});
+
+/** Öffnungswinkel (± Radiant) des Nahkampf-Trefferkegels vor der Figur. */
+export const NAHKAMPF_KEGEL = 1.0;

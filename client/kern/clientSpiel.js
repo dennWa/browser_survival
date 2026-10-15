@@ -1,9 +1,10 @@
-import { TICK_DAUER_MS, TICK_DAUER_S } from '../../gemeinsam/konstanten.js';
-import { NACHRICHT } from '../../gemeinsam/protokoll.js';
+import { AUFHEB_REICHWEITE, TICK_DAUER_MS, TICK_DAUER_S } from '../../gemeinsam/konstanten.js';
+import { AKTIONEN, NACHRICHT } from '../../gemeinsam/protokoll.js';
 import { Welt } from '../../gemeinsam/welt/welt.js';
 import { wendeEingabeAn } from '../../gemeinsam/physik/bewegung.js';
 import { lerp, lerpWinkel } from '../../gemeinsam/mathe.js';
 import { INTERPOLATIONS_VERZOEGERUNG_MS, PING_INTERVALL_MS } from '../konfiguration.js';
+import { Effekte } from '../darstellung/effekte.js';
 import { SpielSchleife } from './spielSchleife.js';
 
 /** Maximal gemerkte, vom Server noch nicht bestätigte Eingaben (~4 s). */
@@ -18,6 +19,9 @@ const MAX_OFFENE_EINGABEN = 120;
  *                              alle noch unbestätigten Eingaben erneut angewendet.
  *   3. Entity Interpolation:   Andere Spieler/Zombies werden zwischen zwei Server-Schnappschüssen
  *                              weich interpoliert (leicht verzögert dargestellt).
+ *
+ * Angriffe, Inventar & Co. entscheidet allein der Server – der Client schickt nur Wünsche
+ * (EINGABE.angriff, AKTION) und zeigt das Ergebnis an.
  */
 export class ClientSpiel {
   constructor({ verbindung, anmeldeDaten, eingabe, renderer, hud, beiEnde }) {
@@ -32,11 +36,14 @@ export class ClientSpiel {
     this.welt = new Welt(anmeldeDaten.karte);
     this.physik = anmeldeDaten.physik;
     this.gegenstaende = anmeldeDaten.gegenstaende ?? [];
+    this.itemDefinitionen = anmeldeDaten.itemDefinitionen ?? {};
+    this.spielerDaten = anmeldeDaten.spielerDaten;
+    this.effekte = new Effekte();
 
     // Vorhergesagter eigener Spieler (+ Position vom vorherigen Takt für weiche Darstellung)
     this.lokal = { x: anmeldeDaten.start.x, y: anmeldeDaten.start.y, blick: 0 };
     this.lokalVorher = { x: this.lokal.x, y: this.lokal.y };
-    this.eigeneDaten = null; // letzter Server-Stand des eigenen Spielers (Leben, Name …)
+    this.eigeneDaten = null; // letzter öffentlicher Server-Stand des eigenen Spielers
     this.seq = 0;
     this.offeneEingaben = [];
 
@@ -46,6 +53,7 @@ export class ClientSpiel {
     this.beendet = false;
 
     this.renderer.setzeWelt(this.welt);
+    this.hud.setzeSpielerDaten(this.spielerDaten, this.itemDefinitionen);
     this.abmelden = [
       verbindung.beiNachricht((n) => this.#nachricht(n)),
       verbindung.beiTrennung((grund) => this.beenden(grund)),
@@ -74,6 +82,30 @@ export class ClientSpiel {
   }
 
   // ---------------------------------------------------------------------------
+  // Aktionen (Tasten, HUD-Knöpfe) → Server
+
+  aufheben() {
+    if (this.#naechsterGegenstand()) this.#aktion(AKTIONEN.AUFHEBEN);
+  }
+
+  nachladen() {
+    this.#aktion(AKTIONEN.NACHLADEN);
+  }
+
+  benutzen(slot) {
+    this.#aktion(AKTIONEN.BENUTZEN, slot);
+  }
+
+  ablegen(slot) {
+    this.#aktion(AKTIONEN.ABLEGEN, slot);
+  }
+
+  #aktion(art, slot) {
+    if (this.spielerDaten?.tot) return;
+    this.verbindung.senden(slot === undefined ? { typ: NACHRICHT.AKTION, art } : { typ: NACHRICHT.AKTION, art, slot });
+  }
+
+  // ---------------------------------------------------------------------------
   // Netzwerk
 
   #nachricht(n) {
@@ -84,22 +116,42 @@ export class ClientSpiel {
       case NACHRICHT.GEGENSTAENDE:
         this.gegenstaende = n.gegenstaende;
         break;
+      case NACHRICHT.SPIELER_DATEN:
+        this.#spielerDatenEmpfangen(n);
+        break;
+      case NACHRICHT.MELDUNG:
+        this.hud.meldung(n.text);
+        break;
       case NACHRICHT.PONG:
         this.ping = Math.round(performance.now() - n.t);
         break;
       case NACHRICHT.SYSTEM:
-        console.info('[Server]', n.text);
+        this.hud.meldung(n.text);
         break;
     }
+  }
+
+  #spielerDatenEmpfangen(daten) {
+    const vorher = this.spielerDaten;
+    if (vorher && daten.leben < vorher.leben && !daten.tot) this.effekte.schaden((vorher.leben - daten.leben) / 25);
+    if (vorher?.tot && !daten.tot) this.offeneEingaben = []; // Respawn: neue Position kommt vom Server
+    this.spielerDaten = daten;
+    this.hud.setzeSpielerDaten(daten, this.itemDefinitionen);
   }
 
   #zustandEmpfangen(n) {
     if (n.tick <= this.letzterTick) return; // veraltet/doppelt
     this.letzterTick = n.tick;
+    const jetzt = performance.now();
 
     const entitaeten = new Map(n.entitaeten.map((e) => [e.id, e]));
-    this.schnappschuesse.push({ empfangen: performance.now(), tick: n.tick, entitaeten });
+    this.schnappschuesse.push({ empfangen: jetzt, tick: n.tick, entitaeten });
     if (this.schnappschuesse.length > 60) this.schnappschuesse.shift();
+
+    // Eigene Schüsse sofort zeigen, alles andere passend zur (verzögerten) Interpolation
+    if (n.ereignisse?.length) {
+      this.effekte.hinzufuegen(n.ereignisse, jetzt, (e) => (e.von === this.eigeneId ? 0 : INTERPOLATIONS_VERZOEGERUNG_MS));
+    }
 
     const eigene = entitaeten.get(this.eigeneId);
     if (!eigene) return;
@@ -109,6 +161,11 @@ export class ClientSpiel {
     this.offeneEingaben = this.offeneEingaben.filter((e) => e.seq > eigene.seq);
     this.lokal.x = eigene.x;
     this.lokal.y = eigene.y;
+    if (eigene.tot) {
+      this.lokalVorher.x = eigene.x;
+      this.lokalVorher.y = eigene.y;
+      return;
+    }
     for (const eingabe of this.offeneEingaben) {
       wendeEingabeAn(this.lokal, eingabe, this.welt, this.physik, TICK_DAUER_S);
     }
@@ -118,12 +175,19 @@ export class ClientSpiel {
   // Fester Takt: Eingabe erfassen, lokal vorhersagen, an Server schicken
 
   #festerTakt() {
-    const richtung = this.eingabe.richtung();
-    const eingabe = { seq: ++this.seq, x: richtung.x, y: richtung.y, blick: this.#blick() };
+    const tot = this.spielerDaten?.tot ?? false;
+    const richtung = tot ? { x: 0, y: 0 } : this.eingabe.richtung();
+    const eingabe = {
+      seq: ++this.seq,
+      x: richtung.x,
+      y: richtung.y,
+      blick: this.#blick(),
+      angriff: !tot && this.eingabe.angriff(),
+    };
 
     this.lokalVorher.x = this.lokal.x;
     this.lokalVorher.y = this.lokal.y;
-    wendeEingabeAn(this.lokal, eingabe, this.welt, this.physik, TICK_DAUER_S);
+    if (!tot) wendeEingabeAn(this.lokal, eingabe, this.welt, this.physik, TICK_DAUER_S);
 
     this.offeneEingaben.push(eingabe);
     if (this.offeneEingaben.length > MAX_OFFENE_EINGABEN) this.offeneEingaben.shift();
@@ -134,6 +198,20 @@ export class ClientSpiel {
   #blick() {
     const winkel = this.eingabe.blickWinkel(this.renderer.kamera.weltZuBildschirm(this.lokal.x, this.lokal.y));
     return winkel ?? this.lokal.blick;
+  }
+
+  /** Nächster Gegenstand in Aufheb-Reichweite (für Hinweis & Taste E). */
+  #naechsterGegenstand() {
+    let bester = null;
+    let bestAbstand = AUFHEB_REICHWEITE;
+    for (const g of this.gegenstaende) {
+      const abstand = Math.hypot(g.x - this.lokal.x, g.y - this.lokal.y);
+      if (abstand <= bestAbstand) {
+        bester = g;
+        bestAbstand = abstand;
+      }
+    }
+    return bester;
   }
 
   // ---------------------------------------------------------------------------
@@ -152,8 +230,16 @@ export class ClientSpiel {
       istEigener: true,
     };
     const andere = this.#interpolierteEntitaeten(jetzt - INTERPOLATIONS_VERZOEGERUNG_MS);
+    const aufhebbar = this.spielerDaten?.tot ? null : this.#naechsterGegenstand();
 
-    this.renderer.zeichne({ fokus: eigen, entitaeten: [...andere, eigen], gegenstaende: this.gegenstaende, jetzt });
+    this.renderer.zeichne({
+      fokus: eigen,
+      entitaeten: [...andere, eigen],
+      gegenstaende: this.gegenstaende,
+      jetzt,
+      effekte: this.effekte,
+      markiertId: aufhebbar?.id ?? null,
+    });
     this.hud.aktualisiere({
       serverName: this.serverName,
       verbindung: this.verbindung.beschreibung,
@@ -165,6 +251,7 @@ export class ClientSpiel {
       zombies: this.#anzahl('zombie'),
       gegenstaende: this.gegenstaende.length,
       offeneEingaben: this.offeneEingaben.length,
+      aufhebbar: aufhebbar ? (aufhebbar.menge > 1 ? `${aufhebbar.name} ×${aufhebbar.menge}` : aufhebbar.name) : null,
     });
   }
 

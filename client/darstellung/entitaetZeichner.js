@@ -24,17 +24,23 @@ const STANDARD_AUSRUESTUNG = 'taschenlampe';
 const ITEM_SKALIERUNG = 1.4;
 
 function zeichneSpieler(ctx, s, k) {
+  if (s.tot) return; // Leiche = Blutlache aus den Effekten
   bodenSchatten(ctx, s.x, s.y, 14);
   const bewegt = (s.geschwindigkeit ?? 0) > BEWEGUNGS_SCHWELLE;
   const assets = k.assets;
   const ausruestung = s.ausruestung ?? STANDARD_AUSRUESTUNG;
+  // Laufende Aktion (Schuss, Nachladen, Nahkampf) hat Vorrang vor Gehen/Stehen
+  const aktionsAnim = s.aktion ? assets?.figur('survivor', `${ausruestung}_${s.aktion}`) : null;
   const koerper =
+    aktionsAnim ??
     assets?.figur('survivor', `${ausruestung}_${bewegt ? 'laufen' : 'idle'}`) ??
     assets?.figur('survivor', `${STANDARD_AUSRUESTUNG}_${bewegt ? 'laufen' : 'idle'}`);
   const koerperBild = koerper && assets.bild(koerper.bild);
   if (!koerperBild) return platzhalterKreis(ctx, s, 12, s.istEigener ? FARBEN.eigenerSpieler : FARBEN.andererSpieler);
 
-  const tempo = bewegt ? Math.max(0.4, s.geschwindigkeit / SPIELER_REFERENZ_TEMPO) : 1;
+  const laufTempo = bewegt ? Math.max(0.4, s.geschwindigkeit / SPIELER_REFERENZ_TEMPO) : 1;
+  const tempo = aktionsAnim ? aktionsTempo(aktionsAnim, s.aktionDauer) : laufTempo;
+  const token = aktionsAnim ? s.aktionTick : 0;
   ctx.save();
   ctx.translate(s.x, s.y);
   ctx.rotate(s.blick);
@@ -44,26 +50,32 @@ function zeichneSpieler(ctx, s, k) {
   const fussAnim = assets.fuesse(fuss.name);
   const fussBild = fussAnim && assets.bild(fussAnim.bild);
   if (fussBild) {
-    zeichneFrame(ctx, fussBild, fussAnim, k.animationen.frame(`${s.id}:fuesse`, fussAnim, k.dt, k.jetzt, tempo * fuss.richtung));
+    zeichneFrame(ctx, fussBild, fussAnim, k.animationen.frame(`${s.id}:fuesse`, fussAnim, k.dt, k.jetzt, laufTempo * fuss.richtung));
   }
-  zeichneFrame(ctx, koerperBild, koerper, k.animationen.frame(`${s.id}:koerper`, koerper, k.dt, k.jetzt, tempo));
+  zeichneFrame(ctx, koerperBild, koerper, k.animationen.frame(`${s.id}:koerper`, koerper, k.dt, k.jetzt, tempo, token));
   ctx.restore();
 }
 
 function zeichneZombie(ctx, z, k) {
   bodenSchatten(ctx, z.x, z.y, 15);
   const bewegt = (z.geschwindigkeit ?? 0) > BEWEGUNGS_SCHWELLE;
-  const name = z.zustand === 'angreifend' ? 'angriff' : bewegt ? 'laufen' : 'idle';
+  const greiftAn = z.aktion === 'angriff';
+  const name = greiftAn ? 'angriff' : bewegt ? 'laufen' : 'idle';
   const animation = k.assets?.figur('zombie', name);
   const bild = animation && k.assets.bild(animation.bild);
   if (!bild) return platzhalterKreis(ctx, z, 13, z.zustand === 'ruhend' ? FARBEN.zombie : FARBEN.zombieAggro);
 
-  const tempo = bewegt ? Math.max(0.5, z.geschwindigkeit / ZOMBIE_REFERENZ_TEMPO) : 1;
+  const tempo = greiftAn ? aktionsTempo(animation, z.aktionDauer) : bewegt ? Math.max(0.5, z.geschwindigkeit / ZOMBIE_REFERENZ_TEMPO) : 1;
   ctx.save();
   ctx.translate(z.x, z.y);
   ctx.rotate(z.blick);
-  zeichneFrame(ctx, bild, animation, k.animationen.frame(`${z.id}:koerper`, animation, k.dt, k.jetzt, tempo));
+  zeichneFrame(ctx, bild, animation, k.animationen.frame(`${z.id}:koerper`, animation, k.dt, k.jetzt, tempo, greiftAn ? z.aktionTick : 0));
   ctx.restore();
+}
+
+/** Abspieltempo, damit eine Animation genau so lange läuft wie die Aktion auf dem Server. */
+function aktionsTempo(animation, dauer) {
+  return animation.frames / animation.fps / Math.max(0.05, dauer || 0.3);
 }
 
 /**
@@ -80,7 +92,7 @@ function fussAnimation(relativ) {
 
 /** Name und Lebensbalken – separat, damit sie über Baumkronen liegen. */
 export function zeichneBeschriftung(ctx, e) {
-  if (e.typ === 'spieler' && !e.istEigener) {
+  if (e.typ === 'spieler' && !e.istEigener && !e.tot) {
     beschriftung(ctx, e.name, e.x, e.y - 30);
     lebensbalken(ctx, e, e.y - 24);
   } else if (e.typ === 'zombie' && e.leben < e.maxLeben) {
@@ -88,7 +100,7 @@ export function zeichneBeschriftung(ctx, e) {
   }
 }
 
-export function zeichneGegenstand(ctx, g, assets, jetzt) {
+export function zeichneGegenstand(ctx, g, assets, jetzt, markiert = false) {
   const icon = assets?.item(g.defId);
   const bild = assets?.itemBild;
   if (!icon || !bild) {
@@ -100,11 +112,11 @@ export function zeichneGegenstand(ctx, g, assets, jetzt) {
   const faktor = (icon.weltGroesse * ITEM_SKALIERUNG) / Math.max(icon.b, icon.h);
   const b = icon.b * faktor;
   const h = icon.h * faktor;
-  bodenSchatten(ctx, g.x + 2, g.y + h * 0.35, b * 0.45, 0.25);
+  bodenSchatten(ctx, g.x, g.y + h * 0.15, Math.min(b, h) * 0.45, 0.2);
   // Leichtes Pulsieren, damit Loot auffällt
   ctx.save();
   ctx.shadowColor = FARBEN.itemLeuchten;
-  ctx.shadowBlur = 5 + Math.sin(jetzt / 400 + g.id) * 3;
+  ctx.shadowBlur = markiert ? 14 + Math.sin(jetzt / 150) * 4 : 5 + Math.sin(jetzt / 400 + g.id) * 3;
   ctx.drawImage(bild, icon.x, icon.y, icon.b, icon.h, g.x - b / 2, g.y - h / 2, b, h);
   ctx.restore();
 }

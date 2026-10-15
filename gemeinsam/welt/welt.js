@@ -45,6 +45,16 @@ export class Welt {
     return KACHELN[zeichen]?.blockiert ?? true;
   }
 
+  /**
+   * Blockiert diese Kachel Sicht und Schüsse? Nur Wände/Fenster – über Möbel kann man hinwegsehen
+   * und -schießen. Außerhalb der Karte: ja.
+   */
+  istSichtBlockiert(tx, ty) {
+    const zeichen = this.kachelAn(tx, ty);
+    if (zeichen === null) return true;
+    return KACHELN[zeichen]?.blockiert ?? true;
+  }
+
   /** Prüft, ob ein Rechteck (Weltpixel) irgendeine blockierte Kachel berührt. */
   istBereichBlockiert(links, oben, rechts, unten) {
     const g = this.kachelGroesse;

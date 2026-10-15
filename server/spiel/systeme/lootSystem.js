@@ -3,18 +3,62 @@ import { LOOT_TABELLEN } from '../konfiguration/lootTabellen.js';
 import { erzeugeGegenstand } from '../entitaeten/gegenstand.js';
 
 /**
- * Verteilt beim Serverstart Gegenstände auf die Loot-Punkte der Karte.
- * Phase 2: Aufsammeln, Respawn-Timer, Begrenzung pro Raum.
+ * Loot: Startverteilung auf die Loot-Punkte der Karte, Nachschub an geplünderten Punkten,
+ * Beute von getöteten Zombies.
  */
+const RESPAWN_SPERRABSTAND = 260; // nicht vor den Augen eines Spielers nachlegen
+
 export function verteileStartLoot(spielWelt) {
-  const { zufall, konfiguration } = spielWelt;
-  for (const punkt of spielWelt.karte.lootPunkte) {
-    if (zufall.zahl() >= konfiguration.loot.spawnChance) continue;
-    const tabelle = LOOT_TABELLEN[punkt.lootTabelle];
-    if (!tabelle) throw new Error(`Unbekannte Loot-Tabelle: "${punkt.lootTabelle}"`);
-    const { id: defId } = zufall.gewichteteAuswahl(tabelle);
-    const spanne = GEGENSTAENDE[defId].mengeBeimFund;
-    const menge = spanne ? zufall.ganzzahl(spanne[0], spanne[1]) : 1;
-    spielWelt.hinzufuegen(erzeugeGegenstand({ id: spielWelt.neueId(), defId, x: punkt.x, y: punkt.y, menge }));
-  }
+  spielWelt.lootZustand = spielWelt.karte.lootPunkte.map(() => ({ gegenstandId: null, rest: 0 }));
+  spielWelt.karte.lootPunkte.forEach((punkt, i) => wuerfleLoot(spielWelt, punkt, i));
+}
+
+export function aktualisiereLoot(spielWelt, dt) {
+  const respawnZeit = spielWelt.konfiguration.loot.respawnZeit;
+  spielWelt.karte.lootPunkte.forEach((punkt, i) => {
+    const zustand = spielWelt.lootZustand[i];
+    if (zustand.gegenstandId !== null) {
+      if (spielWelt.holen(zustand.gegenstandId)) return; // liegt noch da
+      zustand.gegenstandId = null; // wurde aufgehoben → Timer starten
+      zustand.rest = respawnZeit;
+      return;
+    }
+    zustand.rest -= dt;
+    if (zustand.rest > 0) return;
+    const spielerNah = [...spielWelt.alleVomTyp('spieler')].some(
+      (s) => Math.hypot(s.x - punkt.x, s.y - punkt.y) < RESPAWN_SPERRABSTAND,
+    );
+    if (spielerNah) {
+      zustand.rest = 10;
+      return;
+    }
+    if (!wuerfleLoot(spielWelt, punkt, i)) zustand.rest = respawnZeit;
+  });
+}
+
+/** Getötete Zombies lassen manchmal etwas fallen (Tabelle "zombie"). */
+export function lasseZombieLootFallen(spielWelt, x, y) {
+  if (spielWelt.zufall.zahl() >= spielWelt.konfiguration.zombie.lootChance) return;
+  erzeugeAusTabelle(spielWelt, 'zombie', x, y);
+}
+
+/** @returns true, wenn ein Gegenstand erzeugt wurde */
+function wuerfleLoot(spielWelt, punkt, index) {
+  if (spielWelt.zufall.zahl() >= spielWelt.konfiguration.loot.spawnChance) return false;
+  const gegenstand = erzeugeAusTabelle(spielWelt, punkt.lootTabelle, punkt.x, punkt.y);
+  spielWelt.lootZustand[index].gegenstandId = gegenstand.id;
+  return true;
+}
+
+function erzeugeAusTabelle(spielWelt, tabellenName, x, y) {
+  const { zufall } = spielWelt;
+  const tabelle = LOOT_TABELLEN[tabellenName];
+  if (!tabelle) throw new Error(`Unbekannte Loot-Tabelle: "${tabellenName}"`);
+  const { id: defId } = zufall.gewichteteAuswahl(tabelle);
+  const def = GEGENSTAENDE[defId];
+  const spanne = def.mengeBeimFund;
+  const menge = spanne ? zufall.ganzzahl(spanne[0], spanne[1]) : 1;
+  // Gefundene Schusswaffen sind teilweise geladen
+  const magazin = def.kategorie === 'fernkampf' ? zufall.ganzzahl(0, Math.ceil(def.magazin / 2)) : undefined;
+  return spielWelt.hinzufuegen(erzeugeGegenstand({ id: spielWelt.neueId(), defId, x, y, menge, magazin }));
 }

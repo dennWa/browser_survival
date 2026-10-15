@@ -12,11 +12,12 @@ export class Animationen {
    * @param animation  Atlas-Eintrag { frames, fps, schleife }
    * @param dt         vergangene Zeit in Sekunden
    * @param tempo      Abspielgeschwindigkeit (negativ = rückwärts, z. B. Rückwärtslaufen)
+   * @param token      ändert er sich, startet die Animation neu (z. B. zweiter Schuss direkt nach dem ersten)
    */
-  frame(schluessel, animation, dt, jetzt, tempo = 1) {
+  frame(schluessel, animation, dt, jetzt, tempo = 1, token = 0) {
     let z = this.#zustaende.get(schluessel);
-    if (!z || z.animation !== animation) {
-      z = { animation, zeit: 0, gesehen: jetzt };
+    if (!z || z.animation !== animation || z.token !== token) {
+      z = { animation, token, zeit: 0, gesehen: jetzt };
       this.#zustaende.set(schluessel, z);
     }
     z.zeit += dt * tempo;

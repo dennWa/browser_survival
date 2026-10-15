@@ -1,7 +1,7 @@
 # Browser Survival
 
 Top-Down-Survival im Browser – Mehrspieler mit autoritativem Node.js-Server.
-Aktuelle Testkarte: ein Krankenhaus voller Zombies (die vorerst nur herumstehen).
+Aktuelle Testkarte: ein Krankenhaus voller Zombies. Plündern, kämpfen, satt bleiben, überleben.
 
 ## Schnellstart
 
@@ -14,8 +14,9 @@ npm start                                # → http://localhost:8080
 Im Login **"Lokal (im Browser)"** wählen, um ohne Account allein zu testen,
 oder **"Dieser Server"** für Mehrspieler mit Account.
 
-Steuerung: **WASD** bewegen · **Maus** zielen · **F3** Debug-Overlay
-Handy/Tablet: **linker Daumen** laufen · **rechter Daumen** zielen
+Steuerung: **WASD** laufen · **Maus** zielen · **Klick/Leertaste** Angriff · **E** aufheben · **R** nachladen ·
+**1–8** Inventar benutzen/ausrüsten · **Rechtsklick** auf Inventarplatz = ablegen · **F3** Debug
+Handy/Tablet: **linker Daumen** laufen · **rechter Daumen** zielen (ganz durchdrücken = Angriff) · Knöpfe für Aufheben/Nachladen · Inventarplatz lange drücken = ablegen
 
 ## Weitere Befehle
 

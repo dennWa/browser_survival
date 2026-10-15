@@ -1,18 +1,24 @@
 import {
   BENUTZERNAME_MUSTER,
+  INVENTAR_PLAETZE,
   MAX_EINGABE_PUFFER,
   PROTOKOLL_VERSION,
   TICK_DAUER_MS,
   TICK_DAUER_S,
   TICK_RATE,
 } from '../../gemeinsam/konstanten.js';
-import { NACHRICHT, dekodiere, kodiere } from '../../gemeinsam/protokoll.js';
+import { AKTIONEN, NACHRICHT, dekodiere, kodiere } from '../../gemeinsam/protokoll.js';
 import { erstelleKonfiguration } from './konfiguration/spielKonfiguration.js';
+import { GEGENSTAENDE } from './konfiguration/gegenstaende.js';
+import { spielerDatenPrivat } from './entitaeten/spieler.js';
 import { SpielWelt } from './spielWelt.js';
 import { Taktgeber } from './taktgeber.js';
 
 /** Danach wird die Verbindung getrennt (Schutz gegen Passwort-Raten). */
 const MAX_FEHLVERSUCHE = 5;
+/** Maximal gepufferte Aktionen (Aufheben, Benutzen …) pro Spieler und Tick. */
+const MAX_AKTIONS_PUFFER = 8;
+const GUELTIGE_AKTIONEN = new Set(Object.values(AKTIONEN));
 
 /**
  * Autoritativer Spielserver – umgebungsunabhängig (läuft in Node UND im Browser).
@@ -31,13 +37,14 @@ export class SpielServer {
    * @param {{ pruefe: Function }} optionen.authentifizierung
    * @param {object} [optionen.konfiguration]  Überschreibungen für STANDARD_KONFIGURATION
    * @param {Console} [optionen.protokoll]     Logger (console-kompatibel)
+   * @param {object} [optionen.kartenDefinition] eigene Karte (z. B. für Tests)
    */
-  constructor({ authentifizierung, konfiguration = {}, protokoll = console }) {
+  constructor({ authentifizierung, konfiguration = {}, protokoll = console, kartenDefinition }) {
     if (!authentifizierung) throw new Error('SpielServer braucht eine Authentifizierung');
     this.authentifizierung = authentifizierung;
     this.konfiguration = erstelleKonfiguration(konfiguration);
     this.log = protokoll;
-    this.spielWelt = new SpielWelt(this.konfiguration);
+    this.spielWelt = new SpielWelt(this.konfiguration, { kartenDefinition });
     this.sitzungen = new Set();
     this.gesendeteGegenstaendeVersion = this.spielWelt.gegenstaendeVersion;
     this.taktgeber = new Taktgeber(TICK_DAUER_MS, () => this.tickAusfuehren());
@@ -93,11 +100,29 @@ export class SpielServer {
       gegenstaende = kodiere({ typ: NACHRICHT.GEGENSTAENDE, gegenstaende: this.spielWelt.gegenstaendeListe() });
     }
 
+    const meldungen = new Map();
+    for (const { spielerId, text } of this.spielWelt.meldungen) {
+      if (!meldungen.has(spielerId)) meldungen.set(spielerId, []);
+      meldungen.get(spielerId).push(text);
+    }
+
     for (const sitzung of this.sitzungen) {
       if (sitzung.status !== 'imSpiel') continue;
       if (gegenstaende) sitzung.kanal.senden(gegenstaende);
       sitzung.kanal.senden(zustand);
+      this.#sendePrivateDaten(sitzung);
+      for (const text of meldungen.get(sitzung.spielerId) ?? []) this.#senden(sitzung, { typ: NACHRICHT.MELDUNG, text });
     }
+  }
+
+  /** Inventar, Hunger, Durst … nur an den Spieler selbst – und nur, wenn sich etwas geändert hat. */
+  #sendePrivateDaten(sitzung) {
+    const spieler = this.spielWelt.holen(sitzung.spielerId);
+    if (!spieler) return;
+    const text = kodiere({ typ: NACHRICHT.SPIELER_DATEN, ...spielerDatenPrivat(spieler) });
+    if (text === sitzung.letzteSpielerDaten) return;
+    sitzung.letzteSpielerDaten = text;
+    sitzung.kanal.senden(text);
   }
 
   // ---------------------------------------------------------------------------
@@ -119,6 +144,9 @@ export class SpielServer {
         break;
       case NACHRICHT.EINGABE:
         if (sitzung.status === 'imSpiel') this.#eingabe(sitzung, nachricht);
+        break;
+      case NACHRICHT.AKTION:
+        if (sitzung.status === 'imSpiel') this.#aktion(sitzung, nachricht);
         break;
       case NACHRICHT.PING:
         if (Number.isFinite(nachricht.t)) this.#senden(sitzung, { typ: NACHRICHT.PONG, t: nachricht.t });
@@ -169,6 +197,8 @@ export class SpielServer {
       physik: this.spielWelt.physikParameter(),
       start: { x: spieler.x, y: spieler.y },
       gegenstaende: this.spielWelt.gegenstaendeListe(),
+      itemDefinitionen: GEGENSTAENDE,
+      spielerDaten: spielerDatenPrivat(spieler),
     });
     this.log.info?.(`[Server] ${name} ist beigetreten (${this.spielerAnzahl} online)`);
   }
@@ -188,7 +218,22 @@ export class SpielServer {
     if (!Number.isFinite(n.x) || !Number.isFinite(n.y)) return;
     spieler.letzteEmpfangeneSeq = n.seq;
     if (spieler.eingabePuffer.length >= MAX_EINGABE_PUFFER) return; // zu viele → verwerfen
-    spieler.eingabePuffer.push({ seq: n.seq, x: n.x, y: n.y, blick: Number.isFinite(n.blick) ? n.blick : spieler.blick });
+    spieler.eingabePuffer.push({
+      seq: n.seq,
+      x: n.x,
+      y: n.y,
+      blick: Number.isFinite(n.blick) ? n.blick : spieler.blick,
+      angriff: n.angriff === true,
+    });
+  }
+
+  #aktion(sitzung, n) {
+    const spieler = this.spielWelt.holen(sitzung.spielerId);
+    if (!spieler || !GUELTIGE_AKTIONEN.has(n.art)) return;
+    const slot = n.slot === undefined ? null : n.slot;
+    if (slot !== null && !(Number.isInteger(slot) && slot >= 0 && slot < INVENTAR_PLAETZE)) return;
+    if (spieler.aktionsPuffer.length >= MAX_AKTIONS_PUFFER) return;
+    spieler.aktionsPuffer.push({ art: n.art, slot });
   }
 
   #verbindungGetrennt(sitzung, grund) {

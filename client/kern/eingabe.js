@@ -12,13 +12,24 @@ export const TASTEN = Object.freeze({
   unten: ['KeyS', 'ArrowDown'],
   links: ['KeyA', 'ArrowLeft'],
   rechts: ['KeyD', 'ArrowRight'],
+  angriff: ['Space'], // zusätzlich: linke Maustaste
+  aufheben: ['KeyE'],
+  nachladen: ['KeyR'],
   debug: ['F3'],
 });
+
+/** Schnellleiste: Taste n benutzt/rüstet Inventarplatz n-1 aus. */
+const SLOT_TASTEN = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8'];
+
+/** Ab diesem Ausschlag des rechten Touch-Sticks wird angegriffen (Zielen + Feuern mit einem Daumen). */
+const TOUCH_FEUER_SCHWELLE = 0.85;
 
 export class Eingabe {
   #gedrueckt = new Set();
   #tastenHoerer = new Map(); // code → [fn]
+  #slotHoerer = [];
   #aktiv = false;
+  #mausGedrueckt = false;
 
   constructor(fenster, leinwand, dokument = document) {
     this.mausX = 0; // Bildschirmkoordinaten (CSS-Pixel)
@@ -28,8 +39,12 @@ export class Eingabe {
 
     fenster.addEventListener('keydown', (e) => {
       if (!this.#aktiv || istEingabefeld(e.target)) return;
-      if (TASTEN.debug.includes(e.code)) e.preventDefault();
-      if (!e.repeat) for (const fn of this.#tastenHoerer.get(e.code) ?? []) fn();
+      if (TASTEN.debug.includes(e.code) || TASTEN.angriff.includes(e.code)) e.preventDefault();
+      if (!e.repeat) {
+        for (const fn of this.#tastenHoerer.get(e.code) ?? []) fn();
+        const slot = SLOT_TASTEN.indexOf(e.code);
+        if (slot >= 0) for (const fn of this.#slotHoerer) fn(slot);
+      }
       this.#gedrueckt.add(e.code);
     });
     fenster.addEventListener('keyup', (e) => this.#gedrueckt.delete(e.code));
@@ -40,6 +55,13 @@ export class Eingabe {
       this.mausY = e.clientY;
       this.mausBenutzt = true;
     });
+    leinwand.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' && e.button === 0 && this.#aktiv) this.#mausGedrueckt = true;
+    });
+    fenster.addEventListener('pointerup', (e) => {
+      if (e.pointerType === 'mouse' && e.button === 0) this.#mausGedrueckt = false;
+    });
+    leinwand.addEventListener('contextmenu', (e) => e.preventDefault());
   }
 
   get aktiv() {
@@ -58,6 +80,17 @@ export class Eingabe {
     if (touch && (touch.x !== 0 || touch.y !== 0)) return touch;
     const an = (aktion) => TASTEN[aktion].some((code) => this.#gedrueckt.has(code));
     return { x: (an('rechts') ? 1 : 0) - (an('links') ? 1 : 0), y: (an('unten') ? 1 : 0) - (an('oben') ? 1 : 0) };
+  }
+
+  /** Wird gerade angegriffen? (Maustaste, Leertaste oder rechter Touch-Stick voll ausgelenkt) */
+  angriff() {
+    if (!this.#aktiv) return false;
+    return this.#mausGedrueckt || TASTEN.angriff.some((c) => this.#gedrueckt.has(c)) || this.touch.zielStaerke() >= TOUCH_FEUER_SCHWELLE;
+  }
+
+  /** fn(slotIndex) bei Tasten 1–8 */
+  beiSlotTaste(fn) {
+    this.#slotHoerer.push(fn);
   }
 
   /**
@@ -86,6 +119,7 @@ export class Eingabe {
 
   zuruecksetzen() {
     this.#gedrueckt.clear();
+    this.#mausGedrueckt = false;
     this.touch.zuruecksetzen();
   }
 }
