@@ -4,10 +4,10 @@
  */
 
 export const SPIEL_NAME = 'Browser Survival';
-export const SPIEL_VERSION = '0.4.0';
+export const SPIEL_VERSION = '0.6.0';
 
 /** Wird beim Login verglichen. Erhöhen, sobald sich das Nachrichtenformat inkompatibel ändert. */
-export const PROTOKOLL_VERSION = 2;
+export const PROTOKOLL_VERSION = 3;
 
 /** Simulationstakt (Ticks pro Sekunde). Server-Simulation und Client-Vorhersage laufen im selben Takt. */
 export const TICK_RATE = 30;
@@ -25,6 +25,9 @@ export const INVENTAR_PLAETZE = 8;
 
 /** So nah (px) muss man an einem Gegenstand stehen, um ihn aufzuheben. */
 export const AUFHEB_REICHWEITE = 48;
+
+/** So nah (px, bis zur Türkante) muss man an einer Tür stehen, um sie zu öffnen/schließen. */
+export const TUER_REICHWEITE = 40;
 
 /** Benutzernamen: 2–20 Zeichen, Buchstaben, Ziffern, _ und -. */
 export const BENUTZERNAME_MUSTER = /^[A-Za-z0-9_\-äöüÄÖÜß]{2,20}$/;

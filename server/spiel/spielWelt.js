@@ -11,6 +11,7 @@ import { aktualisiereKampf } from './systeme/kampfSystem.js';
 import { aktualisiereZombies } from './systeme/zombieSystem.js';
 import { aktualisiereUeberleben } from './systeme/ueberlebenSystem.js';
 import { verteileStartLoot, aktualisiereLoot } from './systeme/lootSystem.js';
+import { aktualisiereTageszeit } from './systeme/tageszeitSystem.js';
 
 /** Welche Entitätstypen jeden Tick im Schnappschuss landen (dynamisch) – und wie sie serialisiert werden. */
 const NETZWERK_SERIALISIERER = {
@@ -42,6 +43,14 @@ export class SpielWelt {
     this.meldungen = [];
     this.zombieRespawns = []; // [{ spawnIndex, rest }]
     this.lootZustand = [];
+    /** Wird bei jeder Türänderung erhöht → Server schickt TUEREN */
+    this.tuerenVersion = 0;
+    this.tuerLeben = new Map(); // Tür-ID → verbleibende Lebenspunkte (nur angeschlagene Türen)
+    if (konfiguration.welt.tuerenGeschlossen) for (const t of this.welt.tueren) this.welt.setzeTuer(t.id, false);
+    /** Sekunden seit Tagesbeginn (siehe gemeinsam/tageszeit.js) und Tageszähler */
+    this.zeit = konfiguration.welt.startZeit ?? 0;
+    this.tag = 1;
+    this.istNacht = false;
 
     this.karte.zombieSpawns.forEach((spawn, spawnIndex) => this.spawneZombie(spawnIndex));
     verteileStartLoot(this);
@@ -139,6 +148,13 @@ export class SpielWelt {
     aktualisiereZombies(this, dt);
     aktualisiereUeberleben(this, dt);
     aktualisiereLoot(this, dt);
+    aktualisiereTageszeit(this, dt);
+  }
+
+  /** Dauer von Tag und Nacht – geht auch an die Clients (Uhr, Licht). */
+  tageszeitDauer() {
+    const { tagSekunden, nachtSekunden } = this.konfiguration.welt;
+    return { tagSekunden, nachtSekunden };
   }
 
   #beendeAbgelaufeneAktionen() {
@@ -153,7 +169,7 @@ export class SpielWelt {
       const serialisierer = NETZWERK_SERIALISIERER[e.typ];
       if (serialisierer) entitaeten.push(serialisierer(e));
     }
-    return { tick: this.tick, entitaeten, ereignisse: this.ereignisse };
+    return { tick: this.tick, zeit: Math.round(this.zeit * 10) / 10, tag: this.tag, entitaeten, ereignisse: this.ereignisse };
   }
 
   gegenstaendeListe() {

@@ -15,6 +15,7 @@ export const TASTEN = Object.freeze({
   angriff: ['Space'], // zusätzlich: linke Maustaste
   sprint: ['ShiftLeft', 'ShiftRight'],
   aufheben: ['KeyE'],
+  tuer: ['KeyF'], // Tür öffnen/schließen
   nachladen: ['KeyR'],
   licht: ['KeyL'], // Taschenlampe an/aus
   wiederbeleben: ['Enter'], // tot → sofort neu spawnen

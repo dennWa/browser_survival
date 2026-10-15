@@ -24,7 +24,7 @@ html, body {
 
 [hidden] { display: none !important; }
 
-/* 3D-Prototyp: WebGL-Canvas liegt unter dem (dann durchsichtigen) 2D-Canvas */
+/* 3D-Grafik: WebGL-Canvas liegt unter dem durchsichtigen 2D-Overlay (#spielflaeche) */
 #spielflaeche3d {
   position: fixed;
   inset: 0;
@@ -153,6 +153,31 @@ button {
 }
 
 #hud-oben { padding-top: env(safe-area-inset-top); }
+
+.hud-links { display: flex; gap: 8px; align-items: center; min-width: 0; }
+
+#hud-uhr {
+  padding: 6px 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 6px;
+}
+
+#hud-uhr.nacht { color: #b9c8ff; background: rgba(10, 14, 40, 0.75); }
+
+.aktionsknoepfe { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+
+#knopf-tuer {
+  pointer-events: auto;
+  padding: 8px 16px;
+  color: #fff;
+  font-weight: 600;
+  background: rgba(120, 82, 46, 0.9);
+  border-radius: 20px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+}
 
 .hud-knoepfe { display: flex; gap: 8px; }
 

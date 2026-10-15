@@ -16,6 +16,11 @@ export const STANDARD_KONFIGURATION = Object.freeze({
   },
   welt: {
     karte: 'stadtrand',
+    tuerenGeschlossen: true, // Start: alle Türen zu (man öffnet sie selbst)
+    tuerLeben: 120, // so viel Schaden hält eine geschlossene Tür aus, bevor Zombies sie aufbrechen
+    tagSekunden: 600, // Tag (06:00–21:00) dauert 10 Minuten …
+    nachtSekunden: 300, // … die Nacht (21:00–06:00) 5 Minuten
+    startZeit: 30, // Sekunden nach Tagesbeginn beim Serverstart (kurz nach Sonnenaufgang)
   },
   spieler: {
     geschwindigkeit: 150, // Pixel pro Sekunde
@@ -42,7 +47,10 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     radius: 13,
     leben: 60,
     aggroRadius: 240, // ab dieser Entfernung (px) wird ein sichtbarer Spieler bemerkt
-    dunkelFaktor: 0.45, // Taschenlampe aus → Spieler wird erst ab aggroRadius × dunkelFaktor bemerkt
+    dunkelFaktor: 0.45, // Nachts mit Taschenlampe aus → Spieler wird erst ab aggroRadius × dunkelFaktor bemerkt
+    nachtLichtFaktor: 1.2, // Nachts mit Taschenlampe an → leuchtet wie ein Leuchtturm
+    nachtTempoFaktor: 1.2, // nachts jagen Zombies schneller
+    nachtHorde: 8, // zusätzliche Zombies, die bei Einbruch der Nacht auftauchen (verschwinden morgens)
     verlierRadius: 520, // weiter weg → Zombie gibt auf
     hoerRadius: 480, // Schüsse in diesem Umkreis locken Zombies an
     angriffsReichweite: 30,

@@ -201,6 +201,29 @@ const REZEPTE = {
     ton(ctx, ausgang, t, { typ: 'sine', von: 440, bis: 660, dauer: 0.35, lautstaerke: 0.2 });
     return 0.4;
   },
+  // Türen: Knarzen beim Öffnen, Klacken beim Schließen, dumpfe Schläge, Splittern
+  tuer_auf: ({ ctx, ausgang, t, rauschen }) => {
+    ton(ctx, ausgang, t, { typ: 'sawtooth', von: 190, bis: 240, dauer: 0.35, lautstaerke: 0.08, filter: 900 });
+    rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.08, typ: 'bandpass', frequenz: 1200, lautstaerke: 0.25 });
+    return 0.4;
+  },
+  tuer_zu: ({ ctx, ausgang, t, rauschen }) => {
+    rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.1, typ: 'lowpass', frequenz: 600, lautstaerke: 0.55 });
+    ton(ctx, ausgang, t, { typ: 'sine', von: 120, bis: 60, dauer: 0.12, lautstaerke: 0.35 });
+    klick(ctx, ausgang, t + 0.08, 1500, 0.15);
+    return 0.25;
+  },
+  tuer_schlag: ({ ctx, ausgang, t, rauschen, tonhoehe }) => {
+    rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.16, typ: 'lowpass', frequenz: 380 * tonhoehe, lautstaerke: 0.9 });
+    ton(ctx, ausgang, t, { typ: 'sine', von: 90 * tonhoehe, bis: 40, dauer: 0.2, lautstaerke: 0.6 });
+    return 0.25;
+  },
+  tuer_bricht: ({ ctx, ausgang, t, rauschen }) => {
+    rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.5, typ: 'bandpass', frequenz: 900, lautstaerke: 0.9 });
+    for (let i = 0; i < 4; i++) klick(ctx, ausgang, t + 0.05 + i * 0.07, 600 + i * 250, 0.25);
+    ton(ctx, ausgang, t, { typ: 'sine', von: 80, bis: 30, dauer: 0.4, lautstaerke: 0.7 });
+    return 0.6;
+  },
 };
 
 function schuss({ ctx, ausgang, t, rauschen, tonhoehe }, { dauer, hell, dumpf, druck, lautstaerke }) {

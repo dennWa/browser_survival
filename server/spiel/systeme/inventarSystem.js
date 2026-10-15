@@ -4,10 +4,11 @@ import { GEGENSTAENDE, STANDARD_AUSRUESTUNG, UNBEWAFFNET } from '../konfiguratio
 import { erzeugeGegenstand } from '../entitaeten/gegenstand.js';
 import { wiederbeleben } from './ueberlebenSystem.js';
 import { fuehreAdminBefehlAus } from './adminSystem.js';
+import { benutzeTuer } from './tuerSystem.js';
 
 /**
  * Inventar: Aufheben, Benutzen (Essen/Trinken/Medizin), Aus-/Abrüsten, Ablegen, Nachladen.
- * Außerdem die übrigen AKTIONEN: Taschenlampe, Wiederbeleben, Admin-Befehle (→ adminSystem.js).
+ * Außerdem die übrigen AKTIONEN: Tür (→ tuerSystem.js), Taschenlampe, Wiederbeleben, Admin-Befehle (→ adminSystem.js).
  * Aktionen kommen als Nachricht AKTION, werden gepuffert und hier pro Tick abgearbeitet.
  */
 
@@ -36,6 +37,9 @@ export function verarbeiteAktionen(spielWelt) {
       switch (aktion.art) {
         case AKTIONEN.LICHT:
           spieler.lichtAn = !spieler.lichtAn;
+          break;
+        case AKTIONEN.TUER:
+          benutzeTuer(spielWelt, spieler);
           break;
         case AKTIONEN.AUFHEBEN:
           aufheben(spielWelt, spieler);

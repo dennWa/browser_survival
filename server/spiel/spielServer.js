@@ -56,6 +56,7 @@ export class SpielServer {
     this.spielWelt = new SpielWelt(this.konfiguration, { kartenDefinition });
     this.sitzungen = new Set();
     this.gesendeteGegenstaendeVersion = this.spielWelt.gegenstaendeVersion;
+    this.gesendeteTuerenVersion = this.spielWelt.tuerenVersion;
     this.taktgeber = new Taktgeber(TICK_DAUER_MS, () => this.tickAusfuehren());
   }
 
@@ -122,6 +123,11 @@ export class SpielServer {
       this.gesendeteGegenstaendeVersion = this.spielWelt.gegenstaendeVersion;
       gegenstaende = kodiere({ typ: NACHRICHT.GEGENSTAENDE, gegenstaende: this.spielWelt.gegenstaendeListe() });
     }
+    let tueren = null;
+    if (this.spielWelt.tuerenVersion !== this.gesendeteTuerenVersion) {
+      this.gesendeteTuerenVersion = this.spielWelt.tuerenVersion;
+      tueren = kodiere({ typ: NACHRICHT.TUEREN, offen: this.spielWelt.welt.offeneTueren() });
+    }
 
     const meldungen = new Map();
     for (const { spielerId, text } of this.spielWelt.meldungen) {
@@ -133,6 +139,7 @@ export class SpielServer {
     for (const sitzung of this.sitzungen) {
       if (sitzung.status !== 'imSpiel') continue;
       if (gegenstaende) sitzung.kanal.senden(gegenstaende);
+      if (tueren) sitzung.kanal.senden(tueren);
       sitzung.kanal.senden(zustand);
       this.#sendePrivateDaten(sitzung);
       for (const text of meldungen.get(sitzung.spielerId) ?? []) this.#senden(sitzung, { typ: NACHRICHT.MELDUNG, text });
@@ -238,6 +245,10 @@ export class SpielServer {
       gegenstaende: this.spielWelt.gegenstaendeListe(),
       itemDefinitionen: GEGENSTAENDE,
       spielerDaten: spielerDatenPrivat(spieler),
+      tueren: this.spielWelt.welt.offeneTueren(),
+      tageszeit: this.spielWelt.tageszeitDauer(),
+      zeit: this.spielWelt.zeit,
+      tag: this.spielWelt.tag,
     });
     this.log.info?.(`[Server] ${name} ist beigetreten (${this.spielerAnzahl} online)`);
   }

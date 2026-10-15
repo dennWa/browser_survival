@@ -50,6 +50,13 @@ export function fuehreAdminBefehlAus(spielWelt, spieler, befehl) {
     case ADMIN_BEFEHLE.ZOMBIE_SPAWNEN:
       spawneVorSpieler(spielWelt, spieler);
       break;
+    case ADMIN_BEFEHLE.ZEIT_SPRINGEN: {
+      // 3 Sekunden vor den nächsten Wechsel – Dämmerung und Horde laufen ganz normal ab
+      const { tagSekunden, nachtSekunden } = spielWelt.tageszeitDauer();
+      spielWelt.zeit = (spielWelt.istNacht ? tagSekunden + nachtSekunden : tagSekunden) - 3;
+      spielWelt.melde(spieler.id, spielWelt.istNacht ? 'Gleich wird es hell …' : 'Gleich wird es dunkel …');
+      break;
+    }
     case ADMIN_BEFEHLE.ZOMBIES_TOETEN: {
       const zombies = [...spielWelt.alleVomTyp('zombie')];
       for (const z of zombies) toeten(spielWelt, z);

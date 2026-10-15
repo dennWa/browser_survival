@@ -1,4 +1,5 @@
-import { AUFHEB_REICHWEITE, TICK_DAUER_MS, TICK_DAUER_S } from '../../gemeinsam/konstanten.js';
+import { AUFHEB_REICHWEITE, TICK_DAUER_MS, TICK_DAUER_S, TUER_REICHWEITE } from '../../gemeinsam/konstanten.js';
+import { tageszeit } from '../../gemeinsam/tageszeit.js';
 import { AKTIONEN, NACHRICHT } from '../../gemeinsam/protokoll.js';
 import { Welt } from '../../gemeinsam/welt/welt.js';
 import { wendeEingabeAn } from '../../gemeinsam/physik/bewegung.js';
@@ -39,6 +40,12 @@ export class ClientSpiel {
     this.serverName = anmeldeDaten.serverName;
     this.eigeneId = anmeldeDaten.spielerId;
     this.welt = new Welt(anmeldeDaten.karte);
+    if (anmeldeDaten.tueren) this.welt.uebernimmOffeneTueren(anmeldeDaten.tueren);
+    // Uhr: Serverzeit + seit Empfang vergangene Zeit (läuft zwischen den Schnappschüssen weich weiter)
+    this.tageszeitDauer = anmeldeDaten.tageszeit ?? { tagSekunden: 600, nachtSekunden: 300 };
+    this.serverZeit = anmeldeDaten.zeit ?? 0;
+    this.zeitEmpfangen = performance.now();
+    this.tag = anmeldeDaten.tag ?? 1;
     this.physik = anmeldeDaten.physik;
     this.gegenstaende = anmeldeDaten.gegenstaende ?? [];
     this.itemDefinitionen = anmeldeDaten.itemDefinitionen ?? {};
@@ -117,6 +124,16 @@ export class ClientSpiel {
     this.#aktion(AKTIONEN.LICHT);
   }
 
+  /** Nächste Tür öffnen/schließen (nur wenn eine in Reichweite ist – der Server prüft nochmal). */
+  tuer() {
+    if (this.#naechsteTuer()) this.#aktion(AKTIONEN.TUER);
+  }
+
+  #naechsteTuer() {
+    if (this.spielerDaten?.tot) return null;
+    return this.welt.naechsteTuer(this.lokal.x, this.lokal.y, TUER_REICHWEITE);
+  }
+
   /** Tot → sofort neu spawnen statt Countdown abzuwarten. */
   wiederbeleben() {
     if (this.spielerDaten?.tot) this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.WIEDERBELEBEN });
@@ -147,6 +164,10 @@ export class ClientSpiel {
       case NACHRICHT.GEGENSTAENDE:
         this.gegenstaende = n.gegenstaende;
         break;
+      case NACHRICHT.TUEREN:
+        // Kollision der Vorhersage nutzt dieselbe Welt → Türen gelten sofort auch lokal
+        this.welt.uebernimmOffeneTueren(n.offen);
+        break;
       case NACHRICHT.SPIELER_DATEN:
         this.#spielerDatenEmpfangen(n);
         break;
@@ -175,6 +196,11 @@ export class ClientSpiel {
     if (n.tick <= this.letzterTick) return; // veraltet/doppelt
     this.letzterTick = n.tick;
     const jetzt = performance.now();
+    if (Number.isFinite(n.zeit)) {
+      this.serverZeit = n.zeit;
+      this.zeitEmpfangen = jetzt;
+      this.tag = n.tag ?? this.tag;
+    }
 
     const entitaeten = new Map(n.entitaeten.map((e) => [e.id, e]));
     this.schnappschuesse.push({ empfangen: jetzt, tick: n.tick, entitaeten });
@@ -272,6 +298,12 @@ export class ClientSpiel {
       case 'leer':
         if (e.von === this.eigeneId) this.sound.spiele('leer');
         break;
+      case 'tuer':
+        this.sound.spiele(e.aufgebrochen ? 'tuer_bricht' : e.offen ? 'tuer_auf' : 'tuer_zu', { x: e.x, y: e.y });
+        break;
+      case 'tuerSchlag':
+        this.sound.spiele('tuer_schlag', { x: e.x, y: e.y, tonhoehe: 0.85 + Math.random() * 0.3 });
+        break;
     }
   }
 
@@ -335,6 +367,8 @@ export class ClientSpiel {
     if (this.physik.ausdauerMax) this.hud.setzeAusdauer(this.lokal.ausdauer / this.physik.ausdauerMax, this.lokal.erschoepft);
     const andere = this.#interpolierteEntitaeten(jetzt - INTERPOLATIONS_VERZOEGERUNG_MS);
     const aufhebbar = this.spielerDaten?.tot ? null : this.#naechsterGegenstand();
+    const tuer = this.#naechsteTuer();
+    const uhr = tageszeit(this.serverZeit + (jetzt - this.zeitEmpfangen) / 1000, this.tageszeitDauer);
 
     this.renderer.zeichne({
       fokus: eigen,
@@ -343,6 +377,7 @@ export class ClientSpiel {
       jetzt,
       effekte: this.effekte,
       markiertId: aufhebbar?.id ?? null,
+      tageszeit: uhr,
     });
     this.hud.aktualisiere({
       serverName: this.serverName,
@@ -356,6 +391,8 @@ export class ClientSpiel {
       gegenstaende: this.gegenstaende.length,
       offeneEingaben: this.offeneEingaben.length,
       aufhebbar: aufhebbar ? (aufhebbar.menge > 1 ? `${aufhebbar.name} ×${aufhebbar.menge}` : aufhebbar.name) : null,
+      tuer: tuer ? (this.welt.istTuerOffen(tuer.id) ? 'schließen' : 'öffnen') : null,
+      uhr: { ...uhr, tag: this.tag },
     });
   }
 

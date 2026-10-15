@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Browser Survival</title>
     <link rel="stylesheet" href="stil.css" />
-    <!-- Three.js (nur für den 3D-Prototyp, wird erst bei Bedarf geladen) -->
+    <!-- Three.js (3D-Grafik) – liegt lokal in vendor/, kein CDN nötig -->
     <script type="importmap">
       { "imports": { "three": "./vendor/three/three.module.js" } }
     </script>
@@ -26,7 +26,10 @@
     <!-- HUD über dem Spiel -->
     <div id="hud" hidden>
       <div id="hud-oben">
-        <span id="hud-status"></span>
+        <div class="hud-links">
+          <span id="hud-uhr" title="Tag 10 Minuten, Nacht 5 Minuten – nachts kommt die Horde">☀ 06:00</span>
+          <span id="hud-status"></span>
+        </div>
         <div class="hud-knoepfe">
           <button id="hud-licht" type="button" title="Taschenlampe an/aus (L) – aus = Zombies sehen dich schlechter">🔦</button>
           <button id="hud-admin" type="button" title="Admin-Menü (P)" hidden>🛡</button>
@@ -51,11 +54,15 @@
         <button type="button" data-befehl="ausruesten">Waffen &amp; Munition</button>
         <button type="button" data-befehl="zombieSpawnen">Zombie spawnen</button>
         <button type="button" data-befehl="zombiesToeten">Alle Zombies töten</button>
+        <button type="button" data-befehl="zeitSpringen">Tag ⇄ Nacht</button>
         <button type="button" data-nachtsicht>Nachtsicht</button>
       </div>
       <div id="hud-meldungen" aria-live="polite"></div>
       <div id="hud-unten">
-        <button id="knopf-aufheben" type="button" hidden></button>
+        <div class="aktionsknoepfe">
+          <button id="knopf-tuer" type="button" hidden></button>
+          <button id="knopf-aufheben" type="button" hidden></button>
+        </div>
         <div id="hud-munition" hidden></div>
         <div id="hotbar"></div>
       </div>
@@ -96,12 +103,6 @@
         </label>
         <label id="login-passwort-feld">Passwort
           <input id="login-passwort" type="password" autocomplete="current-password" />
-        </label>
-        <label>Grafik
-          <select id="login-grafik">
-            <option value="2d">2D (Standard)</option>
-            <option value="3d">3D (Prototyp)</option>
-          </select>
         </label>
 
         <button id="login-knopf" type="submit">Login</button>

@@ -1,6 +1,6 @@
 """
-Asset-Pipeline: lädt freie Grafikpakete herunter, schneidet zu, verkleinert, packt Spritesheets (WebP)
-und schreibt client/assets/atlas.json + client/assets/LIZENZEN.md.
+Asset-Pipeline: lädt freie Grafikpakete herunter, schneidet zu, verkleinert, packt Spritesheets (WebP:
+Item-Icons, Böden, Möbel-Draufsichten), kopiert die 3D-Figur und schreibt client/assets/atlas.json + LIZENZEN.md.
 
 Nur nötig, wenn Grafiken hinzukommen oder sich ändern – die fertigen Dateien liegen im Repo.
 
@@ -11,13 +11,11 @@ Ausführen:
     .venv/bin/python werkzeuge/assets/baue_assets.py
 
 Downloads werden in werkzeuge/assets/.cache zwischengespeichert (gitignored).
-Danach für den 3D-Prototyp:  npm run assets:3d  (Animationen extrahieren, Three.js bereitstellen)
+Danach IMMER:  npm run assets:3d  (Animationen der 3D-Figur extrahieren, Three.js bereitstellen)
 """
-import glob
 import io
 import json
 import math
-import re
 import shutil
 import urllib.request
 import zipfile
@@ -36,8 +34,6 @@ WEBP_QUALITAET = 88
 
 OGA = 'https://opengameart.org/sites/default/files/'
 QUELLEN = {
-    'survivor': OGA + 'Top_Down_Survivor_2.zip',
-    'zombie': OGA + 'tds_zombie.zip',
     'kenney_tds': 'https://kenney.nl/media/pages/assets/top-down-shooter/230204340a-1677694684/kenney_top-down-shooter.zip',
     'kenney_items': OGA + 'kenney_genericItems_updatedCross.zip',
     'kenney_racing': 'https://kenney.nl/media/pages/assets/racing-pack/c4cd68480a-1677662443/kenney_racing-pack.zip',
@@ -49,12 +45,9 @@ QUELLEN = {
 }
 
 LIZENZEN = [
-    ('Animated Top Down Survivor Player', 'rileygombart', 'CC-BY 3.0',
-     'https://opengameart.org/content/animated-top-down-survivor-player', 'Spielerfigur (alle Animationen)'),
-    ('Animated Top Down Zombie', 'rileygombart', 'CC0', 'https://opengameart.org/content/animated-top-down-zombie', 'Zombie'),
     ('Top-down Shooter', 'Kenney (kenney.nl)', 'CC0', 'https://kenney.nl/assets/top-down-shooter', 'Böden, Möbel, Pflanzen'),
     ('Racing Pack', 'Kenney (kenney.nl)', 'CC0', 'https://kenney.nl/assets/racing-pack', 'Autos, Pylonen, Ölflecken'),
-    ('Animated Characters 3', 'Kenney (kenney.nl)', 'CC0', 'https://opengameart.org/content/animated-characters-3', '3D-Figuren (Prototyp)'),
+    ('Animated Characters 3', 'Kenney (kenney.nl)', 'CC0', 'https://opengameart.org/content/animated-characters-3', '3D-Figuren (Spieler & Zombies)'),
     ('Generic Items', 'Kenney (kenney.nl)', 'CC0', 'https://opengameart.org/content/generic-items', 'Erste-Hilfe-Kasten, Messer, Beil'),
     ('Free Survival Props Pack', 'Olga Bikmullina (http://ahninniah.graphics)', 'CC-BY 3.0',
      'https://opengameart.org/content/free-survival-props-pack', 'Verband, Pillen, Hammer, Machete, Schrotpatronen'),
@@ -62,33 +55,6 @@ LIZENZEN = [
     ('Glitch Food & Drink Items', 'Tiny Speck (Glitch)', 'CC0',
      'https://opengameart.org/content/glitch-food-drink-items-svg', 'Essen & Getränke'),
 ]
-
-# ---------------------------------------------------------------------------
-# Figuren
-
-SURVIVOR_ROH = 'Top_Down_Survivor'
-# Ausrüstung → Aktion → Ordner im Survivor-Paket
-SURVIVOR_ANIMATIONEN = {
-    'taschenlampe': {'idle': 'flashlight/idle', 'laufen': 'flashlight/move', 'nahkampf': 'flashlight/meleeattack'},
-    'pistole': {'idle': 'handgun/idle', 'laufen': 'handgun/move', 'schiessen': 'handgun/shoot',
-                'nachladen': 'handgun/reload', 'nahkampf': 'handgun/meleeattack'},
-    'schrotflinte': {'idle': 'shotgun/idle', 'laufen': 'shotgun/move', 'schiessen': 'shotgun/shoot',
-                     'nachladen': 'shotgun/reload', 'nahkampf': 'shotgun/meleeattack'},
-    'messer': {'idle': 'knife/idle', 'laufen': 'knife/move', 'nahkampf': 'knife/meleeattack'},
-}
-SURVIVOR_FUESSE = {'stehen': 'feet/idle', 'gehen': 'feet/walk', 'rennen': 'feet/run',
-                   'seitlich_links': 'feet/strafe_left', 'seitlich_rechts': 'feet/strafe_right'}
-# Kopfmitte im Referenzbild (handgun/idle, Frame 0) – von Hand vermessen
-SURVIVOR_REFERENZ = ('handgun/idle', (100, 121))
-ZOMBIE_REFERENZ = ('idle', (97, 121))
-
-FPS = {'idle': 15, 'laufen': 24, 'schiessen': 20, 'nachladen': 20, 'nahkampf': 30, 'angriff': 18,
-       'stehen': 1, 'gehen': 24, 'rennen': 30, 'seitlich_links': 24, 'seitlich_rechts': 24}
-SCHLEIFE = {'schiessen': False, 'nachladen': False, 'nahkampf': False, 'angriff': False}
-
-SPEICHER_MASSSTAB = 0.4          # Quellpixel → Spritesheet-Pixel
-SURVIVOR_WELT_MASSSTAB = 0.21    # Quellpixel → Weltpixel (Schulterbreite ≈ 32 px)
-ZOMBIE_WELT_MASSSTAB = 0.2
 
 # ---------------------------------------------------------------------------
 # Gegenstände (Item-Icons): defId → (Quelle, Pfad im Paket, Weltgröße in px)
@@ -200,130 +166,6 @@ def finde(ordner, relativ):
     return treffer[0]
 
 
-def frames_in(ordner, praefix=''):
-    dateien = [p for p in ordner.glob(f'{praefix}*.png')]
-    return sorted(dateien, key=lambda p: int(re.findall(r'(\d+)\.png$', p.name)[0]))
-
-
-def als_grau_array(bild):
-    a = np.asarray(bild.convert('RGBA')).astype(np.float32) / 255
-    return a[..., :3] * a[..., 3:4] + 0.5 * (1 - a[..., 3:4])
-
-
-def finde_kopf(referenz, ref_punkt, ziel, radius=26, suche=70):
-    """Template-Matching: wo liegt der Kopf (Referenz-Ausschnitt) im Zielbild? Grob (Schritt 3), dann fein."""
-    rx, ry = ref_punkt
-    vorlage = referenz[ry - radius:ry + radius, rx - radius:rx + radius]
-    h, w, _ = ziel.shape
-    cx, cy = int(rx / referenz.shape[1] * w), int(ry / referenz.shape[0] * h)
-
-    def fehler(x, y):
-        return float(((ziel[y - radius:y + radius, x - radius:x + radius] - vorlage) ** 2).sum())
-
-    def bester(kandidaten):
-        return min(kandidaten, key=lambda p: fehler(*p))
-
-    grob = bester([(x, y) for y in range(max(radius, cy - suche), min(h - radius, cy + suche), 3)
-                   for x in range(max(radius, cx - suche), min(w - radius, cx + suche), 3)])
-    return bester([(x, y) for y in range(max(radius, grob[1] - 3), min(h - radius, grob[1] + 4))
-                   for x in range(max(radius, grob[0] - 3), min(w - radius, grob[0] + 4))])
-
-
-def packe_animation(bilder, pivot, name, unterordner, welt_massstab):
-    """Schneidet alle Frames auf gemeinsamen Rahmen zu, verkleinert und packt sie in ein Raster-Sheet."""
-    groesse = bilder[0].size
-    bilder = [b.convert('RGBA') if b.size == groesse else b.convert('RGBA').crop((0, 0) + groesse) for b in bilder]
-    rahmen = None
-    for b in bilder:
-        box = b.getchannel('A').point(lambda a: 255 if a > 8 else 0).getbbox()
-        if box:
-            rahmen = box if rahmen is None else (min(rahmen[0], box[0]), min(rahmen[1], box[1]),
-                                                 max(rahmen[2], box[2]), max(rahmen[3], box[3]))
-    links, oben, rechts, unten = rahmen
-    fb = max(1, round((rechts - links) * SPEICHER_MASSSTAB))
-    fh = max(1, round((unten - oben) * SPEICHER_MASSSTAB))
-    spalten = min(len(bilder), max(1, math.ceil(math.sqrt(len(bilder) * fh / fb))))
-    zeilen = math.ceil(len(bilder) / spalten)
-    blatt = Image.new('RGBA', (spalten * fb, zeilen * fh), (0, 0, 0, 0))
-    for i, b in enumerate(bilder):
-        frame = b.crop(rahmen).resize((fb, fh), Image.LANCZOS)
-        blatt.paste(frame, ((i % spalten) * fb, (i // spalten) * fh))
-    datei = f'{unterordner}/{name}.webp'
-    (ZIEL / unterordner).mkdir(parents=True, exist_ok=True)
-    blatt.save(ZIEL / datei, 'WEBP', quality=WEBP_QUALITAET, method=6)
-    return {
-        'bild': datei, 'frames': len(bilder), 'spalten': spalten, 'frameBreite': fb, 'frameHoehe': fh,
-        'pivotX': round((pivot[0] - links) * SPEICHER_MASSSTAB, 1),
-        'pivotY': round((pivot[1] - oben) * SPEICHER_MASSSTAB, 1),
-        'massstab': round(welt_massstab / SPEICHER_MASSSTAB, 4),
-    }
-
-
-def baue_survivor():
-    basis = finde(lade('survivor'), SURVIVOR_ROH)
-    ref_ordner, ref_punkt = SURVIVOR_REFERENZ
-    referenz = als_grau_array(Image.open(frames_in(basis / ref_ordner)[0]))
-    animationen = {}
-    for ausruestung, aktionen in SURVIVOR_ANIMATIONEN.items():
-        for aktion, ordner in aktionen.items():
-            dateien = frames_in(basis / ordner)
-            pivot = finde_kopf(referenz, ref_punkt, als_grau_array(Image.open(dateien[0])))
-            eintrag = packe_animation([Image.open(d) for d in dateien], pivot, f'{ausruestung}_{aktion}',
-                                      'figuren/survivor', SURVIVOR_WELT_MASSSTAB)
-            eintrag.update(fps=FPS[aktion], schleife=SCHLEIFE.get(aktion, True))
-            animationen[f'{ausruestung}_{aktion}'] = eintrag
-            print(f'    survivor {ausruestung}_{aktion}: {eintrag["frames"]} Frames, Kopf {pivot}')
-    fuesse = {}
-    for aktion, ordner in SURVIVOR_FUESSE.items():
-        dateien = frames_in(basis / ordner)
-        bilder = [Image.open(d) for d in dateien]
-        w, h = bilder[0].size
-        eintrag = packe_animation(bilder, (w / 2, h / 2), f'fuesse_{aktion}', 'figuren/survivor', SURVIVOR_WELT_MASSSTAB)
-        eintrag.update(fps=FPS[aktion], schleife=True)
-        fuesse[aktion] = eintrag
-    return {'animationen': animationen, 'fuesse': fuesse}
-
-
-# Zombie-Varianten (siehe konfiguration.zombie.varianten) als umgefärbte Kopien
-ZOMBIE_FARBEN = {
-    'zombie': None,
-    'zombie_laeufer': {'saettigung': 0.35, 'helligkeit': 1.1, 'toenung': (0.9, 0.98, 1.1)},  # blass, bläulich
-    'zombie_brocken': {'saettigung': 0.9, 'helligkeit': 0.7, 'toenung': (1.15, 0.9, 0.8)},  # dunkel, rötlich
-}
-
-
-def faerbe(bild, saettigung, helligkeit, toenung):
-    a = np.asarray(bild.convert('RGBA')).astype(np.float32)
-    rgb = a[..., :3]
-    grau = rgb.mean(axis=2, keepdims=True)
-    rgb = (grau + (rgb - grau) * saettigung) * helligkeit * np.array(toenung, dtype=np.float32)
-    return Image.fromarray(np.concatenate([np.clip(rgb, 0, 255), a[..., 3:4]], axis=2).astype(np.uint8), 'RGBA')
-
-
-def baue_zombie():
-    basis = finde(lade('zombie'), 'export')
-    def dateien(aktion):
-        return frames_in(basis, f'skeleton-{aktion}_')
-    referenz = als_grau_array(Image.open(dateien('idle')[0]))
-    figuren = {name: {'animationen': {}} for name in ZOMBIE_FARBEN}
-    for aktion, quelle in [('idle', 'idle'), ('laufen', 'move'), ('angriff', 'attack')]:
-        liste = dateien(quelle)
-        if aktion == 'laufen':
-            # Zombie schwankt beim Laufen → Drehpunkt = Mittelwert der Kopfpositionen
-            punkte = [finde_kopf(referenz, ZOMBIE_REFERENZ[1], als_grau_array(Image.open(d))) for d in liste[::2]]
-            pivot = (sum(p[0] for p in punkte) / len(punkte), sum(p[1] for p in punkte) / len(punkte))
-        else:
-            pivot = finde_kopf(referenz, ZOMBIE_REFERENZ[1], als_grau_array(Image.open(liste[0])))
-        bilder = [Image.open(d).convert('RGBA') for d in liste]
-        for name, farbe in ZOMBIE_FARBEN.items():
-            varianten_bilder = bilder if farbe is None else [faerbe(b, **farbe) for b in bilder]
-            eintrag = packe_animation(varianten_bilder, pivot, aktion, f'figuren/{name}', ZOMBIE_WELT_MASSSTAB)
-            eintrag.update(fps=FPS[aktion], schleife=SCHLEIFE.get(aktion, True))
-            figuren[name]['animationen'][aktion] = eintrag
-        print(f'    zombie {aktion}: {len(liste)} Frames × {len(ZOMBIE_FARBEN)} Varianten, Drehpunkt {tuple(round(v) for v in pivot)}')
-    return figuren
-
-
 def rendere_svg(pfad, groesse):
     import cairosvg
     png = cairosvg.svg2png(url=str(pfad), output_width=groesse * 3)
@@ -401,7 +243,7 @@ def baue_umgebung():
 
 
 def baue_3d_figuren():
-    """3D-Prototyp: Figurenmodell (FBX) + Hauttexturen kopieren. Die Animationen extrahiert baue_3d.mjs."""
+    """3D-Figurenmodell (FBX) + Hauttexturen kopieren. Die Animationen extrahiert baue_3d.mjs."""
     basis = lade('kenney_ac3')
     ziel = ZIEL / '3d'
     (ziel / 'skins').mkdir(parents=True, exist_ok=True)
@@ -427,15 +269,13 @@ def main():
     if ZIEL.exists():
         shutil.rmtree(ZIEL)
     ZIEL.mkdir(parents=True)
-    print('Figuren …')
-    figuren = {'survivor': baue_survivor(), **baue_zombie()}
     print('Gegenstände …')
     items = baue_items()
     print('Umgebung …')
     umgebung = baue_umgebung()
-    print('3D-Prototyp …')
+    print('3D-Figuren …')
     figuren3d = baue_3d_figuren()
-    atlas = {'version': 1, 'figuren': figuren, 'items': items, 'umgebung': umgebung, 'figuren3d': figuren3d,
+    atlas = {'version': 2, 'items': items, 'umgebung': umgebung, 'figuren3d': figuren3d,
              'lizenzen': schreibe_lizenzen()}
     (ZIEL / 'atlas.json').write_text(json.dumps(atlas, ensure_ascii=False, indent=1), encoding='utf-8')
     gesamt = sum(p.stat().st_size for p in ZIEL.rglob('*') if p.is_file())

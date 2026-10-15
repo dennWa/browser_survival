@@ -1,7 +1,9 @@
 /**
  * A*-Pfadfindung auf dem Kachelraster (für Zombies).
  * 8 Richtungen; diagonal nur, wenn beide angrenzenden geraden Kacheln frei sind (keine Ecken schneiden).
- * Blockiert ist, was auch die Bewegung blockiert (Wände, Fenster, Möbel).
+ * Blockiert ist, was auch die Bewegung blockiert (Wände, Fenster, Möbel, geschlossene Türen).
+ * Mit `tuerKosten` gelten geschlossene Türen als passierbar, aber teuer – so planen Zombies den Weg
+ * durch eine Tür und brechen sie unterwegs auf (zombieSystem).
  */
 const WURZEL_2 = Math.SQRT2;
 const RICHTUNGEN = [
@@ -12,14 +14,15 @@ const RICHTUNGEN = [
 /**
  * @returns {Array<{x, y}> | null}  Wegpunkte (Kachelmitten in Weltpixeln) ohne Startkachel, oder null
  */
-export function findePfad(welt, startX, startY, zielX, zielY, maxKnoten = 3000) {
+export function findePfad(welt, startX, startY, zielX, zielY, { maxKnoten = 8000, tuerKosten = null } = {}) {
   const g = welt.kachelGroesse;
   const breite = welt.breite;
   const sx = Math.floor(startX / g);
   const sy = Math.floor(startY / g);
   const zx = Math.floor(zielX / g);
   const zy = Math.floor(zielY / g);
-  if (welt.istBlockiert(zx, zy)) return null;
+  const durchTuer = (tx, ty) => tuerKosten !== null && welt.istGeschlosseneTuer(tx, ty);
+  if (welt.istBlockiert(zx, zy) && !durchTuer(zx, zy)) return null;
   if (sx === zx && sy === zy) return [];
 
   const start = sy * breite + sx;
@@ -42,10 +45,15 @@ export function findePfad(welt, startX, startY, zielX, zielY, maxKnoten = 3000) 
     for (const [dx, dy, schrittKosten] of RICHTUNGEN) {
       const nx = ax + dx;
       const ny = ay + dy;
-      if (welt.istBlockiert(nx, ny)) continue;
+      let extra = 0;
+      if (welt.istBlockiert(nx, ny)) {
+        // Geschlossene Tür: nur gerade hindurch, kostet extra (Aufbrechen dauert)
+        if (dx !== 0 && dy !== 0 || !durchTuer(nx, ny)) continue;
+        extra = tuerKosten;
+      }
       if (dx !== 0 && dy !== 0 && (welt.istBlockiert(ax + dx, ay) || welt.istBlockiert(ax, ay + dy))) continue;
       const nachbar = ny * breite + nx;
-      const neueKosten = kosten.get(aktuell) + schrittKosten;
+      const neueKosten = kosten.get(aktuell) + schrittKosten + extra;
       if (neueKosten < (kosten.get(nachbar) ?? Infinity)) {
         kosten.set(nachbar, neueKosten);
         herkunft.set(nachbar, aktuell);

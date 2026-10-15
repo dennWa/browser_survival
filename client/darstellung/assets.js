@@ -1,8 +1,9 @@
 /**
- * Lädt alle Grafiken (client/assets/atlas.json + Spritesheets) und bietet bequemen Zugriff.
+ * Lädt die 2D-Grafiken (client/assets/atlas.json + Spritesheets: Item-Icons, Böden, Möbel-Draufsichten)
+ * und bietet bequemen Zugriff. Die 3D-Figur lädt der Renderer selbst (atlas.figuren3d).
  *
- * Der Atlas wird von werkzeuge/assets/baue_assets.py erzeugt. Fehlt eine Grafik, zeichnet der
- * Renderer automatisch Platzhalter (farbige Formen) – das Spiel bleibt also immer spielbar.
+ * Der Atlas wird von werkzeuge/assets/baue_assets.py erzeugt. Fehlt eine Grafik, nutzt der
+ * Renderer Ersatzfarben – das Spiel bleibt also immer spielbar.
  */
 const BASIS = new URL('../assets/', import.meta.url);
 
@@ -14,15 +15,6 @@ export class Assets {
 
   bild(pfad) {
     return this.bilder.get(pfad) ?? null;
-  }
-
-  /** Animation einer Figur, z. B. figur('survivor', 'pistole_laufen') oder figur('zombie', 'angriff'). */
-  figur(figur, animation) {
-    return this.atlas.figuren[figur]?.animationen[animation] ?? null;
-  }
-
-  fuesse(aktion) {
-    return this.atlas.figuren.survivor?.fuesse[aktion] ?? null;
   }
 
   /** { x, y, b, h, weltGroesse } im Item-Sheet */
@@ -62,11 +54,6 @@ export async function ladeAssets(beiFortschritt = () => {}) {
   const atlas = await antwort.json();
 
   const pfade = new Set([atlas.items.bild, atlas.umgebung.bild]);
-  for (const figur of Object.values(atlas.figuren)) {
-    for (const gruppe of [figur.animationen, figur.fuesse ?? {}]) {
-      for (const animation of Object.values(gruppe)) pfade.add(animation.bild);
-    }
-  }
 
   const bilder = new Map();
   let fertig = 0;

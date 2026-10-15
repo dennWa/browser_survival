@@ -13,16 +13,13 @@ import { Sound } from './audio/sound.js';
 /**
  * Einstiegspunkt des Clients. Verdrahtet nur die Bausteine – keine Spiellogik hier.
  *
- * Ablauf:  Grafiken laden → Login-Bildschirm → (3D: Prototyp nachladen) → Verbindung aufbauen → Anmelden
+ * Ablauf:  Grafiken + 3D-Figuren laden → Login-Bildschirm → Verbindung aufbauen → Anmelden
  *          → ClientSpiel läuft → bei Trennung/Abmelden zurück zum Login
  *
- * Renderer: 2D (Standard) oder 3D-Prototyp – gleiche Schnittstelle. Der 3D-Teil (inkl. Three.js) wird
- * erst geladen, wenn jemand im Login "3D" wählt.
+ * Grafik: Three.js (WebGL). Das 2D-Canvas #spielflaeche liegt durchsichtig darüber (Eingaben, Namen, Vignette).
  */
 const leinwand = document.getElementById('spielflaeche');
-const renderer2d = new Renderer(leinwand);
-let renderer3d = null;
-let aktiverRenderer = renderer2d;
+let renderer = null;
 const eingabe = new Eingabe(window, leinwand);
 const login = new LoginBildschirm(document, SERVER_LISTE);
 const hud = new Hud(document, { debug: DEBUG_START });
@@ -34,6 +31,7 @@ let assets = null;
 
 eingabe.beiTaste('debug', () => hud.debugUmschalten());
 eingabe.beiTaste('licht', () => aktuellesSpiel?.licht());
+eingabe.beiTaste('tuer', () => aktuellesSpiel?.tuer());
 eingabe.beiTaste('wiederbeleben', () => aktuellesSpiel?.wiederbeleben());
 eingabe.beiTaste('admin', () => hud.adminMenuUmschalten());
 eingabe.beiTaste('aufheben', () => aktuellesSpiel?.aufheben());
@@ -52,52 +50,35 @@ hud.beiAktionen({
   benutzen: (slot) => aktuellesSpiel?.benutzen(slot),
   ablegen: (slot) => aktuellesSpiel?.ablegen(slot),
   licht: () => aktuellesSpiel?.licht(),
+  tuer: () => aktuellesSpiel?.tuer(),
   wiederbeleben: () => aktuellesSpiel?.wiederbeleben(),
   admin: (befehl) => aktuellesSpiel?.admin(befehl),
   // Nachtsicht: Dunkelheit im Renderer aus – rein optisch, daher nur im Admin-Menü
-  nachtsicht: () => hud.setzeNachtsicht(!aktiverRenderer.lichtUmschalten()),
+  nachtsicht: () => renderer && hud.setzeNachtsicht(renderer.nachtsichtUmschalten()),
 });
 document.getElementById('credits-knopf').addEventListener('click', () => zeigeCredits(document, assets));
 
-login.beiAnmeldung(async ({ server, adresse, benutzername, passwort, grafik }) => {
+login.beiAnmeldung(async ({ server, adresse, benutzername, passwort }) => {
   sound.entsperren(); // Klick auf "Login" = Nutzeraktion → Browser erlaubt ab jetzt Ton
+  if (!renderer) {
+    login.zeigeMeldung('Dein Browser kann keine 3D-Grafik (WebGL) – leider geht es ohne nicht.', true);
+    return;
+  }
   login.setzeBeschaeftigt(true);
   let verbindung = null;
   try {
-    const renderer = await waehleRenderer(grafik);
     verbindung = await verbindungAufbauen(server, adresse);
     const anmeldeDaten = await anmelden(verbindung, { benutzername, passwort });
-    spielStarten(verbindung, anmeldeDaten, renderer);
+    spielStarten(verbindung, anmeldeDaten);
   } catch (fehler) {
     if (verbindung && !verbindung.getrennt) verbindung.trennen('Login abgebrochen');
     login.anzeigen(fehler.message);
   }
 });
 
-/** 3D-Prototyp bei Bedarf nachladen; klappt das nicht (z. B. kein WebGL), geht's in 2D weiter. */
-async function waehleRenderer(grafik) {
-  if (grafik !== '3d') {
-    renderer3d?.verbergen();
-    return renderer2d;
-  }
-  try {
-    if (!renderer3d) {
-      login.zeigeMeldung('Lade 3D-Prototyp …');
-      const { Renderer3D } = await import('./darstellung3d/renderer3d.js');
-      renderer3d = await Renderer3D.erstelle(leinwand, assets);
-    }
-    renderer3d.anzeigen();
-    return renderer3d;
-  } catch (fehler) {
-    console.warn('[3D] nicht verfügbar:', fehler);
-    login.zeigeMeldung('3D nicht verfügbar – spiele in 2D', true);
-    return renderer2d;
-  }
-}
-
-function spielStarten(verbindung, anmeldeDaten, renderer) {
-  aktiverRenderer = renderer;
-  if (renderer.lichtAn === false) renderer.lichtUmschalten(); // Nachtsicht aus der letzten Runde zurücksetzen
+function spielStarten(verbindung, anmeldeDaten) {
+  if (renderer.nachtsicht) renderer.nachtsichtUmschalten(); // Nachtsicht aus der letzten Runde zurücksetzen
+  renderer.anzeigen();
   login.verbergen();
   eingabe.aktiv = true;
   hud.anzeigen(eingabe.touch.istTouchGeraet);
@@ -113,27 +94,34 @@ function spielStarten(verbindung, anmeldeDaten, renderer) {
       aktuellesSpiel = null;
       eingabe.aktiv = false;
       hud.verbergen();
-      renderer3d?.verbergen();
-      renderer2d.leeren();
+      renderer.verbergen();
       login.anzeigen(grund === 'Abgemeldet' ? '' : grund);
     },
   });
 }
 
 async function starten() {
-  renderer2d.leeren();
   const ladeBildschirm = document.getElementById('laden');
   const fuellung = document.getElementById('ladebalken-fuellung');
+  const ladeText = document.getElementById('lade-text');
   try {
-    assets = await ladeAssets((anteil) => (fuellung.style.width = `${Math.round(anteil * 100)}%`));
-    renderer2d.setzeAssets(assets);
+    assets = await ladeAssets((anteil) => (fuellung.style.width = `${Math.round(anteil * 80)}%`));
     hud.setzeAssets(assets);
   } catch (fehler) {
-    // Ohne Grafiken läuft das Spiel mit Platzhalter-Formen weiter
     console.warn('[Assets] Laden fehlgeschlagen:', fehler);
   }
+  let fehlerText = '';
+  try {
+    ladeText.textContent = 'Lade 3D-Figuren …';
+    renderer = await Renderer.erstelle(leinwand, assets);
+    renderer.verbergen();
+    fuellung.style.width = '100%';
+  } catch (fehler) {
+    console.warn('[3D] nicht verfügbar:', fehler);
+    fehlerText = 'Dein Browser kann keine 3D-Grafik (WebGL) – leider geht es ohne nicht.';
+  }
   ladeBildschirm.hidden = true;
-  login.anzeigen();
+  login.anzeigen(fehlerText);
 }
 
 starten();

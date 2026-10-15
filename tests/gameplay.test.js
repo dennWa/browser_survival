@@ -11,6 +11,7 @@ import { erzeugeZombie, waehleZombieVariante } from '../server/spiel/entitaeten/
 import { findePfad } from '../server/spiel/systeme/pfadfindung.js';
 import { wendeEingabeAn } from '../gemeinsam/physik/bewegung.js';
 import { Zufall } from '../server/spiel/zufall.js';
+import { tageszeit } from '../gemeinsam/tageszeit.js';
 
 // Kachel = 32 px. Wand in Spalte 5 (Zeilen 3–5) trennt links/rechts teilweise.
 const TESTKARTE = {
@@ -386,11 +387,15 @@ test('Faust macht wenig Schaden – deutlich weniger als jede Nahkampfwaffe', ()
   assert.ok(UNBEWAFFNET.schaden <= 6);
 });
 
-test('Taschenlampe aus → Zombie bemerkt den Spieler erst aus der Nähe', () => {
+test('Nachts mit Taschenlampe aus → Zombie bemerkt den Spieler erst aus der Nähe', () => {
   const { welt, spieler, konfiguration } = neueWelt();
+  welt.zeit = konfiguration.welt.tagSekunden + 10; // Nacht
   platziere(spieler, 1, 1);
   const zombie = zombieBei(welt, 6, 1); // 160 px: innerhalb aggroRadius, außerhalb aggroRadius × dunkelFaktor
   assert.ok(160 < konfiguration.zombie.aggroRadius && 160 > konfiguration.zombie.aggroRadius * konfiguration.zombie.dunkelFaktor);
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(welt.istNacht, true);
+  zombie.zielId = null;
   spieler.aktionsPuffer.push({ art: AKTIONEN.LICHT, slot: null });
   welt.aktualisiere(TICK_DAUER_S);
   assert.equal(spieler.lichtAn, false);
@@ -455,4 +460,109 @@ test('Unsichtbare Admins werden von Zombies ignoriert', () => {
   spieler.aktionsPuffer.push({ art: AKTIONEN.ADMIN, slot: null, befehl: ADMIN_BEFEHLE.UNSICHTBAR });
   ticks(welt, 2);
   assert.equal(zombie.zielId, null);
+});
+
+// ---------------------------------------------------------------------------
+// Türen
+
+const TUERKARTE = {
+  id: 'tuertest',
+  name: 'Türtest',
+  kacheln: [
+    '###########',
+    '#S...#....#',
+    '#....T....#',
+    '#....#....#',
+    '###TT######',
+    '#.........#',
+    '###########',
+  ],
+  raeume: {},
+};
+
+function tuerWelt() {
+  const konfiguration = erstelleKonfiguration({ server: { zufallsStartwert: 3 } });
+  const welt = new SpielWelt(konfiguration, { kartenDefinition: TUERKARTE });
+  const spieler = welt.spielerBetrittWelt('Tester');
+  return { welt, spieler };
+}
+
+test('Türen: nebeneinanderliegende T-Kacheln sind eine Doppeltür, Start = alle zu', () => {
+  const { welt } = tuerWelt();
+  assert.equal(welt.welt.tueren.length, 2);
+  const [einzeln, doppel] = welt.welt.tueren;
+  assert.equal(einzeln.senkrecht, true);
+  assert.equal(doppel.kacheln.length, 2);
+  assert.equal(doppel.senkrecht, false);
+  assert.deepEqual(welt.welt.offeneTueren(), []);
+  assert.equal(welt.welt.istBlockiert(5, 2), true);
+  assert.equal(sichtlinieFrei(welt.welt, mitte(4), mitte(2), mitte(6), mitte(2)), false, 'geschlossene Tür blockiert Sicht');
+});
+
+test('Tür öffnen, durchgehen, schließen – nicht schließbar, wenn jemand drinsteht', () => {
+  const { welt, spieler } = tuerWelt();
+  platziere(spieler, 4, 2);
+  spieler.aktionsPuffer.push({ art: AKTIONEN.TUER, slot: null });
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(welt.welt.istTuerOffen(0), true);
+  assert.ok(welt.ereignisse.some((e) => e.typ === 'tuer' && e.offen));
+  assert.equal(welt.welt.istBlockiert(5, 2), false);
+
+  platziere(spieler, 5, 2); // in der Tür
+  spieler.aktionsPuffer.push({ art: AKTIONEN.TUER, slot: null });
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(welt.welt.istTuerOffen(0), true, 'blockiert → bleibt offen');
+
+  platziere(spieler, 6, 2);
+  spieler.aktionsPuffer.push({ art: AKTIONEN.TUER, slot: null });
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(welt.welt.istTuerOffen(0), false);
+});
+
+test('Zombie bricht eine geschlossene Tür auf, um an den Spieler zu kommen', () => {
+  const { welt, spieler } = tuerWelt();
+  platziere(spieler, 2, 2);
+  const zombie = zombieBei(welt, 8, 2);
+  // Zombie hat den Spieler gehört → läuft zur letzten Position, der Weg führt durch die Tür
+  Object.assign(zombie, { zielId: spieler.id, zustand: 'verfolgend', letztesZielX: spieler.x, letztesZielY: spieler.y });
+  let geschlagen = false;
+  for (let i = 0; i < Math.ceil(30 / TICK_DAUER_S) && !welt.welt.istTuerOffen(0); i++) {
+    welt.aktualisiere(TICK_DAUER_S);
+    if (welt.ereignisse.some((e) => e.typ === 'tuerSchlag')) geschlagen = true;
+  }
+  assert.ok(geschlagen, 'Zombie hat gegen die Tür geschlagen');
+  assert.equal(welt.welt.istTuerOffen(0), true, 'Tür ist aufgebrochen');
+});
+
+// ---------------------------------------------------------------------------
+// Tag & Nacht
+
+test('Tageszeit: 10 min Tag (06–21 Uhr), 5 min Nacht, Helligkeit', () => {
+  const dauer = { tagSekunden: 600, nachtSekunden: 300 };
+  assert.equal(tageszeit(0, dauer).uhrzeit, '06:00');
+  assert.equal(tageszeit(300, dauer).uhrzeit, '13:30');
+  assert.equal(tageszeit(300, dauer).helligkeit, 1);
+  assert.equal(tageszeit(600, dauer).uhrzeit, '21:00');
+  assert.equal(tageszeit(600, dauer).istNacht, true);
+  assert.equal(tageszeit(750, dauer).uhrzeit, '01:30');
+  assert.equal(tageszeit(750, dauer).helligkeit, 0);
+  assert.equal(tageszeit(900, dauer).uhrzeit, '06:00');
+});
+
+test('Nachts kommt eine Horde, morgens zieht sie ab', () => {
+  const konfiguration = erstelleKonfiguration({ server: { zufallsStartwert: 5 } });
+  const welt = new SpielWelt(konfiguration); // Standardkarte mit Zombie-Spawns
+  const spieler = welt.spielerBetrittWelt('Tester');
+  const vorher = [...welt.alleVomTyp('zombie')].length;
+  welt.zeit = konfiguration.welt.tagSekunden - TICK_DAUER_S / 2;
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(welt.istNacht, true);
+  assert.equal([...welt.alleVomTyp('zombie')].length, vorher + konfiguration.zombie.nachtHorde);
+  assert.ok(welt.meldungen.some((m) => m.spielerId === spieler.id && m.text.includes('Nacht')));
+
+  welt.zeit = konfiguration.welt.tagSekunden + konfiguration.welt.nachtSekunden - TICK_DAUER_S / 2;
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(welt.istNacht, false);
+  assert.equal(welt.tag, 2);
+  assert.equal([...welt.alleVomTyp('zombie')].filter((z) => z.nacht).length, 0);
 });

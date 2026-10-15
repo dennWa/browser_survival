@@ -8,6 +8,10 @@ import { KACHELN } from './kacheln.js';
  * Kartendaten-Format (vom Server beim Login geschickt):
  *   { id, name, breite, hoehe, kachelGroesse, kacheln: string[], raeume: [{ id, name, x, y }],
  *     objekte: [{ typ, x, y, b, h, blockiert?, ebene?, drehung? }] }   (Objekte in Kachelkoordinaten)
+ *
+ * Türen: Jede Gruppe nebeneinanderliegender 'T'-Kacheln ist EINE Tür (Doppeltür = 2 Kacheln). Die Liste
+ * `tueren` wird aus den Kacheln berechnet – Server und Client bekommen dieselben IDs. Geschlossene Türen
+ * blockieren Bewegung, Sicht und Schüsse. Standard: alle offen; den Zustand setzt der Server (setzeTuer).
  */
 export class Welt {
   constructor(kartenDaten) {
@@ -21,6 +25,62 @@ export class Welt {
     this.objekte = kartenDaten.objekte ?? [];
     /** Kachelindizes (ty * breite + tx), die durch Möbel blockiert sind */
     this.moebelBlockiert = berechneMoebelKollision(this.objekte, this.breite);
+    /** [{ id, kacheln: [{ tx, ty }], senkrecht, x, y }]  senkrecht = Tür in einer Nord-Süd-Wand; x/y = Mitte (Weltpixel) */
+    this.tueren = findeTueren(this);
+    this.tuerAnKachel = new Map(); // Kachelindex → Tür-ID
+    for (const tuer of this.tueren) for (const { tx, ty } of tuer.kacheln) this.tuerAnKachel.set(ty * this.breite + tx, tuer.id);
+    this.geschlosseneTueren = new Set();
+  }
+
+  istTuerOffen(id) {
+    return !this.geschlosseneTueren.has(id);
+  }
+
+  setzeTuer(id, offen) {
+    if (offen) this.geschlosseneTueren.delete(id);
+    else this.geschlosseneTueren.add(id);
+  }
+
+  /** Tür-ID an dieser Kachel oder undefined. */
+  tuerBei(tx, ty) {
+    return this.tuerAnKachel.get(ty * this.breite + tx);
+  }
+
+  /** Nächste Tür, deren Kante höchstens `reichweite` px von (x, y) entfernt ist – oder null. */
+  naechsteTuer(x, y, reichweite) {
+    const g = this.kachelGroesse;
+    let beste = null;
+    let bestAbstand = reichweite;
+    for (const tuer of this.tueren) {
+      for (const { tx, ty } of tuer.kacheln) {
+        const nx = Math.max(tx * g, Math.min(x, (tx + 1) * g));
+        const ny = Math.max(ty * g, Math.min(y, (ty + 1) * g));
+        const abstand = Math.hypot(x - nx, y - ny);
+        if (abstand <= bestAbstand) {
+          beste = tuer;
+          bestAbstand = abstand;
+        }
+      }
+    }
+    return beste;
+  }
+
+  /** IDs aller offenen Türen (für Netzwerk & Tests). */
+  offeneTueren() {
+    return this.tueren.filter((t) => this.istTuerOffen(t.id)).map((t) => t.id);
+  }
+
+  /** Zustand aus einer Liste offener Tür-IDs übernehmen (Client: Nachricht vom Server). */
+  uebernimmOffeneTueren(offen) {
+    const menge = new Set(offen);
+    for (const t of this.tueren) this.setzeTuer(t.id, menge.has(t.id));
+  }
+
+  /** Liegt hier eine geschlossene Tür? */
+  istGeschlosseneTuer(tx, ty) {
+    if (this.geschlosseneTueren.size === 0) return false;
+    const id = this.tuerAnKachel.get(ty * this.breite + tx);
+    return id !== undefined && this.geschlosseneTueren.has(id);
   }
 
   get pixelBreite() {
@@ -42,16 +102,18 @@ export class Welt {
     const zeichen = this.kachelAn(tx, ty);
     if (zeichen === null) return true;
     if (this.moebelBlockiert.has(ty * this.breite + tx)) return true;
+    if (this.istGeschlosseneTuer(tx, ty)) return true;
     return KACHELN[zeichen]?.blockiert ?? true;
   }
 
   /**
-   * Blockiert diese Kachel Sicht und Schüsse? Nur Wände/Fenster – über Möbel kann man hinwegsehen
-   * und -schießen. Außerhalb der Karte: ja.
+   * Blockiert diese Kachel Sicht und Schüsse? Wände, Fenster und geschlossene Türen – über Möbel kann man
+   * hinwegsehen und -schießen. Außerhalb der Karte: ja.
    */
   istSichtBlockiert(tx, ty) {
     const zeichen = this.kachelAn(tx, ty);
     if (zeichen === null) return true;
+    if (this.istGeschlosseneTuer(tx, ty)) return true;
     return KACHELN[zeichen]?.blockiert ?? true;
   }
 
@@ -85,4 +147,36 @@ export function berechneMoebelKollision(objekte, breite) {
     }
   }
   return blockiert;
+}
+
+/** Gruppen zusammenhängender Tür-Kacheln (waagerecht oder senkrecht nebeneinander) → Türen mit fester ID. */
+function findeTueren(welt) {
+  const g = welt.kachelGroesse;
+  const istTuer = (tx, ty) => welt.kachelAn(tx, ty) === 'T';
+  const gesehen = new Set();
+  const tueren = [];
+  for (let ty = 0; ty < welt.hoehe; ty++) {
+    for (let tx = 0; tx < welt.breite; tx++) {
+      if (!istTuer(tx, ty) || gesehen.has(ty * welt.breite + tx)) continue;
+      // Richtung: geht die Tür nach rechts weiter → waagerechte Gruppe, sonst nach unten
+      const waagerechteGruppe = istTuer(tx + 1, ty);
+      const kacheln = [];
+      for (let x = tx, y = ty; istTuer(x, y) && kacheln.length < 4; waagerechteGruppe ? x++ : y++) {
+        kacheln.push({ tx: x, ty: y });
+        gesehen.add(y * welt.breite + x);
+      }
+      // Liegt die Tür in einer Nord-Süd-Wand? (Wand/Fenster oben oder unten, Durchgang links-rechts)
+      const ende = kacheln[kacheln.length - 1];
+      const wandig = (x, y) => welt.kachelAn(x, y) === '#' || welt.kachelAn(x, y) === 'F';
+      const senkrecht = kacheln.length > 1 ? !waagerechteGruppe : wandig(tx, ty - 1) || wandig(ende.tx, ende.ty + 1);
+      tueren.push({
+        id: tueren.length,
+        kacheln,
+        senkrecht,
+        x: ((tx + ende.tx + 1) / 2) * g,
+        y: ((ty + ende.ty + 1) / 2) * g,
+      });
+    }
+  }
+  return tueren;
 }

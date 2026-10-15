@@ -23,30 +23,8 @@ export const INTERPOLATIONS_VERZOEGERUNG_MS = 100;
 
 export const PING_INTERVALL_MS = 2000;
 
-/**
- * Kamera-Zoom passt sich der Bildschirmgröße an: zoom = √(Breite × Höhe) / KAMERA_SICHTFELD.
- * Größerer Wert = mehr Überblick. Begrenzung durch ZOOM_MIN/ZOOM_MAX.
- */
-export const KAMERA_SICHTFELD = 760;
-export const ZOOM_MIN = 0.65;
-export const ZOOM_MAX = 2.4;
-
 /** Künstliche Verzögerung im Lokal-Modus (ms), um Netzwerk-Lag zu simulieren. 0 = aus. */
 export const LOKALE_LATENZ_MS = 0;
 
 /** Debug-Overlay (Taste F3) beim Start anzeigen. */
 export const DEBUG_START = false;
-
-/**
- * Licht & Dunkelheit (client/darstellung/licht.js). Taste L schaltet die Dunkelheit aus/an.
- * dunkelheit*: 0 = taghell, 1 = schwarz.
- */
-export const LICHT = {
-  aktiv: true,
-  farbe: '#04070d',
-  dunkelheitInnen: 0.93, // Krankenhaus ohne Strom
-  dunkelheitAussen: 0.68, // Mondlicht
-  scheinRadius: 85, // schwacher Schein um jeden Spieler
-  scheinStaerke: 0.5,
-  taschenlampe: { reichweite: 430, halbwinkel: 0.42 },
-};

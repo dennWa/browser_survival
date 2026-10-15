@@ -1,5 +1,5 @@
 /**
- * 3D-Prototyp – Build-Schritt (nach baue_assets.py ausführen):   npm run assets:3d
+ * 3D-Figuren – Build-Schritt (nach baue_assets.py ausführen):   npm run assets:3d
  *
  *   1. Animationen aus den Kenney-FBX-Dateien ziehen → client/assets/3d/animationen.json
  *      (die FBX-Dateien enthalten jeweils das ganze Modell; wir brauchen nur die Bewegungsdaten)
@@ -24,7 +24,7 @@ const WURZEL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..
 const QUELLE = path.join(WURZEL, 'werkzeuge/assets/.cache/kenney_ac3');
 const ZIEL_3D = path.join(WURZEL, 'client/assets/3d');
 const ZIEL_VENDOR = path.join(WURZEL, 'client/vendor/three');
-const ANIMATIONEN = { stehen: 'idle', rennen: 'run', springen: 'jump' };
+const ANIMATIONEN = { stehen: 'idle', rennen: 'run' };
 
 if (!existsSync(QUELLE)) {
   console.error('Quelle fehlt – zuerst werkzeuge/assets/baue_assets.py ausführen.');

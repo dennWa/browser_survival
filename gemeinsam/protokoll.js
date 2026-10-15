@@ -20,11 +20,13 @@ export const NACHRICHT = Object.freeze({
   PING: 'ping',
 
   // ---- Server → Client ----
-  /** { spielerId, serverName, tickRate, karte, physik, start, gegenstaende, itemDefinitionen, spielerDaten } */
+  /** { spielerId, serverName, tickRate, karte, physik, start, gegenstaende, itemDefinitionen, spielerDaten,
+   *    tueren (IDs offener Türen), tageszeit { tagSekunden, nachtSekunden }, zeit, tag } */
   ANMELDUNG_OK: 'anmeldungOk',
   /** { grund } */
   ANMELDUNG_FEHLER: 'anmeldungFehler',
-  /** { tick, entitaeten: [...], ereignisse: [...] } – Schnappschuss aller dynamischen Entitäten + Ereignisse dieses Ticks */
+  /** { tick, zeit, tag, entitaeten: [...], ereignisse: [...] } – Schnappschuss aller dynamischen Entitäten + Ereignisse dieses Ticks
+   *  zeit = Sekunden seit Tagesbeginn (gemeinsam/tageszeit.js), tag = Tageszähler */
   ZUSTAND: 'zustand',
   /** { leben, maxLeben, hunger, durst, inventar, ausgeruestet, nachladen, tot, respawnIn, admin } – nur an den eigenen Spieler, bei Änderung */
   SPIELER_DATEN: 'spielerDaten',
@@ -32,6 +34,8 @@ export const NACHRICHT = Object.freeze({
   MELDUNG: 'meldung',
   /** { gegenstaende: [...] } – komplette Item-Liste, nur wenn sie sich geändert hat */
   GEGENSTAENDE: 'gegenstaende',
+  /** { offen: [Tür-IDs] } – Türzustand, nur wenn er sich geändert hat (IDs: Welt.tueren) */
+  TUEREN: 'tueren',
   /** { t } */
   PONG: 'pong',
   /** { text } – Hinweise vom Server (z. B. "Server startet neu") */
@@ -44,6 +48,7 @@ export const AKTIONEN = Object.freeze({
   BENUTZEN: 'benutzen', // Essen/Trinken/Medizin verbrauchen, Waffe aus-/abrüsten
   ABLEGEN: 'ablegen', // ganzen Stapel auf den Boden legen
   NACHLADEN: 'nachladen', // ausgerüstete Schusswaffe nachladen
+  TUER: 'tuer', // nächste Tür in Reichweite öffnen/schließen
   LICHT: 'licht', // Taschenlampe an/aus (aus = Zombies bemerken einen erst aus der Nähe)
   WIEDERBELEBEN: 'wiederbeleben', // tot → sofort am Startpunkt neu spawnen (statt Countdown abzuwarten)
   ADMIN: 'admin', // Admin-Befehl (nur für Accounts mit Admin-Recht, prüft der Server)
@@ -57,6 +62,7 @@ export const ADMIN_BEFEHLE = Object.freeze({
   AUSRUESTEN: 'ausruesten', // Waffen + Munition ins Inventar
   ZOMBIE_SPAWNEN: 'zombieSpawnen', // Zombie vor einem erscheinen lassen
   ZOMBIES_TOETEN: 'zombiesToeten', // alle Zombies umfallen lassen (sie respawnen normal)
+  ZEIT_SPRINGEN: 'zeitSpringen', // tagsüber → gleich Abend, nachts → gleich Morgen
 });
 
 /**
@@ -67,6 +73,8 @@ export const ADMIN_BEFEHLE = Object.freeze({
  *   tod       { id, x, y, ziel }
  *   nahkampf  { von, x, y, winkel }
  *   leer      { von }                        Klick – Magazin leer
+ *   tuer      { id, offen, aufgebrochen, x, y }  Tür geht auf/zu (aufgebrochen = von Zombies)
+ *   tuerSchlag { id, x, y }                  Zombie hämmert gegen eine Tür
  */
 
 /** Objekt → Text für den Transport. */

@@ -8,22 +8,22 @@
 
 ## 1. Überblick
 
-Top-Down-Survival (2D, Vogelperspektive) im Browser – für PC/Laptop, spielbar auch auf Handy & Tablet.
-Echte Grafiken (animierte Figuren, Texturen, Möbel, Item-Icons) aus freien Paketen.
-Startkarte: **St.-Elisabeth-Krankenhaus**.
+Top-Down-Survival in **3D** (schräge Vogelperspektive, Three.js) im Browser – für PC/Laptop, spielbar auch auf
+Handy & Tablet. Gameplay bleibt flach (2D auf dem Boden), nur die Darstellung ist 3D.
+Startkarte: **Stadtrand mit dem St.-Elisabeth-Krankenhaus** (110 × 86 Kacheln). Tag & Nacht, Türen, Horde.
 
 | Thema | Entscheidung |
 |---|---|
 | Sprache | Vanilla JavaScript (ES-Module), kein Build-Schritt. Bezeichner & Kommentare **Deutsch** (ohne Umlaute in Bezeichnern) |
-| Darstellung | HTML5 Canvas 2D, Spritesheets (WebP) + Atlas, Karte in vorgerenderten 16×16-Blöcken. **3D-Prototyp** wahlweise (Three.js/WebGL) |
-| Grafiken | Freie Pakete (CC0 / CC-BY), aufbereitet durch `werkzeuge/assets/baue_assets.py` → `client/assets/` (~0,8 MB) |
-| Geräte | Tastatur + Maus; Touch: zwei virtuelle Joysticks (links laufen, rechts zielen), Zoom passt sich der Bildschirmgröße an |
+| Darstellung | **Nur 3D**: Three.js (WebGL, lokal in `client/vendor/three/`), 2D-Canvas als durchsichtiges Overlay (Namen, Vignette) |
+| Grafiken | Freie Pakete (CC0 / CC-BY), aufbereitet durch `werkzeuge/assets/baue_assets.py` → `client/assets/` (~0,4 MB); Waffen prozedural |
+| Geräte | Tastatur + Maus; Touch: zwei virtuelle Joysticks (links laufen, rechts zielen), Kamera zoomt auf kleinen Bildschirmen raus |
 | Server | Node.js (≥ 20) + Paket `ws` (WebSockets), eingebauter HTTP-Server liefert auch die Spieldateien |
 | Netzwerkmodell | **Autoritativer Server** – Client schickt nur Eingaben; Positionen, Treffer, Schaden und Loot bestimmt der Server |
 | Netcode | Fester Tick (30/s), Client-Side Prediction + Server Reconciliation (eigener Spieler), Entity Interpolation (alle anderen) |
 | Modi | **Lokal**: echter SpielServer läuft im Browser-Tab (ohne Account) · **Mehrspieler**: Node-Server, Login mit Account |
 | Accounts | Keine Registrierung. Admin legt Accounts an: `npm run konto -- <name> <passwort> [--admin]` (scrypt-Hash in `server/daten/konten.json`) |
-| Admin-Recht | `"admin": true` im Konto (bzw. `--admin`) → Admin-Menü 🛡 (Taste P): Gottmodus, Unsichtbar, Heilen, Waffen, Zombie spawnen/alle töten, Nachtsicht. Lokal-Modus: immer Admin. Der Server prüft jeden Befehl. |
+| Admin-Recht | `"admin": true` im Konto (bzw. `--admin`) → Admin-Menü 🛡 (Taste P): Gottmodus, Unsichtbar, Heilen, Waffen, Zombie spawnen/alle töten, Tag ⇄ Nacht, Nachtsicht. Lokal-Modus: immer Admin. Der Server prüft jeden Befehl. |
 | Zielgröße | Einige bis ein paar Dutzend gleichzeitige Spieler pro Server (Standard: max. 32) |
 
 ### Starten
@@ -61,13 +61,13 @@ im Node-Server (Mehrspieler) und im Browser (Lokal-Modus). Client und Server spr
 
 ### Datenfluss pro Tick (30×/s)
 1. Client: Tasten lesen → `EINGABE {seq, x, y, blick, angriff}` senden **und** Bewegung sofort lokal anwenden (Vorhersage).
-   Einmalige Aktionen (aufheben, benutzen, ablegen, nachladen, licht, wiederbeleben, admin) gehen als `AKTION {art, slot?, befehl?}`.
+   Einmalige Aktionen (aufheben, benutzen, ablegen, nachladen, tuer, licht, wiederbeleben, admin) gehen als `AKTION {art, slot?, befehl?}`.
 2. Server: Eingaben/Aktionen prüfen → Puffer des Spielers (je max. 8)
 3. Server-Tick `SpielWelt.aktualisiere()` – Systeme in fester Reihenfolge:
    Aktionen ablaufen lassen → Bewegung → Inventar-Aktionen → Nachladen → Kampf (Spielerangriffe)
-   → Zombie-KI → Überleben (Hunger/Durst/Respawn) → Loot-Nachschub
-4. Server sendet an alle: `ZUSTAND` (Spieler & Zombies + `ereignisse` des Ticks: Schüsse, Treffer, Tode …),
-   `GEGENSTAENDE` nur bei Änderung. An jeden einzeln: `SPIELER_DATEN` (Inventar, Hunger, Durst … nur bei Änderung)
+   → Zombie-KI → Überleben (Hunger/Durst/Respawn) → Loot-Nachschub → Tageszeit (Uhr, Horde)
+4. Server sendet an alle: `ZUSTAND` (Spieler & Zombies, Uhrzeit `zeit`/`tag` + `ereignisse` des Ticks: Schüsse,
+   Treffer, Tode, Türen …), `GEGENSTAENDE` und `TUEREN` nur bei Änderung. An jeden einzeln: `SPIELER_DATEN` (Inventar, Hunger, Durst … nur bei Änderung)
    und `MELDUNG`en ("Inventar voll").
 5. Client: eigene Position übernehmen + unbestätigte Eingaben nachspielen (Reconciliation); andere Entitäten
    100 ms verzögert interpolieren; Ereignisse → Effekte (fremde ebenfalls 100 ms verzögert, eigene sofort).
@@ -76,9 +76,16 @@ im Node-Server (Mehrspieler) und im Browser (Lokal-Modus). Client und Server spr
 - **Zombies:** sehen Spieler im `aggroRadius` nur bei freier Sicht (Wände/Fenster blockieren, Möbel nicht), hören
   Schüsse im `hoerRadius`. Laufen direkt aufs Ziel, wenn der Weg begehbar ist (3 Strahlen in Körperbreite), sonst A*
   um Wände & Möbel. Geben auf jenseits `verlierRadius` oder wenn das Ziel unerreichbar ist. Respawn am Spawnpunkt,
-  aber nie in Spielernähe. Lassen mit `lootChance` etwas fallen. Spawnpunkte (`Z`) liegen nur draußen (5 Stück).
-- **Taschenlampe:** L / 🔦 schaltet sie (Server-Zustand `lichtAn`, für alle sichtbar). Aus → Zombies bemerken einen
-  erst im `aggroRadius × dunkelFaktor` (0,45); Hören (Schüsse, Sprint) bleibt gleich.
+  aber nie in Spielernähe. Lassen mit `lootChance` etwas fallen. Spawnpunkte (`Z`) liegen nur draußen (10 Stück).
+- **Tag & Nacht** (`gemeinsam/tageszeit.js`, `tageszeitSystem.js`): Tag 10 min (06–21 Uhr), Nacht 5 min (21–06 Uhr),
+  Werte in `konfiguration.welt`. Nachts: Zombies jagen schneller (`nachtTempoFaktor`), eine **Horde** (`nachtHorde`)
+  taucht an freien Spawnpunkten auf, wittert Spieler bis 1100 px (auch ohne Sicht) und zieht morgens wieder ab.
+- **Taschenlampe:** L / 🔦 schaltet sie (Server-Zustand `lichtAn`, für alle sichtbar). Zählt nur **nachts**: an →
+  sichtbar bis `aggroRadius × nachtLichtFaktor`, aus → erst ab `aggroRadius × dunkelFaktor` (0,45). Tagsüber egal.
+- **Türen** (`welt.js` → `tueren`, `tuerSystem.js`): nebeneinanderliegende `T` = eine Tür (Doppeltür). Start: alle zu.
+  F / 🚪 öffnet/schließt die nächste Tür (≤ `TUER_REICHWEITE`); schließen geht nicht, wenn jemand drinsteht.
+  Geschlossen = blockiert Laufen, Sicht und Schüsse. Zombies planen per A* durch Türen (`tuerKosten`) und schlagen
+  sie auf (`welt.tuerLeben` Schaden), danach ist die Tür offen.
 - **Kampf:** Schusswaffen = Strahl (Hitscan) bis zur ersten Wand, Schrotflinte mit 7 Projektilen + Streuung;
   leeres Magazin → automatisch nachladen (falls Munition da), sonst "Klick". Nahkampf = Trefferkegel ±57° vor der
   Figur; ohne Waffe **Faustschlag** (5 Schaden, `UNBEWAFFNET` in `gegenstaende.js`). PvP standardmäßig aus (`kampf.pvp`).
@@ -105,44 +112,40 @@ Gespeichert wird beim Logout, alle `server.autosaveSekunden` und beim Server-Sto
 | Tests / Fallback | `server/spiel/speicher/arbeitsspeicherSpeicher.js` |
 
 ### Grafik-Pipeline
-`werkzeuge/assets/baue_assets.py` (Python, nur bei Grafik-Änderungen nötig) lädt die Quellpakete, ermittelt per
-Template-Matching den Drehpunkt (Kopfmitte) jeder Figuren-Animation, schneidet zu, verkleinert, packt WebP-Spritesheets
-und schreibt `client/assets/atlas.json` + `LIZENZEN.md`. Der Client lädt beim Start den Atlas (Ladebalken);
-fehlt eine Grafik, zeichnet er Platzhalter-Formen – das Spiel bleibt immer lauffähig.
+`werkzeuge/assets/baue_assets.py` (Python, nur bei Grafik-Änderungen nötig) lädt die Quellpakete, schneidet zu,
+verkleinert, packt WebP-Spritesheets (Item-Icons, Böden, Möbel-Draufsichten), kopiert die 3D-Figur (Kenney FBX +
+Skins) und schreibt `client/assets/atlas.json` + `LIZENZEN.md`. Danach **immer** `npm run assets:3d`
+(`baue_3d.mjs`: Animationen stehen/rennen → JSON, Three.js verkleinert → `client/vendor/three/`).
 
-**Lizenzpflicht:** CC-BY-Grafiken (Survivor, Survival Props) verlangen Namensnennung → Credits-Dialog im Login
+**Lizenzpflicht:** CC-BY-Grafiken (Survival Props) verlangen Namensnennung → Credits-Dialog im Login
 (Daten aus `atlas.json → lizenzen`). Nicht entfernen!
 
-### Darstellung pro Frame
-Welt-Blöcke (Böden, Teppiche, Schatten, Möbel, Wände – gecacht) → Blut am Boden → Gegenstände → Figuren (Schatten,
-Füße, Oberkörper, gedreht um den Kopf) → Baumkronen → **Dunkelheit mit Lichtern** → Schüsse/Partikel →
-Namen/Lebensbalken → Vignette → Schadensblitz.
+### Darstellung (Three.js, `client/darstellung/renderer.js`)
+Gameplay bleibt flach (x/y); Weltpixel x → three.x, y → three.z, Höhe → three.y (1 Einheit = 1 Weltpixel).
+- Boden = `BodenTextur` (ganze Karte in ein Canvas: Texturen, Asphalt, Straßenmarkierungen, Gehwegplatten, Teppiche,
+  Türschwellen) als Textur; Innenräume abgedunkelt (kein Dach)
+- Wände = InstancedMesh-Blöcke (+ Sturz über Türen), Fenster mit Glas; Möbel = Quader mit Sprite-Deckel
+  (`MOEBEL_HOEHE`); Bäume Stamm + Krone
+- **Türen** = Flügel mit Scharnier, schwingen weich auf/zu (folgen `welt.istTuerOffen`)
+- **Wand-Schnitt:** Wände/Türen zwischen Kamera und eigener Figur werden nahe der Figur per Shader weggeschnitten
+  (`#mitSchnitt`, `SCHNITT_RADIUS`) – man sieht sich auch hinter Südwänden
+- **Figuren** = Kenney "Animated Characters 3" (Skins pro Zombie-Variante), Animationen stehen/rennen; darüber
+  prozedurale **Arm-Haltung** (`figurHaltung.js`): Pistole beidhändig, Flinte an der Schulter, Rückstoß beim Schuss,
+  Nachladen, Nahkampf-Schwung, Faustschlag, Taschenlampe in der linken Hand, Zombies mit ausgestreckten Armen
+- **Waffen** = prozedurale Modelle (`waffenModelle.js`), Auswahl über `spieler.waffe` (Item-ID, z. B. `hammer`)
+- **Licht:** Sonne/Mond wandern mit der Tageszeit, Himmel-/Nebelfarbe Tag → Dämmerung → Nacht (`#tageslicht`);
+  Taschenlampen als SpotLights aus der Lampe/Mündung; Kartenlampen nur bei Dunkelheit; Mündungsfeuer
+- 2D-Overlay (`#spielflaeche`): Eingaben, Namen (`beschriftung.js`), Lebensbalken, Vignette, Schadensblitz
 
-### Licht & Sound
-- **Licht** (`client/darstellung/licht.js`): Dunkelheitsebene in halber Auflösung; Grunddunkelheit pro Kachel
-  (drinnen/draußen, weiche Übergänge). Taschenlampen als **Sichtpolygon** (Strahlen bis zur Wand → echte Schatten),
-  Lampen der Karte (`typ: 'licht'`, mit Farbe/Flackern), Mündungsfeuer. Werte: `LICHT` in `client/konfiguration.js`, Taste L.
-- **Sound** (`client/audio/sound.js`): komplett synthetisch (Web Audio, keine Dateien). Räumlich (Entfernung +
-  Stereo). Auslöser: Server-Ereignisse (`feuer`, `treffer`, `tod`, `nahkampf`, `leer`), Änderungen der eigenen
-  Daten (essen, trinken, aufheben, nachladen), Schritte (Vorhersage), zufälliges Zombie-Stöhnen. Taste M / 🔊.
-Animationen: `${ausruestung}_${aktion}` für den Survivor (taschenlampe/messer/pistole/schrotflinte × idle/laufen/
-schiessen/nachladen/nahkampf), Füße je nach Laufrichtung relativ zur Blickrichtung (vor/zurück/seitwärts).
-
-### 3D-Prototyp (im Login "Grafik: 3D")
-`client/darstellung3d/renderer3d.js` hat dieselbe Schnittstelle wie der 2D-Renderer (`setzeWelt`, `zeichne`,
-`kamera.bildschirmZuWelt` …) → Spiellogik, Netzwerk, HUD unverändert. Gameplay bleibt flach (x/y), nur die Darstellung
-ist 3D: Weltpixel x → three.x, y → three.z, Höhe → three.y.
-- Boden = 2D-Bodenbild (`WeltZeichner.rendereBoden`) als Textur, Innenräume abgedunkelt (kein Dach)
-- Wände = InstancedMesh-Blöcke, Fenster mit Glas; Möbel = Quader mit Sprite-Deckel (`MOEBEL_HOEHE`); Bäume Stamm + Krone
-- Figuren = Kenney "Animated Characters 3" (FBX, Skins pro Zombie-Variante), Animationen stehen/rennen/springen
-- Licht: Mond (Schatten), Taschenlampen als SpotLights (eigene mit Schatten), Kartenlampen als PointLights, Mündungsfeuer
-- Das 2D-Canvas liegt durchsichtig darüber: Eingaben, Namen, Lebensbalken, Vignette, Schadensblitz
-- Three.js + Addons liegen in `client/vendor/three/` (erzeugt von `npm run assets:3d`) und werden nur im 3D-Modus geladen
+### Sound
+`client/audio/sound.js`: komplett synthetisch (Web Audio, keine Dateien). Räumlich (Entfernung + Stereo).
+Auslöser: Server-Ereignisse (`feuer`, `treffer`, `tod`, `nahkampf`, `leer`, `tuer`, `tuerSchlag`), Änderungen der
+eigenen Daten (essen, trinken, aufheben, nachladen), Schritte (Vorhersage), zufälliges Zombie-Stöhnen. Taste M / 🔊.
 
 ### Login-Ablauf
 `LoginBildschirm` → `verbindungAufbauen()` (Lokal oder WebSocket) → `anmelden()` sendet `ANMELDEN`
 → Server: Protokollversion prüfen → Name prüfen → `authentifizierung.pruefe()` → Doppel-Login/Server-voll prüfen
-→ `ANMELDUNG_OK` (Karte, Startposition, Physik, Gegenstände) → `ClientSpiel` startet.
+→ `ANMELDUNG_OK` (Karte, Startposition, Physik, Gegenstände, offene Türen, Uhrzeit) → `ClientSpiel` startet.
 Schutz: 20 s Login-Timeout, nach 5 Fehlversuchen Verbindung trennen, gleiche Fehlermeldung für
 "unbekannter Name" und "falsches Passwort".
 
@@ -162,8 +165,9 @@ browser_survival/
 │   ├── konstanten.js              Tickrate, Kachelgröße, Protokollversion, Namensregeln
 │   ├── protokoll.js               Alle Nachrichtentypen + kodiere/dekodiere
 │   ├── mathe.js                   lerp, Winkel-Interpolation, normalisiere …
+│   ├── tageszeit.js               Uhrzeit, Tag/Nacht, Helligkeit aus Sekunden (Server-Logik + Client-Licht)
 │   ├── welt/kacheln.js            Kacheltypen (Zeichen → Name, blockiert?) + Marker (S, Z, a–z)
-│   ├── welt/welt.js               Klasse Welt: Kachelabfragen, istBlockiert
+│   ├── welt/welt.js               Klasse Welt: Kachelabfragen, istBlockiert, Türen (Gruppen, Zustand, naechsteTuer)
 │   └── physik/
 │       ├── bewegung.js            wendeEingabeAn, bewegeKoerper (Kollision) – deterministisch!
 │       └── strahl.js              Raycasts: strahlGegenWaende, sichtlinieFrei, wegFrei, strahlTrifftKreis
@@ -183,13 +187,15 @@ browser_survival/
 │   │   │   ├── inventarSystem.js  Aufheben, Benutzen, Ausrüsten, Ablegen, Nachladen + Verteiler aller AKTIONEN
 │   │   │   ├── adminSystem.js     Admin-Befehle (Gottmodus, Unsichtbar, Heilen, Ausrüsten, Zombies spawnen/töten)
 │   │   │   ├── kampfSystem.js     Schüsse (Strahl), Nahkampf (Kegel), fuegeSchadenZu, toeten, Lärm → Zombies
-│   │   │   ├── zombieSystem.js    Zombie-KI: Sicht, Verfolgen, Angriff, Abstand halten, Respawn
-│   │   │   ├── pfadfindung.js     A* auf dem Kachelraster
+│   │   │   ├── zombieSystem.js    Zombie-KI: Sicht, Verfolgen, Angriff, Türen aufbrechen, Horde, Respawn
+│   │   │   ├── tuerSystem.js      Türen öffnen/schließen, Aufbrechen durch Zombies
+│   │   │   ├── tageszeitSystem.js Uhr, Nachtbeginn (Horde) / Morgen (Horde zieht ab)
+│   │   │   ├── pfadfindung.js     A* auf dem Kachelraster (geschlossene Türen optional "teuer passierbar")
 │   │   │   ├── ueberlebenSystem.js Hunger, Durst, Heilung, Wiederbelebung
 │   │   │   └── lootSystem.js      Start-Loot, Nachschub an Loot-Punkten, Zombie-Beute
 │   │   ├── karten/
 │   │   │   ├── kartenLader.js     Kartenregister + ASCII → Kacheln/Spawns/Loot-Punkte
-│   │   │   └── krankenhaus.js     Krankenhaus-Karte (ASCII) + Raumdefinitionen
+│   │   │   └── stadtrand.js       Standardkarte (ASCII, 110×86): Krankenhaus + Umgebung, Räume, Möbel, Lampen
 │   │   ├── konfiguration/
 │   │   │   ├── spielKonfiguration.js  Balancing-Standardwerte + Überschreib-Logik
 │   │   │   ├── gegenstaende.js    Item-Datenbank (Essen, Trinken, Medizin, Waffen, Munition)
@@ -210,19 +216,17 @@ browser_survival/
 │   └── daten/                     konten.json, einstellungen.json, spielstaende/ (gitignored) + einstellungen.beispiel.json
 │
 ├── werkzeuge/assets/              ── Grafik-Pipeline ──
-│   ├── baue_assets.py             (Python) Quellen, Item-/Möbel-Zuordnung, Drehpunkte, Spritesheets → client/assets/
+│   ├── baue_assets.py             (Python) Quellen, Item-/Möbel-Zuordnung, Spritesheets, 3D-Figur → client/assets/
 │   ├── baue_3d.mjs                (Node, danach) 3D-Animationen → JSON, Three.js verkleinert → client/vendor/three/
 │   └── anforderungen.txt          pip-Pakete (pillow, numpy, cairosvg, py7zr)
 │
 ├── client/                        ── Nur Browser ──
-│   ├── assets/                    GENERIERT: atlas.json, Spritesheets (figuren/, items.webp, umgebung.webp), 3d/, LIZENZEN.md
-│   ├── vendor/three/              GENERIERT: Three.js (MIT) für den 3D-Prototyp
-│   ├── darstellung3d/
-│   │   └── renderer3d.js          3D-Prototyp: Szene, Kamera, Licht, Figuren, Effekte, 2D-Overlay
+│   ├── assets/                    GENERIERT: atlas.json, items.webp, umgebung.webp, 3d/ (Figur, Skins, Animationen), LIZENZEN.md
+│   ├── vendor/three/              GENERIERT: Three.js (MIT)
 │   ├── index.html                 Canvas, Touch-Sticks, HUD, Ladebildschirm, Login, Credits-Dialog
 │   ├── stil.css                   Gesamtes UI-Styling
 │   ├── main.js                    Einstieg: verdrahtet Login → Verbindung → ClientSpiel
-│   ├── konfiguration.js           Serverliste, Zoom, Interpolationsverzögerung, Lokal-Latenz
+│   ├── konfiguration.js           Serverliste, Interpolationsverzögerung, Lokal-Latenz
 │   ├── kern/
 │   │   ├── clientSpiel.js         Laufende Sitzung: Vorhersage, Reconciliation, Interpolation
 │   │   ├── spielSchleife.js       requestAnimationFrame-Loop mit festem Takt
@@ -238,18 +242,17 @@ browser_survival/
 │   ├── audio/
 │   │   └── sound.js               Synthetisierte Geräusche (Rezepte), räumlicher Klang, Atmosphäre
 │   ├── darstellung/
-│   │   ├── renderer.js            Szene zeichnen, Ebenen, adaptiver Zoom, HiDPI, Culling, Vignette
-│   │   ├── licht.js               Dunkelheit, Taschenlampen-Sichtpolygone, Lampen, Mündungslicht
-│   │   ├── effekte.js             Mündungsfeuer, Leuchtspuren, Blut, Blutlachen, Schadensblitz
-│   │   ├── assets.js              Atlas + Bilder laden, Zugriff auf Figuren/Items/Böden/Objekte
-│   │   ├── animationen.js         Frame-Zustand pro Figur, zeichneFrame()
-│   │   ├── kamera.js              Folgt Spieler, Welt ↔ Bildschirm
-│   │   ├── weltZeichner.js        Karte in Blöcken vorrendern: Texturen, Wände, Schatten, Möbel; Baumkronen
-│   │   ├── entitaetZeichner.js    Survivor (Füße+Körper), Zombie, Items, Namen/Lebensbalken, Platzhalter
-│   │   └── farben.js              Farben für Prozedurales (Wände, Asphalt) + Ersatzfarben
+│   │   ├── renderer.js            Three.js-Szene: Kamera, Boden, Wände, Türen, Möbel, Figuren, Licht/Tageszeit, Wand-Schnitt, Overlay
+│   │   ├── figurHaltung.js        Prozedurale Arm-Haltung (Zielen, Rückstoß, Schlag) + Waffe in der Hand
+│   │   ├── waffenModelle.js       Waffen-/Lampenmodelle aus einfachen Körpern
+│   │   ├── bodenTextur.js         Boden der ganzen Karte als Canvas (Texturen, Markierungen, Gehweg, Schwellen)
+│   │   ├── effekte.js             Zustand für Mündungsfeuer, Leuchtspuren, Blut, Blutlachen, Schadensblitz
+│   │   ├── beschriftung.js        Namen & Lebensbalken auf dem Overlay
+│   │   ├── assets.js              Atlas + Bilder laden (Items, Böden, Möbel)
+│   │   └── farben.js              Farben für Prozedurales + Ersatzfarben
 │   └── ui/
 │       ├── loginBildschirm.js     Login-Formular, Serverauswahl
-│       ├── hud.js                 Balken, Schnellleiste, Munition, Aufheben/Nachladen-Knöpfe, Meldungen, Tod, Debug
+│       ├── hud.js                 Uhr, Balken, Schnellleiste, Munition, Tür-/Aufheben-/Nachladen-Knöpfe, Meldungen, Tod, Admin, Debug
 │       └── credits.js             Credits-Dialog (Grafik-Lizenzen)
 │
 └── tests/                         node:test – Karte, Bewegung, Server-Ablauf, Konten, Inhalte (Erreichbarkeit, Grafiken)
@@ -262,7 +265,10 @@ browser_survival/
 | Wunsch | Datei(en) |
 |---|---|
 | Zombie-Verhalten (Aggro, Verfolgen, Angriff, Umherschlurfen) | `server/spiel/systeme/zombieSystem.js` (+ Werte in `spielKonfiguration.js` → `zombie`) |
-| Zombie-Typen (Werte, Häufigkeit) | `spielKonfiguration.js` → `zombie.varianten`; Farbe der Sprites: `ZOMBIE_FARBEN` in `baue_assets.py` |
+| Zombie-Typen (Werte, Häufigkeit) | `spielKonfiguration.js` → `zombie.varianten`; Aussehen: `SKINS` in `client/darstellung/renderer.js` |
+| Tag-/Nachtlänge, Horde, Nacht-Wahrnehmung | `spielKonfiguration.js` → `welt.tagSekunden/nachtSekunden`, `zombie.nachtHorde/nachtTempoFaktor/nachtLichtFaktor/dunkelFaktor` |
+| Licht-Stimmung (Farben Tag/Nacht/Dämmerung) | `client/darstellung/renderer.js` → `TAG`, `NACHT`, `DAEMMERUNG`, `#tageslicht` |
+| Türen (Reichweite, Haltbarkeit, Startzustand) | `gemeinsam/konstanten.js` → `TUER_REICHWEITE`; `spielKonfiguration.js` → `welt.tuerLeben/tuerenGeschlossen`; Logik `tuerSystem.js` |
 | Sprint / Ausdauer | Werte: `spielKonfiguration.js` → `spieler`; Logik: `aktualisiereAusdauer` in `gemeinsam/physik/bewegung.js` |
 | Zombie-Wegfindung | `server/spiel/systeme/pfadfindung.js` (A*), "geradeaus oder Umweg?" → `wegFrei` in `gemeinsam/physik/strahl.js` |
 | Waffenwerte (Schaden, Magazin, Streuung, Nachladezeit) | `server/spiel/konfiguration/gegenstaende.js`; Schlag ohne Waffe: `UNBEWAFFNET` |
@@ -271,36 +277,35 @@ browser_survival/
 | Inventargröße / Aufheb-Reichweite | `gemeinsam/konstanten.js` → `INVENTAR_PLAETZE`, `AUFHEB_REICHWEITE` |
 | Loot-Nachschub, Zombie-Beute | `lootSystem.js`; Zeiten in `spielKonfiguration.js` → `loot`, `zombie.lootChance`; Tabelle `zombie` in `lootTabellen.js` |
 | Effekte (Blut, Mündungsfeuer …) | `client/darstellung/effekte.js` |
-| Dunkelheit, Taschenlampe | `client/darstellung/licht.js`, Werte `LICHT` in `client/konfiguration.js` |
+| Taschenlampe (3D-Kegel) | `client/darstellung/renderer.js` → `#aktualisiereTaschenlampen`, `#neueTaschenlampe` |
 | Lampen auf der Karte | Kartendatei → `objekte` mit `typ: 'licht'` (radius, farbe, staerke, flackern) |
 | Geräusche ändern / neue Geräusche | `client/audio/sound.js` → `REZEPTE`; Auslöser in `clientSpiel.js` (`#ereignisSound`, `#datenSound`) |
 | Schnellleiste, Balken, Todesbildschirm | `client/ui/hud.js`, Markup `client/index.html`, Stil `client/stil.css` |
-| Zombie-Aussehen / Animationen | Grafik: `werkzeuge/assets/baue_assets.py` (`baue_zombie`); Auswahl der Animation: `client/darstellung/entitaetZeichner.js` → `zeichneZombie` |
-| Spieler-Animationen / Waffen in der Hand | `entitaetZeichner.js` → `zeichneSpieler`; Ausrüstung je Waffe: `gegenstaende.js` → `ausruestung` |
+| Haltung beim Zielen/Schlagen, Zombie-Arme | `client/darstellung/figurHaltung.js` → `HALTUNGEN`, `veraendereFuerAktion` |
+| Waffenmodell (Form, Größe) | `client/darstellung/waffenModelle.js` → `BAUPLAENE`, `SICHTBARKEIT` |
 | Neue Grafik / anderes Icon / Möbelstück | `werkzeuge/assets/baue_assets.py` (`ITEMS`, `OBJEKTE`, `EINZEL_OBJEKTE`) → Skript ausführen |
-| Möbel/Deko platzieren | `server/spiel/karten/krankenhaus.js` → `objekte` (Kollision über `blockiert`) |
+| Möbel/Deko platzieren | `server/spiel/karten/stadtrand.js` → `objekte` (Kollision über `blockiert`) |
 | Touch-Steuerung | `client/kern/touchSteuerung.js`, Optik in `client/stil.css` (`.stick`) |
-| Zoom / Sichtweite | `client/konfiguration.js` → `KAMERA_SICHTFELD`, `ZOOM_MIN/MAX` |
-| Wände, Schatten, Böden | `client/darstellung/weltZeichner.js` |
-| 3D: Kamera, Wandhöhe, Möbelhöhen, Lichter | `client/darstellung3d/renderer3d.js` (`KAMERA_VERSATZ`, `WANDHOEHE`, `MOEBEL_HOEHE` …) |
-| 3D: andere Figuren/Animationen | `baue_assets.py` (`baue_3d_figuren`) + `baue_3d.mjs` (`ANIMATIONEN`), dann `npm run assets:3d` |
+| Kamera, Wandhöhe, Möbelhöhen, Wand-Schnitt | `client/darstellung/renderer.js` (`KAMERA_VERSATZ`, `WANDHOEHE`, `MOEBEL_HOEHE`, `SCHNITT_RADIUS` …) |
+| Bodentexturen, Straßenmarkierung, Gehweg | `client/darstellung/bodenTextur.js` |
+| Andere Figuren/Animationen | `baue_assets.py` (`baue_3d_figuren`) + `baue_3d.mjs` (`ANIMATIONEN`), dann `npm run assets:3d` |
 | Schaden, Lebenspunkte, Geschwindigkeit | `server/spiel/konfiguration/spielKonfiguration.js` oder `server/daten/einstellungen.json` |
 | Neues Item | `server/spiel/konfiguration/gegenstaende.js` + Icon in `baue_assets.py` (`ITEMS`) + in `lootTabellen.js` eintragen |
 | Was wo spawnt | `server/spiel/konfiguration/lootTabellen.js`, Raumzuordnung in der Kartendatei |
-| Karte bearbeiten | `server/spiel/karten/krankenhaus.js` (ASCII) |
+| Karte bearbeiten | `server/spiel/karten/stadtrand.js` (ASCII; Tests prüfen Erreichbarkeit & Möbel nicht in Türen) |
 | Neue Karte | neue Datei in `server/spiel/karten/` + in `KARTEN` (`kartenLader.js`) registrieren; Auswahl via `welt.karte` |
 | Neuer Kacheltyp (z. B. Wasser) | `gemeinsam/welt/kacheln.js` + Textur in `baue_assets.py` (`BODEN`) oder Farbe in `farben.js` |
 | Kollision / Bewegungsphysik | `gemeinsam/physik/bewegung.js` (wirkt auf Server UND Client-Vorhersage) |
 | Kampf, Treffer, Schaden zufügen | `server/spiel/systeme/kampfSystem.js` (`fuegeSchadenZu` = einzige Schadensstelle) |
 | Neue Aktion (z. B. "werfen") | `AKTIONEN` in `gemeinsam/protokoll.js` → `inventarSystem.js` (`verarbeiteAktionen`) → `clientSpiel.js` + Taste in `eingabe.js` + Touch-Knopf im HUD |
 | Neue Netzwerk-Nachricht | `gemeinsam/protokoll.js` → Server: `spielServer.js` (`#nachrichtEmpfangen`) → Client: `clientSpiel.js` (`#nachricht`) |
-| Neuer Entitätstyp | `server/spiel/entitaeten/<typ>.js`, Serialisierer in `spielWelt.js` (`NETZWERK_SERIALISIERER`), Zeichner in `entitaetZeichner.js` |
+| Neuer Entitätstyp | `server/spiel/entitaeten/<typ>.js`, Serialisierer in `spielWelt.js` (`NETZWERK_SERIALISIERER`), Darstellung in `renderer.js` |
 | Tastenbelegung | `client/kern/eingabe.js` → `TASTEN`, `SLOT_TASTEN`; Touch-Feuerschwelle `TOUCH_FEUER_SCHWELLE` |
 | Login-Formular / Serverliste | `client/index.html`, `client/ui/loginBildschirm.js`, `client/konfiguration.js` → `SERVER_LISTE` |
 | Was im Spielstand steht / Prüfung beim Laden | `server/spiel/spielstand.js` |
 | Wo Spielstände liegen | `server/node/start.js` (DateiSpeicher), `client/netzwerk/lokalerServer.js` (BrowserSpeicher) |
 | Admin-Befehl hinzufügen | `ADMIN_BEFEHLE` in `gemeinsam/protokoll.js` → `adminSystem.js` → Knopf `data-befehl` im `#admin-panel` (`client/index.html`) |
-| Zombie-Anzahl / Spawnorte | `Z` in `server/spiel/karten/krankenhaus.js` (nur draußen!), Tempo/Sicht in `spielKonfiguration.js` → `zombie` |
+| Zombie-Anzahl / Spawnorte | `Z` in `server/spiel/karten/stadtrand.js` (nur draußen!), Tempo/Sicht in `spielKonfiguration.js` → `zombie` |
 | Login-Prüfung / Accounts | `server/node/kontenAuthentifizierung.js`, `server/werkzeuge/kontoAnlegen.js` |
 | HUD / Anzeigen | `client/ui/hud.js`, `client/index.html`, `client/stil.css` |
 | Tickrate | `gemeinsam/konstanten.js` → `TICK_RATE` |
@@ -319,7 +324,7 @@ browser_survival/
 - **Protokoll inkompatibel geändert?** → `PROTOKOLL_VERSION` erhöhen.
 - **Grafiken nie von Hand in `client/assets/` ändern** – immer über `baue_assets.py` (sonst beim nächsten Lauf weg).
 - **Nur frei lizenzierte Grafiken** (CC0/CC-BY); neue Quelle → in `LIZENZEN` im Skript eintragen.
-- **Ohne Grafik spielbar:** Jeder Zeichner hat einen Platzhalter-Fallback.
+- **Ohne Grafik spielbar:** Fehlt eine Textur, nutzt der Renderer Ersatzfarben. WebGL ist Pflicht (Login meldet es sonst).
 - **Touch mitdenken:** Jede neue Aktion braucht auch eine Touch-Bedienung.
 - Bezeichner deutsch, ohne Umlaute (`groesse`, `gegenstaende`); Kommentare/Texte dürfen Umlaute haben.
 - Tests: `npm test` muss grün sein, bevor etwas committet wird.
@@ -374,15 +379,28 @@ browser_survival/
 - Fix: Marker-Kacheln (S/Z/Loot) erben nie eine Wand als Untergrund
 - Tests: 53
 
+### ✅ Phase 4 – 3D, Stadtrand, Türen, Tag & Nacht (fertig, v0.6.0)
+- **Nur noch 3D:** 2D-Renderer, 2D-Licht, Sprite-Figuren (1,1 MB) entfernt; Grafik-Auswahl im Login weg
+- Neue Karte „Stadtrand“ (110×86): logisches Krankenhaus (Eingangshalle → Hauptflur → Mittel-/Stationsflure,
+  Notaufnahme mit eigenem Eingang, Kantine + Küche), Straßen, Parkplatz, 2 Wohnhäuser, Tankstelle + Werkstatt,
+  Supermarkt, Polizeiwache mit Waffenkammer, Park mit Kiosk; 22 Räume, Gehweg-Kachel, neue Loot-Tabellen
+- Türen: manuell öffnen/schließen (F / 🚪), blockieren Laufen/Sicht/Schüsse, Zombies brechen sie auf, 3D-Flügel
+- Tag (10 min) & Nacht (5 min): wandernde Sonne, Dämmerung, Laternen nachts, HUD-Uhr, Nacht-Horde, Taschenlampe zählt nachts
+- Waffen sichtbar in der Hand + Zielhaltung, Rückstoß, Nachladen, Schwung, Faustschlag; Zombie-Arme
+- Wand-Schnitt (Figur nie hinter Wänden versteckt), Kamera zoomt auf Handys raus
+- Admin: Tag ⇄ Nacht; Protokoll v3 (TUEREN, Uhrzeit, AKTION `tuer`)
+- Tests: 58
+
 ### ⏳ Nächste Ideen (wartet auf Entscheidung)
-- **2D oder 3D?** Entscheidung nach Vergleich; bei 3D: Waffenmodelle, Angriffs-/Schussanimationen, Leistung auf Handys
 - Mehrspieler online: Render-Konfiguration (`render.yaml`), Accounts als Umgebungsvariable statt Datei
+- Barrikaden (Bretter vor Türen/Fenster), Crafting light (Verband, Molotow), Waffenhaltbarkeit
+- Minimap / Karte (Tab), kurzes Tutorial beim ersten Spawn
 - Musik & echte Geräusch-Aufnahmen (statt Synthese)
 
 ### 🔭 Später
 - Sichtlinie / Nebel des Krieges serverseitig (aktuell sieht der Client alle Zombies, nur die Grafik verdeckt sie)
-- Eigene Animationen für Hammer/Beil/Machete (aktuell nutzen alle Nahkampfwaffen das Messer-Set)
-- Türen öffnen/schließen, Inventar-Fenster mit Drag & Drop, Crafting
+- Dächer, die beim Betreten ausgeblendet werden; Innenräume ohne Sicht nach außen abdunkeln
+- Inventar-Fenster mit Drag & Drop
 - Interest Management (nur nahe Entitäten senden), Delta-Kompression – sobald Spielerzahl/Karte wächst
 - Treffer-Vorhersage im Client (sofortiges Feedback trotz Ping)
 - Mehrere Karten / Serverbrowser mit Live-Status
@@ -394,7 +412,9 @@ browser_survival/
 - Schnappschüsse enthalten alle Spieler + Zombies (für ~32 Spieler auf einer Karte unkritisch)
 - Schuss-/Treffer-Feedback kommt erst nach einer Server-Runde (bei 50 ms Ping kaum spürbar, bei 200 ms schon)
 - Nahkampf trifft sofort beim Tastendruck (nicht erst im passenden Animationsframe)
-- 3D-Prototyp: keine Waffenmodelle, nur Animationen stehen/rennen/springen, Leistung auf Handys ungetestet
+- Figuren-Animationen nur stehen/rennen; Arme werden prozedural gedreht (keine echte Animations-Mischung)
+- Leistung auf schwachen Handys: Schatten + große Bodentextur (3520×2752) – ggf. Qualitätsstufe nachrüsten
+- Uhrzeit wird nur gesendet, nicht gespeichert: Server-Neustart beginnt wieder am Morgen von Tag 1
 
 ---
 
@@ -407,3 +427,4 @@ browser_survival/
 | 0.3.0 | 2026-10-15 | Gameplay: Zombie-KI mit A*, Inventar, Fern-/Nahkampf, Hunger/Durst, Tod & Respawn, Effekte, HUD (Protokoll v2) |
 | 0.4.0 | 2026-10-15 | Handy-Scroll-Fix, Sprint/Ausdauer, Zombie-Varianten, Umherschlurfen, Spielstände, Dunkelheit + Taschenlampe, Sound, 3D-Prototyp |
 | 0.5.0 | 2026-10-15 | Weniger/langsamere Zombies (nur draußen), Faust, Taschenlampe schaltbar (Tarnung), Sofort-Wiederbeleben, Admin-Modus (Gottmodus …) |
+| 0.6.0 | 2026-10-15 | Nur noch 3D, Karte „Stadtrand“, Türen (öffnen/schließen/aufbrechen), Tag & Nacht mit Horde, Waffen in der Hand + Haltungen, Wand-Schnitt (Protokoll v3) |

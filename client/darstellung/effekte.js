@@ -11,7 +11,6 @@ const FLECK_LEBENSDAUER = 45; // Sekunden, dann verblasst das Blut
 const MUENDUNG_ABSTAND = 20; // px vor der Figur
 const LEUCHTSPUR_DAUER = 0.14;
 const FEUER_DAUER = 0.09;
-const FEUER_RADIUS = 24;
 const SCHWUNG_DAUER = 0.16;
 
 export class Effekte {
@@ -31,20 +30,16 @@ export class Effekte {
     for (const ereignis of ereignisse) this.#warteschlange.push({ ab: jetzt + verzoegerung(ereignis), ereignis });
   }
 
-  /** Nur lesen! Für andere Renderer (3D-Prototyp), die die Effekte selbst darstellen. */
+  /** Nur lesen! Der Renderer stellt die Effekte in 3D dar. */
   get zustand() {
     return {
       leuchtspuren: this.#leuchtspuren,
       feuer: this.#feuer,
       partikel: this.#partikel,
       flecken: this.#flecken,
+      schwuenge: this.#schwuenge,
       schadenBlitz: this.#schadenBlitz,
     };
-  }
-
-  /** Aktive Lichtblitze (Mündungsfeuer) für die Lichtebene: [{ x, y, staerke }] */
-  lichter() {
-    return this.#feuer.map((f) => ({ x: f.x, y: f.y, staerke: 1 - f.alter / f.dauer }));
   }
 
   /** Roter Rand bei eigenem Schaden (0..1). */
@@ -125,75 +120,6 @@ export class Effekte {
   #fleck(x, y, sprite, groesse) {
     if (this.#flecken.length >= MAX_FLECKEN) this.#flecken.shift();
     this.#flecken.push({ x, y, sprite, groesse: groesse * (0.8 + Math.random() * 0.4), winkel: Math.random() * Math.PI * 2, alter: 0, dauer: FLECK_LEBENSDAUER });
-  }
-
-  // ---------------------------------------------------------------------------
-  // Zeichnen (Kamera-Transformation ist gesetzt)
-
-  /** Blut am Boden – unter Gegenständen und Figuren. */
-  zeichneBoden(ctx, assets) {
-    const bild = assets?.umgebungBild;
-    for (const f of this.#flecken) {
-      const rest = 1 - f.alter / f.dauer;
-      ctx.globalAlpha = Math.min(1, rest * 4) * 0.9;
-      const rahmen = assets?.objekt(f.sprite);
-      ctx.save();
-      ctx.translate(f.x, f.y);
-      ctx.rotate(f.winkel);
-      if (bild && rahmen) {
-        ctx.drawImage(bild, rahmen.x, rahmen.y, rahmen.b, rahmen.h, -f.groesse / 2, -f.groesse / 2, f.groesse, f.groesse);
-      } else {
-        ctx.fillStyle = '#5a1410';
-        ctx.beginPath();
-        ctx.arc(0, 0, f.groesse / 3, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.restore();
-    }
-    ctx.globalAlpha = 1;
-  }
-
-  /** Schüsse, Funken, Blut in der Luft – über den Figuren. */
-  zeichneOben(ctx) {
-    ctx.lineCap = 'round';
-    for (const s of this.#leuchtspuren) {
-      const rest = 1 - s.alter / s.dauer;
-      // Leuchtschweif: breiter, warmer Rand + heller Kern
-      ctx.strokeStyle = `rgba(255, 170, 60, ${0.35 * rest})`;
-      ctx.lineWidth = 5;
-      ctx.beginPath();
-      ctx.moveTo(s.x, s.y);
-      ctx.lineTo(s.zx, s.zy);
-      ctx.stroke();
-      ctx.strokeStyle = `rgba(255, 245, 210, ${0.95 * rest})`;
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    }
-    for (const f of this.#feuer) {
-      const rest = 1 - f.alter / f.dauer;
-      const verlauf = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, FEUER_RADIUS);
-      verlauf.addColorStop(0, `rgba(255, 250, 220, ${rest})`);
-      verlauf.addColorStop(0.3, `rgba(255, 190, 70, ${0.85 * rest})`);
-      verlauf.addColorStop(1, 'rgba(255, 120, 20, 0)');
-      ctx.fillStyle = verlauf;
-      ctx.beginPath();
-      ctx.arc(f.x, f.y, FEUER_RADIUS, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    for (const p of this.#partikel) {
-      ctx.globalAlpha = 1 - p.alter / p.dauer;
-      ctx.fillStyle = p.farbe;
-      ctx.fillRect(p.x - p.groesse / 2, p.y - p.groesse / 2, p.groesse, p.groesse);
-    }
-    ctx.globalAlpha = 1;
-    for (const s of this.#schwuenge) {
-      const fortschritt = s.alter / s.dauer;
-      ctx.strokeStyle = `rgba(255, 255, 255, ${0.5 * (1 - fortschritt)})`;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, 30, s.winkel - 0.9 + fortschritt * 0.4, s.winkel + 0.5 + fortschritt * 0.4);
-      ctx.stroke();
-    }
   }
 
   /** Roter Bildschirmrand bei Schaden (in Bildschirmpixeln). */

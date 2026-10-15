@@ -20,6 +20,8 @@ export class Hud {
   #istTouch = false;
   #slots = [];
   #letzterHinweis = null;
+  #letzterTuerHinweis = null;
+  #letzteUhr = '';
   #letzteAusdauer = -1;
   #letztErschoepft = false;
   #istAdmin = false;
@@ -44,6 +46,8 @@ export class Hud {
       hotbar: el('hotbar'),
       munition: el('hud-munition'),
       aufheben: el('knopf-aufheben'),
+      tuer: el('knopf-tuer'),
+      uhr: el('hud-uhr'),
       nachladen: el('knopf-nachladen'),
       meldungen: el('hud-meldungen'),
       tod: el('tod-overlay'),
@@ -61,6 +65,7 @@ export class Hud {
       else dokument.documentElement.requestFullscreen?.().catch(() => {});
     });
     this.el.aufheben.addEventListener('click', () => this.#aktionen.aufheben?.());
+    this.el.tuer.addEventListener('click', () => this.#aktionen.tuer?.());
     this.el.nachladen.addEventListener('click', () => this.#aktionen.nachladen?.());
     this.el.wiederbeleben.addEventListener('click', () => this.#aktionen.wiederbeleben?.());
     this.el.licht.addEventListener('click', () => this.#aktionen.licht?.());
@@ -88,7 +93,7 @@ export class Hud {
     this.el.ton.textContent = stumm ? '🔇' : '🔊';
   }
 
-  /** @param aktionen { benutzen(slot), ablegen(slot), aufheben(), nachladen(), licht(), wiederbeleben(), admin(befehl), nachtsicht() } */
+  /** @param aktionen { benutzen(slot), ablegen(slot), aufheben(), nachladen(), tuer(), licht(), wiederbeleben(), admin(befehl), nachtsicht() } */
   beiAktionen(aktionen) {
     this.#aktionen = aktionen;
   }
@@ -102,14 +107,17 @@ export class Hud {
     this.el.vollbild.hidden = !istTouch || !document.fullscreenEnabled;
     this.el.hilfe.textContent = istTouch
       ? 'Links: laufen · Rechts: zielen, ganz drücken = Angriff'
-      : 'WASD laufen · Maus zielen · Klick/Leertaste Angriff · E aufheben · R nachladen · L Lampe · 1–8 Inventar · F3 Debug';
+      : 'WASD laufen · Maus zielen · Klick/Leertaste Angriff · E aufheben · F Tür · R nachladen · L Lampe · 1–8 Inventar · F3 Debug';
     this.#letzterHinweis = null;
+    this.#letzterTuerHinweis = null;
+    this.#letzteUhr = '';
   }
 
   verbergen() {
     this.el.hud.hidden = true;
     this.el.tod.hidden = true;
     this.el.adminPanel.hidden = true;
+    this.el.tuer.hidden = true;
     this.#istAdmin = false;
     this.#nachtsicht = false;
     this.#schalterStand = '';
@@ -199,6 +207,20 @@ export class Hud {
   /** Jeden Frame aufgerufen – teure DOM-Updates gedrosselt. */
   aktualisiere(d) {
     if (d.spieler) this.#zeigeSchalter(d.spieler);
+    const tuerHinweis = d.tuer ? `${this.#istTouch ? '🚪' : '[F]'} Tür ${d.tuer}` : null;
+    if (tuerHinweis !== this.#letzterTuerHinweis) {
+      this.#letzterTuerHinweis = tuerHinweis;
+      this.el.tuer.hidden = !tuerHinweis;
+      if (tuerHinweis) this.el.tuer.textContent = tuerHinweis;
+    }
+    if (d.uhr) {
+      const uhr = `${d.uhr.istNacht ? '🌙' : '☀'} Tag ${d.uhr.tag} · ${d.uhr.uhrzeit}`;
+      if (uhr !== this.#letzteUhr) {
+        this.#letzteUhr = uhr;
+        this.el.uhr.textContent = uhr;
+        this.el.uhr.classList.toggle('nacht', d.uhr.istNacht);
+      }
+    }
     const hinweis = d.aufhebbar ? `${this.#istTouch ? '✋' : '[E]'} ${d.aufhebbar} aufheben` : null;
     if (hinweis !== this.#letzterHinweis) {
       this.#letzterHinweis = hinweis;

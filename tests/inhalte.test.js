@@ -1,10 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { KARTEN, ladeKarte } from '../server/spiel/karten/kartenLader.js';
-import { GEGENSTAENDE, STANDARD_AUSRUESTUNG } from '../server/spiel/konfiguration/gegenstaende.js';
+import { GEGENSTAENDE } from '../server/spiel/konfiguration/gegenstaende.js';
 import { Welt } from '../gemeinsam/welt/welt.js';
-import { STANDARD_KONFIGURATION } from '../server/spiel/konfiguration/spielKonfiguration.js';
 
 const atlas = JSON.parse(readFileSync(new URL('../client/assets/atlas.json', import.meta.url), 'utf8'));
 /** Objekttypen, die prozedural gezeichnet werden und keine Grafik brauchen */
@@ -55,21 +54,13 @@ test('Jeder Gegenstand hat ein Icon', () => {
   for (const defId of Object.keys(GEGENSTAENDE)) assert.ok(atlas.items.icons[defId], `Icon für "${defId}" fehlt`);
 });
 
-test('Jede Ausrüstung hat Idle- und Lauf-Animation', () => {
-  const ausruestungen = new Set([STANDARD_AUSRUESTUNG, ...Object.values(GEGENSTAENDE).map((d) => d.ausruestung).filter(Boolean)]);
-  for (const a of ausruestungen) {
-    for (const aktion of ['idle', 'laufen']) {
-      assert.ok(atlas.figuren.survivor.animationen[`${a}_${aktion}`], `Animation "${a}_${aktion}" fehlt`);
-    }
+test('3D-Figur, Skins und Animationen sind vorhanden', () => {
+  const info = atlas.figuren3d;
+  for (const pfad of [info.modell, info.animationen, ...Object.values(info.skins)]) {
+    assert.ok(existsSync(new URL(`../client/assets/${pfad}`, import.meta.url)), `${pfad} fehlt`);
   }
-});
-
-test('Jede Zombie-Variante hat alle Animationen', () => {
-  for (const variante of Object.keys(STANDARD_KONFIGURATION.zombie.varianten)) {
-    const figur = atlas.figuren[variante === 'normal' ? 'zombie' : `zombie_${variante}`];
-    assert.ok(figur, `Grafiken für Zombie-Variante "${variante}" fehlen`);
-    for (const a of ['idle', 'laufen', 'angriff']) assert.ok(figur.animationen[a], `${variante}: "${a}" fehlt`);
-  }
+  const clips = JSON.parse(readFileSync(new URL(`../client/assets/${info.animationen}`, import.meta.url), 'utf8'));
+  for (const name of ['stehen', 'rennen']) assert.ok(clips[name], `Animation "${name}" fehlt`);
 });
 
 test('Stadtrand: vom Spawn geradeaus durch den Haupteingang in die Eingangshalle laufen', () => {

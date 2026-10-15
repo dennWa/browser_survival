@@ -20,7 +20,6 @@ export class LoginBildschirm {
       passwortFeld: dokument.getElementById('login-passwort-feld'),
       passwort: dokument.getElementById('login-passwort'),
       knopf: dokument.getElementById('login-knopf'),
-      grafik: dokument.getElementById('login-grafik'),
       meldung: dokument.getElementById('login-meldung'),
     };
 
@@ -37,7 +36,7 @@ export class LoginBildschirm {
     });
   }
 
-  /** fn({ server, adresse, benutzername, passwort, grafik: '2d' | '3d' }) */
+  /** fn({ server, adresse, benutzername, passwort }) */
   beiAnmeldung(fn) {
     this.#beiAnmeldung = fn;
   }
@@ -75,7 +74,6 @@ export class LoginBildschirm {
       adresse: this.el.adresse.value.trim(),
       benutzername: this.el.name.value.trim(),
       passwort: this.el.passwort.value,
-      grafik: this.el.grafik.value,
     };
   }
 
@@ -91,15 +89,14 @@ export class LoginBildschirm {
       if (this.serverListe.some((s) => s.id === gespeichert.serverId)) this.el.server.value = gespeichert.serverId;
       if (gespeichert.benutzername) this.el.name.value = gespeichert.benutzername;
       if (gespeichert.adresse) this.el.adresse.value = gespeichert.adresse;
-      if (gespeichert.grafik === '2d' || gespeichert.grafik === '3d') this.el.grafik.value = gespeichert.grafik;
     } catch {
       // Speicher nicht verfügbar (privates Fenster o. Ä.) → egal
     }
   }
 
-  #speichern({ server, adresse, benutzername, grafik }) {
+  #speichern({ server, adresse, benutzername }) {
     try {
-      localStorage.setItem(SPEICHER_SCHLUESSEL, JSON.stringify({ serverId: server.id, adresse, benutzername, grafik }));
+      localStorage.setItem(SPEICHER_SCHLUESSEL, JSON.stringify({ serverId: server.id, adresse, benutzername }));
     } catch {
       // ignorieren
     }

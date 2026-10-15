@@ -3,6 +3,7 @@ import { sichtlinieFrei, wegFrei } from '../../../gemeinsam/physik/strahl.js';
 import { lerpWinkel } from '../../../gemeinsam/mathe.js';
 import { findePfad } from './pfadfindung.js';
 import { fuegeSchadenZu } from './kampfSystem.js';
+import { schlageTuer } from './tuerSystem.js';
 
 /**
  * Zombie-KI pro Tick:
@@ -13,10 +14,19 @@ import { fuegeSchadenZu } from './kampfSystem.js';
  *   angreifend  → in Reichweite: Schaden mit Abklingzeit
  * Ziel weg / tot / zu weit → zurück zu ruhend. Zombies schieben sich gegenseitig auseinander.
  *
+ * Türen: Der A*-Weg darf durch geschlossene Türen führen (teuer); steht der Zombie davor, schlägt er
+ * dagegen, bis sie aufbricht (tuerSystem.schlageTuer).
+ * Nacht: Taschenlampe an = von weiter weg sichtbar, aus = erst aus der Nähe; Zombies jagen schneller.
+ * Nacht-Zombies (Horde) wittern Spieler im Umkreis HORDE_WITTERUNG und laufen zu deren letzter Position.
+ *
  * Tempo, Schaden, Radius usw. kommen aus der Variante des Zombies (z.jagdGeschwindigkeit …),
  * Wahrnehmung (aggroRadius, verlierRadius …) aus konfiguration.zombie.
  */
 const DREHGESCHWINDIGKEIT = 8; // je höher, desto schneller drehen sie sich zum Ziel
+const TUER_KOSTEN = 8; // A*: eine geschlossene Tür "kostet" so viele Schritte Umweg
+const TUER_SCHLAG_ABSTAND = 10; // px zwischen Zombie-Rand und Tür, ab dem er zuschlägt
+const HORDE_WITTERUNG = 1100; // px
+const HORDE_INTERVALL = 8; // Sekunden zwischen zwei "Witterungen"
 const WEGPUNKT_ERREICHT = 8;
 const ANGRIFF_ANIMATION = 0.5;
 
@@ -28,6 +38,7 @@ export function aktualisiereZombies(spielWelt, dt) {
 
   for (const z of zombies) {
     z.angriffsAbklingzeit = Math.max(0, z.angriffsAbklingzeit - dt);
+    if (z.nacht) wittere(spielWelt, z, lebendeSpieler, dt);
     const ziel = waehleZiel(spielWelt, z, lebendeSpieler, k);
     if (!ziel) {
       z.zustand = 'ruhend';
@@ -64,11 +75,12 @@ export function aktualisiereZombies(spielWelt, dt) {
   aktualisiereRespawns(spielWelt, dt, k);
 }
 
-/** Behält das aktuelle Ziel, solange es gültig ist – sonst nächster sichtbarer Spieler im Aggro-Radius (im Dunkeln kleiner). */
+/** Behält das aktuelle Ziel, solange es gültig ist – sonst nächster sichtbarer Spieler im Aggro-Radius (nachts: abhängig von der Lampe). */
 function waehleZiel(spielWelt, z, lebendeSpieler, k) {
   if (z.zielId !== null) {
     const ziel = spielWelt.holen(z.zielId);
-    if (ziel && !ziel.tot && !ziel.unsichtbar && Math.hypot(ziel.x - z.x, ziel.y - z.y) <= k.verlierRadius) return ziel;
+    const verlierRadius = z.nacht ? HORDE_WITTERUNG : k.verlierRadius; // die Horde ist hartnäckig
+    if (ziel && !ziel.tot && !ziel.unsichtbar && Math.hypot(ziel.x - z.x, ziel.y - z.y) <= verlierRadius) return ziel;
     z.zielId = null;
   }
   let bester = null;
@@ -76,7 +88,7 @@ function waehleZiel(spielWelt, z, lebendeSpieler, k) {
   for (const s of lebendeSpieler) {
     const abstand = Math.hypot(s.x - z.x, s.y - z.y);
     // Im Dunkeln (Taschenlampe aus) fällt man erst aus der Nähe auf
-    const bemerkRadius = s.lichtAn ? k.aggroRadius : k.aggroRadius * k.dunkelFaktor;
+    const bemerkRadius = !spielWelt.istNacht ? k.aggroRadius : k.aggroRadius * (s.lichtAn ? k.nachtLichtFaktor : k.dunkelFaktor);
     if (abstand < bemerkRadius && abstand < bestAbstand && sichtlinieFrei(spielWelt.welt, z.x, z.y, s.x, s.y)) {
       bester = s;
       bestAbstand = abstand;
@@ -102,7 +114,7 @@ function bewegeZuZiel(spielWelt, z, ziel, sicht, dt, k) {
       // Sieht er das Ziel, aber ein Hindernis (Auto, Tisch …) steht im Weg → Weg direkt zum Ziel suchen
       const zielX = sicht ? ziel.x : z.letztesZielX;
       const zielY = sicht ? ziel.y : z.letztesZielY;
-      z.pfad = findePfad(spielWelt.welt, z.x, z.y, zielX, zielY);
+      z.pfad = findePfad(spielWelt.welt, z.x, z.y, zielX, zielY, { tuerKosten: TUER_KOSTEN });
       z.pfadTimer = k.pfadIntervall + spielWelt.zufall.zahl() * 0.2; // gestaffelt, damit nicht alle im selben Tick rechnen
       if (!z.pfad) {
         z.zielId = null; // unerreichbar → aufgeben
@@ -116,8 +128,49 @@ function bewegeZuZiel(spielWelt, z, ziel, sicht, dt, k) {
       return;
     }
     punkt = z.pfad[0];
+    if (vorGeschlossenerTuer(spielWelt, z, punkt)) return;
   }
-  gehe(spielWelt, z, punkt, z.jagdGeschwindigkeit, dt);
+  const tempo = z.jagdGeschwindigkeit * (spielWelt.istNacht ? k.nachtTempoFaktor : 1);
+  gehe(spielWelt, z, punkt, tempo, dt);
+}
+
+/** Liegt der nächste Wegpunkt in einer geschlossenen Tür und steht der Zombie davor → zuschlagen statt laufen. */
+function vorGeschlossenerTuer(spielWelt, z, punkt) {
+  const welt = spielWelt.welt;
+  const g = welt.kachelGroesse;
+  const tx = Math.floor(punkt.x / g);
+  const ty = Math.floor(punkt.y / g);
+  if (!welt.istGeschlosseneTuer(tx, ty)) return false;
+  // Abstand Zombie-Mitte → Türkachel (Rechteck)
+  const nx = Math.max(tx * g, Math.min(z.x, (tx + 1) * g));
+  const ny = Math.max(ty * g, Math.min(z.y, (ty + 1) * g));
+  if (Math.hypot(z.x - nx, z.y - ny) > z.radius + TUER_SCHLAG_ABSTAND) return false;
+  z.blick = Math.atan2(punkt.y - z.y, punkt.x - z.x);
+  z.zustand = 'angreifend';
+  if (z.angriffsAbklingzeit <= 0) {
+    z.angriffsAbklingzeit = z.angriffsAbklingzeitMax;
+    spielWelt.setzeAktion(z, 'angriff', ANGRIFF_ANIMATION);
+    schlageTuer(spielWelt, z, welt.tueren[welt.tuerBei(tx, ty)]);
+  }
+  return true;
+}
+
+/** Horde: ab und zu den nächsten Spieler wittern (auch ohne Sicht) und zu seiner Position aufbrechen. */
+function wittere(spielWelt, z, lebendeSpieler, dt) {
+  z.witterung = (z.witterung ?? spielWelt.zufall.zahl() * HORDE_INTERVALL) - dt;
+  if (z.witterung > 0 || z.zielId !== null) return;
+  z.witterung = HORDE_INTERVALL;
+  let bester = null;
+  let bestAbstand = HORDE_WITTERUNG;
+  for (const s of lebendeSpieler) {
+    const abstand = Math.hypot(s.x - z.x, s.y - z.y);
+    if (abstand < bestAbstand) {
+      bester = s;
+      bestAbstand = abstand;
+    }
+  }
+  if (!bester) return;
+  Object.assign(z, { zielId: bester.id, zustand: 'verfolgend', letztesZielX: bester.x, letztesZielY: bester.y, pfad: null, pfadTimer: 0 });
 }
 
 /** Ruhende Zombies schlurfen ziellos in der Nähe ihres Spawnpunkts herum. */

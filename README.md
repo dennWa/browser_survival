@@ -1,7 +1,7 @@
 # Browser Survival
 
-Top-Down-Survival im Browser – Mehrspieler mit autoritativem Node.js-Server.
-Aktuelle Testkarte: ein Krankenhaus voller Zombies. Plündern, kämpfen, satt bleiben, überleben.
+Top-Down-Survival in 3D im Browser – Mehrspieler mit autoritativem Node.js-Server.
+Karte: ein Stadtrand rund ums St.-Elisabeth-Krankenhaus. Plündern, Türen verrammeln, die Nacht überleben.
 
 ## Schnellstart
 
@@ -13,12 +13,13 @@ npm start                                # → http://localhost:8080
 ```
 
 Im Login **"Lokal (im Browser)"** wählen, um ohne Account allein zu testen,
-oder **"Dieser Server"** für Mehrspieler mit Account. Unter **Grafik** gibt es neben 2D einen **3D-Prototyp**.
+oder **"Dieser Server"** für Mehrspieler mit Account. Das Spiel braucht WebGL (jeder aktuelle Browser).
+Ein Tag dauert 10 Minuten, eine Nacht 5 – nachts kommt eine Horde. Türen sind zu und lassen sich öffnen/schließen.
 Im Lokal-Modus bist du automatisch Admin (🛡-Menü). Spielstände werden automatisch gespeichert (Server: `server/daten/spielstaende/`, Lokal: im Browser).
 
-Steuerung: **WASD** laufen · **Maus** zielen · **Klick/Leertaste** Angriff · **E** aufheben · **R** nachladen ·
-**1–8** Inventar benutzen/ausrüsten · **Rechtsklick** auf Inventarplatz = ablegen · **Shift** sprinten · **L** Taschenlampe an/aus (aus = Zombies sehen dich schlechter) · **Enter** (tot) sofort wiederbeleben · **P** Admin-Menü · **M** Ton · **F3** Debug
-Handy/Tablet: **linker Daumen** laufen · **rechter Daumen** zielen (ganz durchdrücken = Angriff) · Knöpfe für Aufheben/Nachladen/🔦/🛡 · Inventarplatz lange drücken = ablegen
+Steuerung: **WASD** laufen · **Maus** zielen · **Klick/Leertaste** Angriff · **E** aufheben · **F** Tür auf/zu · **R** nachladen ·
+**1–8** Inventar benutzen/ausrüsten · **Rechtsklick** auf Inventarplatz = ablegen · **Shift** sprinten · **L** Taschenlampe an/aus (nachts: aus = Zombies sehen dich schlechter) · **Enter** (tot) sofort wiederbeleben · **P** Admin-Menü · **M** Ton · **F3** Debug
+Handy/Tablet: **linker Daumen** laufen · **rechter Daumen** zielen (ganz durchdrücken = Angriff) · Knöpfe für Tür/Aufheben/Nachladen/🔦/🛡 · Inventarplatz lange drücken = ablegen
 
 ## Weitere Befehle
 

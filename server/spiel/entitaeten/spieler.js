@@ -63,6 +63,8 @@ export function spielerZuNetzwerk(s) {
     leben: s.leben,
     maxLeben: s.maxLeben,
     ausruestung: s.ausruestung,
+    // Item in der Hand (z. B. 'hammer') – der Renderer zeigt das passende Waffenmodell
+    waffe: s.ausgeruestet !== null ? (s.inventar[s.ausgeruestet]?.defId ?? null) : null,
     aktion: s.aktion,
     aktionTick: s.aktionTick,
     aktionDauer: s.aktionDauer,
