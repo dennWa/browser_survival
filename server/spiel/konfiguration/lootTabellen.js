@@ -1,0 +1,66 @@
+/**
+ * Loot-Tabellen: welche Gegenstände in welchem Raumtyp spawnen.
+ * gewicht = relative Häufigkeit innerhalb der Tabelle (höher = häufiger).
+ * Welcher Raum welche Tabelle nutzt, steht in der jeweiligen Kartendatei (raeume → lootTabelle).
+ */
+export const LOOT_TABELLEN = Object.freeze({
+  apotheke: [
+    { id: 'verband', gewicht: 5 },
+    { id: 'schmerzmittel', gewicht: 4 },
+    { id: 'wasserflasche', gewicht: 1 },
+  ],
+  op: [
+    { id: 'skalpell', gewicht: 4 },
+    { id: 'verband', gewicht: 3 },
+    { id: 'schmerzmittel', gewicht: 1 },
+  ],
+  labor: [
+    { id: 'schmerzmittel', gewicht: 2 },
+    { id: 'wasserflasche', gewicht: 2 },
+    { id: 'skalpell', gewicht: 1 },
+  ],
+  lager: [
+    { id: 'konservendose', gewicht: 4 },
+    { id: 'wasserflasche', gewicht: 4 },
+    { id: 'zwieback', gewicht: 3 },
+    { id: 'brecheisen', gewicht: 2 },
+    { id: 'feuerwehraxt', gewicht: 1 },
+  ],
+  patientenzimmer: [
+    { id: 'apfel', gewicht: 3 },
+    { id: 'apfelsaft', gewicht: 3 },
+    { id: 'zwieback', gewicht: 2 },
+    { id: 'schmerzmittel', gewicht: 1 },
+  ],
+  kantine: [
+    { id: 'konservendose', gewicht: 3 },
+    { id: 'apfel', gewicht: 3 },
+    { id: 'muesliriegel', gewicht: 3 },
+    { id: 'apfelsaft', gewicht: 3 },
+    { id: 'wasserflasche', gewicht: 2 },
+  ],
+  sicherheit: [
+    { id: 'schlagstock', gewicht: 4 },
+    { id: 'munition_9mm', gewicht: 4 },
+    { id: 'pistole', gewicht: 2 },
+    { id: 'munition_12', gewicht: 2 },
+    { id: 'schrotflinte', gewicht: 1 },
+  ],
+  eingangshalle: [
+    { id: 'energydrink', gewicht: 3 },
+    { id: 'muesliriegel', gewicht: 3 },
+    { id: 'wasserflasche', gewicht: 2 },
+  ],
+  notaufnahme: [
+    { id: 'verband', gewicht: 4 },
+    { id: 'feuerwehraxt', gewicht: 1 },
+    { id: 'schmerzmittel', gewicht: 2 },
+    { id: 'wasserflasche', gewicht: 2 },
+  ],
+  verwaltung: [
+    { id: 'energydrink', gewicht: 2 },
+    { id: 'muesliriegel', gewicht: 2 },
+    { id: 'brecheisen', gewicht: 1 },
+    { id: 'munition_9mm', gewicht: 1 },
+  ],
+});

@@ -1,0 +1,33 @@
+/**
+ * Kacheltypen (Tiles) der Karten. Jedes Zeichen in einer Kartendatei steht für eine Kachel.
+ * Neue Bodenarten/Wände hier eintragen – und eine Farbe in client/darstellung/farben.js.
+ */
+export const KACHELN = Object.freeze({
+  ',': { name: 'gras', blockiert: false },
+  '_': { name: 'asphalt', blockiert: false },
+  '=': { name: 'strasse', blockiert: false },
+  '.': { name: 'boden', blockiert: false },
+  'T': { name: 'tuer', blockiert: false },
+  '#': { name: 'wand', blockiert: true },
+  'F': { name: 'fenster', blockiert: true },
+});
+
+/**
+ * Marker-Zeichen in Kartendateien. Sie werden beim Laden durch den Untergrund ersetzt
+ * und als Spawnpunkte gespeichert.
+ *   S       = Spieler-Startpunkt
+ *   Z       = Zombie-Spawn
+ *   a … z   = Loot-Punkt, gehört zum Raum mit diesem Buchstaben (siehe Kartendatei)
+ */
+export const MARKER = Object.freeze({
+  SPIELER_START: 'S',
+  ZOMBIE: 'Z',
+});
+
+export function istLootMarker(zeichen) {
+  return zeichen >= 'a' && zeichen <= 'z';
+}
+
+export function istKachel(zeichen) {
+  return Object.hasOwn(KACHELN, zeichen);
+}

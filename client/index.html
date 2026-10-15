@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Browser Survival</title>
+    <link rel="stylesheet" href="stil.css" />
+  </head>
+  <body>
+    <canvas id="spielflaeche" tabindex="0"></canvas>
+
+    <!-- HUD über dem Spiel -->
+    <div id="hud" hidden>
+      <div id="hud-oben">
+        <span id="hud-status"></span>
+        <button id="hud-abmelden" type="button">Abmelden</button>
+      </div>
+      <div id="hud-leben"></div>
+      <pre id="hud-debug" hidden></pre>
+      <div id="hud-hilfe">WASD bewegen · Maus zielen · F3 Debug</div>
+    </div>
+
+    <!-- Login -->
+    <div id="login" class="overlay" hidden>
+      <form id="login-formular" autocomplete="on">
+        <h1>Browser Survival</h1>
+        <p class="untertitel">Karte: St.-Elisabeth-Krankenhaus</p>
+
+        <label>Server
+          <select id="login-server"></select>
+        </label>
+        <label id="login-adresse-feld" hidden>Serveradresse
+          <input id="login-adresse" type="text" placeholder="ws://192.168.0.10:8080/ws" spellcheck="false" />
+        </label>
+        <label>Benutzername
+          <input id="login-name" type="text" autocomplete="username" required minlength="2" maxlength="20" spellcheck="false" />
+        </label>
+        <label id="login-passwort-feld">Passwort
+          <input id="login-passwort" type="password" autocomplete="current-password" />
+        </label>
+
+        <button id="login-knopf" type="submit">Login</button>
+        <p id="login-meldung" role="status" aria-live="polite"></p>
+        <p class="hinweis">Keine Registrierung – Accounts vergibt der Server-Admin.<br />Lokal-Modus braucht kein Passwort.</p>
+      </form>
+    </div>
+
+    <script type="module" src="main.js"></script>
+  </body>
+</html>

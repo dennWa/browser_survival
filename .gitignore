@@ -1,0 +1,5 @@
+node_modules/
+# Accounts & Server-Einstellungen gehören nicht ins Repo
+server/daten/konten.json
+server/daten/einstellungen.json
+.DS_Store

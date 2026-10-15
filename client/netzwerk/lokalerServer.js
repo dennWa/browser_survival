@@ -1,0 +1,24 @@
+import { SpielServer } from '../../server/spiel/spielServer.js';
+import { GastAuthentifizierung } from '../../server/spiel/authentifizierung/gastAuthentifizierung.js';
+import { erstelleSpeicherKanalPaar } from '../../server/spiel/netz/speicherKanal.js';
+import { LOKALE_LATENZ_MS } from '../konfiguration.js';
+
+/**
+ * Lokal-Modus: Der ECHTE SpielServer läuft hier im Browser-Tab.
+ * Client und Server reden trotzdem nur über einen (Speicher-)Kanal miteinander –
+ * dadurch verhält sich der Lokal-Modus genau wie der Mehrspieler-Modus.
+ */
+let server = null;
+
+export function oeffneLokalenKanal() {
+  if (!server) {
+    server = new SpielServer({
+      authentifizierung: new GastAuthentifizierung(),
+      konfiguration: { server: { name: 'Lokaler Server' } },
+    });
+    server.starten();
+  }
+  const { clientSeite, serverSeite } = erstelleSpeicherKanalPaar({ latenzMs: LOKALE_LATENZ_MS });
+  server.verbindungHinzufuegen(serverSeite, { adresse: 'lokal' });
+  return clientSeite;
+}

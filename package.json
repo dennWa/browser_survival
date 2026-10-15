@@ -1,0 +1,19 @@
+{
+  "name": "browser-survival",
+  "version": "0.1.0",
+  "description": "Top-Down-Survival im Browser – autoritativer Server, WebSocket-Mehrspieler",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server/node/start.js",
+    "start:gast": "node server/node/start.js --gast",
+    "konto": "node server/werkzeuge/kontoAnlegen.js",
+    "test": "node --test \"tests/**/*.test.js\""
+  },
+  "dependencies": {
+    "ws": "^8.22.0"
+  }
+}
