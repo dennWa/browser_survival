@@ -45,6 +45,7 @@ export const GEGENSTAENDE = Object.freeze({
   // --- Material (Abbau & Crafting) ---
   holz: { name: 'Holz', kategorie: 'material', stapelbar: 50 },
   stein: { name: 'Stein', kategorie: 'material', stapelbar: 50 },
+  eisenerz: { name: 'Eisenerz', kategorie: 'material', stapelbar: 50, beschreibung: 'Mit der Spitzhacke abgebaut – für Fallen und Werkzeug' },
   bretter: { name: 'Bretter', kategorie: 'material', stapelbar: 10, beschreibung: 'Vor einer geschlossenen Tür benutzen: verstärkt sie' },
   // Rucksack: wird beim Aufheben angelegt (falls man noch keinen trägt) → `plaetze` zusätzliche Inventarplätze
   rucksack: { name: 'Rucksack', kategorie: 'rucksack', plaetze: 8, beschreibung: 'Anlegen: +8 Inventarplätze' },

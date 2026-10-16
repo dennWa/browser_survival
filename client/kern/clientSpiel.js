@@ -61,7 +61,10 @@ export class ClientSpiel {
     this.itemDefinitionen = anmeldeDaten.itemDefinitionen ?? {};
     this.spielerDaten = anmeldeDaten.spielerDaten;
     this.effekte = new Effekte();
-    this.effekte.beiEreignis = (e) => this.#ereignisSound(e);
+    this.effekte.beiEreignis = (e) => {
+      if (e.typ === 'abgebaut' && e.art === 'holz') this.renderer.baumFaellt(e); // Baum kippt um
+      this.#ereignisSound(e);
+    };
     this.schrittWeg = 0;
     this.letztesStoehnen = 0;
 

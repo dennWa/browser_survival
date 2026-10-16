@@ -636,22 +636,26 @@ function hofWelt() {
 
 const anzahl = (spieler, defId) => spieler.inventar.reduce((s, e) => s + (e?.defId === defId ? e.menge : 0), 0);
 
-test('Baum fällen: 5 Sekunden mit Axt → 2 Holz, Baum weg, wächst nach', () => {
+test('Baum fällen: 6 Sekunden mit Axt → 1 Holz (20 % Chance auf 2), Baum weg, wächst nach', () => {
   const { welt, spieler, konfiguration } = hofWelt();
   platziere(spieler, 7, 2);
   spieler.aktionsPuffer.push({ art: AKTIONEN.ABBAUEN, slot: null });
   welt.aktualisiere(TICK_DAUER_S);
   assert.equal(spieler.arbeit?.art, 'holz');
-  ticks(welt, Math.ceil(4.5 / TICK_DAUER_S));
+  ticks(welt, Math.ceil(5.5 / TICK_DAUER_S));
   assert.equal(anzahl(spieler, 'holz'), 0, 'noch nicht fertig');
   ticks(welt, Math.ceil(0.6 / TICK_DAUER_S));
-  assert.equal(anzahl(spieler, 'holz'), 2);
+  assert.ok([1, 2].includes(anzahl(spieler, 'holz')));
   assert.equal(welt.welt.istRessourceDa(0), false);
   welt.ressourcenNachwuchs.set(0, 0.01);
   platziere(spieler, 2, 2);
   ticks(welt, 2);
   assert.equal(welt.welt.istRessourceDa(0), true, 'nachgewachsen');
-  assert.equal(konfiguration.ressourcen.holz.menge, 2);
+  assert.equal(konfiguration.ressourcen.holz.menge, 1);
+  // Statistik: über viele Abbau-Vorgänge ~20 % Doppel-Ertrag
+  let doppelt = 0;
+  for (let i = 0; i < 400; i++) if (welt.zufall.zahl() < konfiguration.ressourcen.holz.chanceAufMehr) doppelt++;
+  assert.ok(doppelt > 50 && doppelt < 110, `~20 % erwartet, war ${doppelt / 4} %`);
 });
 
 test('Abbauen: ohne Werkzeug geht nichts, Bewegung bricht ab, Stein blockiert nur solange er da ist', () => {
@@ -674,8 +678,8 @@ test('Abbauen: ohne Werkzeug geht nichts, Bewegung bricht ab, Stein blockiert nu
 
   platziere(spieler, 5, 3);
   spieler.aktionsPuffer.push({ art: AKTIONEN.ABBAUEN, slot: null });
-  ticks(welt, Math.ceil(5.2 / TICK_DAUER_S));
-  assert.equal(anzahl(spieler, 'stein'), 2);
+  ticks(welt, Math.ceil(8.2 / TICK_DAUER_S));
+  assert.ok([1, 2].includes(anzahl(spieler, 'stein')));
   assert.equal(welt.welt.istBlockiert(5, 4), false, 'abgebauter Stein ist kein Hindernis mehr');
 });
 

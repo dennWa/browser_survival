@@ -242,11 +242,39 @@ const REZEPTE = {
     ton(ctx, ausgang, t, { typ: 'sine', von: 2600 * tonhoehe, bis: 2400, dauer: 0.18, lautstaerke: 0.08 });
     return 0.2;
   },
+  /**
+   * Baum fällt (passt zur Animation in renderer.baumFaellt): 0–1 s Holz knackt & knarzt immer dichter,
+   * bei 1 s der große Bruch, dann rauscht die Krone durch die Luft, bei 1,65 s der dumpfe Aufschlag + Äste.
+   */
   baum_faellt: ({ ctx, ausgang, t, rauschen }) => {
-    for (let i = 0; i < 5; i++) klick(ctx, ausgang, t + i * 0.05, 300 + i * 90, 0.18); // Knacken
-    rauschStoss(ctx, ausgang, rauschen, t + 0.3, { dauer: 0.6, typ: 'lowpass', frequenz: 700, lautstaerke: 0.8 }); // Rauschen der Krone
-    ton(ctx, ausgang, t + 0.75, { typ: 'sine', von: 70, bis: 30, dauer: 0.45, lautstaerke: 0.9 }); // Aufprall
-    return 1.25;
+    // Knarzen: tiefer Sägezahn, der langsam anschwillt und leicht eiert
+    ton(ctx, ausgang, t + 0.05, { typ: 'sawtooth', von: 95, bis: 62, dauer: 1.0, lautstaerke: 0.1, filter: 520, anschlag: 0.35 });
+    ton(ctx, ausgang, t + 0.3, { typ: 'sawtooth', von: 140, bis: 88, dauer: 0.7, lautstaerke: 0.06, filter: 700, anschlag: 0.2 });
+    // Knacken: kurze, scharfe Holzsplitter in immer kürzeren Abständen
+    let z = t + 0.08;
+    for (let i = 0; i < 9; i++) {
+      const laut = 0.25 + i * 0.05;
+      rauschStoss(ctx, ausgang, rauschen, z, { dauer: 0.025 + Math.random() * 0.02, typ: 'bandpass', frequenz: 1400 + Math.random() * 1600, lautstaerke: laut, anschlag: 0.001 });
+      ton(ctx, ausgang, z, { typ: 'triangle', von: 220 + Math.random() * 120, bis: 90, dauer: 0.05, lautstaerke: laut * 0.5, anschlag: 0.001 });
+      z += 0.16 - i * 0.014 + Math.random() * 0.03;
+    }
+    // Der große Bruch
+    rauschStoss(ctx, ausgang, rauschen, t + 1.0, { dauer: 0.16, typ: 'bandpass', frequenz: 1100, lautstaerke: 0.95, anschlag: 0.001 });
+    ton(ctx, ausgang, t + 1.0, { typ: 'triangle', von: 180, bis: 60, dauer: 0.14, lautstaerke: 0.5, anschlag: 0.001 });
+    // Krone rauscht durch die Luft (Blätter, Äste)
+    const wind = ctx.createBiquadFilter();
+    wind.type = 'bandpass';
+    wind.Q.value = 0.8;
+    wind.frequency.setValueAtTime(600, t + 1.05);
+    wind.frequency.exponentialRampToValueAtTime(2400, t + 1.62);
+    rauschStoss(ctx, ausgang, rauschen, t + 1.05, { dauer: 0.62, filter: wind, lautstaerke: 0.55, anschlag: 0.25 });
+    // Aufschlag: dumpfer Schlag + Erdrauschen + nachknackende Äste
+    ton(ctx, ausgang, t + 1.65, { typ: 'sine', von: 85, bis: 28, dauer: 0.6, lautstaerke: 1.0, anschlag: 0.003 });
+    rauschStoss(ctx, ausgang, rauschen, t + 1.65, { dauer: 0.45, typ: 'lowpass', frequenz: 420, lautstaerke: 0.9, anschlag: 0.003 });
+    for (let i = 0; i < 5; i++) {
+      rauschStoss(ctx, ausgang, rauschen, t + 1.7 + i * 0.07 + Math.random() * 0.05, { dauer: 0.03, typ: 'bandpass', frequenz: 900 + Math.random() * 1500, lautstaerke: 0.3, anschlag: 0.001 });
+    }
+    return 2.5;
   },
   stein_bricht: ({ ctx, ausgang, t, rauschen }) => {
     rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.35, typ: 'bandpass', frequenz: 1400, lautstaerke: 0.8 });

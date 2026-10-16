@@ -27,7 +27,7 @@ const HALTUNGEN = {
   hacken: { rechts: [v(0.2, 0.3, 1), v(0.2, 0.3, 1)], links: [v(-0.35, 0.25, 1), v(-0.2, 0.3, 1)], hand: 'rechts' },
 };
 /** Arbeit → Werkzeug in der Hand */
-const ARBEIT_WERKZEUG = { holz: 'axt', stein: 'spitzhacke' };
+const ARBEIT_WERKZEUG = { holz: 'axt', stein: 'spitzhacke', eisenerz: 'spitzhacke' };
 const HACK_TAKT_MS = 850; // ein Schlag
 
 /** Bereitet eine frisch geklonte Figur vor: Knochen merken. */

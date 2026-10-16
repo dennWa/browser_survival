@@ -87,6 +87,24 @@ ITEMS = {
     'spitzhacke': ('kenney_items', 'PNG/Colored/genericItem_color_021.png', 30),
     'holz': ('glitch_food', 'food/plank.svg', 26),
     'stein': ('kenney_racing', 'PNG/Objects/rock1.png', 22),
+    'eisenerz': ('kenney_racing', 'PNG/Objects/rock2.png', 22, (1.25, 0.75, 0.55)),  # 4. Wert = Einfärbung (R, G, B)
+    'rucksack_klein': ('props', 'PNG/256px/backpack.png', 24, (1.35, 1.1, 0.6)),
+    'rucksack_gross': ('props', 'PNG/256px/backpack.png', 32, (0.55, 0.65, 1.4)),
+    'hacke': ('kenney_items', 'PNG/Colored/genericItem_color_022.png', 28),
+    'feuerzeug': ('kenney_items', 'PNG/Colored/genericItem_color_095.png', 18),
+    'tomate': ('glitch_food', 'food/tomato.svg', 18),
+    'gurke': ('glitch_food', 'food/cucumber.svg', 20),
+    'kartoffel': ('glitch_food', 'food/potato.svg', 18),
+    'tomate_gebraten': ('glitch_food', 'food/tomato.svg', 18, (0.62, 0.38, 0.25)),
+    'gurke_gebraten': ('glitch_food', 'food/cucumber.svg', 20, (1.1, 0.75, 0.35)),
+    'ofenkartoffel': ('glitch_food', 'food/hot_potatoes.svg', 22),
+    # Selbst gezeichnet (siehe PROZEDURALE_ICONS unten) – keine Fremdgrafik, keine Lizenzfrage
+    'samen_tomate': ('prozedural', 'samen:#d84a3a', 16),
+    'samen_gurke': ('prozedural', 'samen:#5aa83a', 16),
+    'samen_kartoffel': ('prozedural', 'samen:#b98a4a', 16),
+    'falle': ('prozedural', 'falle', 26),
+    'lagerfeuer': ('prozedural', 'lagerfeuer', 28),
+    'werkbank': ('prozedural', 'werkbank', 30),
     'bretter': ('kenney_items', 'PNG/Colored/genericItem_color_133.png', 26),
     'rucksack': ('props', 'PNG/256px/backpack.png', 28),
 }
@@ -178,11 +196,66 @@ def rendere_svg(pfad, groesse):
     return Image.open(io.BytesIO(png)).convert('RGBA')
 
 
+def zeichne_prozedural(art, groesse):
+    """Einfache selbst gezeichnete Icons (4-fach gezeichnet, dann weich verkleinert)."""
+    from PIL import ImageDraw
+    g = groesse * 4
+    bild = Image.new('RGBA', (g, g), (0, 0, 0, 0))
+    d = ImageDraw.Draw(bild)
+    u = g / 72  # Einheit: Koordinaten unten für ein 72er-Raster
+    def r(x0, y0, x1, y1):
+        return [x0 * u, y0 * u, x1 * u, y1 * u]
+    rand = (30, 22, 14, 255)
+    if art.startswith('samen:'):
+        farbe = art.split(':')[1]
+        d.rounded_rectangle(r(16, 8, 56, 66), radius=5 * u, fill=(236, 222, 186, 255), outline=rand, width=int(2.5 * u))
+        d.rectangle(r(16, 8, 56, 18), fill=(196, 170, 120, 255), outline=rand, width=int(2.5 * u))
+        d.ellipse(r(24, 26, 48, 50), fill=farbe, outline=rand, width=int(2.5 * u))
+        for x, y in ((24, 56), (34, 58), (44, 55)):
+            d.ellipse(r(x, y, x + 5, y + 4), fill=(110, 80, 40, 255))
+    elif art == 'falle':
+        d.ellipse(r(8, 16, 64, 60), fill=(110, 114, 120, 255), outline=rand, width=int(3 * u))
+        d.ellipse(r(22, 28, 50, 48), fill=(70, 74, 80, 255), outline=rand, width=int(2 * u))
+        for i in range(7):
+            x = 12 + i * 8
+            d.polygon([(x * u, 22 * u), ((x + 4) * u, 12 * u), ((x + 8) * u, 22 * u)], fill=(200, 205, 210, 255), outline=rand)
+            d.polygon([(x * u, 54 * u), ((x + 4) * u, 64 * u), ((x + 8) * u, 54 * u)], fill=(200, 205, 210, 255), outline=rand)
+    elif art == 'lagerfeuer':
+        for a, b in (((10, 52), (58, 62)), ((14, 62), (62, 50))):
+            d.line([a[0] * u, a[1] * u, b[0] * u, b[1] * u], fill=(110, 70, 36, 255), width=int(9 * u))
+        for x, y in ((14, 60), (24, 63), (36, 64), (48, 63), (58, 60)):
+            d.ellipse(r(x - 5, y - 4, x + 5, y + 4), fill=(130, 132, 136, 255), outline=rand)
+        d.polygon([(22 * u, 52 * u), (36 * u, 10 * u), (50 * u, 52 * u)], fill=(240, 110, 40, 255))
+        d.polygon([(28 * u, 52 * u), (36 * u, 26 * u), (44 * u, 52 * u)], fill=(255, 210, 80, 255))
+    elif art == 'werkbank':
+        d.rectangle(r(6, 22, 66, 34), fill=(150, 100, 52, 255), outline=rand, width=int(2.5 * u))
+        for x in (10, 56):
+            d.rectangle(r(x, 34, x + 7, 64), fill=(120, 78, 40, 255), outline=rand, width=int(2 * u))
+        d.rectangle(r(10, 46, 63, 51), fill=(120, 78, 40, 255), outline=rand, width=int(2 * u))
+        d.rectangle(r(44, 12, 58, 22), fill=(90, 94, 100, 255), outline=rand, width=int(2 * u))
+        d.line([18 * u, 18 * u, 34 * u, 10 * u], fill=(90, 94, 100, 255), width=int(4 * u))
+    else:
+        raise ValueError(f'Unbekanntes prozedurales Icon: {art}')
+    return bild.resize((groesse, groesse), Image.LANCZOS)
+
+
+def faerbe(bild, faktoren):
+    """Einfärben: jeden Farbkanal mit einem Faktor multiplizieren (z. B. Stein → rostiges Eisenerz)."""
+    daten = np.asarray(bild).astype(np.float32)
+    daten[..., :3] = np.clip(daten[..., :3] * np.array(faktoren, dtype=np.float32), 0, 255)
+    return Image.fromarray(daten.astype(np.uint8), 'RGBA')
+
+
 def baue_items():
     icons = {}
-    for def_id, (quelle, relativ, welt) in ITEMS.items():
+    for def_id, (quelle, relativ, welt, *rest) in ITEMS.items():
+        if quelle == 'prozedural':
+            icons[def_id] = (zeichne_prozedural(relativ, ITEM_ICON_GROESSE), welt)
+            continue
         pfad = finde(lade(quelle), relativ)
         bild = rendere_svg(pfad, ITEM_ICON_GROESSE) if pfad.suffix == '.svg' else Image.open(pfad).convert('RGBA')
+        if rest:
+            bild = faerbe(bild, rest[0])
         bild = bild.crop(bild.getchannel('A').getbbox())
         bild.thumbnail((ITEM_ICON_GROESSE, ITEM_ICON_GROESSE), Image.LANCZOS)
         icons[def_id] = (bild, welt)

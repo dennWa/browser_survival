@@ -242,28 +242,42 @@ export class KartenModell {
     this.stuempfe = new THREE.InstancedMesh(baueStumpf(), toonMaterial({ vertexColors: true }), Math.max(1, stammAnzahl));
     this.stuempfe.castShadow = true;
     this.stuempfe.receiveShadow = true;
-    const steine = this.welt.objekte.filter((o) => o.typ === 'stein');
+    const steine = this.welt.objekte.filter((o) => o.typ === 'stein' || o.typ === 'eisenerz');
     this.steine = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(14, 0), new THREE.MeshStandardMaterial({ color: 0x8a8d91, roughness: 0.95, flatShading: true }), Math.max(1, steine.length));
     this.steine.castShadow = true;
     this.steine.receiveShadow = true;
+    // Eisenerz: dunklerer, rostiger Fels mit orange glänzenden Erzbrocken (ein Mesh mit Vertexfarben)
+    const erzTeile = [{ geometrie: new THREE.DodecahedronGeometry(14, 0), matrix: new THREE.Matrix4(), farbe: new THREE.Color(0x6e5a4e) }];
+    for (const [x, y, z, r] of [[7, 6, 5, 4], [-6, 8, -3, 3.5], [2, 11, -7, 3], [-8, 2, 8, 3.2], [9, -1, -6, 2.6]]) {
+      erzTeile.push({ geometrie: new THREE.OctahedronGeometry(r, 0), matrix: matrixAus(x, y, z, x), farbe: new THREE.Color(0xd9772e) });
+    }
+    this.erze = new THREE.InstancedMesh(
+      vereineGeometrien(erzTeile, { mitFarbe: true }),
+      new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.35, flatShading: true }),
+      Math.max(1, steine.filter((o) => o.typ === 'eisenerz').length),
+    );
+    this.erze.castShadow = true;
+    this.erze.receiveShadow = true;
 
     // Pro Ressourcen-ID merken, welche Instanzen dazugehören
     this.ressourcenInstanzen = new Map();
     let stumpfIndex = 0;
     let steinIndex = 0;
+    let erzIndex = 0;
     for (const o of [...baeume, ...steine]) {
       const x = (o.x + o.b / 2) * g;
       const z = (o.y + o.h / 2) * g;
       const r = ressourceVon.get(o);
       const zufall = streuung(o.x, o.y);
       const eintrag = { teile: [] };
-      if (o.typ === 'stein') {
+      if (o.typ === 'stein' || o.typ === 'eisenerz') {
+        const erz = o.typ === 'eisenerz';
         const m = new THREE.Matrix4().compose(
           new THREE.Vector3(x, 6, z),
-          new THREE.Quaternion().setFromEuler(new THREE.Euler(zufall * 3, zufall * 7, zufall * 2)),
+          new THREE.Quaternion().setFromEuler(erz ? new THREE.Euler(0, zufall * 7, 0) : new THREE.Euler(zufall * 3, zufall * 7, zufall * 2)),
           new THREE.Vector3(1 + zufall * 0.4, 0.7 + zufall * 0.3, 1.1 - zufall * 0.3),
         );
-        eintrag.teile.push({ mesh: this.steine, index: steinIndex++, matrix: m });
+        eintrag.teile.push(erz ? { mesh: this.erze, index: erzIndex++, matrix: m } : { mesh: this.steine, index: steinIndex++, matrix: m });
       } else {
         const art = this.baumArten.get(o.typ);
         // Größe passend zur Grundfläche, dazu etwas Zufall in Größe und Drehung – kein Baum gleicht dem anderen
@@ -279,7 +293,8 @@ export class KartenModell {
     }
     this.stuempfe.count = stumpfIndex;
     this.steine.count = steinIndex;
-    const meshes = [this.stuempfe, this.steine];
+    this.erze.count = erzIndex;
+    const meshes = [this.stuempfe, this.steine, this.erze];
     for (const art of this.baumArten.values()) meshes.push(art.mesh, art.rand);
     for (const m of meshes) {
       m.instanceMatrix.needsUpdate = true;
@@ -289,6 +304,30 @@ export class KartenModell {
       this.beweglich.add(m);
     }
     this.abgebautStand = -1;
+  }
+
+  /**
+   * Kopie eines Baums (für die Fall-Animation): Gruppe am Stammfuß, darin Körper + Umriss mit der Original-Drehung
+   * und -Größe. null, wenn die Ressource kein Baum ist.
+   */
+  baumKopie(ressourceId) {
+    const eintrag = this.ressourcenInstanzen.get(ressourceId);
+    const teil = eintrag?.teile[0];
+    if (!teil || !eintrag.stumpf) return null;
+    const gruppe = new THREE.Group();
+    const position = new THREE.Vector3();
+    const drehung = new THREE.Quaternion();
+    const groesse = new THREE.Vector3();
+    teil.matrix.decompose(position, drehung, groesse);
+    gruppe.position.copy(position);
+    for (const t of eintrag.teile) {
+      const mesh = new THREE.Mesh(t.mesh.geometry, t.mesh.material);
+      mesh.quaternion.copy(drehung);
+      mesh.scale.copy(groesse);
+      mesh.castShadow = t.mesh.castShadow;
+      gruppe.add(mesh);
+    }
+    return gruppe;
   }
 
   /** Qualitätsstufe: Baum-Umrisse und -Schatten an/aus (spart viel bei schwacher Grafik). */

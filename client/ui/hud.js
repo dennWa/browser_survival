@@ -418,7 +418,7 @@ export class Hud {
     if (!arbeit) return;
     const text = arbeit.wartet
       ? '💤 Warte, bis alle schlafen … (bewegen = aufstehen)'
-      : ({ holz: '🪓 Baum fällen …', stein: '⛏ Stein abbauen …', schlafen: '💤 Schlafen … (bewegen = aufwachen)' }[arbeit.art] ?? '…');
+      : ({ holz: '🪓 Baum fällen …', stein: '⛏ Stein abbauen …', eisenerz: '⛏ Eisenerz abbauen …', schlafen: '💤 Schlafen … (bewegen = aufwachen)' }[arbeit.art] ?? '…');
     this.el.arbeitText.textContent = text;
     this.el.arbeit.querySelector('.fuellung').style.width = `${Math.round(arbeit.fortschritt * 100)}%`;
   }

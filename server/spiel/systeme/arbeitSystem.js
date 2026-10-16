@@ -2,6 +2,7 @@ import { BETT_REICHWEITE } from '../../../gemeinsam/konstanten.js';
 import { ABBAU_REICHWEITE } from '../../../gemeinsam/welt/ressourcen.js';
 import { sekundenFuerStunden, tageszeit } from '../../../gemeinsam/tageszeit.js';
 import { fuegeZumInventarHinzu, legeAufBoden } from './inventarSystem.js';
+import { GEGENSTAENDE } from '../konfiguration/gegenstaende.js';
 
 /**
  * Arbeiten, die Zeit brauchen: Bäume fällen / Steine abbauen (Werkzeug nötig) und Schlafen im Bett.
@@ -25,7 +26,7 @@ export function starteAbbau(spielWelt, spieler) {
     return;
   }
   if (!spieler.inventar.some((e) => e?.defId === r.werkzeug)) {
-    spielWelt.melde(spieler.id, r.werkzeug === 'axt' ? 'Du brauchst eine Axt' : 'Du brauchst eine Spitzhacke');
+    spielWelt.melde(spieler.id, `Du brauchst ${r.werkzeug === 'axt' ? 'eine Axt' : 'eine Spitzhacke'}`);
     return;
   }
   const { dauer } = spielWelt.konfiguration.ressourcen[r.art];
@@ -91,7 +92,9 @@ export function aktualisiereArbeit(spielWelt, dt) {
 }
 
 function schliesseAbbauAb(spielWelt, spieler, r) {
-  const { menge, nachwachsen } = spielWelt.konfiguration.ressourcen[r.art];
+  const k = spielWelt.konfiguration.ressourcen[r.art];
+  const menge = k.menge + (spielWelt.zufall.zahl() < (k.chanceAufMehr ?? 0) ? 1 : 0);
+  const nachwachsen = k.nachwachsen;
   spieler.arbeit = null;
   const rest = fuegeZumInventarHinzu(spieler, r.art, menge);
   if (rest > 0) {
@@ -100,8 +103,8 @@ function schliesseAbbauAb(spielWelt, spieler, r) {
   }
   spielWelt.welt.setzeRessource(r.id, false);
   spielWelt.ressourcenNachwuchs.set(r.id, nachwachsen);
-  spielWelt.ereignis({ typ: 'abgebaut', art: r.art, x: r.x, y: r.y });
-  spielWelt.melde(spieler.id, `+${menge} ${r.art === 'holz' ? 'Holz' : 'Stein'}`);
+  spielWelt.ereignis({ typ: 'abgebaut', art: r.art, x: r.x, y: r.y, id: r.id, von: spieler.id, sx: spieler.x, sy: spieler.y });
+  spielWelt.melde(spieler.id, `+${menge} ${GEGENSTAENDE[r.art]?.name ?? r.art}${menge > 1 ? ' – Glück gehabt!' : ''}`);
 }
 
 /** Ein Tick Schlaf: Heilung verteilt sich über die Schlafdauer; am Ende aufwachen (und evtl. Zeit vorspulen). */

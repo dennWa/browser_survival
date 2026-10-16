@@ -93,10 +93,16 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     todesVerfall: 180,
   },
   /** Abbau von Bäumen & Steinen (welche Objekte/Werkzeuge: gemeinsam/welt/ressourcen.js) */
+  /**
+   * Abbau: menge = sicherer Ertrag, chanceAufMehr = Wahrscheinlichkeit (0..1) für +1, dauer in Sekunden,
+   * nachwachsen in Sekunden. Welche Objekte abbaubar sind: gemeinsam/welt/ressourcen.js
+   */
   ressourcen: {
-    holz: { menge: 2, dauer: 5, nachwachsen: 300 }, // menge pro Baum, dauer in Sekunden, nachwachsen in Sekunden
-    stein: { menge: 2, dauer: 5, nachwachsen: 240 },
+    holz: { menge: 1, chanceAufMehr: 0.2, dauer: 6, nachwachsen: 300 },
+    stein: { menge: 1, chanceAufMehr: 0.2, dauer: 8, nachwachsen: 240 },
+    eisenerz: { menge: 1, chanceAufMehr: 0.2, dauer: 10, nachwachsen: 420 },
   },
+
   /**
    * Schlafen im Bett (in jedem Bett, jederzeit): dauert `dauer` echte Sekunden, heilt, kostet etwas Hunger/Durst
    * und spult die Uhr um `stunden` Spielstunden vor – im Mehrspieler nur, wenn ALLE lebenden Spieler schlafen.

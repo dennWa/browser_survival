@@ -182,8 +182,8 @@ export class Karte {
         ctx.beginPath();
         ctx.arc(x + b / 2, y + h / 2, Math.min(b, h) / 2.4, 0, Math.PI * 2);
         ctx.fill();
-      } else if (o.typ === 'stein') {
-        ctx.fillStyle = '#8a8d91';
+      } else if (o.typ === 'stein' || o.typ === 'eisenerz') {
+        ctx.fillStyle = o.typ === 'eisenerz' ? '#b0643a' : '#8a8d91';
         ctx.beginPath();
         ctx.arc(x + b / 2, y + h / 2, b / 2, 0, Math.PI * 2);
         ctx.fill();

@@ -119,6 +119,7 @@ export class Renderer {
     this.muendungslichter = Array.from({ length: MUENDUNGS_LICHTER }, () => this.#neuesPunktlicht(0xffc070, 380));
     this.#baueEffektObjekte();
     this.fussspuren = new Fussspuren(this.szene);
+    this.fallendeBaeume = []; // { gruppe, achse, zeit }
 
     // Adaptive Qualität (siehe QUALITAETS_STUFEN)
     this.aufloesungMax = Math.min(window.devicePixelRatio || 1, this.istHandy ? 1.5 : 2);
@@ -240,6 +241,7 @@ export class Renderer {
     this.#aktualisiereFiguren(entitaeten, fokus, dt, jetzt);
     this.#aktualisiereTaschenlampen(entitaeten, fokus, dunkel);
     this.#aktualisiereItems(gegenstaende, markiertId, jetzt);
+    this.#aktualisiereFallendeBaeume(dt);
     this.fussspuren.aktualisiere(entitaeten, jetzt);
     this.#aktualisiereLampenPool(fokus, jetzt, dunkel);
     if (effekte) {
@@ -250,6 +252,45 @@ export class Renderer {
     this.gl.render(this.szene, this.kamera3d);
     this.#zeichneOverlay(entitaeten, fokus);
     if (this.ruhigWarter) this.#pruefeRuhig(dt, jetzt);
+  }
+
+  /**
+   * Gefällter Baum kippt um – weg vom Holzfäller (sx/sy). Ablauf passend zum Geräusch 'baum_faellt':
+   * 0–1 s knarzen (leichtes Neigen), 1–1,65 s fallen (immer schneller), Aufschlag + Nachfedern, ab 2,4 s versinken.
+   */
+  baumFaellt({ id, x, y, sx, sy }) {
+    const gruppe = this.karte?.baumKopie(id);
+    if (!gruppe) return;
+    let dx = x - (sx ?? x - 1);
+    let dz = y - (sy ?? y);
+    const laenge = Math.hypot(dx, dz) || 1;
+    dx /= laenge;
+    dz /= laenge;
+    this.szene.add(gruppe);
+    // Drehachse senkrecht zur Fallrichtung (rechte Hand: Spitze kippt Richtung +dx/+dz)
+    this.fallendeBaeume.push({ gruppe, achse: new THREE.Vector3(dz, 0, -dx), zeit: 0 });
+  }
+
+  #aktualisiereFallendeBaeume(dt) {
+    for (let i = this.fallendeBaeume.length - 1; i >= 0; i--) {
+      const b = this.fallendeBaeume[i];
+      b.zeit += dt;
+      const t = b.zeit;
+      let winkel;
+      if (t < 1) winkel = 0.1 * (t * t) + Math.sin(t * 22) * 0.008 * t; // knarzt und neigt sich
+      else if (t < 1.65) winkel = 0.1 + (Math.PI / 2 - 0.12) * ((t - 1) / 0.65) ** 2; // fällt
+      else winkel = Math.PI / 2 - 0.02 - Math.abs(Math.sin((t - 1.65) * 14)) * 0.06 * Math.exp(-(t - 1.65) * 6); // federt nach
+      b.gruppe.quaternion.setFromAxisAngle(b.achse, winkel);
+      if (t > 2.4) {
+        const rest = Math.max(0, 1 - (t - 2.4) / 1.2);
+        b.gruppe.scale.setScalar(rest);
+        b.gruppe.position.y = -(1 - rest) * 10;
+      }
+      if (t > 3.6) {
+        this.szene.remove(b.gruppe);
+        this.fallendeBaeume.splice(i, 1);
+      }
+    }
   }
 
   /** Promise: erfüllt, sobald 10 Frames hintereinander flott waren (max. 5 s) – für den Ladebildschirm. */
