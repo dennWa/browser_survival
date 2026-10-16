@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
 import { RESSOURCEN_OBJEKTE } from '../../gemeinsam/welt/ressourcen.js';
+import { baueBaum, baueStumpf, toonMaterial } from './baumModell.js';
 import { BodenTextur } from './bodenTextur.js';
 import { einfrieren, matrixAus, vereineGeometrien } from './geometrie.js';
 
@@ -18,8 +19,6 @@ import { einfrieren, matrixAus, vereineGeometrien } from './geometrie.js';
 export const WANDHOEHE = 72;
 export const TUER_HOEHE = WANDHOEHE - 14;
 const TUER_DREHTEMPO = 9;
-const BAUM_HOEHE = 96;
-const BUSCH_HOEHE = 26;
 /** Höhe (Weltpixel) der Möbel-Quader */
 const MOEBEL_HOEHE = {
   bett: 18, bett_orange: 18, tisch: 24, tisch_rund: 24, stuhl: 14, sessel: 18, sessel_blau: 18, sofa: 18, sofa_dunkel: 18,
@@ -218,28 +217,31 @@ export class KartenModell {
   }
 
   /**
-   * Bäume (Stamm + Krone), Büsche und Steine als InstancedMesh. Abbaubare (welt.ressourcen) können ausgeblendet
+   * Bäume, Büsche (prozedurale 3D-Cartoon-Modelle aus baumModell.js) und Steine als InstancedMesh. Abbaubare (welt.ressourcen) können ausgeblendet
    * werden – an ihrer Stelle erscheint ein Stumpf bzw. nichts. Büsche sind Deko.
    */
   #baueRessourcen() {
     const g = this.g;
     const baeume = this.welt.objekte.filter((o) => o.ebene === 'oben');
     const ressourceVon = new Map(this.welt.ressourcen.map((r) => [r.objekt, r]));
-    const kronenTypen = [...new Set(baeume.map((o) => o.typ))];
+    const typen = [...new Set(baeume.map((o) => o.typ))];
 
-    const stammAnzahl = baeume.filter((o) => o.typ !== 'busch').length;
-    this.staemme = new THREE.InstancedMesh(new THREE.CylinderGeometry(5, 7, 1, 8).translate(0, 0.5, 0), new THREE.MeshStandardMaterial({ color: 0x4a3420, roughness: 1 }), Math.max(1, stammAnzahl));
-    this.staemme.castShadow = true;
-    this.stuempfe = new THREE.InstancedMesh(new THREE.CylinderGeometry(6, 8, 7, 8).translate(0, 3.5, 0), new THREE.MeshStandardMaterial({ color: 0x6b4a2c, roughness: 1 }), Math.max(1, stammAnzahl));
-    this.stuempfe.receiveShadow = true;
-    this.kronen = new Map();
-    for (const typ of kronenTypen) {
+    // Pro Baumtyp: Körper (Toon, Vertexfarben) + schwarzer Umriss – je ein InstancedMesh
+    const umrissMaterial = this.mitSchnitt(new THREE.MeshBasicMaterial({ color: 0x14100c, side: THREE.BackSide }));
+    this.baumArten = new Map();
+    for (const typ of typen) {
       const anzahl = baeume.filter((o) => o.typ === typ).length;
-      const material = new THREE.MeshStandardMaterial({ map: this.#spriteTextur(typ).textur, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide, roughness: 1 });
-      const mesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), material, anzahl);
+      const { koerper, umriss, grundflaeche } = baueBaum(typ);
+      const mesh = new THREE.InstancedMesh(koerper, this.mitSchnitt(toonMaterial({ vertexColors: true })), anzahl);
       mesh.castShadow = true;
-      this.kronen.set(typ, { mesh, naechster: 0 });
+      mesh.receiveShadow = true;
+      const rand = new THREE.InstancedMesh(umriss, umrissMaterial, anzahl);
+      this.baumArten.set(typ, { mesh, rand, grundflaeche, naechster: 0 });
     }
+    const stammAnzahl = baeume.filter((o) => o.typ !== 'busch').length;
+    this.stuempfe = new THREE.InstancedMesh(baueStumpf(), toonMaterial({ vertexColors: true }), Math.max(1, stammAnzahl));
+    this.stuempfe.castShadow = true;
+    this.stuempfe.receiveShadow = true;
     const steine = this.welt.objekte.filter((o) => o.typ === 'stein');
     this.steine = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(14, 0), new THREE.MeshStandardMaterial({ color: 0x8a8d91, roughness: 0.95, flatShading: true }), Math.max(1, steine.length));
     this.steine.castShadow = true;
@@ -247,15 +249,15 @@ export class KartenModell {
 
     // Pro Ressourcen-ID merken, welche Instanzen dazugehören
     this.ressourcenInstanzen = new Map();
-    let stammIndex = 0;
+    let stumpfIndex = 0;
     let steinIndex = 0;
     for (const o of [...baeume, ...steine]) {
       const x = (o.x + o.b / 2) * g;
       const z = (o.y + o.h / 2) * g;
       const r = ressourceVon.get(o);
+      const zufall = streuung(o.x, o.y);
       const eintrag = { teile: [] };
       if (o.typ === 'stein') {
-        const zufall = streuung(o.x, o.y);
         const m = new THREE.Matrix4().compose(
           new THREE.Vector3(x, 6, z),
           new THREE.Quaternion().setFromEuler(new THREE.Euler(zufall * 3, zufall * 7, zufall * 2)),
@@ -263,26 +265,27 @@ export class KartenModell {
         );
         eintrag.teile.push({ mesh: this.steine, index: steinIndex++, matrix: m });
       } else {
-        const istBusch = o.typ === 'busch';
-        const hoehe = istBusch ? BUSCH_HOEHE : BAUM_HOEHE;
-        const krone = this.kronen.get(o.typ);
-        eintrag.teile.push({ mesh: krone.mesh, index: krone.naechster++, matrix: new THREE.Matrix4().compose(new THREE.Vector3(x, hoehe, z), new THREE.Quaternion(), new THREE.Vector3(o.b * g, 1, o.h * g)) });
-        if (!istBusch) {
-          eintrag.teile.push({ mesh: this.staemme, index: stammIndex, matrix: matrixAus(x, 0, z, 0, new THREE.Vector3(1, hoehe, 1)) });
-          eintrag.stumpf = { mesh: this.stuempfe, index: stammIndex, matrix: matrixAus(x, 0, z) };
-          stammIndex++;
-        }
+        const art = this.baumArten.get(o.typ);
+        // Größe passend zur Grundfläche, dazu etwas Zufall in Größe und Drehung – kein Baum gleicht dem anderen
+        const groesse = ((Math.min(o.b, o.h) * g) / art.grundflaeche) * (0.9 + zufall * 0.22);
+        const matrix = matrixAus(x, 0, z, zufall * Math.PI * 2, groesse);
+        const index = art.naechster++;
+        eintrag.teile.push({ mesh: art.mesh, index, matrix }, { mesh: art.rand, index, matrix });
+        if (o.typ !== 'busch') eintrag.stumpf = { mesh: this.stuempfe, index: stumpfIndex++, matrix: matrixAus(x, 0, z, zufall * 5, groesse * 1.3) };
       }
       for (const t of eintrag.teile) t.mesh.setMatrixAt(t.index, t.matrix);
       if (eintrag.stumpf) eintrag.stumpf.mesh.setMatrixAt(eintrag.stumpf.index, NULL_MATRIX);
       if (r) this.ressourcenInstanzen.set(r.id, eintrag);
     }
-    this.staemme.count = stammIndex;
-    this.stuempfe.count = stammIndex;
+    this.stuempfe.count = stumpfIndex;
     this.steine.count = steinIndex;
-    for (const m of [this.staemme, this.stuempfe, this.steine, ...[...this.kronen.values()].map((k) => k.mesh)]) {
+    const meshes = [this.stuempfe, this.steine];
+    for (const art of this.baumArten.values()) meshes.push(art.mesh, art.rand);
+    for (const m of meshes) {
       m.instanceMatrix.needsUpdate = true;
-      m.computeBoundingSphere();
+      // Kein Frustum-Culling: Instanzen werden ein-/ausgeblendet, eine einmal berechnete Bounding-Sphere
+      // (z. B. als alle Stümpfe noch versteckt waren) wäre sonst falsch → Stümpfe blieben unsichtbar.
+      m.frustumCulled = false;
       this.beweglich.add(m);
     }
     this.abgebautStand = -1;

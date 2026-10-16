@@ -306,16 +306,33 @@ export class Renderer {
   // ---------------------------------------------------------------------------
   // Pro Frame
 
-  /** Fällt die Bildrate unter ~50 FPS, wird die Auflösung gesenkt; läuft es locker, wieder angehoben. */
+  /**
+   * Fällt die Bildrate unter ~50 FPS, wird die Auflösung gesenkt; läuft es länger locker, wieder angehoben.
+   * Mit Hysterese: Jede Änderung (setPixelRatio) baut die Bildpuffer neu und kostet einen kurzen Hänger –
+   * ständiges Hin- und Herschalten fühlte sich wie Ruckeln an. Darum: nach dem Senken 30 s kein Anheben,
+   * Anheben erst nach drei guten Messfenstern hintereinander.
+   */
   #passeAufloesungAn(dt, jetzt) {
     const m = this.messung;
+    if (dt > 0.25) return; // Tab war im Hintergrund o. Ä. – zählt nicht
     m.frames++;
     m.zeit += dt;
     if (jetzt - m.seit < 2000) return;
     const mittel = m.zeit / Math.max(1, m.frames);
     const vorher = this.aufloesung;
-    if (mittel > 1 / 50 && this.aufloesung > AUFLOESUNG_MIN) this.aufloesung = Math.max(AUFLOESUNG_MIN, this.aufloesung * 0.85);
-    else if (mittel < 1 / 58 && this.aufloesung < this.aufloesungMax) this.aufloesung = Math.min(this.aufloesungMax, this.aufloesung * 1.08);
+    if (mittel > 1 / 48 && this.aufloesung > AUFLOESUNG_MIN) {
+      this.aufloesung = Math.max(AUFLOESUNG_MIN, this.aufloesung * 0.85);
+      this.anhebenGesperrtBis = jetzt + 30000;
+      this.guteFenster = 0;
+    } else if (mittel < 1 / 57) {
+      this.guteFenster = (this.guteFenster ?? 0) + 1;
+      if (this.guteFenster >= 3 && jetzt > (this.anhebenGesperrtBis ?? 0) && this.aufloesung < this.aufloesungMax) {
+        this.aufloesung = Math.min(this.aufloesungMax, this.aufloesung * 1.1);
+        this.guteFenster = 0;
+      }
+    } else {
+      this.guteFenster = 0;
+    }
     if (this.aufloesung !== vorher) this.gl.setPixelRatio(this.aufloesung);
     this.messung = { frames: 0, zeit: 0, seit: jetzt };
   }

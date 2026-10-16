@@ -46,6 +46,19 @@ for (const id of Object.keys(KARTEN)) {
     }
   });
 
+  test(`Karte "${id}": Ressourcen (Bäume/Steine) überlappen sich nicht`, () => {
+    const welt = new Welt(ladeKarte(id).daten);
+    const rs = welt.ressourcen.map((r) => r.objekt);
+    for (let i = 0; i < rs.length; i++) {
+      for (let k = i + 1; k < rs.length; k++) {
+        const a = rs[i];
+        const b = rs[k];
+        const ueber = a.x < b.x + b.b && b.x < a.x + a.b && a.y < b.y + b.h && b.y < a.y + a.h;
+        assert.ok(!ueber, `${a.typ} bei ${a.x}|${a.y} überlappt ${b.typ} bei ${b.x}|${b.y}`);
+      }
+    }
+  });
+
   test(`Karte "${id}": jedes Objekt hat eine Grafik`, () => {
     for (const o of ladeKarte(id).daten.objekte) {
       if (PROZEDURAL.has(o.typ)) continue;

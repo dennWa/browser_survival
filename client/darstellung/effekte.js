@@ -7,7 +7,7 @@
  */
 const MAX_PARTIKEL = 400;
 const MAX_FLECKEN = 60;
-const FLECK_LEBENSDAUER = 45; // Sekunden, dann verblasst das Blut
+const FLECK_LEBENSDAUER = 120; // Sekunden (2 min), dann verblasst das Blut
 const MUENDUNG_ABSTAND = 20; // px vor der Figur
 const LEUCHTSPUR_DAUER = 0.14;
 const FEUER_DAUER = 0.09;

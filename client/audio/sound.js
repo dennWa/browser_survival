@@ -11,6 +11,13 @@
  */
 const SPEICHER_SCHLUESSEL = 'browserSurvival.ton';
 const HOERWEITE = 900; // px, ab hier unhörbar
+/**
+ * Anschlag-Zeit (s): Lautstärke steigt kurz an statt von 0 auf 100 % zu springen – harte Sprünge
+ * erzeugen hörbare Klicks/Knistern (besonders bei Kopfhörern).
+ */
+const ANSCHLAG = 0.004;
+/** Geräusche minimal in die Zukunft planen: kommt der Haupt-Thread zu spät, beginnt sonst die Hülle mittendrin. */
+const VORLAUF = 0.012;
 
 export class Sound {
   #ctx = null;
@@ -93,7 +100,7 @@ export class Sound {
       ziel = panner;
     }
     ziel.connect(this.#ausgang);
-    const dauer = rezept({ ctx, ausgang: lautstaerkeKnoten, t: ctx.currentTime, rauschen: this.#rauschen, tonhoehe });
+    const dauer = rezept({ ctx, ausgang: lautstaerkeKnoten, t: ctx.currentTime + VORLAUF, rauschen: this.#rauschen, tonhoehe });
     setTimeout(() => ziel.disconnect(), (dauer + 0.5) * 1000);
   }
 
@@ -180,9 +187,10 @@ const REZEPTE = {
     ton(ctx, ausgang, t + 0.3, { typ: 'sine', von: 55, bis: 30, dauer: 2.5, lautstaerke: 0.4 });
     return 2.8;
   },
+  // Weiches "Tapp": leise, dumpf, mit sanftem Anschlag (ein harter Rausch-Knall klang wie ein Schuss)
   schritt: ({ ctx, ausgang, t, rauschen, tonhoehe }) => {
-    rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.06, typ: 'lowpass', frequenz: 500 * tonhoehe, lautstaerke: 0.5 });
-    return 0.08;
+    rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.08, typ: 'lowpass', frequenz: 280 * tonhoehe, lautstaerke: 0.22, anschlag: 0.014 });
+    return 0.1;
   },
   aufheben: ({ ctx, ausgang, t }) => {
     ton(ctx, ausgang, t, { typ: 'triangle', von: 520, bis: 520, dauer: 0.07, lautstaerke: 0.25 });
@@ -299,7 +307,7 @@ function stoehnen({ ctx, ausgang, t, rauschen, tonhoehe }, { dauer, wut, fallen 
   return dauer + 0.1;
 }
 
-function rauschStoss(ctx, ausgang, rauschen, t, { dauer, typ, frequenz, filter, lautstaerke }) {
+function rauschStoss(ctx, ausgang, rauschen, t, { dauer, typ, frequenz, filter, lautstaerke, anschlag = ANSCHLAG }) {
   const quelle = ctx.createBufferSource();
   quelle.buffer = rauschen;
   quelle.playbackRate.value = 0.8 + Math.random() * 0.4;
@@ -310,21 +318,19 @@ function rauschStoss(ctx, ausgang, rauschen, t, { dauer, typ, frequenz, filter, 
     f.frequency.value = frequenz;
   }
   const huelle = ctx.createGain();
-  huelle.gain.setValueAtTime(lautstaerke, t);
-  huelle.gain.exponentialRampToValueAtTime(0.0001, t + dauer);
+  huellkurve(huelle.gain, t, lautstaerke, dauer, anschlag);
   quelle.connect(f).connect(huelle).connect(ausgang);
   quelle.start(t, Math.random() * 0.5);
-  quelle.stop(t + dauer + 0.02);
+  quelle.stop(t + dauer + 0.03);
 }
 
-function ton(ctx, ausgang, t, { typ, von, bis, dauer, lautstaerke, filter }) {
+function ton(ctx, ausgang, t, { typ, von, bis, dauer, lautstaerke, filter, anschlag = ANSCHLAG }) {
   const osz = ctx.createOscillator();
   osz.type = typ;
   osz.frequency.setValueAtTime(von, t);
   osz.frequency.exponentialRampToValueAtTime(Math.max(1, bis), t + dauer);
   const huelle = ctx.createGain();
-  huelle.gain.setValueAtTime(lautstaerke, t);
-  huelle.gain.exponentialRampToValueAtTime(0.0001, t + dauer);
+  huellkurve(huelle.gain, t, lautstaerke, dauer, anschlag);
   let kette = osz;
   if (filter) {
     const f = ctx.createBiquadFilter();
@@ -334,7 +340,15 @@ function ton(ctx, ausgang, t, { typ, von, bis, dauer, lautstaerke, filter }) {
   }
   kette.connect(huelle).connect(ausgang);
   osz.start(t);
-  osz.stop(t + dauer + 0.02);
+  osz.stop(t + dauer + 0.03);
+}
+
+/** Kurzer Anstieg, dann exponentielles Ausklingen – und am Ende sauber auf 0 (kein Knacken beim Stoppen). */
+function huellkurve(param, t, lautstaerke, dauer, anschlag = ANSCHLAG) {
+  param.setValueAtTime(0, t);
+  param.linearRampToValueAtTime(lautstaerke, t + anschlag);
+  param.exponentialRampToValueAtTime(0.0001, t + Math.max(dauer, anschlag * 2));
+  param.linearRampToValueAtTime(0, t + dauer + 0.015);
 }
 
 function klick(ctx, ausgang, t, frequenz, lautstaerke) {
