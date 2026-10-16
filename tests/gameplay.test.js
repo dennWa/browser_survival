@@ -920,26 +920,21 @@ test('Rucksack: Aufheben legt ihn an (+8 Plätze), Ablegen gibt Inhalt zurück, 
   assert.equal([...welt.alleVomTyp('gegenstand')].filter((g) => g.defId === 'rucksack_gross').length, 1);
 });
 
-test('Im Haus: Zombies draußen sehen und hören nicht – wer schon jagt, bleibt dran', () => {
-  const karte = {
-    id: 'haus', name: 'Haus',
-    kacheln: ['##############', '#S...........#', '#............#', '#...,,,......#', '#...,,,......#', '#............#', '##############'],
-    raeume: {},
-  };
-  const konfiguration = erstelleKonfiguration({ server: { zufallsStartwert: 7 }, spieler: { startInventar: [] } });
-  const welt = new SpielWelt(konfiguration, { kartenDefinition: karte });
-  const spieler = welt.spielerBetrittWelt('Tester');
+test('Im Haus: Lärm wird draußen nicht gehört – wer schon jagt, bleibt dran', () => {
+  const karte = { id: 'haus', name: 'Haus', raeume: {}, kacheln: [',,,,,,,,,,,,', ',,,,,,,,,,,,', ',,##F###,,,,', ',,#+++++T,,,', ',,#+S+++#,,,', ',,########,,'] };
+  const welt = new SpielWelt(erstelleKonfiguration({ server: { zufallsStartwert: 2 }, spieler: { startInventar: [] } }), { kartenDefinition: karte });
   for (const z of [...welt.alleVomTyp('zombie')]) welt.entfernen(z.id);
-  const innen = welt.welt.istInnen.bind(welt.welt);
-  welt.welt.istInnen = (x, y) => Math.floor(x / 32) >= 4 && Math.floor(x / 32) <= 6 && Math.floor(y / 32) >= 3 && Math.floor(y / 32) <= 4 ? true : innen(x, y);
-  platziere(spieler, 5, 3);
-  const z = zombieBei(welt, 9, 3);
-  ticks(welt, 10);
-  assert.equal(z.zustand, 'ruhend', 'sieht niemanden im Haus');
-  for (let i = 0; i < 5; i++) spieler.eingabePuffer.push({ seq: i + 1, x: 0, y: 0, blick: 0, sprint: true });
+  for (const t of welt.welt.tueren) {
+    welt.welt.setzeTuer(t.id, true);
+    welt.tuerHaltOffen.set(t.id, 999);
+  }
+  const s = welt.spielerBetrittWelt('Versteckt');
+  platziere(s, 5, 4);
+  const z = zombieBei(welt, 9, 4);
+  for (let i = 0; i < 5; i++) s.eingabePuffer.push({ seq: i + 1, x: 0, y: 0, blick: 0, sprint: true });
   ticks(welt, 1);
-  assert.equal(z.zielId, null, 'hört nichts');
-  z.zielId = spieler.id; // hat ihn vorher draußen gesehen
+  assert.equal(z.zielId, null, 'Sprinten im Haus hört draußen keiner');
+  z.zielId = s.id; // hat ihn vorher draußen gesehen
   ticks(welt, 5);
-  assert.equal(z.zielId, spieler.id);
+  assert.equal(z.zielId, s.id, 'Verfolger verliert ihn im Haus nicht');
 });
