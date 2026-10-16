@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { FBXLoader, SkeletonUtils } from '../vendor/three/addons.js';
 import { KartenModell } from './kartenModell.js';
-import { matrixAus, vereineGeometrien } from './geometrie.js';
+import { vereineGeometrien } from './geometrie.js';
+import { Fussspuren } from './fussspuren.js';
+import { itemGeometrie, ITEM_MATERIAL, rucksackTeile } from './itemModelle.js';
 import { zeichneBeschriftung } from './beschriftung.js';
 import { richteFigurEin, aktualisiereHaltung } from './figurHaltung.js';
 import { erzeugeWaffe, WAFFEN_NAMEN } from './waffenModelle.js';
@@ -88,12 +90,19 @@ export class Renderer {
     this.schnitt = { uFokus: { value: new THREE.Vector3() }, uRadius: { value: SCHNITT_RADIUS }, uHoehe: { value: SCHNITT_HOEHE } };
     this.figuren = new Map(); // Entitäts-ID → { gruppe, mixer, aktionen, aktuell, ... }
     this.items = new Map();
+    /** Leuchtring unter dem Item, das E gerade aufheben würde */
+    this.markierRing = new THREE.Mesh(
+      new THREE.RingGeometry(11, 14, 28, 1, 0, Math.PI * 1.6).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: 0xffe08a, transparent: true, opacity: 0.7, depthWrite: false }),
+    );
+    this.markierRing.visible = false;
     this.itemMaterialien = new Map(); // defId → { normal, markiert, breite, hoehe }
     this.figurMaterialien = new Map(); // Skin-Schlüssel → Material (geteilt)
     this.taschenlampen = Array.from({ length: MAX_TASCHENLAMPEN }, (_, i) => this.#neueTaschenlampe(i === 0));
     this.lampenPool = Array.from({ length: LAMPEN_POOL }, () => this.#neuesPunktlicht(0xffffff, 300));
     this.muendungslichter = Array.from({ length: MUENDUNGS_LICHTER }, () => this.#neuesPunktlicht(0xffc070, 380));
     this.#baueEffektObjekte();
+    this.fussspuren = new Fussspuren(this.szene);
 
     // Adaptive Auflösung
     this.aufloesungMax = Math.min(window.devicePixelRatio || 1, this.istHandy ? 1.5 : 2);
@@ -179,6 +188,7 @@ export class Renderer {
     this.#aktualisiereFiguren(entitaeten, fokus, dt, jetzt);
     this.#aktualisiereTaschenlampen(entitaeten, fokus, dunkel);
     this.#aktualisiereItems(gegenstaende, markiertId, jetzt);
+    this.fussspuren.aktualisiere(entitaeten, jetzt);
     this.#aktualisiereLampenPool(fokus, jetzt, dunkel);
     if (effekte) {
       effekte.aktualisiere(dt, jetzt);
@@ -228,9 +238,8 @@ export class Renderer {
       probe.add(f.gruppe);
     }
     for (const name of WAFFEN_NAMEN) probe.add(erzeugeWaffe(name));
-    const item = this.#itemMesh({ id: -1, defId: 'apfel', x: 0, y: 0 });
-    item.material = this.#itemMaterial('apfel').markiert;
-    probe.add(item, this.#itemMesh({ id: -2, defId: 'apfel', x: 0, y: 0 }), this.#blutMesh({ sprite: 'blutlache', groesse: 10, winkel: 0, x: 0, y: 0 }));
+    const icon = new THREE.Mesh(this.#itemMaterial('apfel').geometrie, this.#itemMaterial('apfel').markiert);
+    probe.add(icon, this.#itemMesh({ id: -2, defId: 'apfel', x: 0, y: 0 }), this.#blutMesh({ sprite: 'blutlache', groesse: 10, winkel: 0, x: 0, y: 0 }));
     this.szene.add(probe);
     this.lampenPool.forEach((l) => (l.intensity = 1));
     this.gl.compile(this.szene, this.kamera3d);
@@ -301,7 +310,7 @@ export class Renderer {
     this.partikel = new THREE.Points(this.partikelGeometrie, new THREE.PointsMaterial({ color: 0x7a1510, size: 3 }));
     this.partikel.frustumCulled = false;
     this.blutFlecken = new Map(); // Effekt-Objekt → Mesh
-    this.szene.add(this.spuren, this.partikel);
+    this.szene.add(this.spuren, this.partikel, this.markierRing);
   }
 
   // ---------------------------------------------------------------------------
@@ -403,23 +412,8 @@ export class Renderer {
       figur.rucksack = null;
       return;
     }
-    if (!this.rucksackGeometrie) {
-      const braun = new THREE.Color(0x6b4b2a);
-      const dunkel = new THREE.Color(0x3f2c18);
-      const gurt = new THREE.Color(0x2a2a2a);
-      this.rucksackGeometrie = vereineGeometrien(
-        [
-          { geometrie: new THREE.BoxGeometry(15, 17, 7), matrix: matrixAus(0, 0, 0), farbe: braun },
-          { geometrie: new THREE.BoxGeometry(15.6, 6, 7.6), matrix: matrixAus(0, 6, 0.2), farbe: dunkel }, // Deckel
-          { geometrie: new THREE.BoxGeometry(11, 7, 3), matrix: matrixAus(0, -3, -4.6), farbe: dunkel }, // Außentasche
-          { geometrie: new THREE.BoxGeometry(2.4, 18, 1.4), matrix: matrixAus(-4.5, 0, 4), farbe: gurt },
-          { geometrie: new THREE.BoxGeometry(2.4, 18, 1.4), matrix: matrixAus(4.5, 0, 4), farbe: gurt },
-        ],
-        { mitFarbe: true },
-      );
-      this.rucksackMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 });
-    }
-    const mesh = new THREE.Mesh(this.rucksackGeometrie, this.rucksackMaterial);
+    this.rucksackGeometrie ??= vereineGeometrien(rucksackTeile(), { mitFarbe: true });
+    const mesh = new THREE.Mesh(this.rucksackGeometrie, ITEM_MATERIAL);
     mesh.castShadow = true;
     mesh.position.set(0, FIGUR_HOEHE * 0.6, -8.5);
     figur.gruppe.add(mesh);
@@ -518,10 +512,21 @@ export class Renderer {
     return eintrag;
   }
 
+  /** 3D-Modell (itemModelle.js) – oder, falls es keins gibt, das flache Icon. */
   #itemMesh(g) {
-    const m = this.#itemMaterial(g.defId);
-    const mesh = new THREE.Mesh(m.geometrie, m.normal);
-    mesh.position.set(g.x, 1.5, g.y);
+    const geometrie = itemGeometrie(g.defId);
+    let mesh;
+    if (geometrie) {
+      mesh = new THREE.Mesh(geometrie, ITEM_MATERIAL);
+      mesh.castShadow = true;
+      mesh.rotation.y = ((g.id * 2.399) % (Math.PI * 2)); // jedes Item liegt anders da
+      mesh.position.set(g.x, 0, g.y);
+    } else {
+      const m = this.#itemMaterial(g.defId);
+      mesh = new THREE.Mesh(m.geometrie, m.normal);
+      mesh.userData.icon = true;
+      mesh.position.set(g.x, 1.5, g.y);
+    }
     mesh.userData.defId = g.defId;
     return mesh;
   }
@@ -536,8 +541,18 @@ export class Renderer {
         this.items.set(g.id, mesh);
         this.szene.add(mesh);
       }
-      const m = this.itemMaterialien.get(g.defId);
-      mesh.material = g.id === markiertId ? m.markiert : m.normal;
+      if (mesh.userData.icon) {
+        const m = this.itemMaterialien.get(g.defId);
+        mesh.material = g.id === markiertId ? m.markiert : m.normal;
+      }
+      // Markiertes Item (E hebt es auf): hüpft leicht, Ring darunter
+      mesh.position.y = (mesh.userData.icon ? 1.5 : 0) + (g.id === markiertId ? 2 + Math.sin(jetzt / 180) * 1.5 : 0);
+      if (g.id === markiertId) this.markierRing.position.set(g.x, 0.6, g.y);
+    }
+    this.markierRing.visible = markiertId !== null && this.items.has(markiertId);
+    if (this.markierRing.visible) {
+      this.markierRing.material.opacity = 0.55 + Math.sin(jetzt / 150) * 0.25;
+      this.markierRing.rotation.y = jetzt / 900;
     }
     if (markiertId !== null) this.itemMaterialien.forEach((m) => (m.markiert.emissiveIntensity = 0.6 + Math.sin(jetzt / 150) * 0.3));
     for (const [id, mesh] of this.items) {
