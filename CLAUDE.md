@@ -8,4 +8,5 @@
    Darstellung ist **nur 3D** (Three.js, `client/darstellung/renderer.js`) – kein 2D-Renderer mehr.
 6. Touch-Bedienung (Handy/Tablet) bei jeder neuen Aktion mitdenken.
 7. Vor jedem Commit: `npm test`.
-8. Am Ende jeder Antwort den Link zum Spiel posten: https://dennwa.github.io/browser_survival/
+8. **Immer direkt auf `main` arbeiten, committen und pushen** (keine Feature-Branches, keine PRs) – GitHub Pages liefert `main` aus.
+9. Am Ende jeder Antwort den Link zum Spiel posten: https://dennwa.github.io/browser_survival/
