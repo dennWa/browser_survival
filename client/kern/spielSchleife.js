@@ -32,7 +32,10 @@ export class SpielSchleife {
   }
 
   #frame(jetzt) {
-    const delta = Math.min(jetzt - this.letzteZeit, MAX_FRAME_MS);
+    const roh = jetzt - this.letzteZeit;
+    const delta = Math.min(roh, MAX_FRAME_MS);
+    // Tab war im Hintergrund / langer Hänger: Messfenster neu starten, sonst zeigt die Anzeige Unsinn
+    if (roh > MAX_FRAME_MS) this.#fpsZaehler = { frames: 0, seit: jetzt };
     this.letzteZeit = jetzt;
     this.akkumulator += delta;
     while (this.akkumulator >= this.tickDauerMs) {

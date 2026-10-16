@@ -419,8 +419,9 @@ export class Hud {
     const t = performance.now();
     if (t - this.#letztesFps > FPS_INTERVALL_MS) {
       this.#letztesFps = t;
-      this.el.fps.textContent = `${d.fps ?? '–'} FPS`;
-      this.el.fps.classList.toggle('langsam', (d.fps ?? 60) < 25);
+      const fps = d.fps > 0 ? d.fps : null; // erste Sekunde: noch keine Messung
+      this.el.fps.textContent = `${fps ?? '–'} FPS`;
+      this.el.fps.classList.toggle('langsam', fps !== null && fps < 25);
     }
 
     const jetzt = performance.now();
