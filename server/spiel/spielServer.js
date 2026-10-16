@@ -14,6 +14,8 @@ import { ADMIN_BEFEHLE, AKTIONEN, NACHRICHT, dekodiere, kodiere } from '../../ge
 import { erstelleKonfiguration } from './konfiguration/spielKonfiguration.js';
 import { GEGENSTAENDE } from './konfiguration/gegenstaende.js';
 import { REZEPTE } from './konfiguration/rezepte.js';
+import { pruefeAussehen } from '../../gemeinsam/spieler/aussehen.js';
+import { packeErkundet } from '../../gemeinsam/welt/erkundung.js';
 import { entwicklerWerte, setzeAllesZurueck, setzeEntwicklerWert, wendeGegenstandsUeberschreibungenAn } from './entwickler.js';
 import { spielerDatenPrivat } from './entitaeten/spieler.js';
 import { erstelleSpielstand, wendeSpielstandAn } from './spielstand.js';
@@ -294,6 +296,8 @@ export class SpielServer {
 
     const spieler = this.spielWelt.spielerBetrittWelt(name, { admin: ergebnis.admin === true });
     const geladen = wendeSpielstandAn(spieler, spielstand, this.spielWelt);
+    // Beim Login gewählte Figur gilt (und landet im Spielstand)
+    if (nachricht.aussehen && typeof nachricht.aussehen === 'object') spieler.aussehen = pruefeAussehen(nachricht.aussehen);
     clearTimeout(sitzung.loginTimer);
     sitzung.status = 'imSpiel';
     sitzung.spielerId = spieler.id;
@@ -314,6 +318,7 @@ export class SpielServer {
       tueren: this.spielWelt.welt.offeneTueren(),
       abgebaut: [...this.spielWelt.welt.abgebaut],
       bauwerke: [...this.spielWelt.welt.bauwerke.values()],
+      erkundet: packeErkundet(spieler.erkundet),
       rezepte: REZEPTE,
       tageszeit: this.spielWelt.tageszeitDauer(),
       zeit: this.spielWelt.zeit,
@@ -376,6 +381,7 @@ export class SpielServer {
     if (n.art === AKTIONEN.HERSTELLEN) aktion.rezept = n.rezept;
     if (n.art === AKTIONEN.TAUSCHEN) aktion.ziel = n.ziel;
     if (n.art === AKTIONEN.PLATZIEREN) Object.assign(aktion, { tx: n.tx, ty: n.ty });
+    if (n.art === AKTIONEN.SKILL) aktion.skill = typeof n.skill === 'string' ? n.skill : null;
     spieler.aktionsPuffer.push(aktion);
   }
 

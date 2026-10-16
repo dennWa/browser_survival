@@ -1,3 +1,5 @@
+import { AUSSEHEN, pruefeAussehen } from '../../gemeinsam/spieler/aussehen.js';
+
 /**
  * Login-Bildschirm: Serverauswahl, Benutzername, Passwort.
  * Registrierung gibt es bewusst nicht – Accounts legt der Server-Admin an (npm run konto).
@@ -5,6 +7,7 @@
  */
 const SPEICHER_SCHLUESSEL = 'browserSurvival.login';
 const GAST_SCHLUESSEL = 'browserSurvival.gastName';
+const AUSSEHEN_SCHLUESSEL = 'browserSurvival.aussehen';
 
 /** Zufälliger Gastname, z. B. "Gast-4821" – wird im Browser gemerkt (gleicher Gast = gleicher Spielstand). */
 export function gastName(neu = false) {
@@ -42,10 +45,12 @@ export class LoginBildschirm {
       knopf: dokument.getElementById('login-knopf'),
       gast: dokument.getElementById('login-gast'),
       gastName: dokument.getElementById('login-gast-name'),
+      aussehen: dokument.getElementById('login-aussehen'),
       meldung: dokument.getElementById('login-meldung'),
     };
 
     for (const eintrag of serverListe) this.el.server.add(new Option(eintrag.name, eintrag.id));
+    this.#baueAussehenWahl(dokument);
     this.#ladeGespeichertes();
     this.#feldSichtbarkeit();
 
@@ -96,8 +101,43 @@ export class LoginBildschirm {
     return this.serverListe.find((s) => s.id === this.el.server.value) ?? this.serverListe[0];
   }
 
+  /** Auswahlknöpfe je aktivem Aussehen-Merkmal (z. B. Figur: Mann/Frau); Wahl wird im Browser gemerkt. */
+  #baueAussehenWahl(dokument) {
+    let gespeichert = null;
+    try {
+      gespeichert = JSON.parse(localStorage.getItem(AUSSEHEN_SCHLUESSEL) ?? 'null');
+    } catch {
+      // egal
+    }
+    this.aussehen = pruefeAussehen(gespeichert);
+    for (const [merkmal, def] of Object.entries(AUSSEHEN)) {
+      if (!def.aktiv) continue;
+      const zeile = Object.assign(dokument.createElement('div'), { className: 'aussehen-zeile' });
+      zeile.append(Object.assign(dokument.createElement('span'), { textContent: def.name }));
+      for (const [wert, option] of Object.entries(def.optionen)) {
+        const knopf = Object.assign(dokument.createElement('button'), {
+          type: 'button',
+          textContent: `${option.symbol ?? ''} ${option.name}`.trim(),
+          className: this.aussehen[merkmal] === wert ? 'aktiv' : '',
+        });
+        knopf.addEventListener('click', () => {
+          this.aussehen[merkmal] = wert;
+          for (const k of zeile.querySelectorAll('button')) k.classList.toggle('aktiv', k === knopf);
+          try {
+            localStorage.setItem(AUSSEHEN_SCHLUESSEL, JSON.stringify(this.aussehen));
+          } catch {
+            // egal
+          }
+        });
+        zeile.append(knopf);
+      }
+      this.el.aussehen.append(zeile);
+    }
+  }
+
   #werte() {
     return {
+      aussehen: { ...this.aussehen },
       server: this.#aktuellerServer(),
       adresse: this.el.adresse.value.trim(),
       benutzername: this.el.name.value.trim(),

@@ -9,6 +9,7 @@ import { benutzeTuer, verstaerkeTuer as verstaerkeNaechsteTuer } from './tuerSys
 import { starteAbbau, starteSchlafen } from './arbeitSystem.js';
 import { stelleHer } from './craftingSystem.js';
 import { benutzeBauwerk, feuer, platziere } from './bauSystem.js';
+import { setzeSkillpunkt } from './levelSystem.js';
 
 /**
  * Inventar: Aufheben, Benutzen (Essen/Trinken/Medizin), Aus-/Abrüsten, Ablegen, Nachladen.
@@ -77,6 +78,9 @@ export function verarbeiteAktionen(spielWelt) {
           break;
         case AKTIONEN.BAUWERK:
           benutzeBauwerk(spielWelt, spieler);
+          break;
+        case AKTIONEN.SKILL:
+          setzeSkillpunkt(spielWelt, spieler, aktion.skill);
           break;
         case AKTIONEN.NACHLADEN:
           starteNachladen(spielWelt, spieler);

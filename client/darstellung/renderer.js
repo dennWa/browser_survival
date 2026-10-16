@@ -4,6 +4,7 @@ import { KartenModell } from './kartenModell.js';
 import { vereineGeometrien } from './geometrie.js';
 import { Fussspuren } from './fussspuren.js';
 import { erzeugeBauwerk, erzeugeVorschau } from './bauwerkModelle.js';
+import { AUSSEHEN, skinFuer } from '../../gemeinsam/spieler/aussehen.js';
 import { itemGeometrie, ITEM_MATERIAL, rucksackTeile } from './itemModelle.js';
 import { zeichneBeschriftung } from './beschriftung.js';
 import { richteFigurEin, aktualisiereHaltung } from './figurHaltung.js';
@@ -33,7 +34,7 @@ const SCHNITT_RADIUS = 115; // px um die eigene Figur, in denen kameraseitige W�
 const SCHNITT_HOEHE = 10; // bis zu dieser Höhe bleiben aufgeschnittene Wände als Sockel stehen
 const ZIELHOEHE = 36; // Mausstrahl trifft diese Höhe (Brust) → Zielen fühlt sich richtig an
 const KAMERA_VERSATZ = new THREE.Vector3(0, 560, 380);
-const SKINS = { spieler: 'humanMaleA', normal: 'zombieMaleA', laeufer: 'zombieFemaleA', brocken: 'zombieMaleA' };
+const SKINS = { normal: 'zombieMaleA', laeufer: 'zombieFemaleA', brocken: 'zombieMaleA' }; // Zombies; Spieler: aussehen.js
 const MAX_TASCHENLAMPEN = 3;
 const LAMPEN_POOL = 6; // so viele Kartenlampen leuchten gleichzeitig echt (die nächsten)
 const MUENDUNGS_LICHTER = 2;
@@ -403,8 +404,12 @@ export class Renderer {
   #vorkompilieren() {
     const probe = new THREE.Group();
     probe.position.set(this.welt.pixelBreite / 2, 0, this.welt.pixelHoehe / 2);
-    for (const variante of ['spieler', 'normal', 'laeufer', 'brocken']) {
-      const f = this.#neueFigur({ id: -1, typ: variante === 'spieler' ? 'spieler' : 'zombie', variante });
+    const figuren = [
+      ...Object.keys(AUSSEHEN.koerper.optionen).map((koerper) => ({ id: -1, typ: 'spieler', aussehen: { koerper } })),
+      ...['normal', 'laeufer', 'brocken'].map((variante) => ({ id: -1, typ: 'zombie', variante })),
+    ];
+    for (const e of figuren) {
+      const f = this.#neueFigur(e);
       this.szene.remove(f.gruppe);
       probe.add(f.gruppe);
     }
@@ -593,9 +598,11 @@ export class Renderer {
   }
 
   #figurMaterial(e) {
-    const schluessel = e.typ === 'spieler' ? 'spieler' : (e.variante ?? 'normal');
+    // Spieler: Skin aus dem gewählten Aussehen (gemeinsam/spieler/aussehen.js), Zombies: nach Variante
+    const schluessel = e.typ === 'spieler' ? skinFuer(e.aussehen) : (e.variante ?? 'normal');
     if (!this.figurMaterialien.has(schluessel)) {
-      const material = new THREE.MeshStandardMaterial({ map: this.skins[SKINS[schluessel] ?? SKINS.normal], roughness: 0.75 });
+      const skin = e.typ === 'spieler' ? schluessel : SKINS[schluessel];
+      const material = new THREE.MeshStandardMaterial({ map: this.skins[skin] ?? this.skins[SKINS.normal], roughness: 0.75 });
       if (schluessel === 'brocken') material.color.setRGB(0.75, 0.6, 0.55);
       this.figurMaterialien.set(schluessel, material);
     }

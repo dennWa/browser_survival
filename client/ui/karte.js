@@ -1,5 +1,6 @@
 import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
 import { BodenTextur } from '../darstellung/bodenTextur.js';
+import { entpackeErkundet } from '../../gemeinsam/welt/erkundung.js';
 
 /**
  * Karte (Taste K / 🗺): zeigt die ganze Stadt – aber nur dort, wo man schon war ("Nebel des Krieges").
@@ -34,6 +35,16 @@ export class Karte {
 
   get offen() {
     return !this.el.hidden;
+  }
+
+  /** Erkundung vom Server dazunehmen (Base64, siehe gemeinsam/welt/erkundung.js) – was lokal schon da ist, bleibt. */
+  uebernimm(base64) {
+    const vomServer = entpackeErkundet(base64, this.erkundet.length);
+    if (!vomServer) return;
+    for (let i = 0; i < vomServer.length; i++) if (vomServer[i] && !this.erkundet[i]) {
+      this.erkundet[i] = 1;
+      this.geaendert = true;
+    }
   }
 
   zeige(offen = !this.offen) {

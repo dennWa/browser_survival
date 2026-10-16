@@ -10,7 +10,10 @@
 
 export const NACHRICHT = Object.freeze({
   // ---- Client → Server ----
-  /** { benutzername, passwort, protokoll, gast? } – gast: true = ohne Account (benutzername muss GAST_MUSTER sein) */
+  /**
+   * { benutzername, passwort, protokoll, gast?, aussehen? } – gast: true = ohne Account (benutzername muss GAST_MUSTER sein);
+   * aussehen = gewählte Figur (gemeinsam/spieler/aussehen.js), wird geprüft und im Spielstand gemerkt
+   */
   ANMELDEN: 'anmelden',
   /** { seq, x, y, blick, angriff, sprint } – x/y: Bewegungsrichtung -1..1, blick: Winkel (Radiant), angriff/sprint: Taste gehalten */
   EINGABE: 'eingabe',
@@ -69,6 +72,7 @@ export const AKTIONEN = Object.freeze({
   PLATZIEREN: 'platzieren', // { slot, tx, ty } Bauwerk-Item (oder Hacke → Beet) auf Kachel tx/ty aufstellen
   FEUER: 'feuer', // F: nächstes Lagerfeuer anzünden (Feuerzeug nötig) / löschen – sonst wie 'tuer'
   BAUWERK: 'bauwerk', // E am nächsten Bauwerk: Falle aufnehmen/spannen, kochen, pflanzen, ernten
+  SKILL: 'skill', // { skill } einen Skillpunkt verteilen (gemeinsam/spieler/skills.js)
   NACHLADEN: 'nachladen', // ausgerüstete Schusswaffe nachladen
   TUER: 'tuer', // nächste Tür in Reichweite öffnen/schließen
   ABBAUEN: 'abbauen', // nächsten Baum/Stein abbauen (Axt/Spitzhacke nötig, dauert)

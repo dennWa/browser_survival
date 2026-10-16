@@ -142,9 +142,9 @@ export class SpielWelt {
 
   spielerBetrittWelt(benutzername, { admin = false } = {}) {
     const start = this.zufall.auswahl(this.karte.spielerStarts);
-    return this.hinzufuegen(
-      gibStartausruestung(erzeugeSpieler({ id: this.neueId(), benutzername, x: start.x, y: start.y, konfiguration: this.konfiguration, admin }), this.konfiguration),
-    );
+    const spieler = gibStartausruestung(erzeugeSpieler({ id: this.neueId(), benutzername, x: start.x, y: start.y, konfiguration: this.konfiguration, admin }), this.konfiguration);
+    spieler.erkundet = new Uint8Array(this.welt.breite * this.welt.hoehe); // Karte (K), siehe gemeinsam/welt/erkundung.js
+    return this.hinzufuegen(spieler);
   }
 
   ereignis(ereignis) {

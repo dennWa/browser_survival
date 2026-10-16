@@ -56,6 +56,7 @@ export class ClientSpiel {
       assets: renderer.assets,
       schluessel: `${anmeldeDaten.serverName}:${benutzername.toLowerCase()}:${this.welt.id}`,
     });
+    if (anmeldeDaten.erkundet) this.karte.uebernimm(anmeldeDaten.erkundet); // vom Server (auch von anderen Geräten)
     this.werkbankOffen = false;
     // Uhr: Serverzeit + seit Empfang vergangene Zeit (läuft zwischen den Schnappschüssen weich weiter)
     this.tageszeitDauer = anmeldeDaten.tageszeit ?? { tagSekunden: 600, nachtSekunden: 300 };
@@ -75,7 +76,7 @@ export class ClientSpiel {
     this.letztesStoehnen = 0;
 
     // Vorhergesagter eigener Spieler (+ Position vom vorherigen Takt für weiche Darstellung)
-    this.lokal = { x: anmeldeDaten.start.x, y: anmeldeDaten.start.y, blick: 0 };
+    this.lokal = { x: anmeldeDaten.start.x, y: anmeldeDaten.start.y, blick: 0, tempoFaktor: anmeldeDaten.spielerDaten?.tempoFaktor ?? 1 };
     this.lokalVorher = { x: this.lokal.x, y: this.lokal.y };
     this.eigeneDaten = null; // letzter öffentlicher Server-Stand des eigenen Spielers
     this.seq = 0;
@@ -176,6 +177,11 @@ export class ClientSpiel {
     return liste;
   }
 
+  /** Skillpunkt verteilen (Fähigkeiten-Fenster). */
+  skill(name) {
+    this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.SKILL, skill: name });
+  }
+
   /** Developer-Modus (nur Admins – der Server prüft das). */
   entwickler(typ, daten = {}) {
     if (this.spielerDaten?.admin) this.#senden({ typ, ...daten });
@@ -186,6 +192,7 @@ export class ClientSpiel {
     this.karte.zeige(false);
     this.hud.entwickler.zeige(false);
     this.hud.inventar.zeige(false);
+    this.hud.skills.zeige(false);
     this.werkbankUmschalten(false);
     this.platzierungAbbrechen();
   }
@@ -415,6 +422,7 @@ export class ClientSpiel {
     if (vorher) this.#datenSound(vorher, daten);
     if (vorher?.tot && !daten.tot) this.offeneEingaben = []; // Respawn: neue Position kommt vom Server
     this.spielerDaten = daten;
+    this.lokal.tempoFaktor = daten.tempoFaktor ?? 1; // Skill "Schnelligkeit" → Vorhersage läuft gleich schnell wie der Server
     this.hud.setzeSpielerDaten(daten, this.itemDefinitionen);
     if (this.werkbankOffen) this.hud.zeigeWerkbank(this.rezepte, daten, this.itemDefinitionen);
   }

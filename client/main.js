@@ -53,6 +53,7 @@ eingabe.beiTaste('aufheben', () => aktuellesSpiel?.interagieren());
 eingabe.beiTaste('menue', () => aktuellesSpiel?.menuesSchliessen());
 eingabe.beiTaste('karte', () => aktuellesSpiel?.karteUmschalten());
 eingabe.beiTaste('inventar', () => aktuellesSpiel && hud.inventar.zeige());
+eingabe.beiTaste('skills', () => aktuellesSpiel && hud.skills.zeige());
 eingabe.beiTaste('fallenlassen', () => aktuellesSpiel?.fallenlassen(hud.inventar.platzUnterMaus));
 eingabe.beiTaste('chat', () => aktuellesSpiel && hud.chatOeffnen());
 eingabe.beiTaste('spielerliste', () => aktuellesSpiel && hud.spielerlisteUmschalten(aktuellesSpiel.spielerNamen()));
@@ -73,6 +74,7 @@ hud.beiAktionen({
   tauschen: (von, nach) => aktuellesSpiel?.tauschen(von, nach),
   rucksackAblegen: () => aktuellesSpiel?.rucksackAblegen(),
   zoomStufe: () => renderer?.naechsteZoomStufe(),
+  skill: (name) => aktuellesSpiel?.skill(name),
   platzierenOk: () => aktuellesSpiel?.platzierungBestaetigen(),
   platzierenAbbrechen: () => aktuellesSpiel?.platzierungAbbrechen(),
   licht: () => aktuellesSpiel?.licht(),
@@ -104,7 +106,7 @@ window.browserSurvival = {
 };
 document.getElementById('credits-knopf').addEventListener('click', () => zeigeCredits(document, assets));
 
-login.beiAnmeldung(async ({ server, adresse, benutzername, passwort, gast = false }) => {
+login.beiAnmeldung(async ({ server, adresse, benutzername, passwort, gast = false, aussehen = null }) => {
   sound.entsperren(); // Klick auf "Login" = Nutzeraktion → Browser erlaubt ab jetzt Ton
   if (!renderer) {
     login.zeigeMeldung('Dein Browser kann keine 3D-Grafik (WebGL) – leider geht es ohne nicht.', true);
@@ -116,14 +118,14 @@ login.beiAnmeldung(async ({ server, adresse, benutzername, passwort, gast = fals
     verbindung = await verbindungAufbauen(server, adresse);
     let anmeldeDaten;
     try {
-      anmeldeDaten = await anmelden(verbindung, { benutzername, passwort, gast });
+      anmeldeDaten = await anmelden(verbindung, { benutzername, passwort, gast, aussehen });
     } catch (fehler) {
       // Gast schon online (z. B. zweiter Tab) → mit neuem Zufallsnamen nochmal
       if (!gast || !/bereits eingeloggt/.test(fehler.message)) throw fehler;
       if (!verbindung.getrennt) verbindung.trennen('Neuer Gastname');
       benutzername = gastName(true);
       verbindung = await verbindungAufbauen(server, adresse);
-      anmeldeDaten = await anmelden(verbindung, { benutzername, passwort, gast });
+      anmeldeDaten = await anmelden(verbindung, { benutzername, passwort, gast, aussehen });
     }
     await spielStarten(verbindung, anmeldeDaten, benutzername);
   } catch (fehler) {

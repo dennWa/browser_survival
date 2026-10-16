@@ -26,7 +26,8 @@ export function wendeEingabeAn(koerper, eingabe, welt, parameter, dt) {
   const richtung = richtungAusEingabe(eingabe);
   const willSprinten = eingabe.sprint === true && Math.hypot(richtung.x, richtung.y) > 0.1;
   const sprintet = aktualisiereAusdauer(koerper, willSprinten, parameter, dt);
-  const weg = parameter.geschwindigkeit * (sprintet ? parameter.sprintFaktor : 1) * dt;
+  // tempoFaktor: Skill "Schnelligkeit" (Server setzt ihn am Spieler, der Client übernimmt ihn für die Vorhersage)
+  const weg = parameter.geschwindigkeit * (koerper.tempoFaktor ?? 1) * (sprintet ? parameter.sprintFaktor : 1) * dt;
   bewegeKoerper(koerper, richtung.x * weg, richtung.y * weg, parameter.radius, welt);
   if (Number.isFinite(eingabe.blick)) koerper.blick = eingabe.blick;
   koerper.sprintet = sprintet;

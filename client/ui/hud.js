@@ -2,6 +2,7 @@ import { HOTBAR_PLAETZE } from '../../gemeinsam/konstanten.js';
 import { WerkbankMenue } from './werkbankMenue.js';
 import { EntwicklerFenster } from './entwicklerFenster.js';
 import { InventarFenster } from './inventarFenster.js';
+import { SkillFenster } from './skillFenster.js';
 
 /**
  * HUD (Head-Up-Display) über dem Spiel:
@@ -126,6 +127,10 @@ export class Hud {
       herstellen: (rezept) => this.#aktionen.herstellen?.(rezept),
     });
     el('hud-inventar').addEventListener('click', () => this.inventar.zeige());
+    this.skills = new SkillFenster(dokument);
+    this.skills.beiSkill((name) => this.#aktionen.skill?.(name));
+    el('hud-skills').addEventListener('click', () => this.skills.zeige());
+    el('wert-level').addEventListener('click', () => this.skills.zeige());
     el('hud-zoom').addEventListener('click', () => this.#aktionen.zoomStufe?.());
     el('platzieren-ok').addEventListener('click', () => this.#aktionen.platzierenOk?.());
     el('platzieren-weg').addEventListener('click', () => this.#aktionen.platzierenAbbrechen?.());
@@ -162,7 +167,7 @@ export class Hud {
     this.el.vollbild.hidden = !istTouch || !document.fullscreenEnabled;
     this.el.hilfe.textContent = istTouch
       ? 'Links: laufen · Rechts: zielen, ganz drücken = Angriff'
-      : 'WASD laufen · Maus zielen · Klick/Leertaste Angriff · E benutzen · F Tür · R nachladen · L Lampe · I Inventar · Q fallen lassen · K Karte · T Chat · Tab Spieler · 1–8 Schnellleiste';
+      : 'WASD laufen · Maus zielen · Klick/Leertaste Angriff · E benutzen · F Tür · R nachladen · L Lampe · I Inventar · U Fähigkeiten · Q fallen lassen · K Karte · T Chat · Tab Spieler · 1–8 Schnellleiste';
     this.#letzterHinweis = null;
     this.#letzterTuerHinweis = null;
     this.#letzteUhr = '';
@@ -180,6 +185,7 @@ export class Hud {
     this.werkbank.zeige(null);
     this.entwickler.zeige(false);
     this.inventar.zeige(false);
+    this.skills.zeige(false);
     this.chatSchliessen();
     this.el.chatLog.replaceChildren();
     this.el.spielerliste.hidden = true;
@@ -245,6 +251,9 @@ export class Hud {
       this.#zeichneSlot(this.#slots[slot], daten.inventar[slot], itemDefinitionen, slot === daten.ausgeruestet);
     }
     this.inventar.setzeDaten(daten, itemDefinitionen);
+    this.skills.setzeDaten(daten);
+    this.dokument.getElementById('hud-skills').classList.toggle('hinweis', (daten.skillPunkte ?? 0) > 0);
+    this.el.level.classList.toggle('punkte-frei', (daten.skillPunkte ?? 0) > 0);
 
     // Munitionsanzeige für ausgerüstete Schusswaffe
     const waffe = daten.ausgeruestet !== null ? daten.inventar[daten.ausgeruestet] : null;

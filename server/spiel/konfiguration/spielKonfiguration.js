@@ -128,6 +128,7 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     xpProZombie: 10, // nur Rückfallwert – pro Zombie-Typ: zombie.varianten.<typ>.xp
     ersteStufe: 50,
     zuwachs: 20,
+    punkteProLevel: 1, // Skillpunkte pro Aufstieg (gemeinsam/spieler/skills.js)
   },
 });
 

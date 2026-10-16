@@ -1,6 +1,7 @@
 import { TICK_DAUER_S } from '../../../gemeinsam/konstanten.js';
 import { wendeEingabeAn } from '../../../gemeinsam/physik/bewegung.js';
 import { alarmiereZombies } from './kampfSystem.js';
+import { markiereErkundet } from '../../../gemeinsam/welt/erkundung.js';
 
 /**
  * Verarbeitet die gepufferten Eingaben aller Spieler.
@@ -11,6 +12,7 @@ import { alarmiereZombies } from './kampfSystem.js';
 export function verarbeiteSpielerEingaben(spielWelt) {
   const parameter = spielWelt.physikParameter();
   const hoerRadius = spielWelt.konfiguration.spieler.sprintHoerRadius;
+  const g = spielWelt.welt.kachelGroesse;
   for (const spieler of spielWelt.alleVomTyp('spieler')) {
     while (spieler.eingabePuffer.length > 0) {
       const eingabe = spieler.eingabePuffer.shift();
@@ -20,6 +22,12 @@ export function verarbeiteSpielerEingaben(spielWelt) {
         if (sprintet) alarmiereZombies(spielWelt, spieler.x, spieler.y, hoerRadius, spieler.id);
       }
       spieler.letzteVerarbeiteteSeq = eingabe.seq;
+    }
+    // Karte: erkundete Kacheln merken (nur beim Betreten einer neuen Kachel)
+    const kachel = Math.floor(spieler.y / g) * spielWelt.welt.breite + Math.floor(spieler.x / g);
+    if (spieler.erkundet && kachel !== spieler.erkundetKachel && !spieler.tot) {
+      spieler.erkundetKachel = kachel;
+      markiereErkundet(spieler.erkundet, spielWelt.welt, spieler.x, spieler.y);
     }
   }
 }

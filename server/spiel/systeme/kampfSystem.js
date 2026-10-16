@@ -4,6 +4,7 @@ import { bewegeKoerper } from '../../../gemeinsam/physik/bewegung.js';
 import { NAHKAMPF_KEGEL, STANDARD_AUSRUESTUNG } from '../konfiguration/gegenstaende.js';
 import { aktuelleWaffe, legeAufBoden, legeRucksackAb, starteNachladen, zaehleMunition } from './inventarSystem.js';
 import { gibXp, setzeLevelZurueck } from './levelSystem.js';
+import { staerkeFaktor } from '../../../gemeinsam/spieler/skills.js';
 import { lasseZombieLootFallen } from './lootSystem.js';
 
 /**
@@ -75,7 +76,7 @@ function nahkampf(spielWelt, spieler, def) {
     if (abstand > def.reichweite) continue;
     const richtung = Math.atan2(ziel.y - spieler.y, ziel.x - spieler.x);
     const differenz = Math.abs(Math.atan2(Math.sin(richtung - spieler.blick), Math.cos(richtung - spieler.blick)));
-    if (differenz <= NAHKAMPF_KEGEL) fuegeSchadenZu(spielWelt, ziel, def.schaden, spieler, richtung);
+    if (differenz <= NAHKAMPF_KEGEL) fuegeSchadenZu(spielWelt, ziel, def.schaden * staerkeFaktor(spieler.skills), spieler, richtung);
   }
   alarmiereZombies(spielWelt, spieler.x, spieler.y, NAHKAMPF_HOERWEITE, spieler.id);
 }
@@ -145,7 +146,7 @@ export function toeten(spielWelt, ziel, quelle = null) {
     respawnRest: spielWelt.konfiguration.spieler.respawnZeit,
   });
   const verlorenesLevel = ziel.level;
-  setzeLevelZurueck(ziel);
+  setzeLevelZurueck(ziel, spielWelt.konfiguration);
   spielWelt.melde(ziel.id, verlorenesLevel > 1 ? `Du bist gestorben – Level ${verlorenesLevel} ist weg, zurück auf Level 1` : 'Du bist gestorben');
 }
 

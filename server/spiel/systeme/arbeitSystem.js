@@ -3,6 +3,7 @@ import { ABBAU_REICHWEITE } from '../../../gemeinsam/welt/ressourcen.js';
 import { sekundenFuerStunden, tageszeit } from '../../../gemeinsam/tageszeit.js';
 import { fuegeZumInventarHinzu, legeAufBoden } from './inventarSystem.js';
 import { GEGENSTAENDE } from '../konfiguration/gegenstaende.js';
+import { sammelFaktor } from '../../../gemeinsam/spieler/skills.js';
 import { aktualisiereBauwerke, kochenFertig } from './bauSystem.js';
 
 /**
@@ -30,7 +31,7 @@ export function starteAbbau(spielWelt, spieler) {
     spielWelt.melde(spieler.id, `Du brauchst ${r.werkzeug === 'axt' ? 'eine Axt' : 'eine Spitzhacke'}`);
     return;
   }
-  const { dauer } = spielWelt.konfiguration.ressourcen[r.art];
+  const dauer = spielWelt.konfiguration.ressourcen[r.art].dauer * sammelFaktor(spieler.skills);
   spieler.arbeit = { art: r.art, dauer, rest: dauer, x: spieler.x, y: spieler.y, ressourceId: r.id, naechsterSchlag: SCHLAG_TAKT * 0.6 };
   spieler.nachladenRest = 0;
 }

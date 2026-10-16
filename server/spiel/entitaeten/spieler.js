@@ -1,6 +1,8 @@
 import { INVENTAR_PLAETZE } from '../../../gemeinsam/konstanten.js';
 import { STANDARD_AUSRUESTUNG } from '../konfiguration/gegenstaende.js';
 import { xpFuerNaechstesLevel } from '../systeme/levelSystem.js';
+import { leereSkills } from '../../../gemeinsam/spieler/skills.js';
+import { pruefeAussehen } from '../../../gemeinsam/spieler/aussehen.js';
 
 /**
  * Spieler-Entität ("Männeken").
@@ -38,6 +40,12 @@ export function erzeugeSpieler({ id, benutzername, x, y, konfiguration, admin = 
     /** Level (öffentlich, steht in der Spielerliste) und XP im aktuellen Level – siehe systeme/levelSystem.js */
     level: 1,
     xp: 0,
+    /** Skills (gemeinsam/spieler/skills.js) + noch zu verteilende Punkte; tempoFaktor wirkt in der Bewegung */
+    skills: leereSkills(),
+    skillPunkte: 0,
+    tempoFaktor: 1,
+    /** Aussehen (gemeinsam/spieler/aussehen.js) – öffentlich */
+    aussehen: pruefeAussehen(null),
     // [privat]
     admin, // darf Admin-Befehle benutzen (kommt von der Authentifizierung)
     hunger: k.startHunger, // 100 = satt, 0 = verhungert
@@ -90,6 +98,7 @@ export function spielerZuNetzwerk(s) {
     arbeitOrt: s.arbeit?.ort ?? null, // Bett beim Schlafen
     level: s.level,
     rucksack: s.rucksack !== null, // Rucksack auf dem Rücken (3D-Modell)
+    aussehen: s.aussehen,
     seq: s.letzteVerarbeiteteSeq,
   };
 }
@@ -100,6 +109,9 @@ export function spielerDatenPrivat(s, konfiguration) {
     level: s.level,
     xp: s.xp,
     xpNaechstes: xpFuerNaechstesLevel(s.level, konfiguration.level),
+    skills: s.skills,
+    skillPunkte: s.skillPunkte,
+    tempoFaktor: s.tempoFaktor, // für die Bewegungs-Vorhersage im Client
     leben: Math.ceil(s.leben),
     maxLeben: s.maxLeben,
     hunger: Math.ceil(s.hunger),

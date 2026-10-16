@@ -1,6 +1,10 @@
 import { INVENTAR_PLAETZE } from '../../gemeinsam/konstanten.js';
 import { GEGENSTAENDE } from './konfiguration/gegenstaende.js';
 import { aktualisiereAusruestung, legeRucksackAn } from './systeme/inventarSystem.js';
+import { wendeSkillsAn } from './systeme/levelSystem.js';
+import { SKILLS, leereSkills } from '../../gemeinsam/spieler/skills.js';
+import { pruefeAussehen } from '../../gemeinsam/spieler/aussehen.js';
+import { entpackeErkundet, packeErkundet } from '../../gemeinsam/welt/erkundung.js';
 
 /**
  * Spielstand eines Spielers: was beim Ausloggen erhalten bleibt.
@@ -24,6 +28,10 @@ export function erstelleSpielstand(spieler, kartenId) {
     ausgeruestet: spieler.ausgeruestet,
     level: spieler.level,
     xp: spieler.xp,
+    skills: { ...spieler.skills },
+    skillPunkte: spieler.skillPunkte,
+    aussehen: { ...spieler.aussehen },
+    erkundet: spieler.erkundet ? { karte: kartenId, daten: packeErkundet(spieler.erkundet) } : null,
     gespeichert: new Date().toISOString(),
   };
 }
@@ -38,11 +46,17 @@ export function wendeSpielstandAn(spieler, stand, spielWelt) {
 
   // Tote oder verhungerte Stände nicht wiederbeleben → frischer Start
   if (!(zahl(stand.leben) > 0)) return false;
-  spieler.leben = begrenze(stand.leben, 1, spieler.maxLeben);
   spieler.hunger = begrenze(zahl(stand.hunger) ?? spieler.hunger, 0, 100);
   spieler.durst = begrenze(zahl(stand.durst) ?? spieler.durst, 0, 100);
   if (Number.isInteger(stand.level) && stand.level >= 1) spieler.level = Math.min(stand.level, 999);
   if (Number.isFinite(stand.xp) && stand.xp >= 0) spieler.xp = Math.floor(stand.xp);
+  ladeSkills(spieler, stand, spielWelt.konfiguration); // setzt maxLeben (Zähigkeit) – darum Leben erst danach
+  spieler.leben = begrenze(stand.leben, 1, spieler.maxLeben);
+  spieler.aussehen = pruefeAussehen(stand.aussehen);
+  if (stand.erkundet?.karte === spielWelt.karte.daten.id && typeof stand.erkundet.daten === 'string' && spieler.erkundet) {
+    const erkundet = entpackeErkundet(stand.erkundet.daten, spieler.erkundet.length);
+    if (erkundet) spieler.erkundet = erkundet;
+  }
 
   // Position nur, wenn gleiche Karte und begehbar (Karte könnte sich geändert haben)
   const g = spielWelt.welt.kachelGroesse;
@@ -67,6 +81,30 @@ export function wendeSpielstandAn(spieler, stand, spielWelt) {
   spieler.ausgeruestet = kategorie === 'nahkampf' || kategorie === 'fernkampf' ? slot : null;
   aktualisiereAusruestung(spieler);
   return true;
+}
+
+/**
+ * Skills prüfen: jede Stufe 0..max, und es dürfen nicht mehr Punkte verteilt/offen sein, als das Level hergibt –
+ * sonst alles zurück auf "Punkte frei verteilbar".
+ */
+function ladeSkills(spieler, stand, konfiguration) {
+  const verfuegbar = (spieler.level - 1) * (konfiguration.level.punkteProLevel ?? 1);
+  const skills = leereSkills();
+  let verteilt = 0;
+  for (const [name, def] of Object.entries(SKILLS)) {
+    const wert = stand.skills?.[name];
+    if (Number.isInteger(wert) && wert >= 0) skills[name] = Math.min(wert, def.max);
+    verteilt += skills[name];
+  }
+  const offen = Number.isInteger(stand.skillPunkte) && stand.skillPunkte >= 0 ? stand.skillPunkte : 0;
+  if (verteilt + offen > verfuegbar) {
+    spieler.skills = leereSkills();
+    spieler.skillPunkte = verfuegbar;
+  } else {
+    spieler.skills = skills;
+    spieler.skillPunkte = offen;
+  }
+  wendeSkillsAn(spieler, konfiguration);
 }
 
 function pruefeEintrag(e) {

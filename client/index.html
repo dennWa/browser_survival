@@ -37,6 +37,7 @@
         <div class="hud-knoepfe">
           <button id="hud-chat" type="button" title="Chat (T)">💬</button>
           <button id="hud-inventar" type="button" title="Inventar (I)">🎒</button>
+          <button id="hud-skills" type="button" title="Fähigkeiten (U)">⭐</button>
           <button id="hud-zoom" class="nur-touch" type="button" title="Zoom (am PC: Mausrad)">🔍</button>
           <button id="hud-karte" type="button" title="Karte (K)">🗺</button>
           <button id="hud-licht" type="button" title="Taschenlampe an/aus (L) – aus = Zombies sehen dich schlechter">🔦</button>
@@ -151,6 +152,17 @@
       <p class="werkbank-hinweis inv-hilfe">Klick = benutzen · ziehen = umsortieren · aus dem Fenster ziehen = fallen lassen · Q = fallen lassen</p>
     </div>
 
+    <!-- Fähigkeiten (U): Skillpunkte verteilen -->
+    <div id="skills" hidden>
+      <div class="werkbank-kopf">
+        <h2>⭐ Fähigkeiten</h2>
+        <button id="skills-schliessen" type="button" aria-label="Schließen">✕</button>
+      </div>
+      <p id="skills-punkte"></p>
+      <div id="skills-liste"></div>
+      <p class="werkbank-hinweis">1 Punkt pro Level-Aufstieg. Wer stirbt, verliert Level, XP und alle Punkte.</p>
+    </div>
+
     <div id="werkbank" hidden>
       <div class="werkbank-kopf">
         <h2>🔨 Werkbank</h2>
@@ -181,7 +193,7 @@
     <div id="login" class="overlay" hidden>
       <form id="login-formular" autocomplete="on">
         <h1>Browser Survival</h1>
-        <p class="untertitel">Karte: St.-Elisabeth-Krankenhaus</p>
+        <p class="untertitel">Überlebe den Stadtrand – allein oder mit Freunden</p>
 
         <label>Server
           <select id="login-server"></select>
@@ -196,6 +208,8 @@
           <input id="login-passwort" type="password" autocomplete="current-password" />
         </label>
 
+        <!-- Figur (gemeinsam/spieler/aussehen.js – Merkmale mit aktiv: true werden hier automatisch angeboten) -->
+        <div id="login-aussehen"></div>
         <button id="login-knopf" type="submit">Login</button>
         <button id="login-gast" class="zweitknopf" type="button">Als Gast spielen <span id="login-gast-name"></span></button>
         <p id="login-meldung" role="status" aria-live="polite"></p>

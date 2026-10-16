@@ -1,5 +1,6 @@
 import { ENTWICKLER_FELDER } from './konfiguration/entwicklerFelder.js';
 import { GEGENSTAENDE } from './konfiguration/gegenstaende.js';
+import { zusatzLeben } from '../../gemeinsam/spieler/skills.js';
 import { STANDARD_KONFIGURATION } from './konfiguration/spielKonfiguration.js';
 
 /**
@@ -95,7 +96,7 @@ function wendeAn(spielWelt, pfad) {
   if (pfad === 'spieler.leben') {
     for (const s of spielWelt.alleVomTyp('spieler')) {
       const anteil = s.leben / s.maxLeben;
-      s.maxLeben = k.spieler.leben;
+      s.maxLeben = k.spieler.leben + zusatzLeben(s.skills);
       if (!s.tot) s.leben = Math.max(1, anteil * s.maxLeben);
     }
   }

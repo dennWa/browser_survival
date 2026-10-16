@@ -18,6 +18,7 @@ export const TASTEN = Object.freeze({
   menue: ['Escape'], // offene Menüs schließen
   karte: ['KeyK'], // Karte auf/zu
   inventar: ['KeyI', 'KeyB'], // Inventar-Fenster auf/zu
+  skills: ['KeyU'], // Fähigkeiten (Skillpunkte verteilen)
   fallenlassen: ['KeyQ'], // Item fallen lassen (unter der Maus im Inventar, sonst das in der Hand)
   chat: ['KeyT'], // Chat-Eingabe öffnen
   spielerliste: ['Tab'], // Wer ist online?
