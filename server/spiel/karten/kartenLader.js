@@ -1,17 +1,27 @@
 import { KACHEL_GROESSE } from '../../../gemeinsam/konstanten.js';
 import { KACHELN, MARKER, istKachel, istLootMarker } from '../../../gemeinsam/welt/kacheln.js';
 import { STADTRAND } from './stadtrand.js';
+import { WALDWEG } from './waldweg.js';
 
-/** Registrierte Karten. Neue Karte: Datei in diesem Ordner anlegen und hier eintragen. */
+/**
+ * Registrierte Karten (= Zonen der offenen Welt). Neue Karte: Datei in diesem Ordner anlegen (von Hand, per
+ * Generator in werkzeuge/karten/ oder aus Tiled: `npm run karte:import -- datei.tmj`) und hier eintragen.
+ * Zonen sind über `uebergaenge` (Kachel-Rechteck am Rand → Zielzone + Ankunftspunkt) verbunden.
+ */
 export const KARTEN = Object.freeze({
   stadtrand: STADTRAND,
+  waldweg: WALDWEG,
 });
 
 /**
  * Wandelt eine Kartendefinition (ASCII) in nutzbare Daten um.
- * @returns {{ daten, spielerStarts, zombieSpawns, lootPunkte }}
- *   daten        → geht an Client und Welt (nur Kacheln + Raumnamen, keine Spawns/Loot-Infos)
+ * @returns {{ daten, spielerStarts, zombieSpawns, lootPunkte, ankuenfte }}
+ *   daten        → geht an Client und Welt (Kacheln, Raumnamen, Objekte, Übergänge – keine Spawns/Loot-Infos)
  *   spielerStarts/zombieSpawns/lootPunkte → bleiben auf dem Server (Pixelkoordinaten, Kachelmitte)
+ *   ankuenfte    → { name: {x, y} } (Pixel, Kachelmitte): wo man ankommt, wenn man aus einer anderen Zone kommt
+ *
+ * Übergänge (definition.uebergaenge): [{ x, y, b, h, ziel, ankunft, name }] in Kacheln – wer das Rechteck betritt,
+ * wechselt in Zone `ziel` und landet dort bei `ankuenfte[ankunft]`. In daten.uebergaenge zusätzlich in Pixeln (px).
  */
 export function ladeKarte(id) {
   const definition = KARTEN[id];
@@ -83,11 +93,28 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE) {
     return objekt;
   });
 
+  const imFeld = (x, y) => Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0 && x < breite && y < hoehe;
+  const ankuenfte = {};
+  for (const [name, p] of Object.entries(definition.ankuenfte ?? {})) {
+    if (!imFeld(p?.x, p?.y)) throw new Error(`Karte "${definition.id}": Ankunft "${name}" außerhalb der Karte`);
+    if (KACHELN[kacheln[p.y][p.x]]?.blockiert) throw new Error(`Karte "${definition.id}": Ankunft "${name}" (${p.x}|${p.y}) steht in einer Wand`);
+    ankuenfte[name] = { x: mitte(p.x), y: mitte(p.y) };
+  }
+  const uebergaenge = (definition.uebergaenge ?? []).map((u, i) => {
+    const ok = imFeld(u.x, u.y) && Number.isInteger(u.b) && Number.isInteger(u.h) && u.b > 0 && u.h > 0 && imFeld(u.x + u.b - 1, u.y + u.h - 1);
+    if (!ok || typeof u.ziel !== 'string' || typeof u.ankunft !== 'string') {
+      throw new Error(`Karte "${definition.id}": Übergang #${i} ungültig (x, y, b, h in der Karte, ziel, ankunft nötig)`);
+    }
+    const px = { x0: u.x * kachelGroesse, y0: u.y * kachelGroesse, x1: (u.x + u.b) * kachelGroesse, y1: (u.y + u.h) * kachelGroesse };
+    return { x: u.x, y: u.y, b: u.b, h: u.h, ziel: u.ziel, ankunft: u.ankunft, name: u.name ?? u.ziel, px };
+  });
+
   return {
-    daten: { id: definition.id, name: definition.name, breite, hoehe, kachelGroesse, kacheln, raeume, objekte },
+    daten: { id: definition.id, name: definition.name, breite, hoehe, kachelGroesse, kacheln, raeume, objekte, uebergaenge },
     spielerStarts,
     zombieSpawns,
     lootPunkte,
+    ankuenfte,
   };
 }
 

@@ -454,4 +454,10 @@ export const STADTRAND = {
     { typ: 'licht', x: 61, y: 44, b: 1, h: 1, radius: 4, farbe: '#ffb35c', staerke: 0.6 },
     { typ: 'licht', x: 13, y: 67, b: 1, h: 1, radius: 5, farbe: '#fff2c8', staerke: 0.7 },
   ],
+  uebergaenge: [
+    { x: 94, y: 0, b: 5, h: 1, ziel: 'waldweg', ankunft: 'sued', name: 'Waldweg (Norden)' },
+  ],
+  ankuenfte: {
+    nord: { x: 96, y: 3 }, // wer vom Waldweg kommt
+  },
 };

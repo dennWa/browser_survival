@@ -33,13 +33,19 @@ const ZOMBIE_TONHOEHE = { normal: 1, laeufer: 1.35, brocken: 0.7 };
  * (EINGABE.angriff, AKTION) und zeigt das Ergebnis an.
  */
 export class ClientSpiel {
-  constructor({ verbindung, anmeldeDaten, eingabe, renderer, hud, sound, beiEnde, benutzername = '', vorabNachrichten = [] }) {
+  /**
+   * @param beiZonenwechsel (daten, sitzung) → ZONE_WECHSEL kam an: main.js räumt diese Sitzung ab (uebergeben) und baut neu auf
+   * @param seq             letzte Eingabe-Nummer der vorigen Zone (der Server zählt über Zonen hinweg weiter)
+   */
+  constructor({ verbindung, anmeldeDaten, eingabe, renderer, hud, sound, beiEnde, beiZonenwechsel, benutzername = '', vorabNachrichten = [], seq = 0 }) {
     this.verbindung = verbindung;
     this.eingabe = eingabe;
     this.renderer = renderer;
     this.hud = hud;
     this.sound = sound;
     this.beiEnde = beiEnde;
+    this.beiZonenwechsel = beiZonenwechsel;
+    this.benutzername = benutzername;
 
     this.serverName = anmeldeDaten.serverName;
     this.eigeneId = anmeldeDaten.spielerId;
@@ -80,7 +86,7 @@ export class ClientSpiel {
     this.lokal = { x: anmeldeDaten.start.x, y: anmeldeDaten.start.y, blick: 0, tempoFaktor: anmeldeDaten.spielerDaten?.tempoFaktor ?? 1 };
     this.lokalVorher = { x: this.lokal.x, y: this.lokal.y };
     this.eigeneDaten = null; // letzter öffentlicher Server-Stand des eigenen Spielers
-    this.seq = 0;
+    this.seq = seq;
     this.offeneEingaben = [];
 
     this.schnappschuesse = []; // [{ empfangen, tick, entitaeten: Map }]
@@ -102,7 +108,10 @@ export class ClientSpiel {
       verbindung.beiTrennung((grund) => this.beenden(grund)),
     ];
     // Was zwischen Login und jetzt ankam (während der Ladebildschirm stand), nachholen
-    for (const n of vorabNachrichten) this.#nachricht(n);
+    for (const n of vorabNachrichten) {
+      this.#nachricht(n);
+      if (this.beendet) return; // schon wieder ein Zonenwechsel darunter → die nächste Sitzung übernimmt
+    }
     const pingSenden = () => this.verbindung.senden({ typ: NACHRICHT.PING, t: performance.now() });
     pingSenden();
     this.pingTimer = setInterval(pingSenden, PING_INTERVALL_MS);
@@ -119,16 +128,28 @@ export class ClientSpiel {
   /** Sitzung beenden (Logout, Kick, Verbindungsverlust). Idempotent. */
   beenden(grund) {
     if (this.beendet) return;
+    this.#aufraeumen();
+    if (!this.verbindung.getrennt) this.verbindung.trennen('Abgemeldet');
+    this.beiEnde?.(grund);
+  }
+
+  /** Zonenwechsel: alles stoppen, aber die Verbindung bleibt (die nächste ClientSpiel-Sitzung übernimmt sie). */
+  uebergeben() {
+    if (this.beendet) return;
+    this.#aufraeumen();
+  }
+
+  #aufraeumen() {
     this.beendet = true;
-    this.schleife.stoppen();
+    this.schleife?.stoppen();
     this.karte.speichern();
     this.karte.zeige(false);
+    if (this.platzierung) this.platzierungAbbrechen();
+    if (this.werkbankOffen) this.werkbankUmschalten(false);
     this.sound?.stoppeAtmosphaere();
     this.sound?.motor(null);
     clearInterval(this.pingTimer);
     for (const ab of this.abmelden) ab();
-    if (!this.verbindung.getrennt) this.verbindung.trennen('Abgemeldet');
-    this.beiEnde?.(grund);
   }
 
   // ---------------------------------------------------------------------------
@@ -396,6 +417,9 @@ export class ClientSpiel {
 
   #nachricht(n) {
     switch (n.typ) {
+      case NACHRICHT.ZONE_WECHSEL:
+        this.beiZonenwechsel?.(n, this);
+        break;
       case NACHRICHT.ZUSTAND:
         this.#zustandEmpfangen(n);
         break;

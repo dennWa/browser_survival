@@ -153,6 +153,7 @@ export class KartenModell {
       if (!deckelProTyp.has(o.typ)) deckelProTyp.set(o.typ, []);
       deckelProTyp.get(o.typ).push({ geometrie: deckel, matrix: matrixAus(x, hoehe + 0.15, z, drehung) });
     }
+    this.#baueWegweiser(seiten);
     if (seiten.length) {
       const mesh = new THREE.Mesh(vereineGeometrien(seiten, { mitFarbe: true }), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }));
       mesh.castShadow = true;
@@ -163,6 +164,39 @@ export class KartenModell {
       const mesh = new THREE.Mesh(vereineGeometrien(teile), new THREE.MeshStandardMaterial({ map: this.#spriteTextur(typ).textur, roughness: 0.8 }));
       mesh.receiveShadow = true;
       this.statisch.add(mesh);
+    }
+  }
+
+  /** Wegweiser an jedem Zonen-Übergang: Pfosten + Schild (in `seiten`) und ein Schild-Text "⬆ Waldweg". */
+  #baueWegweiser(seiten) {
+    const g = this.g;
+    const holz = new THREE.Color(0x6b4524).convertSRGBToLinear();
+    const brett = new THREE.Color(0xc89b62).convertSRGBToLinear();
+    for (const u of this.welt.uebergaenge) {
+      const oben = u.y === 0;
+      const unten = u.y + u.h >= this.welt.hoehe;
+      const links = u.x === 0;
+      // neben den Weg, eine Kachel in die Karte hinein
+      const x = links ? u.px.x1 + g * 2 : oben || unten ? u.px.x1 + g * 1.8 : u.px.x0 - g * 2;
+      const z = oben ? u.px.y1 + g : unten ? u.px.y0 - g : u.px.y0 - g * 0.7;
+      seiten.push({ geometrie: new THREE.BoxGeometry(5, 58, 5), matrix: matrixAus(x, 29, z, 0), farbe: holz });
+      seiten.push({ geometrie: new THREE.BoxGeometry(104, 30, 3), matrix: matrixAus(x, 56, z, 0), farbe: holz });
+      const pfeil = oben ? '⬆' : unten ? '⬇' : links ? '⬅' : '➡';
+      const leinwand = Object.assign(document.createElement('canvas'), { width: 320, height: 90 });
+      const ctx = leinwand.getContext('2d');
+      ctx.fillStyle = '#d9b27c'; // helles Brett, dunkle Schrift
+      ctx.fillRect(0, 0, 320, 90);
+      ctx.fillStyle = '#2b1a0b';
+      ctx.font = '700 46px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${pfeil} ${u.name}`.slice(0, 20), 160, 48, 304);
+      const textur = new THREE.CanvasTexture(leinwand);
+      textur.colorSpace = THREE.SRGBColorSpace;
+      textur.anisotropy = 4;
+      const schild = new THREE.Mesh(new THREE.PlaneGeometry(98, 27.5), new THREE.MeshStandardMaterial({ map: textur, roughness: 0.9 }));
+      schild.position.set(x, 56, z + 1.6);
+      this.statisch.add(schild);
     }
   }
 

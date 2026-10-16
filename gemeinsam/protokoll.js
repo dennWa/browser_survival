@@ -32,8 +32,12 @@ export const NACHRICHT = Object.freeze({
 
   // ---- Server → Client ----
   /** { spielerId, serverName, tickRate, karte, physik, start, gegenstaende, itemDefinitionen, spielerDaten,
-   *    tueren (IDs offener Türen), tageszeit { tagSekunden, nachtSekunden }, zeit, tag } */
+   *    tueren (IDs offener Türen), abgebaut, bauwerke, erkundet (base64), rezepte,
+   *    tageszeit { tagSekunden, nachtSekunden }, zeit, tag } – karte = Daten der Zone, in der man startet */
   ANMELDUNG_OK: 'anmeldungOk',
+  /** wie ANMELDUNG_OK (+ zone: Name) – man hat einen Übergang betreten und ist jetzt in einer anderen Zone (neue spielerId!).
+   *  Client baut die Welt neu auf (Ladebildschirm) und zählt seq einfach weiter. */
+  ZONE_WECHSEL: 'zoneWechsel',
   /** { grund } */
   ANMELDUNG_FEHLER: 'anmeldungFehler',
   /** { tick, zeit, tag, entitaeten: [...], ereignisse: [...] } – Schnappschuss aller dynamischen Entitäten + Ereignisse dieses Ticks

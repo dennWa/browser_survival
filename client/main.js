@@ -137,19 +137,33 @@ login.beiAnmeldung(async ({ server, adresse, benutzername, passwort, gast = fals
 /**
  * Ins Spiel: Ladebildschirm zeigen, Welt aufbauen + Shader kompilieren, ein paar Frames aufwärmen lassen –
  * erst wenn es ruhig läuft, verschwindet der Ladebildschirm (sonst ruckeln die ersten Sekunden).
+ * Auch beim Zonenwechsel (zone = Name der neuen Zone, seq = Eingabe-Zähler der alten Sitzung).
  */
-async function spielStarten(verbindung, anmeldeDaten, benutzername) {
+async function spielStarten(verbindung, anmeldeDaten, benutzername, { zone = null, seq = 0 } = {}) {
   const vorab = []; // Nachrichten, die während des Ladens ankommen, gehen nicht verloren
   const vorabAbmelden = verbindung.beiNachricht((n) => vorab.push(n));
-  zeigeLaden('Welt wird aufgebaut …', 70);
+  let getrennt = null;
+  const trennAbmelden = verbindung.beiTrennung((grund) => (getrennt = grund ?? 'Verbindung verloren'));
+  const zurueckZumLogin = (grund) => {
+    aktuellesSpiel = null;
+    eingabe.aktiv = false;
+    versteckeLaden();
+    hud.verbergen();
+    renderer.verbergen();
+    login.anzeigen(grund === 'Abgemeldet' ? '' : grund);
+  };
+  eingabe.aktiv = false;
+  zeigeLaden(zone ? `Unterwegs nach ${zone} …` : 'Welt wird aufgebaut …', 70);
   login.verbergen();
   await naechsterFrame();
   await naechsterFrame();
-  if (renderer.nachtsicht) renderer.nachtsichtUmschalten(); // Nachtsicht aus der letzten Runde zurücksetzen
+  vorabAbmelden();
+  trennAbmelden();
+  if (getrennt) return zurueckZumLogin(getrennt);
+  if (renderer.nachtsicht && !zone) renderer.nachtsichtUmschalten(); // Nachtsicht aus der letzten Runde zurücksetzen
   renderer.anzeigen();
   hud.anzeigen(eingabe.touch.istTouchGeraet);
-  vorabAbmelden();
-  aktuellesSpiel = new ClientSpiel({
+  const spiel = new ClientSpiel({
     verbindung,
     anmeldeDaten,
     eingabe,
@@ -157,18 +171,20 @@ async function spielStarten(verbindung, anmeldeDaten, benutzername) {
     hud,
     sound,
     benutzername,
+    seq,
     vorabNachrichten: vorab,
-    beiEnde: (grund) => {
-      aktuellesSpiel = null;
-      eingabe.aktiv = false;
-      versteckeLaden();
-      hud.verbergen();
-      renderer.verbergen();
-      login.anzeigen(grund === 'Abgemeldet' ? '' : grund);
+    beiEnde: zurueckZumLogin,
+    // Übergang betreten → diese Sitzung abräumen, neue Zone aufbauen (Verbindung bleibt dieselbe)
+    beiZonenwechsel: (daten, alt) => {
+      alt.uebergeben();
+      spielStarten(verbindung, daten, benutzername, { zone: daten.zone ?? daten.karte?.name, seq: alt.seq });
     },
   });
-  zeigeLaden('Grafik wärmt auf …', 90);
+  if (spiel.beendet) return; // während des Nachholens schon weitergezogen
+  aktuellesSpiel = spiel;
+  zeigeLaden(zone ? `${zone} …` : 'Grafik wärmt auf …', 90);
   await renderer.warteBisRuhig();
+  if (aktuellesSpiel !== spiel) return;
   versteckeLaden();
   eingabe.aktiv = true;
   leinwand.focus();

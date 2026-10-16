@@ -28,6 +28,8 @@ export class Welt {
     this.zeilen = kartenDaten.kacheln;
     this.raeume = kartenDaten.raeume ?? [];
     this.objekte = kartenDaten.objekte ?? [];
+    /** Übergänge in andere Zonen: [{ x, y, b, h, ziel, ankunft, name, px: { x0, y0, x1, y1 } }] (Kacheln + Pixel) */
+    this.uebergaenge = kartenDaten.uebergaenge ?? [];
     /** Kachelindizes (ty * breite + tx), die durch Möbel blockiert sind */
     this.moebelBlockiert = berechneMoebelKollision(this.objekte, this.breite);
     /** [{ id, kacheln: [{ tx, ty }], senkrecht, x, y }]  senkrecht = Tür in einer Nord-Süd-Wand; x/y = Mitte (Weltpixel) */

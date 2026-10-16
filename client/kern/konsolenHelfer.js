@@ -7,11 +7,12 @@ import { fuegeZumInventarHinzu, legeAufBoden } from '../../server/spiel/systeme/
  *   browserSurvival.boden('apfel', 3)   Item vor die Füße legen
  *   browserSurvival.zeit(21)            Uhr auf 21:00 stellen
  *   browserSurvival.ich()               eigene Spieler-Entität auf dem Server (zum Ändern: .leben = 1 …)
- *   browserSurvival.welt()              die SpielWelt
+ *   browserSurvival.welt()              die SpielWelt der eigenen Zone
+ *   browserSurvival.zone('waldweg')     sofort in eine andere Zone wechseln (Ankunft optional: zone('waldweg', 'sued'))
  * Auch genutzt von den Playwright-Skripten in werkzeuge/test/.
  */
 export function konsolenHelfer({ spiel, server }) {
-  const welt = () => server()?.spielWelt ?? null;
+  const welt = () => server()?.weltVon(spiel()?.benutzername) ?? server()?.spielWelt ?? null;
   const ich = () => welt()?.holen(spiel()?.eigeneId) ?? null;
   const ohneServer = () => console.warn('Nur im Lokal-Modus verfügbar');
   return {
@@ -34,6 +35,11 @@ export function konsolenHelfer({ spiel, server }) {
       const s = ich();
       if (!s) return ohneServer();
       legeAufBoden(welt(), { defId, menge }, s.x + Math.cos(s.blick) * 30, s.y + Math.sin(s.blick) * 30);
+    },
+    zone(ziel, ankunft = '') {
+      const s = ich();
+      if (!s) return ohneServer();
+      s.zonenwechsel = { ziel, ankunft, name: ziel };
     },
     zeit(stunde) {
       const w = welt();

@@ -3,7 +3,7 @@ import { BodenTextur } from '../darstellung/bodenTextur.js';
 import { entpackeErkundet } from '../../gemeinsam/welt/erkundung.js';
 
 /**
- * Karte (Taste K / 🗺): zeigt die ganze Stadt – aber nur dort, wo man schon war ("Nebel des Krieges").
+ * Karte (Taste K / 🗺): zeigt die ganze Zone – aber nur dort, wo man schon war ("Nebel des Krieges").
  * Erkundet wird alles im Umkreis von SICHT_KACHELN um die eigene Figur. Der Fortschritt wird pro
  * Server + Account + Karte im Browser gespeichert (localStorage), überlebt also Neuladen und Logout.
  */
@@ -49,7 +49,19 @@ export class Karte {
 
   zeige(offen = !this.offen) {
     this.el.hidden = !offen;
-    if (offen) this.zeichne(this.letzterSpieler);
+    if (!offen) return;
+    this.zeichne(this.letzterSpieler);
+    this.#zentriere();
+  }
+
+  /** Passt die Karte nicht ganz ins Fenster (kleiner Bildschirm, hohe Zone): zur eigenen Figur scrollen. */
+  #zentriere() {
+    const s = this.letzterSpieler;
+    const rahmen = this.leinwand.parentElement;
+    if (!s || !rahmen) return;
+    const faktor = this.leinwand.clientWidth / (this.welt.breite * this.welt.kachelGroesse);
+    rahmen.scrollTop = s.y * faktor - rahmen.clientHeight / 2;
+    rahmen.scrollLeft = s.x * faktor - rahmen.clientWidth / 2;
   }
 
   /** Pro Frame: erkundete Kacheln eintragen (nur wenn man eine neue Kachel betritt). */
@@ -132,6 +144,24 @@ export class Karte {
       ctx.fill();
       ctx.fillText('🔨', x, y + 1);
     }
+    // Wege in andere Zonen: immer sichtbar (Pfeil zum Kartenrand + Zonenname)
+    ctx.font = '600 10px system-ui, sans-serif';
+    for (const u of this.welt.uebergaenge) {
+      const x = ((u.px.x0 + u.px.x1) / 2) * s;
+      const y = ((u.px.y0 + u.px.y1) / 2) * s;
+      const oben = u.y === 0;
+      const unten = u.y + u.h >= this.welt.hoehe;
+      const pfeil = oben ? '⬆' : unten ? '⬇' : u.x === 0 ? '⬅' : '➡';
+      const ty = oben ? y + 14 : unten ? y - 14 : y;
+      ctx.fillStyle = 'rgba(77, 163, 255, 0.35)';
+      ctx.fillRect(u.px.x0 * s, u.px.y0 * s, (u.px.x1 - u.px.x0) * s, (u.px.y1 - u.px.y0) * s);
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.75)';
+      ctx.fillStyle = '#cfe6ff';
+      ctx.strokeText(`${pfeil} ${u.name}`, x, ty);
+      ctx.fillText(`${pfeil} ${u.name}`, x, ty);
+    }
+    ctx.font = '15px system-ui, sans-serif';
     // Selbst gebaute Sachen (Bauwerke)
     const symbole = { werkbank: '🔨', lagerfeuer: '🔥', beet: '🌱', falle: '🪤' };
     ctx.font = '12px system-ui, sans-serif';

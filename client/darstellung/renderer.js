@@ -207,7 +207,14 @@ export class Renderer {
   /** Baut die statische Szene aus der Welt und kompiliert alle Shader vor (dauert kurz, danach ruckelfrei). */
   setzeWelt(welt) {
     this.welt = welt;
-    if (this.karte) this.szene.remove(this.karte.statisch, this.karte.beweglich);
+    if (this.karte) {
+      // Zonenwechsel/Neu-Login: alte Karte raus und ihre Geometrie freigeben (Grafikspeicher; geteilte
+      // Geometrie lädt three.js bei Bedarf einfach neu hoch – Materialien/Texturen bleiben)
+      this.szene.remove(this.karte.statisch, this.karte.beweglich);
+      for (const teil of [this.karte.statisch, this.karte.beweglich]) teil.traverse((o) => o.geometry?.dispose());
+    }
+    for (const b of this.fallendeBaeume) this.szene.remove(b.gruppe);
+    this.fallendeBaeume.length = 0;
     for (const f of this.figuren.values()) this.szene.remove(f.gruppe);
     this.figuren.clear();
     for (const m of this.items.values()) this.szene.remove(m);

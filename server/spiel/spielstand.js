@@ -13,8 +13,16 @@ import { entpackeErkundet, packeErkundet } from '../../gemeinsam/welt/erkundung.
  * Beim Laden wird ALLES geprüft – ein Spielstand kann alt, kaputt oder manipuliert sein.
  */
 export const SPIELSTAND_VERSION = 1;
+/** Höchstens so viele Karten-Erkundungen pro Spielstand (Schutz gegen aufgeblähte/manipulierte Stände). */
+const MAX_ERKUNDETE_KARTEN = 64;
 
+/**
+ * @param kartenId  Zone, in der der Spieler gerade ist (dort taucht er beim nächsten Login wieder auf)
+ * erkundet = { kartenId: base64 } – eine Karte (K) pro Zone; spieler.erkundetAndere hält die Zonen, in denen er gerade nicht ist.
+ */
 export function erstelleSpielstand(spieler, kartenId) {
+  const erkundet = { ...spieler.erkundetAndere };
+  if (spieler.erkundet) erkundet[kartenId] = packeErkundet(spieler.erkundet);
   return {
     version: SPIELSTAND_VERSION,
     karte: kartenId,
@@ -31,7 +39,7 @@ export function erstelleSpielstand(spieler, kartenId) {
     skills: { ...spieler.skills },
     skillPunkte: spieler.skillPunkte,
     aussehen: { ...spieler.aussehen },
-    erkundet: spieler.erkundet ? { karte: kartenId, daten: packeErkundet(spieler.erkundet) } : null,
+    erkundet,
     gespeichert: new Date().toISOString(),
   };
 }
@@ -53,10 +61,14 @@ export function wendeSpielstandAn(spieler, stand, spielWelt) {
   ladeSkills(spieler, stand, spielWelt.konfiguration); // setzt maxLeben (Zähigkeit) – darum Leben erst danach
   spieler.leben = begrenze(stand.leben, 1, spieler.maxLeben);
   spieler.aussehen = pruefeAussehen(stand.aussehen);
-  if (stand.erkundet?.karte === spielWelt.karte.daten.id && typeof stand.erkundet.daten === 'string' && spieler.erkundet) {
-    const erkundet = entpackeErkundet(stand.erkundet.daten, spieler.erkundet.length);
-    if (erkundet) spieler.erkundet = erkundet;
+  const kartenId = spielWelt.karte.daten.id;
+  const erkundet = ladeErkundet(stand.erkundet);
+  if (erkundet[kartenId] && spieler.erkundet) {
+    const daten = entpackeErkundet(erkundet[kartenId], spieler.erkundet.length);
+    if (daten) spieler.erkundet = daten;
   }
+  delete erkundet[kartenId];
+  spieler.erkundetAndere = erkundet;
 
   // Position nur, wenn gleiche Karte und begehbar (Karte könnte sich geändert haben)
   const g = spielWelt.welt.kachelGroesse;
@@ -81,6 +93,17 @@ export function wendeSpielstandAn(spieler, stand, spielWelt) {
   spieler.ausgeruestet = kategorie === 'nahkampf' || kategorie === 'fernkampf' ? slot : null;
   aktualisiereAusruestung(spieler);
   return true;
+}
+
+/** Erkundung aus dem Spielstand: { kartenId: base64 } – alte Stände hatten { karte, daten } (nur eine Karte). */
+function ladeErkundet(roh) {
+  const ergebnis = {};
+  if (!roh || typeof roh !== 'object') return ergebnis;
+  const eintraege = typeof roh.karte === 'string' && typeof roh.daten === 'string' ? [[roh.karte, roh.daten]] : Object.entries(roh);
+  for (const [id, daten] of eintraege.slice(0, MAX_ERKUNDETE_KARTEN)) {
+    if (/^[a-z0-9_-]{1,40}$/.test(id) && typeof daten === 'string' && daten.length < 200_000) ergebnis[id] = daten;
+  }
+  return ergebnis;
 }
 
 /**

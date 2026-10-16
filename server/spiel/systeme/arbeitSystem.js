@@ -126,11 +126,14 @@ function schlafe(spielWelt, spieler, dt) {
   a.rest = 0;
 
   const lebende = [...spielWelt.alleVomTyp('spieler')].filter((s) => !s.tot);
-  const alleFertig = lebende.every((s) => s.arbeit?.art === 'schlafen' && s.arbeit.fertig);
-  const alleSchlafen = lebende.every((s) => s.arbeit?.art === 'schlafen');
+  // Die Uhr ist für alle Zonen gleich → auch die Spieler der anderen Zonen müssen schlafen (Hook vom SpielServer)
+  const andere = (spielWelt.spielerAndererZonen?.() ?? []).filter((s) => !s.tot);
+  const alleFertig = [...lebende, ...andere].every((s) => s.arbeit?.art === 'schlafen' && s.arbeit.fertig);
+  const alleSchlafen = [...lebende, ...andere].every((s) => s.arbeit?.art === 'schlafen');
   if (alleFertig) {
     spuleZeitVor(spielWelt, k.stunden);
     for (const s of lebende) wacheAuf(spielWelt, s, k, true);
+    spielWelt.zeitSprung = k.stunden; // SpielServer spult die anderen Zonen mit vor (uebernimmZeitsprung)
   } else if (!alleSchlafen) {
     wacheAuf(spielWelt, spieler, k, false);
   }
@@ -153,9 +156,12 @@ function wacheAuf(spielWelt, spieler, k, zeitVergangen) {
 /** Uhr um `stunden` Spielstunden vorstellen (über Mitternacht hinweg → neuer Tag); Bäume wachsen derweil nach. */
 export function spuleZeitVor(spielWelt, stunden) {
   if (!(stunden > 0)) return;
+  spuleSekundenVor(spielWelt, sekundenFuerStunden(spielWelt.zeit, stunden, spielWelt.tageszeitDauer()));
+}
+
+function spuleSekundenVor(spielWelt, sekunden) {
   const dauer = spielWelt.tageszeitDauer();
   const zyklus = dauer.tagSekunden + dauer.nachtSekunden;
-  const sekunden = sekundenFuerStunden(spielWelt.zeit, stunden, dauer);
   spielWelt.zeit += sekunden;
   while (spielWelt.zeit >= zyklus) {
     spielWelt.zeit -= zyklus;
@@ -163,6 +169,26 @@ export function spuleZeitVor(spielWelt, stunden) {
   }
   aktualisiereNachwachsen(spielWelt, sekunden);
   aktualisiereBauwerke(spielWelt, 0, sekunden); // Pflanzen wachsen im Schlaf mit
+}
+
+/** Zonenübergreifend: woanders haben alle ausgeschlafen → hier dieselben Stunden vorspulen und die Schläfer wecken. */
+export function uebernimmZeitsprung(spielWelt, stunden) {
+  const k = spielWelt.konfiguration.schlafen;
+  spuleZeitVor(spielWelt, stunden);
+  for (const s of spielWelt.alleVomTyp('spieler')) if (!s.tot && s.arbeit?.art === 'schlafen') wacheAuf(spielWelt, s, k, true);
+}
+
+/**
+ * Pausierte Zone wird wieder betreten: Uhr auf (zeit, tag) der Hauptzone stellen – was in der Pause vergangen ist,
+ * wächst nach (Bäume, Pflanzen). Liegt die Zone vorne (z. B. alter Speicherstand), wird nur die Uhr gestellt.
+ */
+export function holeZeitNach(spielWelt, zeit, tag) {
+  const dauer = spielWelt.tageszeitDauer();
+  const zyklus = dauer.tagSekunden + dauer.nachtSekunden;
+  const rueckstand = (tag - spielWelt.tag) * zyklus + (zeit - spielWelt.zeit);
+  if (rueckstand > 0) spuleSekundenVor(spielWelt, rueckstand);
+  spielWelt.zeit = zeit;
+  spielWelt.tag = tag;
 }
 
 /** Abgebaute Bäume/Steine wachsen nach – aber nicht, wenn gerade jemand an der Stelle steht. */

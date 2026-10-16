@@ -15,6 +15,7 @@ import { aktualisiereTageszeit } from './systeme/tageszeitSystem.js';
 import { aktualisiereArbeit } from './systeme/arbeitSystem.js';
 import { aktualisiereBauwerke } from './systeme/bauSystem.js';
 import { aktualisiereFahrzeuge, aussteigen } from './systeme/fahrzeugSystem.js';
+import { pruefeUebergaenge } from './systeme/zonenSystem.js';
 import { erzeugeFahrzeug, fahrzeugZuNetzwerk } from './entitaeten/fahrzeug.js';
 import { FAHRZEUG_MODELLE, fahrzeugAusObjekt, passt } from '../../gemeinsam/physik/fahrzeug.js';
 import { BAUWERKE, PFLANZEN, pruefePlatz } from '../../gemeinsam/welt/bauwerke.js';
@@ -63,6 +64,10 @@ export class SpielWelt {
     this.zeit = konfiguration.welt.startZeit ?? 0;
     this.tag = 1;
     this.istNacht = false;
+    /** Gesetzt, wenn hier alle ausgeschlafen haben (Stunden) → SpielServer spult die anderen Zonen mit vor. */
+    this.zeitSprung = 0;
+    /** Hook vom SpielServer: Spieler der übrigen Zonen (fürs zonenübergreifende Schlafen). Ohne Server: keine. */
+    this.spielerAndererZonen = null;
 
     for (const o of autos) this.hinzufuegen(erzeugeFahrzeug({ id: this.neueId(), ...fahrzeugAusObjekt(o, this.welt.kachelGroesse) }));
     this.karte.zombieSpawns.forEach((spawn, spawnIndex) => this.spawneZombie(spawnIndex));
@@ -165,6 +170,7 @@ export class SpielWelt {
     const start = this.zufall.auswahl(this.karte.spielerStarts);
     const spieler = gibStartausruestung(erzeugeSpieler({ id: this.neueId(), benutzername, x: start.x, y: start.y, konfiguration: this.konfiguration, admin }), this.konfiguration);
     spieler.erkundet = new Uint8Array(this.welt.breite * this.welt.hoehe); // Karte (K), siehe gemeinsam/welt/erkundung.js
+    spieler.erkundetAndere = {}; // Erkundung der anderen Zonen (gepackt, siehe spielstand.js)
     return this.hinzufuegen(spieler);
   }
 
@@ -195,6 +201,7 @@ export class SpielWelt {
     this.#beendeAbgelaufeneAktionen();
     verarbeiteSpielerEingaben(this);
     aktualisiereFahrzeuge(this, dt);
+    pruefeUebergaenge(this);
     verarbeiteAktionen(this);
     aktualisiereNachladen(this, dt);
     aktualisiereKampf(this, dt);

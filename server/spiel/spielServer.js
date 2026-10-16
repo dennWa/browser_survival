@@ -20,8 +20,10 @@ import { entwicklerWerte, setzeAllesZurueck, setzeEntwicklerWert, wendeGegenstan
 import { spielerDatenPrivat } from './entitaeten/spieler.js';
 import { erstelleSpielstand, wendeSpielstandAn } from './spielstand.js';
 import { ArbeitsspeicherSpeicher } from './speicher/arbeitsspeicherSpeicher.js';
-import { SpielWelt } from './spielWelt.js';
+import { KARTEN } from './karten/kartenLader.js';
+import { holeZeitNach, uebernimmZeitsprung } from './systeme/arbeitSystem.js';
 import { Taktgeber } from './taktgeber.js';
+import { Zone } from './zone.js';
 
 /** Danach wird die Verbindung getrennt (Schutz gegen Passwort-Raten). */
 const MAX_FEHLVERSUCHE = 5;
@@ -37,10 +39,12 @@ const GUELTIGE_ADMIN_BEFEHLE = new Set(Object.values(ADMIN_BEFEHLE));
  *   - Verbindungen (Text-Kanäle, siehe netz/speicherKanal.js) annehmen
  *   - Login-Ablauf über die injizierte Authentifizierung
  *   - Eingaben prüfen und puffern
- *   - Simulation im festen Takt (SpielWelt) und Schnappschüsse an alle Clients
+ *   - Simulation im festen Takt und Schnappschüsse an alle Clients – pro Zone (zone.js: eine Karte = eine SpielWelt)
+ *   - Zonenwechsel: Spieler betritt einen Übergang → Umzug in die andere Zone (Nachricht ZONE_WECHSEL)
  *   - Spielstände laden (Login) und speichern (Logout, alle autosaveSekunden, Server-Stopp)
  *
- * Sitzungsstatus: 'wartetAufLogin' → 'prueftLogin' → 'laedtSpielstand' → 'imSpiel'
+ * Sitzungsstatus: 'wartetAufLogin' → 'prueftLogin' → 'laedtSpielstand' → 'imSpiel' (⇄ 'wechseltZone')
+ * Die Weltuhr ist die der Startzone; andere Zonen laufen mit, solange jemand drin ist (sonst Pause + Nachholen).
  */
 export class SpielServer {
   /**
@@ -48,12 +52,13 @@ export class SpielServer {
    * @param {{ pruefe: Function }} optionen.authentifizierung
    * @param {object} [optionen.konfiguration]  Überschreibungen für STANDARD_KONFIGURATION
    * @param {Console} [optionen.protokoll]     Logger (console-kompatibel)
-   * @param {object} [optionen.kartenDefinition] eigene Karte (z. B. für Tests)
+   * @param {object} [optionen.kartenDefinition] eigene Startkarte (z. B. für Tests)
+   * @param {object} [optionen.kartenDefinitionen] weitere Karten { id: Definition } zusätzlich zu KARTEN (z. B. für Tests)
    * @param {{ laden: Function, speichern: Function }} [optionen.speicher] Spielstände (Standard: nur im Arbeitsspeicher)
    * @param {{ speichern: Function }} [optionen.einstellungsSpeicher] speichert Developer-Änderungen dauerhaft
    *        (Node: server/daten/einstellungen.json, Lokal-Modus: localStorage). Ohne → nur bis zum Neustart.
    */
-  constructor({ authentifizierung, konfiguration = {}, protokoll = console, kartenDefinition, speicher, einstellungsSpeicher = null }) {
+  constructor({ authentifizierung, konfiguration = {}, protokoll = console, kartenDefinition, kartenDefinitionen = {}, speicher, einstellungsSpeicher = null }) {
     if (!authentifizierung) throw new Error('SpielServer braucht eine Authentifizierung');
     this.authentifizierung = authentifizierung;
     this.speicher = speicher ?? new ArbeitsspeicherSpeicher();
@@ -66,21 +71,57 @@ export class SpielServer {
     this.ueberschreibungen = structuredClone(konfiguration);
     wendeGegenstandsUeberschreibungenAn(konfiguration.gegenstaende);
     this.log = protokoll;
-    this.spielWelt = new SpielWelt(this.konfiguration, { kartenDefinition });
+    this.kartenDefinitionen = kartenDefinitionen;
+    /** kartenId → Zone; die Startzone gibt es immer, andere entstehen beim ersten Betreten */
+    this.zonen = new Map();
+    this.startZone = this.#erstelleZone(kartenDefinition);
     this.sitzungen = new Set();
-    this.gesendeteGegenstaendeVersion = this.spielWelt.gegenstaendeVersion;
-    this.gesendeteTuerenVersion = this.spielWelt.tuerenVersion;
-    this.gesendeteRessourcenVersion = this.spielWelt.welt.ressourcenVersion;
-    this.gesendeteBauwerkeVersion = this.spielWelt.welt.bauwerkeVersion;
-    this.weltSchluessel = `welt:${this.spielWelt.karte.daten.id}`;
-    this.weltGeladen = this.#ladeWelt();
+    this.weltGeladen = this.startZone.geladen;
     this.taktgeber = new Taktgeber(TICK_DAUER_MS, () => this.tickAusfuehren());
+  }
+
+  /** Die SpielWelt der Startzone (Kurzform für Tests, Konsolen-Helfer, Developer-Werte). */
+  get spielWelt() {
+    return this.startZone.spielWelt;
+  }
+
+  /** SpielWelt, in der ein Spieler gerade ist (Konsolen-Helfer im Lokal-Modus) – oder null. */
+  weltVon(benutzername) {
+    const name = String(benutzername ?? '').toLowerCase();
+    for (const s of this.sitzungen) if (s.status === 'imSpiel' && s.benutzername?.toLowerCase() === name) return s.zone.spielWelt;
+    return null;
+  }
+
+  #erstelleZone(kartenDefinition) {
+    const zone = new Zone({ konfiguration: this.konfiguration, kartenDefinition, speicher: this.speicher, log: this.log });
+    // Fürs Schlafen: die Uhr läuft nur weiter, wenn ALLE schlafen – auch die in anderen Zonen
+    zone.spielWelt.spielerAndererZonen = () => {
+      const andere = [];
+      for (const z of this.zonen.values()) if (z !== zone && z.aktiv) andere.push(...z.spielWelt.alleVomTyp('spieler'));
+      return andere;
+    };
+    this.zonen.set(zone.id, zone);
+    return zone;
+  }
+
+  /** Zone zur Karten-ID (wird beim ersten Mal angelegt) – oder null, wenn es die Karte nicht gibt. */
+  zone(id) {
+    if (this.zonen.has(id)) return this.zonen.get(id);
+    const definition = Object.hasOwn(this.kartenDefinitionen, id) ? this.kartenDefinitionen[id] : Object.hasOwn(KARTEN, id) ? KARTEN[id] : null;
+    return definition ? this.#erstelleZone(definition) : null;
+  }
+
+  /** Pausierte Zone wird betreten → Uhr der Startzone übernehmen und die Pause nachholen. */
+  #aktiviere(zone) {
+    if (zone === this.startZone || zone.aktiv) return;
+    holeZeitNach(zone.spielWelt, this.startZone.spielWelt.zeit, this.startZone.spielWelt.tag);
+    zone.aktiv = true;
   }
 
   starten() {
     this.taktgeber.starten();
     this.log.info?.(
-      `[Server] "${this.konfiguration.server.name}" läuft – Karte "${this.spielWelt.karte.daten.name}", ${TICK_RATE} Ticks/s`,
+      `[Server] "${this.konfiguration.server.name}" läuft – Startzone "${this.startZone.name}", ${Object.keys(KARTEN).length} Zonen, ${TICK_RATE} Ticks/s`,
     );
   }
 
@@ -93,31 +134,20 @@ export class SpielServer {
     for (const sitzung of this.sitzungen) sitzung.kanal.trennen(grund);
   }
 
-  /** Gebaute Sachen, Uhrzeit & Tag vom letzten Mal laden (Speicher-Schlüssel "welt:<kartenId>"). */
-  async #ladeWelt() {
-    try {
-      const stand = await this.speicher.laden(this.weltSchluessel);
-      if (stand && this.spielWelt.uebernimmWeltzustand(stand)) {
-        this.log.info?.(`[Server] Welt geladen: ${this.spielWelt.welt.bauwerke.size} Bauwerke, Tag ${this.spielWelt.tag}`);
-      }
-    } catch (fehler) {
-      this.log.error?.('[Server] Weltzustand nicht ladbar:', fehler);
-    }
-  }
-
-  #speichereWelt() {
-    const stand = this.spielWelt.weltzustand();
+  /** Weltzustand einer Zone sichern (Speicher-Schlüssel "welt:<kartenId>", Laden: zone.js). */
+  #speichereWelt(zone) {
+    const stand = zone.spielWelt.weltzustand();
     const speichern = Promise.resolve()
-      .then(() => this.speicher.speichern(this.weltSchluessel, stand))
-      .catch((fehler) => this.log.error?.('[Server] Weltzustand nicht gespeichert:', fehler))
+      .then(() => this.speicher.speichern(zone.weltSchluessel, stand))
+      .catch((fehler) => this.log.error?.(`[Server] Weltzustand von "${zone.id}" nicht gespeichert:`, fehler))
       .finally(() => this.ausstehendeSpeicherungen.delete(speichern));
     this.ausstehendeSpeicherungen.add(speichern);
   }
 
-  /** Spielstände aller eingeloggten Spieler + die Welt sichern (wartet, bis alles geschrieben ist). */
+  /** Spielstände aller eingeloggten Spieler + alle Zonen sichern (wartet, bis alles geschrieben ist). */
   async speichereAlle() {
-    this.#speichereWelt();
-    for (const sitzung of this.sitzungen) if (sitzung.status === 'imSpiel') this.#speichere(sitzung);
+    for (const zone of this.zonen.values()) this.#speichereWelt(zone);
+    for (const sitzung of this.sitzungen) if (sitzung.status === 'imSpiel' || sitzung.zonenStand) this.#speichere(sitzung);
     await Promise.all([...this.ausstehendeSpeicherungen]);
   }
 
@@ -135,6 +165,8 @@ export class SpielServer {
       status: 'wartetAufLogin',
       benutzername: null,
       spielerId: null,
+      zone: null, // Zone, in der der Spieler ist (ab Login)
+      zonenStand: null, // Spielstand während eines Zonenwechsels
       loginTimer: null,
       fehlversuche: 0,
     };
@@ -148,59 +180,130 @@ export class SpielServer {
     kanal.beiTrennung((grund) => this.#verbindungGetrennt(sitzung, grund));
   }
 
-  /** Ein Simulationsschritt + Versand. Öffentlich, damit Tests den Takt selbst steuern können. */
+  /**
+   * Ein Simulationsschritt + Versand. Öffentlich, damit Tests den Takt selbst steuern können.
+   * Reihenfolge: aktive Zonen bestimmen (Pause nachholen) → alle simulieren → Zonenwechsel → pro Zone versenden.
+   */
   tickAusfuehren() {
-    this.spielWelt.aktualisiere(TICK_DAUER_S);
+    let proZone = this.#sitzungenProZone();
+    for (const zone of this.zonen.values()) {
+      const aktiv = zone === this.startZone || proZone.has(zone);
+      if (aktiv) this.#aktiviere(zone);
+      zone.aktiv = aktiv;
+    }
+    const aktive = [...this.zonen.values()].filter((z) => z.aktiv);
+    for (const zone of aktive) {
+      zone.spielWelt.aktualisiere(TICK_DAUER_S);
+      zone.seitAutosave = true;
+      // Alle haben ausgeschlafen → die Uhr der übrigen Zonen mitziehen (pausierte holen beim Betreten nach)
+      const stunden = zone.spielWelt.zeitSprung;
+      zone.spielWelt.zeitSprung = 0;
+      if (stunden) for (const andere of aktive) if (andere !== zone) uebernimmZeitsprung(andere.spielWelt, stunden);
+    }
+    for (const [zone, sitzungen] of proZone) {
+      for (const sitzung of sitzungen) {
+        const spieler = zone.spielWelt.holen(sitzung.spielerId);
+        if (!spieler?.zonenwechsel) continue;
+        this.#wechsleZone(sitzung, spieler).catch((fehler) => {
+          this.log.error?.('[Server] Zonenwechsel fehlgeschlagen:', fehler);
+          sitzung.kanal.trennen('Zonenwechsel fehlgeschlagen');
+        });
+      }
+    }
+
     if (++this.ticksSeitAutosave >= this.konfiguration.server.autosaveSekunden * TICK_RATE) {
       this.ticksSeitAutosave = 0;
       for (const sitzung of this.sitzungen) if (sitzung.status === 'imSpiel') this.#speichere(sitzung);
-      if (this.spielerAnzahl > 0) this.#speichereWelt();
+      for (const zone of this.zonen.values()) {
+        if (!zone.seitAutosave || (zone === this.startZone && this.spielerAnzahl === 0)) continue;
+        zone.seitAutosave = false;
+        this.#speichereWelt(zone);
+      }
     }
 
-    const zustand = kodiere({ typ: NACHRICHT.ZUSTAND, ...this.spielWelt.schnappschuss() });
-    let gegenstaende = null;
-    if (this.spielWelt.gegenstaendeVersion !== this.gesendeteGegenstaendeVersion) {
-      this.gesendeteGegenstaendeVersion = this.spielWelt.gegenstaendeVersion;
-      gegenstaende = kodiere({ typ: NACHRICHT.GEGENSTAENDE, gegenstaende: this.spielWelt.gegenstaendeListe() });
-    }
-    let ressourcen = null;
-    if (this.spielWelt.welt.ressourcenVersion !== this.gesendeteRessourcenVersion) {
-      this.gesendeteRessourcenVersion = this.spielWelt.welt.ressourcenVersion;
-      ressourcen = kodiere({ typ: NACHRICHT.RESSOURCEN, abgebaut: [...this.spielWelt.welt.abgebaut] });
-    }
-    let bauwerke = null;
-    if (this.spielWelt.welt.bauwerkeVersion !== this.gesendeteBauwerkeVersion) {
-      this.gesendeteBauwerkeVersion = this.spielWelt.welt.bauwerkeVersion;
-      bauwerke = kodiere({ typ: NACHRICHT.BAUWERKE, liste: [...this.spielWelt.welt.bauwerke.values()] });
-    }
-    let tueren = null;
-    if (this.spielWelt.tuerenVersion !== this.gesendeteTuerenVersion) {
-      this.gesendeteTuerenVersion = this.spielWelt.tuerenVersion;
-      tueren = kodiere({ typ: NACHRICHT.TUEREN, offen: this.spielWelt.welt.offeneTueren() });
-    }
+    proZone = this.#sitzungenProZone(); // nach den Zonenwechseln
+    for (const zone of aktive) zone.versende(proZone.get(zone) ?? [], (sitzung) => this.#sendePrivateDaten(sitzung));
+  }
 
-    const meldungen = new Map();
-    for (const { spielerId, text } of this.spielWelt.meldungen) {
-      if (!meldungen.has(spielerId)) meldungen.set(spielerId, []);
-      meldungen.get(spielerId).push(text);
+  /** Map Zone → [Sitzungen im Spiel] */
+  #sitzungenProZone() {
+    const proZone = new Map();
+    for (const s of this.sitzungen) {
+      if (s.status !== 'imSpiel') continue;
+      if (!proZone.has(s.zone)) proZone.set(s.zone, []);
+      proZone.get(s.zone).push(s);
     }
-    this.spielWelt.meldungen = []; // erst nach dem Einsammeln leeren (auch Meldungen zwischen zwei Ticks kommen an)
+    return proZone;
+  }
 
-    for (const sitzung of this.sitzungen) {
-      if (sitzung.status !== 'imSpiel') continue;
-      if (gegenstaende) sitzung.kanal.senden(gegenstaende);
-      if (tueren) sitzung.kanal.senden(tueren);
-      if (ressourcen) sitzung.kanal.senden(ressourcen);
-      if (bauwerke) sitzung.kanal.senden(bauwerke);
-      sitzung.kanal.senden(zustand);
-      this.#sendePrivateDaten(sitzung);
-      for (const text of meldungen.get(sitzung.spielerId) ?? []) this.#senden(sitzung, { typ: NACHRICHT.MELDUNG, text });
+  #spieler(sitzung) {
+    return sitzung.status === 'imSpiel' ? sitzung.zone.spielWelt.holen(sitzung.spielerId) : null;
+  }
+
+  /**
+   * Spieler hat einen Übergang betreten: Spielstand mitnehmen, aus der alten Zone raus, in der neuen am
+   * Ankunftspunkt rein, Client baut neu auf (ZONE_WECHSEL). Unbekanntes Ziel → Weg "versperrt".
+   */
+  async #wechsleZone(sitzung, spieler) {
+    const { ziel, ankunft, name } = spieler.zonenwechsel;
+    spieler.zonenwechsel = null;
+    const alt = sitzung.zone;
+    const zone = ziel === alt.id ? null : this.zone(ziel);
+    if (!zone) {
+      alt.spielWelt.melde(spieler.id, `${name}: Dieser Weg ist noch versperrt`);
+      return;
     }
+    const stand = erstelleSpielstand(spieler, alt.id);
+    const behalten = {
+      blick: spieler.blick,
+      ausdauer: spieler.ausdauer,
+      erschoepft: spieler.erschoepft,
+      lichtAn: spieler.lichtAn,
+      gottmodus: spieler.gottmodus,
+      unsichtbar: spieler.unsichtbar,
+      letzteEmpfangeneSeq: spieler.letzteEmpfangeneSeq, // Client zählt seq weiter
+      letzteVerarbeiteteSeq: spieler.letzteVerarbeiteteSeq,
+    };
+    alt.spielWelt.entfernen(spieler.id);
+    sitzung.status = 'wechseltZone';
+    sitzung.zonenStand = stand; // falls die Verbindung genau jetzt abreißt: trotzdem speichern
+    sitzung.spielerId = null;
+    await zone.geladen;
+    if (!this.sitzungen.has(sitzung) || this.gestoppt) return;
+
+    this.#aktiviere(zone);
+    const neu = zone.spielWelt.spielerBetrittWelt(sitzung.benutzername, { admin: spieler.admin });
+    wendeSpielstandAn(neu, stand, zone.spielWelt);
+    const punkt = zone.ankunft(ankunft);
+    Object.assign(neu, behalten, { x: punkt.x, y: punkt.y });
+    sitzung.zone = zone;
+    sitzung.spielerId = neu.id;
+    sitzung.zonenStand = null;
+    sitzung.letzteSpielerDaten = null;
+    sitzung.status = 'imSpiel';
+    zone.spielWelt.melde(neu.id, `Du betrittst: ${zone.name}`);
+    this.#senden(sitzung, { typ: NACHRICHT.ZONE_WECHSEL, zone: zone.name, ...this.#startDaten(zone, neu) });
+    this.log.info?.(`[Server] ${sitzung.benutzername}: ${alt.id} → ${zone.id}`);
+  }
+
+  /** Alles, was der Client zum (Neu-)Aufbau braucht – ANMELDUNG_OK und ZONE_WECHSEL. */
+  #startDaten(zone, spieler) {
+    return {
+      spielerId: spieler.id,
+      serverName: this.konfiguration.server.name,
+      tickRate: TICK_RATE,
+      start: { x: spieler.x, y: spieler.y },
+      itemDefinitionen: GEGENSTAENDE,
+      spielerDaten: spielerDatenPrivat(spieler, this.konfiguration),
+      erkundet: packeErkundet(spieler.erkundet),
+      rezepte: REZEPTE,
+      ...zone.weltDaten(),
+    };
   }
 
   /** Inventar, Hunger, Durst … nur an den Spieler selbst – und nur, wenn sich etwas geändert hat. */
   #sendePrivateDaten(sitzung) {
-    const spieler = this.spielWelt.holen(sitzung.spielerId);
+    const spieler = this.#spieler(sitzung);
     if (!spieler) return;
     const text = kodiere({ typ: NACHRICHT.SPIELER_DATEN, ...spielerDatenPrivat(spieler, this.konfiguration) });
     if (text === sitzung.letzteSpielerDaten) return;
@@ -292,47 +395,33 @@ export class SpielServer {
     } catch (fehler) {
       this.log.error?.(`[Server] Spielstand von ${name} nicht ladbar:`, fehler);
     }
+    // Weiter in der Zone vom letzten Mal (nur lebend und wenn es die Karte noch gibt), sonst Startzone
+    const zone = (spielstand?.leben > 0 && typeof spielstand.karte === 'string' && this.zone(spielstand.karte)) || this.startZone;
+    await zone.geladen;
     if (!this.sitzungen.has(sitzung) || this.gestoppt) return;
 
-    const spieler = this.spielWelt.spielerBetrittWelt(name, { admin: ergebnis.admin === true });
-    const geladen = wendeSpielstandAn(spieler, spielstand, this.spielWelt);
+    this.#aktiviere(zone);
+    const spieler = zone.spielWelt.spielerBetrittWelt(name, { admin: ergebnis.admin === true });
+    const geladen = wendeSpielstandAn(spieler, spielstand, zone.spielWelt);
     // Beim Login gewählte Figur gilt (und landet im Spielstand)
     if (nachricht.aussehen && typeof nachricht.aussehen === 'object') spieler.aussehen = pruefeAussehen(nachricht.aussehen);
     clearTimeout(sitzung.loginTimer);
     sitzung.status = 'imSpiel';
+    sitzung.zone = zone;
     sitzung.spielerId = spieler.id;
-    if (geladen) this.spielWelt.melde(spieler.id, 'Spielstand geladen');
-    else this.spielWelt.melde(spieler.id, 'Tipp: Auf der Karte (K / 🗺) sind Werkbänke 🔨 markiert');
+    if (geladen) zone.spielWelt.melde(spieler.id, zone === this.startZone ? 'Spielstand geladen' : `Spielstand geladen – du bist in: ${zone.name}`);
+    else zone.spielWelt.melde(spieler.id, 'Tipp: Auf der Karte (K / 🗺) sind Werkbänke 🔨 markiert');
 
-    this.#senden(sitzung, {
-      typ: NACHRICHT.ANMELDUNG_OK,
-      spielerId: spieler.id,
-      serverName: this.konfiguration.server.name,
-      tickRate: TICK_RATE,
-      karte: this.spielWelt.karte.daten,
-      physik: this.spielWelt.physikParameter(),
-      start: { x: spieler.x, y: spieler.y },
-      gegenstaende: this.spielWelt.gegenstaendeListe(),
-      itemDefinitionen: GEGENSTAENDE,
-      spielerDaten: spielerDatenPrivat(spieler, this.konfiguration),
-      tueren: this.spielWelt.welt.offeneTueren(),
-      abgebaut: [...this.spielWelt.welt.abgebaut],
-      bauwerke: [...this.spielWelt.welt.bauwerke.values()],
-      erkundet: packeErkundet(spieler.erkundet),
-      rezepte: REZEPTE,
-      tageszeit: this.spielWelt.tageszeitDauer(),
-      zeit: this.spielWelt.zeit,
-      tag: this.spielWelt.tag,
-    });
+    this.#senden(sitzung, { typ: NACHRICHT.ANMELDUNG_OK, ...this.#startDaten(zone, spieler) });
     this.log.info?.(`[Server] ${name} ist beigetreten (${this.spielerAnzahl} online)`);
     this.#anAlle({ typ: NACHRICHT.CHAT, system: true, text: `${name} ist beigetreten` });
   }
 
   /** Spielstand sichern – Daten werden SOFORT erfasst, das Schreiben läuft im Hintergrund. */
   #speichere(sitzung) {
-    const spieler = this.spielWelt.holen(sitzung.spielerId);
-    if (!spieler) return;
-    const stand = erstelleSpielstand(spieler, this.spielWelt.karte.daten.id);
+    const spieler = this.#spieler(sitzung);
+    const stand = spieler ? erstelleSpielstand(spieler, sitzung.zone.id) : sitzung.zonenStand; // mitten im Zonenwechsel
+    if (!stand) return;
     const auftrag = Promise.resolve()
       .then(() => this.speicher.speichern(sitzung.benutzername, stand))
       .catch((fehler) => this.log.error?.(`[Server] Spielstand von ${sitzung.benutzername} nicht gespeichert:`, fehler))
@@ -349,7 +438,7 @@ export class SpielServer {
 
   /** Eingaben NIE blind vertrauen: Typen prüfen, Reihenfolge prüfen, Puffer begrenzen. */
   #eingabe(sitzung, n) {
-    const spieler = this.spielWelt.holen(sitzung.spielerId);
+    const spieler = this.#spieler(sitzung);
     if (!spieler) return;
     if (!Number.isInteger(n.seq) || n.seq <= spieler.letzteEmpfangeneSeq) return;
     if (!Number.isFinite(n.x) || !Number.isFinite(n.y)) return;
@@ -366,7 +455,7 @@ export class SpielServer {
   }
 
   #aktion(sitzung, n) {
-    const spieler = this.spielWelt.holen(sitzung.spielerId);
+    const spieler = this.#spieler(sitzung);
     if (!spieler || !GUELTIGE_AKTIONEN.has(n.art)) return;
     const slot = n.slot === undefined ? null : n.slot;
     const gueltigerSlot = (s) => Number.isInteger(s) && s >= 0 && s < INVENTAR_MAX;
@@ -393,7 +482,7 @@ export class SpielServer {
     const jetzt = Date.now();
     if (!text || jetzt - (sitzung.letzterChat ?? 0) < CHAT_PAUSE_MS) return;
     sitzung.letzterChat = jetzt;
-    const spieler = this.spielWelt.holen(sitzung.spielerId);
+    const spieler = this.#spieler(sitzung);
     this.#anAlle({ typ: NACHRICHT.CHAT, von: sitzung.benutzername, text, admin: !!spieler?.admin });
   }
 
@@ -404,20 +493,23 @@ export class SpielServer {
 
   /** Developer-Modus: nur für Admins. Werte setzen → sofort wirksam, an alle verteilt, dauerhaft gespeichert. */
   #entwickler(sitzung, n) {
-    const spieler = this.spielWelt.holen(sitzung.spielerId);
+    const spieler = this.#spieler(sitzung);
     if (!spieler?.admin) return;
+    // Konfiguration teilen sich alle Zonen; Spieler/Zombies jeder Zone bekommen die neuen Werte
     if (n.typ === NACHRICHT.DEV_SETZEN && n.werte && typeof n.werte === 'object') {
       const eintraege = Object.entries(n.werte).slice(0, 100);
-      for (const [pfad, wert] of eintraege) setzeEntwicklerWert(this.spielWelt, this.ueberschreibungen, pfad, wert);
-      this.#einstellungenGeaendert(`${eintraege.length} Wert(e) geändert`, spieler);
+      for (const zone of this.zonen.values()) {
+        for (const [pfad, wert] of eintraege) setzeEntwicklerWert(zone.spielWelt, this.ueberschreibungen, pfad, wert);
+      }
+      this.#einstellungenGeaendert(`${eintraege.length} Wert(e) geändert`, sitzung, spieler);
     } else if (n.typ === NACHRICHT.DEV_ZURUECKSETZEN) {
-      setzeAllesZurueck(this.spielWelt, this.ueberschreibungen);
-      this.#einstellungenGeaendert('Alle Werte auf Standard zurückgesetzt', spieler);
+      for (const zone of this.zonen.values()) setzeAllesZurueck(zone.spielWelt, this.ueberschreibungen);
+      this.#einstellungenGeaendert('Alle Werte auf Standard zurückgesetzt', sitzung, spieler);
     }
     this.#senden(sitzung, { typ: NACHRICHT.DEV_WERTE, felder: entwicklerWerte(this.konfiguration), ueberschreibungen: this.ueberschreibungen });
   }
 
-  #einstellungenGeaendert(text, spieler) {
+  #einstellungenGeaendert(text, sitzung, spieler) {
     const nachricht = kodiere({
       typ: NACHRICHT.EINSTELLUNGEN,
       physik: this.spielWelt.physikParameter(),
@@ -425,7 +517,7 @@ export class SpielServer {
       itemDefinitionen: GEGENSTAENDE,
     });
     for (const s of this.sitzungen) if (s.status === 'imSpiel') s.kanal.senden(nachricht);
-    this.spielWelt.melde(spieler.id, `🛠 ${text}`);
+    sitzung.zone.spielWelt.melde(spieler.id, `🛠 ${text}`);
     this.log.info?.(`[Server] Developer (${spieler.name}): ${text}`);
     if (!this.einstellungsSpeicher) return;
     Promise.resolve()
@@ -437,9 +529,9 @@ export class SpielServer {
     if (!this.sitzungen.has(sitzung)) return;
     this.sitzungen.delete(sitzung);
     clearTimeout(sitzung.loginTimer);
-    if (sitzung.spielerId !== null) {
+    if (sitzung.spielerId !== null || sitzung.zonenStand) {
       if (!this.gestoppt) this.#speichere(sitzung); // beim Stopp ist schon gespeichert
-      this.spielWelt.entfernen(sitzung.spielerId);
+      if (sitzung.spielerId !== null) sitzung.zone.spielWelt.entfernen(sitzung.spielerId);
       this.log.info?.(`[Server] ${sitzung.benutzername} hat das Spiel verlassen (${grund ?? 'getrennt'})`);
       if (!this.gestoppt) this.#anAlle({ typ: NACHRICHT.CHAT, system: true, text: `${sitzung.benutzername} hat das Spiel verlassen` });
     }
