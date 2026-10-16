@@ -10,6 +10,7 @@ import { Hud } from './ui/hud.js';
 import { zeigeCredits } from './ui/credits.js';
 import { Sound } from './audio/sound.js';
 import { lokalerServer } from './netzwerk/lokalerServer.js';
+import { NACHRICHT } from '../gemeinsam/protokoll.js';
 
 /**
  * Einstiegspunkt des Clients. Verdrahtet nur die Bausteine – keine Spiellogik hier.
@@ -56,6 +57,9 @@ hud.beiAktionen({
   tuer: () => aktuellesSpiel?.tuer(),
   interagieren: () => aktuellesSpiel?.interagieren(),
   karte: () => aktuellesSpiel?.karteUmschalten(),
+  entwicklerAbfragen: () => aktuellesSpiel?.entwickler(NACHRICHT.DEV_ABFRAGEN),
+  entwicklerSetzen: (werte) => aktuellesSpiel?.entwickler(NACHRICHT.DEV_SETZEN, { werte }),
+  entwicklerZuruecksetzen: () => aktuellesSpiel?.entwickler(NACHRICHT.DEV_ZURUECKSETZEN),
   herstellen: (rezept) => aktuellesSpiel?.herstellen(rezept),
   werkbankSchliessen: () => aktuellesSpiel?.werkbankUmschalten(false),
   wiederbeleben: () => aktuellesSpiel?.wiederbeleben(),

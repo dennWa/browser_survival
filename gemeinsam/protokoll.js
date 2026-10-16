@@ -18,6 +18,12 @@ export const NACHRICHT = Object.freeze({
   AKTION: 'aktion',
   /** { t } – Zeitstempel des Clients, kommt als PONG zurück */
   PING: 'ping',
+  /** {} – Developer-Modus: aktuelle Werte anfordern (nur Admins) */
+  DEV_ABFRAGEN: 'devAbfragen',
+  /** { werte: { pfad: zahl } } – Developer-Modus: Werte setzen (nur Admins; Pfade aus entwicklerFelder.js) */
+  DEV_SETZEN: 'devSetzen',
+  /** {} – Developer-Modus: alles auf Standard */
+  DEV_ZURUECKSETZEN: 'devZuruecksetzen',
 
   // ---- Server → Client ----
   /** { spielerId, serverName, tickRate, karte, physik, start, gegenstaende, itemDefinitionen, spielerDaten,
@@ -40,6 +46,10 @@ export const NACHRICHT = Object.freeze({
   RESSOURCEN: 'ressourcen',
   /** { t } */
   PONG: 'pong',
+  /** { felder: [{ pfad, name, gruppe, min, max, schritt, einheit, wert, standard }], ueberschreibungen } – nur an Admins */
+  DEV_WERTE: 'devWerte',
+  /** { physik, tageszeit, itemDefinitionen } – nach Developer-Änderungen an alle (Vorhersage, Uhr, HUD) */
+  EINSTELLUNGEN: 'einstellungen',
   /** { text } – Hinweise vom Server (z. B. "Server startet neu") */
   SYSTEM: 'system',
 });

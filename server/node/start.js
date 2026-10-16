@@ -5,7 +5,7 @@ import { SpielServer } from '../spiel/spielServer.js';
 import { GastAuthentifizierung } from '../spiel/authentifizierung/gastAuthentifizierung.js';
 import { KontenAuthentifizierung } from './kontenAuthentifizierung.js';
 import { DateiSpeicher } from './dateiSpeicher.js';
-import { ladeEinstellungen } from './einstellungenLaden.js';
+import { dateiEinstellungsSpeicher, ladeEinstellungen } from './einstellungenLaden.js';
 import { erstelleStatischenServer } from './statischerServer.js';
 import { bindeWebsocketServer } from './websocketAnbindung.js';
 
@@ -29,6 +29,8 @@ const spielServer = new SpielServer({
   authentifizierung,
   speicher: new DateiSpeicher(process.env.SPIELSTAENDE ?? path.join(DATEN, 'spielstaende')),
   konfiguration: ladeEinstellungen(path.join(DATEN, 'einstellungen.json')),
+  // Developer-Modus speichert Änderungen dorthin zurück
+  einstellungsSpeicher: dateiEinstellungsSpeicher(path.join(DATEN, 'einstellungen.json')),
 });
 
 const httpServer = erstelleStatischenServer(WURZEL);

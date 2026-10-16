@@ -5,6 +5,9 @@ import { GastAuthentifizierung } from '../server/spiel/authentifizierung/gastAut
 import { erstelleSpeicherKanalPaar } from '../server/spiel/netz/speicherKanal.js';
 import { NACHRICHT, kodiere, dekodiere } from '../gemeinsam/protokoll.js';
 import { PROTOKOLL_VERSION } from '../gemeinsam/konstanten.js';
+import { GEGENSTAENDE } from '../server/spiel/konfiguration/gegenstaende.js';
+
+const PISTOLE_SCHADEN = GEGENSTAENDE.pistole.schaden;
 
 const stillerLog = { info() {}, warn() {}, error() {} };
 const warte = (ms = 5) => new Promise((r) => setTimeout(r, ms));
@@ -101,4 +104,48 @@ test('Kaputte Nachrichten bringen den Server nicht zum Absturz', async (t) => {
   client.senden({ typ: NACHRICHT.EINGABE, seq: 'a' });
   await warte();
   server.tickAusfuehren();
+});
+
+test('Developer-Modus: nur Admins dürfen Werte ändern – wirkt sofort und wird gespeichert', async (t) => {
+  const gespeichert = [];
+  const server = new SpielServer({
+    authentifizierung: { pruefe: async (name) => ({ ok: true, benutzername: name, admin: name === 'Chef' }) },
+    konfiguration: { server: { zufallsStartwert: 42, name: 'Testserver' } },
+    protokoll: stillerLog,
+    einstellungsSpeicher: { speichern: (o) => gespeichert.push(o) },
+  });
+  t.after(() => {
+    server.stoppen();
+    // Item-Werte sind global → wieder auf Standard
+    GEGENSTAENDE.pistole.schaden = PISTOLE_SCHADEN;
+  });
+  const anmelden = async (name) => {
+    const c = verbinde(server);
+    c.senden({ typ: NACHRICHT.ANMELDEN, benutzername: name, passwort: '', protokoll: PROTOKOLL_VERSION });
+    await warteAuf(() => c.empfangen.some((n) => n?.typ === NACHRICHT.ANMELDUNG_OK), `Login ${name}`);
+    return c;
+  };
+  const gast = await anmelden('Gast');
+  const chef = await anmelden('Chef');
+
+  gast.senden({ typ: NACHRICHT.DEV_SETZEN, werte: { 'spieler.geschwindigkeit': 300 } });
+  await warte(20);
+  assert.equal(server.konfiguration.spieler.geschwindigkeit, 150, 'Nicht-Admin: keine Wirkung');
+
+  chef.senden({ typ: NACHRICHT.DEV_SETZEN, werte: { 'spieler.geschwindigkeit': 220, 'gegenstaende.pistole.schaden': 99, 'zombie.leben': 99999 } });
+  await warteAuf(() => chef.empfangen.some((n) => n?.typ === NACHRICHT.DEV_WERTE), 'DEV_WERTE');
+  assert.equal(server.konfiguration.spieler.geschwindigkeit, 220);
+  assert.equal(server.spielWelt.physikParameter().geschwindigkeit, 220);
+  assert.equal(GEGENSTAENDE.pistole.schaden, 99);
+  assert.equal(server.konfiguration.zombie.leben, 1000, 'auf max begrenzt');
+  assert.ok(gast.empfangen.some((n) => n?.typ === NACHRICHT.EINSTELLUNGEN && n.physik.geschwindigkeit === 220), 'alle bekommen neue Physik');
+  await warteAuf(() => gespeichert.length > 0, 'gespeichert');
+  assert.equal(gespeichert.at(-1).spieler.geschwindigkeit, 220);
+  assert.equal(gespeichert.at(-1).gegenstaende.pistole.schaden, 99);
+  assert.equal(gespeichert.at(-1).server.name, 'Testserver', 'andere Einstellungen bleiben erhalten');
+
+  chef.senden({ typ: NACHRICHT.DEV_ZURUECKSETZEN });
+  await warteAuf(() => GEGENSTAENDE.pistole.schaden === PISTOLE_SCHADEN, 'zurückgesetzt');
+  assert.equal(server.konfiguration.spieler.geschwindigkeit, 150);
+  assert.equal(gespeichert.at(-1).spieler?.geschwindigkeit, undefined);
 });

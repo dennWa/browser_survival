@@ -11,6 +11,7 @@ import { ADMIN_BEFEHLE, AKTIONEN, NACHRICHT, dekodiere, kodiere } from '../../ge
 import { erstelleKonfiguration } from './konfiguration/spielKonfiguration.js';
 import { GEGENSTAENDE } from './konfiguration/gegenstaende.js';
 import { REZEPTE } from './konfiguration/rezepte.js';
+import { entwicklerWerte, setzeAllesZurueck, setzeEntwicklerWert, wendeGegenstandsUeberschreibungenAn } from './entwickler.js';
 import { spielerDatenPrivat } from './entitaeten/spieler.js';
 import { erstelleSpielstand, wendeSpielstandAn } from './spielstand.js';
 import { ArbeitsspeicherSpeicher } from './speicher/arbeitsspeicherSpeicher.js';
@@ -44,8 +45,10 @@ export class SpielServer {
    * @param {Console} [optionen.protokoll]     Logger (console-kompatibel)
    * @param {object} [optionen.kartenDefinition] eigene Karte (z. B. für Tests)
    * @param {{ laden: Function, speichern: Function }} [optionen.speicher] Spielstände (Standard: nur im Arbeitsspeicher)
+   * @param {{ speichern: Function }} [optionen.einstellungsSpeicher] speichert Developer-Änderungen dauerhaft
+   *        (Node: server/daten/einstellungen.json, Lokal-Modus: localStorage). Ohne → nur bis zum Neustart.
    */
-  constructor({ authentifizierung, konfiguration = {}, protokoll = console, kartenDefinition, speicher }) {
+  constructor({ authentifizierung, konfiguration = {}, protokoll = console, kartenDefinition, speicher, einstellungsSpeicher = null }) {
     if (!authentifizierung) throw new Error('SpielServer braucht eine Authentifizierung');
     this.authentifizierung = authentifizierung;
     this.speicher = speicher ?? new ArbeitsspeicherSpeicher();
@@ -53,6 +56,10 @@ export class SpielServer {
     this.ticksSeitAutosave = 0;
     this.gestoppt = false;
     this.konfiguration = erstelleKonfiguration(konfiguration);
+    // Developer-Modus: alle Überschreibungen (Format von einstellungen.json) – inkl. Item-Werte
+    this.einstellungsSpeicher = einstellungsSpeicher;
+    this.ueberschreibungen = structuredClone(konfiguration);
+    wendeGegenstandsUeberschreibungenAn(konfiguration.gegenstaende);
     this.log = protokoll;
     this.spielWelt = new SpielWelt(this.konfiguration, { kartenDefinition });
     this.sitzungen = new Set();
@@ -190,6 +197,11 @@ export class SpielServer {
       case NACHRICHT.PING:
         if (Number.isFinite(nachricht.t)) this.#senden(sitzung, { typ: NACHRICHT.PONG, t: nachricht.t });
         break;
+      case NACHRICHT.DEV_ABFRAGEN:
+      case NACHRICHT.DEV_SETZEN:
+      case NACHRICHT.DEV_ZURUECKSETZEN:
+        if (sitzung.status === 'imSpiel') this.#entwickler(sitzung, nachricht);
+        break;
       default:
         // Unbekannte Nachricht → ignorieren (nicht abstürzen!)
         break;
@@ -312,6 +324,37 @@ export class SpielServer {
     if (n.art === AKTIONEN.ADMIN) aktion.befehl = n.befehl;
     if (n.art === AKTIONEN.HERSTELLEN) aktion.rezept = n.rezept;
     spieler.aktionsPuffer.push(aktion);
+  }
+
+  /** Developer-Modus: nur für Admins. Werte setzen → sofort wirksam, an alle verteilt, dauerhaft gespeichert. */
+  #entwickler(sitzung, n) {
+    const spieler = this.spielWelt.holen(sitzung.spielerId);
+    if (!spieler?.admin) return;
+    if (n.typ === NACHRICHT.DEV_SETZEN && n.werte && typeof n.werte === 'object') {
+      const eintraege = Object.entries(n.werte).slice(0, 100);
+      for (const [pfad, wert] of eintraege) setzeEntwicklerWert(this.spielWelt, this.ueberschreibungen, pfad, wert);
+      this.#einstellungenGeaendert(`${eintraege.length} Wert(e) geändert`, spieler);
+    } else if (n.typ === NACHRICHT.DEV_ZURUECKSETZEN) {
+      setzeAllesZurueck(this.spielWelt, this.ueberschreibungen);
+      this.#einstellungenGeaendert('Alle Werte auf Standard zurückgesetzt', spieler);
+    }
+    this.#senden(sitzung, { typ: NACHRICHT.DEV_WERTE, felder: entwicklerWerte(this.konfiguration), ueberschreibungen: this.ueberschreibungen });
+  }
+
+  #einstellungenGeaendert(text, spieler) {
+    const nachricht = kodiere({
+      typ: NACHRICHT.EINSTELLUNGEN,
+      physik: this.spielWelt.physikParameter(),
+      tageszeit: this.spielWelt.tageszeitDauer(),
+      itemDefinitionen: GEGENSTAENDE,
+    });
+    for (const s of this.sitzungen) if (s.status === 'imSpiel') s.kanal.senden(nachricht);
+    this.spielWelt.melde(spieler.id, `🛠 ${text}`);
+    this.log.info?.(`[Server] Developer (${spieler.name}): ${text}`);
+    if (!this.einstellungsSpeicher) return;
+    Promise.resolve()
+      .then(() => this.einstellungsSpeicher.speichern(structuredClone(this.ueberschreibungen)))
+      .catch((fehler) => this.log.error?.('[Server] Einstellungen nicht gespeichert:', fehler));
   }
 
   #verbindungGetrennt(sitzung, grund) {

@@ -134,9 +134,15 @@ export class ClientSpiel {
     this.karte.zeige(offen);
   }
 
+  /** Developer-Modus (nur Admins – der Server prüft das). */
+  entwickler(typ, daten = {}) {
+    if (this.spielerDaten?.admin) this.#senden({ typ, ...daten });
+  }
+
   /** Escape: offene Fenster schließen. */
   menuesSchliessen() {
     this.karte.zeige(false);
+    this.hud.entwickler.zeige(false);
     this.werkbankUmschalten(false);
   }
 
@@ -225,6 +231,15 @@ export class ClientSpiel {
         break;
       case NACHRICHT.GEGENSTAENDE:
         this.gegenstaende = n.gegenstaende;
+        break;
+      case NACHRICHT.DEV_WERTE:
+        this.hud.entwickler.setzeWerte(n.felder, n.ueberschreibungen);
+        break;
+      case NACHRICHT.EINSTELLUNGEN:
+        // Developer-Änderung: Vorhersage, Uhr und Item-Infos auf den neuen Stand bringen
+        this.physik = n.physik ?? this.physik;
+        this.tageszeitDauer = n.tageszeit ?? this.tageszeitDauer;
+        this.itemDefinitionen = n.itemDefinitionen ?? this.itemDefinitionen;
         break;
       case NACHRICHT.RESSOURCEN:
         this.welt.uebernimmAbgebaute(n.abgebaut);

@@ -560,6 +560,58 @@ button {
   border-radius: 50%;
 }
 
+/* ---------- Developer-Modus ---------- */
+#entwickler {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  width: min(620px, calc(100vw - 24px));
+  max-height: min(600px, calc(100dvh - 24px));
+  padding: 16px;
+  color: var(--text);
+  background: linear-gradient(180deg, rgba(20, 28, 40, 0.97), rgba(12, 16, 22, 0.97));
+  border: 1px solid rgba(90, 160, 230, 0.55);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+
+#entwickler .werkbank-kopf h2 { color: #8cc4ff; }
+#entwickler-schliessen { width: 38px; height: 38px; color: var(--text); background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 50%; }
+#entwickler-reiter { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+#entwickler-reiter button { padding: 7px 14px; font-weight: 600; color: var(--text-gedimmt); background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 18px; }
+#entwickler-reiter button.aktiv { color: #08121e; background: #6fb2f5; border-color: #6fb2f5; }
+#entwickler-liste { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; padding-right: 4px; }
+
+.dev-zeile {
+  display: grid;
+  grid-template-columns: 1fr 96px 40px 64px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+
+.dev-zeile.geaendert { border-color: rgba(111, 178, 245, 0.35); }
+.dev-zeile.bearbeitet { border-color: #f3d36b; background: rgba(243, 211, 107, 0.08); }
+.dev-name { font-size: 0.9rem; }
+.dev-zeile input { width: 100%; padding: 6px 8px; font-variant-numeric: tabular-nums; }
+.dev-einheit { font-size: 0.75rem; color: var(--text-gedimmt); }
+.dev-standard { padding: 4px 8px; font-size: 0.75rem; color: var(--text-gedimmt); background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; }
+.dev-fuss { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.dev-fuss button:not(.herstellen) { padding: 8px 12px; color: var(--text); background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; }
+#admin-panel button.dev-knopf { color: #8cc4ff; }
+
+@media (max-width: 560px) {
+  .dev-zeile { grid-template-columns: 1fr 80px auto; }
+  .dev-einheit { display: none; }
+}
+
 /* ---------- Werkbank ---------- */
 #werkbank {
   position: fixed;

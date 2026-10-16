@@ -60,6 +60,7 @@
         <button type="button" data-befehl="zombiesToeten">Alle Zombies töten</button>
         <button type="button" data-befehl="zeitSpringen">Tag ⇄ Nacht</button>
         <button type="button" data-nachtsicht>Nachtsicht</button>
+        <button type="button" data-entwickler class="dev-knopf">🛠 Developer</button>
       </div>
       <div id="hud-meldungen" aria-live="polite"></div>
       <div id="hud-arbeit" hidden>
@@ -86,6 +87,25 @@
         <button id="karte-schliessen" type="button" aria-label="Schließen">✕</button>
       </div>
       <div class="karte-rahmen"><canvas id="karte-bild"></canvas></div>
+    </div>
+
+    <!-- Developer-Modus (nur Admins): Spielwerte ingame ändern -->
+    <div id="entwickler" hidden>
+      <div class="werkbank-kopf">
+        <h2>🛠 Developer-Modus</h2>
+        <button id="entwickler-schliessen" type="button" aria-label="Schließen">✕</button>
+      </div>
+      <div id="entwickler-reiter"></div>
+      <div id="entwickler-liste"></div>
+      <div class="dev-fuss">
+        <button id="entwickler-uebernehmen" type="button" class="herstellen">Übernehmen</button>
+        <button id="entwickler-export" type="button">Export</button>
+        <button id="entwickler-import" type="button">Import</button>
+        <button id="entwickler-zuruecksetzen" type="button">Alles zurücksetzen</button>
+        <input id="entwickler-datei" type="file" accept="application/json,.json" hidden />
+      </div>
+      <p id="entwickler-status" class="werkbank-hinweis"></p>
+      <p class="werkbank-hinweis">Weitere Werte freischalten: <code>server/spiel/konfiguration/entwicklerFelder.js</code></p>
     </div>
 
     <!-- Werkbank (Crafting) -->

@@ -1,5 +1,6 @@
 import { INVENTAR_PLAETZE } from '../../gemeinsam/konstanten.js';
 import { WerkbankMenue } from './werkbankMenue.js';
+import { EntwicklerFenster } from './entwicklerFenster.js';
 
 /**
  * HUD (Head-Up-Display) über dem Spiel:
@@ -83,6 +84,13 @@ export class Hud {
       knopf.addEventListener('click', () => this.#aktionen.admin?.(knopf.dataset.befehl));
     }
     this.el.adminPanel.querySelector('[data-nachtsicht]').addEventListener('click', () => this.#aktionen.nachtsicht?.());
+    this.entwickler = new EntwicklerFenster(dokument);
+    this.entwickler.beiAktionen({
+      abfragen: () => this.#aktionen.entwicklerAbfragen?.(),
+      setzen: (werte) => this.#aktionen.entwicklerSetzen?.(werte),
+      zuruecksetzen: () => this.#aktionen.entwicklerZuruecksetzen?.(),
+    });
+    this.el.adminPanel.querySelector('[data-entwickler]').addEventListener('click', () => this.entwickler.zeige());
     this.#baueHotbar();
   }
 
@@ -129,6 +137,7 @@ export class Hud {
     this.el.tuer.hidden = true;
     this.el.arbeit.hidden = true;
     this.werkbank.zeige(null);
+    this.entwickler.zeige(false);
     this.#istAdmin = false;
     this.#nachtsicht = false;
     this.#schalterStand = '';
