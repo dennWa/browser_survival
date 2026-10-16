@@ -11,6 +11,7 @@ export class EinstellungenFenster {
   #sound = null;
   #renderer = () => null;
   #minikarteWechseln = null;
+  #handy = null;
 
   constructor(dokument) {
     this.dokument = dokument;
@@ -22,6 +23,34 @@ export class EinstellungenFenster {
     dokument.getElementById('hud-einstellungen').addEventListener('click', () => this.zeige());
     this.minikarteKnopf = dokument.getElementById('einst-minikarte');
     this.minikarteKnopf.addEventListener('click', () => this.#minikarteWechseln?.());
+  }
+
+  /** Handy-Abschnitt: Statusbalken (hud.anzeige) und Stick-Steuerung (touch.einstellung) – nur auf Touch-Geräten sichtbar. */
+  verbindeHandy({ hud, touch }) {
+    this.#handy = { hud, touch };
+    const el = this.dokument.getElementById('einst-handy');
+    const kompakt = this.dokument.getElementById('einst-kompakt');
+    kompakt.addEventListener('click', () => {
+      hud.setzeAnzeige({ kompakt: !(hud.anzeige.kompakt ?? hud.istTouch) });
+      this.#aktualisiere();
+    });
+    for (const knopf of el.querySelectorAll('[data-balken]')) {
+      knopf.addEventListener('click', () => {
+        const name = knopf.dataset.balken;
+        hud.setzeAnzeige({ balken: { [name]: hud.anzeige.balken[name] === false } });
+        this.#aktualisiere();
+      });
+    }
+    this.dokument.getElementById('einst-stick-fest').addEventListener('click', () => {
+      touch.setzeEinstellung({ modus: 'fest' });
+      this.#aktualisiere();
+    });
+    this.dokument.getElementById('einst-stick-frei').addEventListener('click', () => {
+      touch.setzeEinstellung({ modus: 'frei' });
+      this.#aktualisiere();
+    });
+    this.dokument.getElementById('einst-stick-rand').addEventListener('input', (e) => touch.setzeEinstellung({ rand: Number(e.target.value) }));
+    this.dokument.getElementById('einst-stick-hoehe').addEventListener('input', (e) => touch.setzeEinstellung({ hoehe: Number(e.target.value) }));
   }
 
   /** @param sound Sound-Objekt · @param renderer Funktion, die den Renderer (oder null) liefert */
@@ -85,6 +114,22 @@ export class EinstellungenFenster {
     const aktuell = this.#renderer()?.grafik;
     for (const knopf of this.grafikEl.children) knopf.classList.toggle('aktiv', knopf.dataset.grafik === aktuell);
     this.grafikInfo.textContent = aktuell ? `${GRAFIK_PROFILE[aktuell].name}: ${GRAFIK_PROFILE[aktuell].beschreibung}` : '';
+    if (this.#handy) {
+      const { hud, touch } = this.#handy;
+      const el = this.dokument.getElementById('einst-handy');
+      el.hidden = !hud.istTouch;
+      const kompakt = hud.anzeige.kompakt ?? hud.istTouch;
+      const k = this.dokument.getElementById('einst-kompakt');
+      k.textContent = kompakt ? 'Kompakt (ohne Symbole)' : 'Normal (mit Symbolen)';
+      k.classList.toggle('aktiv', kompakt);
+      for (const knopf of el.querySelectorAll('[data-balken]')) knopf.classList.toggle('aktiv', hud.anzeige.balken[knopf.dataset.balken] !== false);
+      const fest = touch.einstellung.modus === 'fest';
+      this.dokument.getElementById('einst-stick-fest').classList.toggle('aktiv', fest);
+      this.dokument.getElementById('einst-stick-frei').classList.toggle('aktiv', !fest);
+      this.dokument.getElementById('einst-stick-regler').hidden = !fest;
+      this.dokument.getElementById('einst-stick-rand').value = touch.einstellung.rand;
+      this.dokument.getElementById('einst-stick-hoehe').value = touch.einstellung.hoehe;
+    }
     for (const regler of this.reglerEl.querySelectorAll('input')) regler.value = Math.round(this.#sound.lautstaerken[regler.dataset.kanal] * 100);
   }
 }

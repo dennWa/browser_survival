@@ -96,6 +96,9 @@ export class Hud {
       feld: el('hud-feld'),
       angeln: el('hud-angeln'),
       auto: el('hud-auto'),
+      angelKnopf: el('knopf-angel'),
+      adminZu: el('admin-zu'),
+      werte: el('hud-werte'),
       autoText: el('hud-auto-text'),
     };
     this.debug = debug;
@@ -134,6 +137,14 @@ export class Hud {
     });
     this.el.chatEingabe.addEventListener('blur', () => setTimeout(() => this.chatSchliessen(), 0));
     this.el.admin.addEventListener('click', () => this.adminMenuUmschalten());
+    this.el.adminZu.addEventListener('click', () => this.adminMenuUmschalten(false));
+    this.el.angelKnopf.addEventListener('click', () => this.#aktionen.angeln?.());
+    // Admin-Menü: Tipp daneben schließt es (am Handy sonst kaum wegzubekommen)
+    dokument.addEventListener('pointerdown', (e) => {
+      if (this.el.adminPanel.hidden || this.el.adminPanel.contains(e.target) || this.el.admin.contains(e.target)) return;
+      this.adminMenuUmschalten(false);
+    });
+    this.anzeige = ladeAnzeige();
     for (const knopf of this.el.adminPanel.querySelectorAll('button[data-befehl]')) {
       knopf.addEventListener('click', () => this.#aktionen.admin?.(knopf.dataset.befehl));
     }
@@ -202,6 +213,7 @@ export class Hud {
     this.#istTouch = istTouch;
     this.el.hud.hidden = false;
     this.el.hud.classList.toggle('touch', istTouch);
+    this.wendeAnzeigeAn();
     this.el.debug.hidden = !this.debug;
     this.el.fps.hidden = false;
     this.el.minikarte.hidden = !this.#minikarteAn;
@@ -245,10 +257,35 @@ export class Hud {
     this.el.meldungen.replaceChildren();
   }
 
+  get istTouch() {
+    return this.#istTouch;
+  }
+
+  /**
+   * Statusbalken-Darstellung (Einstellungen → Handy): kompakt = ohne Symbole und schmal (Standard am Handy),
+   * balken = welche Balken überhaupt sichtbar sind. Wird im Browser gemerkt.
+   */
+  setzeAnzeige(neu) {
+    this.anzeige = { ...this.anzeige, ...neu, balken: { ...this.anzeige.balken, ...(neu.balken ?? {}) } };
+    try {
+      localStorage.setItem(ANZEIGE_SCHLUESSEL, JSON.stringify(this.anzeige));
+    } catch {
+      // egal
+    }
+    this.wendeAnzeigeAn();
+  }
+
+  wendeAnzeigeAn() {
+    const kompakt = this.anzeige.kompakt ?? this.#istTouch;
+    this.el.werte.classList.toggle('kompakt', kompakt);
+    for (const name of BALKEN) this.el[name].classList.toggle('versteckt', this.anzeige.balken[name] === false);
+    this.el.werte.hidden = BALKEN.every((n) => this.anzeige.balken[n] === false);
+  }
+
   /** Admin-Menü auf/zu (nur wenn der Server Admin-Recht gemeldet hat). */
-  adminMenuUmschalten() {
+  adminMenuUmschalten(offen = this.el.adminPanel.hidden) {
     if (!this.#istAdmin) return;
-    this.el.adminPanel.hidden = !this.el.adminPanel.hidden;
+    this.el.adminPanel.hidden = !offen;
     this.el.admin.classList.toggle('aktiv', !this.el.adminPanel.hidden);
   }
 
@@ -282,6 +319,15 @@ export class Hud {
     this.el.angeln.hidden = !text;
     this.el.angeln.textContent = text ?? '';
     this.el.angeln.classList.toggle('biss', biss);
+  }
+
+  /** Angel-Knopf (Handy): 'auswerfen' | 'einholen' | 'biss' (Fisch beißt: Knopf pulsiert) | null = verstecken. */
+  zeigeAngelKnopf(modus) {
+    const k = this.el.angelKnopf;
+    k.hidden = !modus || !this.#istTouch;
+    if (!modus) return;
+    k.textContent = modus === 'auswerfen' ? '🎣 Auswerfen' : '🎣 Einholen';
+    k.classList.toggle('biss', modus === 'biss');
   }
 
   /** Banner "Auto-Lauf" (mit Stopp-Knopf für Touch). */
@@ -601,6 +647,20 @@ export class Hud {
     ctx.textAlign = 'center';
     ctx.fillText(slot.knopf.title.slice(0, 2), slot.icon.width / 2, slot.icon.height / 2 + 8);
   }
+}
+
+const ANZEIGE_SCHLUESSEL = 'browserSurvival.hud';
+const BALKEN = ['level', 'leben', 'hunger', 'durst', 'ausdauer'];
+
+function ladeAnzeige() {
+  const standard = { kompakt: null, balken: {} }; // kompakt null = automatisch (am Handy ja)
+  try {
+    const roh = JSON.parse(localStorage.getItem(ANZEIGE_SCHLUESSEL) ?? 'null');
+    if (roh && typeof roh === 'object') return { kompakt: typeof roh.kompakt === 'boolean' ? roh.kompakt : null, balken: { ...(roh.balken ?? {}) } };
+  } catch {
+    // egal
+  }
+  return standard;
 }
 
 function setzeBalken(element, anteil) {

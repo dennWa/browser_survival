@@ -7,6 +7,7 @@ import { tageszeit } from '../../gemeinsam/tageszeit.js';
 import { AKTIONEN, NACHRICHT } from '../../gemeinsam/protokoll.js';
 import { Welt } from '../../gemeinsam/welt/welt.js';
 import { wendeEingabeAn } from '../../gemeinsam/physik/bewegung.js';
+import { sichtlinieFrei } from '../../gemeinsam/physik/strahl.js';
 import { EINSTIEG_ABSTAND, FAHRZEUG_MODELLE, abstandZumFahrzeug, fahrzeugKacheln } from '../../gemeinsam/physik/fahrzeug.js';
 import { lerp, lerpWinkel } from '../../gemeinsam/mathe.js';
 import { INTERPOLATIONS_VERZOEGERUNG_MS, PING_INTERVALL_MS } from '../konfiguration.js';
@@ -23,6 +24,8 @@ const ZOMBIE_TONHOEHE = { normal: 1, laeufer: 1.35, brocken: 0.7 };
 const AUTOLAUF_ANKUNFT_PX = 9; // so nah an der Kachelmitte des Ziels gilt man als angekommen
 const AUTOLAUF_WEGPUNKT_PX = 10;
 const AUTOLAUF_STECKT_S = 1.2; // so lange ohne Fortschritt → Weg neu suchen, dann aufgeben
+const ZIEL_TIPP_RADIUS = 46; // Bildschirm-Pixel: so nah muss ein Tipp/Klick an einem Zombie sein, um ihn anzuvisieren
+const ZIEL_MAX_ABSTAND = 900; // weiter weg → Zielwahl endet
 const ANGEL_REICHWEITE = 230; // wie konfiguration.angeln.reichweite (Server) – nur für den Hinweis "Linksklick: auswerfen"
 
 /**
@@ -80,6 +83,8 @@ export class ClientSpiel {
     this.wetter = 'klar'; // 'klar' | 'regen' | 'nebel' (vom Server)
     /** Auto-Lauf: { ziel: {tx, ty}, pfad: [{x, y}], stuck: Sekunden, letzterNeuStart } oder null */
     this.autoLauf = null;
+    /** Angetippter/rechtsgeklickter Zombie: Blick + Dauerfeuer, bis er umfällt (Zombie-ID oder null) */
+    this.zielZombieId = null;
     this.letzteMiniKarte = 0;
     this.letzterRegenTon = -1;
     this.letzteListe = 0;
@@ -267,6 +272,58 @@ export class ClientSpiel {
     return { x: (punkt.x - x) / laenge, y: (punkt.y - y) / laenge };
   }
 
+  // --- Zombie anvisieren (Tippen / Rechtsklick) ------------------------------------
+
+  /**
+   * Tipp (Handy) bzw. Rechtsklick (PC) auf den Bildschirm: den nächsten Zombie unter dem Finger anvisieren (erneut = abwählen,
+   * daneben = abwählen). Danach zielt und feuert der Charakter automatisch, bis der Zombie tot oder außer Reichweite ist.
+   * @returns true, wenn ein Zombie getroffen wurde
+   */
+  zielAntippen(sx, sy) {
+    if (this.spielerDaten?.tot || this.lokal.fahrzeug || this.bau.aktiv || this.platzierung) return false;
+    const stand = this.schnappschuesse[this.schnappschuesse.length - 1];
+    let bester = null;
+    let bestAbstand = ZIEL_TIPP_RADIUS;
+    if (stand) {
+      for (const e of stand.entitaeten.values()) {
+        if (e.typ !== 'zombie' || e.tot) continue;
+        const p = this.renderer.kamera.weltZuBildschirm(e.x, e.y, 26 * (e.groesse ?? 1));
+        const abstand = Math.hypot(p.x - sx, p.y - sy);
+        if (abstand < bestAbstand) {
+          bestAbstand = abstand;
+          bester = e;
+        }
+      }
+    }
+    if (!bester || bester.id === this.zielZombieId) {
+      this.zielZombieId = null;
+      return false;
+    }
+    this.zielZombieId = bester.id;
+    this.hud.meldung('🎯 Ziel erfasst');
+    return true;
+  }
+
+  /** Ziel für diesen Tick: { blick, feuer } oder null (kein Ziel / Ziel gestorben, zu weit weg, ...). */
+  #autoZiel() {
+    if (this.zielZombieId === null) return null;
+    const stand = this.schnappschuesse[this.schnappschuesse.length - 1];
+    const z = stand?.entitaeten.get(this.zielZombieId);
+    const d = this.spielerDaten;
+    const weg = !z || z.tot || !d || d.tot || this.lokal.fahrzeug || this.bau.aktiv || this.platzierung || this.eingabe.touch.zielWinkel() !== null;
+    const abstand = weg ? Infinity : Math.hypot(z.x - this.lokal.x, z.y - this.lokal.y);
+    if (weg || abstand > ZIEL_MAX_ABSTAND) {
+      this.zielZombieId = null;
+      return null;
+    }
+    const waffe = d.ausgeruestet !== null ? d.inventar[d.ausgeruestet] : null;
+    const def = (waffe && this.itemDefinitionen[waffe.defId]) ?? this.itemDefinitionen.faust ?? { reichweite: 44 };
+    const reichweite = def.reichweite ?? 44;
+    const nah = abstand - 13 <= reichweite + (def.kategorie === 'fernkampf' ? 0 : 6);
+    const feuer = nah && (def.kategorie !== 'fernkampf' || sichtlinieFrei(this.welt, this.lokal.x, this.lokal.y, z.x, z.y));
+    return { blick: Math.atan2(z.y - this.lokal.y, z.x - this.lokal.x), feuer };
+  }
+
   karteUmschalten(offen) {
     this.karte.zeige(offen);
   }
@@ -311,9 +368,11 @@ export class ClientSpiel {
     this.hud.inventar.zeige(false);
     this.hud.skills.zeige(false);
     this.hud.einstellungen.zeige(false);
+    this.hud.adminMenuUmschalten(false);
     this.werkbankUmschalten(false);
     this.kisteSchliessen();
     this.autoLaufStoppen();
+    this.zielZombieId = null;
     this.platzierungAbbrechen();
     if (this.bau.aktiv && !this.bau.abbrechen()) this.bau.umschalten(false); // Esc: erst Auswahl lösen, dann Bau-Modus beenden
   }
@@ -490,7 +549,8 @@ export class ClientSpiel {
   /** Rechtsklick: im Bau-Modus löst er die Auswahl, sonst bricht er das Platzieren ab. */
   rechtsklick() {
     if (this.bau.aktiv) this.bau.abbrechen();
-    else this.platzierungAbbrechen();
+    else if (this.platzierung) this.platzierungAbbrechen();
+    else this.zielAntippen(this.eingabe.mausX, this.eingabe.mausY); // Zombie anvisieren
   }
 
   nachladen() {
@@ -718,6 +778,16 @@ export class ClientSpiel {
     }
     // Im Platzier-Modus bedeutet Klick "hier aufstellen" statt Angriff
     let angriff = !tot && this.eingabe.angriff();
+    const autoZiel = this.#autoZiel();
+    if (autoZiel) {
+      autoBlick = autoZiel.blick;
+      if (autoZiel.feuer) angriff = true;
+    }
+    if (this.angelImpuls > 0) {
+      this.angelImpuls--;
+      angriff = true;
+      if (this.angelBlick !== null && this.angelBlick !== undefined) autoBlick = this.angelBlick;
+    }
     if (this.bau.aktiv) {
       this.bau.takt(angriff); // Klick = bauen/abreißen, kein Hammerschwung
       angriff = false;
@@ -948,6 +1018,7 @@ export class ClientSpiel {
       jetzt,
       effekte: this.effekte,
       markiertId: aufhebbar?.id ?? null,
+      zielId: this.zielZombieId,
       tageszeit: uhr,
       wetter: this.wetter,
     });
@@ -973,8 +1044,10 @@ export class ClientSpiel {
   /** Minikarte, Angel-Hinweis, Auto-Anzeige, Tab-Liste, Regenton – alles, was nicht jeden Frame neu muss. */
   #oberflaecheAktualisieren(eigen, jetzt) {
     this.hud.zeigeAuto(this.lokal.fahrzeug && this.eigeneDaten?.fahrzeug ? this.eigeneDaten.fahrzeug : null);
-    const angel = this.#angelHinweis();
-    this.hud.zeigeAngeln(angel?.text ?? null, angel?.biss ?? false);
+    const angel = this.#angelZustand(jetzt);
+    const touch = this.eingabe.touch.istTouchGeraet;
+    this.hud.zeigeAngelKnopf(touch ? angel : null);
+    this.hud.zeigeAngeln(!touch && angel === 'auswerfen' ? '🎣 Linksklick: Angel auswerfen' : !touch && angel === 'einholen' ? '🎣 Warte auf den Biss … (Klick = einholen)' : null);
     if (this.hud.minikarteAn && jetzt - this.letzteMiniKarte > 180) {
       this.letzteMiniKarte = jetzt;
       this.karte.zeichneMini(this.hud.el.minikarte, eigen, this.#minikartenPunkte());
@@ -1003,15 +1076,50 @@ export class ClientSpiel {
     return punkte;
   }
 
-  /** Angeln: Text für die Hinweis-Leiste (auswerfen / warten / Biss) oder null. */
-  #angelHinweis() {
+  /**
+   * Richtung zum nächsten auswerfbaren Wasser (nächster Winkel zur aktuellen Blickrichtung) oder null.
+   * Kurz zwischengespeichert – der Strahltest läuft sonst in jedem Frame mehrfach.
+   */
+  #angelWinkel(jetzt) {
+    if (jetzt - (this.angelWinkelZeit ?? 0) < 150) return this.angelWinkelWert;
+    this.angelWinkelZeit = jetzt;
+    const b = this.lokal.blick;
+    let ergebnis = null;
+    if (wurfZiel(this.welt, this.lokal.x, this.lokal.y, b, ANGEL_REICHWEITE)) ergebnis = b;
+    else {
+      for (let i = 1; i <= 12 && ergebnis === null; i++) {
+        for (const seite of [1, -1]) {
+          const w = b + (seite * i * Math.PI) / 12;
+          if (wurfZiel(this.welt, this.lokal.x, this.lokal.y, w, ANGEL_REICHWEITE)) {
+            ergebnis = w;
+            break;
+          }
+        }
+      }
+    }
+    this.angelWinkelWert = ergebnis;
+    return ergebnis;
+  }
+
+  /**
+   * Angeln: Hinweis-Text (Maus) bzw. Knopf-Zustand (Touch) – 'auswerfen' | 'einholen' | 'biss' | null.
+   * Ein Biss zeigt keinen großen Banner mehr: die Pose wackelt im Bild, am Handy pulsiert der Knopf.
+   */
+  #angelZustand(jetzt) {
     const d = this.spielerDaten;
     if (!d || d.tot || this.lokal.fahrzeug) return null;
     const a = this.eigeneDaten?.angeln;
-    if (a) return a.phase === 'biss' ? { text: '❗ JETZT klicken!', biss: true } : { text: '🎣 Warte auf den Biss … (Klick = einholen)', biss: false };
-    if (this.platzierung || !d.inventar.some((e) => e?.defId === 'angel')) return null;
-    if (wurfZiel(this.welt, this.lokal.x, this.lokal.y, this.lokal.blick, ANGEL_REICHWEITE)) return { text: this.eingabe.touch.istTouchGeraet ? '🎣 Rechten Stick ganz drücken: auswerfen' : '🎣 Linksklick: Angel auswerfen', biss: false };
-    return null;
+    if (a) return a.phase === 'biss' ? 'biss' : 'einholen';
+    if (this.platzierung || this.bau.aktiv || !d.inventar.some((e) => e?.defId === 'angel')) return null;
+    return this.#angelWinkel(jetzt) !== null ? 'auswerfen' : null;
+  }
+
+  /** Angel-Knopf (Handy): kurzer Klick-Impuls, bei "auswerfen" Richtung zum Wasser. */
+  angeln() {
+    const modus = this.#angelZustand(performance.now());
+    if (!modus) return;
+    this.angelImpuls = 3; // Ticks, in denen "Linksklick" gesendet wird
+    this.angelBlick = modus === 'auswerfen' ? this.#angelWinkel(performance.now()) : null;
   }
 
   /** Alle fremden Entitäten zur Zeit `renderZeit` – zwischen den beiden passenden Schnappschüssen. */

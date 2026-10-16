@@ -79,8 +79,8 @@ export const GRAFIK_PROFILE = Object.freeze({
 const GRAFIK_SCHLUESSEL = 'browserSurvival.grafik';
 const ADAPTIV_MAX_STUFE = 4; // im Profil "hoch" wird höchstens bis hier gespart (Schatten, Baum-Details) – Auflösung bleibt
 const AUFWAERM_MS = 6000; // so lange nach dem Betreten nicht messen (Shader, Texturen, erste Frames)
-const ZOOM_MIN = 0.55;
-const ZOOM_MAX = 1.6;
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 1.9;
 /** Lichtfarben für Tag, Nacht und Dämmerung (siehe #tageslicht) */
 const TAG = { sonne: new THREE.Color(0xfff1dc), himmel: new THREE.Color(0xbfd8ff), boden: new THREE.Color(0x4a4636), hintergrund: new THREE.Color(0x9cc3e4) };
 const NACHT = { sonne: new THREE.Color(0x9db4e8), himmel: new THREE.Color(0x3a4a70), boden: new THREE.Color(0x101010), hintergrund: new THREE.Color(0x04060b) };
@@ -140,6 +140,13 @@ export class Renderer {
       new THREE.MeshBasicMaterial({ color: 0xffe08a, transparent: true, opacity: 0.7, depthWrite: false }),
     );
     this.markierRing.visible = false;
+    /** Roter Ring um den angetippten Zombie (Auto-Zielen) */
+    this.zielRing = new THREE.Mesh(
+      new THREE.RingGeometry(17, 20, 32).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: 0xff4a3a, transparent: true, opacity: 0.8, depthWrite: false, depthTest: false }),
+    );
+    this.zielRing.renderOrder = 5;
+    this.zielRing.visible = false;
     this.itemMaterialien = new Map(); // defId → { normal, markiert, breite, hoehe }
     this.figurMaterialien = new Map(); // Skin-Schlüssel → Material (geteilt)
     this.taschenlampen = Array.from({ length: MAX_TASCHENLAMPEN }, (_, i) => this.#neueTaschenlampe(i === 0));
@@ -290,7 +297,7 @@ export class Renderer {
   /**
    * @param tageszeit  { helligkeit 0..1, istNacht, anteil } (gemeinsam/tageszeit.js)
    */
-  zeichne({ fokus, entitaeten, gegenstaende, jetzt, effekte = null, markiertId = null, tageszeit = null, wetter = 'klar' }) {
+  zeichne({ fokus, entitaeten, gegenstaende, jetzt, effekte = null, markiertId = null, zielId = null, tageszeit = null, wetter = 'klar' }) {
     const dt = this.letzteZeit ? Math.min(0.1, (jetzt - this.letzteZeit) / 1000) : 0;
     this.letzteZeit = jetzt;
     this.#passeAufloesungAn(dt, jetzt);
@@ -313,6 +320,7 @@ export class Renderer {
     this.#aktualisiereAngeln(entitaeten, fokus, jetzt);
     this.#aktualisiereTaschenlampen(entitaeten, fokus, dunkel);
     this.#aktualisiereItems(gegenstaende, markiertId, jetzt);
+    this.#aktualisiereZielRing(entitaeten, zielId, jetzt);
     this.#aktualisiereFallendeBaeume(dt);
     this.#aktualisiereBauwerke(jetzt, fokus);
     this.gebietRing.animiere(jetzt);
@@ -670,7 +678,7 @@ export class Renderer {
     this.partikel = new THREE.Points(this.partikelGeometrie, new THREE.PointsMaterial({ color: 0x7a1510, size: 3 }));
     this.partikel.frustumCulled = false;
     this.blutFlecken = new Map(); // Effekt-Objekt → Mesh
-    this.szene.add(this.spuren, this.partikel, this.markierRing);
+    this.szene.add(this.spuren, this.partikel, this.markierRing, this.zielRing);
   }
 
   // ---------------------------------------------------------------------------
@@ -973,6 +981,17 @@ export class Renderer {
     }
     mesh.userData.defId = g.defId;
     return mesh;
+  }
+
+  /** Roter, pulsierender Ring um den anvisierten Zombie. */
+  #aktualisiereZielRing(entitaeten, zielId, jetzt) {
+    const ziel = zielId !== null ? entitaeten.find((e) => e.id === zielId && e.typ === 'zombie' && !e.tot) : null;
+    this.zielRing.visible = !!ziel;
+    if (!ziel) return;
+    const r = (ziel.groesse ?? 1) * (1 + Math.sin(jetzt / 180) * 0.07);
+    this.zielRing.position.set(ziel.x, 1, ziel.y);
+    this.zielRing.scale.set(r, 1, r);
+    this.zielRing.rotation.y = jetzt / 700;
   }
 
   #aktualisiereItems(gegenstaende, markiertId, jetzt) {

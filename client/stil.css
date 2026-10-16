@@ -1120,3 +1120,44 @@ button {
 }
 #hud-autolauf button { pointer-events: auto; padding: 4px 12px; font-weight: 700; color: #fff; background: #7d2c2c; border: 0; border-radius: 14px; }
 @media (max-width: 700px) { #karte-tipp { display: none; } }
+
+/* ---------- v0.12: Handy-Oberfläche ---------- */
+/* Warn-Ausrufezeichen bei Leben/Hunger/Durst unter 20 % */
+.wert .warn { display: none; width: 14px; text-align: center; font-weight: 800; color: #ff5a4a; animation: blinken 0.6s infinite alternate; }
+.wert.kritisch .warn { display: inline; }
+.wert.versteckt { display: none; }
+/* Kompakte Statusbalken (Standard am Handy): keine Symbole, schmal */
+#hud-werte.kompakt { gap: 3px; padding: 4px 6px; }
+#hud-werte.kompakt .wert { gap: 4px; }
+#hud-werte.kompakt .wert .symbol:not(#level-zahl) { display: none; }
+#hud-werte.kompakt .balken { width: 58px; height: 4px; }
+#hud-werte.kompakt #level-zahl { width: auto; height: auto; line-height: 1; padding: 0 4px; border-radius: 6px; font-size: 0.6rem; }
+#hud-werte.kompakt #level-xp { display: none; }
+#hud-werte.kompakt .warn { width: 8px; font-size: 0.65rem; }
+
+/* Admin-Menü schließen */
+#admin-panel { max-height: calc(100vh - 60px); overflow-y: auto; }
+#admin-panel h3 { display: flex; justify-content: space-between; align-items: center; }
+#admin-panel .admin-zu { min-height: 28px; width: 32px; padding: 0; text-align: center; }
+
+/* Angel-Knopf (Handy) */
+#knopf-angel {
+  position: absolute;
+  right: 16px;
+  bottom: 190px;
+  pointer-events: auto;
+  padding: 12px 16px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(10, 60, 100, 0.8);
+  border: 2px solid rgba(140, 200, 240, 0.7);
+  border-radius: 28px;
+}
+#knopf-angel.biss { background: #c9930f; border-color: #fff; animation: pulsieren 0.35s infinite alternate; }
+#hud-angeln.biss { font-size: 1rem; }
+
+/* Feste Sticks: dauerhaft sichtbar, Ruhelage kommt per JS (touchSteuerung.js) */
+#touch.fest .stick:not(.aktiv) { opacity: 0.4; }
+#einst-handy[hidden], #einst-stick-regler[hidden] { display: none; }
+#hud.touch #knopf-nachladen { bottom: 176px; right: 12px; }
+#hud.touch #knopf-angel { bottom: 246px; right: 12px; }

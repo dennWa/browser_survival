@@ -25,6 +25,9 @@ import { NACHRICHT } from '../gemeinsam/protokoll.js';
 const leinwand = document.getElementById('spielflaeche');
 let renderer = null;
 const eingabe = new Eingabe(window, leinwand);
+// Touch-Gesten: zwei Finger = Zoom, Tippen = Zombie anvisieren
+eingabe.touch.beiZoom = (faktor) => renderer?.zoomen(faktor);
+eingabe.touch.beiTipp = (x, y) => aktuellesSpiel?.zielAntippen(x, y);
 // Rechtsklick bricht das Aufstellen (Platzier-Modus) ab
 leinwand.addEventListener('contextmenu', () => aktuellesSpiel?.rechtsklick());
 // Mausrad: rein-/rauszoomen (nur im Spiel)
@@ -43,6 +46,7 @@ const sound = new Sound();
 const musik = new ZonenMusik(sound); // Zonen-Musik aus client/musik/<zone>/ (läuft über Zonenwechsel weiter)
 hud.zeigeTon(sound.stumm);
 hud.einstellungen.verbinde({ sound, renderer: () => renderer });
+hud.einstellungen.verbindeHandy({ hud, touch: eingabe.touch });
 
 let aktuellesSpiel = null;
 let assets = null;
@@ -76,6 +80,7 @@ eingabe.beiTaste('ton', tonUmschalten);
 hud.beiAktionen({
   aufheben: () => aktuellesSpiel?.aufheben(),
   nachladen: () => aktuellesSpiel?.nachladen(),
+  angeln: () => aktuellesSpiel?.angeln(),
   benutzen: (slot) => aktuellesSpiel?.benutzen(slot),
   ablegen: (slot) => aktuellesSpiel?.ablegen(slot),
   tauschen: (von, nach) => aktuellesSpiel?.tauschen(von, nach),

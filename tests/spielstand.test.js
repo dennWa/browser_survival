@@ -78,8 +78,8 @@ test('Kaputte oder manipulierte Spielstände werden bereinigt', () => {
     {
       version: 1,
       karte: 'stadtrand',
-      x: 32 * 32 + 16, // Wand! (Krankenhaus-Außenwand)
-      y: 10 * 32 + 16,
+      x: 50 * 32 + 16, // Wand! (Krankenhaus-Außenwand)
+      y: 32 * 32 + 16,
       leben: 99999,
       hunger: -50,
       durst: 'viel',

@@ -454,6 +454,281 @@ licht(46, 51, 6, LATERNE, 0.75); licht(77, 51, 6, LATERNE, 0.75, True); licht(61
 licht(13, 67, 5, '#fff2c8', 0.7)
 
 # =============================================================================
+# ERWEITERUNG: Die handgebaute Ur-Karte (110 × 86) wird "gestreckt" (Spalten/Zeilen kopiert), damit Straßen breiter
+# werden und mehr Platz zwischen den Gebäuden entsteht; außen kommen Wald-/Wiesenränder dazu. Danach: Gehwege,
+# Rasenstreifen, Gehöfte (zusätzlicher Loot), Wald, Steine/Erz, mehr Zombie-Spawns.
+import random
+import math
+
+B0, H0 = B, H
+zufall = random.Random(20261017)
+# (Grenze, Anzahl): vor Spalte/Zeile "Grenze" werden n Kopien der Spalte/Zeile Grenze-1 (bzw. 0) eingefügt
+INS_X = [(0, 10), (25, 2), (30, 6), (67, 5), (96, 2), (B0, 20)]
+INS_Y = [(0, 22), (45, 6), (61, 2), (H0, 14)]
+
+# --- Marker (S, Z, Loot) vor dem Strecken aus dem Raster nehmen ---
+MARKER = {}
+for yy in range(H0):
+    for xx in range(B0):
+        ch = g[yy][xx]
+        if ch == 'S' or ch == 'Z' or ch.islower():
+            MARKER[(xx, yy)] = ch
+for (xx, yy), ch in MARKER.items():
+    zaehl = {}
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            nx, ny = xx + dx, yy + dy
+            if 0 <= nx < B0 and 0 <= ny < H0 and (nx, ny) not in MARKER and g[ny][nx] not in '#F':
+                zaehl[g[ny][nx]] = zaehl.get(g[ny][nx], 0) + 1
+    g[yy][xx] = max(zaehl, key=zaehl.get) if zaehl else ','
+
+
+def index_liste(ins, n0):
+    idx = []
+    for p in range(n0 + 1):
+        for gp, n in ins:
+            if gp == p:
+                idx += [max(p - 1, 0)] * n
+        if p < n0:
+            idx.append(p)
+    return idx
+
+
+def versatz(v, ins):
+    return sum(n for p, n in ins if p <= v)
+
+
+def mx(v):
+    return v + versatz(v, INS_X)
+
+
+def my(v):
+    return v + versatz(v, INS_Y)
+
+
+idx_x, idx_y = index_liste(INS_X, B0), index_liste(INS_Y, H0)
+g = [[g[sy][sx] for sx in idx_x] for sy in idx_y]
+B, H = len(idx_x), len(idx_y)
+
+
+def ist_fahrzeug(e):
+    return e['typ'].startswith('auto_') or e['typ'] == 'transporter'
+
+
+def strecke(e, achse, ins):
+    k, kb = ('x', 'b') if achse == 'x' else ('y', 'h')
+    start, groesse = e[k], e[kb]
+    neu = start + versatz(start, ins)
+    for p, n in ins:
+        if start < p < start + groesse:
+            if ist_fahrzeug(e) or e['typ'] in ('pylone',):
+                neu += n / 2          # Fahrzeuge nicht verzerren, sondern mittig auf der verbreiterten Straße lassen
+            else:
+                e[kb] = groesse + n
+    e[k] = neu
+
+
+for e in objekte:
+    strecke(e, 'x', INS_X)
+    strecke(e, 'y', INS_Y)
+
+# --- Gehwege 2 breit: neben den Bordsteinen (nur auf Gras) ---
+def gras_zu(x, y, ch):
+    if 0 <= x < B and 0 <= y < H and g[y][x] == ',':
+        g[y][x] = ch
+
+
+for y in range(0, my(59) - 1):
+    gras_zu(mx(23) - 1, y, '-')
+    gras_zu(mx(27) + 1, y, '-')
+    gras_zu(mx(94) - 1, y, '-')
+    gras_zu(mx(98) + 1, y, '-')
+for x in range(B):
+    gras_zu(x, my(59) - 1, '-')
+    gras_zu(x, my(63) + 1, '-')
+
+# --- Vorplatz Krankenhaus: breiter Streifen wird Rasen mit Weg zum Haupteingang ---
+for y in range(my(44) + 1, my(45) - 1):   # Gehweg-Kopien (erste/letzte Zeile bleibt Gehweg)
+    for x in range(mx(28), mx(93) + 1):
+        if g[y][x] == '-':
+            g[y][x] = ','
+    for x in range(mx(60), mx(63) + 1):
+        g[y][x] = '-'
+
+# --- Spielerstarts, Zombies, Loot an die neuen Koordinaten ---
+MARKER = {(mx(x), my(y)): ch for (x, y), ch in MARKER.items()}
+
+# =============================================================================
+# Gehöfte (zusätzlicher Loot in der größeren Welt)
+def frei_gras(x0, y0, x1, y1):
+    return all(g[y][x] == ',' for y in range(y0, y1 + 1) for x in range(x0, x1 + 1))
+
+
+gehoefte = []
+
+
+def haus(x0, y0, w, h, boden, buchstabe, loot, mobel):
+    x1, y1 = x0 + w - 1, y0 + h - 1
+    assert frei_gras(x0 - 2, y0 - 2, x1 + 2, y1 + 2), f'Haus {buchstabe} {x0}|{y0} nicht auf freiem Gras'
+    raum(x0, y0, x1, y1, boden)
+    tx = x0 + w // 2
+    setz(tx, y1, 'T')
+    for fx in (x0 + 2, x1 - 2):
+        setz(fx, y0, 'F')
+    setz(x0, y0 + h // 2, 'F'); setz(x1, y0 + h // 2, 'F')
+    for lx, ly in loot:
+        assert g[y0 + ly][x0 + lx] == boden
+        MARKER[(x0 + lx, y0 + ly)] = buchstabe
+    for args in mobel:
+        typ, ox, oy, bb, hh = args[:5]
+        o(typ, x0 + ox, y0 + oy, bb, hh, **(args[5] if len(args) > 5 else {}))
+    licht(x0 + w // 2, y0 + h // 2, 3, '#ffc46b', 0.4, True)
+    for sy in range(y1 + 1, y1 + 4):               # Trampelpfad von der Tür
+        for sx in (tx,):
+            if g[sy][sx] == ',':
+                g[sy][sx] = '-'
+    gehoefte.append((x0 - 3, y0 - 3, x1 + 3, y1 + 4))
+
+
+wohn_mobel = [('bett', 1, 1, 2, 4), ('tisch', 5, 3, 2, 1), ('sofa', 6, 1, 3, 1), ('kiste_klein', 9, 6, 1, 1), ('pflanze', 1, 6, 1, 1)]
+wohn_loot = [(8, 3), (4, 6), (7, 6), (5, 1)]
+nord_y = 8
+haus(mx(38), nord_y, 11, 9, '+', 'w', wohn_loot, wohn_mobel)
+haus(mx(70), nord_y + 1, 11, 9, '+', 'x', wohn_loot, wohn_mobel)
+haus(mx(4), nord_y, 10, 8, ':', 'y', [(2, 2), (6, 2), (4, 5), (7, 5)],
+     [('werkbank', 1, 6, 2, 1), ('kiste', 8, 1, 1, 1), ('kiste', 8, 2, 1, 1), ('fass', 5, 5, 0.9, 0.9)])
+haus(mx(109) + 8, my(36), 11, 9, '+', 'z', wohn_loot,
+     [('bett', 1, 1, 2, 4), ('tisch', 5, 3, 2, 1), ('kiste_klein', 9, 6, 1, 1), ('kiste', 9, 1, 1, 1)])
+RAEUME.update({'w': ('Gehöft Wagner', 'wohnung'), 'x': ('Gehöft Schmidt', 'wohnung'),
+               'y': ('Schuppen am Weg', 'werkstatt'), 'z': ('Jagdhütte', 'huette')})
+# Mindestens ein Wohnhaus-Muster hat Doppelbelegung vermeiden: Loot-Punkte dürfen nicht unter Möbeln liegen (siehe Test)
+
+# --- Wald & Freiflächen ---
+def abstand_orig(x, y):
+    """Abstand zum Rechteck der Ur-Karte (0 = innerhalb)."""
+    dx = max(mx(0) - x, 0, x - (mx(B0 - 1)))
+    dy = max(my(0) - y, 0, y - (my(H0 - 1)))
+    return math.hypot(dx, dy)
+
+
+def nahe_nichtgras(x, y, r):
+    for yy in range(max(0, y - r), min(H, y + r + 1)):
+        for xx in range(max(0, x - r), min(B, x + r + 1)):
+            if g[yy][xx] != ',':
+                return True
+    return False
+
+
+sperrbaum = set()
+for (x0, y0, x1, y1) in gehoefte:
+    for yy in range(y0, y1 + 1):
+        for xx in range(x0, x1 + 1):
+            sperrbaum.add((xx, yy))
+for (x, y) in MARKER:
+    for dy in range(-3, 4):
+        for dx in range(-3, 4):
+            sperrbaum.add((x + dx, y + dy))
+ANKUNFT_X = (mx(95) + mx(97)) // 2
+for dy in range(0, 9):
+    for dx in range(-4, 5):
+        sperrbaum.add((ANKUNFT_X + dx, dy))
+
+baeume_pos = [(e['x'], e['y']) for e in objekte if e['typ'] in ('baum', 'baum_herbst')]
+# große Wiesen (Basisbau auf Gras): bleiben baumfrei
+WIESEN = [(mx(30), my(H0 - 1) + 8, 11), (mx(80), my(H0 - 1) + 8, 11), (mx(B0 - 1) + 11, my(12), 10),
+          (5, my(50), 6), (mx(60), 12, 8), (mx(20), my(H0 - 1) + 8, 8)]
+gitter = {}
+
+
+def gitter_frei(x, y, b, h):
+    """Rechteck x,y,b,h überlappt keine bereits eingetragene Ressource (Bäume/Steine/Erz) – mit 0.3 Luft."""
+    gx, gy = int(x // 4), int(y // 4)
+    for yy in range(gy - 3, gy + 3):
+        for xx in range(gx - 3, gx + 3):
+            for (px, py, pb, ph) in gitter.get((xx, yy), ()):
+                if x < px + pb + 0.3 and px < x + b + 0.3 and y < py + ph + 0.3 and py < y + h + 0.3:
+                    return False
+    return True
+
+
+def gitter_add(x, y, b, h):
+    gitter.setdefault((int(x // 4), int(y // 4)), []).append((x, y, b, h))
+
+
+for e in objekte:
+    if e['typ'] in ('baum', 'baum_herbst', 'stein', 'eisenerz'):
+        gitter_add(e['x'], e['y'], e['b'], e['h'])
+neue_baeume = 0
+for y in range(H):
+    for x in range(B):
+        if g[y][x] != ',' or (x, y) in sperrbaum or nahe_nichtgras(x, y, 2):
+            continue
+        d = abstand_orig(x, y)
+        p = 0.012 if d == 0 else min(1.0, d / 10.0) * 0.30
+        if zufall.random() >= p:
+            continue
+        # Lichtung für Basisbau: im Randstreifen zwei große Wiesen freilassen
+        for (cx, cy, r) in WIESEN:
+            if (x - cx) ** 2 + (y - cy) ** 2 < r * r:
+                break
+        else:
+            bx, by = round(x + zufall.random() * 0.6, 2), round(y + zufall.random() * 0.6, 2)
+            gr = round(3.0 + zufall.random() * 1.4, 1)
+            if gitter_frei(bx, by, gr, gr):
+                baum(bx, by, zufall.random() < 0.25, gr)
+                gitter_add(bx, by, gr, gr)
+                neue_baeume += 1
+
+
+# --- Steine & Erz in den Randgebieten (Spitzhacke) ---
+def freie_stelle(mind_abstand_orig=0, versuche=400, rand=3):
+    for _ in range(versuche):
+        x, y = zufall.randrange(rand, B - rand), zufall.randrange(rand, H - rand)
+        if g[y][x] != ',' or (x, y) in sperrbaum or nahe_nichtgras(x, y, 2):
+            continue
+        if abstand_orig(x, y) < mind_abstand_orig:
+            continue
+        if not gitter_frei(x, y, 1, 1):
+            continue
+        gitter_add(x, y, 1, 1)
+        return x, y
+    raise RuntimeError('keine freie Stelle')
+
+
+for _ in range(18):
+    x, y = freie_stelle(3)
+    o('stein', x, y, 1, 1)
+for _ in range(9):
+    x, y = freie_stelle(5)
+    o('eisenerz', x, y, 1, 1)
+
+# --- Zombie-Spawns: Dichte pro Fläche wie in der Ur-Karte (10 auf 110 × 86) ---
+ziel_z = round(10 * (B * H) / (B0 * H0))
+zs = [p for p, c in MARKER.items() if c == 'Z']
+versuche = 0
+while len(zs) < ziel_z and versuche < 5000:
+    versuche += 1
+    x, y = zufall.randrange(2, B - 2), zufall.randrange(2, H - 2)
+    if g[y][x] not in ',-_' or (x, y) in sperrbaum or nahe_nichtgras(x, y, 1) and g[y][x] == ',':
+        continue
+    if any((x - a) ** 2 + (y - b) ** 2 < 14 * 14 for a, b in zs):
+        continue
+    if any((x - a) ** 2 + (y - b) ** 2 < 20 * 20 for (a, b), c in MARKER.items() if c == 'S'):
+        continue
+    zs.append((x, y))
+    MARKER[(x, y)] = 'Z'
+
+for (x, y), ch in MARKER.items():
+    g[y][x] = ch
+
+# --- Laternen entlang der verlängerten Straßen (Norden) ---
+for y in range(4, my(0) + 1, 14):
+    for x in (mx(23), mx(98) + 1):
+        licht(x, y, 5, LATERNE, 0.7)
+for x in (mx(0) + 4, B - 6):
+    licht(x, my(61) - 1, 5.5, LATERNE, 0.75)
+
+# =============================================================================
 zeilen = [''.join(r) for r in g]
 
 
@@ -481,8 +756,8 @@ js = []
 js.append('''/**
  * Karte: Stadtrand mit dem St.-Elisabeth-Krankenhaus (Standardkarte).
  *
- * Aufbau (Kachelkoordinaten, 110 × 86):
- *   Krankenhaus (x 32–91, y 6–42)  Haupteingang Süd → Eingangshalle → Hauptflur (y 29–31)
+ * Aufbau (Ur-Karte 110 × 86, auf @BREITE@ × @HOEHE@ gestreckt + Wald-/Wiesenränder; 5 Kacheln breite Straßen):
+ *   Krankenhaus (Ur-Koordinaten x 32–91, y 6–42)  Haupteingang Süd → Eingangshalle → Hauptflur (y 29–31)
  *     Nordteil: Mittelflur (x 60–63) + Stationsflure (y 17–18): OP, Apotheke, Labor, Lager | Zimmer 101–103,
  *               Verwaltung, Sicherheitsdienst · Hintereingang Nord (Lieferweg)
  *     Südteil:  Notaufnahme (eigener Krankenwagen-Eingang West) · Eingangshalle · Kantine · Küche
@@ -494,7 +769,7 @@ js.append('''/**
  *   .  Fliesen     :  Beton                 +  Holzboden
  *   #  Wand        F  Fenster (blockiert)   T  Tür (öffnen/schließen; nebeneinander = Doppeltür)
  *   S  Spieler-Start    Z  Zombie-Spawn (nur draußen!)
- *   a–v  Loot-Punkte, gehören zum gleichnamigen Raum unten in `raeume`
+ *   a–z  Loot-Punkte, gehören zum gleichnamigen Raum unten in `raeume`
  *
  * Bearbeiten: Zeichen einfach austauschen. Alle Zeilen müssen gleich lang sein
  * (der Kartenlader prüft das und meldet Fehler mit Zeilennummer).
@@ -526,11 +801,11 @@ for e in objekte:
 js.append('  ],')
 # Übergänge zu anderen Zonen (Open World, siehe server/spiel/karten/weltkarte.js): Bereich in Kacheln → Zielzone + Ankunftspunkt
 js.append('  uebergaenge: [')
-js.append("    { x: 94, y: 0, b: 5, h: 1, ziel: 'waldweg', ankunft: 'sued', name: 'Waldweg (Norden)' },")
+js.append(f"    {{ x: {mx(94)}, y: 0, b: {mx(98) - mx(94) + 1}, h: 1, ziel: 'waldweg', ankunft: 'sued', name: 'Waldweg (Norden)' }},")
 js.append('  ],')
 js.append('  ankuenfte: {')
-js.append('    nord: { x: 96, y: 3 }, // wer vom Waldweg kommt')
+js.append(f'    nord: {{ x: {ANKUNFT_X}, y: 5 }}, // wer vom Waldweg kommt (Straße, nicht im Übergang)')
 js.append('  },')
 js.append('};')
-ZIEL.write_text('\n'.join(js) + '\n')
+ZIEL.write_text('\n'.join(js).replace('@BREITE@', str(B)).replace('@HOEHE@', str(H)) + '\n')
 print(f'{ZIEL} geschrieben ({B} × {H})')
