@@ -34,6 +34,7 @@ const STECK_ZEIT = 0.7; // Sekunden fast ohne Fortschritt → ausweichen
 const PFAD_BUDGET = 4; // höchstens so viele A*-Suchen pro Tick (große Karte → teuer), der Rest wartet einen Tick
 const HORDE_INTERVALL = 8; // Sekunden zwischen zwei "Witterungen"
 const WEGPUNKT_ERREICHT = 8;
+const GIB_AUF_ZEIT = 4; // Sekunden Ruhe nach einem unerreichbaren Ziel (spart A*-Suchen, Zaun hält Zombies fern)
 const ENGSTELLE_VORAUS = [0, 14, 30, 46]; // px vor dem Zombie, die auf Türkacheln geprüft werden
 const ANGRIFF_ANIMATION = 0.5;
 const AUTO_SCHLAG_ABSTAND = 22; // px zwischen Zombie-Rand und Karosserie, ab dem er aufs Auto einschlägt (Autos blockieren kachelweise → Luft)
@@ -52,6 +53,7 @@ export function aktualisiereZombies(spielWelt, dt) {
     z.tickStartX = z.x;
     z.tickStartY = z.y;
     z.wartet = false;
+    if (z.gibAuf > 0) z.gibAuf -= dt;
     z.angriffsAbklingzeit = Math.max(0, z.angriffsAbklingzeit - dt);
     if (z.nacht) wittere(spielWelt, z, lebendeSpieler, dt);
     const ziel = waehleZiel(spielWelt, z, lebendeSpieler, k);
@@ -130,6 +132,7 @@ function waehleZiel(spielWelt, z, lebendeSpieler, k) {
     if (ziel && !ziel.tot && !ziel.unsichtbar && Math.hypot(ziel.x - z.x, ziel.y - z.y) <= verlierRadius) return ziel;
     z.zielId = null;
   }
+  if (z.gibAuf > 0) return null;
   let bester = null;
   let bestAbstand = Infinity;
   for (const s of lebendeSpieler) {
@@ -183,7 +186,8 @@ function bewegeZuZiel(spielWelt, z, ziel, sicht, dt, k) {
       z.pfad = findePfad(spielWelt.welt, z.x, z.y, zielX, zielY, { tuerKosten: TUER_KOSTEN });
       z.pfadTimer = k.pfadIntervall + spielWelt.zufall.zahl() * 0.2; // gestaffelt, damit nicht alle im selben Tick rechnen
       if (!z.pfad) {
-        z.zielId = null; // unerreichbar → aufgeben
+        z.zielId = null; // unerreichbar (z. B. hinter einem Zaun) → aufgeben und eine Weile nicht neu suchen
+        z.gibAuf = GIB_AUF_ZEIT;
         return;
       }
     }
@@ -273,7 +277,7 @@ function vorGeschlossenerTuer(spielWelt, z, punkt) {
 /** Horde: ab und zu den nächsten Spieler wittern (auch ohne Sicht) und zu seiner Position aufbrechen. */
 function wittere(spielWelt, z, lebendeSpieler, dt) {
   z.witterung = (z.witterung ?? spielWelt.zufall.zahl() * HORDE_INTERVALL) - dt;
-  if (z.witterung > 0 || z.zielId !== null) return;
+  if (z.witterung > 0 || z.zielId !== null || z.gibAuf > 0) return;
   z.witterung = HORDE_INTERVALL;
   let bester = null;
   let bestAbstand = HORDE_WITTERUNG;

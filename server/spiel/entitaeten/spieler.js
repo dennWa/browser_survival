@@ -143,6 +143,7 @@ export function spielerDatenPrivat(s, konfiguration, spielWelt = null) {
     admin: s.admin,
     flagge: spielWelt ? flaggeFuerClient(spielWelt, s) : null, // eigenes Baugebiet { tx, ty, radius } – nur der Besitzer erfährt es
     bauRadius: spielWelt ? radiusFuer(s, konfiguration) : konfiguration.basisbau.radiusKacheln, // Radius einer neuen Flagge (fürs Hologramm)
+    bauBlock: konfiguration.basisbau.blockGroesse ?? 1, // Block-Kantenlänge für Boden/Wand/Dach (1 = einzeln)
     spawn: s.spawn, // Respawn-Bett { karte, tx, ty } oder null
     // Fortschritt in 5-%-Schritten (sonst würde jeder Tick neue Daten schicken)
     arbeit: s.arbeit

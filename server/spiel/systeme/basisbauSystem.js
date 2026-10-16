@@ -1,5 +1,5 @@
 import { BAUWERKE, ebeneVon, kachelInReichweite } from '../../../gemeinsam/welt/bauwerke.js';
-import { BAUTEILE, BAU_REICHWEITE_BASIS, fehlendesMaterial, rueckerstattung } from '../../../gemeinsam/basisbau/teile.js';
+import { BAUTEILE, BAU_REICHWEITE_BASIS, fehlendesMaterial, fussabdruck, kostenFuer, kostenProKachel, rueckerstattung } from '../../../gemeinsam/basisbau/teile.js';
 import { autoDrehung, findeAbrissZiel, pruefeBauteil } from '../../../gemeinsam/basisbau/platzierung.js';
 import { darfAbreissen } from '../../../gemeinsam/basisbau/rechte.js';
 import { GEGENSTAENDE } from '../konfiguration/gegenstaende.js';
@@ -45,18 +45,25 @@ export function baue(spielWelt, spieler, { teil: teilId, tx, ty, drehung = null 
     return;
   }
 
-  const kontext = { territorium: spielWelt.territorium, name: spieler.name, spieler: { x: spieler.x, y: spieler.y }, flaggenOptionen: flaggenOptionen(spielWelt.konfiguration) };
+  const blockGroesse = spielWelt.konfiguration.basisbau.blockGroesse ?? 1;
+  const kontext = { territorium: spielWelt.territorium, name: spieler.name, spieler: { x: spieler.x, y: spieler.y }, flaggenOptionen: flaggenOptionen(spielWelt.konfiguration), blockGroesse };
   const pruefung = pruefeBauteil(welt, teilId, tx, ty, kontext);
   if (!pruefung.ok) return spielWelt.melde(spieler.id, pruefung.grund);
-  if (BAUWERKE[teilId].blockiert && kachelBesetzt(spielWelt, tx, ty)) return spielWelt.melde(spieler.id, 'Da steht jemand');
-  const fehlt = fehlendesMaterial(spieler.inventar, teil.kosten);
+  const kacheln = fussabdruck(teilId, tx, ty, blockGroesse);
+  if (BAUWERKE[teilId].blockiert && kacheln.some((k) => kachelBesetzt(spielWelt, k.tx, k.ty))) return spielWelt.melde(spieler.id, 'Da steht jemand');
+  const kosten = kostenFuer(teilId, blockGroesse);
+  const fehlt = fehlendesMaterial(spieler.inventar, kosten);
   if (fehlt.length > 0) {
     return spielWelt.melde(spieler.id, `Es fehlt: ${fehlt.map((f) => `${f.fehlt}× ${GEGENSTAENDE[f.defId]?.name ?? f.defId}`).join(', ')}`);
   }
 
-  for (const [defId, menge] of Object.entries(teil.kosten)) entferneItems(spieler, defId, menge);
-  const zusatz = teil.ausrichtung ? { drehung: ebeneVon(teilId) === 'tuer' ? autoDrehung(welt, teilId, tx, ty) : drehung === 0 || drehung === 1 ? drehung : autoDrehung(welt, teilId, tx, ty) } : {};
-  welt.setzeBauwerk(neuesBauwerk(spielWelt, teilId, tx, ty, spieler.name, zusatz));
+  for (const [defId, menge] of Object.entries(kosten)) entferneItems(spieler, defId, menge);
+  for (const k of kacheln) {
+    const zusatz = teil.ausrichtung ? { drehung: ebeneVon(teilId) === 'tuer' ? autoDrehung(welt, teilId, k.tx, k.ty) : drehung === 0 || drehung === 1 ? drehung : autoDrehung(welt, teilId, k.tx, k.ty) } : {};
+    welt.setzeBauwerk(neuesBauwerk(spielWelt, teilId, k.tx, k.ty, spieler.name, zusatz));
+  }
+  tx = kacheln[0].tx;
+  ty = kacheln[0].ty;
   const g = welt.kachelGroesse;
   spielWelt.ereignis({ typ: 'gebaut', bauwerk: teilId, x: (tx + 0.5) * g, y: (ty + 0.5) * g, von: spieler.id });
   if (teilId === 'bett') spielWelt.melde(spieler.id, 'Bett steht – mit E den Spawn Point setzen');
@@ -83,7 +90,7 @@ export function reisseAb(spielWelt, spieler, { tx, ty, ebene = null }) {
   for (const b of abzureissen) {
     if (b.typ === 'kiste') leereKiste(spielWelt, spieler, b);
     if (b.typ === 'bett') vergissSpawnBei(spielWelt, b);
-    for (const [defId, menge] of Object.entries(rueckerstattung(BAUTEILE[b.typ].kosten, spielWelt.konfiguration.basisbau.rueckgabe))) {
+    for (const [defId, menge] of Object.entries(rueckerstattung(kostenProKachel(b.typ, spielWelt.konfiguration.basisbau.blockGroesse ?? 1), spielWelt.konfiguration.basisbau.rueckgabe))) {
       const rest = fuegeZumInventarHinzu(spieler, defId, menge);
       if (rest > 0) legeAufBoden(spielWelt, { defId, menge: rest }, spieler.x, spieler.y); // Inventar voll → vor die Füße
       erhalten.set(defId, (erhalten.get(defId) ?? 0) + menge);

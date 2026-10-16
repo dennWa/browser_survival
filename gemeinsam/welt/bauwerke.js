@@ -44,6 +44,9 @@ export const BAUWERKE = Object.freeze({
   holzwand_tuer: { ...BASIS, name: 'Wand mit Türöffnung', ebene: 'wand', blockiert: false, rahmen: true, anschluss: { kachel: ['boden'], nachbarn: ['boden', 'wand'], diagonal: ['boden'] } },
   holztuer: { ...BASIS, name: 'Holztür', ebene: 'tuer', blockiert: true, schaltbar: true, sichtBlockiert: true, geschuetzt: true },
   holzdach: { ...BASIS, name: 'Holzdach', ebene: 'dach', blockiert: false, anschluss: { kachel: ['boden', 'wand'], nachbarn: ['dach'] } },
+  // Zaun & Zauntor: blockieren Bewegung (Zombies bleiben draußen), aber nicht die Sicht; Tor = schaltbar wie die Holztür
+  zaun: { ...BASIS, name: 'Zaun', ebene: 'wand', blockiert: true },
+  zauntor: { ...BASIS, name: 'Zauntor', ebene: 'wand', blockiert: true, schaltbar: true, geschuetzt: true },
   // Lagerkiste: 16 Plätze, Inhalt steht in b.inhalt (nur der Server kennt ihn – geht per KISTE-Nachricht an den, der sie öffnet)
   kiste: { ...BASIS, name: 'Lagerkiste', blockiert: true, geschuetzt: true },
   bett: { ...BASIS, name: 'Bett', blockiert: true, geschuetzt: true },
@@ -169,6 +172,8 @@ export function bauwerkAktion(b, inventar, name = null, flaggeDort = null) {
       return { art: 'oeffnen', text: 'Kiste öffnen', symbol: '📦' };
     case 'holztuer':
       return { art: 'tuerSchalten', text: b.offen ? 'Tür schließen' : 'Tür öffnen', symbol: '🚪' };
+    case 'zauntor':
+      return { art: 'tuerSchalten', text: b.offen ? 'Tor schließen' : 'Tor öffnen', symbol: '🚧' };
     case 'bett':
       return { art: 'spawn', text: 'Spawn Point setzen (Unterkunft)', symbol: '🛏' };
     case 'beet': {

@@ -9,6 +9,7 @@
  *   kategorie   = Reiter im Menü (KATEGORIEN)
  *   tier        = Material-Stufe (1 = Holz; später Stein, Metall …) – nur Anzeige/Sortierung
  *   kosten      = { itemId: Menge } – wird beim Bauen aus dem Inventar genommen, beim Abriss zu RUECKGABE_ANTEIL zurückgegeben
+ *   block       = true: wird (bei konfiguration.basisbau.blockGroesse = 2) als Block 2×2 Kacheln gesetzt, Preis siehe kostenFuer()
  *   ausrichtung = true: Teil hat eine Richtung (Öffnung/Rahmen) → Taste R dreht, sonst automatisch (platzierung.js)
  */
 export const KATEGORIEN = Object.freeze(['Basis', 'Struktur', 'Einrichtung']);
@@ -22,15 +23,50 @@ export const BAUTEILE = Object.freeze({
     kosten: {},
     beschreibung: 'Legt dein Baugebiet fest (nur eine pro Spieler, nur auf flachem Rasen).',
   },
-  holzboden: { art: 'bauwerk', name: 'Holzboden', symbol: '🟫', kategorie: 'Struktur', tier: 1, kosten: { holz: 8 }, beschreibung: 'Begehbarer Boden – die Grundlage für Wände.' },
-  holzwand: { art: 'bauwerk', name: 'Holzwand', symbol: '🧱', kategorie: 'Struktur', tier: 1, kosten: { holz: 8 }, beschreibung: 'Dockt an Boden oder Wand an. Hält Zombies draußen.' },
+  holzboden: { art: 'bauwerk', name: 'Holzboden', symbol: '🟫', kategorie: 'Struktur', tier: 1, block: true, kosten: { holz: 8 }, beschreibung: 'Begehbarer Boden – die Grundlage für Wände.' },
+  holzwand: { art: 'bauwerk', name: 'Holzwand', symbol: '🧱', kategorie: 'Struktur', tier: 1, block: true, kosten: { holz: 8 }, beschreibung: 'Dockt an Boden oder Wand an. Hält Zombies draußen.' },
   holzwand_fenster: { art: 'bauwerk', name: 'Wand mit Fenster', symbol: '🪟', kategorie: 'Struktur', tier: 1, kosten: { holz: 8 }, ausrichtung: true, beschreibung: 'Wand mit Fensteröffnung – man kann hindurchschauen und -schießen.' },
   holzwand_tuer: { art: 'bauwerk', name: 'Wand mit Türöffnung', symbol: '🚪', kategorie: 'Struktur', tier: 1, kosten: { holz: 8 }, ausrichtung: true, beschreibung: 'Türrahmen – die Tür kommt extra hinein.' },
   holztuer: { art: 'bauwerk', name: 'Holztür', symbol: '🚪', kategorie: 'Struktur', tier: 1, kosten: { holz: 6 }, ausrichtung: true, beschreibung: 'Passt in eine Türöffnung. Nur du darfst sie öffnen (E).' },
-  holzdach: { art: 'bauwerk', name: 'Holzdach', symbol: '🛖', kategorie: 'Struktur', tier: 1, kosten: { holz: 8 }, beschreibung: 'Deckt Boden und Wände ab. Wird durchsichtig, wenn du darunter stehst.' },
+  holzdach: { art: 'bauwerk', name: 'Holzdach', symbol: '🛖', kategorie: 'Struktur', tier: 1, block: true, kosten: { holz: 8 }, beschreibung: 'Deckt Boden und Wände ab. Wird durchsichtig, wenn du darunter stehst.' },
+  zaun: { art: 'bauwerk', name: 'Zaun', symbol: '🚧', kategorie: 'Struktur', tier: 2, kosten: { eisenerz: 2 }, beschreibung: 'Hält Zombies fern (schießen und sehen geht durch). Schließt sich an Nachbarzäune und Wände an.' },
+  zauntor: { art: 'bauwerk', name: 'Zauntor', symbol: '⛩', kategorie: 'Struktur', tier: 2, kosten: { eisenerz: 4, holz: 2 }, ausrichtung: true, beschreibung: 'Tor im Zaun – nur du darfst es öffnen (E).' },
   kiste: { art: 'bauwerk', name: 'Lagerkiste', symbol: '📦', kategorie: 'Einrichtung', tier: 1, kosten: { holz: 8 }, beschreibung: '16 Plätze. Nur du kommst dran (E).' },
   bett: { art: 'bauwerk', name: 'Bett', symbol: '🛏', kategorie: 'Einrichtung', tier: 1, kosten: { holz: 5, stein: 2, stoff: 2 }, ausrichtung: true, beschreibung: 'E: Spawn Point setzen – hier wachst du nach dem Tod wieder auf.' },
 });
+
+/** Blöcke (Boden, Wand, Dach) kosten als 2×2-Block nur die Hälfte der vier Einzelteile – und geben beim Abriss pro Kachel entsprechend weniger zurück. */
+const BLOCK_RABATT = 0.5;
+
+/** Kantenlänge (in Kacheln) des Blocks, in dem dieses Bauteil gesetzt wird (1 = einzelne Kachel). */
+export function blockGroesseFuer(teilId, blockGroesse = 1) {
+  return BAUTEILE[teilId]?.block === true && blockGroesse > 1 ? Math.floor(blockGroesse) : 1;
+}
+
+/** Kosten beim Setzen: Einzelteil = kosten, Block n×n = kosten × n² × Rabatt. */
+export function kostenFuer(teilId, blockGroesse = 1) {
+  const kosten = BAUTEILE[teilId]?.kosten ?? {};
+  const n = blockGroesseFuer(teilId, blockGroesse);
+  if (n === 1) return kosten;
+  return Object.fromEntries(Object.entries(kosten).map(([id, m]) => [id, Math.max(1, Math.round(m * n * n * BLOCK_RABATT))]));
+}
+
+/** Kosten, die auf EINE Kachel eines Blocks entfallen (Grundlage der Rückerstattung beim Abriss). */
+export function kostenProKachel(teilId, blockGroesse = 1) {
+  const kosten = BAUTEILE[teilId]?.kosten ?? {};
+  return blockGroesseFuer(teilId, blockGroesse) === 1 ? kosten : Object.fromEntries(Object.entries(kosten).map(([id, m]) => [id, m * BLOCK_RABATT]));
+}
+
+/** Kacheln, die das Bauteil beim Setzen auf (tx, ty) belegt: bei Blöcken das 2×2-Feld im festen Raster, sonst nur die Kachel. */
+export function fussabdruck(teilId, tx, ty, blockGroesse = 1) {
+  const n = blockGroesseFuer(teilId, blockGroesse);
+  if (n === 1) return [{ tx, ty }];
+  const ax = tx - (((tx % n) + n) % n);
+  const ay = ty - (((ty % n) + n) % n);
+  const liste = [];
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) liste.push({ tx: ax + x, ty: ay + y });
+  return liste;
+}
 
 /** Beim Abriss bekommt man so viel der Baukosten zurück (abgerundet pro Material). Wert in konfiguration.basisbau.rueckgabe. */
 export const RUECKGABE_ANTEIL = 0.75;

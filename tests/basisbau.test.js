@@ -36,7 +36,7 @@ const KARTE = { id: 'wiese', name: 'Wiese', kacheln: ZEILEN, raeume: {} };
 const mitte = (t) => t * 32 + 16;
 
 function neueWelt(extra = {}) {
-  const konfiguration = erstelleKonfiguration({ server: { zufallsStartwert: 3 }, tiere: { hasenProTausend: 0 }, wetter: { aktiv: false }, basisbau: { radiusKacheln: 15 }, ...extra, spieler: { startInventar: [], ...extra.spieler } });
+  const konfiguration = erstelleKonfiguration({ server: { zufallsStartwert: 3 }, tiere: { hasenProTausend: 0 }, wetter: { aktiv: false }, basisbau: { radiusKacheln: 15, blockGroesse: 1 }, ...extra, spieler: { startInventar: [], ...extra.spieler } });
   const welt = new SpielWelt(konfiguration, { kartenDefinition: KARTE });
   for (const z of [...welt.alleVomTyp('zombie')]) welt.entfernen(z.id);
   return { welt, konfiguration, ...baumeister(welt, 'Bob') };
@@ -548,4 +548,39 @@ test('Überlappung: eine später daneben gesetzte fremde Flagge gibt keine Recht
   anna.y = mitte(12);
   aktion(welt, anna, { art: AKTIONEN.PLATZIEREN, slot: anna.inventar.findIndex((e) => e?.defId === 'werkbank'), tx: 13, ty: 12 });
   assert.equal(typ(welt, 13, 12), undefined);
+});
+
+test('Blöcke: Boden/Wand/Dach werden als 2×2 gesetzt (halber Preis), Abriss gibt pro Kachel zurück', () => {
+  const { welt, spieler } = neueWelt({ basisbau: { radiusKacheln: 15, blockGroesse: 2 } });
+  flagge(welt, spieler);
+  baue(welt, spieler, 'holzboden', 13, 13); // Anker wird auf das 2er-Raster gelegt: (12,12)
+  for (const [x, y] of [[12, 12], [13, 12], [12, 13], [13, 13]]) assert.equal(typ(welt, x, y, 'boden'), 'holzboden', `${x},${y}`);
+  assert.equal(typ(welt, 14, 12, 'boden'), undefined);
+  assert.equal(anzahl(spieler, 'holz'), 100 - 16, '2×2 Boden = 16 Holz');
+  baue(welt, spieler, 'holzwand', 14, 12);
+  assert.equal(typ(welt, 15, 13, 'wand'), 'holzwand', 'Wand 2×2 dockt an den Boden an');
+  const vorher = anzahl(spieler, 'holz');
+  reisseAb(welt, spieler, 14, 13);
+  assert.equal(typ(welt, 14, 13, 'wand'), undefined, 'Kachel abgerissen');
+  assert.equal(anzahl(spieler, 'holz'), vorher + 3, '75 % von 4 Holz pro Kachel, abgerundet');
+});
+
+test('Zaun: kostet 2 Eisenerz, blockiert, Tor lässt sich öffnen, Zombies kommen nicht durch', () => {
+  const { welt, spieler } = neueWelt();
+  fuegeZumInventarHinzu(spieler, 'eisenerz', 10);
+  flagge(welt, spieler);
+  baue(welt, spieler, 'zaun', 14, 14);
+  assert.equal(typ(welt, 14, 14, 'wand'), 'zaun');
+  assert.equal(anzahl(spieler, 'eisenerz'), 8, '2 Eisenerz');
+  assert.equal(welt.welt.istBlockiert(14, 14), true);
+  assert.equal(welt.welt.istSichtBlockiert(14, 14), false, 'man sieht durch den Zaun');
+  baue(welt, spieler, 'zauntor', 15, 14);
+  assert.equal(welt.welt.istBlockiert(15, 14), true, 'Tor zu');
+  aktion(welt, spieler, { art: AKTIONEN.BAUWERK });
+  const tor = welt.welt.bauwerkBei(15, 14, 'wand');
+  spieler.x = mitte(15);
+  spieler.y = mitte(15);
+  aktion(welt, spieler, { art: AKTIONEN.BAUWERK });
+  assert.equal(tor.offen, true, 'Tor offen');
+  assert.equal(welt.welt.istBlockiert(15, 14), false);
 });

@@ -30,7 +30,7 @@ export const INSTANZ_TYPEN = Object.freeze({
 });
 
 /** Hat der Typ eine Richtung (Rotation um y = drehung × 90°)? */
-export const IST_AUSGERICHTET = new Set(['holzwand_fenster', 'holzwand_tuer', 'holztuer', 'bett']);
+export const IST_AUSGERICHTET = new Set(['holzwand_fenster', 'holzwand_tuer', 'holztuer', 'bett', 'zauntor']);
 
 export function initialisiereBasisbauModelle({ mitSchnitt }) {
   mitSchnitt(BASIS_MATERIAL);
@@ -86,6 +86,18 @@ const GEO_BAUPLAN = {
     kasten(25.5, 2.4, 3.4, 12.8, 14, 0, 0x5f4122),
     kasten(25.5, 2.4, 3.4, 12.8, 36, 0, 0x5f4122),
     kasten(3, 3, 4.4, 22, 26, 0, 0xc9ccd1), // Klinke
+  ],
+  // Zaun: Pfosten in der Kachelmitte + Arm (zwei Latten) nach +x; Arme zu den Nachbarn entstehen durch Drehen
+  zaunpfosten: () => [kasten(3.6, 32, 3.6, 0, 16, 0, 0x6c7076), kasten(5, 2, 5, 0, 32.5, 0, 0x9aa0a6)],
+  zaunarm: () => [kasten(16, 2.2, 1.8, 8, 13, 0, 0x8a8f96), kasten(16, 2.2, 1.8, 8, 25, 0, 0x8a8f96), kasten(1.4, 24, 1.4, 14, 16, 0, 0x7a7f86)],
+  // Zauntor: zwei Pfosten (drehung 0: ±14 in x) + Torflügel mit Scharnier links (wie holztuer)
+  zauntor: () => [kasten(3.8, 34, 3.8, -14, 17, 0, 0x6c7076), kasten(3.8, 34, 3.8, 14, 17, 0, 0x6c7076)],
+  zauntorblatt: () => [
+    kasten(24, 2.4, 2, 12.5, 12, 0, 0x8a8f96),
+    kasten(24, 2.4, 2, 12.5, 26, 0, 0x8a8f96),
+    kasten(2, 22, 2, 1.5, 19, 0, 0x7a7f86),
+    kasten(2, 22, 2, 23.5, 19, 0, 0x7a7f86),
+    kasten(2, 18, 2, 12.5, 19, 0, 0x7a7f86),
   ],
   bett: () => [
     kasten(30, 7, 30, 0, 3.5, 0, 0x8a5a2e), // Rahmen
@@ -305,6 +317,8 @@ export function markierungsHoehe(typ) {
       return WAND_HOEHE + DACH_HOEHE + 4;
     case 'objekt':
       return 22;
+    case 'wand':
+      return typ === 'zaun' || typ === 'zauntor' ? 34 : WAND_HOEHE;
     default:
       return WAND_HOEHE + 2;
   }

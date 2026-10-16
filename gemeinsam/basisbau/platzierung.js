@@ -1,5 +1,5 @@
 import { BAUWERKE, ebeneVon, kachelInReichweite, pruefePlatz } from '../welt/bauwerke.js';
-import { BAUTEILE, BAU_REICHWEITE_BASIS } from './teile.js';
+import { BAUTEILE, BAU_REICHWEITE_BASIS, blockGroesseFuer, fussabdruck } from './teile.js';
 import { RECHT, hatRecht } from './rechte.js';
 import { pruefeFlaggenPlatz } from './territorium.js';
 
@@ -43,17 +43,24 @@ export function pruefeAnschluss(welt, typ, tx, ty) {
 export function pruefeBauteil(welt, teilId, tx, ty, kontext) {
   const teil = BAUTEILE[teilId];
   if (!teil) return { ok: false, grund: 'Unbekanntes Bauteil' };
-  const { territorium, name, spieler = null, reichweite = BAU_REICHWEITE_BASIS } = kontext;
+  const { territorium, name, spieler = null, reichweite = BAU_REICHWEITE_BASIS, blockGroesse = 1 } = kontext;
   if (spieler && !kachelInReichweite(welt, spieler.x, spieler.y, tx, ty, reichweite)) return { ok: false, grund: 'Zu weit weg' };
   if (teil.art === 'flagge') return pruefeFlaggenPlatz(welt, territorium, tx, ty, name, kontext.flaggenOptionen);
 
   if (!territorium.von(name)) return { ok: false, grund: 'Setze zuerst eine Basis-Flagge' };
-  const gebiet = territorium.gebietBei(tx, ty);
-  if (!gebiet) return { ok: false, grund: 'Außerhalb deines Baugebiets' };
-  if (!hatRecht(gebiet, name, RECHT.BAUEN)) return { ok: false, grund: 'Fremdes Baugebiet' };
-  const platz = pruefePlatz(welt, teilId, tx, ty);
-  if (!platz.ok) return platz;
-  return pruefeAnschluss(welt, teilId, tx, ty);
+  const kacheln = fussabdruck(teilId, tx, ty, blockGroesse);
+  let anschluss = null;
+  for (const k of kacheln) {
+    const gebiet = territorium.gebietBei(k.tx, k.ty);
+    if (!gebiet) return { ok: false, grund: 'Außerhalb deines Baugebiets' };
+    if (!hatRecht(gebiet, name, RECHT.BAUEN)) return { ok: false, grund: 'Fremdes Baugebiet' };
+    const platz = pruefePlatz(welt, teilId, k.tx, k.ty);
+    if (!platz.ok) return platz;
+    const a = pruefeAnschluss(welt, teilId, k.tx, k.ty);
+    if (a.ok) anschluss = a;
+  }
+  // Block: es genügt, wenn EINE der Kacheln andockt
+  return anschluss ?? pruefeAnschluss(welt, teilId, kacheln[0].tx, kacheln[0].ty);
 }
 
 /**
@@ -83,12 +90,21 @@ export function snappe(welt, teilId, px, py, kontext, drehungWunsch = null) {
   const g = welt.kachelGroesse;
   const tx0 = Math.floor(px / g);
   const ty0 = Math.floor(py / g);
-  let ergebnis = { tx: tx0, ty: ty0, ...pruefeBauteil(welt, teilId, tx0, ty0, kontext), gesnappt: false };
+  const n = blockGroesseFuer(teilId, kontext.blockGroesse);
+  const anker = (t) => fussabdruck(teilId, t.tx, t.ty, kontext.blockGroesse)[0];
+  const a0 = anker({ tx: tx0, ty: ty0 });
+  let ergebnis = { tx: a0.tx, ty: a0.ty, ...pruefeBauteil(welt, teilId, a0.tx, a0.ty, kontext), gesnappt: false };
   const typ = BAUTEILE[teilId]?.art === 'bauwerk' ? teilId : null;
   if (!ergebnis.ok && typ && MAGNET_EBENEN.has(ebeneVon(typ))) {
     // Magnet: die 8 Nachbarkacheln, nächste zum Zielpunkt zuerst
     const kandidaten = [];
-    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (dx || dy) kandidaten.push({ tx: tx0 + dx, ty: ty0 + dy, abstand: Math.hypot((tx0 + dx + 0.5) * g - px, (ty0 + dy + 0.5) * g - py) });
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (!dx && !dy) continue;
+        const k = anker({ tx: a0.tx + dx * n, ty: a0.ty + dy * n });
+        kandidaten.push({ tx: k.tx, ty: k.ty, abstand: Math.hypot((k.tx + n / 2) * g - px, (k.ty + n / 2) * g - py) });
+      }
+    }
     kandidaten.sort((a, b) => a.abstand - b.abstand);
     for (const k of kandidaten) {
       const pruefung = pruefeBauteil(welt, teilId, k.tx, k.ty, kontext);

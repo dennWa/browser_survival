@@ -1,5 +1,5 @@
 import { AKTIONEN, NACHRICHT } from '../../gemeinsam/protokoll.js';
-import { BAUTEILE, fehlendesMaterial, kostenText } from '../../gemeinsam/basisbau/teile.js';
+import { BAUTEILE, blockGroesseFuer, fehlendesMaterial, kostenFuer, kostenText } from '../../gemeinsam/basisbau/teile.js';
 import { darfAbreissen } from '../../gemeinsam/basisbau/rechte.js';
 import { Territorium } from '../../gemeinsam/basisbau/territorium.js';
 import { findeAbrissZiel, snappe } from '../../gemeinsam/basisbau/platzierung.js';
@@ -243,7 +243,7 @@ export class BauModus {
     } else if (this.auswahl === 'abriss') {
       this.renderer.zeigeVorschau({ typ: 'abriss', tx: z.tx, ty: z.ty, ok: z.ok, ziel: z.ziel });
     } else {
-      this.renderer.zeigeVorschau({ typ: this.auswahl, tx: z.tx, ty: z.ty, ok: z.ok, drehung: z.drehung });
+      this.renderer.zeigeVorschau({ typ: this.auswahl, tx: z.tx, ty: z.ty, ok: z.ok, drehung: z.drehung, groesse: blockGroesseFuer(this.auswahl, daten.bauBlock ?? 1) });
       this.renderer.zeigeGebietVorschau(this.auswahl === 'flagge' ? { tx: z.tx, ty: z.ty, radius: daten.bauRadius ?? 15, ok: z.ok } : null);
     }
     this.hud.bauMenue.aktualisiere({
@@ -254,6 +254,7 @@ export class BauModus {
       radiusAn: this.radiusSichtbar,
       statusText: this.#statusText(daten, hammer, z),
       istTouch: this.eingabe.touch.istTouchGeraet,
+      blockGroesse: daten.bauBlock ?? 1,
     });
   }
 
@@ -263,7 +264,7 @@ export class BauModus {
     if (z && !z.ok && z.grund) return `✕ ${z.grund}`;
     if (this.auswahl === 'abriss') return z?.ziel ? `Abreißen: ${BAUWERKE[z.ziel].name}` : 'Zeige auf ein eigenes Bauteil';
     const teil = BAUTEILE[this.auswahl];
-    return `${teil.name} · ${kostenText(teil.kosten, (id) => this.kontext().defs[id]?.name ?? id)}`;
+    return `${teil.name} · ${kostenText(kostenFuer(this.auswahl, daten.bauBlock ?? 1), (id) => this.kontext().defs[id]?.name ?? id)}`;
   }
 
   #zielpunkt(lokal) {
@@ -291,18 +292,19 @@ export class BauModus {
       return { tx, ty, ok: true, ziel: b.typ };
     }
 
-    const kontext = { territorium: this.territorium, name, spieler: { x: lokal.x, y: lokal.y } };
+    const kontext = { territorium: this.territorium, name, spieler: { x: lokal.x, y: lokal.y }, blockGroesse: daten.bauBlock ?? 1 };
     const ergebnis = snappe(welt, this.auswahl, punkt.x, punkt.y, kontext, this.drehung);
     if (ergebnis.ok) {
       const teil = BAUTEILE[this.auswahl];
-      const fehlt = fehlendesMaterial(daten.inventar, teil.kosten);
+      const fehlt = fehlendesMaterial(daten.inventar, kostenFuer(this.auswahl, daten.bauBlock ?? 1));
       if (fehlt.length > 0) {
         ergebnis.ok = false;
         ergebnis.grund = `Es fehlt: ${fehlt.map((f) => `${f.fehlt}× ${this.kontext().defs[f.defId]?.name ?? f.defId}`).join(', ')}`;
       } else if (teil.art === 'bauwerk' && BAUWERKE[this.auswahl].blockiert) {
         const r = 12;
+        const n = blockGroesseFuer(this.auswahl, daten.bauBlock ?? 1);
         const { tx, ty } = ergebnis;
-        if (lokal.x + r > tx * g && lokal.x - r < (tx + 1) * g && lokal.y + r > ty * g && lokal.y - r < (ty + 1) * g) {
+        if (lokal.x + r > tx * g && lokal.x - r < (tx + n) * g && lokal.y + r > ty * g && lokal.y - r < (ty + n) * g) {
           ergebnis.ok = false;
           ergebnis.grund = 'Da stehst du selbst';
         }

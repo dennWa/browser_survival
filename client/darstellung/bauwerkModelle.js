@@ -18,6 +18,7 @@ const FLAMME_INNEN = new THREE.MeshBasicMaterial({ color: 0xffe08a, transparent:
 const GLUT = new THREE.MeshBasicMaterial({ color: 0xff4a12 });
 const ASCHE = new THREE.MeshBasicMaterial({ color: 0x3a3330 });
 
+const METALL_BASIS = BASIS_MATERIAL;
 const TUER_OFFEN_WINKEL = -1.5; // Radiant: Türblatt schwingt fast 90° auf
 const f = (hex) => new THREE.Color(hex);
 const teil = (geometrie, matrix, farbe) => ({ geometrie, matrix, farbe: f(farbe) });
@@ -78,7 +79,7 @@ const GEOMETRIEN = {
 /** Drehung um y (Radiant) für ein Bauwerk: ausgerichtete Teile nach `drehung` (0/1 × 90°), alles andere zufällig-aber-stabil pro Kachel. */
 export function bauwerkDrehungY(b) {
   if (IST_AUSGERICHTET.has(b.typ)) return (b.drehung ?? 0) * (Math.PI / 2);
-  return b.typ === 'werkbank' ? 0 : (((b.tx * 7 + b.ty * 13) % 4) * Math.PI) / 2;
+  return b.typ === 'werkbank' || b.typ === 'zaun' ? 0 : (((b.tx * 7 + b.ty * 13) % 4) * Math.PI) / 2;
 }
 
 /** Neues 3D-Bauwerk. @returns { gruppe, aktualisiere(b, jetzt) } */
@@ -153,6 +154,34 @@ export function erzeugeBauwerk(b) {
       const blatt = new THREE.Group();
       blatt.position.x = -13;
       blatt.add(mesh(bauteilGeometrie('holztuer'), BASIS_MATERIAL));
+      gruppe.add(blatt);
+      let winkel = b.offen ? TUER_OFFEN_WINKEL : 0;
+      blatt.rotation.y = winkel;
+      aktualisiere = (zustand) => {
+        const ziel = zustand.offen ? TUER_OFFEN_WINKEL : 0;
+        if (Math.abs(ziel - winkel) < 0.002) return;
+        winkel += (ziel - winkel) * 0.22;
+        blatt.rotation.y = winkel;
+      };
+      break;
+    }
+    case 'zaun': {
+      // Pfosten + ein Arm zu jedem verbundenen Nachbarn (maske: 1 = Ost, 2 = Süd, 4 = West, 8 = Nord; Standard Ost-West)
+      gruppe.add(mesh(bauteilGeometrie('zaunpfosten'), METALL_BASIS));
+      const maske = b.maske || 5;
+      [[1, 0], [2, -Math.PI / 2], [4, Math.PI], [8, Math.PI / 2]].forEach(([bit, winkel]) => {
+        if (!(maske & bit)) return;
+        const arm = mesh(bauteilGeometrie('zaunarm'), METALL_BASIS);
+        arm.rotation.y = winkel;
+        gruppe.add(arm);
+      });
+      break;
+    }
+    case 'zauntor': {
+      gruppe.add(mesh(bauteilGeometrie('zauntor'), METALL_BASIS));
+      const blatt = new THREE.Group();
+      blatt.position.x = -14;
+      blatt.add(mesh(bauteilGeometrie('zauntorblatt'), METALL_BASIS));
       gruppe.add(blatt);
       let winkel = b.offen ? TUER_OFFEN_WINKEL : 0;
       blatt.rotation.y = winkel;

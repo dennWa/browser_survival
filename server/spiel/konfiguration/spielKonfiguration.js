@@ -161,6 +161,7 @@ export const STANDARD_KONFIGURATION = Object.freeze({
   /** Basisbau (gemeinsam/basisbau/): Baugebiet-Flagge, Abriss. Kosten der Teile: gemeinsam/basisbau/teile.js */
   basisbau: {
     radiusKacheln: 8, // Baugebiet um die Flagge (1 Kachel = 1 m); später durch Skillpunkte erweiterbar (territoriumSystem.radiusFuer)
+    blockGroesse: 2, // Boden, Wand und Dach werden als Block aus 2×2 Kacheln gesetzt (1 = einzelne Kacheln)
     rueckgabe: 0.75, // Anteil der Baukosten, den man beim Abriss zurückbekommt (abgerundet pro Material)
     flaggeFreiraum: 2, // Kacheln um die Flagge, die frei von Karten-Gebäuden/Hindernissen/Wasser sein müssen
     flaggeMindestAbstand: 15, // Kacheln zwischen zwei Flaggen (verschiedener Spieler)

@@ -172,7 +172,7 @@ export class Karte {
     }
     ctx.font = '15px system-ui, sans-serif';
     // Selbst gebaute Sachen: Basisbau-Struktur (Boden, Wände) als Farbfelder (schnell, auch bei großen Basen), Möbel & Co. als Symbol
-    const symbole = { werkbank: '🔨', lagerfeuer: '🔥', beet: '🌱', falle: '🪤', kiste: '📦', bett: '🛏', holztuer: '🚪' };
+    const symbole = { werkbank: '🔨', lagerfeuer: '🔥', beet: '🌱', falle: '🪤', kiste: '📦', bett: '🛏', holztuer: '🚪', zauntor: '🚧' };
     const flaechen = { holzboden: 'rgba(199, 154, 98, 0.85)', holzwand: '#6b4424', holzwand_fenster: '#8aa7c0', holzwand_tuer: '#a77a44' };
     const kachel = g * s;
     const sichtbar = (b) => this.erkundet[b.ty * this.welt.breite + b.tx];

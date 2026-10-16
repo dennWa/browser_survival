@@ -439,15 +439,17 @@ export class Renderer {
       for (const [id, b] of this.bauwerke) {
         const jetztB = welt.bauwerke.get(id);
         // Ausgerichtete Einzelstücke (Tür, Bett) neu stellen, wenn sich die Richtung ändert – sonst nur bei Typwechsel
-        if (jetztB?.typ === b.typ && (jetztB.drehung ?? 0) === b.drehung) continue;
+        if (jetztB?.typ === b.typ && (jetztB.drehung ?? 0) === b.drehung && zaunMaske(welt, jetztB) === b.maske) continue;
         this.szene.remove(b.gruppe);
         this.bauwerke.delete(id);
       }
       for (const b of welt.bauwerke.values()) {
         if (this.bauwerke.has(b.id) || wirdInstanziert(b.typ)) continue;
-        const neu = erzeugeBauwerk(b);
+        const maske = zaunMaske(welt, b);
+        const neu = erzeugeBauwerk(maske ? { ...b, maske } : b);
         neu.typ = b.typ;
         neu.drehung = b.drehung ?? 0;
+        neu.maske = maske;
         neu.gruppe.position.set((b.tx + 0.5) * g, 0, (b.ty + 0.5) * g);
         neu.gruppe.rotation.y = bauwerkDrehungY(b);
         this.szene.add(neu.gruppe);
@@ -492,7 +494,9 @@ export class Renderer {
       this.szene.add(this.vorschau.gruppe);
     }
     const g = this.welt.kachelGroesse;
-    this.vorschau.gruppe.position.set((daten.tx + 0.5) * g, 0.2, (daten.ty + 0.5) * g);
+    const n = daten.groesse ?? 1; // Blöcke (2×2): Hologramm über die ganze Fläche
+    this.vorschau.gruppe.position.set((daten.tx + n / 2) * g, 0.2, (daten.ty + n / 2) * g);
+    this.vorschau.gruppe.scale.set(n, 1, n);
     this.vorschau.gruppe.rotation.y = (daten.drehung ?? 0) * (Math.PI / 2); // nur Teile mit Richtung bekommen drehung != 0
     if (daten.typ === 'abriss') this.vorschau.gruppe.userData.kasten.scale.y = markierungsHoehe(daten.ziel);
     if (this.vorschau.ok !== daten.ok) {
@@ -591,7 +595,7 @@ export class Renderer {
       m.castShadow = m.receiveShadow = true;
       probe.add(m);
     }
-    for (const typ of ['werkbank', 'lagerfeuer', 'falle', 'beet', 'kiste', 'holztuer', 'bett', 'flagge', 'abriss']) {
+    for (const typ of ['werkbank', 'lagerfeuer', 'falle', 'beet', 'kiste', 'holztuer', 'zaun', 'zauntor', 'bett', 'flagge', 'abriss']) {
       if (typ === 'abriss') {
         probe.add(erzeugeVorschau(typ));
         continue;
@@ -1212,6 +1216,18 @@ class KameraAdapter {
   istSichtbar() {
     return true;
   }
+}
+
+/** Zaun: welche Nachbarn (Zäune, Tore, Wände) sind verbunden? Bits 1 = Ost, 2 = Süd, 4 = West, 8 = Nord (0 = kein Zaun). */
+const ZAUN_VERBINDER = new Set(['zaun', 'zauntor', 'holzwand', 'holzwand_fenster', 'holzwand_tuer']);
+function zaunMaske(welt, b) {
+  if (b.typ !== 'zaun') return 0;
+  let maske = 0;
+  for (const [dx, dy, bit] of [[1, 0, 1], [0, 1, 2], [-1, 0, 4], [0, -1, 8]]) {
+    const n = welt.bauwerkBei(b.tx + dx, b.ty + dy, 'wand');
+    if (n && ZAUN_VERBINDER.has(n.typ)) maske |= bit;
+  }
+  return maske || 5;
 }
 
 /** Lagerfeuer: unruhiges, warmes Flackern. */
