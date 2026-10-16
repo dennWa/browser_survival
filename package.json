@@ -12,6 +12,8 @@
     "start:gast": "node server/node/start.js --gast",
     "konto": "node server/werkzeuge/kontoAnlegen.js",
     "assets:3d": "node werkzeuge/assets/baue_3d.mjs",
+    "karte:export": "node werkzeuge/karten/tiled.mjs export",
+    "karte:import": "node werkzeuge/karten/tiled.mjs import",
     "test": "node --test \"tests/**/*.test.js\""
   },
   "dependencies": {
