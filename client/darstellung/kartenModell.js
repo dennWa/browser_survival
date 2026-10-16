@@ -264,7 +264,7 @@ export class KartenModell {
     const g = this.g;
     this.lampenListe = this.welt.objekte
       .filter((o) => o.typ === 'licht')
-      .map((o) => ({ x: (o.x + 0.5) * g, y: 60, z: (o.y + 0.5) * g, farbe: new THREE.Color(o.farbe), reichweite: o.radius * g * 1.8, staerke: (o.staerke ?? 0.8) * 260, objekt: o }));
+      .map((o) => ({ x: (o.x + 0.5) * g, y: o.mast ? 58 : 60, z: (o.y + 0.5) * g, farbe: new THREE.Color(o.farbe), reichweite: o.radius * g * 1.8, staerke: (o.staerke ?? 0.8) * 260, objekt: o }));
     const material = new THREE.MeshBasicMaterial({ transparent: true, opacity: 1, depthWrite: false });
     this.lampenGluehen = new THREE.InstancedMesh(new THREE.SphereGeometry(3.5, 8, 6), material, Math.max(1, this.lampenListe.length));
     this.lampenListe.forEach((l, i) => {
@@ -273,6 +273,21 @@ export class KartenModell {
     });
     this.lampenGluehen.count = this.lampenListe.length;
     this.statisch.add(this.lampenGluehen);
+    // Straßenlaternen (mast): dünner dunkler Mast mit Kopf unter dem Glühen – ein zusammengefasstes Mesh
+    const masten = this.lampenListe.filter((l) => l.objekt.mast);
+    if (masten.length > 0) {
+      const eisen = new THREE.Color(0x2b2f35).convertSRGBToLinear();
+      const teile = [];
+      for (const l of masten) {
+        teile.push({ geometrie: new THREE.CylinderGeometry(1.5, 2.2, 54, 6), matrix: matrixAus(l.x, 27, l.z, 0), farbe: eisen });
+        teile.push({ geometrie: new THREE.CylinderGeometry(4.5, 3, 5, 6), matrix: matrixAus(l.x, 57, l.z, 0), farbe: eisen });
+        teile.push({ geometrie: new THREE.CylinderGeometry(5, 5, 1.2, 6), matrix: matrixAus(l.x, 63, l.z, 0), farbe: eisen });
+      }
+      const mesh = new THREE.Mesh(vereineGeometrien(teile, { mitFarbe: true }), this.mitSchnitt(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.4 })));
+      mesh.castShadow = true;
+      einfrieren(mesh);
+      this.statisch.add(mesh);
+    }
   }
 
   /** Türflügel mit Scharnier: pro Tür-Kachel ein Flügel; Doppeltüren öffnen auseinander. */

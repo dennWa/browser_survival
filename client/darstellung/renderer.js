@@ -51,6 +51,7 @@ const _wetterGrau = new THREE.Color();
 const MAX_TASCHENLAMPEN = 3;
 const LAMPEN_POOL = 6; // so viele Kartenlampen leuchten gleichzeitig echt (die nächsten)
 const MUENDUNGS_LICHTER = 2;
+const SITZ_TIEFE = 24; // so weit sinkt die Figur beim Sitzen am Feuer
 const SICHTWEITE = 1300; // weiter entfernte Figuren werden nicht animiert/gezeichnet
 /**
  * Qualitätsstufen, von schön (0) nach sparsam. aufloesung = Obergrenze fürs Pixelverhältnis (null = Gerät),
@@ -796,7 +797,7 @@ export class Renderer {
         f.gruppe.position.set(e.arbeitOrt.x - (laengs ? 0 : 30), 20, e.arbeitOrt.y + (laengs ? 30 : 0));
         f.gruppe.rotation.set(-Math.PI / 2, laengs ? 0 : -Math.PI / 2, 0, 'YXZ');
       } else {
-        f.gruppe.position.set(e.x, 0, e.y);
+        f.gruppe.position.set(e.x, e.arbeit === 'sitzen' ? -SITZ_TIEFE : 0, e.y);
         f.gruppe.rotation.set(0, Math.PI / 2 - e.blick, 0, 'YXZ');
       }
 

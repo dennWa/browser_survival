@@ -237,3 +237,23 @@ test('Weltzustand: Bauwerke, Uhrzeit und Tag überleben einen Neustart', () => {
   assert.equal(neu.welt.bauwerke.size, FELD_GROESSE * FELD_GROESSE, 'nur das gültige Erdfeld');
   assert.ok([...neu.welt.bauwerke.values()].some((b) => b.pflanze === 'kartoffel'));
 });
+
+test('Am Lagerfeuer sitzen: Zombies übersehen einen, Verfolger bleiben dran, Bewegen steht auf', () => {
+  const { welt, spieler } = gartenWelt();
+  fuegeZumInventarHinzu(spieler, 'lagerfeuer', 1);
+  aktion(welt, spieler, { art: AKTIONEN.PLATZIEREN, slot: slotVon(spieler, 'lagerfeuer'), tx: 4, ty: 2 });
+  const feuer = welt.welt.bauwerkBei(4, 2);
+  feuer.brennt = true;
+  feuer.brennRest = 300;
+  aktion(welt, spieler, { art: AKTIONEN.BAUWERK });
+  assert.equal(spieler.arbeit?.art, 'sitzen');
+  const zombie = welt.hinzufuegen(erzeugeZombie({ id: welt.neueId(), x: mitte(8), y: mitte(2), konfiguration: welt.konfiguration, blick: Math.PI }));
+  for (let i = 0; i < 20; i++) welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(zombie.zielId, null, 'Zombie bemerkt den Sitzenden nicht');
+  zombie.zielId = spieler.id; // jagte schon vorher
+  for (let i = 0; i < 5; i++) welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(zombie.zielId, spieler.id);
+  spieler.x += 20; // wegbewegen
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(spieler.arbeit, null, 'steht auf');
+});

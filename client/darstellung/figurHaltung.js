@@ -23,6 +23,8 @@ const HALTUNGEN = {
   nahkampf: { rechts: [v(-0.25, -0.85, 0.45), v(-0.05, -0.2, 1)], links: null, hand: 'rechts' },
   lampe: { rechts: null, links: [v(-0.12, -0.35, 1), v(-0.08, -0.04, 1)], hand: 'links' },
   zombie: { rechts: [v(0.12, 0.05, 1), v(0.05, 0.02, 1)], links: [v(-0.12, 0.05, 1), v(-0.05, 0.02, 1)], hand: null },
+  // Am Lagerfeuer sitzen: Hände locker auf den Knien
+  sitzen: { rechts: [v(-0.05, -0.75, 0.55), v(0.02, -0.3, 1)], links: [v(0.05, -0.75, 0.55), v(-0.02, -0.3, 1)], hand: null },
   // Holzfällen/Steinhacken: beidhändig, Schwung wird in veraendereFuerAktion animiert
   hacken: { rechts: [v(0.2, 0.3, 1), v(0.2, 0.3, 1)], links: [v(-0.35, 0.25, 1), v(-0.2, 0.3, 1)], hand: 'rechts' },
 };
@@ -36,6 +38,11 @@ export function richteFigurEin(figur, modell) {
   for (const [seite, namen] of Object.entries(ARM_KNOCHEN)) {
     const k = namen.map((n) => modell.getObjectByName(n));
     if (k.every(Boolean)) figur.knochen[seite] = k;
+  }
+  figur.beine = {};
+  for (const [seite, namen] of Object.entries({ rechts: ['RightUpLeg', 'RightLeg', 'RightFoot'], links: ['LeftUpLeg', 'LeftLeg', 'LeftFoot'] })) {
+    const k = namen.map((n) => modell.getObjectByName(n));
+    if (k.every(Boolean)) figur.beine[seite] = k;
   }
   figur.waffe = null;
   figur.waffenName = null;
@@ -58,6 +65,8 @@ export function aktualisiereHaltung(figur, e, jetzt) {
   let waffenName = null;
   if (e.typ === 'zombie') {
     haltungsName = 'zombie';
+  } else if (e.arbeit === 'sitzen') {
+    haltungsName = 'sitzen';
   } else if (ARBEIT_WERKZEUG[e.arbeit]) {
     waffenName = ARBEIT_WERKZEUG[e.arbeit];
     haltungsName = 'hacken';
@@ -79,6 +88,17 @@ export function aktualisiereHaltung(figur, e, jetzt) {
     const [oberarm, unterarm, hand] = figur.knochen[seite];
     richteKnochen(oberarm, unterarm, inWelt(pose[seite][0], gruppe));
     richteKnochen(unterarm, hand, inWelt(pose[seite][1], gruppe));
+  }
+
+  // Sitzen: Oberschenkel nach vorn, Unterschenkel nach unten (Figur ist dafür tiefer gesetzt, siehe renderer)
+  if (haltungsName === 'sitzen') {
+    for (const seite of ['rechts', 'links']) {
+      const bein = figur.beine[seite];
+      if (!bein) continue;
+      const [oberschenkel, unterschenkel, fuss] = bein;
+      richteKnochen(oberschenkel, unterschenkel, inWelt(v(seite === 'rechts' ? -0.18 : 0.18, 0, 1), gruppe));
+      richteKnochen(unterschenkel, fuss, inWelt(v(0, -1, 0.08), gruppe));
+    }
   }
 
   // Waffe in die Hand: Position = Hand, Richtung = Unterarm (Schusswaffen: genau in Blickrichtung)

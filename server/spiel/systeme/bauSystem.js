@@ -147,6 +147,9 @@ export function benutzeBauwerk(spielWelt, spieler, bauwerkId = null, wunschPflan
     case 'spawn':
       setzeSpawn(spielWelt, spieler, b);
       return;
+    case 'sitzen':
+      setzeDich(spielWelt, spieler, b);
+      return;
     case 'aufnehmen': {
       const rest = fuegeZumInventarHinzu(spieler, 'falle', 1);
       if (rest > 0) {
@@ -193,6 +196,16 @@ export function benutzeBauwerk(spielWelt, spieler, bauwerkId = null, wunschPflan
 }
 
 /** Holztür (Basisbau) öffnen/schließen. Zu geht nicht, solange jemand im Durchgang steht. */
+/** Ans brennende Lagerfeuer setzen (arbeit 'sitzen'): Zombies übersehen einen, solange sie nicht schon hinter einem her sind. */
+function setzeDich(spielWelt, spieler, feuer) {
+  if (!feuer.brennt) return;
+  const g = spielWelt.welt.kachelGroesse;
+  spieler.arbeit = { art: 'sitzen', dauer: 1e6, rest: 1e6, x: spieler.x, y: spieler.y, bauwerkId: feuer.id };
+  spieler.blick = Math.atan2((feuer.ty + 0.5) * g - spieler.y, (feuer.tx + 0.5) * g - spieler.x);
+  spieler.nachladenRest = 0;
+  spielWelt.melde(spieler.id, '🔥 Du sitzt am Feuer – hier ist es ruhig');
+}
+
 function schalteTuer(spielWelt, spieler, tuer) {
   if (tuer.offen && kachelBesetzt(spielWelt, tuer.tx, tuer.ty)) {
     spielWelt.melde(spieler.id, 'Da steht jemand im Weg');

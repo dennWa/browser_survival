@@ -613,8 +613,9 @@ export class Hud {
     if (!arbeit) return;
     const text = arbeit.wartet
       ? '💤 Warte, bis alle schlafen … (bewegen = aufstehen)'
-      : ({ angeln: '🎣 …', holz: '🪓 Baum fällen …', stein: '⛏ Stein abbauen …', eisenerz: '⛏ Eisenerz abbauen …', kochen: '🍳 Braten …', schlafen: '💤 Schlafen … (bewegen = aufwachen)' }[arbeit.art] ?? '…');
+      : ({ angeln: '🎣 …', holz: '🪓 Baum fällen …', stein: '⛏ Stein abbauen …', eisenerz: '⛏ Eisenerz abbauen …', kochen: '🍳 Braten …', schlafen: '💤 Schlafen … (bewegen = aufwachen)', sitzen: '🔥 Am Feuer … (bewegen = aufstehen)' }[arbeit.art] ?? '…');
     this.el.arbeitText.textContent = text;
+    this.el.arbeit.classList.toggle('ohne-balken', arbeit.art === 'sitzen');
     this.el.arbeit.querySelector('.fuellung').style.width = `${Math.round(arbeit.fortschritt * 100)}%`;
   }
 

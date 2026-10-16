@@ -54,11 +54,18 @@ def o(typ, x, y, b, h, block=True, **kw):
     objekte.append(e)
 
 
-def licht(x, y, radius, farbe, staerke, flackern=False):
+def licht(x, y, radius, farbe, staerke, flackern=False, mast=False):
     e = {'typ': 'licht', 'x': x, 'y': y, 'b': 1, 'h': 1, 'radius': radius, 'farbe': farbe, 'staerke': staerke}
     if flackern:
         e['flackern'] = True
+    if mast:
+        e['mast'] = True  # Straßenlaterne: der Client stellt einen Mast darunter
     objekte.append(e)
+
+
+def laterne(x, y, nr=0):
+    """Straßenlaterne: kleiner, warmer Lichtkreis, jede dritte flackert leicht (gemütlich)."""
+    licht(x, y, 3.3, LATERNE, 0.8, nr % 3 == 1, mast=True)
 
 
 def baum(x, y, herbst=False, gross=3.5):
@@ -437,7 +444,7 @@ for x, y in ((28.3, 45), (28.3, 49), (28.3, 53), (92.2, 45), (92.2, 50), (92.2, 
     busch(x, y)
 
 # --- Licht: Notbeleuchtung drinnen, Laternen draußen ---
-ROT, GRUEN, KALT, WARM, LATERNE = '#ff3b2f', '#46ff8a', '#bfe4ff', '#ffc46b', '#ffb35c'
+ROT, GRUEN, KALT, WARM, LATERNE = '#ff3b2f', '#46ff8a', '#bfe4ff', '#ffc46b', '#ffc070'
 for x, f in ((40, True), (52, False), (61, False), (74, True), (86, False)):
     licht(x, 30, 3.5, ROT, 0.55, f)
 licht(61, 12, 3.5, ROT, 0.5, True); licht(45, 17, 3, GRUEN, 0.45); licht(78, 17, 3, ROT, 0.5)
@@ -445,12 +452,13 @@ licht(61, 37, 5, KALT, 0.7, True); licht(41, 36, 3.5, ROT, 0.5, True); licht(78,
 licht(84, 23, 3, KALT, 0.45, True); licht(52, 23, 2.5, GRUEN, 0.35)
 licht(8, 12, 3, WARM, 0.45, True); licht(46, 72, 4, KALT, 0.5, True); licht(82, 70, 3.5, KALT, 0.55)
 licht(9, 74, 3, KALT, 0.45); licht(104, 27, 2.5, WARM, 0.45, True)
-for x in (8, 30, 52, 74, 96):
-    licht(x, 59, 5.5, LATERNE, 0.75, x == 52)
-for y in (10, 30, 50):
-    licht(23, y, 5, LATERNE, 0.7, y == 30)
-    licht(98, y, 5, LATERNE, 0.7)
-licht(46, 51, 6, LATERNE, 0.75); licht(77, 51, 6, LATERNE, 0.75, True); licht(61, 44, 4, LATERNE, 0.6)
+nr = 0
+for x in range(8, 100, 11):
+    laterne(x, 59, nr); nr += 1
+for y in range(4, 56, 9):
+    laterne(23, y, nr); nr += 1
+    laterne(98, y, nr); nr += 1
+laterne(46, 51, nr); laterne(77, 51, nr + 1); laterne(61, 44, nr + 2); laterne(34, 51, nr + 3); laterne(88, 51, nr + 4)
 licht(13, 67, 5, '#fff2c8', 0.7)
 
 # =============================================================================
@@ -722,11 +730,11 @@ for (x, y), ch in MARKER.items():
     g[y][x] = ch
 
 # --- Laternen entlang der verlängerten Straßen (Norden) ---
-for y in range(4, my(0) + 1, 14):
-    for x in (mx(23), mx(98) + 1):
-        licht(x, y, 5, LATERNE, 0.7)
-for x in (mx(0) + 4, B - 6):
-    licht(x, my(61) - 1, 5.5, LATERNE, 0.75)
+for i, y in enumerate(range(4, my(0) + 1, 10)):
+    for j, x in enumerate((mx(23), mx(98) + 1)):
+        laterne(x, y, i + j)
+for i, x in enumerate(range(mx(0) + 4, B - 4, 12)):
+    laterne(x, my(61) - 1, i)
 
 # =============================================================================
 zeilen = [''.join(r) for r in g]

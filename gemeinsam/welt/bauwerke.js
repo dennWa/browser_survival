@@ -166,6 +166,7 @@ export function bauwerkAktion(b, inventar, name = null, flaggeDort = null) {
     case 'lagerfeuer': {
       const roh = b.brennt ? inventar.find((e) => e && KOCHBAR[e.defId]) : null;
       if (roh) return { art: 'kochen', text: roh.defId === 'kartoffel' ? 'Kartoffel backen' : 'Braten', symbol: '🍳' };
+      if (b.brennt) return { art: 'sitzen', text: 'Ans Feuer setzen', symbol: '🔥' };
       return null;
     }
     case 'kiste':

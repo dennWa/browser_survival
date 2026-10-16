@@ -19,6 +19,7 @@ import { aktualisiereBauwerke, kochenFertig } from './bauSystem.js';
  * Ressource weg ist. Werte (Menge, Dauer, Nachwachsen, Heilung) in konfiguration.ressourcen / .schlafen.
  */
 const ABBRUCH_WEG = 6;
+const SITZ_HEILUNG = 0.5; // Leben pro Sekunde am Lagerfeuer
 const SCHLAG_TAKT = 0.85; // Sekunden zwischen zwei Hack-Geräuschen (passt zur Animation)
 
 /** AKTION 'abbauen': nächsten Baum/Stein in Reichweite bearbeiten. */
@@ -75,6 +76,16 @@ export function aktualisiereArbeit(spielWelt, dt) {
     }
     if (a.art === 'schlafen') {
       schlafe(spielWelt, spieler, dt);
+      continue;
+    }
+    if (a.art === 'sitzen') {
+      const feuer = spielWelt.welt.bauwerke.get(a.bauwerkId);
+      if (!feuer?.brennt) {
+        spieler.arbeit = null;
+        spielWelt.melde(spieler.id, 'Das Feuer ist erloschen');
+        continue;
+      }
+      spieler.leben = Math.min(spieler.maxLeben, spieler.leben + SITZ_HEILUNG * dt);
       continue;
     }
     if (a.art === 'kochen') {
