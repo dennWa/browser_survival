@@ -23,7 +23,12 @@ const HALTUNGEN = {
   nahkampf: { rechts: [v(-0.25, -0.85, 0.45), v(-0.05, -0.2, 1)], links: null, hand: 'rechts' },
   lampe: { rechts: null, links: [v(-0.12, -0.35, 1), v(-0.08, -0.04, 1)], hand: 'links' },
   zombie: { rechts: [v(0.12, 0.05, 1), v(0.05, 0.02, 1)], links: [v(-0.12, 0.05, 1), v(-0.05, 0.02, 1)], hand: null },
+  // Holzfällen/Steinhacken: beidhändig, Schwung wird in veraendereFuerAktion animiert
+  hacken: { rechts: [v(0.2, 0.3, 1), v(0.2, 0.3, 1)], links: [v(-0.35, 0.25, 1), v(-0.2, 0.3, 1)], hand: 'rechts' },
 };
+/** Arbeit → Werkzeug in der Hand */
+const ARBEIT_WERKZEUG = { holz: 'axt', stein: 'spitzhacke' };
+const HACK_TAKT_MS = 850; // ein Schlag
 
 /** Bereitet eine frisch geklonte Figur vor: Knochen merken. */
 export function richteFigurEin(figur, modell) {
@@ -53,6 +58,9 @@ export function aktualisiereHaltung(figur, e, jetzt) {
   let waffenName = null;
   if (e.typ === 'zombie') {
     haltungsName = 'zombie';
+  } else if (ARBEIT_WERKZEUG[e.arbeit]) {
+    waffenName = ARBEIT_WERKZEUG[e.arbeit];
+    haltungsName = 'hacken';
   } else {
     waffenName = waffenModellName(e.waffe, e.ausruestung);
     haltungsName = haltungFuer(waffenName);
@@ -61,7 +69,8 @@ export function aktualisiereHaltung(figur, e, jetzt) {
 
   const basis = HALTUNGEN[haltungsName];
   const pose = { rechts: basis.rechts?.map((r) => r.clone()) ?? null, links: basis.links?.map((r) => r.clone()) ?? null };
-  veraendereFuerAktion(pose, haltungsName, e.aktion, fortschritt);
+  if (haltungsName === 'hacken') hackSchwung(pose, (jetzt % HACK_TAKT_MS) / HACK_TAKT_MS);
+  else veraendereFuerAktion(pose, haltungsName, e.aktion, fortschritt);
 
   const gruppe = figur.gruppe;
   gruppe.updateMatrixWorld(true);
@@ -91,6 +100,7 @@ export function aktualisiereHaltung(figur, e, jetzt) {
       const ellbogen = gruppe.worldToLocal(unterarm.getWorldPosition(_c));
       richtung = _d.copy(gruppe.worldToLocal(hand.getWorldPosition(_e))).sub(ellbogen).normalize();
       if (haltungsName === 'nahkampf') richtung.y += 0.35; // Klinge leicht nach oben
+      if (haltungsName === 'hacken') richtung.y += 0.6; // Kopf des Werkzeugs vorne-oben
       richtung.normalize();
     }
     figur.waffe.quaternion.setFromUnitVectors(VORNE, richtung);
@@ -144,6 +154,18 @@ function veraendereFuerAktion(pose, haltung, aktion, p) {
     for (const seite of ['rechts', 'links']) for (const r of pose[seite]) r.y += hub * 0.9 - 0.2;
   }
   for (const seite of ['rechts', 'links']) for (const r of pose[seite] ?? []) r.normalize();
+}
+
+/** Hacken: ausholen über die Schulter, dann kräftig nach vorne-unten schlagen (p = 0..1 je Schlag). */
+function hackSchwung(pose, p) {
+  const ausholen = p < 0.55 ? p / 0.55 : 1 - (p - 0.55) / 0.45; // langsam hoch, schnell runter
+  const hoehe = -0.55 + ausholen * 1.6;
+  for (const seite of ['rechts', 'links']) {
+    pose[seite][0].y = hoehe * 0.8;
+    pose[seite][1].y = hoehe;
+    pose[seite][0].z = 1 - ausholen * 0.5;
+    for (const r of pose[seite]) r.normalize();
+  }
 }
 
 function setzeWaffe(figur, name) {

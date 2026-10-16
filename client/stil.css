@@ -33,6 +33,19 @@ html, body {
   display: block;
 }
 
+#vignette, #schadensblitz {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+#vignette { background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.5) 100%); }
+
+#schadensblitz {
+  opacity: 0;
+  background: radial-gradient(ellipse at center, rgba(160, 0, 0, 0) 35%, rgba(160, 0, 0, 0.55) 100%);
+}
+
 /* Während des Spiels: Seite komplett festnageln (iOS-Gummiband, Adressleiste, Pull-to-Refresh) */
 body.im-spiel {
   position: fixed;

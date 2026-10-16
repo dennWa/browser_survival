@@ -26,6 +26,7 @@ const DREHGESCHWINDIGKEIT = 8; // je höher, desto schneller drehen sie sich zum
 const TUER_KOSTEN = 8; // A*: eine geschlossene Tür "kostet" so viele Schritte Umweg
 const TUER_SCHLAG_ABSTAND = 10; // px zwischen Zombie-Rand und Tür, ab dem er zuschlägt
 const HORDE_WITTERUNG = 1100; // px
+const PFAD_BUDGET = 4; // höchstens so viele A*-Suchen pro Tick (große Karte → teuer), der Rest wartet einen Tick
 const HORDE_INTERVALL = 8; // Sekunden zwischen zwei "Witterungen"
 const WEGPUNKT_ERREICHT = 8;
 const ANGRIFF_ANIMATION = 0.5;
@@ -35,6 +36,7 @@ export function aktualisiereZombies(spielWelt, dt) {
   const spielerRadius = spielWelt.konfiguration.spieler.radius;
   const lebendeSpieler = [...spielWelt.alleVomTyp('spieler')].filter((s) => !s.tot && !s.unsichtbar);
   const zombies = [...spielWelt.alleVomTyp('zombie')];
+  spielWelt.pfadBudget = PFAD_BUDGET;
 
   for (const z of zombies) {
     z.angriffsAbklingzeit = Math.max(0, z.angriffsAbklingzeit - dt);
@@ -110,7 +112,8 @@ function bewegeZuZiel(spielWelt, z, ziel, sicht, dt, k) {
     z.pfad = null;
   } else {
     z.pfadTimer -= dt;
-    if (!z.pfad || z.pfadTimer <= 0) {
+    if ((!z.pfad || z.pfadTimer <= 0) && spielWelt.pfadBudget > 0) {
+      spielWelt.pfadBudget--;
       // Sieht er das Ziel, aber ein Hindernis (Auto, Tisch …) steht im Weg → Weg direkt zum Ziel suchen
       const zielX = sicht ? ziel.x : z.letztesZielX;
       const zielY = sicht ? ziel.y : z.letztesZielY;
@@ -121,6 +124,7 @@ function bewegeZuZiel(spielWelt, z, ziel, sicht, dt, k) {
         return;
       }
     }
+    if (!z.pfad) return; // Budget aufgebraucht → nächsten Tick rechnen
     while (z.pfad.length > 0 && Math.hypot(z.pfad[0].x - z.x, z.pfad[0].y - z.y) < WEGPUNKT_ERREICHT) z.pfad.shift();
     if (z.pfad.length === 0) {
       // Zuletzt bekannte Position erreicht, Ziel nicht in Sicht → aufgeben

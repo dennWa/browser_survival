@@ -240,6 +240,7 @@ export class Hud {
         `Position: ${Math.round(s.x)} | ${Math.round(s.y)}`,
         `Unbestätigte Eingaben: ${d.offeneEingaben}`,
         `Zombies: ${d.zombies}   Gegenstände: ${d.gegenstaende}`,
+        d.grafik ?? '',
       ].join('\n');
     }
   }

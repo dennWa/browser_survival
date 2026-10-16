@@ -390,6 +390,7 @@ export class ClientSpiel {
       zombies: this.#anzahl('zombie'),
       gegenstaende: this.gegenstaende.length,
       offeneEingaben: this.offeneEingaben.length,
+      grafik: this.hud.debug ? this.renderer.statistik?.() : null,
       aufhebbar: aufhebbar ? (aufhebbar.menge > 1 ? `${aufhebbar.name} ×${aufhebbar.menge}` : aufhebbar.name) : null,
       tuer: tuer ? (this.welt.istTuerOffen(tuer.id) ? 'schließen' : 'öffnen') : null,
       uhr: { ...uhr, tag: this.tag },

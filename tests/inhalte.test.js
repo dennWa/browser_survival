@@ -7,7 +7,7 @@ import { Welt } from '../gemeinsam/welt/welt.js';
 
 const atlas = JSON.parse(readFileSync(new URL('../client/assets/atlas.json', import.meta.url), 'utf8'));
 /** Objekttypen, die prozedural gezeichnet werden und keine Grafik brauchen */
-const PROZEDURAL = new Set(['markierung', 'licht']);
+const PROZEDURAL = new Set(['markierung', 'licht', 'stein', 'werkbank']);
 
 for (const id of Object.keys(KARTEN)) {
   test(`Karte "${id}": alles vom Spieler-Start aus erreichbar (keine zugestellten Türen)`, () => {
@@ -40,6 +40,10 @@ for (const id of Object.keys(KARTEN)) {
       const zeichen = welt.kachelAn(tx, ty);
       assert.ok(!'#FT'.includes(zeichen), `Möbel auf "${zeichen}" bei ${tx}|${ty}`);
     }
+    for (const [index] of welt.ressourceAnKachel) {
+      const zeichen = welt.kachelAn(index % welt.breite, Math.floor(index / welt.breite));
+      assert.ok(!'#FT'.includes(zeichen), `Ressource auf "${zeichen}" bei Kachel ${index}`);
+    }
   });
 
   test(`Karte "${id}": jedes Objekt hat eine Grafik`, () => {
@@ -63,14 +67,15 @@ test('3D-Figur, Skins und Animationen sind vorhanden', () => {
   for (const name of ['stehen', 'rennen']) assert.ok(clips[name], `Animation "${name}" fehlt`);
 });
 
-test('Stadtrand: vom Spawn geradeaus durch den Haupteingang in die Eingangshalle laufen', () => {
+test('Stadtrand: Spieler starten im Haus neben einem Bett', () => {
   const karte = ladeKarte('stadtrand');
   const welt = new Welt(karte.daten);
   const g = welt.kachelGroesse;
   for (const start of karte.spielerStarts) {
-    // Gerade nach oben bis in die Eingangshalle (Zeile 38) – nichts darf im Weg stehen
-    for (let ty = Math.floor(start.y / g); ty >= 38; ty--) {
-      assert.equal(welt.istBlockiert(Math.floor(start.x / g), ty), false, `Weg bei ${Math.floor(start.x / g)}|${ty} blockiert`);
-    }
+    // Start im Schlafzimmer, direkt neben einem Bett
+    const tx = Math.floor(start.x / g);
+    const ty = Math.floor(start.y / g);
+    const bettDaneben = welt.objekte.some((o) => o.typ.startsWith('bett') && tx >= o.x - 2 && tx < o.x + o.b + 2 && ty >= o.y && ty < o.y + o.h);
+    assert.ok(bettDaneben, `Start ${tx}|${ty} liegt nicht neben einem Bett`);
   }
 });

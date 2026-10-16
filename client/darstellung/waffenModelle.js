@@ -88,6 +88,22 @@ const BAUPLAENE = {
     g.add(quader(1, 2.6, 2.4, metall, 0, -2.2, 14.6)); // Dorn
     return g;
   },
+  axt() {
+    const g = new THREE.Group();
+    g.add(rohr(0.9, 15, holz, 0, 0, 5.5));
+    g.add(quader(1, 5.5, 4.5, metallHell, 0, 2.2, 12)); // Blatt
+    g.add(quader(1.4, 2, 2.5, metall, 0, -1, 12.3)); // Rücken
+    return g;
+  },
+  spitzhacke() {
+    const g = new THREE.Group();
+    g.add(rohr(0.9, 15, holz, 0, 0, 5.5));
+    const kopf = quader(1.4, 13, 1.6, metall, 0, 0, 12.6); // Hacke quer zum Stiel
+    g.add(kopf);
+    g.add(quader(1, 2.2, 2.2, metallHell, 0, 6.4, 12.1));
+    g.add(quader(1, 2.2, 2.2, metallHell, 0, -6.4, 12.1));
+    return g;
+  },
   taschenlampe() {
     const g = new THREE.Group();
     g.add(rohr(1.2, 7, gummi, 0, 0, 1.5));
@@ -99,6 +115,9 @@ const BAUPLAENE = {
     return g;
   },
 };
+
+/** Alle Modellnamen (zum Vorkompilieren der Shader beim Laden). */
+export const WAFFEN_NAMEN = Object.keys(BAUPLAENE);
 
 /** Welches Modell für ein Item bzw. eine Ausrüstung? (Nahkampfwaffen teilen sich die Ausrüstung 'messer') */
 export function waffenModellName(waffeId, ausruestung) {
@@ -119,7 +138,7 @@ export function erzeugeWaffe(name) {
   return modell;
 }
 
-/** Haltungsart pro Modell: 'pistole' | 'gewehr' | 'nahkampf' | 'lampe' */
+/** Haltungsart pro Modell: 'pistole' | 'gewehr' | 'nahkampf' | 'lampe' (Werkzeuge bei der Arbeit: 'hacken') */
 export function haltungFuer(name) {
   if (name === 'pistole') return 'pistole';
   if (name === 'schrotflinte') return 'gewehr';
