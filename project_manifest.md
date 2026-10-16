@@ -674,6 +674,15 @@ browser_survival/
 - Performance: Böden/Wände/Dächer als InstancedMesh (1 Draw-Call je Typ), Dach-Ausblendung per Flood-Fill nur bei Änderung, Karte zeichnet Struktur als Farbfelder
 - Tests: `tests/basisbau.test.js` (152 insgesamt)
 
+### ✅ Phase 10 – Handy & Komfort (fertig, v0.12.0, Protokoll 9 unverändert)
+- **Handy-HUD:** kompakte Statusbalken ohne Symbole (Standard am Handy), je Balken ein-/ausblendbar (⚙ → Handy); Ausrufezeichen bei Leben/Hunger/Durst < 20 %
+- **Touch-Steuerung:** Sticks fest unten links/rechts (Abstand/Höhe einstellbar) oder „Frei (Daumen)“ wie früher; Pinch-Zoom mit zwei Fingern; Tippen auf Zombie = anvisieren (Auto-Aim + Dauerfeuer bis er fällt, roter Ring; PC: Rechtsklick)
+- **Angeln:** Knopf „Auswerfen/Einholen“ (Handy) statt riesigem Biss-Banner
+- **Zombies:** Sichtradius 240→170, Tempo −10 %; im Haus (auch selbstgebaut: Dach) unsichtbar/unhörbar, außer sie jagen schon; am Lagerfeuer sitzend übersehen; geben hinter Zäunen auf (4 s)
+- **Basisbau:** Boden/Wand/Dach als 2×2-Block (`basisbau.blockGroesse`, halber Preis), Baugebiet 8 m, **Zaun** (2 Eisenerz) + **Zauntor** (4 Eisenerz + 2 Holz)
+- **Welt:** Stadtrand 155×130 mit 5 Kacheln breiten Straßen, Straßenlaternen (Mast, kleines warmes Licht, jede dritte flackert), fallende Blätter, weniger Hasen, Schlafen ohne Zeitsprung (`schlafen.stunden` = 0)
+- Admin-Menü hat ✕ und schließt bei Tipp daneben
+
 ### 💡 Ideen-Sammlung (für später, grob nach Aufwand)
 **Schnell umsetzbar**
 - Eisen (in der Werkstatt/Autos ausschlachten) → bessere Rezepte (Machete, Nägel, Munition)
@@ -740,3 +749,4 @@ browser_survival/
 | 0.9.1 | 2026-10-16 | Wind bricht nicht mehr ab (eigener Bus am Kompressor vorbei, 12-s-Schleife), Schritte entfernt, **Einstellungen ⚙** (Lautstärke Gesamt/Effekte/Wind, Grafik hoch/mittel/niedrig, Vollbild, Abmelden – auch am Handy), Unschärfe-Bug (Auflösung wird im Profil „hoch“ nicht mehr automatisch gesenkt), **Automatiktüren**, Frau mit langen Haaren (`haarModell.js`), Fix: eigene Figur wurde manchmal mit falschem Geschlecht gebaut |
 | 0.10.0 | 2026-10-16 | Große Zone Waldweg (160×120, Ringstraße, See, Angelhütte), Auto-Haltbarkeit + Wrack, Boss-Beute, Hasen, Angeln, Wetter (Regen/Nebel), Abbau-XP, Crafting-Level, Stapelgrößen, Statistik, Lagerkiste, Erdfeld (Spitzhacke) + Paprika, Basisbau-Gerüst, FPS/Minikarte, Auto-Lauf per Karte, Musik-Ordnersystem, Wind leiser, Fix Dunkelheit im Auto (Protokoll v8) |
 | 0.11.0 | 2026-10-16 | **Basisbau:** BUILD-Modus (B) mit Hammer + Bau-Menü, Basis-Flagge/Baugebiet (roter Ring nur für den Besitzer), Bauteile Holz (Boden, Dach, Wand, Fenster, Türöffnung, Tür, Kiste, Bett + Item Stoff), Hologramm grün/rot + Snapping/Magnet, Abriss mit 75 % Rückgabe, Rechte (Gruppen vorbereitet), Bett = Spawn Point, Ebenen-System, instanzierte Darstellung, Delta-Pakete für Bauwerke, Admin „Flagge entfernen“ (Protokoll v9) |
+| 0.12.0 | 2026-10-16 | **Handy & Komfort:** kompakte/einstellbare Statusbalken, feste Sticks (Fest/Frei), Pinch-Zoom, Zombie anvisieren (Auto-Aim), Angel-Knopf, Warn-„!“; Zombies schwächer (Sicht/Tempo), im Haus unsichtbar, Lagerfeuer-Sitzen; 2×2-Bauteile, Zaun & Zauntor, Baugebiet 8; Stadtrand 155×130 mit breiten Straßen + Laternen, fallende Blätter, weniger Hasen, Schlafen ohne Zeitsprung |
