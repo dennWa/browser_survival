@@ -22,7 +22,8 @@ import { erzeugeWaffe, WAFFEN_NAMEN } from './waffenModelle.js';
  *   - feste Lichteranzahl: Lampen-Pool (nur die nächsten LAMPEN_POOL Kartenlampen leuchten echt), 3 Taschenlampen,
  *     2 Mündungsblitze → Shader werden nie neu kompiliert
  *   - alle Shader beim Laden vorkompiliert (#vorkompilieren), Materialien geteilt
- *   - adaptive Auflösung: fallen die FPS, wird die Renderauflösung stufenweise gesenkt
+ *   - adaptive Qualität (QUALITAETS_STUFEN): fallen die FPS, werden erst Details gespart (Retina-Auflösung,
+ *     Schattenauflösung, Baum-Umrisse/-Schatten) und erst ganz zum Schluss die Auflösung unter 1 – nie unter 0,8
  *   - Figuren außerhalb der Sichtweite werden nicht animiert
  */
 const ASSETS = new URL('../assets/', import.meta.url);
@@ -36,7 +37,22 @@ const MAX_TASCHENLAMPEN = 3;
 const LAMPEN_POOL = 6; // so viele Kartenlampen leuchten gleichzeitig echt (die nächsten)
 const MUENDUNGS_LICHTER = 2;
 const SICHTWEITE = 1300; // weiter entfernte Figuren werden nicht animiert/gezeichnet
-const AUFLOESUNG_MIN = 0.55;
+/**
+ * Qualitätsstufen, von schön (0) nach sparsam. aufloesung = Obergrenze fürs Pixelverhältnis (null = Gerät),
+ * schatten = Größe der Schattenkarte, baumDetail = Umrisse + Schatten der Bäume.
+ */
+const QUALITAETS_STUFEN = [
+  { aufloesung: null, schatten: 2048, baumDetail: true },
+  { aufloesung: 1.5, schatten: 2048, baumDetail: true },
+  { aufloesung: 1, schatten: 2048, baumDetail: true },
+  { aufloesung: 1, schatten: 1024, baumDetail: true },
+  { aufloesung: 1, schatten: 1024, baumDetail: false },
+  { aufloesung: 0.9, schatten: 1024, baumDetail: false },
+  { aufloesung: 0.8, schatten: 1024, baumDetail: false },
+];
+const AUFWAERM_MS = 6000; // so lange nach dem Betreten nicht messen (Shader, Texturen, erste Frames)
+const ZOOM_MIN = 0.55;
+const ZOOM_MAX = 1.6;
 /** Lichtfarben für Tag, Nacht und Dämmerung (siehe #tageslicht) */
 const TAG = { sonne: new THREE.Color(0xfff1dc), himmel: new THREE.Color(0xbfd8ff), boden: new THREE.Color(0x4a4636), hintergrund: new THREE.Color(0x9cc3e4) };
 const NACHT = { sonne: new THREE.Color(0x9db4e8), himmel: new THREE.Color(0x3a4a70), boden: new THREE.Color(0x101010), hintergrund: new THREE.Color(0x04060b) };
@@ -104,10 +120,20 @@ export class Renderer {
     this.#baueEffektObjekte();
     this.fussspuren = new Fussspuren(this.szene);
 
-    // Adaptive Auflösung
+    // Adaptive Qualität (siehe QUALITAETS_STUFEN)
     this.aufloesungMax = Math.min(window.devicePixelRatio || 1, this.istHandy ? 1.5 : 2);
-    this.aufloesung = this.aufloesungMax;
+    this.stufe = this.istHandy ? 2 : 0;
+    this.aufloesung = this.#stufenAufloesung();
     this.messung = { frames: 0, zeit: 0, seit: 0 };
+    this.messenAb = 0;
+    // Zoom (Mausrad / zwei Finger), gemerkt im Browser
+    this.zoom = 1;
+    try {
+      const z = Number(localStorage.getItem('browserSurvival.zoom'));
+      if (z >= ZOOM_MIN && z <= ZOOM_MAX) this.zoom = z;
+    } catch {
+      // egal
+    }
     this.letzterSchaden = -1;
     this.overlayBenutzt = false;
 
@@ -131,6 +157,30 @@ export class Renderer {
   leeren() {
     this.octx.setTransform(1, 0, 0, 1, 0, 0);
     this.octx.clearRect(0, 0, this.overlay.width, this.overlay.height);
+  }
+
+  /** Rein-/Rauszoomen. @param faktor > 1 = raus, < 1 = rein */
+  zoomen(faktor) {
+    this.zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, this.zoom * faktor));
+    this.#kameraAbstand();
+    try {
+      localStorage.setItem('browserSurvival.zoom', this.zoom.toFixed(3));
+    } catch {
+      // egal
+    }
+  }
+
+  /** Touch-Knopf 🔍: normal → weiter weg → näher dran → normal … */
+  naechsteZoomStufe() {
+    const stufen = [1, 1.35, 0.75];
+    const i = stufen.findIndex((z) => Math.abs(z - this.zoom) < 0.05);
+    this.zoomen(stufen[(i + 1) % stufen.length] / this.zoom);
+  }
+
+  /** Nach dem Betreten erst messen, wenn alles warm ist (sonst landet man wegen der Ladeframes gleich auf "unscharf"). */
+  aufwaermen(jetzt = performance.now()) {
+    this.messenAb = jetzt + AUFWAERM_MS;
+    this.messung = { frames: 0, zeit: 0, seit: this.messenAb };
   }
 
   /** Admin-Nachtsicht: Szene immer taghell. @returns neuer Zustand */
@@ -159,13 +209,15 @@ export class Renderer {
       bodenMassstab: this.istHandy ? 0.6 : 1,
     });
     this.szene.add(this.karte.statisch, this.karte.beweglich);
+    this.karte.setzeBaumDetail(QUALITAETS_STUFEN[this.stufe].baumDetail);
     this.#vorkompilieren();
+    this.aufwaermen();
   }
 
   /** Kurzinfo für das Debug-Overlay (F3). */
   statistik() {
     const info = this.gl.info.render;
-    return `Draw-Calls ${info.calls} · Dreiecke ${Math.round(info.triangles / 1000)}k · Auflösung ${this.aufloesung.toFixed(2)}`;
+    return `Draw-Calls ${info.calls} · Dreiecke ${Math.round(info.triangles / 1000)}k · Qualität ${this.stufe} · Auflösung ${this.aufloesung.toFixed(2)} · Zoom ${this.zoom.toFixed(2)}`;
   }
 
   /**
@@ -197,6 +249,25 @@ export class Renderer {
 
     this.gl.render(this.szene, this.kamera3d);
     this.#zeichneOverlay(entitaeten, fokus);
+    if (this.ruhigWarter) this.#pruefeRuhig(dt, jetzt);
+  }
+
+  /** Promise: erfüllt, sobald 10 Frames hintereinander flott waren (max. 5 s) – für den Ladebildschirm. */
+  warteBisRuhig() {
+    return new Promise((erfuellen) => {
+      this.ruhigWarter = { erfuellen, start: performance.now(), frames: 0, flott: 0 };
+    });
+  }
+
+  #pruefeRuhig(dt, jetzt) {
+    const w = this.ruhigWarter;
+    w.frames++;
+    w.flott = dt > 0 && dt < 1 / 30 ? w.flott + 1 : 0;
+    if ((w.frames > 20 && w.flott >= 10) || jetzt - w.start > 5000) {
+      this.ruhigWarter = null;
+      this.aufwaermen(jetzt);
+      w.erfuellen();
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -317,34 +388,54 @@ export class Renderer {
   // Pro Frame
 
   /**
-   * Fällt die Bildrate unter ~50 FPS, wird die Auflösung gesenkt; läuft es länger locker, wieder angehoben.
-   * Mit Hysterese: Jede Änderung (setPixelRatio) baut die Bildpuffer neu und kostet einen kurzen Hänger –
-   * ständiges Hin- und Herschalten fühlte sich wie Ruckeln an. Darum: nach dem Senken 30 s kein Anheben,
-   * Anheben erst nach drei guten Messfenstern hintereinander.
+   * Adaptive Qualität: Fällt die Bildrate (Mittel über 2 s) unter ~48 FPS, eine Stufe sparsamer; läuft es
+   * dreimal hintereinander locker (> 57 FPS), eine Stufe schöner – aber nach dem Absenken 30 s lang nicht.
+   * Jede Änderung kostet einen kurzen Hänger (Puffer neu anlegen), darum so zurückhaltend.
    */
   #passeAufloesungAn(dt, jetzt) {
+    if (jetzt < this.messenAb || dt > 0.25) return; // Aufwärmphase bzw. Tab war im Hintergrund
     const m = this.messung;
-    if (dt > 0.25) return; // Tab war im Hintergrund o. Ä. – zählt nicht
     m.frames++;
     m.zeit += dt;
     if (jetzt - m.seit < 2000) return;
     const mittel = m.zeit / Math.max(1, m.frames);
-    const vorher = this.aufloesung;
-    if (mittel > 1 / 48 && this.aufloesung > AUFLOESUNG_MIN) {
-      this.aufloesung = Math.max(AUFLOESUNG_MIN, this.aufloesung * 0.85);
+    this.messung = { frames: 0, zeit: 0, seit: jetzt };
+    if (mittel > 1 / 48 && this.stufe < QUALITAETS_STUFEN.length - 1) {
+      this.#setzeStufe(this.stufe + 1);
       this.anhebenGesperrtBis = jetzt + 30000;
       this.guteFenster = 0;
     } else if (mittel < 1 / 57) {
       this.guteFenster = (this.guteFenster ?? 0) + 1;
-      if (this.guteFenster >= 3 && jetzt > (this.anhebenGesperrtBis ?? 0) && this.aufloesung < this.aufloesungMax) {
-        this.aufloesung = Math.min(this.aufloesungMax, this.aufloesung * 1.1);
+      if (this.guteFenster >= 3 && jetzt > (this.anhebenGesperrtBis ?? 0) && this.stufe > (this.istHandy ? 2 : 0)) {
+        this.#setzeStufe(this.stufe - 1);
         this.guteFenster = 0;
       }
     } else {
       this.guteFenster = 0;
     }
-    if (this.aufloesung !== vorher) this.gl.setPixelRatio(this.aufloesung);
-    this.messung = { frames: 0, zeit: 0, seit: jetzt };
+  }
+
+  #stufenAufloesung() {
+    const grenze = QUALITAETS_STUFEN[this.stufe].aufloesung;
+    return grenze === null ? this.aufloesungMax : Math.min(this.aufloesungMax, grenze);
+  }
+
+  #setzeStufe(stufe) {
+    const vorher = QUALITAETS_STUFEN[this.stufe];
+    this.stufe = stufe;
+    const neu = QUALITAETS_STUFEN[stufe];
+    const aufloesung = this.#stufenAufloesung();
+    if (aufloesung !== this.aufloesung) {
+      this.aufloesung = aufloesung;
+      this.gl.setPixelRatio(aufloesung);
+    }
+    const schatten = this.istHandy ? Math.min(1024, neu.schatten) : neu.schatten;
+    if (schatten !== this.mond.shadow.mapSize.x) {
+      this.mond.shadow.mapSize.set(schatten, schatten);
+      this.mond.shadow.map?.dispose();
+      this.mond.shadow.map = null;
+    }
+    if (neu.baumDetail !== vorher.baumDetail) this.karte?.setzeBaumDetail(neu.baumDetail);
   }
 
   #aktualisiereFiguren(entitaeten, fokus, dt, jetzt) {
@@ -669,6 +760,14 @@ export class Renderer {
     }
   }
 
+  /** Kameraabstand = Bildschirmgröße × Zoom; Nebel wandert mit, damit man beim Rauszoomen nicht ins Graue schaut. */
+  #kameraAbstand() {
+    const abstand = (this.grundAbstand ?? 1) * this.zoom;
+    this.kameraVersatz = KAMERA_VERSATZ.clone().multiplyScalar(abstand);
+    this.szene.fog.near = 650 * abstand;
+    this.szene.fog.far = 1500 * abstand;
+  }
+
   #groesseAnpassen() {
     const breite = window.innerWidth;
     const hoehe = window.innerHeight;
@@ -681,8 +780,8 @@ export class Renderer {
     this.overlayBenutzt = true;
     this.kamera3d.aspect = breite / hoehe;
     // Kleine Bildschirme (Handy): Kamera etwas weiter weg, damit man genug von der Umgebung sieht
-    const abstand = Math.min(1.35, Math.max(1, Math.sqrt(720 / Math.max(1, Math.min(breite, hoehe)))));
-    this.kameraVersatz = KAMERA_VERSATZ.clone().multiplyScalar(abstand);
+    this.grundAbstand = Math.min(1.35, Math.max(1, Math.sqrt(720 / Math.max(1, Math.min(breite, hoehe)))));
+    this.#kameraAbstand();
     this.kamera3d.updateProjectionMatrix();
     this.kamera.breite = breite;
     this.kamera.hoehe = hoehe;

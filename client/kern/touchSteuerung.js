@@ -24,6 +24,8 @@ export class TouchSteuerung {
     /** Grobe Zeiger (Finger) als Hauptbedienung → Touch-Gerät */
     this.istTouchGeraet = window.matchMedia?.('(pointer: coarse)').matches ?? false;
     this.sichtbar = false;
+    /** Zeitpunkt der letzten Touch-Bedienung (performance.now) – Maus vs. Touch: wer zuletzt dran war, zielt */
+    this.letzteBenutzung = 0;
     this.aktiv = false;
 
     flaeche.addEventListener('pointerdown', (e) => this.#runter(e));
@@ -92,6 +94,7 @@ export class TouchSteuerung {
 
   #runter(e) {
     if (e.pointerType !== 'touch' || !this.aktiv) return;
+    this.letzteBenutzung = performance.now();
     if (!this.istTouchGeraet) {
       // z. B. Laptop mit Touchscreen: Touch-Bedienung beim ersten Antippen einschalten
       this.istTouchGeraet = true;
@@ -114,6 +117,7 @@ export class TouchSteuerung {
     if (!seite) return;
     e.preventDefault();
     const stick = this.#sticks[seite];
+    this.letzteBenutzung = performance.now();
     let dx = (e.clientX - stick.startX) / STICK_RADIUS;
     let dy = (e.clientY - stick.startY) / STICK_RADIUS;
     const laenge = Math.hypot(dx, dy);

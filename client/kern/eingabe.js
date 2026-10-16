@@ -47,6 +47,7 @@ export class Eingabe {
     this.mausX = 0; // Bildschirmkoordinaten (CSS-Pixel)
     this.mausY = 0;
     this.mausBenutzt = false;
+    this.mausZeit = 0;
     this.touch = new TouchSteuerung(dokument, leinwand);
 
     fenster.addEventListener('keydown', (e) => {
@@ -62,18 +63,31 @@ export class Eingabe {
     fenster.addEventListener('keyup', (e) => this.#gedrueckt.delete(e.code));
     fenster.addEventListener('blur', () => this.zuruecksetzen());
     // Auf dem ganzen Fenster: auch über HUD/Schnellleiste soll weiter gezielt werden
-    fenster.addEventListener('pointermove', (e) => {
-      if (e.pointerType !== 'mouse') return;
+    // mousemove statt nur pointermove: manche Stifte/Touchpads melden pointerType 'pen' o. Ä. – Hauptsache, es zielt
+    const mausBewegt = (e) => {
+      if (e.pointerType === 'touch') return;
       this.mausX = e.clientX;
       this.mausY = e.clientY;
       this.mausBenutzt = true;
-    });
+      this.mausZeit = performance.now();
+    };
+    fenster.addEventListener('pointermove', mausBewegt);
+    fenster.addEventListener('mousemove', mausBewegt);
     leinwand.addEventListener('pointerdown', (e) => {
-      if (e.pointerType === 'mouse' && e.button === 0 && this.#aktiv) this.#mausGedrueckt = true;
+      if (e.pointerType !== 'touch' && e.button === 0 && this.#aktiv) {
+        e.preventDefault(); // kein Text-Markieren/Drag-Start, der die Maus "festhält"
+        this.#mausGedrueckt = true;
+        mausBewegt(e);
+      }
     });
-    fenster.addEventListener('pointerup', (e) => {
-      if (e.pointerType === 'mouse' && e.button === 0) this.#mausGedrueckt = false;
-    });
+    const losgelassen = (e) => {
+      if (e.pointerType !== 'touch' && (e.button === 0 || e.type !== 'pointerup')) this.#mausGedrueckt = false;
+    };
+    fenster.addEventListener('pointerup', losgelassen);
+    fenster.addEventListener('pointercancel', losgelassen);
+    // Maus verlässt das Fenster mit gedrückter Taste → Loslassen kommt nie an
+    dokument.addEventListener('mouseleave', () => (this.#mausGedrueckt = false));
+    dokument.addEventListener('dragstart', (e) => this.#aktiv && e.preventDefault());
     leinwand.addEventListener('contextmenu', (e) => e.preventDefault());
   }
 
@@ -121,7 +135,9 @@ export class Eingabe {
   blickWinkel(spieler, kamera) {
     const ziel = this.touch.zielWinkel();
     if (ziel !== null) return ziel;
-    if (this.touch.sichtbar) {
+    // Maus gewinnt, wenn sie zuletzt benutzt wurde (Touchscreen-Laptops: früher klemmte dann das Zielen)
+    const mausAktuell = this.mausBenutzt && this.mausZeit >= this.touch.letzteBenutzung;
+    if (this.touch.sichtbar && !mausAktuell) {
       const r = this.touch.richtung();
       return r && (r.x !== 0 || r.y !== 0) ? Math.atan2(r.y, r.x) : null;
     }

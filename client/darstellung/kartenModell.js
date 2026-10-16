@@ -291,6 +291,14 @@ export class KartenModell {
     this.abgebautStand = -1;
   }
 
+  /** Qualitätsstufe: Baum-Umrisse und -Schatten an/aus (spart viel bei schwacher Grafik). */
+  setzeBaumDetail(an) {
+    for (const art of this.baumArten.values()) {
+      art.rand.visible = an;
+      art.mesh.castShadow = an;
+    }
+  }
+
   #zeigeRessourcen() {
     this.abgebautStand = this.welt.ressourcenVersion;
     const geaendert = new Set();

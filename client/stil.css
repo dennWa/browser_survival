@@ -833,3 +833,10 @@ button {
   #inventar-info { margin-top: 4px; font-size: 0.75rem; }
   .inv-hilfe { display: none; }
 }
+
+/* Ladebildschirm liegt über allem und blendet am Ende weich aus */
+#laden { z-index: 30; transition: opacity 0.3s ease; }
+#laden.weg { opacity: 0; pointer-events: none; }
+
+/* Knöpfe nur für Touch-Geräte (z. B. Zoom – am PC gibt's das Mausrad) */
+#hud:not(.touch) .nur-touch { display: none; }

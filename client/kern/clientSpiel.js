@@ -31,7 +31,7 @@ const ZOMBIE_TONHOEHE = { normal: 1, laeufer: 1.35, brocken: 0.7 };
  * (EINGABE.angriff, AKTION) und zeigt das Ergebnis an.
  */
 export class ClientSpiel {
-  constructor({ verbindung, anmeldeDaten, eingabe, renderer, hud, sound, beiEnde, benutzername = '' }) {
+  constructor({ verbindung, anmeldeDaten, eingabe, renderer, hud, sound, beiEnde, benutzername = '', vorabNachrichten = [] }) {
     this.verbindung = verbindung;
     this.eingabe = eingabe;
     this.renderer = renderer;
@@ -73,6 +73,12 @@ export class ClientSpiel {
     this.offeneEingaben = [];
 
     this.schnappschuesse = []; // [{ empfangen, tick, entitaeten: Map }]
+    /**
+     * Geschätzte lokale Zeit (performance.now), zu der Server-Tick 0 war. Folgt sofort, wenn ein Paket früher
+     * als erwartet kommt, und driftet nur langsam nach hinten → Netzwerk-Jitter verschiebt die Darstellung nicht.
+     */
+    this.tickNull = null;
+    this.interpolationsPool = new Map(); // id → wiederverwendetes Objekt (kein Müll pro Frame)
     this.ping = null;
     this.letzterTick = 0;
     this.beendet = false;
@@ -83,6 +89,8 @@ export class ClientSpiel {
       verbindung.beiNachricht((n) => this.#nachricht(n)),
       verbindung.beiTrennung((grund) => this.beenden(grund)),
     ];
+    // Was zwischen Login und jetzt ankam (während der Ladebildschirm stand), nachholen
+    for (const n of vorabNachrichten) this.#nachricht(n);
     const pingSenden = () => this.verbindung.senden({ typ: NACHRICHT.PING, t: performance.now() });
     pingSenden();
     this.pingTimer = setInterval(pingSenden, PING_INTERVALL_MS);
@@ -330,6 +338,9 @@ export class ClientSpiel {
 
     const entitaeten = new Map(n.entitaeten.map((e) => [e.id, e]));
     this.schnappschuesse.push({ empfangen: jetzt, tick: n.tick, entitaeten });
+    const geschaetzt = jetzt - n.tick * TICK_DAUER_MS;
+    if (this.tickNull === null || geschaetzt < this.tickNull || geschaetzt - this.tickNull > 500) this.tickNull = geschaetzt;
+    else this.tickNull += (geschaetzt - this.tickNull) * 0.02;
     if (this.schnappschuesse.length > 60) this.schnappschuesse.shift();
 
     // Eigene Schüsse sofort zeigen, alles andere passend zur (verzögerten) Interpolation
@@ -506,7 +517,7 @@ export class ClientSpiel {
     if (this.karte.offen) this.karte.mitspieler = this.#mitspieler();
     if (!this.spielerDaten?.tot) this.karte.aktualisiere(eigen, jetzt);
     if (this.physik.ausdauerMax) this.hud.setzeAusdauer(this.lokal.ausdauer / this.physik.ausdauerMax, this.lokal.erschoepft);
-    const andere = this.#interpolierteEntitaeten(jetzt - INTERPOLATIONS_VERZOEGERUNG_MS);
+    const andere = this.#interpolierteEntitaeten(jetzt);
     const interaktion = this.#interaktion();
     const aufhebbar = interaktion?.gegenstand ?? null;
     if (this.werkbankOffen && !this.#naheWerkbank()) this.werkbankUmschalten(false); // weggegangen → zu
@@ -542,23 +553,30 @@ export class ClientSpiel {
   }
 
   /** Alle fremden Entitäten zur Zeit `renderZeit` – zwischen den beiden passenden Schnappschüssen. */
-  #interpolierteEntitaeten(renderZeit) {
+  /**
+   * Andere Spieler & Zombies, INTERPOLATIONS_VERZOEGERUNG_MS in der Vergangenheit zwischen zwei Schnappschüssen
+   * interpoliert. Gerechnet wird in Server-Ticks (geglättete Uhr tickNull), nicht nach Ankunftszeit der Pakete –
+   * sonst ruckelt alles, sobald Pakete ungleichmäßig ankommen. Ergebnis-Objekte werden wiederverwendet.
+   */
+  #interpolierteEntitaeten(jetzt) {
     const liste = this.schnappschuesse;
     if (liste.length === 0) return [];
+    const renderTick = (jetzt - INTERPOLATIONS_VERZOEGERUNG_MS - (this.tickNull ?? jetzt)) / TICK_DAUER_MS;
 
     // Alte Schnappschüsse wegwerfen, die wir nicht mehr brauchen
-    while (liste.length >= 2 && liste[1].empfangen <= renderZeit) liste.shift();
+    while (liste.length >= 2 && liste[1].tick <= renderTick) liste.shift();
 
     const a = liste[0];
     const b = liste[1];
     const ergebnis = [];
-    if (!b || renderZeit <= a.empfangen) {
+    if (!b || renderTick <= a.tick) {
       for (const e of a.entitaeten.values()) if (e.id !== this.eigeneId) ergebnis.push(e);
       return ergebnis;
     }
 
-    const t = (renderZeit - a.empfangen) / (b.empfangen - a.empfangen);
+    const t = Math.min(1, (renderTick - a.tick) / (b.tick - a.tick));
     const dauer = Math.max(1, b.tick - a.tick) * TICK_DAUER_S;
+    const pool = this.interpolationsPool;
     for (const neu of b.entitaeten.values()) {
       if (neu.id === this.eigeneId) continue;
       const alt = a.entitaeten.get(neu.id);
@@ -568,15 +586,17 @@ export class ClientSpiel {
       }
       const dx = neu.x - alt.x;
       const dy = neu.y - alt.y;
-      ergebnis.push({
-        ...neu,
-        x: lerp(alt.x, neu.x, t),
-        y: lerp(alt.y, neu.y, t),
-        blick: lerpWinkel(alt.blick, neu.blick, t),
-        geschwindigkeit: Math.hypot(dx, dy) / dauer, // für Lauf-Animationen
-        bewegungsWinkel: Math.atan2(dy, dx),
-      });
+      let e = pool.get(neu.id);
+      if (!e) pool.set(neu.id, (e = {}));
+      Object.assign(e, neu);
+      e.x = lerp(alt.x, neu.x, t);
+      e.y = lerp(alt.y, neu.y, t);
+      e.blick = lerpWinkel(alt.blick, neu.blick, t);
+      e.geschwindigkeit = Math.hypot(dx, dy) / dauer; // für Lauf-Animationen
+      e.bewegungsWinkel = Math.atan2(dy, dx);
+      ergebnis.push(e);
     }
+    if (pool.size > b.entitaeten.size * 2 + 32) for (const id of pool.keys()) if (!b.entitaeten.has(id)) pool.delete(id);
     return ergebnis;
   }
 

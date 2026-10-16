@@ -23,6 +23,16 @@ import { NACHRICHT } from '../gemeinsam/protokoll.js';
 const leinwand = document.getElementById('spielflaeche');
 let renderer = null;
 const eingabe = new Eingabe(window, leinwand);
+// Mausrad: rein-/rauszoomen (nur im Spiel)
+leinwand.addEventListener(
+  'wheel',
+  (e) => {
+    if (!aktuellesSpiel || !renderer) return;
+    e.preventDefault();
+    renderer.zoomen(Math.exp(Math.max(-1, Math.min(1, e.deltaY / 300)) * 0.35));
+  },
+  { passive: false },
+);
 const login = new LoginBildschirm(document, SERVER_LISTE);
 const hud = new Hud(document, { debug: DEBUG_START });
 const sound = new Sound();
@@ -59,6 +69,7 @@ hud.beiAktionen({
   ablegen: (slot) => aktuellesSpiel?.ablegen(slot),
   tauschen: (von, nach) => aktuellesSpiel?.tauschen(von, nach),
   rucksackAblegen: () => aktuellesSpiel?.rucksackAblegen(),
+  zoomStufe: () => renderer?.naechsteZoomStufe(),
   licht: () => aktuellesSpiel?.licht(),
   tuer: () => aktuellesSpiel?.tuer(),
   interagieren: () => aktuellesSpiel?.interagieren(),
@@ -107,20 +118,28 @@ login.beiAnmeldung(async ({ server, adresse, benutzername, passwort, gast = fals
       verbindung = await verbindungAufbauen(server, adresse);
       anmeldeDaten = await anmelden(verbindung, { benutzername, passwort, gast });
     }
-    spielStarten(verbindung, anmeldeDaten, benutzername);
+    await spielStarten(verbindung, anmeldeDaten, benutzername);
   } catch (fehler) {
     if (verbindung && !verbindung.getrennt) verbindung.trennen('Login abgebrochen');
     login.anzeigen(fehler.message);
   }
 });
 
-function spielStarten(verbindung, anmeldeDaten, benutzername) {
+/**
+ * Ins Spiel: Ladebildschirm zeigen, Welt aufbauen + Shader kompilieren, ein paar Frames aufwärmen lassen –
+ * erst wenn es ruhig läuft, verschwindet der Ladebildschirm (sonst ruckeln die ersten Sekunden).
+ */
+async function spielStarten(verbindung, anmeldeDaten, benutzername) {
+  const vorab = []; // Nachrichten, die während des Ladens ankommen, gehen nicht verloren
+  const vorabAbmelden = verbindung.beiNachricht((n) => vorab.push(n));
+  zeigeLaden('Welt wird aufgebaut …', 70);
+  login.verbergen();
+  await naechsterFrame();
+  await naechsterFrame();
   if (renderer.nachtsicht) renderer.nachtsichtUmschalten(); // Nachtsicht aus der letzten Runde zurücksetzen
   renderer.anzeigen();
-  login.verbergen();
-  eingabe.aktiv = true;
   hud.anzeigen(eingabe.touch.istTouchGeraet);
-  leinwand.focus();
+  vorabAbmelden();
   aktuellesSpiel = new ClientSpiel({
     verbindung,
     anmeldeDaten,
@@ -129,15 +148,37 @@ function spielStarten(verbindung, anmeldeDaten, benutzername) {
     hud,
     sound,
     benutzername,
+    vorabNachrichten: vorab,
     beiEnde: (grund) => {
       aktuellesSpiel = null;
       eingabe.aktiv = false;
+      versteckeLaden();
       hud.verbergen();
       renderer.verbergen();
       login.anzeigen(grund === 'Abgemeldet' ? '' : grund);
     },
   });
+  zeigeLaden('Grafik wärmt auf …', 90);
+  await renderer.warteBisRuhig();
+  versteckeLaden();
+  eingabe.aktiv = true;
+  leinwand.focus();
 }
+
+const ladeBildschirm = document.getElementById('laden');
+function zeigeLaden(text, prozent) {
+  ladeBildschirm.hidden = false;
+  ladeBildschirm.classList.remove('weg');
+  document.getElementById('lade-text').textContent = text;
+  document.getElementById('ladebalken-fuellung').style.width = `${prozent}%`;
+}
+function versteckeLaden() {
+  ladeBildschirm.classList.add('weg'); // kurz ausblenden (CSS), dann weg
+  setTimeout(() => {
+    if (ladeBildschirm.classList.contains('weg')) ladeBildschirm.hidden = true;
+  }, 350);
+}
+const naechsterFrame = () => new Promise((r) => requestAnimationFrame(() => r()));
 
 async function starten() {
   const ladeBildschirm = document.getElementById('laden');

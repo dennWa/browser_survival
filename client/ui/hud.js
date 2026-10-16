@@ -125,6 +125,7 @@ export class Hud {
       rucksackAblegen: () => this.#aktionen.rucksackAblegen?.(),
     });
     el('hud-inventar').addEventListener('click', () => this.inventar.zeige());
+    el('hud-zoom').addEventListener('click', () => this.#aktionen.zoomStufe?.());
     this.#baueHotbar();
   }
 
