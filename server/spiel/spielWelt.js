@@ -15,6 +15,7 @@ import { aktualisiereTageszeit } from './systeme/tageszeitSystem.js';
 import { aktualisiereArbeit } from './systeme/arbeitSystem.js';
 import { aktualisiereBauwerke } from './systeme/bauSystem.js';
 import { aktualisiereFahrzeuge, aussteigen } from './systeme/fahrzeugSystem.js';
+import { aktualisiereTueren } from './systeme/tuerSystem.js';
 import { pruefeUebergaenge } from './systeme/zonenSystem.js';
 import { erzeugeFahrzeug, fahrzeugZuNetzwerk } from './entitaeten/fahrzeug.js';
 import { FAHRZEUG_MODELLE, fahrzeugAusObjekt, passt } from '../../gemeinsam/physik/fahrzeug.js';
@@ -58,6 +59,7 @@ export class SpielWelt {
     /** Wird bei jeder Türänderung erhöht → Server schickt TUEREN */
     this.tuerenVersion = 0;
     this.tuerLeben = new Map(); // Tür-ID → verbleibende Lebenspunkte (nur angeschlagene Türen)
+    this.tuerHaltOffen = new Map(); // Tür-ID → Sekunden, die eine aufgebrochene Tür noch offen bleibt
     this.ressourcenNachwuchs = new Map(); // Ressourcen-ID → Sekunden bis zum Nachwachsen
     if (konfiguration.welt.tuerenGeschlossen) for (const t of this.welt.tueren) this.welt.setzeTuer(t.id, false);
     /** Sekunden seit Tagesbeginn (siehe gemeinsam/tageszeit.js) und Tageszähler */
@@ -207,6 +209,7 @@ export class SpielWelt {
     aktualisiereKampf(this, dt);
     aktualisiereArbeit(this, dt);
     aktualisiereBauwerke(this, dt);
+    aktualisiereTueren(this, dt);
     aktualisiereZombies(this, dt);
     aktualisiereUeberleben(this, dt);
     aktualisiereLoot(this, dt);

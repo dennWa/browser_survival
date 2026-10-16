@@ -42,9 +42,7 @@
           <button id="hud-karte" type="button" title="Karte (K)">🗺</button>
           <button id="hud-licht" type="button" title="Taschenlampe an/aus (L) – aus = Zombies sehen dich schlechter">🔦</button>
           <button id="hud-admin" type="button" title="Admin-Menü (P)" hidden>🛡</button>
-          <button id="hud-ton" type="button" title="Ton an/aus (M)">🔊</button>
-          <button id="hud-vollbild" type="button" hidden>⛶</button>
-          <button id="hud-abmelden" type="button">Abmelden</button>
+          <button id="hud-einstellungen" type="button" title="Einstellungen: Ton, Grafik, Abmelden">⚙</button>
         </div>
       </div>
       <div id="hud-werte">
@@ -109,6 +107,31 @@
         <button id="karte-schliessen" type="button" aria-label="Schließen">✕</button>
       </div>
       <div class="karte-rahmen"><canvas id="karte-bild"></canvas></div>
+    </div>
+
+    <!-- Einstellungen (⚙): Ton, Grafik, Vollbild, Abmelden – auch am Handy erreichbar -->
+    <div id="einstellungen" hidden>
+      <div class="werkbank-kopf">
+        <h2>⚙ Einstellungen</h2>
+        <button id="einstellungen-schliessen" type="button" aria-label="Schließen">✕</button>
+      </div>
+      <div class="einst-spalten">
+        <div>
+          <h3 class="inv-titel">Ton <small>M = Ton an/aus</small></h3>
+          <button id="hud-ton" type="button" class="einst-knopf">🔊 Ton an</button>
+          <div id="einstellungen-regler"></div>
+        </div>
+        <div>
+          <h3 class="inv-titel">Grafik</h3>
+          <div id="einstellungen-grafik" class="einst-reihe"></div>
+          <p id="einstellungen-grafik-info" class="werkbank-hinweis"></p>
+          <h3 class="inv-titel">Spiel</h3>
+          <div class="einst-reihe">
+            <button id="hud-vollbild" type="button" class="einst-knopf" hidden>⛶ Vollbild</button>
+            <button id="hud-abmelden" type="button" class="einst-knopf gefahr">Abmelden</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Developer-Modus (nur Admins): Spielwerte ingame ändern -->

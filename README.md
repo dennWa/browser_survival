@@ -15,10 +15,10 @@ npm start                                # → http://localhost:8080
 
 Im Login **"Lokal (im Browser)"** wählen, um ohne Account allein zu testen,
 oder **"Dieser Server"** für Mehrspieler – mit Account oder per **"Als Gast spielen"** (Zufallsname `Gast-1234`). Das Spiel braucht WebGL (jeder aktuelle Browser).
-Ein Tag dauert 10 Minuten, eine Nacht 5 – nachts kommt eine Horde. Türen sind zu und lassen sich öffnen/schließen.
+Ein Tag dauert 10 Minuten, eine Nacht 5 – nachts kommt eine Horde. Türen öffnen und schließen sich von selbst – Zombies müssen sie aufbrechen.
 Im Lokal-Modus bist du automatisch Admin (🛡-Menü). Spielstände werden automatisch gespeichert (Server: `server/daten/spielstaende/`, Lokal: im Browser).
 
-Steuerung: **WASD** laufen · **Maus** zielen · **Klick/Leertaste** Angriff · **E** benutzen (aufheben, Baum fällen, Stein abbauen, Werkbank, schlafen) · **F** Tür auf/zu · **R** nachladen ·
+Steuerung: **WASD** laufen · **Maus** zielen · **Klick/Leertaste** Angriff · **E** benutzen (aufheben, Baum fällen, Stein abbauen, Werkbank, schlafen) · **F** Lagerfeuer an/aus · **R** nachladen ·
 **I** Inventar (ziehen = umsortieren, aus dem Fenster ziehen = fallen lassen) · **Q** fallen lassen · **K** Karte · **T** Chat · **Tab** Spielerliste ·
 **1–8** Schnellleiste benutzen/ausrüsten · **Rechtsklick** auf Platz = ablegen · **Shift** sprinten · **L** Taschenlampe an/aus (nachts: aus = Zombies sehen dich schlechter) · **Enter** (tot) sofort wiederbeleben · **P** Admin-Menü · **M** Ton · **F3** Debug
 Handy/Tablet: **linker Daumen** laufen · **rechter Daumen** zielen (ganz durchdrücken = Angriff) · Knöpfe für Aktion/Tür/Nachladen/🎒/🗺/💬/🔦/🛡 · Inventar: antippen = benutzen, ziehen = umsortieren/fallen lassen · Schnellleiste lange drücken = ablegen

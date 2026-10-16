@@ -503,24 +503,38 @@ test('Türen: nebeneinanderliegende T-Kacheln sind eine Doppeltür, Start = alle
   assert.equal(sichtlinieFrei(welt.welt, mitte(4), mitte(2), mitte(6), mitte(2)), false, 'geschlossene Tür blockiert Sicht');
 });
 
-test('Tür öffnen, durchgehen, schließen – nicht schließbar, wenn jemand drinsteht', () => {
+test('Automatiktür: geht beim Näherkommen auf, bleibt offen solange jemand drinsteht, schließt sich dahinter', () => {
   const { welt, spieler } = tuerWelt();
+  platziere(spieler, 2, 2);
+  ticks(welt, 3);
+  assert.equal(welt.welt.istTuerOffen(0), false, 'weit weg → zu');
   platziere(spieler, 4, 2);
-  spieler.aktionsPuffer.push({ art: AKTIONEN.TUER, slot: null });
   welt.aktualisiere(TICK_DAUER_S);
-  assert.equal(welt.welt.istTuerOffen(0), true);
+  assert.equal(welt.welt.istTuerOffen(0), true, 'nah dran → auf');
   assert.ok(welt.ereignisse.some((e) => e.typ === 'tuer' && e.offen));
   assert.equal(welt.welt.istBlockiert(5, 2), false);
 
   platziere(spieler, 5, 2); // in der Tür
-  spieler.aktionsPuffer.push({ art: AKTIONEN.TUER, slot: null });
-  welt.aktualisiere(TICK_DAUER_S);
-  assert.equal(welt.welt.istTuerOffen(0), true, 'blockiert → bleibt offen');
+  ticks(welt, 3);
+  assert.equal(welt.welt.istTuerOffen(0), true, 'in der Tür → offen');
 
-  platziere(spieler, 6, 2);
-  spieler.aktionsPuffer.push({ art: AKTIONEN.TUER, slot: null });
+  platziere(spieler, 8, 2); // dahinter, weit genug weg
   welt.aktualisiere(TICK_DAUER_S);
-  assert.equal(welt.welt.istTuerOffen(0), false);
+  assert.equal(welt.welt.istTuerOffen(0), false, 'durchgegangen → schließt sich');
+});
+
+test('Automatiktür: Zombies öffnen nichts, eine aufgebrochene Tür bleibt danach offen', () => {
+  const { welt, spieler } = tuerWelt();
+  platziere(spieler, 2, 2);
+  const zombie = zombieBei(welt, 6, 2);
+  ticks(welt, 3);
+  assert.equal(welt.welt.istTuerOffen(0), false, 'Zombie in der Nähe öffnet nicht');
+  welt.tuerLeben.set(0, 1);
+  Object.assign(zombie, { zielId: spieler.id, zustand: 'verfolgend', letztesZielX: spieler.x, letztesZielY: spieler.y });
+  for (let i = 0; i < 10 / TICK_DAUER_S && !welt.ereignisse.some((e) => e.typ === 'tuer' && e.aufgebrochen); i++) welt.aktualisiere(TICK_DAUER_S);
+  assert.ok(welt.tuerHaltOffen.has(0), 'aufgebrochen → bleibt offen');
+  ticks(welt, 10);
+  assert.equal(welt.welt.istTuerOffen(0), true, 'Spieler weit weg, trotzdem noch offen');
 });
 
 test('Zombie bricht eine geschlossene Tür auf, um an den Spieler zu kommen', () => {
@@ -784,7 +798,7 @@ test('Level: 10 XP pro Zombie, 50/70/90 … pro Stufe, Tod setzt zurück', () =>
   assert.equal(spieler.xp, 0);
 });
 
-test('Bretter verstärken eine geschlossene Tür', () => {
+test('Bretter verstärken eine Tür', () => {
   const { welt, spieler } = tuerWelt();
   platziere(spieler, 4, 2);
   spieler.inventar[0] = { defId: 'bretter', menge: 2 };
@@ -797,6 +811,7 @@ test('Bretter verstärken eine geschlossene Tür', () => {
 test('Zwei Zombies kommen nacheinander durch eine schmale Tür (kein Verkeilen)', () => {
   const { welt, spieler } = tuerWelt();
   welt.welt.setzeTuer(0, true);
+  welt.tuerHaltOffen.set(0, 999);
   platziere(spieler, 2, 2);
   spieler.gottmodus = true;
   const a = zombieBei(welt, 8, 2);
@@ -811,7 +826,10 @@ test('Tür-Stresstest: 2–5 Zombies (alle Varianten) drängeln durch eine Einze
     const kacheln = ['##############', '#............#', '#............#', '#............#', seed > 8 ? '######TT######' : '######T#######', '#............#', '#S...........#', '##############'];
     const welt = new SpielWelt(erstelleKonfiguration({ server: { zufallsStartwert: seed }, spieler: { startInventar: [] } }), { kartenDefinition: { id: 'stress', name: 'Stress', kacheln, raeume: {} } });
     for (const z of [...welt.alleVomTyp('zombie')]) welt.entfernen(z.id);
-    for (const t of welt.welt.tueren) welt.welt.setzeTuer(t.id, true);
+    for (const t of welt.welt.tueren) {
+      welt.welt.setzeTuer(t.id, true);
+      welt.tuerHaltOffen.set(t.id, 999);
+    }
     const s = welt.spielerBetrittWelt('Opfer');
     platziere(s, 2, 6);
     s.gottmodus = true;
@@ -832,7 +850,10 @@ test('Im Haus versteckt: Zombie draußen bemerkt den Spieler nicht, drinnen scho
   const karte = { id: 'haus', name: 'Haus', raeume: {}, kacheln: [',,,,,,,,,,,,', ',,,,,,,,,,,,', ',,##F###,,,,', ',,#+++++T,,,', ',,#+S+++#,,,', ',,########,,'] };
   const welt = new SpielWelt(erstelleKonfiguration({ server: { zufallsStartwert: 2 }, spieler: { startInventar: [] } }), { kartenDefinition: karte });
   for (const z of [...welt.alleVomTyp('zombie')]) welt.entfernen(z.id);
-  for (const t of welt.welt.tueren) welt.welt.setzeTuer(t.id, true);
+  for (const t of welt.welt.tueren) {
+    welt.welt.setzeTuer(t.id, true);
+    welt.tuerHaltOffen.set(t.id, 999);
+  }
   const s = welt.spielerBetrittWelt('Versteckt');
   platziere(s, 6, 3);
   const z = zombieBei(welt, 10, 3); // draußen vor der offenen Tür, freie Sichtlinie

@@ -6,6 +6,7 @@ import { Fussspuren } from './fussspuren.js';
 import { erzeugeBauwerk, erzeugeVorschau } from './bauwerkModelle.js';
 import { erzeugeFahrzeugModell } from './fahrzeugModelle.js';
 import { FAHRZEUG_MODELLE } from '../../gemeinsam/physik/fahrzeug.js';
+import { erzeugeFrisur } from './haarModell.js';
 import { AUSSEHEN, skinFuer } from '../../gemeinsam/spieler/aussehen.js';
 import { itemGeometrie, ITEM_MATERIAL, rucksackTeile } from './itemModelle.js';
 import { zeichneBeschriftung } from './beschriftung.js';
@@ -37,6 +38,7 @@ const SCHNITT_HOEHE = 10; // bis zu dieser Höhe bleiben aufgeschnittene Wände 
 const ZIELHOEHE = 36; // Mausstrahl trifft diese Höhe (Brust) → Zielen fühlt sich richtig an
 const KAMERA_VERSATZ = new THREE.Vector3(0, 560, 380);
 const SKINS = { normal: 'zombieMaleA', laeufer: 'zombieFemaleA', brocken: 'zombieMaleA' }; // Zombies; Spieler: aussehen.js
+const KOPF = { hoehe: 1.22, breite: 0.9, tiefe: 1.07 }; // Schädelmaße im Verhältnis zum Abstand Kopfknochen → Head_end (gemessen)
 const MAX_TASCHENLAMPEN = 3;
 const LAMPEN_POOL = 6; // so viele Kartenlampen leuchten gleichzeitig echt (die nächsten)
 const MUENDUNGS_LICHTER = 2;
@@ -54,6 +56,19 @@ const QUALITAETS_STUFEN = [
   { aufloesung: 0.9, schatten: 1024, baumDetail: false },
   { aufloesung: 0.8, schatten: 1024, baumDetail: false },
 ];
+/**
+ * Grafik-Einstellung (Einstellungen ⚙): hoch = volle Auflösung, Schatten & Texturen (Bildrate wird nur über
+ * Schatten/Baum-Details nachgeregelt, die Auflösung bleibt – sonst wirkt das Bild mal scharf, mal unscharf),
+ * mittel = etwas abgeschwächt, niedrig = beste Bildrate (kleinere Auflösung, kleine Texturen, keine Sonnenschatten).
+ * stufe = feste Qualitätsstufe (QUALITAETS_STUFEN), adaptiv = darf bei Ruckeln sparsamer werden.
+ */
+export const GRAFIK_PROFILE = Object.freeze({
+  hoch: { name: 'Hoch', beschreibung: 'volle Auflösung, Schatten, Texturen', stufe: null, adaptiv: true, aufloesung: null, texturen: 1, sonnenschatten: true },
+  mittel: { name: 'Mittel', beschreibung: 'etwas weichere Schatten & Texturen', stufe: 3, adaptiv: false, aufloesung: 1.25, texturen: 0.6, sonnenschatten: true },
+  niedrig: { name: 'Niedrig', beschreibung: 'beste Leistung für schwache Geräte', stufe: 6, adaptiv: false, aufloesung: 0.8, texturen: 0.4, sonnenschatten: false },
+});
+const GRAFIK_SCHLUESSEL = 'browserSurvival.grafik';
+const ADAPTIV_MAX_STUFE = 4; // im Profil "hoch" wird höchstens bis hier gespart (Schatten, Baum-Details) – Auflösung bleibt
 const AUFWAERM_MS = 6000; // so lange nach dem Betreten nicht messen (Shader, Texturen, erste Frames)
 const ZOOM_MIN = 0.55;
 const ZOOM_MAX = 1.6;
@@ -133,8 +148,11 @@ export class Renderer {
 
     // Adaptive Qualität (siehe QUALITAETS_STUFEN)
     this.aufloesungMax = Math.min(window.devicePixelRatio || 1, this.istHandy ? 1.5 : 2);
-    this.stufe = this.istHandy ? 2 : 0;
+    this.grafik = ladeGrafik();
+    this.stufe = 0;
     this.aufloesung = this.#stufenAufloesung();
+    this.#setzeStufe(this.#startStufe());
+    this.mond.castShadow = GRAFIK_PROFILE[this.grafik].sonnenschatten;
     this.messung = { frames: 0, zeit: 0, seit: 0 };
     this.messenAb = 0;
     // Zoom (Mausrad / zwei Finger), gemerkt im Browser
@@ -230,7 +248,7 @@ export class Renderer {
       assets: this.assets,
       gl: this.gl,
       mitSchnitt: (m) => this.#mitSchnitt(m),
-      bodenMassstab: this.istHandy ? 0.6 : 1,
+      bodenMassstab: this.#bodenMassstab(),
     });
     this.szene.add(this.karte.statisch, this.karte.beweglich);
     this.karte.setzeBaumDetail(QUALITAETS_STUFEN[this.stufe].baumDetail);
@@ -543,6 +561,7 @@ export class Renderer {
    * Jede Änderung kostet einen kurzen Hänger (Puffer neu anlegen), darum so zurückhaltend.
    */
   #passeAufloesungAn(dt, jetzt) {
+    if (!GRAFIK_PROFILE[this.grafik].adaptiv) return; // mittel/niedrig: feste Stufe
     if (jetzt < this.messenAb || dt > 0.25) return; // Aufwärmphase bzw. Tab war im Hintergrund
     const m = this.messung;
     m.frames++;
@@ -550,13 +569,13 @@ export class Renderer {
     if (jetzt - m.seit < 2000) return;
     const mittel = m.zeit / Math.max(1, m.frames);
     this.messung = { frames: 0, zeit: 0, seit: jetzt };
-    if (mittel > 1 / 48 && this.stufe < QUALITAETS_STUFEN.length - 1) {
+    if (mittel > 1 / 48 && this.stufe < ADAPTIV_MAX_STUFE) {
       this.#setzeStufe(this.stufe + 1);
       this.anhebenGesperrtBis = jetzt + 30000;
       this.guteFenster = 0;
     } else if (mittel < 1 / 57) {
       this.guteFenster = (this.guteFenster ?? 0) + 1;
-      if (this.guteFenster >= 3 && jetzt > (this.anhebenGesperrtBis ?? 0) && this.stufe > (this.istHandy ? 2 : 0)) {
+      if (this.guteFenster >= 3 && jetzt > (this.anhebenGesperrtBis ?? 0) && this.stufe > this.#startStufe()) {
         this.#setzeStufe(this.stufe - 1);
         this.guteFenster = 0;
       }
@@ -565,9 +584,38 @@ export class Renderer {
     }
   }
 
+  /** Beste Stufe des gewählten Profils (Handy startet im Profil "hoch" eine Stufe sparsamer). */
+  #startStufe() {
+    return GRAFIK_PROFILE[this.grafik].stufe ?? (this.istHandy ? 2 : 0);
+  }
+
+  /** Pixelverhältnis: im Profil "hoch" immer volle Geräteauflösung (nie automatisch unscharf), sonst die Profil-Grenze. */
   #stufenAufloesung() {
-    const grenze = QUALITAETS_STUFEN[this.stufe].aufloesung;
-    return grenze === null ? this.aufloesungMax : Math.min(this.aufloesungMax, grenze);
+    const grenze = GRAFIK_PROFILE[this.grafik].aufloesung;
+    return Math.min(this.aufloesungMax, grenze ?? (this.istHandy ? 1.25 : 2));
+  }
+
+  #bodenMassstab() {
+    const massstab = GRAFIK_PROFILE[this.grafik].texturen;
+    return this.istHandy ? Math.min(massstab, 0.6) : massstab;
+  }
+
+  /** Grafik-Einstellung ändern ('hoch' | 'mittel' | 'niedrig') – wirkt sofort und wird im Browser gemerkt. */
+  setzeGrafik(name) {
+    if (!(name in GRAFIK_PROFILE)) return;
+    this.grafik = name;
+    try {
+      localStorage.setItem(GRAFIK_SCHLUESSEL, name);
+    } catch {
+      // egal
+    }
+    const profil = GRAFIK_PROFILE[name];
+    this.#setzeStufe(this.#startStufe());
+    this.mond.castShadow = profil.sonnenschatten;
+    this.karte?.setzeBodenMassstab(this.#bodenMassstab());
+    this.messung = { frames: 0, zeit: 0, seit: 0 };
+    this.guteFenster = 0;
+    this.messenAb = performance.now() + 3000;
   }
 
   #setzeStufe(stufe) {
@@ -594,6 +642,12 @@ export class Renderer {
       if (e.typ !== 'spieler' && e.typ !== 'zombie') continue;
       gesehen.add(e.id);
       let f = this.figuren.get(e.id);
+      // Eigene Figur wird manchmal schon vor dem ersten Server-Stand (mit Aussehen) gebaut → dann neu bauen
+      if (f && e.typ === 'spieler' && f.koerper !== (e.aussehen?.koerper ?? AUSSEHEN.koerper.standard)) {
+        this.szene.remove(f.gruppe);
+        f.mixer.stopAllAction();
+        f = null;
+      }
       if (!f) {
         f = this.#neueFigur(e);
         this.figuren.set(e.id, f);
@@ -648,6 +702,20 @@ export class Renderer {
     return this.figurMaterialien.get(schluessel);
   }
 
+  /** Frisur (haarModell.js) an den Kopfknochen hängen; Maße aus dem Abstand Kopf → Head_end × KOPF. */
+  #setzeFrisur(gruppe, modell, frisur) {
+    const kopfKnochen = modell.getObjectByName('Head');
+    const spitze = modell.getObjectByName('Head_end');
+    if (!frisur || !kopfKnochen || !spitze) return;
+    gruppe.updateMatrixWorld(true);
+    const unten = gruppe.worldToLocal(kopfKnochen.getWorldPosition(new THREE.Vector3()));
+    const oben = gruppe.worldToLocal(spitze.getWorldPosition(new THREE.Vector3()));
+    const hoehe = Math.abs(oben.y - unten.y);
+    const haare = erzeugeFrisur(frisur, { mitte: unten.clone().lerp(oben, 0.5), hoehe: hoehe * KOPF.hoehe, breite: hoehe * KOPF.breite, tiefe: hoehe * KOPF.tiefe });
+    gruppe.add(haare);
+    kopfKnochen.attach(haare); // behält die Weltlage, folgt aber ab jetzt dem Kopf
+  }
+
   /** Rucksack auf dem Rücken (an der Figur befestigt; lokales +z = Blickrichtung → Rücken = -z). */
   #setzeRucksack(figur, an) {
     if (!an) {
@@ -681,8 +749,9 @@ export class Renderer {
     aktionen.stehen.play();
     // Zombies nicht alle im Gleichtakt
     mixer.setTime(Math.random() * 2);
-    const figur = { gruppe, mixer, aktionen, aktuell: 'stehen' };
+    const figur = { gruppe, mixer, aktionen, aktuell: 'stehen', koerper: e.aussehen?.koerper ?? AUSSEHEN.koerper.standard };
     richteFigurEin(figur, modell);
+    if (e.typ === 'spieler') this.#setzeFrisur(gruppe, modell, AUSSEHEN.koerper.optionen[e.aussehen?.koerper]?.frisur);
     return figur;
   }
 
@@ -1004,4 +1073,14 @@ function flackern(lampe, jetzt) {
   const t = jetzt / 1000 + lampe.x * 7.3 + lampe.y * 3.1;
   const welle = Math.sin(t * 13) * Math.sin(t * 7.7) * Math.sin(t * 2.3);
   return welle > 0.55 ? 0.15 : 0.85 + 0.15 * Math.sin(t * 31);
+}
+
+function ladeGrafik() {
+  try {
+    const gespeichert = localStorage.getItem(GRAFIK_SCHLUESSEL);
+    if (gespeichert in GRAFIK_PROFILE) return gespeichert;
+  } catch {
+    // egal
+  }
+  return 'hoch';
 }

@@ -107,13 +107,13 @@ Spieler aller Zonen schlafen; der Zeitsprung gilt dann für alle aktiven Zonen. 
 - **Taschenlampe:** L / 🔦 schaltet sie (Server-Zustand `lichtAn`, für alle sichtbar). Zählt nur **nachts**: an →
   sichtbar bis `aggroRadius × nachtLichtFaktor`, aus → erst ab `aggroRadius × dunkelFaktor` (0,45). Tagsüber egal.
 - **Türen** (`welt.js` → `tueren`, `tuerSystem.js`): nebeneinanderliegende `T` = eine Tür (Doppeltür). Start: alle zu.
-  F / 🚪 öffnet/schließt die nächste Tür (≤ `TUER_REICHWEITE`); schließen geht nicht, wenn jemand drinsteht.
+  **Automatiktüren** (`tuerSystem.aktualisiereTueren`): gehen auf, wenn ein lebender Spieler (nicht im Auto) ≤ `TUER_AUTO_OEFFNEN` nahekommt, schließen sich ab `TUER_AUTO_SCHLIESSEN` (Hysterese) und nie, wenn jemand drinsteht. Zombies öffnen nichts – sie brechen geschlossene Türen auf; aufgebrochene bleiben `TUER_BRUCH_OFFEN` s offen (`spielWelt.tuerHaltOffen`). Bretter lassen sich auch an offene Türen nageln. AKTION `tuer` ist veraltet (Server ignoriert sie).
   Geschlossen = blockiert Laufen, Sicht und Schüsse. Zombies planen per A* durch Türen (`tuerKosten`) und schlagen
   sie auf (`welt.tuerLeben` Schaden), danach ist die Tür offen.
 - **Start:** im Schlafzimmer eines Wohnhauses neben dem Bett, mit Pistole (15 Schuss, in der Hand), Axt und
   Spitzhacke (`spieler.startInventar`) – nach dem Tod wieder. Das alte Inventar liegt `loot.todesVerfall` (180 s) am Boden.
 - **Taste E / Aktions-Knopf** macht das Naheliegendste: Auto (ein/aus) → Gegenstand aufheben → Bauwerk (Falle, Kochen,
-  Pflanzen, Ernten) → Baum/Stein/Erz abbauen → Werkbank → Schlafen. **F**: Lagerfeuer an/aus, sonst Tür.
+  Pflanzen, Ernten) → Baum/Stein/Erz abbauen → Werkbank → Schlafen. **F**: Lagerfeuer an/aus.
 - **Ressourcen** (`gemeinsam/welt/ressourcen.js`, `arbeitSystem.js`): Baum (Axt, 6 s) → Holz, Stein (Spitzhacke, 8 s) →
   Stein, Eisenerz (Spitzhacke, 10 s) → Eisenerz; je 1 Stück + 20 % Chance auf 2 (`konfiguration.ressourcen`). Bewegung/
   Angriff/Schaden bricht ab. Nachwachsen 300/240/420 s. Gefällter Baum kippt um (Animation + Knack-Geräusch `baum_faellt`).
@@ -284,7 +284,7 @@ browser_survival/
 │   │   │   ├── adminSystem.js     Admin-Befehle (Gottmodus, Unsichtbar, Heilen, Ausrüsten, Zombies spawnen/töten)
 │   │   │   ├── kampfSystem.js     Schüsse (Strahl), Nahkampf (Kegel), fuegeSchadenZu, toeten, Lärm → Zombies
 │   │   │   ├── zombieSystem.js    Zombie-KI: Sicht, Verfolgen, Angriff, Türen aufbrechen, Horde, Respawn
-│   │   │   ├── tuerSystem.js      Türen öffnen/schließen, Aufbrechen durch Zombies
+│   │   │   ├── tuerSystem.js      Automatiktüren (auf/zu nach Spieler-Nähe), Aufbrechen durch Zombies
 │   │   │   ├── tageszeitSystem.js Uhr, Nachtbeginn (Horde) / Morgen (Horde zieht ab)
 │   │   │   ├── arbeitSystem.js    Arbeiten mit Dauer: Abbauen (Holz/Stein), Schlafen (+ Zeit vorspulen); Nachwachsen
 │   │   │   ├── levelSystem.js     XP & Level (gibXp, xpFuerNaechstesLevel, Zurücksetzen beim Tod)
@@ -347,7 +347,7 @@ browser_survival/
 │   │   ├── browserSpeicher.js     Spielstände im localStorage (Lokal-Modus)
 │   │   └── anmeldung.js           Login-Handshake (Promise)
 │   ├── audio/
-│   │   └── sound.js               Synthetisierte Geräusche (Rezepte), räumlicher Klang, Atmosphäre
+│   │   └── sound.js               Synthetisierte Geräusche (Rezepte), räumlicher Klang, Wind/Atmosphäre (eigener Bus am Kompressor vorbei), Lautstärke-Kanäle (gesamt/effekte/atmosphaere), keine Schritte mehr
 │   ├── darstellung/
 │   │   ├── renderer.js            Three.js: Kamera, Figuren, Licht/Tageszeit, Lampen-Pool, Effekte, Wand-Schnitt, Overlay, Vorkompilieren
 │   │   ├── kartenModell.js        Statische Karte in wenigen Draw-Calls: Boden, Wände, Möbel, Türen, Bäume/Steine (abbaubar), Lampen
@@ -401,7 +401,7 @@ browser_survival/
 | Zombie-Typen (Werte, Häufigkeit) | `spielKonfiguration.js` → `zombie.varianten`; Aussehen: `SKINS` in `client/darstellung/renderer.js` |
 | Tag-/Nachtlänge, Horde, Nacht-Wahrnehmung | `spielKonfiguration.js` → `welt.tagSekunden/nachtSekunden`, `zombie.nachtHorde/nachtTempoFaktor/nachtLichtFaktor/dunkelFaktor` |
 | Licht-Stimmung (Farben Tag/Nacht/Dämmerung) | `client/darstellung/renderer.js` → `TAG`, `NACHT`, `DAEMMERUNG`, `#tageslicht` |
-| Türen (Reichweite, Haltbarkeit, Startzustand) | `gemeinsam/konstanten.js` → `TUER_REICHWEITE`; `spielKonfiguration.js` → `welt.tuerLeben/tuerenGeschlossen`; Logik `tuerSystem.js` |
+| Türen (Auto-Radius, Haltbarkeit, Startzustand) | `gemeinsam/konstanten.js` → `TUER_AUTO_OEFFNEN/SCHLIESSEN/BRUCH_OFFEN`, `TUER_REICHWEITE` (nur Bretter); `spielKonfiguration.js` → `welt.tuerLeben/tuerenGeschlossen`; Logik `tuerSystem.js` |
 | Sprint / Ausdauer | Werte: `spielKonfiguration.js` → `spieler`; Logik: `aktualisiereAusdauer` in `gemeinsam/physik/bewegung.js` |
 | Zombie-Wegfindung | `server/spiel/systeme/pfadfindung.js` (A*), "geradeaus oder Umweg?" → `wegFrei` in `gemeinsam/physik/strahl.js` |
 | Waffenwerte (Schaden, Magazin, Streuung, Nachladezeit) | `server/spiel/konfiguration/gegenstaende.js`; Schlag ohne Waffe: `UNBEWAFFNET` |
@@ -412,6 +412,8 @@ browser_survival/
 | Effekte (Blut, Mündungsfeuer …) | `client/darstellung/effekte.js` |
 | Taschenlampe (3D-Kegel) | `client/darstellung/renderer.js` → `#aktualisiereTaschenlampen`, `#neueTaschenlampe` |
 | Lampen auf der Karte | Kartendatei → `objekte` mit `typ: 'licht'` (radius, farbe, staerke, flackern) |
+| Einstellungen (⚙: Ton-Regler, Grafikstufen, Abmelden, Vollbild) | `client/ui/einstellungen.js`, HTML `#einstellungen` in `client/index.html`; Grafikprofile `GRAFIK_PROFILE` in `renderer.js` (hoch/mittel/niedrig, gemerkt in `localStorage browserSurvival.grafik`) |
+| Frisur/Aussehen der Figur (3D-Anbauteile) | `client/darstellung/haarModell.js` (`FRISUREN`), Zuordnung `frisur` je Körper-Option in `gemeinsam/spieler/aussehen.js`, Anbau `renderer.js → #setzeFrisur` |
 | Geräusche ändern / neue Geräusche | `client/audio/sound.js` → `REZEPTE`; Auslöser in `clientSpiel.js` (`#ereignisSound`, `#datenSound`) |
 | Schnellleiste, Balken, Todesbildschirm | `client/ui/hud.js`, Markup `client/index.html`, Stil `client/stil.css` |
 | Haltung beim Zielen/Schlagen, Zombie-Arme | `client/darstellung/figurHaltung.js` → `HALTUNGEN`, `veraendereFuerAktion` |
@@ -522,7 +524,7 @@ browser_survival/
 - Neue Karte „Stadtrand“ (110×86): logisches Krankenhaus (Eingangshalle → Hauptflur → Mittel-/Stationsflure,
   Notaufnahme mit eigenem Eingang, Kantine + Küche), Straßen, Parkplatz, 2 Wohnhäuser, Tankstelle + Werkstatt,
   Supermarkt, Polizeiwache mit Waffenkammer, Park mit Kiosk; 22 Räume, Gehweg-Kachel, neue Loot-Tabellen
-- Türen: manuell öffnen/schließen (F / 🚪), blockieren Laufen/Sicht/Schüsse, Zombies brechen sie auf, 3D-Flügel
+- Türen: Automatik (öffnen beim Näherkommen, schließen dahinter), blockieren Laufen/Sicht/Schüsse, Zombies brechen sie auf, 3D-Flügel
 - Tag (10 min) & Nacht (5 min): wandernde Sonne, Dämmerung, Laternen nachts, HUD-Uhr, Nacht-Horde, Taschenlampe zählt nachts
 - Waffen sichtbar in der Hand + Zielhaltung, Rückstoß, Nachladen, Schwung, Faustschlag; Zombie-Arme
 - Wand-Schnitt (Figur nie hinter Wänden versteckt), Kamera zoomt auf Handys raus
@@ -626,3 +628,4 @@ browser_survival/
 | 0.7.0 | 2026-10-16 | Performance (~95 Draw-Calls), Holz & Stein abbauen, Crafting an Werkbänken, Schlafen, Start im Haus mit Pistole/Axt/Spitzhacke, Todes-Loot 3 min, Karte mit Erkundung, Developer-Modus, Chat & Spielerliste, Render-Deploy (Protokoll v4) |
 | 0.8.0 | 2026-10-16 | Türen großzügiger + Zombies verkeilen nicht, Nahkampf-Reichweite, 3D-Cartoon-Bäume & Stümpfe, Sound ohne Knistern, Schlafen spult 6 h vor, Level-System, Inventar-Fenster mit Drag & Drop + Rucksack, 3D-Items, Fußspuren, Gast-Login, Konten-Datei (Klartext → Hash), Online-Checkliste (Protokoll v5) |
 | 0.9.0 | 2026-10-16 | Zoom/Schärfe/Ruckeln/Maus-Fixes, Zombies (Haus, Türen, Despawn), Eisenerz, Bauen/Farmen/Kochen, Skills, Rucksäcke, Charakterwahl, Autos, Server-Spielstand (Erkundung, Skills), **Zonen/Open World** (Waldweg, Tiled-Import), Netzwerk-Diät (Rundung, Interest Mgmt, Kompression), KI_INDEX + Rauchtest (Protokoll v7) |
+| 0.9.1 | 2026-10-16 | Wind bricht nicht mehr ab (eigener Bus am Kompressor vorbei, 12-s-Schleife), Schritte entfernt, **Einstellungen ⚙** (Lautstärke Gesamt/Effekte/Wind, Grafik hoch/mittel/niedrig, Vollbild, Abmelden – auch am Handy), Unschärfe-Bug (Auflösung wird im Profil „hoch“ nicht mehr automatisch gesenkt), **Automatiktüren**, Frau mit langen Haaren (`haarModell.js`), Fix: eigene Figur wurde manchmal mit falschem Geschlecht gebaut |

@@ -1,21 +1,47 @@
-import { TUER_REICHWEITE } from '../../../gemeinsam/konstanten.js';
+import { TUER_AUTO_OEFFNEN, TUER_AUTO_SCHLIESSEN, TUER_BRUCH_OFFEN, TUER_REICHWEITE } from '../../../gemeinsam/konstanten.js';
 
 /**
- * Türen: öffnen/schließen (AKTION 'tuer') und Aufbrechen durch Zombies.
+ * Türen: automatisches Öffnen/Schließen (aktualisiereTueren) und Aufbrechen durch Zombies.
  * Der Zustand liegt in der gemeinsamen Welt (welt.geschlosseneTueren) – Kollision, Sicht und Schüsse
  * berücksichtigen ihn automatisch. Jede Änderung erhöht spielWelt.tuerenVersion → Server schickt TUEREN.
  */
 
-export function benutzeTuer(spielWelt, spieler) {
+/**
+ * Automatiktüren: Eine Tür öffnet sich, sobald ein lebender Spieler (nicht im Auto) näher als TUER_AUTO_OEFFNEN
+ * kommt, und schließt sich wieder, wenn alle weiter als TUER_AUTO_SCHLIESSEN weg sind (Hysterese gegen Flackern)
+ * und niemand in der Tür steht. Zombies öffnen nichts – sie müssen eine geschlossene Tür aufbrechen und
+ * bleiben danach TUER_BRUCH_OFFEN Sekunden offen, damit die Horde hindurchkommt.
+ */
+export function aktualisiereTueren(spielWelt, dt) {
   const welt = spielWelt.welt;
-  const tuer = welt.naechsteTuer(spieler.x, spieler.y, TUER_REICHWEITE);
-  if (!tuer) return;
-  const offen = welt.istTuerOffen(tuer.id);
-  if (offen && tuerBelegt(spielWelt, tuer)) {
-    spielWelt.melde(spieler.id, 'Da steht etwas in der Tür');
-    return;
+  const haltOffen = spielWelt.tuerHaltOffen;
+  for (const [id, rest] of haltOffen) {
+    if (rest - dt <= 0) haltOffen.delete(id);
+    else haltOffen.set(id, rest - dt);
   }
-  setzeTuer(spielWelt, tuer, !offen);
+  const spieler = [];
+  for (const e of spielWelt.entitaeten.values()) if (e.typ === 'spieler' && !e.tot && !e.fahrzeug) spieler.push(e);
+  for (const tuer of welt.tueren) {
+    const offen = welt.istTuerOffen(tuer.id);
+    const grenze = offen ? TUER_AUTO_SCHLIESSEN : TUER_AUTO_OEFFNEN;
+    const naehe = spieler.some((s) => abstandZurTuer(welt, tuer, s.x, s.y) <= grenze);
+    if (!offen && naehe) {
+      setzeTuer(spielWelt, tuer, true);
+    } else if (offen && !naehe && !haltOffen.has(tuer.id) && !tuerBelegt(spielWelt, tuer)) {
+      setzeTuer(spielWelt, tuer, false);
+    }
+  }
+}
+
+function abstandZurTuer(welt, tuer, x, y) {
+  const g = welt.kachelGroesse;
+  let beste = Infinity;
+  for (const { tx, ty } of tuer.kacheln) {
+    const nx = Math.max(tx * g, Math.min(x, (tx + 1) * g));
+    const ny = Math.max(ty * g, Math.min(y, (ty + 1) * g));
+    beste = Math.min(beste, Math.hypot(x - nx, y - ny));
+  }
+  return beste;
 }
 
 /**
@@ -25,8 +51,8 @@ export function benutzeTuer(spielWelt, spieler) {
 export function verstaerkeTuer(spielWelt, spieler) {
   const k = spielWelt.konfiguration.welt;
   const tuer = spielWelt.welt.naechsteTuer(spieler.x, spieler.y, TUER_REICHWEITE);
-  if (!tuer || spielWelt.welt.istTuerOffen(tuer.id)) {
-    spielWelt.melde(spieler.id, 'Stell dich vor eine geschlossene Tür');
+  if (!tuer) {
+    spielWelt.melde(spieler.id, 'Stell dich vor eine Tür');
     return false;
   }
   const leben = spielWelt.tuerLeben.get(tuer.id) ?? k.tuerLeben;
@@ -51,6 +77,7 @@ export function schlageTuer(spielWelt, zombie, tuer) {
     return;
   }
   spielWelt.tuerLeben.delete(tuer.id);
+  spielWelt.tuerHaltOffen.set(tuer.id, TUER_BRUCH_OFFEN);
   setzeTuer(spielWelt, tuer, true, true);
 }
 

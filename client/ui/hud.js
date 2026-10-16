@@ -3,6 +3,7 @@ import { WerkbankMenue } from './werkbankMenue.js';
 import { EntwicklerFenster } from './entwicklerFenster.js';
 import { InventarFenster } from './inventarFenster.js';
 import { SkillFenster } from './skillFenster.js';
+import { EinstellungenFenster } from './einstellungen.js';
 
 /**
  * HUD (Head-Up-Display) über dem Spiel:
@@ -127,6 +128,7 @@ export class Hud {
       herstellen: (rezept) => this.#aktionen.herstellen?.(rezept),
     });
     el('hud-inventar').addEventListener('click', () => this.inventar.zeige());
+    this.einstellungen = new EinstellungenFenster(dokument);
     this.skills = new SkillFenster(dokument);
     this.skills.beiSkill((name) => this.#aktionen.skill?.(name));
     el('hud-skills').addEventListener('click', () => this.skills.zeige());
@@ -150,7 +152,7 @@ export class Hud {
   }
 
   zeigeTon(stumm) {
-    this.el.ton.textContent = stumm ? '🔇' : '🔊';
+    this.el.ton.textContent = stumm ? '🔇 Ton aus' : '🔊 Ton an';
   }
 
   /** @param aktionen { benutzen(slot), ablegen(slot), aufheben(), nachladen(), tuer(), licht(), wiederbeleben(), admin(befehl), nachtsicht() } */
@@ -167,7 +169,7 @@ export class Hud {
     this.el.vollbild.hidden = !istTouch || !document.fullscreenEnabled;
     this.el.hilfe.textContent = istTouch
       ? 'Links: laufen · Rechts: zielen, ganz drücken = Angriff'
-      : 'WASD laufen · Maus zielen · Klick/Leertaste Angriff · E benutzen · F Tür · R nachladen · L Lampe · I Inventar · U Fähigkeiten · Q fallen lassen · K Karte · T Chat · Tab Spieler · 1–8 Schnellleiste';
+      : 'WASD laufen · Maus zielen · Klick/Leertaste Angriff · E benutzen · F Feuer · R nachladen · L Lampe · I Inventar · U Fähigkeiten · Q fallen lassen · K Karte · T Chat · Tab Spieler · 1–8 Schnellleiste';
     this.#letzterHinweis = null;
     this.#letzterTuerHinweis = null;
     this.#letzteUhr = '';
@@ -186,6 +188,7 @@ export class Hud {
     this.entwickler.zeige(false);
     this.inventar.zeige(false);
     this.skills.zeige(false);
+    this.einstellungen.zeige(false);
     this.chatSchliessen();
     this.el.chatLog.replaceChildren();
     this.el.spielerliste.hidden = true;

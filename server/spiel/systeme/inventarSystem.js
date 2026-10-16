@@ -5,7 +5,7 @@ import { GEGENSTAENDE, STANDARD_AUSRUESTUNG, UNBEWAFFNET } from '../konfiguratio
 import { erzeugeGegenstand } from '../entitaeten/gegenstand.js';
 import { wiederbeleben } from './ueberlebenSystem.js';
 import { fuehreAdminBefehlAus } from './adminSystem.js';
-import { benutzeTuer, verstaerkeTuer as verstaerkeNaechsteTuer } from './tuerSystem.js';
+import { verstaerkeTuer as verstaerkeNaechsteTuer } from './tuerSystem.js';
 import { starteAbbau, starteSchlafen } from './arbeitSystem.js';
 import { stelleHer } from './craftingSystem.js';
 import { benutzeBauwerk, feuer, platziere } from './bauSystem.js';
@@ -46,8 +46,7 @@ export function verarbeiteAktionen(spielWelt) {
         case AKTIONEN.LICHT:
           spieler.lichtAn = !spieler.lichtAn;
           break;
-        case AKTIONEN.TUER:
-          benutzeTuer(spielWelt, spieler);
+        case AKTIONEN.TUER: // veraltet: Türen gehen automatisch auf/zu (tuerSystem.aktualisiereTueren)
           break;
         case AKTIONEN.ABBAUEN:
           starteAbbau(spielWelt, spieler);
@@ -77,7 +76,7 @@ export function verarbeiteAktionen(spielWelt) {
           platziere(spielWelt, spieler, aktion.slot, aktion.tx, aktion.ty);
           break;
         case AKTIONEN.FEUER:
-          if (!feuer(spielWelt, spieler)) benutzeTuer(spielWelt, spieler);
+          feuer(spielWelt, spieler);
           break;
         case AKTIONEN.BAUWERK:
           benutzeBauwerk(spielWelt, spieler);

@@ -40,6 +40,7 @@ const login = new LoginBildschirm(document, SERVER_LISTE);
 const hud = new Hud(document, { debug: DEBUG_START });
 const sound = new Sound();
 hud.zeigeTon(sound.stumm);
+hud.einstellungen.verbinde({ sound, renderer: () => renderer });
 
 let aktuellesSpiel = null;
 let assets = null;

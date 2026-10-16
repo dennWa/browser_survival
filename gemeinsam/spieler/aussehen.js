@@ -14,7 +14,7 @@ export const AUSSEHEN = Object.freeze({
     name: 'Figur',
     aktiv: true,
     standard: 'mann',
-    optionen: { mann: { name: 'Mann', symbol: '👨', skin: 'humanMaleA' }, frau: { name: 'Frau', symbol: '👩', skin: 'humanFemaleA' } },
+    optionen: { mann: { name: 'Mann', symbol: '👨', skin: 'humanMaleA' }, frau: { name: 'Frau', symbol: '👩', skin: 'humanFemaleA', frisur: 'lang' } },
   },
   haare: { name: 'Frisur', aktiv: false, standard: 'standard', optionen: { standard: { name: 'Standard' } } },
   gesicht: { name: 'Gesicht', aktiv: false, standard: 'standard', optionen: { standard: { name: 'Standard' } } },

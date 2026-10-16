@@ -10,6 +10,8 @@
  * Browser erlauben Ton erst nach einer Nutzeraktion → entsperren() beim Login-Klick aufrufen.
  */
 const SPEICHER_SCHLUESSEL = 'browserSurvival.ton';
+/** Regler in den Einstellungen: gesamt = alles, effekte = Aktionen/Kampf/Zombies, atmosphaere = Wind & Brummen. */
+export const LAUTSTAERKE_KANAELE = Object.freeze({ gesamt: 'Gesamt', effekte: 'Effekte', atmosphaere: 'Wind & Umgebung' });
 const HOERWEITE = 900; // px, ab hier unhörbar
 /**
  * Anschlag-Zeit (s): Lautstärke steigt kurz an statt von 0 auf 100 % zu springen – harte Sprünge
@@ -21,23 +23,52 @@ const VORLAUF = 0.012;
 
 export class Sound {
   #ctx = null;
-  #ausgang = null;
+  #ausgang = null; // Gesamtlautstärke → Lautsprecher
+  #effekte = null; // Effekte → Kompressor → #ausgang
+  #atmoBus = null; // Wind & Co. laufen am Kompressor vorbei: laute Schüsse drücken sie sonst weg ("Wind bricht ab")
   #rauschen = null;
-  #atmosphaere = null;
+  #wind = null;
   #motor = null;
   #hoerer = { x: 0, y: 0 };
 
   constructor() {
     this.stumm = false;
-    this.lautstaerke = 0.7;
+    this.lautstaerken = { gesamt: 0.7, effekte: 1, atmosphaere: 1 };
     try {
       const gespeichert = JSON.parse(localStorage.getItem(SPEICHER_SCHLUESSEL) ?? '{}');
       if (typeof gespeichert.stumm === 'boolean') this.stumm = gespeichert.stumm;
+      for (const kanal of Object.keys(this.lautstaerken)) {
+        if (typeof gespeichert[kanal] === 'number') this.lautstaerken[kanal] = Math.max(0, Math.min(1, gespeichert[kanal]));
+      }
     } catch {
       // egal
     }
   }
 
+  #speichern() {
+    try {
+      localStorage.setItem(SPEICHER_SCHLUESSEL, JSON.stringify({ stumm: this.stumm, ...this.lautstaerken }));
+    } catch {
+      // egal
+    }
+  }
+
+  /** Kanal ('gesamt' | 'effekte' | 'atmosphaere') auf 0–1 stellen. */
+  setzeLautstaerke(kanal, wert) {
+    if (!(kanal in this.lautstaerken)) return;
+    this.lautstaerken[kanal] = Math.max(0, Math.min(1, wert));
+    this.#wendeLautstaerkenAn();
+    this.#speichern();
+  }
+
+  #wendeLautstaerkenAn() {
+    const ctx = this.#ctx;
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    this.#ausgang.gain.setTargetAtTime(this.stumm ? 0 : this.lautstaerken.gesamt, t, 0.05);
+    this.#effekte.gain.setTargetAtTime(this.lautstaerken.effekte, t, 0.05);
+    this.#atmoBus.gain.setTargetAtTime(this.lautstaerken.atmosphaere, t, 0.05);
+  }
   /** Muss in einem Klick-/Tastenereignis aufgerufen werden (Autoplay-Sperre der Browser). */
   entsperren() {
     if (!this.#ctx) {
@@ -46,9 +77,18 @@ export class Sound {
       this.#ctx = new AudioKontext();
       const kompressor = this.#ctx.createDynamicsCompressor(); // verhindert Übersteuern bei vielen Schüssen
       this.#ausgang = this.#ctx.createGain();
-      this.#ausgang.gain.value = this.stumm ? 0 : this.lautstaerke;
-      this.#ausgang.connect(kompressor).connect(this.#ctx.destination);
+      this.#effekte = this.#ctx.createGain();
+      this.#atmoBus = this.#ctx.createGain();
+      this.#effekte.connect(kompressor).connect(this.#ausgang);
+      this.#atmoBus.connect(this.#ausgang);
+      this.#ausgang.connect(this.#ctx.destination);
       this.#rauschen = erzeugeRauschen(this.#ctx);
+      this.#wendeLautstaerkenAn();
+      // Tab im Hintergrund / Anruf / Handy sperrt den Ton → bei der nächsten Gelegenheit wieder aufwecken
+      const aufwecken = () => this.#ctx.state !== 'running' && this.#ctx.resume?.();
+      this.#ctx.addEventListener?.('statechange', aufwecken);
+      document.addEventListener('visibilitychange', aufwecken);
+      for (const ereignis of ['pointerdown', 'keydown']) window.addEventListener(ereignis, aufwecken, { passive: true });
     }
     this.#ctx.resume?.();
   }
@@ -56,12 +96,8 @@ export class Sound {
   /** @returns neuer Zustand (true = stumm) */
   umschalten() {
     this.stumm = !this.stumm;
-    if (this.#ausgang) this.#ausgang.gain.setTargetAtTime(this.stumm ? 0 : this.lautstaerke, this.#ctx.currentTime, 0.05);
-    try {
-      localStorage.setItem(SPEICHER_SCHLUESSEL, JSON.stringify({ stumm: this.stumm }));
-    } catch {
-      // egal
-    }
+    this.#wendeLautstaerkenAn();
+    this.#speichern();
     return this.stumm;
   }
 
@@ -100,7 +136,7 @@ export class Sound {
       lautstaerkeKnoten.connect(panner);
       ziel = panner;
     }
-    ziel.connect(this.#ausgang);
+    ziel.connect(this.#effekte);
     const dauer = rezept({ ctx, ausgang: lautstaerkeKnoten, t: ctx.currentTime + VORLAUF, rauschen: this.#rauschen, tonhoehe });
     setTimeout(() => ziel.disconnect(), (dauer + 0.5) * 1000);
   }
@@ -132,7 +168,7 @@ export class Sound {
       b.type = 'square';
       a.connect(filter);
       b.connect(filter);
-      filter.connect(gain).connect(this.#ausgang);
+      filter.connect(gain).connect(this.#effekte);
       a.start();
       b.start();
       this.#motor = { knoten: [a, b], gain, filter, a, b };
@@ -145,39 +181,46 @@ export class Sound {
     this.#motor.gain.gain.setTargetAtTime(0.05 + anteil * 0.08, t, 0.1);
   }
 
-  /** Leises, unheimliches Hintergrundbrummen (Wind, entferntes Grollen). */
+  /**
+   * Hintergrund: Wind (langes, nahtlos geschleiftes braunes Rauschen, Lautstärke und Klangfarbe wabern langsam)
+   * plus tiefes Brummen. Eigener Bus am Kompressor vorbei – nichts im Spiel soll ihn unterbrechen.
+   */
   starteAtmosphaere() {
     const ctx = this.#ctx;
-    if (!ctx || this.#atmosphaere) return;
+    if (!ctx || this.#wind) return;
     const quelle = ctx.createBufferSource();
-    quelle.buffer = this.#rauschen;
+    quelle.buffer = erzeugeWind(ctx);
     quelle.loop = true;
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.value = 180;
+    filter.frequency.value = 520;
+    filter.Q.value = 0.7;
     const gain = ctx.createGain();
-    gain.gain.value = 0.11;
-    const lfo = ctx.createOscillator(); // langsames An- und Abschwellen wie Wind
-    lfo.frequency.value = 0.07;
+    gain.gain.value = 0.55;
+    const lfo = ctx.createOscillator(); // Böen: Klangfarbe …
+    lfo.frequency.value = 0.09;
+    const lfoFilter = ctx.createGain();
+    lfoFilter.gain.value = 260;
+    lfo.connect(lfoFilter).connect(filter.frequency);
+    const lfo2 = ctx.createOscillator(); // … und Lautstärke schwellen in anderem Takt an und ab
+    lfo2.frequency.value = 0.053;
     const lfoGain = ctx.createGain();
-    lfoGain.gain.value = 120;
-    lfo.connect(lfoGain).connect(filter.frequency);
+    lfoGain.gain.value = 0.25;
+    lfo2.connect(lfoGain).connect(gain.gain);
     const brummen = ctx.createOscillator();
     brummen.type = 'sine';
     brummen.frequency.value = 49; // Netzbrummen der Notbeleuchtung
     const brummGain = ctx.createGain();
-    brummGain.gain.value = 0.025;
-    quelle.connect(filter).connect(gain).connect(this.#ausgang);
-    brummen.connect(brummGain).connect(this.#ausgang);
-    quelle.start();
-    lfo.start();
-    brummen.start();
-    this.#atmosphaere = [quelle, lfo, brummen];
+    brummGain.gain.value = 0.02;
+    quelle.connect(filter).connect(gain).connect(this.#atmoBus);
+    brummen.connect(brummGain).connect(this.#atmoBus);
+    for (const knoten of [quelle, lfo, lfo2, brummen]) knoten.start();
+    this.#wind = [quelle, lfo, lfo2, brummen];
   }
 
   stoppeAtmosphaere() {
-    for (const knoten of this.#atmosphaere ?? []) knoten.stop();
-    this.#atmosphaere = null;
+    for (const knoten of this.#wind ?? []) knoten.stop();
+    this.#wind = null;
   }
 }
 
@@ -227,11 +270,6 @@ const REZEPTE = {
     rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.5, typ: 'lowpass', frequenz: 400, lautstaerke: 0.6 });
     ton(ctx, ausgang, t + 0.3, { typ: 'sine', von: 55, bis: 30, dauer: 2.5, lautstaerke: 0.4 });
     return 2.8;
-  },
-  // Weiches "Tapp": leise, dumpf, mit sanftem Anschlag (ein harter Rausch-Knall klang wie ein Schuss)
-  schritt: ({ ctx, ausgang, t, rauschen, tonhoehe }) => {
-    rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.08, typ: 'lowpass', frequenz: 280 * tonhoehe, lautstaerke: 0.22, anschlag: 0.014 });
-    return 0.1;
   },
   aufheben: ({ ctx, ausgang, t }) => {
     ton(ctx, ausgang, t, { typ: 'triangle', von: 520, bis: 520, dauer: 0.07, lautstaerke: 0.25 });
@@ -490,5 +528,28 @@ function erzeugeRauschen(ctx) {
   const puffer = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
   const daten = puffer.getChannelData(0);
   for (let i = 0; i < daten.length; i++) daten[i] = Math.random() * 2 - 1;
+  return puffer;
+}
+
+/** 12 s braunes Rauschen (tiefes Rauschen wie Wind), Ende und Anfang überblendet → Schleife ohne Knacken. */
+function erzeugeWind(ctx) {
+  const laenge = ctx.sampleRate * 12;
+  const ueberblendung = Math.floor(ctx.sampleRate * 2);
+  const roh = new Float32Array(laenge + ueberblendung);
+  let letzter = 0;
+  for (let i = 0; i < roh.length; i++) {
+    letzter = (letzter + 0.02 * (Math.random() * 2 - 1)) / 1.02;
+    roh[i] = letzter;
+  }
+  const puffer = ctx.createBuffer(1, laenge, ctx.sampleRate);
+  const daten = puffer.getChannelData(0);
+  let spitze = 0;
+  for (let i = 0; i < laenge; i++) {
+    // die letzten `ueberblendung` Samples laufen in den Anfang über
+    const anteil = i < ueberblendung ? i / ueberblendung : 1;
+    daten[i] = i < ueberblendung ? roh[i] * Math.sqrt(anteil) + roh[laenge + i] * Math.sqrt(1 - anteil) : roh[i];
+    spitze = Math.max(spitze, Math.abs(daten[i]));
+  }
+  for (let i = 0; i < laenge; i++) daten[i] /= spitze * 1.2;
   return puffer;
 }

@@ -211,7 +211,7 @@ button {
   border: 1px solid var(--rand);
 }
 
-#hud-abmelden:hover { background: rgba(192, 57, 43, 0.8); }
+
 
 #hud-hilfe { position: absolute; bottom: 12px; right: 12px; max-width: 260px; color: var(--text-gedimmt); font-size: 0.72rem; line-height: 1.4; }
 
@@ -904,3 +904,34 @@ button {
 #hud-skills.hinweis { animation: levelPuls 0.8s infinite alternate; border-color: #f2c94c; }
 #wert-level { pointer-events: auto; cursor: pointer; }
 #wert-level.punkte-frei #level-zahl { box-shadow: 0 0 0 2px #fff, 0 0 10px #f2c94c; }
+
+/* Einstellungen (⚙) */
+#einstellungen {
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 5; pointer-events: auto;
+  width: min(420px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow-y: auto; padding: 14px 16px;
+  color: var(--text); background: rgba(16, 18, 22, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 14px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+#einstellungen #einstellungen-schliessen { width: 38px; height: 38px; font-size: 1.1rem; color: var(--text); background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 50%; }
+.einst-reihe { display: flex; gap: 8px; flex-wrap: wrap; }
+.einst-knopf { flex: 1; min-height: 40px; padding: 8px 12px; font-weight: 600; color: var(--text); background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; }
+.einst-knopf.aktiv { background: var(--akzent); border-color: var(--akzent); color: #fff; }
+.einst-knopf.gefahr:hover, .einst-knopf.gefahr:active { background: rgba(192, 57, 43, 0.8); }
+#hud-ton.einst-knopf { width: 100%; flex: none; }
+.einst-regler { flex-direction: row; align-items: center; gap: 10px; margin-top: 8px; font-size: 0.9rem; }
+.einst-regler span { flex: 0 0 8.5em; color: var(--text-gedimmt); }
+.einst-regler input[type="range"] { flex: 1; min-width: 0; height: 28px; padding: 0; background: transparent; border: 0; accent-color: var(--akzent-hell); }
+#hud-oben { align-items: flex-start; }
+.hud-knoepfe { flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 700px), (max-height: 500px) {
+  .hud-knoepfe { gap: 5px; }
+  .hud-knoepfe button { min-height: 32px; padding: 4px 9px; }
+}
+/* Handy quer: zwei Spalten, damit alles ohne Scrollen sichtbar ist (inkl. Abmelden) */
+@media (max-height: 500px) and (min-width: 560px) {
+  #einstellungen { width: min(660px, calc(100vw - 24px)); padding: 8px 14px; }
+  .einst-spalten { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
+  .einst-spalten .inv-titel { margin: 6px 0 4px; }
+  .einst-regler { margin-top: 2px; }
+  .einst-knopf { min-height: 36px; }
+}

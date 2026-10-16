@@ -1,4 +1,4 @@
-import { AUFHEB_REICHWEITE, BETT_REICHWEITE, TICK_DAUER_MS, TICK_DAUER_S, TUER_REICHWEITE, WERKBANK_REICHWEITE } from '../../gemeinsam/konstanten.js';
+import { AUFHEB_REICHWEITE, BETT_REICHWEITE, TICK_DAUER_MS, TICK_DAUER_S, WERKBANK_REICHWEITE } from '../../gemeinsam/konstanten.js';
 import { ABBAU_REICHWEITE, RESSOURCEN_OBJEKTE } from '../../gemeinsam/welt/ressourcen.js';
 import { BAUWERKE, BAUWERK_REICHWEITE, bauwerkAktion, feuerText, kachelInReichweite, pruefePlatz, zielKachel } from '../../gemeinsam/welt/bauwerke.js';
 import { tageszeit } from '../../gemeinsam/tageszeit.js';
@@ -14,7 +14,6 @@ import { Karte } from '../ui/karte.js';
 
 /** Maximal gemerkte, vom Server noch nicht bestätigte Eingaben (~4 s). */
 const MAX_OFFENE_EINGABEN = 120;
-const SCHRITT_ABSTAND = 44; // px zwischen zwei Schrittgeräuschen
 const STOEHN_REICHWEITE = 650; // Zombies in diesem Umkreis stöhnen gelegentlich
 const STOEHN_PAUSE_MS = 900; // höchstens ein Stöhnen pro Pause (sonst Chor)
 const ZOMBIE_TONHOEHE = { normal: 1, laeufer: 1.35, brocken: 0.7 };
@@ -79,7 +78,6 @@ export class ClientSpiel {
       if (e.typ === 'abgebaut' && e.art === 'holz') this.renderer.baumFaellt(e); // Baum kippt um
       this.#ereignisSound(e);
     };
-    this.schrittWeg = 0;
     this.letztesStoehnen = 0;
 
     // Vorhergesagter eigener Spieler (+ Position vom vorherigen Takt für weiche Darstellung)
@@ -218,6 +216,7 @@ export class ClientSpiel {
     this.hud.entwickler.zeige(false);
     this.hud.inventar.zeige(false);
     this.hud.skills.zeige(false);
+    this.hud.einstellungen.zeige(false);
     this.werkbankUmschalten(false);
     this.platzierungAbbrechen();
   }
@@ -368,29 +367,18 @@ export class ClientSpiel {
     this.#aktion(AKTIONEN.LICHT);
   }
 
-  /** Taste F: nächstes Lagerfeuer an/aus – oder die nächste Tür öffnen/schließen (was näher ist). */
+  /** Taste F: nächstes Lagerfeuer an/aus (Türen gehen von selbst auf und zu). */
   tuer() {
     const f = this.#fAktion();
-    if (f) this.#aktion(f.feuer ? AKTIONEN.FEUER : AKTIONEN.TUER);
+    if (f) this.#aktion(AKTIONEN.FEUER);
   }
 
-  /** Was macht F gerade? → { text, symbol, feuer } oder null */
+  /** Was macht F gerade? → { text, symbol } oder null */
   #fAktion() {
     if (this.spielerDaten?.tot) return null;
     const { x, y } = this.lokal;
     const feuer = this.welt.naechstesBauwerk(x, y, BAUWERK_REICHWEITE, (b) => b.typ === 'lagerfeuer');
-    const tuer = this.#naechsteTuer();
-    const g = this.welt.kachelGroesse;
-    if (feuer && (!tuer || Math.hypot((feuer.tx + 0.5) * g - x, (feuer.ty + 0.5) * g - y) < Math.hypot(tuer.x - x, tuer.y - y))) {
-      return { text: feuerText(feuer), symbol: '🔥', feuer: true };
-    }
-    if (tuer) return { text: `Tür ${this.welt.istTuerOffen(tuer.id) ? 'schließen' : 'öffnen'}`, symbol: '🚪', feuer: false };
-    return null;
-  }
-
-  #naechsteTuer() {
-    if (this.spielerDaten?.tot) return null;
-    return this.welt.naechsteTuer(this.lokal.x, this.lokal.y, TUER_REICHWEITE);
+    return feuer ? { text: feuerText(feuer), symbol: '🔥' } : null;
   }
 
   /** Tot → sofort neu spawnen statt Countdown abzuwarten. */
@@ -560,7 +548,6 @@ export class ClientSpiel {
     this.lokalVorher.y = this.lokal.y;
     this.lokalVorher.winkel = this.lokal.fahrzeug?.winkel;
     if (!tot) wendeEingabeAn(this.lokal, eingabe, this.welt, this.physik, TICK_DAUER_S);
-    this.#schritte();
     this.#zombieStoehnen();
     this.#feuerKnistern();
     this.sound?.motor(this.lokal.fahrzeug ? this.lokal.fahrzeug.tempo : null);
@@ -666,15 +653,6 @@ export class ClientSpiel {
     else if (daten.leben > vorher.leben + 5 && !vorher.tot) this.sound.spiele('heilen');
     else if (anzahl(daten) > anzahl(vorher) && !daten.nachladen) this.sound.spiele('aufheben');
     if (daten.nachladen && !vorher.nachladen) this.sound.spiele('nachladen');
-  }
-
-  #schritte() {
-    if (this.lokal.fahrzeug) return; // im Auto keine Schritte (dafür brummt der Motor)
-    const weg = Math.hypot(this.lokal.x - this.lokalVorher.x, this.lokal.y - this.lokalVorher.y);
-    this.schrittWeg += weg;
-    if (this.schrittWeg < SCHRITT_ABSTAND * (this.lokal.sprintet ? 1.35 : 1)) return;
-    this.schrittWeg = 0;
-    this.sound?.spiele('schritt', { lautstaerke: this.lokal.sprintet ? 0.5 : 0.3, tonhoehe: 0.8 + Math.random() * 0.4 });
   }
 
   /** Brennende Lagerfeuer in der Nähe knistern (zufällig, räumlich). */

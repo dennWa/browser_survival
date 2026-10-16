@@ -4,7 +4,7 @@
  */
 
 export const SPIEL_NAME = 'Browser Survival';
-export const SPIEL_VERSION = '0.9.0';
+export const SPIEL_VERSION = '0.9.1';
 
 /** Wird beim Login verglichen. Erhöhen, sobald sich das Nachrichtenformat inkompatibel ändert. */
 export const PROTOKOLL_VERSION = 7;
@@ -31,7 +31,10 @@ export const INVENTAR_MAX = 32;
 export const AUFHEB_REICHWEITE = 48;
 
 /** So nah (px, bis zur Türkante) muss man an einer Tür stehen, um sie zu öffnen/schließen. */
-export const TUER_REICHWEITE = 40;
+export const TUER_REICHWEITE = 40; // Bretter annageln
+export const TUER_AUTO_OEFFNEN = 44; // px Abstand zur Tür, ab dem sie von selbst aufgeht (etwas Vorlauf gegen Latenz)
+export const TUER_AUTO_SCHLIESSEN = 66; // erst weiter weg als das schließt sie wieder (Hysterese)
+export const TUER_BRUCH_OFFEN = 20; // s, die eine aufgebrochene Tür offen bleibt
 
 /** Reichweite (px, bis zum Rand) für Werkbank (Crafting) und Bett (Schlafen). */
 export const WERKBANK_REICHWEITE = 48;

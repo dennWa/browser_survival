@@ -74,11 +74,11 @@ export class KartenModell {
 
   // ---------------------------------------------------------------------------
 
-  #baueBoden(massstab) {
+  /** Bodenbild malen (Innenräume abgedunkelt, weil es kein Dach gibt) */
+  #maleBoden(massstab) {
     const welt = this.welt;
     const g = this.g;
     const leinwand = new BodenTextur(welt, this.assets).rendere(massstab);
-    // Kein Dach → Innenräume im Boden abdunkeln, sonst wären Gebäude so hell wie draußen
     const ctx = leinwand.getContext('2d');
     ctx.setTransform(massstab, 0, 0, massstab, 0, 0);
     ctx.fillStyle = 'rgba(0, 0, 0, 0.42)';
@@ -87,6 +87,21 @@ export class KartenModell {
         if (KACHELN[welt.kachelAn(tx, ty)]?.innen) ctx.fillRect(tx * g, ty * g, g, g);
       }
     }
+    return leinwand;
+  }
+
+  /** Grafik-Einstellung geändert: Bodentextur in anderer Auflösung neu malen (Textur-Objekt bleibt, kein Shader-Neubau). */
+  setzeBodenMassstab(massstab) {
+    if (massstab === this.bodenMassstab) return;
+    this.bodenMassstab = massstab;
+    this.bodenTextur.image = this.#maleBoden(massstab);
+    this.bodenTextur.needsUpdate = true;
+  }
+
+  #baueBoden(massstab) {
+    const welt = this.welt;
+    this.bodenMassstab = massstab;
+    const leinwand = this.#maleBoden(massstab);
     const textur = new THREE.CanvasTexture(leinwand);
     textur.colorSpace = THREE.SRGBColorSpace;
     textur.anisotropy = Math.min(8, this.gl.capabilities.getMaxAnisotropy());
