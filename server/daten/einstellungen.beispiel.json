@@ -1,0 +1,6 @@
+{
+  "server": { "name": "Mein Krankenhaus-Server", "maxSpieler": 16 },
+  "spieler": { "geschwindigkeit": 150 },
+  "zombie": { "aggroRadius": 250, "angriffsSchaden": 12 },
+  "loot": { "spawnChance": 0.6 }
+}

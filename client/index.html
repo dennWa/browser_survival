@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#0d0f12" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Browser Survival</title>
+    <link rel="stylesheet" href="stil.css" />
+    <!-- Three.js (3D-Grafik) – liegt lokal in vendor/, kein CDN nötig -->
+    <script type="importmap">
+      { "imports": { "three": "./vendor/three/three.module.js" } }
+    </script>
+  </head>
+  <body>
+    <canvas id="spielflaeche" tabindex="0"></canvas>
+    <!-- Bildschirm-Effekte als CSS (kostet keine Rechenzeit pro Frame) -->
+    <div id="vignette" hidden></div>
+    <div id="schadensblitz"></div>
+    <div id="schlafblende"></div>
+
+    <!-- Touch-Joysticks (nur auf Handy/Tablet sichtbar) -->
+    <div id="touch" hidden>
+      <div class="stick" id="stick-links"><div class="stick-knopf"></div></div>
+      <div class="stick" id="stick-rechts"><div class="stick-knopf"></div></div>
+    </div>
+
+    <!-- HUD über dem Spiel -->
+    <div id="hud" hidden>
+      <div id="hud-oben">
+        <div class="hud-links">
+          <span id="hud-uhr" title="Tag 10 Minuten, Nacht 5 Minuten – nachts kommt die Horde">☀ 06:00</span>
+          <span id="hud-status"></span>
+        </div>
+        <div class="hud-knoepfe">
+          <button id="hud-chat" type="button" title="Chat (T)">💬</button>
+          <button id="hud-inventar" type="button" title="Inventar (I)">🎒</button>
+          <button id="hud-karte" type="button" title="Karte (K)">🗺</button>
+          <button id="hud-licht" type="button" title="Taschenlampe an/aus (L) – aus = Zombies sehen dich schlechter">🔦</button>
+          <button id="hud-admin" type="button" title="Admin-Menü (P)" hidden>🛡</button>
+          <button id="hud-ton" type="button" title="Ton an/aus (M)">🔊</button>
+          <button id="hud-vollbild" type="button" hidden>⛶</button>
+          <button id="hud-abmelden" type="button">Abmelden</button>
+        </div>
+      </div>
+      <div id="hud-werte">
+        <div class="wert" id="wert-level" title="Level – 10 XP pro Zombie, beim Tod ist alles weg"><span class="symbol" id="level-zahl">1</span><div class="balken"><div class="fuellung"></div></div><span id="level-xp"></span></div>
+        <div class="wert" id="wert-leben" title="Leben"><span class="symbol">❤</span><div class="balken"><div class="fuellung"></div></div></div>
+        <div class="wert" id="wert-hunger" title="Hunger"><span class="symbol">🍖</span><div class="balken"><div class="fuellung"></div></div></div>
+        <div class="wert" id="wert-durst" title="Durst"><span class="symbol">💧</span><div class="balken"><div class="fuellung"></div></div></div>
+        <div class="wert" id="wert-ausdauer" title="Ausdauer (Shift = sprinten)"><span class="symbol">⚡</span><div class="balken"><div class="fuellung"></div></div></div>
+      </div>
+      <pre id="hud-debug" hidden></pre>
+      <!-- Chat: T öffnet das Eingabefeld, Enter schickt ab -->
+      <div id="chat">
+        <div id="chat-log" aria-live="polite"></div>
+        <form id="chat-form" hidden autocomplete="off">
+          <input id="chat-eingabe" type="text" maxlength="160" placeholder="Nachricht an alle … (Enter)" enterkeyhint="send" />
+        </form>
+      </div>
+      <!-- Spielerliste (Tab) -->
+      <div id="spielerliste" hidden></div>
+      <!-- Admin-Menü (nur für Accounts mit Admin-Recht; der Server prüft jeden Befehl) -->
+      <div id="admin-panel" hidden>
+        <h3>Admin</h3>
+        <button type="button" data-befehl="gottmodus">Gottmodus</button>
+        <button type="button" data-befehl="unsichtbar">Unsichtbar</button>
+        <button type="button" data-befehl="heilen">Heilen &amp; satt</button>
+        <button type="button" data-befehl="ausruesten">Waffen &amp; Munition</button>
+        <button type="button" data-befehl="zombieSpawnen">Zombie spawnen</button>
+        <button type="button" data-befehl="zombiesToeten">Alle Zombies töten</button>
+        <button type="button" data-befehl="zeitSpringen">Tag ⇄ Nacht</button>
+        <button type="button" data-nachtsicht>Nachtsicht</button>
+        <button type="button" data-entwickler class="dev-knopf">🛠 Developer</button>
+      </div>
+      <div id="hud-meldungen" aria-live="polite"></div>
+      <div id="hud-arbeit" hidden>
+        <span id="hud-arbeit-text"></span>
+        <div class="balken"><div class="fuellung"></div></div>
+      </div>
+      <div id="hud-unten">
+        <div class="aktionsknoepfe">
+          <button id="knopf-tuer" type="button" hidden></button>
+          <button id="knopf-aufheben" type="button" hidden></button>
+        </div>
+        <div id="hud-munition" hidden></div>
+        <div id="hotbar"></div>
+      </div>
+      <button id="knopf-nachladen" type="button" hidden aria-label="Nachladen">↻</button>
+      <div id="hud-hilfe"></div>
+    </div>
+
+    <!-- Karte (nur erkundete Bereiche) -->
+    <div id="karte" hidden>
+      <div class="karte-kopf">
+        <h2>🗺 Karte</h2>
+        <span id="karte-anteil"></span>
+        <button id="karte-schliessen" type="button" aria-label="Schließen">✕</button>
+      </div>
+      <div class="karte-rahmen"><canvas id="karte-bild"></canvas></div>
+    </div>
+
+    <!-- Developer-Modus (nur Admins): Spielwerte ingame ändern -->
+    <div id="entwickler" hidden>
+      <div class="werkbank-kopf">
+        <h2>🛠 Developer-Modus</h2>
+        <button id="entwickler-schliessen" type="button" aria-label="Schließen">✕</button>
+      </div>
+      <div id="entwickler-reiter"></div>
+      <div id="entwickler-liste"></div>
+      <div class="dev-fuss">
+        <button id="entwickler-uebernehmen" type="button" class="herstellen">Übernehmen</button>
+        <button id="entwickler-export" type="button">Export</button>
+        <button id="entwickler-import" type="button">Import</button>
+        <button id="entwickler-zuruecksetzen" type="button">Alles zurücksetzen</button>
+        <input id="entwickler-datei" type="file" accept="application/json,.json" hidden />
+      </div>
+      <p id="entwickler-status" class="werkbank-hinweis"></p>
+      <p class="werkbank-hinweis">Weitere Werte freischalten: <code>server/spiel/konfiguration/entwicklerFelder.js</code></p>
+    </div>
+
+    <!-- Werkbank (Crafting) -->
+    <!-- Inventar (I): Schnellleiste, Tasche, Rucksack – Ziehen zum Umsortieren, aus dem Fenster ziehen = fallen lassen -->
+    <div id="inventar" hidden>
+      <div class="werkbank-kopf">
+        <h2>🎒 Inventar</h2>
+        <button id="inventar-schliessen" type="button" aria-label="Schließen">✕</button>
+      </div>
+      <h3 class="inv-titel">Schnellleiste <small>Tasten 1–8</small></h3>
+      <div id="inventar-schnell" class="inv-raster"></div>
+      <h3 class="inv-titel">Tasche</h3>
+      <div id="inventar-tasche" class="inv-raster"></div>
+      <div id="inventar-rucksack-bereich">
+        <h3 class="inv-titel">Rucksack <button id="inventar-rucksack-ablegen" type="button" hidden>ablegen</button></h3>
+        <div id="inventar-rucksack" class="inv-raster"></div>
+        <p id="inventar-kein-rucksack">Kein Rucksack – finde einen (Wohnungen, Läden, Polizei) für +8 Plätze.</p>
+      </div>
+      <p id="inventar-info"></p>
+      <p class="werkbank-hinweis inv-hilfe">Klick = benutzen · ziehen = umsortieren · aus dem Fenster ziehen = fallen lassen · Q = fallen lassen</p>
+    </div>
+
+    <div id="werkbank" hidden>
+      <div class="werkbank-kopf">
+        <h2>🔨 Werkbank</h2>
+        <button id="werkbank-schliessen" type="button" aria-label="Schließen">✕</button>
+      </div>
+      <div id="werkbank-reiter"></div>
+      <div id="werkbank-liste"></div>
+      <p class="werkbank-hinweis">Rezepte anpassen: <code>server/spiel/konfiguration/rezepte.js</code></p>
+    </div>
+
+    <!-- Todesbildschirm -->
+    <div id="tod-overlay" hidden>
+      <h2>Du bist gestorben</h2>
+      <p id="tod-countdown"></p>
+      <button id="tod-wiederbeleben" type="button">Sofort wiederbeleben</button>
+    </div>
+
+    <!-- Ladebildschirm -->
+    <div id="laden" class="overlay">
+      <div class="lade-box">
+        <h1>Browser Survival</h1>
+        <div class="ladebalken"><div id="ladebalken-fuellung"></div></div>
+        <p id="lade-text">Lade Grafiken …</p>
+      </div>
+    </div>
+
+    <!-- Login -->
+    <div id="login" class="overlay" hidden>
+      <form id="login-formular" autocomplete="on">
+        <h1>Browser Survival</h1>
+        <p class="untertitel">Karte: St.-Elisabeth-Krankenhaus</p>
+
+        <label>Server
+          <select id="login-server"></select>
+        </label>
+        <label id="login-adresse-feld" hidden>Serveradresse
+          <input id="login-adresse" type="text" placeholder="ws://192.168.0.10:8080/ws" spellcheck="false" autocapitalize="off" />
+        </label>
+        <label>Benutzername
+          <input id="login-name" type="text" autocomplete="username" required minlength="2" maxlength="20" spellcheck="false" autocapitalize="off" />
+        </label>
+        <label id="login-passwort-feld">Passwort
+          <input id="login-passwort" type="password" autocomplete="current-password" />
+        </label>
+
+        <button id="login-knopf" type="submit">Login</button>
+        <button id="login-gast" class="zweitknopf" type="button">Als Gast spielen <span id="login-gast-name"></span></button>
+        <p id="login-meldung" role="status" aria-live="polite"></p>
+        <p class="hinweis">Keine Registrierung – Accounts vergibt der Server-Admin.<br />Gäste bekommen einen Zufallsnamen; ihr Spielstand bleibt in diesem Browser.</p>
+        <button id="credits-knopf" class="link-knopf" type="button">Credits &amp; Lizenzen</button>
+      </form>
+    </div>
+
+    <!-- Credits (Namensnennung der Grafik-Urheber, Pflicht bei CC-BY) -->
+    <dialog id="credits">
+      <h2>Credits</h2>
+      <p>Grafiken aus freien Paketen – vielen Dank an die Künstler:innen!</p>
+      <ul id="credits-liste"></ul>
+      <form method="dialog"><button type="submit">Schließen</button></form>
+    </dialog>
+
+    <script type="module" src="main.js"></script>
+  </body>
+</html>

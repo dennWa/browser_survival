@@ -1,0 +1,521 @@
+{
+ "version": 2,
+ "items": {
+  "bild": "items.webp",
+  "icons": {
+   "konservendose": {
+    "x": 3,
+    "y": 0,
+    "b": 66,
+    "h": 72,
+    "weltGroesse": 24
+   },
+   "marmelade": {
+    "x": 86,
+    "y": 0,
+    "b": 43,
+    "h": 72,
+    "weltGroesse": 20
+   },
+   "apfel": {
+    "x": 144,
+    "y": 11,
+    "b": 72,
+    "h": 49,
+    "weltGroesse": 18
+   },
+   "broetchen": {
+    "x": 216,
+    "y": 14,
+    "b": 72,
+    "h": 43,
+    "weltGroesse": 22
+   },
+   "kaese": {
+    "x": 288,
+    "y": 16,
+    "b": 72,
+    "h": 40,
+    "weltGroesse": 20
+   },
+   "muesliriegel": {
+    "x": 360,
+    "y": 14,
+    "b": 72,
+    "h": 44,
+    "weltGroesse": 20
+   },
+   "sandwich": {
+    "x": 432,
+    "y": 12,
+    "b": 72,
+    "h": 48,
+    "weltGroesse": 24
+   },
+   "wasserflasche": {
+    "x": 513,
+    "y": 0,
+    "b": 53,
+    "h": 72,
+    "weltGroesse": 24
+   },
+   "energydrink": {
+    "x": 17,
+    "y": 72,
+    "b": 37,
+    "h": 72,
+    "weltGroesse": 18
+   },
+   "milch": {
+    "x": 93,
+    "y": 72,
+    "b": 30,
+    "h": 72,
+    "weltGroesse": 22
+   },
+   "kaffee": {
+    "x": 144,
+    "y": 83,
+    "b": 72,
+    "h": 50,
+    "weltGroesse": 18
+   },
+   "verband": {
+    "x": 216,
+    "y": 83,
+    "b": 72,
+    "h": 50,
+    "weltGroesse": 22
+   },
+   "schmerzmittel": {
+    "x": 309,
+    "y": 72,
+    "b": 30,
+    "h": 72,
+    "weltGroesse": 18
+   },
+   "erste_hilfe_kasten": {
+    "x": 360,
+    "y": 72,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 26
+   },
+   "skalpell": {
+    "x": 461,
+    "y": 72,
+    "b": 14,
+    "h": 72,
+    "weltGroesse": 20
+   },
+   "kuechenmesser": {
+    "x": 515,
+    "y": 72,
+    "b": 50,
+    "h": 72,
+    "weltGroesse": 24
+   },
+   "hammer": {
+    "x": 18,
+    "y": 144,
+    "b": 36,
+    "h": 72,
+    "weltGroesse": 26
+   },
+   "machete": {
+    "x": 72,
+    "y": 173,
+    "b": 72,
+    "h": 14,
+    "weltGroesse": 32
+   },
+   "feuerwehrbeil": {
+    "x": 153,
+    "y": 144,
+    "b": 53,
+    "h": 72,
+    "weltGroesse": 28
+   },
+   "pistole": {
+    "x": 216,
+    "y": 151,
+    "b": 72,
+    "h": 57,
+    "weltGroesse": 24
+   },
+   "schrotflinte": {
+    "x": 288,
+    "y": 167,
+    "b": 72,
+    "h": 26,
+    "weltGroesse": 40
+   },
+   "munition_9mm": {
+    "x": 360,
+    "y": 155,
+    "b": 72,
+    "h": 50,
+    "weltGroesse": 22
+   },
+   "munition_12": {
+    "x": 432,
+    "y": 163,
+    "b": 72,
+    "h": 33,
+    "weltGroesse": 24
+   },
+   "axt": {
+    "x": 504,
+    "y": 148,
+    "b": 72,
+    "h": 63,
+    "weltGroesse": 28
+   },
+   "spitzhacke": {
+    "x": 7,
+    "y": 216,
+    "b": 58,
+    "h": 72,
+    "weltGroesse": 30
+   },
+   "holz": {
+    "x": 72,
+    "y": 219,
+    "b": 72,
+    "h": 65,
+    "weltGroesse": 26
+   },
+   "stein": {
+    "x": 144,
+    "y": 223,
+    "b": 72,
+    "h": 58,
+    "weltGroesse": 22
+   },
+   "bretter": {
+    "x": 216,
+    "y": 216,
+    "b": 71,
+    "h": 72,
+    "weltGroesse": 26
+   },
+   "rucksack": {
+    "x": 288,
+    "y": 218,
+    "b": 72,
+    "h": 67,
+    "weltGroesse": 28
+   }
+  }
+ },
+ "umgebung": {
+  "bild": "umgebung.webp",
+  "kachelGroesse": 64,
+  "boden": {
+   "gras": [
+    {
+     "x": 638,
+     "y": 258,
+     "b": 64,
+     "h": 64
+    },
+    {
+     "x": 704,
+     "y": 258,
+     "b": 64,
+     "h": 64
+    },
+    {
+     "x": 770,
+     "y": 258,
+     "b": 64,
+     "h": 64
+    },
+    {
+     "x": 836,
+     "y": 258,
+     "b": 64,
+     "h": 64
+    }
+   ],
+   "beton": [
+    {
+     "x": 902,
+     "y": 258,
+     "b": 64,
+     "h": 64
+    },
+    {
+     "x": 0,
+     "y": 388,
+     "b": 64,
+     "h": 64
+    }
+   ],
+   "fliesen": [
+    {
+     "x": 66,
+     "y": 388,
+     "b": 64,
+     "h": 64
+    }
+   ],
+   "holz": [
+    {
+     "x": 132,
+     "y": 388,
+     "b": 64,
+     "h": 64
+    }
+   ]
+  },
+  "objekte": {
+   "bett": {
+    "x": 0,
+    "y": 0,
+    "b": 128,
+    "h": 256
+   },
+   "bett_orange": {
+    "x": 130,
+    "y": 0,
+    "b": 128,
+    "h": 256
+   },
+   "teppich": {
+    "x": 260,
+    "y": 0,
+    "b": 192,
+    "h": 192
+   },
+   "teppich_gruen": {
+    "x": 454,
+    "y": 0,
+    "b": 192,
+    "h": 192
+   },
+   "auto_schwarz": {
+    "x": 648,
+    "y": 0,
+    "b": 71,
+    "h": 131
+   },
+   "auto_blau": {
+    "x": 721,
+    "y": 0,
+    "b": 71,
+    "h": 131
+   },
+   "auto_gruen": {
+    "x": 794,
+    "y": 0,
+    "b": 70,
+    "h": 131
+   },
+   "auto_gelb": {
+    "x": 866,
+    "y": 0,
+    "b": 71,
+    "h": 131
+   },
+   "transporter": {
+    "x": 939,
+    "y": 0,
+    "b": 70,
+    "h": 131
+   },
+   "baum": {
+    "x": 0,
+    "y": 258,
+    "b": 128,
+    "h": 128
+   },
+   "baum_herbst": {
+    "x": 130,
+    "y": 258,
+    "b": 128,
+    "h": 128
+   },
+   "tisch": {
+    "x": 260,
+    "y": 258,
+    "b": 192,
+    "h": 128
+   },
+   "auto_rot": {
+    "x": 454,
+    "y": 258,
+    "b": 71,
+    "h": 116
+   },
+   "oelfleck": {
+    "x": 527,
+    "y": 258,
+    "b": 109,
+    "h": 95
+   },
+   "kiste": {
+    "x": 198,
+    "y": 388,
+    "b": 64,
+    "h": 64
+   },
+   "kiste_klein": {
+    "x": 264,
+    "y": 388,
+    "b": 64,
+    "h": 64
+   },
+   "pflanze": {
+    "x": 330,
+    "y": 388,
+    "b": 64,
+    "h": 64
+   },
+   "busch": {
+    "x": 396,
+    "y": 388,
+    "b": 64,
+    "h": 64
+   },
+   "kueche_theke": {
+    "x": 462,
+    "y": 388,
+    "b": 128,
+    "h": 64
+   },
+   "kueche_herd": {
+    "x": 592,
+    "y": 388,
+    "b": 64,
+    "h": 64
+   },
+   "kueche_spuele": {
+    "x": 658,
+    "y": 388,
+    "b": 64,
+    "h": 64
+   },
+   "kueche_kochfeld": {
+    "x": 724,
+    "y": 388,
+    "b": 64,
+    "h": 64
+   },
+   "sofa": {
+    "x": 790,
+    "y": 388,
+    "b": 192,
+    "h": 64
+   },
+   "sofa_dunkel": {
+    "x": 0,
+    "y": 454,
+    "b": 192,
+    "h": 64
+   },
+   "sessel": {
+    "x": 194,
+    "y": 454,
+    "b": 64,
+    "h": 64
+   },
+   "sessel_blau": {
+    "x": 260,
+    "y": 454,
+    "b": 64,
+    "h": 64
+   },
+   "stuhl": {
+    "x": 326,
+    "y": 454,
+    "b": 64,
+    "h": 64
+   },
+   "tisch_rund": {
+    "x": 392,
+    "y": 454,
+    "b": 64,
+    "h": 64
+   },
+   "blutfleck": {
+    "x": 458,
+    "y": 454,
+    "b": 64,
+    "h": 64
+   },
+   "blutlache": {
+    "x": 524,
+    "y": 454,
+    "b": 64,
+    "h": 64
+   },
+   "fass": {
+    "x": 590,
+    "y": 454,
+    "b": 56,
+    "h": 56
+   },
+   "pylone": {
+    "x": 648,
+    "y": 454,
+    "b": 45,
+    "h": 44
+   }
+  }
+ },
+ "figuren3d": {
+  "modell": "3d/figur.fbx",
+  "skins": {
+   "humanMaleA": "3d/skins/humanMaleA.webp",
+   "humanFemaleA": "3d/skins/humanFemaleA.webp",
+   "zombieMaleA": "3d/skins/zombieMaleA.webp",
+   "zombieFemaleA": "3d/skins/zombieFemaleA.webp"
+  },
+  "animationen": "3d/animationen.json"
+ },
+ "lizenzen": [
+  {
+   "paket": "Top-down Shooter",
+   "urheber": "Kenney (kenney.nl)",
+   "lizenz": "CC0",
+   "url": "https://kenney.nl/assets/top-down-shooter"
+  },
+  {
+   "paket": "Racing Pack",
+   "urheber": "Kenney (kenney.nl)",
+   "lizenz": "CC0",
+   "url": "https://kenney.nl/assets/racing-pack"
+  },
+  {
+   "paket": "Animated Characters 3",
+   "urheber": "Kenney (kenney.nl)",
+   "lizenz": "CC0",
+   "url": "https://opengameart.org/content/animated-characters-3"
+  },
+  {
+   "paket": "Generic Items",
+   "urheber": "Kenney (kenney.nl)",
+   "lizenz": "CC0",
+   "url": "https://opengameart.org/content/generic-items"
+  },
+  {
+   "paket": "Free Survival Props Pack",
+   "urheber": "Olga Bikmullina (http://ahninniah.graphics)",
+   "lizenz": "CC-BY 3.0",
+   "url": "https://opengameart.org/content/free-survival-props-pack"
+  },
+  {
+   "paket": "2D Guns",
+   "urheber": "opengameart.org/content/2d-guns",
+   "lizenz": "CC0",
+   "url": "https://opengameart.org/content/2d-guns"
+  },
+  {
+   "paket": "Glitch Food & Drink Items",
+   "urheber": "Tiny Speck (Glitch)",
+   "lizenz": "CC0",
+   "url": "https://opengameart.org/content/glitch-food-drink-items-svg"
+  }
+ ]
+}

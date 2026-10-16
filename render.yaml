@@ -1,0 +1,31 @@
+# Online stellen bei Render (https://render.com) – Schritt für Schritt: siehe ONLINE_STELLEN.md
+# Ablauf kurz: Render-Konto → "New +" → "Blueprint" → dieses Repository wählen → Render liest diese Datei.
+#
+# Accounts: im Render-Dashboard unter Environment → "Secret Files" eine Datei "konten.json" anlegen
+# (Inhalt wie server/daten/konten.beispiel.json, Passwörter dürfen im Klartext drinstehen – die Datei ist geheim
+# und landet NICHT im Repository). Der Server findet sie automatisch unter /etc/secrets/konten.json.
+#
+# Kostenloser Plan: keine dauerhafte Festplatte → Spielstände & Developer-Einstellungen gehen bei jedem
+# Neustart/Deploy verloren, und der Server schläft nach 15 min ohne Besucher ein (erster Aufruf dauert dann ~1 min).
+# Dauerhaft speichern: Plan "Starter" + Disk (Mount Path /var/data) und unten DATEN_ORDNER aktivieren.
+services:
+  - type: web
+    name: browser-survival
+    runtime: node
+    plan: free
+    buildCommand: npm install --omit=dev
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: SERVER_NAME
+        value: "Browser Survival"
+      # - key: GAESTE        # "0" = nur Accounts, keine Gäste
+      #   value: "0"
+      # - key: DATEN_ORDNER  # nur mit Disk (bezahlter Plan)
+      #   value: /var/data
+    # disk:                  # nur mit bezahltem Plan
+    #   name: spieldaten
+    #   mountPath: /var/data
+    #   sizeGB: 1
