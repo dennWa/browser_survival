@@ -161,6 +161,12 @@ export class Welt {
     return this.zeilen[ty][tx];
   }
 
+  /** Steht dieser Weltpunkt (px) in einem Gebäude? (Innenraumboden, siehe KACHELN.innen – Türschwellen zählen nicht) */
+  istInnen(x, y) {
+    const zeichen = this.kachelAn(Math.floor(x / this.kachelGroesse), Math.floor(y / this.kachelGroesse));
+    return zeichen !== null && KACHELN[zeichen]?.innen === true;
+  }
+
   /** Außerhalb der Karte gilt alles als blockiert (unsichtbare Grenze). */
   istBlockiert(tx, ty) {
     const zeichen = this.kachelAn(tx, ty);

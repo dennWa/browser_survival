@@ -5,6 +5,7 @@ import { Eingabe } from './kern/eingabe.js';
 import { ClientSpiel } from './kern/clientSpiel.js';
 import { verbindungAufbauen } from './netzwerk/verbindungAufbauen.js';
 import { anmelden } from './netzwerk/anmeldung.js';
+import { konsolenHelfer } from './kern/konsolenHelfer.js';
 import { LoginBildschirm, gastName } from './ui/loginBildschirm.js';
 import { Hud } from './ui/hud.js';
 import { zeigeCredits } from './ui/credits.js';
@@ -87,6 +88,7 @@ hud.beiAktionen({
   nachtsicht: () => renderer && hud.setzeNachtsicht(renderer.nachtsichtUmschalten()),
 });
 // Für Neugierige & Tests: in der Browser-Konsole `browserSurvival.spiel` bzw. `.server` (nur Lokal-Modus)
+// Konsolen-Helfer (tp, gib, boden, zeit, ich …) siehe client/kern/konsolenHelfer.js
 window.browserSurvival = {
   get spiel() {
     return aktuellesSpiel;
@@ -94,6 +96,7 @@ window.browserSurvival = {
   get server() {
     return lokalerServer();
   },
+  ...konsolenHelfer({ spiel: () => aktuellesSpiel, server: () => lokalerServer() }),
 };
 document.getElementById('credits-knopf').addEventListener('click', () => zeigeCredits(document, assets));
 

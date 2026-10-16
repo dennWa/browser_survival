@@ -29,7 +29,10 @@ export const ENTWICKLER_FELDER = [
   { pfad: 'schlafen.heilung', name: 'Heilung pro Schlaf', gruppe: 'Spieler', min: 0, max: 200, schritt: 5, einheit: 'LP' },
   { pfad: 'schlafen.dauer', name: 'Schlafdauer', gruppe: 'Spieler', min: 1, max: 60, schritt: 1, einheit: 's' },
   { pfad: 'schlafen.stunden', name: 'Schlaf spult vor', gruppe: 'Welt', min: 0, max: 23, schritt: 1, einheit: 'h' },
-  { pfad: 'level.xpProZombie', name: 'XP pro Zombie', gruppe: 'Spieler', min: 0, max: 500, schritt: 1, einheit: 'XP' },
+  { pfad: 'zombie.varianten.laeufer.xp', name: 'XP pro Läufer', gruppe: 'Spieler', min: 0, max: 500, schritt: 1, einheit: 'XP' },
+  { pfad: 'zombie.varianten.brocken.xp', name: 'XP pro Brocken', gruppe: 'Spieler', min: 0, max: 500, schritt: 1, einheit: 'XP' },
+  { pfad: 'spieler.todesZombieRadius', name: 'Zombies weg beim Tod (Radius)', gruppe: 'Spieler', min: 0, max: 2000, schritt: 20, einheit: 'px' },
+  { pfad: 'zombie.varianten.normal.xp', name: 'XP pro Zombie (normal)', gruppe: 'Spieler', min: 0, max: 500, schritt: 1, einheit: 'XP' },
   { pfad: 'level.ersteStufe', name: 'XP für Level 2', gruppe: 'Spieler', min: 1, max: 5000, schritt: 5, einheit: 'XP' },
   { pfad: 'level.zuwachs', name: 'XP mehr pro Level', gruppe: 'Spieler', min: 0, max: 5000, schritt: 5, einheit: 'XP' },
 

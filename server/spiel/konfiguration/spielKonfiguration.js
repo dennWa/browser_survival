@@ -34,6 +34,7 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     regenerationProSekunde: 0.25, // Heilung, wenn satt und getränkt
     regenerationAb: 70, // ab diesem Hunger- UND Durstwert
     respawnZeit: 6, // Sekunden bis zur Wiederbelebung
+    todesZombieRadius: 480, // px: beim Tod verschwinden alle Zombies in diesem Umkreis (kommen später regulär wieder)
     startHunger: 85,
     startDurst: 85,
     sprintFaktor: 1.6, // Sprint = 1,6 × Gehgeschwindigkeit
@@ -74,9 +75,9 @@ export const STANDARD_KONFIGURATION = Object.freeze({
      * groesse = nur Optik (Sprite-Skalierung). radius ≤ 15, sonst passen sie nicht durch 1 Kachel breite Lücken.
      */
     varianten: {
-      normal: { gewicht: 6 },
-      laeufer: { gewicht: 2, leben: 35, jagdGeschwindigkeit: 115, angriffsSchaden: 8, angriffsAbklingzeit: 0.7, groesse: 0.92 },
-      brocken: { gewicht: 1, leben: 180, jagdGeschwindigkeit: 62, angriffsSchaden: 25, angriffsAbklingzeit: 1.5, radius: 15, groesse: 1.3, rueckstossFaktor: 0.2 },
+      normal: { gewicht: 6, xp: 10 },
+      laeufer: { gewicht: 2, xp: 12, leben: 35, jagdGeschwindigkeit: 115, angriffsSchaden: 8, angriffsAbklingzeit: 0.7, groesse: 0.92 },
+      brocken: { gewicht: 1, xp: 15, leben: 180, jagdGeschwindigkeit: 62, angriffsSchaden: 25, angriffsAbklingzeit: 1.5, radius: 15, groesse: 1.3, rueckstossFaktor: 0.2 },
     },
   },
   kampf: {
@@ -111,7 +112,7 @@ export const STANDARD_KONFIGURATION = Object.freeze({
   },
   /** Level: XP pro Zombie; für Level 2 braucht man `ersteStufe` XP, jedes weitere Level `zuwachs` mehr. Tod = alles weg. */
   level: {
-    xpProZombie: 10,
+    xpProZombie: 10, // nur Rückfallwert – pro Zombie-Typ: zombie.varianten.<typ>.xp
     ersteStufe: 50,
     zuwachs: 20,
   },

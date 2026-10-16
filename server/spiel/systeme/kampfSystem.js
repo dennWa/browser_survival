@@ -116,12 +116,15 @@ export function fuegeSchadenZu(spielWelt, ziel, menge, quelle, winkel = 0) {
 export function toeten(spielWelt, ziel, quelle = null) {
   spielWelt.ereignis({ typ: 'tod', id: ziel.id, x: ziel.x, y: ziel.y, ziel: ziel.typ });
   if (ziel.typ === 'zombie') {
-    if (quelle?.typ === 'spieler') gibXp(spielWelt, quelle, spielWelt.konfiguration.level.xpProZombie);
+    // XP je nach Variante (Brocken 15, Läufer 12 …), sonst level.xpProZombie – immer der aktuelle Wert (Developer-Modus)
+    const k = spielWelt.konfiguration;
+    if (quelle?.typ === 'spieler') gibXp(spielWelt, quelle, k.zombie.varianten?.[ziel.variante]?.xp ?? k.level.xpProZombie);
     spielWelt.entfernen(ziel.id);
     spielWelt.planeZombieRespawn(ziel.spawnIndex);
     lasseZombieLootFallen(spielWelt, ziel.x, ziel.y);
     return;
   }
+  raeumeZombiesWeg(spielWelt, ziel.x, ziel.y, spielWelt.konfiguration.spieler.todesZombieRadius);
   // Spieler: alles fällt zu Boden (auch der Rucksack), nach respawnZeit geht's am Startpunkt weiter
   legeRucksackAb(spielWelt, ziel, spielWelt.konfiguration.loot.todesVerfall);
   ziel.inventar.forEach((eintrag, slot) => {
@@ -144,6 +147,19 @@ export function toeten(spielWelt, ziel, quelle = null) {
   const verlorenesLevel = ziel.level;
   setzeLevelZurueck(ziel);
   spielWelt.melde(ziel.id, verlorenesLevel > 1 ? `Du bist gestorben – Level ${verlorenesLevel} ist weg, zurück auf Level 1` : 'Du bist gestorben');
+}
+
+/**
+ * Nach einem Spielertod: Zombies im Umkreis verschwinden (kein "Spawn-Camping" am Todes-Loot). Normale Zombies
+ * kommen nach der üblichen Respawn-Zeit an ihrem Spawnpunkt wieder, die Nacht-Horde nicht.
+ */
+export function raeumeZombiesWeg(spielWelt, x, y, radius) {
+  if (!(radius > 0)) return;
+  for (const z of [...spielWelt.alleVomTyp('zombie')]) {
+    if (Math.hypot(z.x - x, z.y - y) > radius) continue;
+    spielWelt.entfernen(z.id);
+    if (!z.nacht && z.spawnIndex !== null) spielWelt.planeZombieRespawn(z.spawnIndex);
+  }
 }
 
 /** Lärm (Schüsse, Kampf) lockt Zombies im Umkreis an – auch ohne Sichtkontakt. */

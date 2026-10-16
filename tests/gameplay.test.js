@@ -802,6 +802,54 @@ test('Zwei Zombies kommen nacheinander durch eine schmale Tür (kein Verkeilen)'
   assert.ok(a.x < 5 * 32 && b.x < 5 * 32, `beide durch die Tür (a=${Math.round(a.x)}, b=${Math.round(b.x)})`);
 });
 
+test('Tür-Stresstest: 2–5 Zombies (alle Varianten) drängeln durch eine Einzel- bzw. Doppeltür', () => {
+  for (let seed = 1; seed <= 16; seed++) {
+    const kacheln = ['##############', '#............#', '#............#', '#............#', seed > 8 ? '######TT######' : '######T#######', '#............#', '#S...........#', '##############'];
+    const welt = new SpielWelt(erstelleKonfiguration({ server: { zufallsStartwert: seed }, spieler: { startInventar: [] } }), { kartenDefinition: { id: 'stress', name: 'Stress', kacheln, raeume: {} } });
+    for (const z of [...welt.alleVomTyp('zombie')]) welt.entfernen(z.id);
+    for (const t of welt.welt.tueren) welt.welt.setzeTuer(t.id, true);
+    const s = welt.spielerBetrittWelt('Opfer');
+    platziere(s, 2, 6);
+    s.gottmodus = true;
+    const zombies = [];
+    for (let i = 0; i < 2 + (seed % 4); i++) {
+      const variante = ['normal', 'laeufer', 'brocken'][(seed + i) % 3];
+      const z = welt.hinzufuegen(erzeugeZombie({ id: welt.neueId(), x: mitte(3 + i * 2) + (seed % 3) * 5, y: mitte(1 + (i % 3)), konfiguration: welt.konfiguration, variante }));
+      Object.assign(z, { zielId: s.id, zustand: 'verfolgend', letztesZielX: s.x, letztesZielY: s.y });
+      zombies.push(z);
+    }
+    for (let t = 0; t < 20 / TICK_DAUER_S && !zombies.every((z) => z.y > 5 * 32); t++) welt.aktualisiere(TICK_DAUER_S);
+    const drin = zombies.filter((z) => z.y > 5 * 32).length;
+    assert.equal(drin, zombies.length, `Seed ${seed}: nur ${drin}/${zombies.length} durch die Tür`);
+  }
+});
+
+test('Im Haus versteckt: Zombie draußen bemerkt den Spieler nicht, drinnen schon', () => {
+  const karte = { id: 'haus', name: 'Haus', raeume: {}, kacheln: [',,,,,,,,,,,,', ',,,,,,,,,,,,', ',,##F###,,,,', ',,#+++++T,,,', ',,#+S+++#,,,', ',,########,,'] };
+  const welt = new SpielWelt(erstelleKonfiguration({ server: { zufallsStartwert: 2 }, spieler: { startInventar: [] } }), { kartenDefinition: karte });
+  for (const z of [...welt.alleVomTyp('zombie')]) welt.entfernen(z.id);
+  for (const t of welt.welt.tueren) welt.welt.setzeTuer(t.id, true);
+  const s = welt.spielerBetrittWelt('Versteckt');
+  platziere(s, 6, 3);
+  const z = zombieBei(welt, 10, 3); // draußen vor der offenen Tür, freie Sichtlinie
+  ticks(welt, 10);
+  assert.equal(z.zielId, null, 'Zombie draußen sieht nicht ins Haus');
+  platziere(s, 10, 1); // raus auf den Rasen
+  ticks(welt, 10);
+  assert.equal(z.zielId, s.id, 'draußen wird man gesehen');
+});
+
+test('Tod: Zombies im Umkreis verschwinden; Brocken geben 15 XP', () => {
+  const { welt, spieler } = neueWelt();
+  const brocken = welt.hinzufuegen(erzeugeZombie({ id: welt.neueId(), x: mitte(3), y: mitte(3), konfiguration: welt.konfiguration, variante: 'brocken' }));
+  fuegeSchadenZu(welt, brocken, 9999, spieler);
+  assert.equal(spieler.xp, 15);
+  const nah = zombieBei(welt, 4, 4);
+  platziere(spieler, 3, 3);
+  fuegeSchadenZu(welt, spieler, 9999, null);
+  assert.equal(welt.holen(nah.id), undefined, 'Zombie neben der Leiche ist weg');
+});
+
 test('Inventar: 16 Plätze, Tauschen per Drag & Drop, Waffe in der Hand wandert mit', () => {
   const { welt, spieler } = neueWelt();
   assert.equal(spieler.inventar.length, 16);

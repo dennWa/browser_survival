@@ -16,6 +16,9 @@ import { schlageTuer } from './tuerSystem.js';
  *
  * Türen: Der A*-Weg darf durch geschlossene Türen führen (teuer); steht der Zombie davor, schlägt er
  * dagegen, bis sie aufbricht (tuerSystem.schlageTuer).
+ * Engstellen (offene Türen): Wer der Türkachel am nächsten ist, reserviert sie (spielWelt.engstellen); andere
+ * Zombies, die da durchwollen, warten davor (z.wartet) und weichen beim Auseinanderschieben komplett aus.
+ * Steck-Erkennung misst die Bewegung NACH dem Auseinanderschieben (sonst "laufen" verkeilte Zombies scheinbar).
  * Nacht: Taschenlampe an = von weiter weg sichtbar, aus = erst aus der Nähe; Zombies jagen schneller.
  * Nacht-Zombies (Horde) wittern Spieler im Umkreis HORDE_WITTERUNG und laufen zu deren letzter Position.
  *
@@ -30,6 +33,7 @@ const STECK_ZEIT = 0.7; // Sekunden fast ohne Fortschritt → ausweichen
 const PFAD_BUDGET = 4; // höchstens so viele A*-Suchen pro Tick (große Karte → teuer), der Rest wartet einen Tick
 const HORDE_INTERVALL = 8; // Sekunden zwischen zwei "Witterungen"
 const WEGPUNKT_ERREICHT = 8;
+const ENGSTELLE_VORAUS = [0, 14, 30, 46]; // px vor dem Zombie, die auf Türkacheln geprüft werden
 const ANGRIFF_ANIMATION = 0.5;
 
 export function aktualisiereZombies(spielWelt, dt) {
@@ -38,8 +42,14 @@ export function aktualisiereZombies(spielWelt, dt) {
   const lebendeSpieler = [...spielWelt.alleVomTyp('spieler')].filter((s) => !s.tot && !s.unsichtbar);
   const zombies = [...spielWelt.alleVomTyp('zombie')];
   spielWelt.pfadBudget = PFAD_BUDGET;
+  // Tür-Reservierungen: letzte Runde gilt, diese Runde wird neu gesammelt (Kachel → { id, abstand })
+  spielWelt.engstellenAlt = spielWelt.engstellen ?? new Map();
+  spielWelt.engstellen = new Map();
 
   for (const z of zombies) {
+    z.tickStartX = z.x;
+    z.tickStartY = z.y;
+    z.wartet = false;
     z.angriffsAbklingzeit = Math.max(0, z.angriffsAbklingzeit - dt);
     if (z.nacht) wittere(spielWelt, z, lebendeSpieler, dt);
     const ziel = waehleZiel(spielWelt, z, lebendeSpieler, k);
@@ -53,7 +63,7 @@ export function aktualisiereZombies(spielWelt, dt) {
     z.wanderZiel = null;
 
     const abstand = Math.hypot(ziel.x - z.x, ziel.y - z.y);
-    const sicht = sichtlinieFrei(spielWelt.welt, z.x, z.y, ziel.x, ziel.y);
+    const sicht = siehtZiel(spielWelt.welt, z, ziel);
     if (sicht) {
       z.letztesZielX = ziel.x;
       z.letztesZielY = ziel.y;
@@ -72,14 +82,17 @@ export function aktualisiereZombies(spielWelt, dt) {
       z.zustand = 'verfolgend';
     }
     if (abstand > kontakt) {
-      const vorherX = z.x;
-      const vorherY = z.y;
       bewegeZuZiel(spielWelt, z, ziel, sicht, dt, k);
-      pruefeObSteckt(spielWelt, z, Math.hypot(z.x - vorherX, z.y - vorherY), dt);
+      z.jagtNoch = true;
     }
   }
 
   trenneZombies(spielWelt, zombies);
+  for (const z of zombies) {
+    if (!z.jagtNoch) continue;
+    z.jagtNoch = false;
+    pruefeObSteckt(spielWelt, z, Math.hypot(z.x - z.tickStartX, z.y - z.tickStartY), dt);
+  }
   aktualisiereRespawns(spielWelt, dt, k);
 }
 
@@ -97,7 +110,7 @@ function waehleZiel(spielWelt, z, lebendeSpieler, k) {
     const abstand = Math.hypot(s.x - z.x, s.y - z.y);
     // Im Dunkeln (Taschenlampe aus) fällt man erst aus der Nähe auf
     const bemerkRadius = !spielWelt.istNacht ? k.aggroRadius : k.aggroRadius * (s.lichtAn ? k.nachtLichtFaktor : k.dunkelFaktor);
-    if (abstand < bemerkRadius && abstand < bestAbstand && sichtlinieFrei(spielWelt.welt, z.x, z.y, s.x, s.y)) {
+    if (abstand < bemerkRadius && abstand < bestAbstand && siehtZiel(spielWelt.welt, z, s)) {
       bester = s;
       bestAbstand = abstand;
     }
@@ -109,6 +122,16 @@ function waehleZiel(spielWelt, z, lebendeSpieler, k) {
     z.pfad = null;
   }
   return bester;
+}
+
+/**
+ * Sicht auf ein Ziel: freie Linie UND nicht "drinnen versteckt" – wer im Haus ist, ist für Zombies draußen
+ * unsichtbar (durch Fenster/Türen sehen sie nicht hinein). Hören (Schüsse, Sprinten) und die Nacht-Horde
+ * (Witterung) gehen trotzdem.
+ */
+function siehtZiel(welt, z, ziel) {
+  if (welt.istInnen(ziel.x, ziel.y) && !welt.istInnen(z.x, z.y)) return false;
+  return sichtlinieFrei(welt, z.x, z.y, ziel.x, ziel.y);
 }
 
 function bewegeZuZiel(spielWelt, z, ziel, sicht, dt, k) {
@@ -147,8 +170,35 @@ function bewegeZuZiel(spielWelt, z, ziel, sicht, dt, k) {
     punkt = z.pfad[0];
     if (vorGeschlossenerTuer(spielWelt, z, punkt)) return;
   }
+  if (mussVorTuerWarten(spielWelt, z, punkt)) {
+    z.wartet = true;
+    z.blick = lerpWinkel(z.blick, Math.atan2(punkt.y - z.y, punkt.x - z.x), Math.min(1, dt * DREHGESCHWINDIGKEIT));
+    return;
+  }
   const tempo = z.jagdGeschwindigkeit * (spielWelt.istNacht ? k.nachtTempoFaktor : 1);
   gehe(spielWelt, z, punkt, tempo, dt);
+}
+
+/**
+ * Engstellen-Vorfahrt: Liegt auf dem Weg direkt vor dem Zombie eine (offene) Türkachel, meldet er Anspruch an.
+ * Der Zombie, der ihr am nächsten ist, hat Vorfahrt (Reservierung aus dem letzten Tick); alle anderen warten.
+ */
+function mussVorTuerWarten(spielWelt, z, punkt) {
+  const welt = spielWelt.welt;
+  const g = welt.kachelGroesse;
+  const winkel = Math.atan2(punkt.y - z.y, punkt.x - z.x);
+  for (const d of ENGSTELLE_VORAUS) {
+    const tx = Math.floor((z.x + Math.cos(winkel) * d) / g);
+    const ty = Math.floor((z.y + Math.sin(winkel) * d) / g);
+    if (welt.tuerBei(tx, ty) < 0) continue;
+    const kachel = ty * welt.breite + tx;
+    const abstand = Math.hypot((tx + 0.5) * g - z.x, (ty + 0.5) * g - z.y);
+    const anspruch = spielWelt.engstellen.get(kachel);
+    if (!anspruch || abstand < anspruch.abstand) spielWelt.engstellen.set(kachel, { id: z.id, abstand });
+    const inhaber = spielWelt.engstellenAlt.get(kachel);
+    return !!inhaber && inhaber.id !== z.id && spielWelt.holen(inhaber.id) !== undefined && abstand > g * 0.5;
+  }
+  return false;
 }
 
 /**
@@ -156,6 +206,10 @@ function bewegeZuZiel(spielWelt, z, ziel, sicht, dt, k) {
  * seitlich aus und plant den Weg neu. Türschläge zählen nicht als "stecken".
  */
 function pruefeObSteckt(spielWelt, z, gelaufen, dt) {
+  if (z.wartet) {
+    z.steckt = 0;
+    return;
+  }
   if (z.zustand === 'angreifend' || z.ausweichen) return;
   const soll = z.jagdGeschwindigkeit * dt;
   z.steckt = gelaufen < soll * 0.25 ? (z.steckt ?? 0) + dt : Math.max(0, (z.steckt ?? 0) - dt * 2);
@@ -251,9 +305,11 @@ function trenneZombies(spielWelt, zombies) {
       if (abstand >= mindestAbstand) continue;
       const nx = abstand > 0.01 ? dx / abstand : 1;
       const ny = abstand > 0.01 ? dy / abstand : 0;
-      // Vorfahrt: Der Ältere (kleinere ID) wird kaum geschoben, der andere weicht → kein Patt in engen Türen
+      // Vorfahrt: Wer vor einer Tür wartet, weicht komplett; sonst wird der Ältere (kleinere ID) kaum geschoben
       const ueberlappung = mindestAbstand - abstand;
-      const [anteilA, anteilB] = a.id < b.id ? [0.15, 0.85] : [0.85, 0.15];
+      let anteile = a.id < b.id ? [0.15, 0.85] : [0.85, 0.15];
+      if (a.wartet !== b.wartet) anteile = a.wartet ? [1, 0] : [0, 1];
+      const [anteilA, anteilB] = anteile;
       bewegeKoerper(a, -nx * ueberlappung * anteilA, -ny * ueberlappung * anteilA, a.radius, spielWelt.welt);
       bewegeKoerper(b, nx * ueberlappung * anteilB, ny * ueberlappung * anteilB, b.radius, spielWelt.welt);
     }
