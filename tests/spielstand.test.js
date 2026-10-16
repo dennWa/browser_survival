@@ -10,6 +10,7 @@ import { erstelleSpeicherKanalPaar } from '../server/spiel/netz/speicherKanal.js
 import { erstelleKonfiguration } from '../server/spiel/konfiguration/spielKonfiguration.js';
 import { SpielWelt } from '../server/spiel/spielWelt.js';
 import { wendeSpielstandAn, erstelleSpielstand } from '../server/spiel/spielstand.js';
+import { legeRucksackAn } from '../server/spiel/systeme/inventarSystem.js';
 import { DateiSpeicher } from '../server/node/dateiSpeicher.js';
 import { NACHRICHT, kodiere, dekodiere } from '../gemeinsam/protokoll.js';
 import { PROTOKOLL_VERSION } from '../gemeinsam/konstanten.js';
@@ -101,6 +102,28 @@ test('Kaputte oder manipulierte Spielstände werden bereinigt', () => {
   assert.deepEqual(spieler.inventar[2], { defId: 'pistole', menge: 1, magazin: 15 });
   assert.equal(spieler.inventar[3], null);
   assert.equal(spieler.ausgeruestet, null);
+});
+
+test('Spielstand: Rucksack, Rucksack-Inhalt, Level und XP bleiben erhalten', () => {
+  const welt = new SpielWelt(erstelleKonfiguration({}));
+  const spieler = welt.spielerBetrittWelt('Sammler');
+  legeRucksackAn(null, spieler, 'rucksack');
+  spieler.inventar[22] = { defId: 'kaese', menge: 2 };
+  spieler.level = 4;
+  spieler.xp = 33;
+  const stand = JSON.parse(JSON.stringify(erstelleSpielstand(spieler, 'stadtrand')));
+  const neu = welt.spielerBetrittWelt('Sammler2');
+  assert.equal(wendeSpielstandAn(neu, stand, welt), true);
+  assert.equal(neu.rucksack, 'rucksack');
+  assert.equal(neu.inventar.length, 24);
+  assert.deepEqual(neu.inventar[22], { defId: 'kaese', menge: 2 });
+  assert.equal(neu.level, 4);
+  assert.equal(neu.xp, 33);
+  // Rucksack-Inhalt ohne Rucksack (manipuliert) → wird abgeschnitten
+  const ohne = welt.spielerBetrittWelt('Sammler3');
+  wendeSpielstandAn(ohne, { ...stand, rucksack: 'pistole' }, welt);
+  assert.equal(ohne.rucksack, null);
+  assert.equal(ohne.inventar.length, 16);
 });
 
 test('Toter Spielstand → frischer Start; falsche Version wird ignoriert', () => {

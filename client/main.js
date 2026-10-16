@@ -39,6 +39,8 @@ eingabe.beiTaste('admin', () => hud.adminMenuUmschalten());
 eingabe.beiTaste('aufheben', () => aktuellesSpiel?.interagieren());
 eingabe.beiTaste('menue', () => aktuellesSpiel?.menuesSchliessen());
 eingabe.beiTaste('karte', () => aktuellesSpiel?.karteUmschalten());
+eingabe.beiTaste('inventar', () => aktuellesSpiel && hud.inventar.zeige());
+eingabe.beiTaste('fallenlassen', () => aktuellesSpiel?.fallenlassen(hud.inventar.platzUnterMaus));
 eingabe.beiTaste('chat', () => aktuellesSpiel && hud.chatOeffnen());
 eingabe.beiTaste('spielerliste', () => aktuellesSpiel && hud.spielerlisteUmschalten(aktuellesSpiel.spielerNamen()));
 eingabe.beiTaste('nachladen', () => aktuellesSpiel?.nachladen());
@@ -55,6 +57,8 @@ hud.beiAktionen({
   nachladen: () => aktuellesSpiel?.nachladen(),
   benutzen: (slot) => aktuellesSpiel?.benutzen(slot),
   ablegen: (slot) => aktuellesSpiel?.ablegen(slot),
+  tauschen: (von, nach) => aktuellesSpiel?.tauschen(von, nach),
+  rucksackAblegen: () => aktuellesSpiel?.rucksackAblegen(),
   licht: () => aktuellesSpiel?.licht(),
   tuer: () => aktuellesSpiel?.tuer(),
   interagieren: () => aktuellesSpiel?.interagieren(),

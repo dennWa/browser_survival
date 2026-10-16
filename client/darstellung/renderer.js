@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { FBXLoader, SkeletonUtils } from '../vendor/three/addons.js';
 import { KartenModell } from './kartenModell.js';
+import { matrixAus, vereineGeometrien } from './geometrie.js';
 import { zeichneBeschriftung } from './beschriftung.js';
 import { richteFigurEin, aktualisiereHaltung } from './figurHaltung.js';
 import { erzeugeWaffe, WAFFEN_NAMEN } from './waffenModelle.js';
@@ -373,6 +374,7 @@ export class Renderer {
         f.aktuell = name;
       }
       f.aktionen[name].timeScale = zeitfaktor;
+      if (!!e.rucksack !== !!f.rucksack) this.#setzeRucksack(f, !!e.rucksack);
       f.mixer.update(dt);
       if (!schlaeft) aktualisiereHaltung(f, e, jetzt);
     }
@@ -392,6 +394,36 @@ export class Renderer {
       this.figurMaterialien.set(schluessel, material);
     }
     return this.figurMaterialien.get(schluessel);
+  }
+
+  /** Rucksack auf dem Rücken (an der Figur befestigt; lokales +z = Blickrichtung → Rücken = -z). */
+  #setzeRucksack(figur, an) {
+    if (!an) {
+      figur.rucksack?.removeFromParent();
+      figur.rucksack = null;
+      return;
+    }
+    if (!this.rucksackGeometrie) {
+      const braun = new THREE.Color(0x6b4b2a);
+      const dunkel = new THREE.Color(0x3f2c18);
+      const gurt = new THREE.Color(0x2a2a2a);
+      this.rucksackGeometrie = vereineGeometrien(
+        [
+          { geometrie: new THREE.BoxGeometry(15, 17, 7), matrix: matrixAus(0, 0, 0), farbe: braun },
+          { geometrie: new THREE.BoxGeometry(15.6, 6, 7.6), matrix: matrixAus(0, 6, 0.2), farbe: dunkel }, // Deckel
+          { geometrie: new THREE.BoxGeometry(11, 7, 3), matrix: matrixAus(0, -3, -4.6), farbe: dunkel }, // Außentasche
+          { geometrie: new THREE.BoxGeometry(2.4, 18, 1.4), matrix: matrixAus(-4.5, 0, 4), farbe: gurt },
+          { geometrie: new THREE.BoxGeometry(2.4, 18, 1.4), matrix: matrixAus(4.5, 0, 4), farbe: gurt },
+        ],
+        { mitFarbe: true },
+      );
+      this.rucksackMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 });
+    }
+    const mesh = new THREE.Mesh(this.rucksackGeometrie, this.rucksackMaterial);
+    mesh.castShadow = true;
+    mesh.position.set(0, FIGUR_HOEHE * 0.6, -8.5);
+    figur.gruppe.add(mesh);
+    figur.rucksack = mesh;
   }
 
   #neueFigur(e) {

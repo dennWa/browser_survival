@@ -1,6 +1,7 @@
-import { INVENTAR_PLAETZE } from '../../gemeinsam/konstanten.js';
+import { HOTBAR_PLAETZE } from '../../gemeinsam/konstanten.js';
 import { WerkbankMenue } from './werkbankMenue.js';
 import { EntwicklerFenster } from './entwicklerFenster.js';
+import { InventarFenster } from './inventarFenster.js';
 
 /**
  * HUD (Head-Up-Display) über dem Spiel:
@@ -116,6 +117,14 @@ export class Hud {
       zuruecksetzen: () => this.#aktionen.entwicklerZuruecksetzen?.(),
     });
     this.el.adminPanel.querySelector('[data-entwickler]').addEventListener('click', () => this.entwickler.zeige());
+    this.inventar = new InventarFenster(dokument, { zeichneIcon: (canvas, defId) => this.zeichneIcon(canvas, defId) });
+    this.inventar.beiAktionen({
+      benutzen: (slot) => this.#aktionen.benutzen?.(slot),
+      tauschen: (von, nach) => this.#aktionen.tauschen?.(von, nach),
+      ablegen: (slot) => this.#aktionen.ablegen?.(slot),
+      rucksackAblegen: () => this.#aktionen.rucksackAblegen?.(),
+    });
+    el('hud-inventar').addEventListener('click', () => this.inventar.zeige());
     this.#baueHotbar();
   }
 
@@ -149,7 +158,7 @@ export class Hud {
     this.el.vollbild.hidden = !istTouch || !document.fullscreenEnabled;
     this.el.hilfe.textContent = istTouch
       ? 'Links: laufen · Rechts: zielen, ganz drücken = Angriff'
-      : 'WASD laufen · Maus zielen · Klick/Leertaste Angriff · E benutzen · F Tür · R nachladen · L Lampe · K Karte · T Chat · Tab Spieler · 1–8 Inventar';
+      : 'WASD laufen · Maus zielen · Klick/Leertaste Angriff · E benutzen · F Tür · R nachladen · L Lampe · I Inventar · Q fallen lassen · K Karte · T Chat · Tab Spieler · 1–8 Schnellleiste';
     this.#letzterHinweis = null;
     this.#letzterTuerHinweis = null;
     this.#letzteUhr = '';
@@ -165,6 +174,7 @@ export class Hud {
     this.el.arbeit.hidden = true;
     this.werkbank.zeige(null);
     this.entwickler.zeige(false);
+    this.inventar.zeige(false);
     this.chatSchliessen();
     this.el.chatLog.replaceChildren();
     this.el.spielerliste.hidden = true;
@@ -216,9 +226,10 @@ export class Hud {
     setzeBalken(this.el.hunger, daten.hunger / 100);
     setzeBalken(this.el.durst, daten.durst / 100);
 
-    for (let slot = 0; slot < INVENTAR_PLAETZE; slot++) {
+    for (let slot = 0; slot < HOTBAR_PLAETZE; slot++) {
       this.#zeichneSlot(this.#slots[slot], daten.inventar[slot], itemDefinitionen, slot === daten.ausgeruestet);
     }
+    this.inventar.setzeDaten(daten, itemDefinitionen);
 
     // Munitionsanzeige für ausgerüstete Schusswaffe
     const waffe = daten.ausgeruestet !== null ? daten.inventar[daten.ausgeruestet] : null;
@@ -302,8 +313,9 @@ export class Hud {
   // ---------------------------------------------------------------------------
 
   #baueHotbar() {
-    for (let slot = 0; slot < INVENTAR_PLAETZE; slot++) {
+    for (let slot = 0; slot < HOTBAR_PLAETZE; slot++) {
       const knopf = Object.assign(this.dokument.createElement('button'), { type: 'button', className: 'slot' });
+      knopf.dataset.slot = slot; // Ablageziel beim Ziehen aus dem Inventar-Fenster
       const icon = Object.assign(this.dokument.createElement('canvas'), { className: 'slot-icon', width: ICON_GROESSE * 2, height: ICON_GROESSE * 2 });
       const nummer = Object.assign(this.dokument.createElement('span'), { className: 'slot-nummer', textContent: String(slot + 1) });
       const menge = Object.assign(this.dokument.createElement('span'), { className: 'slot-menge' });

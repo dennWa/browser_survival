@@ -157,6 +157,7 @@ export class ClientSpiel {
   menuesSchliessen() {
     this.karte.zeige(false);
     this.hud.entwickler.zeige(false);
+    this.hud.inventar.zeige(false);
     this.werkbankUmschalten(false);
   }
 
@@ -192,7 +193,24 @@ export class ClientSpiel {
   }
 
   benutzen(slot) {
+    this.letzterSlot = slot;
     this.#aktion(AKTIONEN.BENUTZEN, slot);
+  }
+
+  /** Q: Platz unter der Maus (Inventar offen) → sonst Waffe in der Hand → sonst zuletzt benutzter Schnellleisten-Platz. */
+  fallenlassen(slot = null) {
+    const d = this.spielerDaten;
+    if (!d || d.tot) return;
+    const ziel = slot ?? d.ausgeruestet ?? (d.inventar[this.letzterSlot] ? this.letzterSlot : null);
+    if (ziel !== null && ziel !== undefined && d.inventar[ziel]) this.ablegen(ziel);
+  }
+
+  tauschen(von, nach) {
+    this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.TAUSCHEN, slot: von, ziel: nach });
+  }
+
+  rucksackAblegen() {
+    this.#aktion(AKTIONEN.RUCKSACK_ABLEGEN);
   }
 
   ablegen(slot) {

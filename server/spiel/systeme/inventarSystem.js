@@ -1,4 +1,4 @@
-import { AUFHEB_REICHWEITE } from '../../../gemeinsam/konstanten.js';
+import { AUFHEB_REICHWEITE, INVENTAR_PLAETZE } from '../../../gemeinsam/konstanten.js';
 import { AKTIONEN } from '../../../gemeinsam/protokoll.js';
 import { GEGENSTAENDE, STANDARD_AUSRUESTUNG, UNBEWAFFNET } from '../konfiguration/gegenstaende.js';
 import { erzeugeGegenstand } from '../entitaeten/gegenstand.js';
@@ -60,6 +60,12 @@ export function verarbeiteAktionen(spielWelt) {
           break;
         case AKTIONEN.ABLEGEN:
           ablegen(spielWelt, spieler, aktion.slot);
+          break;
+        case AKTIONEN.TAUSCHEN:
+          tausche(spieler, aktion.slot, aktion.ziel);
+          break;
+        case AKTIONEN.RUCKSACK_ABLEGEN:
+          legeRucksackAb(spielWelt, spieler);
           break;
         case AKTIONEN.NACHLADEN:
           starteNachladen(spielWelt, spieler);
@@ -144,6 +150,12 @@ function aufheben(spielWelt, spieler) {
   if (!naechster) return;
 
   const def = GEGENSTAENDE[naechster.defId];
+  // Rucksack direkt anlegen, wenn man noch keinen trägt
+  if (def.kategorie === 'rucksack' && !spieler.rucksack) {
+    spielWelt.entfernen(naechster.id);
+    legeRucksackAn(spielWelt, spieler, naechster.defId);
+    return;
+  }
   const rest = fuegeZumInventarHinzu(spieler, naechster.defId, naechster.menge, naechster.magazin ?? 0);
   if (rest === naechster.menge) {
     spielWelt.melde(spieler.id, 'Inventar voll');
@@ -199,6 +211,14 @@ function benutzen(spielWelt, spieler, slot) {
     case 'munition':
       spielWelt.melde(spieler.id, 'Munition wird beim Nachladen (R) verwendet');
       break;
+    case 'rucksack':
+      if (spieler.rucksack) {
+        spielWelt.melde(spieler.id, 'Du trägst schon einen Rucksack');
+        return;
+      }
+      spieler.inventar[slot] = null;
+      legeRucksackAn(spielWelt, spieler, eintrag.defId);
+      break;
     case 'material':
       if (eintrag.defId === 'bretter') verstaerkeTuer(spielWelt, spieler, slot);
       else spielWelt.melde(spieler.id, `${def.name}: zum Bauen an der Werkbank`);
@@ -231,6 +251,67 @@ function ablegen(spielWelt, spieler, slot) {
   if (!eintrag) return;
   legeAufBoden(spielWelt, eintrag, spieler.x + Math.cos(spieler.blick) * 18, spieler.y + Math.sin(spieler.blick) * 18);
   entferneSlot(spieler, slot);
+}
+
+/**
+ * Drag & Drop im Inventar: Inhalt zweier Plätze tauschen; gleiche stapelbare Items werden zusammengelegt.
+ * Die Waffe in der Hand "wandert mit" (ausgeruestet zeigt danach auf ihren neuen Platz).
+ */
+export function tausche(spieler, von, nach) {
+  const n = spieler.inventar.length;
+  if (!Number.isInteger(von) || !Number.isInteger(nach) || von === nach || von < 0 || nach < 0 || von >= n || nach >= n) return;
+  const a = spieler.inventar[von];
+  const b = spieler.inventar[nach];
+  if (!a) return;
+  const maxStapel = GEGENSTAENDE[a.defId].stapelbar ?? 1;
+  if (b && b.defId === a.defId && maxStapel > 1 && b.menge < maxStapel) {
+    const passt = Math.min(a.menge, maxStapel - b.menge);
+    b.menge += passt;
+    a.menge -= passt;
+    if (a.menge === 0) entferneSlot(spieler, von);
+    return;
+  }
+  spieler.inventar[von] = b;
+  spieler.inventar[nach] = a;
+  if (spieler.ausgeruestet === von) spieler.ausgeruestet = nach;
+  else if (spieler.ausgeruestet === nach) spieler.ausgeruestet = von;
+}
+
+/** Rucksack anlegen: Inventar wächst um def.plaetze leere Plätze. */
+export function legeRucksackAn(spielWelt, spieler, defId) {
+  const def = GEGENSTAENDE[defId];
+  if (def?.kategorie !== 'rucksack' || spieler.rucksack) return false;
+  spieler.rucksack = defId;
+  spieler.inventar.length = INVENTAR_PLAETZE + def.plaetze;
+  spieler.inventar.fill(null, INVENTAR_PLAETZE); // neue Plätze leer
+  spielWelt?.melde(spieler.id, `${def.name} angelegt: +${def.plaetze} Plätze (I = Inventar)`);
+  return true;
+}
+
+/**
+ * Rucksack ablegen: Inhalt rückt in freie Plätze des Grund-Inventars; was nicht passt, fällt daneben auf den Boden.
+ * @param verfall wie legeAufBoden (beim Tod: Todes-Verfall)
+ */
+export function legeRucksackAb(spielWelt, spieler, verfall = null) {
+  if (!spieler.rucksack) return;
+  const x = spieler.x + Math.cos(spieler.blick) * 18;
+  const y = spieler.y + Math.sin(spieler.blick) * 18;
+  for (let slot = INVENTAR_PLAETZE; slot < spieler.inventar.length; slot++) {
+    const e = spieler.inventar[slot];
+    if (!e) continue;
+    const frei = spieler.inventar.findIndex((f, i) => i < INVENTAR_PLAETZE && f === null);
+    if (frei >= 0) {
+      spieler.inventar[frei] = e;
+      if (spieler.ausgeruestet === slot) spieler.ausgeruestet = frei;
+    } else {
+      if (spieler.ausgeruestet === slot) spieler.ausgeruestet = null;
+      legeAufBoden(spielWelt, e, x + (slot % 3) * 6 - 6, y + 6, verfall);
+    }
+  }
+  spieler.inventar.length = INVENTAR_PLAETZE;
+  legeAufBoden(spielWelt, { defId: spieler.rucksack, menge: 1 }, x, y, verfall);
+  spieler.rucksack = null;
+  aktualisiereAusruestung(spieler);
 }
 
 /** Legt einen Inventareintrag als Gegenstand in die Welt. @param verfall Sekunden bis er verschwindet (null = nie) */

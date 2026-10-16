@@ -198,6 +198,13 @@
     "b": 71,
     "h": 72,
     "weltGroesse": 26
+   },
+   "rucksack": {
+    "x": 288,
+    "y": 218,
+    "b": 72,
+    "h": 67,
+    "weltGroesse": 28
    }
   }
  },

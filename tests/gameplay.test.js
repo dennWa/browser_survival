@@ -116,7 +116,7 @@ test('Munition wird gestapelt, volles Inventar wird gemeldet', () => {
   assert.deepEqual(spieler.inventar[0], { defId: 'munition_9mm', menge: 45 });
   assert.equal(spieler.inventar[1], null);
 
-  for (let i = 1; i < 8; i++) spieler.inventar[i] = { defId: 'hammer', menge: 1 };
+  for (let i = 1; i < spieler.inventar.length; i++) spieler.inventar[i] = { defId: 'hammer', menge: 1 };
   gegenstandBei(welt, 'machete', spieler.x, spieler.y);
   spieler.aktionsPuffer.push({ art: AKTIONEN.AUFHEBEN });
   welt.aktualisiere(TICK_DAUER_S);
@@ -681,7 +681,7 @@ test('Abbauen: ohne Werkzeug geht nichts, Bewegung bricht ab, Stein blockiert nu
 
 test('Crafting: nur an der Werkbank, verbraucht Zutaten, gibt Ergebnis', () => {
   const { welt, spieler } = hofWelt();
-  spieler.inventar = new Array(8).fill(null);
+  spieler.inventar = new Array(16).fill(null);
   spieler.inventar[0] = { defId: 'holz', menge: 5 };
   spieler.inventar[1] = { defId: 'stein', menge: 3 };
   platziere(spieler, 8, 3);
@@ -800,4 +800,49 @@ test('Zwei Zombies kommen nacheinander durch eine schmale Tür (kein Verkeilen)'
   for (const z of [a, b]) Object.assign(z, { zielId: spieler.id, zustand: 'verfolgend', letztesZielX: spieler.x, letztesZielY: spieler.y });
   ticks(welt, Math.ceil(12 / TICK_DAUER_S));
   assert.ok(a.x < 5 * 32 && b.x < 5 * 32, `beide durch die Tür (a=${Math.round(a.x)}, b=${Math.round(b.x)})`);
+});
+
+test('Inventar: 16 Plätze, Tauschen per Drag & Drop, Waffe in der Hand wandert mit', () => {
+  const { welt, spieler } = neueWelt();
+  assert.equal(spieler.inventar.length, 16);
+  spieler.inventar[0] = { defId: 'machete', menge: 1 };
+  spieler.ausgeruestet = 0;
+  spieler.inventar[9] = { defId: 'apfel', menge: 2 };
+  spieler.aktionsPuffer.push({ art: AKTIONEN.TAUSCHEN, slot: 0, ziel: 9 });
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(spieler.inventar[0].defId, 'apfel');
+  assert.equal(spieler.inventar[9].defId, 'machete');
+  assert.equal(spieler.ausgeruestet, 9, 'Machete bleibt in der Hand');
+  // Gleiche Stapel werden zusammengelegt
+  spieler.inventar[3] = { defId: 'apfel', menge: 1 };
+  spieler.aktionsPuffer.push({ art: AKTIONEN.TAUSCHEN, slot: 3, ziel: 0 });
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(spieler.inventar[0].menge, 3);
+  assert.equal(spieler.inventar[3], null);
+});
+
+test('Rucksack: Aufheben legt ihn an (+8 Plätze), Ablegen gibt Inhalt zurück, Tod lässt ihn fallen', () => {
+  const { welt, spieler } = neueWelt();
+  platziere(spieler, 3, 3);
+  gegenstandBei(welt, 'rucksack', spieler.x + 5, spieler.y);
+  spieler.aktionsPuffer.push({ art: AKTIONEN.AUFHEBEN, slot: null });
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(spieler.rucksack, 'rucksack');
+  assert.equal(spieler.inventar.length, 24);
+  spieler.inventar[20] = { defId: 'kaese', menge: 1 };
+  spieler.aktionsPuffer.push({ art: AKTIONEN.RUCKSACK_ABLEGEN, slot: null });
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(spieler.rucksack, null);
+  assert.equal(spieler.inventar.length, 16);
+  assert.ok(spieler.inventar.some((e) => e?.defId === 'kaese'), 'Käse ist ins Grund-Inventar gerückt');
+  const boden = [...welt.alleVomTyp('gegenstand')].filter((g) => g.defId === 'rucksack');
+  assert.equal(boden.length, 1);
+  // wieder aufheben und sterben → Rucksack liegt am Boden, Inventar wieder 16
+  spieler.aktionsPuffer.push({ art: AKTIONEN.AUFHEBEN, slot: null });
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(spieler.rucksack, 'rucksack');
+  fuegeSchadenZu(welt, spieler, 9999, null);
+  assert.equal(spieler.rucksack, null);
+  assert.equal(spieler.inventar.length, 16);
+  assert.equal([...welt.alleVomTyp('gegenstand')].filter((g) => g.defId === 'rucksack').length, 1);
 });

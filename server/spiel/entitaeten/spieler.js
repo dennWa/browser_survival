@@ -42,8 +42,12 @@ export function erzeugeSpieler({ id, benutzername, x, y, konfiguration, admin = 
     admin, // darf Admin-Befehle benutzen (kommt von der Authentifizierung)
     hunger: k.startHunger, // 100 = satt, 0 = verhungert
     durst: k.startDurst,
-    /** INVENTAR_PLAETZE Plätze: null oder { defId, menge, magazin? } */
+    /**
+     * Plätze: null oder { defId, menge, magazin? }. 0–7 = Schnellleiste, 8–15 = Tasche,
+     * ab 16 = Rucksack (nur mit Rucksack; Länge wächst/schrumpft mit – siehe inventarSystem.legeRucksackAn)
+     */
     inventar: new Array(INVENTAR_PLAETZE).fill(null),
+    rucksack: null, // defId des getragenen Rucksacks oder null
     ausgeruestet: null, // Inventarplatz der Waffe in der Hand
     nachladenRest: 0, // Sekunden, solange nachgeladen wird
     respawnRest: 0,
@@ -85,6 +89,7 @@ export function spielerZuNetzwerk(s) {
     arbeit: s.arbeit?.art ?? null, // 'holz' | 'stein' | 'schlafen' → Animation/Werkzeug
     arbeitOrt: s.arbeit?.ort ?? null, // Bett beim Schlafen
     level: s.level,
+    rucksack: s.rucksack !== null, // Rucksack auf dem Rücken (3D-Modell)
     seq: s.letzteVerarbeiteteSeq,
   };
 }
@@ -100,6 +105,7 @@ export function spielerDatenPrivat(s, konfiguration) {
     hunger: Math.ceil(s.hunger),
     durst: Math.ceil(s.durst),
     inventar: s.inventar,
+    rucksack: s.rucksack,
     ausgeruestet: s.ausgeruestet,
     nachladen: s.nachladenRest > 0,
     tot: s.tot,

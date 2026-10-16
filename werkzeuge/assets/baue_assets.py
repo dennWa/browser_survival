@@ -50,7 +50,7 @@ LIZENZEN = [
     ('Animated Characters 3', 'Kenney (kenney.nl)', 'CC0', 'https://opengameart.org/content/animated-characters-3', '3D-Figuren (Spieler & Zombies)'),
     ('Generic Items', 'Kenney (kenney.nl)', 'CC0', 'https://opengameart.org/content/generic-items', 'Erste-Hilfe-Kasten, Messer, Beil, Axt, Spitzhacke, Bretter'),
     ('Free Survival Props Pack', 'Olga Bikmullina (http://ahninniah.graphics)', 'CC-BY 3.0',
-     'https://opengameart.org/content/free-survival-props-pack', 'Verband, Pillen, Hammer, Machete, Schrotpatronen'),
+     'https://opengameart.org/content/free-survival-props-pack', 'Verband, Pillen, Hammer, Machete, Schrotpatronen, Rucksack'),
     ('2D Guns', 'opengameart.org/content/2d-guns', 'CC0', 'https://opengameart.org/content/2d-guns', 'Pistole, Schrotflinte, Munitionsbox'),
     ('Glitch Food & Drink Items', 'Tiny Speck (Glitch)', 'CC0',
      'https://opengameart.org/content/glitch-food-drink-items-svg', 'Essen & Getränke, Holz'),
@@ -88,6 +88,7 @@ ITEMS = {
     'holz': ('glitch_food', 'food/plank.svg', 26),
     'stein': ('kenney_racing', 'PNG/Objects/rock1.png', 22),
     'bretter': ('kenney_items', 'PNG/Colored/genericItem_color_133.png', 26),
+    'rucksack': ('props', 'PNG/256px/backpack.png', 28),
 }
 ITEM_ICON_GROESSE = 72
 

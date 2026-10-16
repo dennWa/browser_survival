@@ -28,6 +28,7 @@ export const LOOT_TABELLEN = Object.freeze({
     { id: 'hammer', gewicht: 2 },
     { id: 'machete', gewicht: 1 },
     { id: 'feuerwehrbeil', gewicht: 1 },
+    { id: 'rucksack', gewicht: 1 },
   ],
   patientenzimmer: [
     { id: 'apfel', gewicht: 3 },
@@ -97,6 +98,7 @@ export const LOOT_TABELLEN = Object.freeze({
     { id: 'munition_9mm', gewicht: 1 },
     { id: 'pistole', gewicht: 0.5 },
     { id: 'machete', gewicht: 0.5 },
+    { id: 'rucksack', gewicht: 1 },
   ],
   tankstelle: [
     { id: 'energydrink', gewicht: 4 },
@@ -110,6 +112,7 @@ export const LOOT_TABELLEN = Object.freeze({
     { id: 'feuerwehrbeil', gewicht: 1 },
     { id: 'machete', gewicht: 1 },
     { id: 'wasserflasche', gewicht: 2 },
+    { id: 'rucksack', gewicht: 1 },
   ],
   supermarkt: [
     { id: 'konservendose', gewicht: 4 },
@@ -120,12 +123,14 @@ export const LOOT_TABELLEN = Object.freeze({
     { id: 'milch', gewicht: 2 },
     { id: 'marmelade', gewicht: 2 },
     { id: 'kuechenmesser', gewicht: 1 },
+    { id: 'rucksack', gewicht: 1 },
   ],
   polizei: [
     { id: 'munition_9mm', gewicht: 4 },
     { id: 'verband', gewicht: 2 },
     { id: 'kaffee', gewicht: 2 },
     { id: 'pistole', gewicht: 1 },
+    { id: 'rucksack', gewicht: 1 },
   ],
   waffenkammer: [
     { id: 'munition_9mm', gewicht: 4 },

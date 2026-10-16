@@ -1,6 +1,6 @@
 import { INVENTAR_PLAETZE } from '../../gemeinsam/konstanten.js';
 import { GEGENSTAENDE } from './konfiguration/gegenstaende.js';
-import { aktualisiereAusruestung } from './systeme/inventarSystem.js';
+import { aktualisiereAusruestung, legeRucksackAn } from './systeme/inventarSystem.js';
 
 /**
  * Spielstand eines Spielers: was beim Ausloggen erhalten bleibt.
@@ -20,6 +20,7 @@ export function erstelleSpielstand(spieler, kartenId) {
     hunger: spieler.hunger,
     durst: spieler.durst,
     inventar: spieler.inventar.map((e) => (e ? { ...e } : null)),
+    rucksack: spieler.rucksack,
     ausgeruestet: spieler.ausgeruestet,
     level: spieler.level,
     xp: spieler.xp,
@@ -53,8 +54,10 @@ export function wendeSpielstandAn(spieler, stand, spielWelt) {
   }
 
   spieler.inventar = new Array(INVENTAR_PLAETZE).fill(null);
+  spieler.rucksack = null;
+  if (GEGENSTAENDE[stand.rucksack]?.kategorie === 'rucksack') legeRucksackAn(null, spieler, stand.rucksack);
   if (Array.isArray(stand.inventar)) {
-    stand.inventar.slice(0, INVENTAR_PLAETZE).forEach((e, slot) => {
+    stand.inventar.slice(0, spieler.inventar.length).forEach((e, slot) => {
       spieler.inventar[slot] = pruefeEintrag(e);
     });
   }

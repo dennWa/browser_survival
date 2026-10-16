@@ -2,7 +2,7 @@ import { brecheArbeitAb } from './arbeitSystem.js';
 import { strahlGegenWaende, strahlTrifftKreis } from '../../../gemeinsam/physik/strahl.js';
 import { bewegeKoerper } from '../../../gemeinsam/physik/bewegung.js';
 import { NAHKAMPF_KEGEL, STANDARD_AUSRUESTUNG } from '../konfiguration/gegenstaende.js';
-import { aktuelleWaffe, legeAufBoden, starteNachladen, zaehleMunition } from './inventarSystem.js';
+import { aktuelleWaffe, legeAufBoden, legeRucksackAb, starteNachladen, zaehleMunition } from './inventarSystem.js';
 import { gibXp, setzeLevelZurueck } from './levelSystem.js';
 import { lasseZombieLootFallen } from './lootSystem.js';
 
@@ -122,7 +122,8 @@ export function toeten(spielWelt, ziel, quelle = null) {
     lasseZombieLootFallen(spielWelt, ziel.x, ziel.y);
     return;
   }
-  // Spieler: alles fällt zu Boden, nach respawnZeit geht's am Startpunkt weiter
+  // Spieler: alles fällt zu Boden (auch der Rucksack), nach respawnZeit geht's am Startpunkt weiter
+  legeRucksackAb(spielWelt, ziel, spielWelt.konfiguration.loot.todesVerfall);
   ziel.inventar.forEach((eintrag, slot) => {
     if (!eintrag) return;
     const w = (slot / ziel.inventar.length) * Math.PI * 2;

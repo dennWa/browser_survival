@@ -46,6 +46,8 @@ export const GEGENSTAENDE = Object.freeze({
   holz: { name: 'Holz', kategorie: 'material', stapelbar: 50 },
   stein: { name: 'Stein', kategorie: 'material', stapelbar: 50 },
   bretter: { name: 'Bretter', kategorie: 'material', stapelbar: 10, beschreibung: 'Vor einer geschlossenen Tür benutzen: verstärkt sie' },
+  // Rucksack: wird beim Aufheben angelegt (falls man noch keinen trägt) → `plaetze` zusätzliche Inventarplätze
+  rucksack: { name: 'Rucksack', kategorie: 'rucksack', plaetze: 8, beschreibung: 'Anlegen: +8 Inventarplätze' },
 });
 
 /** Ausrüstung ohne Waffe in der Hand. */

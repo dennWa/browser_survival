@@ -2,7 +2,7 @@ import {
   BENUTZERNAME_MUSTER,
   CHAT_MAX_LAENGE,
   CHAT_PAUSE_MS,
-  INVENTAR_PLAETZE,
+  INVENTAR_MAX,
   MAX_EINGABE_PUFFER,
   PROTOKOLL_VERSION,
   TICK_DAUER_MS,
@@ -322,13 +322,16 @@ export class SpielServer {
     const spieler = this.spielWelt.holen(sitzung.spielerId);
     if (!spieler || !GUELTIGE_AKTIONEN.has(n.art)) return;
     const slot = n.slot === undefined ? null : n.slot;
-    if (slot !== null && !(Number.isInteger(slot) && slot >= 0 && slot < INVENTAR_PLAETZE)) return;
+    const gueltigerSlot = (s) => Number.isInteger(s) && s >= 0 && s < INVENTAR_MAX;
+    if (slot !== null && !gueltigerSlot(slot)) return;
+    if (n.art === AKTIONEN.TAUSCHEN && !(gueltigerSlot(slot) && gueltigerSlot(n.ziel))) return;
     if (n.art === AKTIONEN.ADMIN && !GUELTIGE_ADMIN_BEFEHLE.has(n.befehl)) return;
     if (n.art === AKTIONEN.HERSTELLEN && !Object.hasOwn(REZEPTE, n.rezept)) return;
     if (spieler.aktionsPuffer.length >= MAX_AKTIONS_PUFFER) return;
     const aktion = { art: n.art, slot };
     if (n.art === AKTIONEN.ADMIN) aktion.befehl = n.befehl;
     if (n.art === AKTIONEN.HERSTELLEN) aktion.rezept = n.rezept;
+    if (n.art === AKTIONEN.TAUSCHEN) aktion.ziel = n.ziel;
     spieler.aktionsPuffer.push(aktion);
   }
 

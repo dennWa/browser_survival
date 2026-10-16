@@ -57,11 +57,13 @@ export const NACHRICHT = Object.freeze({
   SYSTEM: 'system',
 });
 
-/** Erlaubte Aktionen (Nachricht AKTION). slot = Inventarplatz 0..INVENTAR_PLAETZE-1 */
+/** Erlaubte Aktionen (Nachricht AKTION). slot/ziel = Inventarplatz 0..(Inventargröße-1), Schnellleiste = 0..7 */
 export const AKTIONEN = Object.freeze({
   AUFHEBEN: 'aufheben', // nächsten Gegenstand in Reichweite aufheben
   BENUTZEN: 'benutzen', // Essen/Trinken/Medizin verbrauchen, Waffe aus-/abrüsten
   ABLEGEN: 'ablegen', // ganzen Stapel auf den Boden legen
+  TAUSCHEN: 'tauschen', // { slot, ziel } Inventarplätze tauschen bzw. gleiche Stapel zusammenlegen (Drag & Drop)
+  RUCKSACK_ABLEGEN: 'rucksackAblegen', // Rucksack auf den Boden legen (Inhalt wandert ins Inventar oder fällt mit)
   NACHLADEN: 'nachladen', // ausgerüstete Schusswaffe nachladen
   TUER: 'tuer', // nächste Tür in Reichweite öffnen/schließen
   ABBAUEN: 'abbauen', // nächsten Baum/Stein abbauen (Axt/Spitzhacke nötig, dauert)

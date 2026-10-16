@@ -17,6 +17,8 @@ export const TASTEN = Object.freeze({
   aufheben: ['KeyE'], // Aufheben / Abbauen / Werkbank / Schlafen – je nachdem, was in der Nähe ist
   menue: ['Escape'], // offene Menüs schließen
   karte: ['KeyK'], // Karte auf/zu
+  inventar: ['KeyI', 'KeyB'], // Inventar-Fenster auf/zu
+  fallenlassen: ['KeyQ'], // Item fallen lassen (unter der Maus im Inventar, sonst das in der Hand)
   chat: ['KeyT'], // Chat-Eingabe öffnen
   spielerliste: ['Tab'], // Wer ist online?
   tuer: ['KeyF'], // Tür öffnen/schließen

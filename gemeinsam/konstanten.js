@@ -4,10 +4,10 @@
  */
 
 export const SPIEL_NAME = 'Browser Survival';
-export const SPIEL_VERSION = '0.7.0';
+export const SPIEL_VERSION = '0.8.0';
 
 /** Wird beim Login verglichen. Erhöhen, sobald sich das Nachrichtenformat inkompatibel ändert. */
-export const PROTOKOLL_VERSION = 4;
+export const PROTOKOLL_VERSION = 5;
 
 /** Simulationstakt (Ticks pro Sekunde). Server-Simulation und Client-Vorhersage laufen im selben Takt. */
 export const TICK_RATE = 30;
@@ -20,8 +20,12 @@ export const MAX_EINGABE_PUFFER = 8;
 /** Größe einer Kachel (Tile) in Weltpixeln. */
 export const KACHEL_GROESSE = 32;
 
-/** Anzahl Inventarplätze (Schnellleiste 1–8). */
-export const INVENTAR_PLAETZE = 8;
+/** Schnellleiste (Tasten 1–8) = die ersten Inventarplätze. */
+export const HOTBAR_PLAETZE = 8;
+/** Grund-Inventar: Schnellleiste + Tasche (8). Ein Rucksack hängt weitere Plätze hinten an. */
+export const INVENTAR_PLAETZE = 16;
+/** Obergrenze inkl. größtem Rucksack (für die Prüfung von Slot-Nummern). */
+export const INVENTAR_MAX = 32;
 
 /** So nah (px) muss man an einem Gegenstand stehen, um ihn aufzuheben. */
 export const AUFHEB_REICHWEITE = 48;

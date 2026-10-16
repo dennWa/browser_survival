@@ -36,6 +36,7 @@
         </div>
         <div class="hud-knoepfe">
           <button id="hud-chat" type="button" title="Chat (T)">💬</button>
+          <button id="hud-inventar" type="button" title="Inventar (I)">🎒</button>
           <button id="hud-karte" type="button" title="Karte (K)">🗺</button>
           <button id="hud-licht" type="button" title="Taschenlampe an/aus (L) – aus = Zombies sehen dich schlechter">🔦</button>
           <button id="hud-admin" type="button" title="Admin-Menü (P)" hidden>🛡</button>
@@ -121,6 +122,25 @@
     </div>
 
     <!-- Werkbank (Crafting) -->
+    <!-- Inventar (I): Schnellleiste, Tasche, Rucksack – Ziehen zum Umsortieren, aus dem Fenster ziehen = fallen lassen -->
+    <div id="inventar" hidden>
+      <div class="werkbank-kopf">
+        <h2>🎒 Inventar</h2>
+        <button id="inventar-schliessen" type="button" aria-label="Schließen">✕</button>
+      </div>
+      <h3 class="inv-titel">Schnellleiste <small>Tasten 1–8</small></h3>
+      <div id="inventar-schnell" class="inv-raster"></div>
+      <h3 class="inv-titel">Tasche</h3>
+      <div id="inventar-tasche" class="inv-raster"></div>
+      <div id="inventar-rucksack-bereich">
+        <h3 class="inv-titel">Rucksack <button id="inventar-rucksack-ablegen" type="button" hidden>ablegen</button></h3>
+        <div id="inventar-rucksack" class="inv-raster"></div>
+        <p id="inventar-kein-rucksack">Kein Rucksack – finde einen (Wohnungen, Läden, Polizei) für +8 Plätze.</p>
+      </div>
+      <p id="inventar-info"></p>
+      <p class="werkbank-hinweis inv-hilfe">Klick = benutzen · ziehen = umsortieren · aus dem Fenster ziehen = fallen lassen · Q = fallen lassen</p>
+    </div>
+
     <div id="werkbank" hidden>
       <div class="werkbank-kopf">
         <h2>🔨 Werkbank</h2>
