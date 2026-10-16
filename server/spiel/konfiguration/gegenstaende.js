@@ -1,7 +1,7 @@
 /**
  * Gegenstands-Definitionen (Item-Datenbank).
  * Schlüssel = defId (muss zu einem Icon in client/assets/atlas.json → items.icons passen; ein Test prüft das).
- * Kategorien: nahrung, getraenk, medizin, nahkampf, fernkampf, munition, material.
+ * Kategorien: nahrung, getraenk, medizin, nahkampf, fernkampf, munition, material, rucksack, bauwerk, werkzeug, samen.
  *
  * ausruestung = Haltung/Waffenart (taschenlampe | messer | pistole | schrotflinte)
  * werkzeug    = Werkzeug zum Abbauen (Axt → Bäume, Spitzhacke → Steine; siehe gemeinsam/welt/ressourcen.js)
@@ -18,6 +18,13 @@ export const GEGENSTAENDE = Object.freeze({
   kaese: { name: 'Käse', kategorie: 'nahrung', naehrwert: 20, stapelbar: 5 },
   muesliriegel: { name: 'Müsliriegel', kategorie: 'nahrung', naehrwert: 15, stapelbar: 10 },
   sandwich: { name: 'Sandwich', kategorie: 'nahrung', naehrwert: 30, stapelbar: 3 },
+  // Ernte vom Beet – am Lagerfeuer gebraten/gebacken machen sie 30 % mehr satt (gemeinsam/welt/bauwerke.js → KOCHBAR)
+  tomate: { name: 'Tomate', kategorie: 'nahrung', naehrwert: 12, stapelbar: 10, beschreibung: 'Am Lagerfeuer braten: macht 30 % mehr satt' },
+  gurke: { name: 'Gurke', kategorie: 'nahrung', naehrwert: 10, stapelbar: 10, beschreibung: 'Am Lagerfeuer braten: macht 30 % mehr satt' },
+  kartoffel: { name: 'Kartoffel', kategorie: 'nahrung', naehrwert: 14, stapelbar: 10, beschreibung: 'Am Lagerfeuer backen: macht 30 % mehr satt' },
+  tomate_gebraten: { name: 'Gebratene Tomate', kategorie: 'nahrung', naehrwert: 16, stapelbar: 10 },
+  gurke_gebraten: { name: 'Gebratene Gurke', kategorie: 'nahrung', naehrwert: 13, stapelbar: 10 },
+  ofenkartoffel: { name: 'Ofenkartoffel', kategorie: 'nahrung', naehrwert: 18, stapelbar: 10 },
   // --- Trinken ---
   wasserflasche: { name: 'Wasserflasche', kategorie: 'getraenk', durstwert: 40, stapelbar: 5 },
   energydrink: { name: 'Energydrink', kategorie: 'getraenk', durstwert: 20, stapelbar: 5 },
@@ -47,8 +54,21 @@ export const GEGENSTAENDE = Object.freeze({
   stein: { name: 'Stein', kategorie: 'material', stapelbar: 50 },
   eisenerz: { name: 'Eisenerz', kategorie: 'material', stapelbar: 50, beschreibung: 'Mit der Spitzhacke abgebaut – für Fallen und Werkzeug' },
   bretter: { name: 'Bretter', kategorie: 'material', stapelbar: 10, beschreibung: 'Vor einer geschlossenen Tür benutzen: verstärkt sie' },
-  // Rucksack: wird beim Aufheben angelegt (falls man noch keinen trägt) → `plaetze` zusätzliche Inventarplätze
-  rucksack: { name: 'Rucksack', kategorie: 'rucksack', plaetze: 8, beschreibung: 'Anlegen: +8 Inventarplätze' },
+  // Rucksäcke: werden beim Aufheben angelegt (falls man noch keinen trägt) → `plaetze` zusätzliche Inventarplätze.
+  // Trägt man schon einen: im Inventar "benutzen" = tauschen (Inhalt wandert mit)
+  rucksack_klein: { name: 'Kleiner Rucksack', kategorie: 'rucksack', plaetze: 4, beschreibung: 'Anlegen: +4 Inventarplätze' },
+  rucksack: { name: 'Rucksack', kategorie: 'rucksack', plaetze: 6, beschreibung: 'Anlegen: +6 Inventarplätze' },
+  rucksack_gross: { name: 'Großer Rucksack', kategorie: 'rucksack', plaetze: 8, beschreibung: 'Anlegen: +8 Inventarplätze' },
+  // --- Bauwerke: benutzen → Vorschau, dann in die Welt setzen (gemeinsam/welt/bauwerke.js) ---
+  werkbank: { name: 'Werkbank', kategorie: 'bauwerk', bauwerk: 'werkbank', beschreibung: 'Aufstellen und Werkzeug, Waffen & Fallen bauen' },
+  lagerfeuer: { name: 'Lagerfeuer', kategorie: 'bauwerk', bauwerk: 'lagerfeuer', beschreibung: 'Draußen aufstellen, mit F und Feuerzeug anzünden, Essen braten' },
+  falle: { name: 'Bärenfalle', kategorie: 'bauwerk', bauwerk: 'falle', stapelbar: 3, beschreibung: 'Auf den Boden legen – tritt ein Zombie hinein, ist er sofort tot' },
+  // --- Werkzeug & Garten ---
+  hacke: { name: 'Gartenhacke', kategorie: 'werkzeug', baut: 'beet', beschreibung: 'Benutzen: auf Rasen ein Beet anlegen' },
+  feuerzeug: { name: 'Feuerzeug', kategorie: 'werkzeug', beschreibung: 'Zum Anzünden von Lagerfeuern (F)' },
+  samen_tomate: { name: 'Tomatensamen', kategorie: 'samen', pflanze: 'tomate', stapelbar: 10, beschreibung: 'In ein Beet pflanzen (E am Beet)' },
+  samen_gurke: { name: 'Gurkensamen', kategorie: 'samen', pflanze: 'gurke', stapelbar: 10, beschreibung: 'In ein Beet pflanzen (E am Beet)' },
+  samen_kartoffel: { name: 'Saatkartoffeln', kategorie: 'samen', pflanze: 'kartoffel', stapelbar: 10, beschreibung: 'In ein Beet pflanzen (E am Beet)' },
 });
 
 /** Ausrüstung ohne Waffe in der Hand. */

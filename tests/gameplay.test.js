@@ -876,10 +876,10 @@ test('Inventar: 16 Plätze, Tauschen per Drag & Drop, Waffe in der Hand wandert 
 test('Rucksack: Aufheben legt ihn an (+8 Plätze), Ablegen gibt Inhalt zurück, Tod lässt ihn fallen', () => {
   const { welt, spieler } = neueWelt();
   platziere(spieler, 3, 3);
-  gegenstandBei(welt, 'rucksack', spieler.x + 5, spieler.y);
+  gegenstandBei(welt, 'rucksack_gross', spieler.x + 5, spieler.y);
   spieler.aktionsPuffer.push({ art: AKTIONEN.AUFHEBEN, slot: null });
   welt.aktualisiere(TICK_DAUER_S);
-  assert.equal(spieler.rucksack, 'rucksack');
+  assert.equal(spieler.rucksack, 'rucksack_gross');
   assert.equal(spieler.inventar.length, 24);
   spieler.inventar[20] = { defId: 'kaese', menge: 1 };
   spieler.aktionsPuffer.push({ art: AKTIONEN.RUCKSACK_ABLEGEN, slot: null });
@@ -887,14 +887,14 @@ test('Rucksack: Aufheben legt ihn an (+8 Plätze), Ablegen gibt Inhalt zurück, 
   assert.equal(spieler.rucksack, null);
   assert.equal(spieler.inventar.length, 16);
   assert.ok(spieler.inventar.some((e) => e?.defId === 'kaese'), 'Käse ist ins Grund-Inventar gerückt');
-  const boden = [...welt.alleVomTyp('gegenstand')].filter((g) => g.defId === 'rucksack');
+  const boden = [...welt.alleVomTyp('gegenstand')].filter((g) => g.defId === 'rucksack_gross');
   assert.equal(boden.length, 1);
   // wieder aufheben und sterben → Rucksack liegt am Boden, Inventar wieder 16
   spieler.aktionsPuffer.push({ art: AKTIONEN.AUFHEBEN, slot: null });
   welt.aktualisiere(TICK_DAUER_S);
-  assert.equal(spieler.rucksack, 'rucksack');
+  assert.equal(spieler.rucksack, 'rucksack_gross');
   fuegeSchadenZu(welt, spieler, 9999, null);
   assert.equal(spieler.rucksack, null);
   assert.equal(spieler.inventar.length, 16);
-  assert.equal([...welt.alleVomTyp('gegenstand')].filter((g) => g.defId === 'rucksack').length, 1);
+  assert.equal([...welt.alleVomTyp('gegenstand')].filter((g) => g.defId === 'rucksack_gross').length, 1);
 });

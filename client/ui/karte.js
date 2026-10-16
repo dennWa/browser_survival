@@ -121,6 +121,15 @@ export class Karte {
       ctx.fill();
       ctx.fillText('🔨', x, y + 1);
     }
+    // Selbst gebaute Sachen (Bauwerke)
+    const symbole = { werkbank: '🔨', lagerfeuer: '🔥', beet: '🌱', falle: '🪤' };
+    ctx.font = '12px system-ui, sans-serif';
+    for (const b of this.welt.bauwerke.values()) {
+      if (!this.erkundet[b.ty * this.welt.breite + b.tx]) continue;
+      ctx.globalAlpha = b.typ === 'lagerfeuer' && !b.brennt ? 0.5 : 1;
+      ctx.fillText(symbole[b.typ] ?? '■', (b.tx + 0.5) * g * s, (b.ty + 0.5) * g * s + 1);
+    }
+    ctx.globalAlpha = 1;
     // Mitspieler: blaue Punkte mit Namen
     ctx.font = '600 10px system-ui, sans-serif';
     ctx.textAlign = 'center';

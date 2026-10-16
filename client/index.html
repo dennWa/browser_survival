@@ -77,6 +77,13 @@
         <button type="button" data-entwickler class="dev-knopf">🛠 Developer</button>
       </div>
       <div id="hud-meldungen" aria-live="polite"></div>
+      <!-- Platzier-Modus: Vorschau in der Welt, hier Bestätigen/Abbrechen (Touch & Maus) -->
+      <div id="hud-platzieren" hidden>
+        <span id="hud-platzieren-text"></span>
+        <button id="platzieren-ok" type="button">✓ Hier</button>
+        <button id="platzieren-weg" type="button">✕</button>
+        <small id="hud-platzieren-hilfe">Klick / E = aufstellen · Esc / Rechtsklick = abbrechen</small>
+      </div>
       <div id="hud-arbeit" hidden>
         <span id="hud-arbeit-text"></span>
         <div class="balken"><div class="fuellung"></div></div>
@@ -139,6 +146,8 @@
         <p id="inventar-kein-rucksack">Kein Rucksack – finde einen (Wohnungen, Läden, Polizei) für +8 Plätze.</p>
       </div>
       <p id="inventar-info"></p>
+      <h3 class="inv-titel">Bauen <small>ohne Werkbank – danach aus dem Inventar aufstellen</small></h3>
+      <div id="inventar-bauen"></div>
       <p class="werkbank-hinweis inv-hilfe">Klick = benutzen · ziehen = umsortieren · aus dem Fenster ziehen = fallen lassen · Q = fallen lassen</p>
     </div>
 

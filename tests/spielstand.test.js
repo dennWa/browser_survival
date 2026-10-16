@@ -107,14 +107,14 @@ test('Kaputte oder manipulierte Spielstände werden bereinigt', () => {
 test('Spielstand: Rucksack, Rucksack-Inhalt, Level und XP bleiben erhalten', () => {
   const welt = new SpielWelt(erstelleKonfiguration({}));
   const spieler = welt.spielerBetrittWelt('Sammler');
-  legeRucksackAn(null, spieler, 'rucksack');
+  legeRucksackAn(null, spieler, 'rucksack_gross');
   spieler.inventar[22] = { defId: 'kaese', menge: 2 };
   spieler.level = 4;
   spieler.xp = 33;
   const stand = JSON.parse(JSON.stringify(erstelleSpielstand(spieler, 'stadtrand')));
   const neu = welt.spielerBetrittWelt('Sammler2');
   assert.equal(wendeSpielstandAn(neu, stand, welt), true);
-  assert.equal(neu.rucksack, 'rucksack');
+  assert.equal(neu.rucksack, 'rucksack_gross');
   assert.equal(neu.inventar.length, 24);
   assert.deepEqual(neu.inventar[22], { defId: 'kaese', menge: 2 });
   assert.equal(neu.level, 4);

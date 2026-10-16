@@ -1,5 +1,6 @@
 import { AUFHEB_REICHWEITE, BETT_REICHWEITE, TICK_DAUER_MS, TICK_DAUER_S, TUER_REICHWEITE, WERKBANK_REICHWEITE } from '../../gemeinsam/konstanten.js';
 import { ABBAU_REICHWEITE, RESSOURCEN_OBJEKTE } from '../../gemeinsam/welt/ressourcen.js';
+import { BAUWERKE, BAUWERK_REICHWEITE, bauwerkAktion, feuerText, kachelInReichweite, pruefePlatz, zielKachel } from '../../gemeinsam/welt/bauwerke.js';
 import { tageszeit } from '../../gemeinsam/tageszeit.js';
 import { AKTIONEN, NACHRICHT } from '../../gemeinsam/protokoll.js';
 import { Welt } from '../../gemeinsam/welt/welt.js';
@@ -44,7 +45,12 @@ export class ClientSpiel {
     this.welt = new Welt(anmeldeDaten.karte);
     if (anmeldeDaten.tueren) this.welt.uebernimmOffeneTueren(anmeldeDaten.tueren);
     if (anmeldeDaten.abgebaut) this.welt.uebernimmAbgebaute(anmeldeDaten.abgebaut);
+    if (anmeldeDaten.bauwerke) this.welt.uebernimmBauwerke(anmeldeDaten.bauwerke);
+    /** Platzier-Modus (Bauwerk-Item oder Hacke benutzt): { slot, defId, typ, name } oder null */
+    this.platzierung = null;
+    this.letzterKlick = false;
     this.rezepte = anmeldeDaten.rezepte ?? {};
+    hud.inventar.setzeRezepte(this.rezepte);
     this.karte = new Karte(document, {
       welt: this.welt,
       assets: renderer.assets,
@@ -133,10 +139,12 @@ export class ClientSpiel {
    * sonst Werkbank öffnen, sonst ins Bett legen.
    */
   interagieren() {
+    if (this.platzierung) return this.platzierungBestaetigen();
     const was = this.#interaktion();
     if (!was) return;
     if (was.art === 'aufheben') this.#aktion(AKTIONEN.AUFHEBEN);
     else if (was.art === 'abbauen') this.#aktion(AKTIONEN.ABBAUEN);
+    else if (was.art === 'bauwerk') this.#aktion(AKTIONEN.BAUWERK);
     else if (was.art === 'schlafen') this.#aktion(AKTIONEN.SCHLAFEN);
     else if (was.art === 'werkbank') this.werkbankUmschalten(true);
   }
@@ -179,6 +187,7 @@ export class ClientSpiel {
     this.hud.entwickler.zeige(false);
     this.hud.inventar.zeige(false);
     this.werkbankUmschalten(false);
+    this.platzierungAbbrechen();
   }
 
   /** Werkbank-Menü öffnen/schließen (nur in Reichweite einer Werkbank). */
@@ -199,13 +208,73 @@ export class ClientSpiel {
     if (gegenstand) return { art: 'aufheben', text: `${gegenstand.menge > 1 ? `${gegenstand.name} ×${gegenstand.menge}` : gegenstand.name} aufheben`, gegenstand };
     const ressource = this.welt.naechsteRessource(x, y, ABBAU_REICHWEITE);
     if (ressource) return { art: 'abbauen', text: RESSOURCEN_OBJEKTE[ressource.typ].aktion, symbol: ressource.art === 'holz' ? '🪓' : '⛏' };
+    const inventar = this.spielerDaten?.inventar ?? [];
+    const bauwerk = this.welt.naechstesBauwerk(x, y, BAUWERK_REICHWEITE, (b) => bauwerkAktion(b, inventar) !== null);
+    if (bauwerk) return { ...bauwerkAktion(bauwerk, inventar), art: 'bauwerk' };
     if (this.#naheWerkbank()) return { art: 'werkbank', text: 'Werkbank benutzen', symbol: '🔨' };
     if (this.welt.naechstesObjekt(x, y, BETT_REICHWEITE, (o) => o.typ.startsWith('bett'))) return { art: 'schlafen', text: 'Schlafen (heilt, 6 Std. vorspulen)', symbol: '🛏' };
     return null;
   }
 
   #naheWerkbank() {
-    return this.welt.naechstesObjekt(this.lokal.x, this.lokal.y, WERKBANK_REICHWEITE, (o) => o.typ === 'werkbank') !== null;
+    const { x, y } = this.lokal;
+    return (
+      this.welt.naechstesObjekt(x, y, WERKBANK_REICHWEITE, (o) => o.typ === 'werkbank') !== null ||
+      this.welt.naechstesBauwerk(x, y, WERKBANK_REICHWEITE + 8, (b) => b.typ === 'werkbank') !== null
+    );
+  }
+
+  // --- Platzieren (Bauwerke, Beet mit der Hacke) ------------------------------
+
+  /** Platzier-Modus an/aus. Vorschau folgt Maus bzw. Blickrichtung (#platzierungsZiel). */
+  #startePlatzierung(slot, defId, def) {
+    if (this.platzierung?.slot === slot) return this.platzierungAbbrechen(); // nochmal = abbrechen
+    const typ = def.bauwerk ?? def.baut;
+    this.platzierung = { slot, defId, typ, name: def.baut ? 'Beet anlegen' : `${def.name} aufstellen` };
+    this.hud.inventar.zeige(false);
+    this.hud.zeigePlatzierung(this.platzierung.name);
+  }
+
+  platzierungAbbrechen() {
+    if (!this.platzierung) return;
+    this.platzierung = null;
+    this.hud.zeigePlatzierung(null);
+    this.renderer.zeigeVorschau(null);
+  }
+
+  platzierungBestaetigen() {
+    const ziel = this.#platzierungsZiel();
+    if (!ziel) return;
+    if (!ziel.ok) {
+      this.sound?.spiele('leer', { tonhoehe: 0.7 });
+      this.hud.meldung(ziel.grund ?? 'Hier nicht');
+      return;
+    }
+    this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.PLATZIEREN, slot: this.platzierung.slot, tx: ziel.tx, ty: ziel.ty });
+    this.platzierungAbbrechen();
+  }
+
+  /** Zielkachel + ob dort gebaut werden darf (gleiche Regeln wie der Server). */
+  #platzierungsZiel() {
+    const p = this.platzierung;
+    if (!p) return null;
+    if (this.spielerDaten?.inventar[p.slot]?.defId !== p.defId || this.spielerDaten?.tot) {
+      this.platzierungAbbrechen();
+      return null;
+    }
+    const { x, y, blick } = this.lokal;
+    const maus = this.eingabe.mausBenutzt && this.eingabe.mausZeit >= this.eingabe.touch.letzteBenutzung;
+    const punkt = maus ? this.renderer.kamera.bildschirmZuBoden(this.eingabe.mausX, this.eingabe.mausY) : null;
+    const { tx, ty } = zielKachel(this.welt, x, y, blick, punkt);
+    if (!kachelInReichweite(this.welt, x, y, tx, ty)) return { tx, ty, ok: false, grund: 'Zu weit weg' };
+    const platz = pruefePlatz(this.welt, p.typ, tx, ty);
+    if (!platz.ok) return { tx, ty, ok: false, grund: platz.grund };
+    // Nicht auf sich selbst bauen (blockierende Bauwerke)
+    const g = this.welt.kachelGroesse;
+    const r = this.physik.radius;
+    const aufMir = x + r > tx * g && x - r < (tx + 1) * g && y + r > ty * g && y - r < (ty + 1) * g;
+    if (BAUWERKE[p.typ].blockiert && aufMir) return { tx, ty, ok: false, grund: 'Da stehst du selbst' };
+    return { tx, ty, ok: true };
   }
 
   nachladen() {
@@ -214,6 +283,9 @@ export class ClientSpiel {
 
   benutzen(slot) {
     this.letzterSlot = slot;
+    const eintrag = this.spielerDaten?.inventar[slot];
+    const def = eintrag && this.itemDefinitionen[eintrag.defId];
+    if (def && (def.bauwerk || def.baut) && !this.spielerDaten.tot) return this.#startePlatzierung(slot, eintrag.defId, def);
     this.#aktion(AKTIONEN.BENUTZEN, slot);
   }
 
@@ -244,9 +316,24 @@ export class ClientSpiel {
     this.#aktion(AKTIONEN.LICHT);
   }
 
-  /** Nächste Tür öffnen/schließen (nur wenn eine in Reichweite ist – der Server prüft nochmal). */
+  /** Taste F: nächstes Lagerfeuer an/aus – oder die nächste Tür öffnen/schließen (was näher ist). */
   tuer() {
-    if (this.#naechsteTuer()) this.#aktion(AKTIONEN.TUER);
+    const f = this.#fAktion();
+    if (f) this.#aktion(f.feuer ? AKTIONEN.FEUER : AKTIONEN.TUER);
+  }
+
+  /** Was macht F gerade? → { text, symbol, feuer } oder null */
+  #fAktion() {
+    if (this.spielerDaten?.tot) return null;
+    const { x, y } = this.lokal;
+    const feuer = this.welt.naechstesBauwerk(x, y, BAUWERK_REICHWEITE, (b) => b.typ === 'lagerfeuer');
+    const tuer = this.#naechsteTuer();
+    const g = this.welt.kachelGroesse;
+    if (feuer && (!tuer || Math.hypot((feuer.tx + 0.5) * g - x, (feuer.ty + 0.5) * g - y) < Math.hypot(tuer.x - x, tuer.y - y))) {
+      return { text: feuerText(feuer), symbol: '🔥', feuer: true };
+    }
+    if (tuer) return { text: `Tür ${this.welt.istTuerOffen(tuer.id) ? 'schließen' : 'öffnen'}`, symbol: '🚪', feuer: false };
+    return null;
   }
 
   #naechsteTuer() {
@@ -299,6 +386,9 @@ export class ClientSpiel {
         break;
       case NACHRICHT.RESSOURCEN:
         this.welt.uebernimmAbgebaute(n.abgebaut);
+        break;
+      case NACHRICHT.BAUWERKE:
+        this.welt.uebernimmBauwerke(n.liste);
         break;
       case NACHRICHT.TUEREN:
         // Kollision der Vorhersage nutzt dieselbe Welt → Türen gelten sofort auch lokal
@@ -377,12 +467,19 @@ export class ClientSpiel {
   #festerTakt() {
     const tot = this.spielerDaten?.tot ?? false;
     const richtung = tot ? { x: 0, y: 0 } : this.eingabe.richtung();
+    // Im Platzier-Modus bedeutet Klick "hier aufstellen" statt Angriff
+    let angriff = !tot && this.eingabe.angriff();
+    if (this.platzierung) {
+      if (angriff && !this.letzterKlick) this.platzierungBestaetigen();
+      this.letzterKlick = angriff;
+      angriff = false;
+    }
     const eingabe = {
       seq: ++this.seq,
       x: richtung.x,
       y: richtung.y,
       blick: this.#blick(),
-      angriff: !tot && this.eingabe.angriff(),
+      angriff,
       sprint: !tot && this.eingabe.sprint(),
     };
 
@@ -391,6 +488,7 @@ export class ClientSpiel {
     if (!tot) wendeEingabeAn(this.lokal, eingabe, this.welt, this.physik, TICK_DAUER_S);
     this.#schritte();
     this.#zombieStoehnen();
+    this.#feuerKnistern();
 
     this.offeneEingaben.push(eingabe);
     if (this.offeneEingaben.length > MAX_OFFENE_EINGABEN) this.offeneEingaben.shift();
@@ -451,6 +549,24 @@ export class ClientSpiel {
       case 'tuerVerstaerkt':
         if (e.typ === 'tuerVerstaerkt' || e.von === this.eigeneId) this.sound.spiele('werkeln', { x: e.x ?? this.lokal.x, y: e.y ?? this.lokal.y });
         break;
+      case 'gebaut':
+        this.sound.spiele(e.bauwerk === 'beet' ? 'graben' : 'gebaut', { x: e.x, y: e.y });
+        break;
+      case 'feuer':
+        this.sound.spiele(e.an ? 'feuer_an' : 'feuer_aus', { x: e.x, y: e.y });
+        break;
+      case 'falle':
+        this.sound.spiele(e.gespannt ? 'falle_auf' : 'falle_zu', { x: e.x, y: e.y });
+        break;
+      case 'gepflanzt':
+        this.sound.spiele('graben', { x: e.x, y: e.y, lautstaerke: 0.6 });
+        break;
+      case 'geerntet':
+        this.sound.spiele('aufheben', { x: e.x, y: e.y });
+        break;
+      case 'gekocht':
+        this.sound.spiele('brutzeln', { x: e.x, y: e.y });
+        break;
       case 'levelAuf':
         if (e.id === this.eigeneId) this.sound.spiele('level_auf');
         break;
@@ -477,6 +593,14 @@ export class ClientSpiel {
     if (this.schrittWeg < SCHRITT_ABSTAND * (this.lokal.sprintet ? 1.35 : 1)) return;
     this.schrittWeg = 0;
     this.sound?.spiele('schritt', { lautstaerke: this.lokal.sprintet ? 0.5 : 0.3, tonhoehe: 0.8 + Math.random() * 0.4 });
+  }
+
+  /** Brennende Lagerfeuer in der Nähe knistern (zufällig, räumlich). */
+  #feuerKnistern() {
+    if (!this.sound || Math.random() > 0.12) return;
+    const g = this.welt.kachelGroesse;
+    const feuer = this.welt.naechstesBauwerk(this.lokal.x, this.lokal.y, 500, (b) => b.typ === 'lagerfeuer' && b.brennt);
+    if (feuer) this.sound.spiele('knistern', { x: (feuer.tx + 0.5) * g, y: (feuer.ty + 0.5) * g, lautstaerke: 0.8 });
   }
 
   /** Zombies in der Nähe stöhnen ab und zu – Richtung und Entfernung hört man. */
@@ -524,9 +648,9 @@ export class ClientSpiel {
     const interaktion = this.#interaktion();
     const aufhebbar = interaktion?.gegenstand ?? null;
     if (this.werkbankOffen && !this.#naheWerkbank()) this.werkbankUmschalten(false); // weggegangen → zu
-    const tuer = this.#naechsteTuer();
     const uhr = tageszeit(this.serverZeit + (jetzt - this.zeitEmpfangen) / 1000, this.tageszeitDauer);
 
+    if (this.platzierung) this.renderer.zeigeVorschau({ typ: this.platzierung.typ, ...this.#platzierungsZiel() });
     this.renderer.zeichne({
       fokus: eigen,
       entitaeten: [...andere, eigen],
@@ -550,7 +674,7 @@ export class ClientSpiel {
       grafik: this.hud.debug ? this.renderer.statistik?.() : null,
       interaktion,
       arbeit: this.spielerDaten?.arbeit ?? null,
-      tuer: tuer ? (this.welt.istTuerOffen(tuer.id) ? 'schließen' : 'öffnen') : null,
+      fAktion: this.#fAktion(),
       uhr: { ...uhr, tag: this.tag },
     });
   }

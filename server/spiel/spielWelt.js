@@ -13,6 +13,8 @@ import { aktualisiereUeberleben } from './systeme/ueberlebenSystem.js';
 import { verteileStartLoot, aktualisiereLoot } from './systeme/lootSystem.js';
 import { aktualisiereTageszeit } from './systeme/tageszeitSystem.js';
 import { aktualisiereArbeit } from './systeme/arbeitSystem.js';
+import { aktualisiereBauwerke } from './systeme/bauSystem.js';
+import { BAUWERKE, PFLANZEN, pruefePlatz } from '../../gemeinsam/welt/bauwerke.js';
 
 /** Welche Entitätstypen jeden Tick im Schnappschuss landen (dynamisch) – und wie sie serialisiert werden. */
 const NETZWERK_SERIALISIERER = {
@@ -40,6 +42,7 @@ export class SpielWelt {
     /** Wird erhöht, wenn Gegenstände hinzukommen/verschwinden/sich ändern → Server schickt neue Liste. */
     this.gegenstaendeVersion = 0;
     this.naechsteId = 1;
+    this.naechsteBauwerkId = 1;
     this.ereignisse = [];
     this.meldungen = [];
     this.zombieRespawns = []; // [{ spawnIndex, rest }]
@@ -60,6 +63,32 @@ export class SpielWelt {
 
   neueId() {
     return this.naechsteId++;
+  }
+
+  neueBauwerkId() {
+    return this.naechsteBauwerkId++;
+  }
+
+  /**
+   * Was von der Welt einen Server-Neustart überlebt (gespeichert als "welt:<kartenId>" im Speicher):
+   * gebaute Sachen (inkl. Beete & Pflanzen), Uhrzeit und Tag.
+   */
+  weltzustand() {
+    return { version: 1, karte: this.karte.daten.id, zeit: this.zeit, tag: this.tag, bauwerke: [...this.welt.bauwerke.values()] };
+  }
+
+  /** Gespeicherten Weltzustand übernehmen – alles wird geprüft (Datei kann alt oder kaputt sein). */
+  uebernimmWeltzustand(stand) {
+    if (!stand || stand.version !== 1 || stand.karte !== this.karte.daten.id) return false;
+    if (Number.isFinite(stand.zeit) && stand.zeit >= 0) this.zeit = stand.zeit;
+    if (Number.isInteger(stand.tag) && stand.tag >= 1) this.tag = stand.tag;
+    for (const roh of Array.isArray(stand.bauwerke) ? stand.bauwerke : []) {
+      const b = pruefeBauwerk(roh);
+      if (!b || !pruefePlatz(this.welt, b.typ, b.tx, b.ty).ok) continue;
+      b.id = this.neueBauwerkId();
+      this.welt.setzeBauwerk(b);
+    }
+    return true;
   }
 
   hinzufuegen(entitaet) {
@@ -148,6 +177,7 @@ export class SpielWelt {
     aktualisiereNachladen(this, dt);
     aktualisiereKampf(this, dt);
     aktualisiereArbeit(this, dt);
+    aktualisiereBauwerke(this, dt);
     aktualisiereZombies(this, dt);
     aktualisiereUeberleben(this, dt);
     aktualisiereLoot(this, dt);
@@ -178,4 +208,17 @@ export class SpielWelt {
   gegenstaendeListe() {
     return [...this.alleVomTyp('gegenstand')].map(gegenstandZuNetzwerk);
   }
+}
+
+/** Ein Bauwerk aus einem (evtl. manipulierten) Spielstand: nur bekannte Felder, gültige Werte. */
+function pruefeBauwerk(roh) {
+  if (!roh || !BAUWERKE[roh.typ] || !Number.isInteger(roh.tx) || !Number.isInteger(roh.ty)) return null;
+  const b = { typ: roh.typ, tx: roh.tx, ty: roh.ty, besitzer: typeof roh.besitzer === 'string' ? roh.besitzer.slice(0, 20) : '' };
+  if (b.typ === 'lagerfeuer') Object.assign(b, { brennt: roh.brennt === true, brennRest: Number.isFinite(roh.brennRest) ? Math.max(0, roh.brennRest) : 0 });
+  if (b.typ === 'falle') b.gespannt = roh.gespannt !== false;
+  if (b.typ === 'beet') {
+    b.pflanze = PFLANZEN[roh.pflanze] ? roh.pflanze : null;
+    b.wachstum = b.pflanze && Number.isFinite(roh.wachstum) ? Math.min(1, Math.max(0, roh.wachstum)) : 0;
+  }
+  return b;
 }

@@ -123,9 +123,12 @@ export class Hud {
       tauschen: (von, nach) => this.#aktionen.tauschen?.(von, nach),
       ablegen: (slot) => this.#aktionen.ablegen?.(slot),
       rucksackAblegen: () => this.#aktionen.rucksackAblegen?.(),
+      herstellen: (rezept) => this.#aktionen.herstellen?.(rezept),
     });
     el('hud-inventar').addEventListener('click', () => this.inventar.zeige());
     el('hud-zoom').addEventListener('click', () => this.#aktionen.zoomStufe?.());
+    el('platzieren-ok').addEventListener('click', () => this.#aktionen.platzierenOk?.());
+    el('platzieren-weg').addEventListener('click', () => this.#aktionen.platzierenAbbrechen?.());
     this.#baueHotbar();
   }
 
@@ -173,6 +176,7 @@ export class Hud {
     this.el.adminPanel.hidden = true;
     this.el.tuer.hidden = true;
     this.el.arbeit.hidden = true;
+    this.zeigePlatzierung(null);
     this.werkbank.zeige(null);
     this.entwickler.zeige(false);
     this.inventar.zeige(false);
@@ -201,6 +205,16 @@ export class Hud {
   debugUmschalten() {
     this.debug = !this.debug;
     this.el.debug.hidden = !this.debug;
+  }
+
+  /** Platzier-Leiste zeigen (name) bzw. verstecken (null). */
+  zeigePlatzierung(name) {
+    const leiste = this.dokument.getElementById('hud-platzieren');
+    leiste.hidden = !name;
+    if (name) {
+      this.dokument.getElementById('hud-platzieren-text').textContent = `🔨 ${name}`;
+      this.dokument.getElementById('hud-platzieren-hilfe').hidden = this.#istTouch;
+    }
   }
 
   meldung(text) {
@@ -270,7 +284,7 @@ export class Hud {
   /** Jeden Frame aufgerufen – teure DOM-Updates gedrosselt. */
   aktualisiere(d) {
     if (d.spieler) this.#zeigeSchalter(d.spieler);
-    const tuerHinweis = d.tuer ? `${this.#istTouch ? '🚪' : '[F]'} Tür ${d.tuer}` : null;
+    const tuerHinweis = d.fAktion ? `${this.#istTouch ? d.fAktion.symbol : '[F]'} ${d.fAktion.text}` : null;
     if (tuerHinweis !== this.#letzterTuerHinweis) {
       this.#letzterTuerHinweis = tuerHinweis;
       this.el.tuer.hidden = !tuerHinweis;
@@ -418,7 +432,7 @@ export class Hud {
     if (!arbeit) return;
     const text = arbeit.wartet
       ? '💤 Warte, bis alle schlafen … (bewegen = aufstehen)'
-      : ({ holz: '🪓 Baum fällen …', stein: '⛏ Stein abbauen …', eisenerz: '⛏ Eisenerz abbauen …', schlafen: '💤 Schlafen … (bewegen = aufwachen)' }[arbeit.art] ?? '…');
+      : ({ holz: '🪓 Baum fällen …', stein: '⛏ Stein abbauen …', eisenerz: '⛏ Eisenerz abbauen …', kochen: '🍳 Braten …', schlafen: '💤 Schlafen … (bewegen = aufwachen)' }[arbeit.art] ?? '…');
     this.el.arbeitText.textContent = text;
     this.el.arbeit.querySelector('.fuellung').style.width = `${Math.round(arbeit.fortschritt * 100)}%`;
   }

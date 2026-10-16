@@ -1,4 +1,5 @@
 import { AUFHEB_REICHWEITE, INVENTAR_PLAETZE } from '../../../gemeinsam/konstanten.js';
+import { BAUWERK_REICHWEITE } from '../../../gemeinsam/welt/bauwerke.js';
 import { AKTIONEN } from '../../../gemeinsam/protokoll.js';
 import { GEGENSTAENDE, STANDARD_AUSRUESTUNG, UNBEWAFFNET } from '../konfiguration/gegenstaende.js';
 import { erzeugeGegenstand } from '../entitaeten/gegenstand.js';
@@ -7,6 +8,7 @@ import { fuehreAdminBefehlAus } from './adminSystem.js';
 import { benutzeTuer, verstaerkeTuer as verstaerkeNaechsteTuer } from './tuerSystem.js';
 import { starteAbbau, starteSchlafen } from './arbeitSystem.js';
 import { stelleHer } from './craftingSystem.js';
+import { benutzeBauwerk, feuer, platziere } from './bauSystem.js';
 
 /**
  * Inventar: Aufheben, Benutzen (Essen/Trinken/Medizin), Aus-/Abrüsten, Ablegen, Nachladen.
@@ -66,6 +68,15 @@ export function verarbeiteAktionen(spielWelt) {
           break;
         case AKTIONEN.RUCKSACK_ABLEGEN:
           legeRucksackAb(spielWelt, spieler);
+          break;
+        case AKTIONEN.PLATZIEREN:
+          platziere(spielWelt, spieler, aktion.slot, aktion.tx, aktion.ty);
+          break;
+        case AKTIONEN.FEUER:
+          if (!feuer(spielWelt, spieler)) benutzeTuer(spielWelt, spieler);
+          break;
+        case AKTIONEN.BAUWERK:
+          benutzeBauwerk(spielWelt, spieler);
           break;
         case AKTIONEN.NACHLADEN:
           starteNachladen(spielWelt, spieler);
@@ -213,11 +224,19 @@ function benutzen(spielWelt, spieler, slot) {
       break;
     case 'rucksack':
       if (spieler.rucksack) {
-        spielWelt.melde(spieler.id, 'Du trägst schon einen Rucksack');
+        wechsleRucksack(spielWelt, spieler, slot);
         return;
       }
       spieler.inventar[slot] = null;
       legeRucksackAn(spielWelt, spieler, eintrag.defId);
+      break;
+    case 'bauwerk':
+    case 'werkzeug':
+      // Aufstellen läuft über AKTION 'platzieren' (Vorschau im Client); Feuerzeug wirkt über F am Lagerfeuer
+      spielWelt.melde(spieler.id, def.baut || def.bauwerk ? 'Platz wählen und bestätigen' : def.beschreibung ?? def.name);
+      break;
+    case 'samen':
+      pflanzeInsBeet(spielWelt, spieler, slot, def);
       break;
     case 'material':
       if (eintrag.defId === 'bretter') verstaerkeTuer(spielWelt, spieler, slot);
@@ -231,7 +250,17 @@ function verstaerkeTuer(spielWelt, spieler, slot) {
   if (verstaerkeNaechsteTuer(spielWelt, spieler)) verbrauche(spieler, slot);
 }
 
-function verbrauche(spieler, slot) {
+/** Samen benutzen = ins nächste leere Beet in Reichweite pflanzen (wie E am Beet). */
+function pflanzeInsBeet(spielWelt, spieler, slot, def) {
+  const beet = spielWelt.welt.naechstesBauwerk(spieler.x, spieler.y, BAUWERK_REICHWEITE, (b) => b.typ === 'beet' && !b.pflanze);
+  if (!beet) {
+    spielWelt.melde(spieler.id, 'Kein freies Beet in der Nähe – erst mit der Hacke eins anlegen');
+    return;
+  }
+  benutzeBauwerk(spielWelt, spieler, beet.id, def.pflanze);
+}
+
+export function verbrauche(spieler, slot) {
   const eintrag = spieler.inventar[slot];
   eintrag.menge -= 1;
   if (eintrag.menge <= 0) entferneSlot(spieler, slot);
@@ -275,6 +304,44 @@ export function tausche(spieler, von, nach) {
   spieler.inventar[nach] = a;
   if (spieler.ausgeruestet === von) spieler.ausgeruestet = nach;
   else if (spieler.ausgeruestet === nach) spieler.ausgeruestet = von;
+}
+
+/**
+ * Rucksack tauschen (man trägt schon einen): Der neue kommt auf den Rücken, der Inhalt des alten wandert mit
+ * (erst in den neuen Rucksack, dann ins Grund-Inventar, Rest fällt). Der alte Rucksack landet im Inventar/Boden.
+ */
+export function wechsleRucksack(spielWelt, spieler, slot) {
+  const neu = spieler.inventar[slot];
+  const neuDef = GEGENSTAENDE[neu?.defId];
+  if (neuDef?.kategorie !== 'rucksack' || !spieler.rucksack) return;
+  const alt = spieler.rucksack;
+  spieler.inventar[slot] = null;
+  const mitnehmen = [];
+  for (let i = INVENTAR_PLAETZE; i < spieler.inventar.length; i++) {
+    if (spieler.inventar[i]) mitnehmen.push({ eintrag: spieler.inventar[i], warAusgeruestet: spieler.ausgeruestet === i });
+  }
+  if (spieler.ausgeruestet !== null && spieler.ausgeruestet >= INVENTAR_PLAETZE) spieler.ausgeruestet = null;
+  spieler.rucksack = neu.defId;
+  spieler.inventar.length = INVENTAR_PLAETZE + neuDef.plaetze;
+  spieler.inventar.fill(null, INVENTAR_PLAETZE);
+  const frei = () => {
+    for (let i = INVENTAR_PLAETZE; i < spieler.inventar.length; i++) if (!spieler.inventar[i]) return i;
+    return spieler.inventar.findIndex((e, i) => i < INVENTAR_PLAETZE && !e);
+  };
+  for (const { eintrag, warAusgeruestet } of mitnehmen) {
+    const ziel = frei();
+    if (ziel < 0) {
+      legeAufBoden(spielWelt, eintrag, spieler.x, spieler.y);
+      continue;
+    }
+    spieler.inventar[ziel] = eintrag;
+    if (warAusgeruestet) spieler.ausgeruestet = ziel;
+  }
+  const platz = frei();
+  if (platz >= 0) spieler.inventar[platz] = { defId: alt, menge: 1 };
+  else legeAufBoden(spielWelt, { defId: alt, menge: 1 }, spieler.x, spieler.y);
+  aktualisiereAusruestung(spieler);
+  spielWelt.melde(spieler.id, `${neuDef.name} angelegt (+${neuDef.plaetze} Plätze)`);
 }
 
 /** Rucksack anlegen: Inventar wächst um def.plaetze leere Plätze. */

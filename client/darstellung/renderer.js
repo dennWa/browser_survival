@@ -3,6 +3,7 @@ import { FBXLoader, SkeletonUtils } from '../vendor/three/addons.js';
 import { KartenModell } from './kartenModell.js';
 import { vereineGeometrien } from './geometrie.js';
 import { Fussspuren } from './fussspuren.js';
+import { erzeugeBauwerk, erzeugeVorschau } from './bauwerkModelle.js';
 import { itemGeometrie, ITEM_MATERIAL, rucksackTeile } from './itemModelle.js';
 import { zeichneBeschriftung } from './beschriftung.js';
 import { richteFigurEin, aktualisiereHaltung } from './figurHaltung.js';
@@ -120,6 +121,10 @@ export class Renderer {
     this.#baueEffektObjekte();
     this.fussspuren = new Fussspuren(this.szene);
     this.fallendeBaeume = []; // { gruppe, achse, zeit }
+    this.bauwerke = new Map(); // Bauwerk-ID → { gruppe, aktualisiere, typ }
+    this.bauwerkeStand = -1;
+    this.feuerLampen = []; // brennende Lagerfeuer als Lampen für den Lampen-Pool
+    this.vorschau = null; // { typ, gruppe }
 
     // Adaptive Qualität (siehe QUALITAETS_STUFEN)
     this.aufloesungMax = Math.min(window.devicePixelRatio || 1, this.istHandy ? 1.5 : 2);
@@ -202,6 +207,10 @@ export class Renderer {
     this.figuren.clear();
     for (const m of this.items.values()) this.szene.remove(m);
     this.items.clear();
+    for (const b of this.bauwerke.values()) this.szene.remove(b.gruppe);
+    this.bauwerke.clear();
+    this.bauwerkeStand = -1;
+    this.zeigeVorschau(null);
     this.karte = new KartenModell({
       welt,
       assets: this.assets,
@@ -242,6 +251,7 @@ export class Renderer {
     this.#aktualisiereTaschenlampen(entitaeten, fokus, dunkel);
     this.#aktualisiereItems(gegenstaende, markiertId, jetzt);
     this.#aktualisiereFallendeBaeume(dt);
+    this.#aktualisiereBauwerke(jetzt);
     this.fussspuren.aktualisiere(entitaeten, jetzt);
     this.#aktualisiereLampenPool(fokus, jetzt, dunkel);
     if (effekte) {
@@ -269,6 +279,55 @@ export class Renderer {
     this.szene.add(gruppe);
     // Drehachse senkrecht zur Fallrichtung (rechte Hand: Spitze kippt Richtung +dx/+dz)
     this.fallendeBaeume.push({ gruppe, achse: new THREE.Vector3(dz, 0, -dx), zeit: 0 });
+  }
+
+  /** Bauwerke der Welt als 3D-Gruppen – neu aufbauen nur, wenn sich die Liste geändert hat (bauwerkeVersion). */
+  #aktualisiereBauwerke(jetzt) {
+    const welt = this.welt;
+    if (welt.bauwerkeVersion !== this.bauwerkeStand) {
+      this.bauwerkeStand = welt.bauwerkeVersion;
+      const g = welt.kachelGroesse;
+      for (const [id, b] of this.bauwerke) {
+        if (welt.bauwerke.get(id)?.typ === b.typ) continue;
+        this.szene.remove(b.gruppe);
+        this.bauwerke.delete(id);
+      }
+      for (const b of welt.bauwerke.values()) {
+        if (this.bauwerke.has(b.id)) continue;
+        const neu = erzeugeBauwerk(b);
+        neu.typ = b.typ;
+        neu.gruppe.position.set((b.tx + 0.5) * g, 0, (b.ty + 0.5) * g);
+        neu.gruppe.rotation.y = ((b.tx * 7 + b.ty * 13) % 4) * (Math.PI / 2) * (b.typ === 'werkbank' ? 0 : 1);
+        this.szene.add(neu.gruppe);
+        this.bauwerke.set(b.id, neu);
+      }
+      // Brennende Lagerfeuer leuchten (über den Lampen-Pool)
+      this.feuerLampen = [...welt.bauwerke.values()]
+        .filter((b) => b.typ === 'lagerfeuer' && b.brennt)
+        .map((b) => ({ x: (b.tx + 0.5) * g, y: 22, z: (b.ty + 0.5) * g, farbe: new THREE.Color(0xff9a40), reichweite: 300, staerke: 320, objekt: { feuer: true, x: b.tx, y: b.ty } }));
+      this.naechsteLampen = null;
+    }
+    for (const [id, b] of this.bauwerke) b.aktualisiere(welt.bauwerke.get(id), jetzt);
+  }
+
+  /** Platzier-Vorschau: { typ, tx, ty, ok } oder null (weg). */
+  zeigeVorschau(daten) {
+    if (!daten || daten.tx === undefined) {
+      if (this.vorschau) this.szene.remove(this.vorschau.gruppe);
+      this.vorschau = null;
+      return;
+    }
+    if (this.vorschau?.typ !== daten.typ) {
+      if (this.vorschau) this.szene.remove(this.vorschau.gruppe);
+      this.vorschau = { typ: daten.typ, gruppe: erzeugeVorschau(daten.typ), ok: null };
+      this.szene.add(this.vorschau.gruppe);
+    }
+    const g = this.welt.kachelGroesse;
+    this.vorschau.gruppe.position.set((daten.tx + 0.5) * g, 0.2, (daten.ty + 0.5) * g);
+    if (this.vorschau.ok !== daten.ok) {
+      this.vorschau.ok = daten.ok;
+      this.vorschau.gruppe.userData.setzeOk(daten.ok);
+    }
   }
 
   #aktualisiereFallendeBaeume(dt) {
@@ -350,6 +409,12 @@ export class Renderer {
       probe.add(f.gruppe);
     }
     for (const name of WAFFEN_NAMEN) probe.add(erzeugeWaffe(name));
+    for (const typ of ['werkbank', 'lagerfeuer', 'falle', 'beet']) {
+      const zustand = { typ, brennt: true, gespannt: true, pflanze: 'tomate', wachstum: 1 };
+      const b = erzeugeBauwerk(zustand);
+      b.aktualisiere(zustand, 0);
+      probe.add(b.gruppe, erzeugeVorschau(typ));
+    }
     const icon = new THREE.Mesh(this.#itemMaterial('apfel').geometrie, this.#itemMaterial('apfel').markiert);
     probe.add(icon, this.#itemMesh({ id: -2, defId: 'apfel', x: 0, y: 0 }), this.#blutMesh({ sprite: 'blutlache', groesse: 10, winkel: 0, x: 0, y: 0 }));
     this.szene.add(probe);
@@ -600,7 +665,7 @@ export class Renderer {
 
   /** Nur die nächsten Kartenlampen bekommen ein echtes Licht aus dem Pool (feste Lichteranzahl = keine Shader-Neubauten). */
   #aktualisiereLampenPool(fokus, jetzt, dunkel) {
-    const lampen = this.karte.lampen;
+    const lampen = this.feuerLampen.length > 0 ? [...this.karte.lampen, ...this.feuerLampen] : this.karte.lampen;
     if (dunkel < 0.03 || lampen.length === 0) {
       for (const l of this.lampenPool) l.intensity = 0;
       return;
@@ -619,7 +684,7 @@ export class Renderer {
       licht.position.set(lampe.x, lampe.y, lampe.z);
       licht.color.copy(lampe.farbe);
       licht.distance = lampe.reichweite;
-      licht.intensity = lampe.staerke * flackern(lampe.objekt, jetzt) * dunkel;
+      licht.intensity = lampe.staerke * (lampe.objekt.feuer ? feuerFlackern(lampe.objekt, jetzt) : flackern(lampe.objekt, jetzt)) * dunkel;
     });
   }
 
@@ -838,6 +903,7 @@ class KameraAdapter {
     this.zoom = 1;
     this.strahl = new THREE.Raycaster();
     this.ebene = new THREE.Plane(new THREE.Vector3(0, 1, 0), -ZIELHOEHE);
+    this.boden = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     this.v = new THREE.Vector3();
     this.ndc = new THREE.Vector2();
     this.punkt = new THREE.Vector3();
@@ -856,9 +922,23 @@ class KameraAdapter {
     return { x: this.punkt.x, y: this.punkt.z };
   }
 
+  /** Mausposition → Punkt auf dem Boden (y = 0) – zum Bauen/Platzieren. */
+  bildschirmZuBoden(sx, sy) {
+    this.ndc.set((sx / this.breite) * 2 - 1, -(sy / this.hoehe) * 2 + 1);
+    this.strahl.setFromCamera(this.ndc, this.renderer.kamera3d);
+    if (!this.strahl.ray.intersectPlane(this.boden, this.punkt)) return null;
+    return { x: this.punkt.x, y: this.punkt.z };
+  }
+
   istSichtbar() {
     return true;
   }
+}
+
+/** Lagerfeuer: unruhiges, warmes Flackern. */
+function feuerFlackern(o, jetzt) {
+  const t = jetzt / 1000 + o.x * 3.7 + o.y * 1.3;
+  return 0.78 + Math.sin(t * 11) * 0.09 + Math.sin(t * 17.3) * 0.07 + Math.sin(t * 5.1) * 0.06;
 }
 
 /** Manche Lampen flackern (Notstrom!). Deterministisch pro Lampe, ohne Zufallszahlen pro Frame. */

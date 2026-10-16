@@ -205,6 +205,51 @@ const REZEPTE = {
     for (let i = 0; i < 3; i++) ton(ctx, ausgang, t + i * 0.22, { typ: 'sine', von: 320, bis: 190, dauer: 0.12, lautstaerke: 0.3 });
     return 0.75;
   },
+  // Bauen & Garten
+  gebaut: ({ ctx, ausgang, t, rauschen }) => {
+    for (let i = 0; i < 3; i++) {
+      rauschStoss(ctx, ausgang, rauschen, t + i * 0.13, { dauer: 0.06, typ: 'lowpass', frequenz: 900, lautstaerke: 0.6, anschlag: 0.002 });
+      ton(ctx, ausgang, t + i * 0.13, { typ: 'triangle', von: 260, bis: 140, dauer: 0.07, lautstaerke: 0.3, anschlag: 0.002 });
+    }
+    return 0.45;
+  },
+  feuer_an: ({ ctx, ausgang, t, rauschen }) => {
+    klick(ctx, ausgang, t, 2600, 0.15); // Feuerzeug
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.setValueAtTime(300, t + 0.05);
+    f.frequency.exponentialRampToValueAtTime(1600, t + 0.5);
+    rauschStoss(ctx, ausgang, rauschen, t + 0.05, { dauer: 0.6, filter: f, lautstaerke: 0.6, anschlag: 0.15 }); // Wusch
+    return 0.7;
+  },
+  feuer_aus: ({ ctx, ausgang, t, rauschen }) => {
+    rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.7, typ: 'highpass', frequenz: 2500, lautstaerke: 0.35, anschlag: 0.05 }); // Zischen
+    return 0.75;
+  },
+  knistern: ({ ctx, ausgang, t, rauschen }) => {
+    for (let i = 0; i < 3; i++) {
+      rauschStoss(ctx, ausgang, rauschen, t + Math.random() * 0.25, { dauer: 0.015, typ: 'bandpass', frequenz: 1800 + Math.random() * 2500, lautstaerke: 0.25 + Math.random() * 0.2, anschlag: 0.001 });
+    }
+    return 0.3;
+  },
+  falle_zu: ({ ctx, ausgang, t, rauschen }) => {
+    rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.05, typ: 'highpass', frequenz: 3000, lautstaerke: 0.9, anschlag: 0.001 });
+    ton(ctx, ausgang, t, { typ: 'square', von: 1900, bis: 1300, dauer: 0.12, lautstaerke: 0.12, filter: 4000, anschlag: 0.001 });
+    ton(ctx, ausgang, t, { typ: 'sine', von: 3100, bis: 2900, dauer: 0.35, lautstaerke: 0.08 }); // Metall klingt nach
+    return 0.4;
+  },
+  falle_auf: ({ ctx, ausgang, t }) => {
+    for (let i = 0; i < 4; i++) klick(ctx, ausgang, t + i * 0.06, 1500 - i * 150, 0.12); // Feder spannen
+    return 0.3;
+  },
+  graben: ({ ctx, ausgang, t, rauschen }) => {
+    for (let i = 0; i < 2; i++) rauschStoss(ctx, ausgang, rauschen, t + i * 0.18, { dauer: 0.12, typ: 'lowpass', frequenz: 500, lautstaerke: 0.5, anschlag: 0.01 });
+    return 0.35;
+  },
+  brutzeln: ({ ctx, ausgang, t, rauschen }) => {
+    rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.9, typ: 'highpass', frequenz: 3500, lautstaerke: 0.22, anschlag: 0.1 });
+    return 0.95;
+  },
   level_auf: ({ ctx, ausgang, t }) => {
     [523, 659, 784, 1047].forEach((f, i) => ton(ctx, ausgang, t + i * 0.09, { typ: 'triangle', von: f, bis: f, dauer: 0.22, lautstaerke: 0.22 }));
     return 0.6;

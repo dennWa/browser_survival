@@ -116,6 +116,13 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     durstKosten: 10,
     zombieAbstand: 300, // so nah darf beim Hinlegen kein jagender Zombie sein
   },
+  /** Bauwerke (gemeinsam/welt/bauwerke.js): Lagerfeuer, Kochen, Beete */
+  bauen: {
+    brennDauer: 300, // Sekunden, die ein angezündetes Lagerfeuer brennt
+    kochDauer: 4, // Sekunden pro gebratenem Lebensmittel
+    wachstumsTage: 1, // Pflanzen brauchen so viele Spieltage (1 = 24 Spielstunden; Schlafen spult mit vor)
+    ernteMenge: 2, // Früchte pro Ernte
+  },
   /** Level: XP pro Zombie; für Level 2 braucht man `ersteStufe` XP, jedes weitere Level `zuwachs` mehr. Tod = alles weg. */
   level: {
     xpProZombie: 10, // nur Rückfallwert – pro Zombie-Typ: zombie.varianten.<typ>.xp

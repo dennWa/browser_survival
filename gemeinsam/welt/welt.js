@@ -1,5 +1,6 @@
 import { KACHELN } from './kacheln.js';
 import { RESSOURCEN_OBJEKTE } from './ressourcen.js';
+import { BAUWERKE } from './bauwerke.js';
 
 /**
  * Laufzeit-Abbild einer Karte: Kachelabfragen und Kollision.
@@ -43,6 +44,60 @@ export class Welt {
     }
     this.abgebaut = new Set();
     this.ressourcenVersion = 0; // steigt bei jeder Änderung (Renderer muss nur dann neu zeichnen)
+    /** Von Spielern gebaute Dinge (gemeinsam/welt/bauwerke.js): id → Bauwerk */
+    this.bauwerke = new Map();
+    this.bauwerkAnKachel = new Map(); // Kachelindex → Bauwerk-ID
+    this.bauwerkeVersion = 0;
+  }
+
+  // --- Bauwerke -------------------------------------------------------------
+
+  /** Neues oder geändertes Bauwerk eintragen. */
+  setzeBauwerk(b) {
+    const alt = this.bauwerke.get(b.id);
+    if (alt) this.bauwerkAnKachel.delete(alt.ty * this.breite + alt.tx);
+    this.bauwerke.set(b.id, b);
+    this.bauwerkAnKachel.set(b.ty * this.breite + b.tx, b.id);
+    this.bauwerkeVersion++;
+  }
+
+  entferneBauwerk(id) {
+    const b = this.bauwerke.get(id);
+    if (!b) return;
+    this.bauwerke.delete(id);
+    this.bauwerkAnKachel.delete(b.ty * this.breite + b.tx);
+    this.bauwerkeVersion++;
+  }
+
+  /** Client: komplette Liste vom Server übernehmen. */
+  uebernimmBauwerke(liste) {
+    this.bauwerke.clear();
+    this.bauwerkAnKachel.clear();
+    for (const b of liste) {
+      this.bauwerke.set(b.id, b);
+      this.bauwerkAnKachel.set(b.ty * this.breite + b.tx, b.id);
+    }
+    this.bauwerkeVersion++;
+  }
+
+  bauwerkBei(tx, ty) {
+    const id = this.bauwerkAnKachel.get(ty * this.breite + tx);
+    return id === undefined ? null : this.bauwerke.get(id);
+  }
+
+  /** Nächstes Bauwerk (Kachelmitte ≤ reichweite px), auf das `passt` zutrifft – oder null. */
+  naechstesBauwerk(x, y, reichweite, passt = () => true) {
+    const g = this.kachelGroesse;
+    let bestes = null;
+    let bestAbstand = reichweite;
+    for (const b of this.bauwerke.values()) {
+      if (!passt(b)) continue;
+      const abstand = Math.hypot((b.tx + 0.5) * g - x, (b.ty + 0.5) * g - y);
+      if (abstand > bestAbstand) continue;
+      bestAbstand = abstand;
+      bestes = b;
+    }
+    return bestes;
   }
 
   istRessourceDa(id) {
@@ -173,6 +228,10 @@ export class Welt {
     if (zeichen === null) return true;
     if (this.moebelBlockiert.has(ty * this.breite + tx)) return true;
     if (this.istGeschlosseneTuer(tx, ty)) return true;
+    if (this.bauwerkAnKachel.size > 0) {
+      const b = this.bauwerke.get(this.bauwerkAnKachel.get(ty * this.breite + tx));
+      if (b && BAUWERKE[b.typ]?.blockiert) return true;
+    }
     if (this.ressourceAnKachel.size > 0) {
       const id = this.ressourceAnKachel.get(ty * this.breite + tx);
       if (id !== undefined && !this.abgebaut.has(id)) return true;

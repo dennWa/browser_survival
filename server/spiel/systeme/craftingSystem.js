@@ -4,14 +4,15 @@ import { GEGENSTAENDE } from '../konfiguration/gegenstaende.js';
 import { aktualisiereAusruestung, fuegeZumInventarHinzu, legeAufBoden } from './inventarSystem.js';
 
 /**
- * Crafting: AKTION 'herstellen' { rezept } an einer Werkbank (Kartenobjekt 'werkbank') in Reichweite.
+ * Crafting: AKTION 'herstellen' { rezept } an einer Werkbank (Kartenobjekt oder gebaute) in Reichweite –
+ * Rezepte mit ort: 'inventar' gehen überall (Inventar-Fenster → Bauen).
  * Rezepte: server/spiel/konfiguration/rezepte.js. Der Server prüft Werkbank-Nähe und Zutaten.
  */
 
 export function stelleHer(spielWelt, spieler, rezeptName) {
   const rezept = REZEPTE[rezeptName];
   if (!rezept || !GEGENSTAENDE[rezept.ergebnis]) return;
-  if (!naeheWerkbank(spielWelt.welt, spieler.x, spieler.y)) {
+  if (rezept.ort !== 'inventar' && !naeheWerkbank(spielWelt.welt, spieler.x, spieler.y)) {
     spielWelt.melde(spieler.id, 'Dafür brauchst du eine Werkbank');
     return;
   }
@@ -32,9 +33,12 @@ export function stelleHer(spielWelt, spieler, rezeptName) {
   spielWelt.melde(spieler.id, `${rezept.name}${menge > 1 ? ` ×${menge}` : ''} hergestellt`);
 }
 
-/** Steht an (x, y) eine Werkbank in Reichweite? */
+/** Steht an (x, y) eine Werkbank in Reichweite? (fest auf der Karte oder selbst gebaut) */
 export function naeheWerkbank(welt, x, y) {
-  return welt.naechstesObjekt(x, y, WERKBANK_REICHWEITE, (o) => o.typ === 'werkbank') !== null;
+  return (
+    welt.naechstesObjekt(x, y, WERKBANK_REICHWEITE, (o) => o.typ === 'werkbank') !== null ||
+    welt.naechstesBauwerk(x, y, WERKBANK_REICHWEITE + 8, (b) => b.typ === 'werkbank') !== null
+  );
 }
 
 function zaehle(spieler, defId) {

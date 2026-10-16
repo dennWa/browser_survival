@@ -55,8 +55,51 @@ const BAUPLAENE = {
   holz: () => [rolle(1.8, 10, 0x8a5a2b, 0, 0, -2), rolle(1.8, 10, 0x7a4f26, 0, 0, 2), rolle(1.8, 10, 0x936234, 0, 3, 0)],
   stein: () => [{ geometrie: new THREE.DodecahedronGeometry(3.6, 0), matrix: new THREE.Matrix4().compose(new THREE.Vector3(), new THREE.Quaternion(), new THREE.Vector3(1.2, 0.75, 1)), farbe: f(0x8a8d91) }],
   bretter: () => [box(12, 0.9, 2.6, 0xb98a55, 0, 0, -1.6), box(12, 0.9, 2.6, 0xa77a48, 0.6, 0, 1.4), box(12, 0.9, 2.6, 0xc49663, -0.3, 0.9, 0, 0.12)],
-  rucksack: () => rucksackTeile().map((t) => ({ ...t, matrix: new THREE.Matrix4().makeRotationX(-Math.PI / 2).multiply(t.matrix) })), // liegt auf dem Rücken
+  eisenerz: () => [
+    { geometrie: new THREE.DodecahedronGeometry(3.6, 0), matrix: new THREE.Matrix4().compose(new THREE.Vector3(), new THREE.Quaternion(), new THREE.Vector3(1.2, 0.75, 1)), farbe: f(0x6e5a4e) },
+    { geometrie: new THREE.OctahedronGeometry(1.4, 0), matrix: matrixAus(1.6, 1.8, 0.8), farbe: f(0xd9772e) },
+    { geometrie: new THREE.OctahedronGeometry(1.1, 0), matrix: matrixAus(-1.4, 1.4, -1), farbe: f(0xd9772e) },
+  ],
+  // Rucksäcke liegen auf dem Rücken; Größe & Farbe je nach Variante
+  rucksack: () => rucksackLiegend(1, null),
+  rucksack_klein: () => rucksackLiegend(0.8, 0x9a7a3a),
+  rucksack_gross: () => rucksackLiegend(1.18, 0x2f4a6a),
+  // Garten & Ernte
+  tomate: () => [kugel(2.6, 0xd8392b, 0, 0, 0, 1, 0.85, 1), box(1.6, 0.4, 1.6, 0x3f7a22, 0, 2.2, 0, 0.6)],
+  gurke: () => [kugel(1.4, 0x3f8a2a, 0, 0, 0, 3.4, 1, 1)],
+  kartoffel: () => [kugel(2.2, 0xc9a26a, 0, 0, 0, 1.4, 0.9, 1), kugel(1.6, 0xb98f58, 2.6, -0.3, 1, 1.2, 0.85, 1)],
+  tomate_gebraten: () => [kugel(2.5, 0x8a2a1a, 0, 0, 0, 1, 0.7, 1), box(4, 0.5, 4, 0x6b6b6b, 0, -1.6, 0)],
+  gurke_gebraten: () => [kugel(1.4, 0x7a6a2a, 0, 0, 0, 3.4, 0.9, 1), box(6, 0.5, 3, 0x6b6b6b, 0, -1.2, 0)],
+  ofenkartoffel: () => [kugel(2.6, 0x8a6a3a, 0, 0, 0, 1.4, 0.9, 1), box(1.6, 0.6, 3.6, 0xf3eedf, 0, 2.2, 0)],
+  samen_tomate: () => samentuete(0xd84a3a),
+  samen_gurke: () => samentuete(0x5aa83a),
+  samen_kartoffel: () => samentuete(0xb98a4a),
+  hacke: () => [rolle(0.8, 16, 0x8a5a2b), box(1, 4, 5, 0x9aa0a6, 8.4, 0, 0)],
+  feuerzeug: () => [box(2, 4.4, 1.2, 0xc0392b), box(2.1, 1.2, 1.3, 0xb8bcc2, 0, 2.6, 0)],
+  // Bauwerke als Pakete
+  falle: () => {
+    const teile = [zyl(5, 0.8, 0x5d6168)];
+    for (let i = 0; i < 8; i++) {
+      const w = (i / 8) * Math.PI * 2;
+      teile.push({ geometrie: new THREE.ConeGeometry(0.7, 2, 4), matrix: matrixAus(Math.cos(w) * 4.6, 1, Math.sin(w) * 4.6), farbe: f(0xd6dade) });
+    }
+    return teile;
+  },
+  lagerfeuer: () => [rolle(1.6, 11, 0x6b4424, 0, 0, -1.8), rolle(1.6, 11, 0x7a4f26, 0, 0, 1.8), rolle(1.6, 11, 0x6b4424, 0, 2.6, 0), kugel(1.6, 0x84868a, 5, -0.6, 4), kugel(1.4, 0x84868a, -5, -0.6, 4)],
+  werkbank: () => [box(14, 1, 9, 0xb98a55, 0, 0, 0), box(14, 1, 9, 0xa77a48, 0.5, 1.1, 0.4, 0.06), box(13, 0.8, 1.6, 0x4a3018, 0, 2, 0, 0.3), box(3, 2, 2, 0x5b6168, 4, 2.6, -2)],
 };
+
+function rucksackLiegend(groesse, farbe) {
+  return rucksackTeile().map((t, i) => ({
+    ...t,
+    farbe: farbe !== null && i === 0 ? f(farbe) : t.farbe,
+    matrix: new THREE.Matrix4().makeScale(groesse, groesse, groesse).multiply(new THREE.Matrix4().makeRotationX(-Math.PI / 2)).multiply(t.matrix),
+  }));
+}
+
+function samentuete(farbe) {
+  return [box(5, 0.6, 7, 0xece0ba), box(5.1, 0.7, 1.6, 0xc4aa78, 0, 0, -2.8), zyl(1.5, 0.3, farbe, 0, 0.45, 0.6)];
+}
 
 /** Rucksack-Teile (aufrecht, Gurte zeigen nach +z) – auch für den Rucksack auf dem Rücken der Figur. */
 export function rucksackTeile() {
@@ -79,7 +122,8 @@ export function itemGeometrie(defId) {
   let geometrie = null;
   if (BAUPLAENE[defId]) {
     geometrie = vereineGeometrien(BAUPLAENE[defId](), { mitFarbe: true });
-    geometrie.scale(defId === 'rucksack' ? 1 : ITEM_SKALA, defId === 'rucksack' ? 1 : ITEM_SKALA, defId === 'rucksack' ? 1 : ITEM_SKALA);
+    const skala = defId.startsWith('rucksack') ? 1 : ITEM_SKALA; // Rucksäcke sind schon in Weltgröße gebaut
+    geometrie.scale(skala, skala, skala);
   } else if (WAFFEN_NAMEN.includes(defId)) {
     geometrie = ausWaffe(defId);
   }

@@ -392,7 +392,7 @@ export class KartenModell {
 }
 
 /** Werkbank: Platte, Beine, Schraubstock, ein paar Bretter – als farbige Quader. */
-function werkbankTeile(x, z, breite, tiefe, hoehe, drehung) {
+export function werkbankTeile(x, z, breite, tiefe, hoehe, drehung) {
   const holz = new THREE.Color(0x7a4f2a).convertSRGBToLinear();
   const dunkel = new THREE.Color(0x4a3018).convertSRGBToLinear();
   const metall = new THREE.Color(0x5b6168).convertSRGBToLinear();

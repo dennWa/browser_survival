@@ -840,3 +840,36 @@ button {
 
 /* Knöpfe nur für Touch-Geräte (z. B. Zoom – am PC gibt's das Mausrad) */
 #hud:not(.touch) .nur-touch { display: none; }
+
+/* Platzier-Modus: Leiste über der Schnellleiste */
+#hud-platzieren {
+  position: absolute;
+  left: 50%;
+  bottom: calc(150px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  max-width: calc(100vw - 24px);
+  padding: 8px 12px;
+  font-weight: 600;
+  pointer-events: auto;
+  background: rgba(20, 30, 18, 0.85);
+  border: 1px solid rgba(140, 200, 110, 0.6);
+  border-radius: 12px;
+}
+#hud-platzieren button { padding: 6px 14px; font-weight: 700; color: #fff; background: #3f7d2c; border: 0; border-radius: 8px; }
+#hud-platzieren #platzieren-weg { background: #7d2c2c; }
+#hud-platzieren small { width: 100%; text-align: center; font-weight: 400; font-size: 0.72rem; opacity: 0.75; }
+
+/* Inventar → Bauen (Rezepte ohne Werkbank) */
+#inventar-bauen { display: flex; flex-direction: column; gap: 6px; }
+.inv-rezept { display: flex; align-items: center; gap: 10px; padding: 6px 8px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; opacity: 0.75; }
+.inv-rezept.machbar { opacity: 1; border-color: rgba(185, 224, 143, 0.45); }
+.inv-rezept canvas { width: 36px; height: 36px; }
+.inv-rezept-text { display: flex; flex-direction: column; flex: 1; font-size: 0.85rem; }
+.inv-rezept-text small { color: var(--text-gedimmt); font-size: 0.72rem; }
+.inv-rezept button { padding: 6px 12px; font-weight: 700; color: #fff; background: #3f7d2c; border: 0; border-radius: 8px; }
+.inv-rezept button:disabled { background: #444; color: #999; }

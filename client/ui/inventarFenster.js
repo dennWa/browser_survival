@@ -31,6 +31,9 @@ export class InventarFenster {
     this.keinRucksack = el('inventar-kein-rucksack');
     this.rucksackKnopf = el('inventar-rucksack-ablegen');
     this.info = el('inventar-info');
+    this.bauenListe = el('inventar-bauen');
+    this.rezepte = {};
+    this.bauenStand = '';
     el('inventar-schliessen').addEventListener('click', () => this.zeige(false));
     this.rucksackKnopf.addEventListener('click', () => this.#aktionen.rucksackAblegen?.());
     for (let slot = 0; slot < INVENTAR_PLAETZE + 8; slot++) this.#baueSlot(slot);
@@ -40,7 +43,13 @@ export class InventarFenster {
     dokument.addEventListener('pointercancel', () => this.#abbrechen());
   }
 
-  /** @param aktionen { benutzen(slot), tauschen(von, nach), ablegen(slot), rucksackAblegen() } */
+  /** Rezepte vom Server; hier werden nur die mit ort: 'inventar' gezeigt (Werkbank, Lagerfeuer …). */
+  setzeRezepte(rezepte) {
+    this.rezepte = rezepte ?? {};
+    this.bauenStand = '';
+  }
+
+  /** @param aktionen { benutzen(slot), tauschen(von, nach), ablegen(slot), rucksackAblegen(), herstellen(rezept) } */
   beiAktionen(aktionen) {
     this.#aktionen = aktionen;
   }
@@ -163,8 +172,39 @@ export class InventarFenster {
     this.info.textContent = def ? `${def.name}${e.menge > 1 ? ` ×${e.menge}` : ''}${def.beschreibung ? ` – ${def.beschreibung}` : ''}` : '';
   }
 
+  /** "Bauen"-Liste: neu aufbauen nur, wenn sich der Bestand der Zutaten geändert hat. */
+  #zeichneBauen() {
+    const bestand = {};
+    for (const e of this.#daten.inventar) if (e) bestand[e.defId] = (bestand[e.defId] ?? 0) + e.menge;
+    const liste = Object.entries(this.rezepte).filter(([, r]) => r.ort === 'inventar');
+    const stand = JSON.stringify(liste.map(([, r]) => Object.keys(r.zutaten).map((z) => bestand[z] ?? 0)));
+    if (stand === this.bauenStand) return;
+    this.bauenStand = stand;
+    const d = this.dokument;
+    this.bauenListe.replaceChildren(
+      ...liste.map(([id, r]) => {
+        const machbar = Object.entries(r.zutaten).every(([z, n]) => (bestand[z] ?? 0) >= n);
+        const zeile = Object.assign(d.createElement('div'), { className: `inv-rezept${machbar ? ' machbar' : ''}`, title: r.beschreibung ?? '' });
+        const icon = Object.assign(d.createElement('canvas'), { width: 72, height: 72 });
+        this.zeichneIcon(icon, r.ergebnis);
+        const text = Object.assign(d.createElement('span'), { className: 'inv-rezept-text' });
+        text.append(
+          Object.assign(d.createElement('b'), { textContent: r.name }),
+          Object.assign(d.createElement('small'), {
+            textContent: Object.entries(r.zutaten).map(([z, n]) => `${Math.min(bestand[z] ?? 0, n)}/${n} ${this.#itemDefinitionen[z]?.name ?? z}`).join(' · '),
+          }),
+        );
+        const knopf = Object.assign(d.createElement('button'), { type: 'button', textContent: 'Bauen', disabled: !machbar });
+        knopf.addEventListener('click', () => this.#aktionen.herstellen?.(id));
+        zeile.append(icon, text, knopf);
+        return zeile;
+      }),
+    );
+  }
+
   #zeichne() {
     const d = this.#daten;
+    this.#zeichneBauen();
     const groesse = d.inventar.length;
     const hatRucksack = !!d.rucksack;
     this.rucksackBereich.classList.toggle('leer', !hatRucksack);

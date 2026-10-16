@@ -69,6 +69,9 @@ export class SpielServer {
     this.gesendeteGegenstaendeVersion = this.spielWelt.gegenstaendeVersion;
     this.gesendeteTuerenVersion = this.spielWelt.tuerenVersion;
     this.gesendeteRessourcenVersion = this.spielWelt.welt.ressourcenVersion;
+    this.gesendeteBauwerkeVersion = this.spielWelt.welt.bauwerkeVersion;
+    this.weltSchluessel = `welt:${this.spielWelt.karte.daten.id}`;
+    this.weltGeladen = this.#ladeWelt();
     this.taktgeber = new Taktgeber(TICK_DAUER_MS, () => this.tickAusfuehren());
   }
 
@@ -88,8 +91,30 @@ export class SpielServer {
     for (const sitzung of this.sitzungen) sitzung.kanal.trennen(grund);
   }
 
-  /** Spielstände aller eingeloggten Spieler sichern (wartet, bis alles geschrieben ist). */
+  /** Gebaute Sachen, Uhrzeit & Tag vom letzten Mal laden (Speicher-Schlüssel "welt:<kartenId>"). */
+  async #ladeWelt() {
+    try {
+      const stand = await this.speicher.laden(this.weltSchluessel);
+      if (stand && this.spielWelt.uebernimmWeltzustand(stand)) {
+        this.log.info?.(`[Server] Welt geladen: ${this.spielWelt.welt.bauwerke.size} Bauwerke, Tag ${this.spielWelt.tag}`);
+      }
+    } catch (fehler) {
+      this.log.error?.('[Server] Weltzustand nicht ladbar:', fehler);
+    }
+  }
+
+  #speichereWelt() {
+    const stand = this.spielWelt.weltzustand();
+    const speichern = Promise.resolve()
+      .then(() => this.speicher.speichern(this.weltSchluessel, stand))
+      .catch((fehler) => this.log.error?.('[Server] Weltzustand nicht gespeichert:', fehler))
+      .finally(() => this.ausstehendeSpeicherungen.delete(speichern));
+    this.ausstehendeSpeicherungen.add(speichern);
+  }
+
+  /** Spielstände aller eingeloggten Spieler + die Welt sichern (wartet, bis alles geschrieben ist). */
   async speichereAlle() {
+    this.#speichereWelt();
     for (const sitzung of this.sitzungen) if (sitzung.status === 'imSpiel') this.#speichere(sitzung);
     await Promise.all([...this.ausstehendeSpeicherungen]);
   }
@@ -127,6 +152,7 @@ export class SpielServer {
     if (++this.ticksSeitAutosave >= this.konfiguration.server.autosaveSekunden * TICK_RATE) {
       this.ticksSeitAutosave = 0;
       for (const sitzung of this.sitzungen) if (sitzung.status === 'imSpiel') this.#speichere(sitzung);
+      if (this.spielerAnzahl > 0) this.#speichereWelt();
     }
 
     const zustand = kodiere({ typ: NACHRICHT.ZUSTAND, ...this.spielWelt.schnappschuss() });
@@ -139,6 +165,11 @@ export class SpielServer {
     if (this.spielWelt.welt.ressourcenVersion !== this.gesendeteRessourcenVersion) {
       this.gesendeteRessourcenVersion = this.spielWelt.welt.ressourcenVersion;
       ressourcen = kodiere({ typ: NACHRICHT.RESSOURCEN, abgebaut: [...this.spielWelt.welt.abgebaut] });
+    }
+    let bauwerke = null;
+    if (this.spielWelt.welt.bauwerkeVersion !== this.gesendeteBauwerkeVersion) {
+      this.gesendeteBauwerkeVersion = this.spielWelt.welt.bauwerkeVersion;
+      bauwerke = kodiere({ typ: NACHRICHT.BAUWERKE, liste: [...this.spielWelt.welt.bauwerke.values()] });
     }
     let tueren = null;
     if (this.spielWelt.tuerenVersion !== this.gesendeteTuerenVersion) {
@@ -158,6 +189,7 @@ export class SpielServer {
       if (gegenstaende) sitzung.kanal.senden(gegenstaende);
       if (tueren) sitzung.kanal.senden(tueren);
       if (ressourcen) sitzung.kanal.senden(ressourcen);
+      if (bauwerke) sitzung.kanal.senden(bauwerke);
       sitzung.kanal.senden(zustand);
       this.#sendePrivateDaten(sitzung);
       for (const text of meldungen.get(sitzung.spielerId) ?? []) this.#senden(sitzung, { typ: NACHRICHT.MELDUNG, text });
@@ -281,6 +313,7 @@ export class SpielServer {
       spielerDaten: spielerDatenPrivat(spieler, this.konfiguration),
       tueren: this.spielWelt.welt.offeneTueren(),
       abgebaut: [...this.spielWelt.welt.abgebaut],
+      bauwerke: [...this.spielWelt.welt.bauwerke.values()],
       rezepte: REZEPTE,
       tageszeit: this.spielWelt.tageszeitDauer(),
       zeit: this.spielWelt.zeit,
@@ -334,6 +367,7 @@ export class SpielServer {
     const gueltigerSlot = (s) => Number.isInteger(s) && s >= 0 && s < INVENTAR_MAX;
     if (slot !== null && !gueltigerSlot(slot)) return;
     if (n.art === AKTIONEN.TAUSCHEN && !(gueltigerSlot(slot) && gueltigerSlot(n.ziel))) return;
+    if (n.art === AKTIONEN.PLATZIEREN && !(gueltigerSlot(slot) && Number.isInteger(n.tx) && Number.isInteger(n.ty))) return;
     if (n.art === AKTIONEN.ADMIN && !GUELTIGE_ADMIN_BEFEHLE.has(n.befehl)) return;
     if (n.art === AKTIONEN.HERSTELLEN && !Object.hasOwn(REZEPTE, n.rezept)) return;
     if (spieler.aktionsPuffer.length >= MAX_AKTIONS_PUFFER) return;
@@ -341,6 +375,7 @@ export class SpielServer {
     if (n.art === AKTIONEN.ADMIN) aktion.befehl = n.befehl;
     if (n.art === AKTIONEN.HERSTELLEN) aktion.rezept = n.rezept;
     if (n.art === AKTIONEN.TAUSCHEN) aktion.ziel = n.ziel;
+    if (n.art === AKTIONEN.PLATZIEREN) Object.assign(aktion, { tx: n.tx, ty: n.ty });
     spieler.aktionsPuffer.push(aktion);
   }
 

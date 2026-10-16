@@ -46,6 +46,8 @@ export const NACHRICHT = Object.freeze({
   TUEREN: 'tueren',
   /** { abgebaut: [Ressourcen-IDs] } – gefällte Bäume / abgebaute Steine, nur bei Änderung (IDs: Welt.ressourcen) */
   RESSOURCEN: 'ressourcen',
+  /** { liste: [Bauwerke] } – alle gebauten Dinge (gemeinsam/welt/bauwerke.js), nur bei Änderung */
+  BAUWERKE: 'bauwerke',
   /** { t } */
   PONG: 'pong',
   /** { von, text, admin, system } – Chatnachricht (system = Server-Hinweis wie "X ist beigetreten"); Typ wie CHAT */
@@ -64,6 +66,9 @@ export const AKTIONEN = Object.freeze({
   ABLEGEN: 'ablegen', // ganzen Stapel auf den Boden legen
   TAUSCHEN: 'tauschen', // { slot, ziel } Inventarplätze tauschen bzw. gleiche Stapel zusammenlegen (Drag & Drop)
   RUCKSACK_ABLEGEN: 'rucksackAblegen', // Rucksack auf den Boden legen (Inhalt wandert ins Inventar oder fällt mit)
+  PLATZIEREN: 'platzieren', // { slot, tx, ty } Bauwerk-Item (oder Hacke → Beet) auf Kachel tx/ty aufstellen
+  FEUER: 'feuer', // F: nächstes Lagerfeuer anzünden (Feuerzeug nötig) / löschen – sonst wie 'tuer'
+  BAUWERK: 'bauwerk', // E am nächsten Bauwerk: Falle aufnehmen/spannen, kochen, pflanzen, ernten
   NACHLADEN: 'nachladen', // ausgerüstete Schusswaffe nachladen
   TUER: 'tuer', // nächste Tür in Reichweite öffnen/schließen
   ABBAUEN: 'abbauen', // nächsten Baum/Stein abbauen (Axt/Spitzhacke nötig, dauert)

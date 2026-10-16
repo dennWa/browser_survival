@@ -24,6 +24,8 @@ import { NACHRICHT } from '../gemeinsam/protokoll.js';
 const leinwand = document.getElementById('spielflaeche');
 let renderer = null;
 const eingabe = new Eingabe(window, leinwand);
+// Rechtsklick bricht das Aufstellen (Platzier-Modus) ab
+leinwand.addEventListener('contextmenu', () => aktuellesSpiel?.platzierungAbbrechen());
 // Mausrad: rein-/rauszoomen (nur im Spiel)
 leinwand.addEventListener(
   'wheel',
@@ -71,6 +73,8 @@ hud.beiAktionen({
   tauschen: (von, nach) => aktuellesSpiel?.tauschen(von, nach),
   rucksackAblegen: () => aktuellesSpiel?.rucksackAblegen(),
   zoomStufe: () => renderer?.naechsteZoomStufe(),
+  platzierenOk: () => aktuellesSpiel?.platzierungBestaetigen(),
+  platzierenAbbrechen: () => aktuellesSpiel?.platzierungAbbrechen(),
   licht: () => aktuellesSpiel?.licht(),
   tuer: () => aktuellesSpiel?.tuer(),
   interagieren: () => aktuellesSpiel?.interagieren(),

@@ -3,6 +3,7 @@ import { ABBAU_REICHWEITE } from '../../../gemeinsam/welt/ressourcen.js';
 import { sekundenFuerStunden, tageszeit } from '../../../gemeinsam/tageszeit.js';
 import { fuegeZumInventarHinzu, legeAufBoden } from './inventarSystem.js';
 import { GEGENSTAENDE } from '../konfiguration/gegenstaende.js';
+import { aktualisiereBauwerke, kochenFertig } from './bauSystem.js';
 
 /**
  * Arbeiten, die Zeit brauchen: Bäume fällen / Steine abbauen (Werkzeug nötig) und Schlafen im Bett.
@@ -72,6 +73,11 @@ export function aktualisiereArbeit(spielWelt, dt) {
     }
     if (a.art === 'schlafen') {
       schlafe(spielWelt, spieler, dt);
+      continue;
+    }
+    if (a.art === 'kochen') {
+      a.rest -= dt;
+      if (a.rest <= 0) kochenFertig(spielWelt, spieler);
       continue;
     }
     if (!spielWelt.welt.istRessourceDa(a.ressourceId)) {
@@ -155,6 +161,7 @@ export function spuleZeitVor(spielWelt, stunden) {
     spielWelt.tag++;
   }
   aktualisiereNachwachsen(spielWelt, sekunden);
+  aktualisiereBauwerke(spielWelt, 0, sekunden); // Pflanzen wachsen im Schlaf mit
 }
 
 /** Abgebaute Bäume/Steine wachsen nach – aber nicht, wenn gerade jemand an der Stelle steht. */
