@@ -45,3 +45,7 @@ Grafiken neu erzeugen (nur bei Grafik-Änderungen, braucht Python 3):
 Lizenzen der Grafiken: [`client/assets/LIZENZEN.md`](client/assets/LIZENZEN.md).
 
 **Architektur, Dateistruktur und Entwicklungsstand:** siehe [`project_manifest.md`](project_manifest.md).
+
+## Für Entwickler & KIs
+- `KI_INDEX.md` – kompakte Übersicht (Architektur, Dateien, Protokoll, Fallen) · `project_manifest.md` – ausführlich
+- `npm test` · `npm run rauchtest` (Browser-Test) · `werkzeuge/karten/README.md` (neue Zonen mit Tiled)

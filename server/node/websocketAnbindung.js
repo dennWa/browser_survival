@@ -10,7 +10,20 @@ const MAX_PUFFER_BYTES = 1024 * 1024;
 const HERZSCHLAG_MS = 15000;
 
 export function bindeWebsocketServer(httpServer, spielServer, { pfad = '/ws' } = {}) {
-  const wss = new WebSocketServer({ server: httpServer, path: pfad, maxPayload: MAX_NACHRICHT_BYTES });
+  const wss = new WebSocketServer({
+    server: httpServer,
+    path: pfad,
+    maxPayload: MAX_NACHRICHT_BYTES,
+    // Kompression (permessage-deflate, kann jeder Browser): Schnappschüsse sind JSON und schrumpfen auf ~1/5
+    // (gemessen: 4,4 KB → 0,9 KB). Stufe 1 = schnell; der Server behält den Wörterbuch-Kontext (ähnliche
+    // Nachrichten → noch kleiner), Client-Nachrichten sind winzig → dort ohne Kontext (spart Speicher).
+    perMessageDeflate: {
+      zlibDeflateOptions: { level: 1, memLevel: 8 },
+      clientNoContextTakeover: true,
+      threshold: 256,
+      concurrencyLimit: 10,
+    },
+  });
 
   wss.on('connection', (socket, anfrage) => {
     socket.lebt = true;

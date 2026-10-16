@@ -204,6 +204,10 @@ export class SpielServer {
       for (const sitzung of sitzungen) {
         const spieler = zone.spielWelt.holen(sitzung.spielerId);
         if (!spieler?.zonenwechsel) continue;
+        if (spieler.tot) {
+          spieler.zonenwechsel = null; // im selben Tick gestorben → kein Umzug
+          continue;
+        }
         this.#wechsleZone(sitzung, spieler).catch((fehler) => {
           this.log.error?.('[Server] Zonenwechsel fehlgeschlagen:', fehler);
           sitzung.kanal.trennen('Zonenwechsel fehlgeschlagen');
@@ -382,7 +386,7 @@ export class SpielServer {
     const bereitsDa = [...this.sitzungen].some(
       (s) =>
         s !== sitzung &&
-        (s.status === 'imSpiel' || s.status === 'laedtSpielstand') &&
+        (s.status === 'imSpiel' || s.status === 'laedtSpielstand' || s.status === 'wechseltZone') &&
         s.benutzername?.toLowerCase() === name.toLowerCase(),
     );
     if (bereitsDa) return this.#loginAblehnen(sitzung, 'Dieser Account ist bereits eingeloggt');

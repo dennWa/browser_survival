@@ -3,6 +3,7 @@
 > **Zweck dieser Datei:** Zentrale Landkarte des Projekts. Hier steht, *wo* welches System liegt,
 > *wie* die Teile zusammenhängen und *was* der aktuelle Stand ist.
 > **Pflegeregel:** Jede Änderung an Struktur, Protokoll oder Entwicklungsstand wird hier nachgetragen.
+> **Für KI-Sitzungen:** Schnellüberblick in **`KI_INDEX.md`** (kompakt, mit Fallen & Invarianten) – danach hier vertiefen.
 
 ---
 
@@ -10,8 +11,10 @@
 
 Top-Down-Survival in **3D** (schräge Vogelperspektive, Three.js) im Browser – für PC/Laptop, spielbar auch auf
 Handy & Tablet. Gameplay bleibt flach (2D auf dem Boden), nur die Darstellung ist 3D.
-Startkarte: **Stadtrand mit dem St.-Elisabeth-Krankenhaus** (110 × 86 Kacheln). Tag & Nacht, Türen, Horde,
-Ressourcen (Holz, Stein), Crafting an Werkbänken, Schlafen, Karte mit Erkundung, Chat, Developer-Modus.
+**Offene Welt aus Zonen** (wie die großen Maps in Guild Wars 2): Startzone **Stadtrand mit dem St.-Elisabeth-Krankenhaus**
+(110 × 86 Kacheln), im Norden die Zone **Waldweg** (64 × 52, Wald, Försterhütte, viel Erz). Tag & Nacht, Türen, Horde,
+Ressourcen (Holz, Stein, Eisenerz), Crafting an Werkbänken, Bauen (Werkbank, Lagerfeuer, Fallen), Farmen, Kochen,
+Autos fahren, Skills, Charakterwahl (Mann/Frau), Schlafen, Karte mit Erkundung, Chat, Developer-Modus.
 
 | Thema | Entscheidung |
 |---|---|
@@ -28,6 +31,7 @@ Ressourcen (Holz, Stein), Crafting an Werkbänken, Schlafen, Karte mit Erkundung
 | Developer-Modus | Admin-Menü → 🛠 Developer: Werte aus `entwicklerFelder.js` ingame ändern; dauerhaft in `server/daten/einstellungen.json` (Node) bzw. im Browser (Lokal) |
 | Online stellen | `render.yaml` (Render-Blueprint), Accounts per Umgebungsvariable `KONTEN_JSON` (Text gibt `npm run konto` aus) |
 | Zielgröße | Einige bis ein paar Dutzend gleichzeitige Spieler pro Server (Standard: max. 32) |
+| Welt | Zonen = Karten (`server/spiel/karten/`), verbunden über Übergänge am Rand; jede Zone eigene SpielWelt (`server/spiel/zone.js`). Karten auch mit **Tiled** bauen (`werkzeuge/karten/README.md`) |
 
 ### Starten
 ```bash
@@ -37,6 +41,8 @@ npm run konto -- Chef meinPasswort --admin   # Account mit Admin-Recht (--kein-a
 npm start                                # → http://localhost:8080
 npm run start:gast                       # Server ohne Account-Pflicht (nur Tests!)
 npm test                                 # automatische Tests
+npm run rauchtest                        # Browser-Rauchtest (Playwright): Login, laufen, Fenster, Zonenwechsel, Screenshots
+npm run karte:export -- waldweg          # Zone nach Tiled exportieren (karte:import zurück)
 ```
 Port ändern: `PORT=3000 npm start`. Andere Spieler im LAN verbinden sich über `http://<deine-IP>:8080`.
 
@@ -62,6 +68,14 @@ Port ändern: `PORT=3000 npm start`. Andere Spieler im LAN verbinden sich über 
 im Node-Server (Mehrspieler) und im Browser (Lokal-Modus). Client und Server sprechen *immer* über einen
 **Text-Kanal** – ob WebSocket oder Speicher-Kanal ist für beide Seiten unsichtbar.
 
+**Zonen (offene Welt):** Der `SpielServer` hält pro Karte eine `Zone` (`server/spiel/zone.js`) mit eigener `SpielWelt`.
+Jede Sitzung gehört zu genau einer Zone (`sitzung.zone`) und bekommt nur deren Daten. Betritt ein Spieler zu Fuß ein
+Übergangs-Rechteck (`uebergaenge` der Karte, `systeme/zonenSystem.js`), zieht der Server ihn um: Spielstand mitnehmen →
+alte Zone verlassen → in der Zielzone am Ankunftspunkt neu erzeugen → `ZONE_WECHSEL` (Client baut mit Ladebildschirm neu
+auf, Verbindung bleibt). Die **Startzone läuft immer** und ist die Weltuhr; andere Zonen laufen nur mit Spielern und holen
+beim Betreten die verpasste Zeit nach (Pflanzen wachsen, Bäume wachsen nach). Schlafen spult nur vor, wenn **alle**
+Spieler aller Zonen schlafen; der Zeitsprung gilt dann für alle aktiven Zonen. Chat ist zonenübergreifend.
+
 ### Datenfluss pro Tick (30×/s)
 1. Client: Tasten lesen → `EINGABE {seq, x, y, blick, angriff}` senden **und** Bewegung sofort lokal anwenden (Vorhersage).
    Einmalige Aktionen (aufheben, benutzen, ablegen, nachladen, tuer, abbauen, schlafen, herstellen, licht, wiederbeleben,
@@ -70,18 +84,23 @@ im Node-Server (Mehrspieler) und im Browser (Lokal-Modus). Client und Server spr
 3. Server-Tick `SpielWelt.aktualisiere()` – Systeme in fester Reihenfolge:
    Aktionen ablaufen lassen → Bewegung → Inventar-Aktionen → Nachladen → Kampf (Spielerangriffe)
    → Arbeit (Abbauen, Schlafen, Nachwachsen) → Zombie-KI → Überleben (Hunger/Durst/Respawn) → Loot-Nachschub → Tageszeit (Uhr, Horde)
-4. Server sendet an alle: `ZUSTAND` (Spieler & Zombies, Uhrzeit `zeit`/`tag` + `ereignisse` des Ticks: Schüsse,
-   Treffer, Tode, Türen, Hacken …), `GEGENSTAENDE`, `TUEREN`, `RESSOURCEN` nur bei Änderung; `CHAT` und
+4. Server sendet an alle Spieler **der Zone**: `ZUSTAND` (Spieler, Zombies, Autos, Uhrzeit `zeit`/`tag` + `ereignisse` des
+   Ticks: Schüsse, Treffer, Tode, Türen, Hacken …) – **Interest Management:** Zombies/Autos nur im Umkreis
+   `NETZ_SICHTWEITE` (2400 px) um den Empfänger, Mitspieler immer; Zahlen gerundet (außer eigene Vorhersagewerte).
+   `GEGENSTAENDE`, `TUEREN`, `RESSOURCEN`, `BAUWERKE` nur bei Änderung; `CHAT` und
    `EINSTELLUNGEN` (nach Developer-Änderungen: Physik, Tageslänge, Item-Werte) an alle. An jeden einzeln: `SPIELER_DATEN` (Inventar, Hunger, Durst … nur bei Änderung)
-   und `MELDUNG`en ("Inventar voll").
+   und `MELDUNG`en ("Inventar voll"). WebSockets komprimieren (permessage-deflate, Schnappschuss ~4,4 KB → ~0,9 KB).
 5. Client: eigene Position übernehmen + unbestätigte Eingaben nachspielen (Reconciliation); andere Entitäten
    100 ms verzögert interpolieren; Ereignisse → Effekte (fremde ebenfalls 100 ms verzögert, eigene sofort).
 
 ### Gameplay-Regeln (Kurzfassung)
-- **Zombies:** sehen Spieler im `aggroRadius` nur bei freier Sicht (Wände/Fenster blockieren, Möbel nicht), hören
+- **Zombies:** sehen Spieler im `aggroRadius` nur bei freier Sicht (Wände/Fenster blockieren, Möbel nicht) und **nie
+  ins Haus hinein** (Spieler auf Innenboden = versteckt, Geräusche locken trotzdem), hören
   Schüsse im `hoerRadius`. Laufen direkt aufs Ziel, wenn der Weg begehbar ist (3 Strahlen in Körperbreite), sonst A*
   um Wände & Möbel. Geben auf jenseits `verlierRadius` oder wenn das Ziel unerreichbar ist. Respawn am Spawnpunkt,
-  aber nie in Spielernähe. Lassen mit `lootChance` etwas fallen. Spawnpunkte (`Z`) liegen nur draußen (10 Stück).
+  aber nie in Spielernähe. Lassen mit `lootChance` etwas fallen. Spawnpunkte (`Z`) liegen nur draußen. Engstellen
+  (Türen) werden reserviert – wer wartet, macht Platz. Stirbt ein Spieler, verschwinden die Zombies im
+  `spieler.todesZombieRadius` (480 px) um den Todesort (kommen regulär wieder).
 - **Tag & Nacht** (`gemeinsam/tageszeit.js`, `tageszeitSystem.js`): Tag 10 min (06–21 Uhr), Nacht 5 min (21–06 Uhr),
   Werte in `konfiguration.welt`. Nachts: Zombies jagen schneller (`nachtTempoFaktor`), eine **Horde** (`nachtHorde`)
   taucht an freien Spawnpunkten auf, wittert Spieler bis 1100 px (auch ohne Sicht) und zieht morgens wieder ab.
@@ -93,18 +112,34 @@ im Node-Server (Mehrspieler) und im Browser (Lokal-Modus). Client und Server spr
   sie auf (`welt.tuerLeben` Schaden), danach ist die Tür offen.
 - **Start:** im Schlafzimmer eines Wohnhauses neben dem Bett, mit Pistole (15 Schuss, in der Hand), Axt und
   Spitzhacke (`spieler.startInventar`) – nach dem Tod wieder. Das alte Inventar liegt `loot.todesVerfall` (180 s) am Boden.
-- **Taste E / Aktions-Knopf** macht das Naheliegendste: Gegenstand aufheben → Baum/Stein abbauen → Werkbank → Schlafen.
-- **Ressourcen** (`gemeinsam/welt/ressourcen.js`, `arbeitSystem.js`): Baum (Axt) → 2 Holz, Stein (Spitzhacke) → 2 Stein,
-  je 5 s (`konfiguration.ressourcen`). Bewegung/Angriff/Schaden bricht ab. Abgebautes wächst nach (Holz 300 s, Stein 240 s).
+- **Taste E / Aktions-Knopf** macht das Naheliegendste: Auto (ein/aus) → Gegenstand aufheben → Bauwerk (Falle, Kochen,
+  Pflanzen, Ernten) → Baum/Stein/Erz abbauen → Werkbank → Schlafen. **F**: Lagerfeuer an/aus, sonst Tür.
+- **Ressourcen** (`gemeinsam/welt/ressourcen.js`, `arbeitSystem.js`): Baum (Axt, 6 s) → Holz, Stein (Spitzhacke, 8 s) →
+  Stein, Eisenerz (Spitzhacke, 10 s) → Eisenerz; je 1 Stück + 20 % Chance auf 2 (`konfiguration.ressourcen`). Bewegung/
+  Angriff/Schaden bricht ab. Nachwachsen 300/240/420 s. Gefällter Baum kippt um (Animation + Knack-Geräusch `baum_faellt`).
+- **Bauen** (`gemeinsam/welt/bauwerke.js`, `bauSystem.js`): Im Inventar (Abschnitt „Bauen“, Rezepte mit `ort: 'inventar'`)
+  Werkbank (4 Holz), Lagerfeuer (3 Holz), Bärenfalle herstellen → Item benutzen → Platzier-Modus mit grün/roter Vorschau
+  (Maus/Tippen setzt, Rechtsklick/✕ bricht ab). Lagerfeuer nur draußen, mit **F + Feuerzeug** anzünden, brennt 5 min,
+  daran mit E **kochen** (gebraten = +30 % Sättigung). Falle: tötet Zombies sofort, mit E aufnehmen/spannen.
+- **Farmen:** Hacke benutzen → Beet auf Rasen; Samen (Loot) mit E pflanzen; wächst in 1 Spieltag (24 h, Schlafen spult
+  mit), Ernte 2 Tomaten/Gurken/Kartoffeln (`konfiguration.bauen`). Beete & Bauwerke werden pro Zone gespeichert.
+- **Autos** (`gemeinsam/physik/fahrzeug.js`, `fahrzeugSystem.js`): Kartenautos sind Fahrzeuge; E steigt ein/aus,
+  W/S Gas/Bremse, A/D lenken (Touch: linker Stick). Gemeinsame Physik → Vorhersage wie beim Laufen. Zombies anfahren
+  macht Schaden je Tempo (+XP), im Auto beißen Zombies nicht. Scheinwerfer, Motorsound, Kamera zoomt raus. Parkposition
+  wird gespeichert. Durch Zonen-Übergänge geht es nur zu Fuß.
 - **Crafting** (`craftingSystem.js`, Rezepte in `konfiguration/rezepte.js`): an einer Werkbank (Wohnhäuser, Werkstatt);
   Menü mit Kategorien. Bretter verstärken geschlossene Türen (+`welt.tuerVerstaerkung`, max. 4× Haltbarkeit).
 - **Schlafen:** in jedem Bett, jederzeit (keine jagenden Zombies in `schlafen.zombieAbstand`): dauert `schlafen.dauer`
   (6 s), heilt `schlafen.heilung`, kostet etwas Hunger/Durst und spult die Uhr um `schlafen.stunden` (6 h) vor –
   im Mehrspieler nur, wenn **alle** lebenden Spieler schlafen (wer früher fertig ist, wartet liegend). Bild wird
   dunkel (`#schlafblende`). Bewegung oder Schaden weckt auf. Umrechnung Stunden → Sekunden: `sekundenFuerStunden()`.
-- **Level** (`levelSystem.js`, `konfiguration.level`): 10 XP pro getötetem Zombie (nur wenn ein Spieler tötet),
-  Level 2 bei 50 XP, dann +20 pro Stufe (70, 90 …); XP zählen pro Level. **Tod = zurück auf Level 1.** HUD:
+- **Level** (`levelSystem.js`, `konfiguration.level`): XP pro getötetem Zombie je Variante (normal 10, Läufer 12,
+  Brocken 15), Level 2 bei 50 XP, dann +20 pro Stufe (70, 90 …). **Tod = zurück auf Level 1, Skills weg.** HUD:
   goldene Plakette + XP-Balken, Spielerliste zeigt das Level.
+- **Skills** (`gemeinsam/spieler/skills.js`, Fenster U / ⭐): 1 Punkt pro Level-Aufstieg; Schnelligkeit (+3 % Tempo),
+  Stärke (+8 % Nahkampf), Zähigkeit (+10 max. Leben), Sammeln (6 % schneller abbauen), je max. 10.
+- **Charakter** (`gemeinsam/spieler/aussehen.js`): Mann/Frau im Login wählbar; Grundgerüst für Haare/Gesicht/Hautfarbe/
+  Kleidung (Merkmale mit `aktiv: false` warten auf Grafik). Im Spielstand gespeichert, für alle sichtbar.
 - **Kampf:** Schusswaffen = Strahl (Hitscan) bis zur ersten Wand, Schrotflinte mit 7 Projektilen + Streuung;
   leeres Magazin → automatisch nachladen (falls Munition da), sonst "Klick". Nahkampf = Trefferkegel ±66°
   (`NAHKAMPF_KEGEL`) vor der Figur, Reichweite bis zum Rand des Ziels (Faust 44, Messer ~50, Hammer/Axt 54,
@@ -124,16 +159,21 @@ im Node-Server (Mehrspieler) und im Browser (Lokal-Modus). Client und Server spr
   identisch). Sprinten ist laut (`sprintHoerRadius`).
 - **Zombie-Varianten** (`konfiguration.zombie.varianten`): normal, Läufer (schnell, schwach, blass), Brocken
   (langsam, zäh, starker Biss, groß). Ruhende Zombies schlurfen im `wanderRadius` um ihren Spawnpunkt.
-- **Karte** (K / 🗺, `client/ui/karte.js`): zeigt nur erkundete Bereiche (Umkreis 9 Kacheln), gespeichert im Browser
-  pro Server + Account. Werkbänke 🔨 und Mitspieler (blau, mit Namen) sind immer zu sehen.
+- **Karte** (K / 🗺, `client/ui/karte.js`): zeigt die aktuelle Zone, nur erkundete Bereiche (Umkreis 9 Kacheln);
+  Erkundung liegt **auf dem Server** (Spielstand, pro Zone – auch auf anderen Geräten da) und im Browser. Werkbänke 🔨,
+  Bauwerke, Mitspieler (blau) und Übergänge (blaue Pfeile mit Zonenname) sind immer zu sehen; öffnet zentriert auf die Figur.
+- **Zonen-Übergänge:** am Kartenrand, im Spiel mit Wegweiser-Schild markiert; einfach hineinlaufen.
   **Chat** (T / 💬), **Spielerliste** mit Level (Tab / Statuszeile antippen), Beitritt/Verlassen wird angesagt.
 
 ### Spielstände
 Beim Login lädt der SpielServer den Stand über eine austauschbare **Speicher-Schnittstelle**
 (`laden(name)`, `speichern(name, stand)`), geprüft und bereinigt durch `server/spiel/spielstand.js`.
 Gespeichert wird beim Logout, alle `server.autosaveSekunden` und beim Server-Stopp (Strg+C wartet aufs Schreiben).
-Inhalt: Position, Leben, Hunger, Durst, Inventar (inkl. Rucksack + Inhalt), ausgerüsteter Platz, Level, XP.
-Gäste (`Gast-1234`) haben auch einen Spielstand – ihr Name bleibt im Browser gemerkt.
+Inhalt: Zone (`karte`) + Position, Leben, Hunger, Durst, Inventar (inkl. Rucksack + Inhalt), ausgerüsteter Platz, Level,
+XP, Skills, Aussehen, Erkundung pro Zone (`erkundet: { kartenId: base64 }`). Login landet in der Zone vom letzten Mal
+(tot oder Zone unbekannt → Startzone). Gäste (`Gast-1234`) haben auch einen Spielstand – ihr Name bleibt im Browser gemerkt.
+**Welt pro Zone** (Schlüssel `welt:<kartenId>`): Uhrzeit/Tag, Bauwerke (inkl. Beete & Pflanzen), Autos (Parkposition) –
+geladen beim ersten Betreten bzw. Serverstart, gespeichert per Autosave (wenn die Zone aktiv war) und beim Stopp.
 | Umgebung | Speicher |
 |---|---|
 | Node-Server | `server/node/dateiSpeicher.js` → `server/daten/spielstaende/<name>.json` (Ordner per `DATEN_ORDNER`/`SPIELSTAENDE`) |
@@ -208,6 +248,7 @@ browser_survival/
 ├── project_manifest.md            ← DIESE DATEI
 ├── CLAUDE.md                      Arbeitsanweisung für KI-Sitzungen (verweist hierher)
 ├── README.md                      Kurzanleitung
+├── KI_INDEX.md                    ★ Kompaktkarte für KI-Sitzungen (Architektur, Dateien, Protokoll, Fallen)
 ├── ONLINE_STELLEN.md              ★ Checkliste: Server online bringen (Render, Konten-Datei, Umgebungsvariablen)
 ├── render.yaml                    Render-Blueprint
 ├── package.json                   Skripte: start, start:gast, konto, test
@@ -229,7 +270,8 @@ browser_survival/
 │   ├── spiel/                     ── Autoritative Spiellogik (läuft in Node UND Browser) ──
 │   │   ├── spielServer.js         Sitzungen, Login, Nachrichten-Routing, Chat, Developer-Modus, Tick → Versand
 │   │   ├── entwickler.js          Developer-Werte lesen/setzen/zurücksetzen (inkl. Wirkung auf laufende Figuren)
-│   │   ├── spielWelt.js           Spielzustand: Entitäten-Map, Tick, Systemreihenfolge, Schnappschuss
+│   │   ├── zone.js                Zone = eine Karte + SpielWelt: Weltzustand laden, Versand pro Tick (Interest Mgmt), Start-/Ankunftsdaten
+│   │   ├── spielWelt.js           Spielzustand: Entitäten-Map, Tick, Systemreihenfolge, Schnappschuss, Welt-Speicherstand
 │   │   ├── taktgeber.js           Fester Simulationstakt (setTimeout-basiert)
 │   │   ├── zufall.js              Seedbarer Zufall (mulberry32)
 │   │   ├── entitaeten/
@@ -248,11 +290,15 @@ browser_survival/
 │   │   │   ├── levelSystem.js     XP & Level (gibXp, xpFuerNaechstesLevel, Zurücksetzen beim Tod)
 │   │   │   ├── craftingSystem.js  Herstellen an der Werkbank (prüft Nähe & Zutaten)
 │   │   │   ├── pfadfindung.js     A* auf dem Kachelraster (geschlossene Türen optional "teuer passierbar")
+│   │   │   ├── bauSystem.js       Bauwerke platzieren, Lagerfeuer, Fallen, Beete/Wachstum, Kochen
+│   │   │   ├── fahrzeugSystem.js  Ein-/Aussteigen, Fahren, Zombies anfahren
+│   │   │   ├── zonenSystem.js     Übergangs-Rechtecke erkennen → spieler.zonenwechsel
 │   │   │   ├── ueberlebenSystem.js Hunger, Durst, Heilung, Wiederbelebung
 │   │   │   └── lootSystem.js      Start-Loot, Nachschub an Loot-Punkten, Zombie-Beute
 │   │   ├── karten/
 │   │   │   ├── kartenLader.js     Kartenregister + ASCII → Kacheln/Spawns/Loot-Punkte
-│   │   │   └── stadtrand.js       Standardkarte (ASCII, 110×86): Krankenhaus + Umgebung, Räume, Möbel, Lampen
+│   │   │   ├── stadtrand.js       Startzone (110×86, GENERIERT von werkzeuge/karten/stadtrand.py)
+│   │   │   └── waldweg.js         Zone Waldweg (64×52, GENERIERT von werkzeuge/karten/waldweg.py)
 │   │   ├── konfiguration/
 │   │   │   ├── spielKonfiguration.js  Balancing-Standardwerte + Überschreib-Logik
 │   │   │   ├── rezepte.js         ★ Crafting-Rezepte (einfach selbst anpassbar, Anleitung im Kopf der Datei)
@@ -274,6 +320,8 @@ browser_survival/
 │   ├── werkzeuge/kontoAnlegen.js  CLI: npm run konto -- <name> <passwort>
 │   └── daten/                     konten.json, einstellungen.json, spielstaende/ (gitignored) + *.beispiel.json (Vorlagen)
 │
+├── werkzeuge/karten/              Kartengeneratoren (Python), Tiled-Export/-Import (`tiled.mjs`, `tiledKarte.mjs`), README
+├── werkzeuge/test/rauchtest.mjs   Browser-Rauchtest (Playwright) → `npm run rauchtest`
 ├── werkzeuge/assets/              ── Grafik-Pipeline ──
 │   ├── baue_assets.py             (Python) Quellen, Item-/Möbel-Zuordnung, Spritesheets, 3D-Figur → client/assets/
 │   ├── baue_3d.mjs                (Node, danach) 3D-Animationen → JSON, Three.js verkleinert → client/vendor/three/
@@ -378,7 +426,12 @@ browser_survival/
 | Neues Item | `server/spiel/konfiguration/gegenstaende.js` + Icon in `baue_assets.py` (`ITEMS`) + in `lootTabellen.js` eintragen |
 | Was wo spawnt | `server/spiel/konfiguration/lootTabellen.js`, Raumzuordnung in der Kartendatei |
 | Karte bearbeiten | `server/spiel/karten/stadtrand.js` (ASCII; Tests prüfen Erreichbarkeit & Möbel nicht in Türen) |
-| Neue Karte | neue Datei in `server/spiel/karten/` + in `KARTEN` (`kartenLader.js`) registrieren; Auswahl via `welt.karte` |
+| Neue Karte / Zone | Tiled: `werkzeuge/karten/README.md` (`npm run karte:import`), oder Datei in `server/spiel/karten/` + in `KARTEN` (`kartenLader.js`) eintragen; Übergänge: `uebergaenge` + `ankuenfte` in der Kartendatei |
+| Skills / Fähigkeiten | `gemeinsam/spieler/skills.js` (Werte), Wirkung in `levelSystem.js`, `kampfSystem.js`, `arbeitSystem.js`, `gemeinsam/physik/bewegung.js` |
+| Bauwerke, Pflanzen, Kochen | `gemeinsam/welt/bauwerke.js`, `bauSystem.js`; Rezepte `rezepte.js` (`ort: 'inventar'`); Modelle `client/darstellung/bauwerkModelle.js` |
+| Autos | Physik `gemeinsam/physik/fahrzeug.js`, Logik `fahrzeugSystem.js`, Modelle `client/darstellung/fahrzeugModelle.js` |
+| Charakter-Aussehen | `gemeinsam/spieler/aussehen.js` (Merkmale), Auswahl `client/ui/loginBildschirm.js`, Skin `renderer.js` |
+| Netzwerk-Last (Reichweite, Rundung, Kompression) | `server/spiel/zone.js` (`NETZ_SICHTWEITE`), `…ZuNetzwerk`, `server/node/websocketAnbindung.js` |
 | Neuer Kacheltyp (z. B. Wasser) | `gemeinsam/welt/kacheln.js` + Textur in `baue_assets.py` (`BODEN`) oder Farbe in `farben.js` |
 | Kollision / Bewegungsphysik | `gemeinsam/physik/bewegung.js` (wirkt auf Server UND Client-Vorhersage) |
 | Kampf, Treffer, Schaden zufügen | `server/spiel/systeme/kampfSystem.js` (`fuegeSchadenZu` = einzige Schadensstelle) |
@@ -499,6 +552,20 @@ browser_survival/
   `DATEN_ORDNER`/`GAESTE`/`SERVER_NAME`, Mitspieler & Werkbänke auf der Karte, `ONLINE_STELLEN.md`
 - Protokoll v5 (AKTION `tauschen`, `rucksackAblegen`, ANMELDEN `gast`); Tests: 82
 
+### ✅ Phase 7 – Bauen, Farmen, Skills, Autos, Open World (fertig, v0.9.0)
+- Kamera: Mausrad-Zoom; Bild-Unschärfe-Bug (Qualitätsstufen + Aufwärmphase), Ladebildschirm bis alles vorkompiliert ist
+- Ruckeln: geglättete Tick-Uhr, Objekt-Pool, Maus-hängt-Fix (Touch überschrieb Maus)
+- Zombies: sehen nicht ins Haus, Tür-Engstellen (kein Verkeilen zu zweit), verschwinden am Todesort, XP je Variante (10/12/15)
+- Ressourcen: je 1 (+20 % auf 2), Baum 6 s, Stein 8 s, **Eisenerz** 10 s; Baum fällt mit Knack-Geräusch
+- **Bauen** im Inventar (Werkbank 4 Holz, Lagerfeuer 3 Holz, Falle) + Platzier-Modus; Lagerfeuer mit F + Feuerzeug
+- **Farmen:** Hacke, Beete, Samen (Loot), Wachstum 1 Tag, Ernte 2, Kochen am Feuer +30 %
+- **Skills** (U), Rucksäcke 4/6/8, **Charakter Mann/Frau** (+ Grundgerüst Haare/Gesicht/Farben)
+- **Autos fahren** (gemeinsame Physik, Vorhersage, Anfahren, Scheinwerfer, Motorsound)
+- Spielstand: Erkundung & Aussehen & Skills auf dem Server (geräteübergreifend), Welt pro Zone gespeichert
+- **Open World:** Zonen (`zone.js`), Übergänge, 2. Zone Waldweg, `ZONE_WECHSEL` (Protokoll v7), Tiled-Import, Kartengeneratoren
+- Performance: Schnappschüsse gerundet/kompakt, Interest Management, WebSocket-Kompression (~5× kleiner)
+- Werkzeuge/Doku: `KI_INDEX.md`, `npm run rauchtest`, `werkzeuge/karten/README.md`; Tests: 118
+
 ### 💡 Ideen-Sammlung (für später, grob nach Aufwand)
 **Schnell umsetzbar**
 - Eisen (in der Werkstatt/Autos ausschlachten) → bessere Rezepte (Machete, Nägel, Munition)
@@ -534,12 +601,13 @@ browser_survival/
 ### Bekannte Grenzen (bewusst, für später)
 - Login-Daten gehen über `ws://` unverschlüsselt → im Internet nur über `wss://` (HTTPS-Proxy) betreiben
 - Eingabepuffer verwirft bei extremem Lag Eingaben (Schutz vor Speedhacks) → leichte Korrektur-Ruckler möglich
-- Schnappschüsse enthalten alle Spieler + Zombies (für ~32 Spieler auf einer Karte unkritisch)
+- Spieler werden zonenweit immer gesendet; Zombies/Autos nur im Umkreis 2400 px (Client sieht sonst nichts davon)
+- Zonen ohne Spieler pausieren (Zombies/Loot dort bleiben eingefroren), Zeit wird beim Betreten nachgeholt
 - Schuss-/Treffer-Feedback kommt erst nach einer Server-Runde (bei 50 ms Ping kaum spürbar, bei 200 ms schon)
 - Nahkampf trifft sofort beim Tastendruck (nicht erst im passenden Animationsframe)
 - Figuren-Animationen nur stehen/rennen; Arme werden prozedural gedreht (keine echte Animations-Mischung)
 - Leistung auf schwachen Handys: Schatten + große Bodentextur (3520×2752) – ggf. Qualitätsstufe nachrüsten
-- Uhrzeit, abgebaute Ressourcen und Türen werden nicht gespeichert: Server-Neustart beginnt wieder am Morgen von Tag 1
+- Abgebaute Ressourcen und Türen werden nicht gespeichert (Uhr, Bauwerke, Beete, Autos schon, pro Zone)
 - Developer-Werte gelten im Lokal-Modus nur in diesem Browser (Export/Import zum Übertragen)
 - Render-Free-Plan: keine dauerhafte Festplatte → Spielstände & Einstellungen gehen beim Neustart verloren
 
@@ -557,3 +625,4 @@ browser_survival/
 | 0.6.0 | 2026-10-15 | Nur noch 3D, Karte „Stadtrand“, Türen (öffnen/schließen/aufbrechen), Tag & Nacht mit Horde, Waffen in der Hand + Haltungen, Wand-Schnitt (Protokoll v3) |
 | 0.7.0 | 2026-10-16 | Performance (~95 Draw-Calls), Holz & Stein abbauen, Crafting an Werkbänken, Schlafen, Start im Haus mit Pistole/Axt/Spitzhacke, Todes-Loot 3 min, Karte mit Erkundung, Developer-Modus, Chat & Spielerliste, Render-Deploy (Protokoll v4) |
 | 0.8.0 | 2026-10-16 | Türen großzügiger + Zombies verkeilen nicht, Nahkampf-Reichweite, 3D-Cartoon-Bäume & Stümpfe, Sound ohne Knistern, Schlafen spult 6 h vor, Level-System, Inventar-Fenster mit Drag & Drop + Rucksack, 3D-Items, Fußspuren, Gast-Login, Konten-Datei (Klartext → Hash), Online-Checkliste (Protokoll v5) |
+| 0.9.0 | 2026-10-16 | Zoom/Schärfe/Ruckeln/Maus-Fixes, Zombies (Haus, Türen, Despawn), Eisenerz, Bauen/Farmen/Kochen, Skills, Rucksäcke, Charakterwahl, Autos, Server-Spielstand (Erkundung, Skills), **Zonen/Open World** (Waldweg, Tiled-Import), Netzwerk-Diät (Rundung, Interest Mgmt, Kompression), KI_INDEX + Rauchtest (Protokoll v7) |

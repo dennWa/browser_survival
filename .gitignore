@@ -8,3 +8,6 @@ server/daten/spielstaende/
 # Asset-Pipeline
 werkzeuge/assets/.cache/
 .venv/
+
+# Rauchtest-Screenshots & Tiled-Exporte (Arbeitsdateien)
+werkzeuge/test/ausgabe/

@@ -496,6 +496,12 @@ export class ClientSpiel {
       this.fahrzeugStand.set(e.id, stand);
       this.welt.setzeFahrzeugKacheln(e.id, fahrzeugKacheln(e, g));
     }
+    // Außer Sicht (Server schickt nur Fahrzeuge in der Nähe, siehe server/spiel/zone.js) → Kacheln freigeben
+    for (const id of this.fahrzeugStand.keys()) {
+      if (entitaeten.has(id)) continue;
+      this.fahrzeugStand.delete(id);
+      this.welt.entferneFahrzeugKacheln(id);
+    }
     const geschaetzt = jetzt - n.tick * TICK_DAUER_MS;
     if (this.tickNull === null || geschaetzt < this.tickNull || geschaetzt - this.tickNull > 500) this.tickNull = geschaetzt;
     else this.tickNull += (geschaetzt - this.tickNull) * 0.02;

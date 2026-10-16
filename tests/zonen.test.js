@@ -200,3 +200,20 @@ test('Schlafen zonenübergreifend: Zeit läuft nur, wenn auch die Spieler der an
   welt.aktualisiere(TICK_DAUER_S);
   assert.equal(welt.zeitSprung, konfiguration.schlafen.stunden, 'Server soll die anderen Zonen mitziehen');
 });
+
+test('Zonenwechsel: Toter zieht nicht um; derselbe Account kann sich währenddessen nicht doppelt einloggen', async (t) => {
+  const server = new SpielServer({ authentifizierung: new GastAuthentifizierung(), protokoll: stillerLog });
+  t.after(() => server.stoppen());
+  const { empfangen } = verbinde(server, 'Doppelt');
+  await warteAuf(() => letzte(empfangen, NACHRICHT.ANMELDUNG_OK), 'Login');
+  const ich = [...server.spielWelt.alleVomTyp('spieler')][0];
+  ich.zonenwechsel = { ziel: 'waldweg', ankunft: 'sued', name: 'Waldweg' };
+  ich.tot = true;
+  ich.respawnRest = 100;
+  server.tickAusfuehren();
+  await warte(20);
+  assert.equal(server.weltVon('Doppelt').karte.daten.id, 'stadtrand', 'Toter bleibt in der Zone');
+  ich.tot = false;
+  const zweiter = verbinde(server, 'Doppelt');
+  await warteAuf(() => letzte(zweiter.empfangen, NACHRICHT.ANMELDUNG_FEHLER), 'zweiter Login abgelehnt');
+});

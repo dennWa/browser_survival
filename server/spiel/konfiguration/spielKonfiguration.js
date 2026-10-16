@@ -92,7 +92,6 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     /** Sekunden, die das Inventar eines Toten am Boden liegt, bevor es verschwindet */
     todesVerfall: 180,
   },
-  /** Abbau von Bäumen & Steinen (welche Objekte/Werkzeuge: gemeinsam/welt/ressourcen.js) */
   /**
    * Abbau: menge = sicherer Ertrag, chanceAufMehr = Wahrscheinlichkeit (0..1) für +1, dauer in Sekunden,
    * nachwachsen in Sekunden. Welche Objekte abbaubar sind: gemeinsam/welt/ressourcen.js

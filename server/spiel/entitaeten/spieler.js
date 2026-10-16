@@ -2,7 +2,7 @@ import { INVENTAR_PLAETZE } from '../../../gemeinsam/konstanten.js';
 import { STANDARD_AUSRUESTUNG } from '../konfiguration/gegenstaende.js';
 import { xpFuerNaechstesLevel } from '../systeme/levelSystem.js';
 import { leereSkills } from '../../../gemeinsam/spieler/skills.js';
-import { pruefeAussehen } from '../../../gemeinsam/spieler/aussehen.js';
+import { aussehenKompakt, pruefeAussehen } from '../../../gemeinsam/spieler/aussehen.js';
 
 /**
  * Spieler-Entität ("Männeken").
@@ -79,7 +79,7 @@ export function spielerZuNetzwerk(s) {
     x: s.x,
     y: s.y,
     blick: s.blick,
-    leben: s.leben,
+    leben: Math.round(s.leben * 10) / 10, // nur für Lebensbalken – das eigene genaue Leben steht in SPIELER_DATEN
     maxLeben: s.maxLeben,
     ausruestung: s.ausruestung,
     // Item in der Hand (z. B. 'hammer') – der Renderer zeigt das passende Waffenmodell
@@ -99,7 +99,7 @@ export function spielerZuNetzwerk(s) {
     arbeitOrt: s.arbeit?.ort ?? null, // Bett beim Schlafen
     level: s.level,
     rucksack: s.rucksack !== null, // Rucksack auf dem Rücken (3D-Modell)
-    aussehen: s.aussehen,
+    aussehen: aussehenKompakt(s.aussehen), // nur Abweichungen vom Standard (spart ~110 Bytes pro Spieler und Tick)
     // Im Auto: genauer Fahrzustand (der eigene Client rechnet damit die Vorhersage nach)
     fahrzeug: s.fahrzeug ? { id: s.fahrzeug.id, winkel: s.fahrzeug.winkel, tempo: s.fahrzeug.tempo, laenge: s.fahrzeug.laenge, breite: s.fahrzeug.breite, modell: s.fahrzeug.modell } : null,
     seq: s.letzteVerarbeiteteSeq,

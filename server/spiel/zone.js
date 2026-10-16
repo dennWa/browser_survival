@@ -2,6 +2,13 @@ import { NACHRICHT, kodiere } from '../../gemeinsam/protokoll.js';
 import { SpielWelt } from './spielWelt.js';
 
 /**
+ * Interest Management: Zombies & Autos gehen nur an Spieler, die sie sehen könnten (Quadrat ± NETZ_SICHTWEITE px).
+ * Maximal sichtbar: rausgezoomt + im Auto auf 21:9 ≈ 2100 px seitlich (Kamera: renderer.js) → 2400 mit Reserve.
+ * Mitspieler gehen immer raus (Karte K, Spielerliste).
+ */
+export const NETZ_SICHTWEITE = 2400;
+
+/**
  * Eine Zone der offenen Welt = eine Karte mit eigener SpielWelt (Zombies, Loot, Bauwerke, Autos …).
  * Der SpielServer hält alle Zonen (Map kartenId → Zone), schickt jedem Spieler nur die Daten SEINER Zone
  * und zieht Spieler um, wenn sie einen Übergang betreten (spieler.zonenwechsel, siehe systeme/zonenSystem.js).
@@ -59,7 +66,8 @@ export class Zone {
     if (w.welt.ressourcenVersion !== g.ressourcen) pakete.push(kodiere({ typ: NACHRICHT.RESSOURCEN, abgebaut: [...w.welt.abgebaut] }));
     if (w.welt.bauwerkeVersion !== g.bauwerke) pakete.push(kodiere({ typ: NACHRICHT.BAUWERKE, liste: [...w.welt.bauwerke.values()] }));
     this.#merkeVersionen();
-    pakete.push(kodiere({ typ: NACHRICHT.ZUSTAND, ...w.schnappschuss() }));
+    const schnappschuss = w.schnappschuss();
+    let alle = null; // ungefiltert, nur einmal kodiert (wenn jemand alles sieht – auf kleinen Karten der Normalfall)
 
     const meldungen = new Map();
     for (const { spielerId, text } of w.meldungen) {
@@ -70,6 +78,10 @@ export class Zone {
 
     for (const sitzung of sitzungen) {
       for (const paket of pakete) sitzung.kanal.senden(paket);
+      const ich = w.holen(sitzung.spielerId);
+      const sichtbar = ich ? schnappschuss.entitaeten.filter((e) => e.typ === 'spieler' || (Math.abs(e.x - ich.x) < NETZ_SICHTWEITE && Math.abs(e.y - ich.y) < NETZ_SICHTWEITE)) : schnappschuss.entitaeten;
+      if (sichtbar.length === schnappschuss.entitaeten.length) sitzung.kanal.senden((alle ??= kodiere({ typ: NACHRICHT.ZUSTAND, ...schnappschuss })));
+      else sitzung.kanal.senden(kodiere({ typ: NACHRICHT.ZUSTAND, ...schnappschuss, entitaeten: sichtbar }));
       privat(sitzung);
       for (const text of meldungen.get(sitzung.spielerId) ?? []) sitzung.kanal.senden(kodiere({ typ: NACHRICHT.MELDUNG, text }));
     }

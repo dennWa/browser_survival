@@ -49,16 +49,17 @@ export function waehleZombieVariante(zufall, konfiguration) {
   return zufall.gewichteteAuswahl(eintraege).name;
 }
 
+/** Gerundet (Hundertstel-Pixel, Tausendstel-Radiant) – spart ~40 % Bytes pro Schnappschuss, sieht niemand. */
 export function zombieZuNetzwerk(z) {
   return {
     id: z.id,
     typ: z.typ,
     variante: z.variante,
     groesse: z.groesse,
-    x: z.x,
-    y: z.y,
-    blick: z.blick,
-    leben: z.leben,
+    x: Math.round(z.x * 100) / 100,
+    y: Math.round(z.y * 100) / 100,
+    blick: Math.round(z.blick * 1000) / 1000,
+    leben: Math.round(z.leben * 10) / 10,
     maxLeben: z.maxLeben,
     zustand: z.zustand,
     aktion: z.aktion,

@@ -7,7 +7,7 @@
  *   hautfarbe / kleidung → Textur-Varianten (Skin-Bilder in werkzeuge/assets/baue_assets.py)
  *
  * Gespeichert im Spielstand (spieler.aussehen), mitgeschickt beim Login (ANMELDEN.aussehen), öffentlich im
- * Schnappschuss → alle sehen die gewählte Figur.
+ * Schnappschuss (kompakt: nur Abweichungen vom Standard) → alle sehen die gewählte Figur.
  */
 export const AUSSEHEN = Object.freeze({
   koerper: {
@@ -32,7 +32,14 @@ export function pruefeAussehen(roh) {
   return aussehen;
 }
 
-/** Welcher Skin (Textur) für dieses Aussehen? */
+/** Fürs Netz: nur was vom Standard abweicht ({} = Standardfigur); pruefeAussehen() macht daraus wieder alles. */
+export function aussehenKompakt(aussehen) {
+  const kurz = {};
+  for (const [merkmal, def] of Object.entries(AUSSEHEN)) if (aussehen?.[merkmal] && aussehen[merkmal] !== def.standard) kurz[merkmal] = aussehen[merkmal];
+  return kurz;
+}
+
+/** Welcher Skin (Textur) für dieses Aussehen? Fehlende Merkmale = Standard. */
 export function skinFuer(aussehen) {
   return AUSSEHEN.koerper.optionen[aussehen?.koerper]?.skin ?? AUSSEHEN.koerper.optionen.mann.skin;
 }

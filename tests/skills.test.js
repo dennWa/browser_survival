@@ -105,6 +105,7 @@ test('Aussehen: beim Login gewählte Figur ist für alle sichtbar', async (t) =>
   for (let i = 0; i < 100 && !empfangen.some((n) => n.typ === NACHRICHT.ZUSTAND); i++) await new Promise((r) => setTimeout(r, 5));
   const ich = empfangen.find((n) => n.typ === NACHRICHT.ZUSTAND).entitaeten.find((e) => e.id === ok.spielerId);
   assert.equal(ich.aussehen.koerper, 'frau');
-  assert.equal(ich.aussehen.haare, 'standard', 'unbekannte Option → Standard');
+  assert.equal(ich.aussehen.haare, undefined, 'Netz: nur Abweichungen vom Standard');
+  assert.equal(pruefeAussehen(ich.aussehen).haare, 'standard', 'unbekannte Option → Standard');
   assert.equal(skinFuer(ich.aussehen), 'humanFemaleA');
 });
