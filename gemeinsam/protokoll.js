@@ -10,7 +10,7 @@
 
 export const NACHRICHT = Object.freeze({
   // ---- Client → Server ----
-  /** { benutzername, passwort, protokoll } */
+  /** { benutzername, passwort, protokoll, gast? } – gast: true = ohne Account (benutzername muss GAST_MUSTER sein) */
   ANMELDEN: 'anmelden',
   /** { seq, x, y, blick, angriff, sprint } – x/y: Bewegungsrichtung -1..1, blick: Winkel (Radiant), angriff/sprint: Taste gehalten */
   EINGABE: 'eingabe',

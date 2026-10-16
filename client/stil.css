@@ -142,6 +142,9 @@ button {
 
 #login-knopf:hover:not(:disabled) { background: var(--akzent-hell); }
 #login-knopf:disabled { opacity: 0.6; cursor: wait; }
+.zweitknopf { padding: 10px; font-size: 0.95rem; font-weight: 600; color: var(--text); background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2); }
+.zweitknopf:hover:not(:disabled) { background: rgba(255, 255, 255, 0.14); }
+.zweitknopf span { font-weight: 400; opacity: 0.65; }
 
 #login-meldung { min-height: 1.2em; margin: 0; font-size: 0.9rem; }
 #login-meldung.fehler { color: var(--fehler); }
@@ -575,7 +578,7 @@ button {
 #spielerliste div { padding: 2px 0; }
 
 @media (max-width: 700px), (max-height: 500px) {
-  #chat { bottom: auto; top: calc(96px + env(safe-area-inset-top)); width: min(300px, 45vw); }
+  #chat { bottom: auto; top: calc(168px + env(safe-area-inset-top)); width: min(300px, 45vw); }
   .chat-zeile { font-size: 0.75rem; }
 }
 
@@ -818,3 +821,15 @@ button {
 #inventar.fallen-lassen { border-color: #d64541; box-shadow: 0 0 0 3px rgba(214, 69, 65, 0.35), 0 20px 60px rgba(0, 0, 0, 0.6); }
 .inv-geist { position: fixed; left: 0; top: 0; width: 56px; height: 56px; z-index: 50; pointer-events: none; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.7)); }
 @media (max-width: 520px) { .inv-raster { gap: 4px; } }
+/* Handy quer: Inventar kompakt, damit Schnellleiste + Tasche + Rucksack ohne Scrollen passen */
+@media (max-height: 500px) {
+  #inventar { width: min(420px, calc(100vw - 24px)); padding: 8px 12px; }
+  #inventar .werkbank-kopf { margin-bottom: 2px; }
+  #inventar .werkbank-kopf h2 { font-size: 1.05rem; }
+  #inventar #inventar-schliessen { width: 32px; height: 32px; }
+  .inv-titel { margin: 4px 0 3px; font-size: 0.75rem; }
+  .inv-raster { gap: 4px; }
+  #inventar-kein-rucksack { padding: 6px; font-size: 0.72rem; }
+  #inventar-info { margin-top: 4px; font-size: 0.75rem; }
+  .inv-hilfe { display: none; }
+}

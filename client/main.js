@@ -5,7 +5,7 @@ import { Eingabe } from './kern/eingabe.js';
 import { ClientSpiel } from './kern/clientSpiel.js';
 import { verbindungAufbauen } from './netzwerk/verbindungAufbauen.js';
 import { anmelden } from './netzwerk/anmeldung.js';
-import { LoginBildschirm } from './ui/loginBildschirm.js';
+import { LoginBildschirm, gastName } from './ui/loginBildschirm.js';
 import { Hud } from './ui/hud.js';
 import { zeigeCredits } from './ui/credits.js';
 import { Sound } from './audio/sound.js';
@@ -86,7 +86,7 @@ window.browserSurvival = {
 };
 document.getElementById('credits-knopf').addEventListener('click', () => zeigeCredits(document, assets));
 
-login.beiAnmeldung(async ({ server, adresse, benutzername, passwort }) => {
+login.beiAnmeldung(async ({ server, adresse, benutzername, passwort, gast = false }) => {
   sound.entsperren(); // Klick auf "Login" = Nutzeraktion → Browser erlaubt ab jetzt Ton
   if (!renderer) {
     login.zeigeMeldung('Dein Browser kann keine 3D-Grafik (WebGL) – leider geht es ohne nicht.', true);
@@ -96,7 +96,17 @@ login.beiAnmeldung(async ({ server, adresse, benutzername, passwort }) => {
   let verbindung = null;
   try {
     verbindung = await verbindungAufbauen(server, adresse);
-    const anmeldeDaten = await anmelden(verbindung, { benutzername, passwort });
+    let anmeldeDaten;
+    try {
+      anmeldeDaten = await anmelden(verbindung, { benutzername, passwort, gast });
+    } catch (fehler) {
+      // Gast schon online (z. B. zweiter Tab) → mit neuem Zufallsnamen nochmal
+      if (!gast || !/bereits eingeloggt/.test(fehler.message)) throw fehler;
+      if (!verbindung.getrennt) verbindung.trennen('Neuer Gastname');
+      benutzername = gastName(true);
+      verbindung = await verbindungAufbauen(server, adresse);
+      anmeldeDaten = await anmelden(verbindung, { benutzername, passwort, gast });
+    }
     spielStarten(verbindung, anmeldeDaten, benutzername);
   } catch (fehler) {
     if (verbindung && !verbindung.getrennt) verbindung.trennen('Login abgebrochen');

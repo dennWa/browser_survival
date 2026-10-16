@@ -15,14 +15,21 @@ import { bindeWebsocketServer } from './websocketAnbindung.js';
  * Umgebungsvariablen:
  *   PORT=8080        HTTP/WebSocket-Port
  *   GAST_MODUS=1     Login ohne Account (nur zum Testen!) – alternativ: npm run start:gast
- *   SPIELSTAENDE=…   Ordner für Spielstände (Standard: server/daten/spielstaende)
- *   KONTEN_JSON=…    Accounts direkt als JSON (statt server/daten/konten.json) – praktisch beim Online-Hoster;
- *                    den Text erzeugt  npm run konto -- <name> <passwort>  (steht am Ende der Ausgabe)
+ *   DATEN_ORDNER=…   Ordner für Spielstände + Developer-Einstellungen (Standard: server/daten) – beim Hoster
+ *                    auf die dauerhafte Festplatte zeigen lassen, z. B. /var/data
+ *   SPIELSTAENDE=…   nur der Spielstand-Ordner (Standard: <DATEN_ORDNER>/spielstaende)
+ *   KONTEN_DATEI=…   Pfad zur Konten-Datei (Standard: /etc/secrets/konten.json falls vorhanden – Render
+ *                    "Secret File" –, sonst server/daten/konten.json). Vorlage: server/daten/konten.beispiel.json
+ *   KONTEN_JSON=…    Accounts direkt als JSON-Text (Alternative zur Datei)
+ *   GAESTE=0         "Als Gast spielen" abschalten (Standard: Gäste erlaubt)
+ *   SERVER_NAME=…    Name in der Spielerliste/Statuszeile
  */
 const WURZEL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const DATEN = path.join(WURZEL, 'server/daten');
+const SCHREIBBAR = process.env.DATEN_ORDNER || DATEN;
 const PORT = Number(process.env.PORT ?? 8080);
-const KONTEN_DATEI = path.join(DATEN, 'konten.json');
+const RENDER_SECRET = '/etc/secrets/konten.json';
+const KONTEN_DATEI = process.env.KONTEN_DATEI || (existsSync(RENDER_SECRET) ? RENDER_SECRET : path.join(DATEN, 'konten.json'));
 
 const gastModus = process.env.GAST_MODUS === '1' || process.argv.includes('--gast');
 const authentifizierung = gastModus
@@ -31,11 +38,19 @@ const authentifizierung = gastModus
 
 const spielServer = new SpielServer({
   authentifizierung,
-  speicher: new DateiSpeicher(process.env.SPIELSTAENDE ?? path.join(DATEN, 'spielstaende')),
-  konfiguration: ladeEinstellungen(path.join(DATEN, 'einstellungen.json')),
+  speicher: new DateiSpeicher(process.env.SPIELSTAENDE || path.join(SCHREIBBAR, 'spielstaende')),
+  konfiguration: mitUmgebung(ladeEinstellungen(path.join(SCHREIBBAR, 'einstellungen.json'))),
   // Developer-Modus speichert Änderungen dorthin zurück
-  einstellungsSpeicher: dateiEinstellungsSpeicher(path.join(DATEN, 'einstellungen.json')),
+  einstellungsSpeicher: dateiEinstellungsSpeicher(path.join(SCHREIBBAR, 'einstellungen.json')),
 });
+
+/** Umgebungsvariablen (GAESTE, SERVER_NAME) über die gespeicherten Einstellungen legen. */
+function mitUmgebung(einstellungen) {
+  const server = { ...einstellungen.server };
+  if (process.env.GAESTE === '0') server.gaeste = false;
+  if (process.env.SERVER_NAME) server.name = process.env.SERVER_NAME.slice(0, 40);
+  return { ...einstellungen, server };
+}
 
 const httpServer = erstelleStatischenServer(WURZEL);
 bindeWebsocketServer(httpServer, spielServer);
@@ -45,8 +60,9 @@ httpServer.listen(PORT, () => {
   console.info(`[Server] Spiel erreichbar unter http://localhost:${PORT}`);
   if (gastModus) console.warn('[Server] GAST_MODUS aktiv – jeder kann sich ohne Passwort einloggen!');
   else if (!existsSync(KONTEN_DATEI) && !process.env.KONTEN_JSON) {
-    console.warn('[Server] Keine Accounts vorhanden. Anlegen mit: npm run konto -- <name> <passwort>');
-  }
+    console.warn(`[Server] Keine Accounts (${KONTEN_DATEI}). Vorlage kopieren: server/daten/konten.beispiel.json → konten.json`);
+  } else console.info(`[Server] Accounts aus ${process.env.KONTEN_JSON ? 'KONTEN_JSON' : KONTEN_DATEI}`);
+  if (process.env.GAESTE === '0') console.info('[Server] Gäste abgeschaltet (GAESTE=0)');
 });
 
 async function beenden() {

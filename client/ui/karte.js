@@ -22,6 +22,9 @@ export class Karte {
     this.letzteKachel = -1;
     this.geaendert = false;
     this.letztesSpeichern = 0;
+    this.letztesZeichnen = 0;
+    /** Mitspieler [{ name, x, y }] – werden immer gezeigt (auch im Nebel), damit man sich findet */
+    this.mitspieler = [];
     this.bild = null; // Kartenbild (einmalig erzeugt, wenn die Karte zum ersten Mal geöffnet wird)
     this.nebel = document.createElement('canvas'); // 1 Pixel pro Kachel, weich hochskaliert
     this.nebel.width = welt.breite;
@@ -62,6 +65,8 @@ export class Karte {
       }
       if (this.offen) this.zeichne(spieler);
     }
+    // Mitspieler bewegen sich → offene Karte zweimal pro Sekunde auffrischen
+    if (this.offen && this.mitspieler.length > 0 && jetzt - this.letztesZeichnen > 500) this.zeichne(spieler);
     if (this.geaendert && jetzt - this.letztesSpeichern > SPEICHER_INTERVALL_MS) this.speichern(jetzt);
   }
 
@@ -99,9 +104,41 @@ export class Karte {
     ctx.drawImage(this.nebel, 0, 0, this.leinwand.width, this.leinwand.height);
     this.anteilEl.textContent = `${Math.round((gesehen / this.erkundet.length) * 100)} % erkundet`;
 
+    this.letztesZeichnen = performance.now();
+    const s = MASSSTAB;
+    // Werkbänke immer zeigen (auch im Nebel) – sonst findet man sie kaum
+    const g = this.welt.kachelGroesse;
+    ctx.font = '15px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const o of this.welt.objekte) {
+      if (o.typ !== 'werkbank') continue;
+      const x = (o.x + o.b / 2) * g * s;
+      const y = (o.y + o.h / 2) * g * s;
+      ctx.fillStyle = 'rgba(212, 160, 23, 0.35)';
+      ctx.beginPath();
+      ctx.arc(x, y, 11, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillText('🔨', x, y + 1);
+    }
+    // Mitspieler: blaue Punkte mit Namen
+    ctx.font = '600 10px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    for (const m of this.mitspieler) {
+      ctx.fillStyle = '#4da3ff';
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(m.x * s, m.y * s, 5, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeText(m.name, m.x * s, m.y * s - 10);
+      ctx.fillStyle = '#cfe6ff';
+      ctx.fillText(m.name, m.x * s, m.y * s - 10);
+    }
     if (!spieler) return;
     // Eigene Position als Pfeil in Blickrichtung
-    const s = MASSSTAB;
     ctx.save();
     ctx.translate(spieler.x * s, spieler.y * s);
     ctx.rotate(spieler.blick ?? 0);

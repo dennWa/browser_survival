@@ -1,5 +1,6 @@
 import {
   BENUTZERNAME_MUSTER,
+  GAST_MUSTER,
   CHAT_MAX_LAENGE,
   CHAT_PAUSE_MS,
   INVENTAR_MAX,
@@ -221,12 +222,19 @@ export class SpielServer {
     }
     const benutzername = typeof nachricht.benutzername === 'string' ? nachricht.benutzername.trim() : '';
     const passwort = typeof nachricht.passwort === 'string' ? nachricht.passwort : '';
-    if (!BENUTZERNAME_MUSTER.test(benutzername)) {
+    const alsGast = nachricht.gast === true;
+    if (alsGast) {
+      if (!this.konfiguration.server.gaeste) return this.#loginAblehnen(sitzung, 'Gäste sind auf diesem Server nicht erlaubt – bitte mit Account einloggen');
+      if (!GAST_MUSTER.test(benutzername)) return this.#loginAblehnen(sitzung, 'Ungültiger Gastname');
+    } else if (!BENUTZERNAME_MUSTER.test(benutzername)) {
       return this.#loginAblehnen(sitzung, 'Ungültiger Benutzername (2–20 Zeichen, Buchstaben/Ziffern/_/-)');
     }
 
     sitzung.status = 'prueftLogin';
-    const ergebnis = await this.authentifizierung.pruefe(benutzername, passwort);
+    // Gäste: kein Passwort, nie Admin (außer die Authentifizierung erlaubt es ausdrücklich, z. B. Lokal-Modus)
+    const ergebnis = alsGast
+      ? ((await this.authentifizierung.pruefeGast?.(benutzername)) ?? { ok: true, benutzername, admin: false })
+      : await this.authentifizierung.pruefe(benutzername, passwort);
     if (!this.sitzungen.has(sitzung)) return; // Verbindung inzwischen weg
 
     if (!ergebnis.ok) return this.#loginAblehnen(sitzung, ergebnis.grund ?? 'Login fehlgeschlagen');
@@ -258,6 +266,7 @@ export class SpielServer {
     sitzung.status = 'imSpiel';
     sitzung.spielerId = spieler.id;
     if (geladen) this.spielWelt.melde(spieler.id, 'Spielstand geladen');
+    else this.spielWelt.melde(spieler.id, 'Tipp: Auf der Karte (K / 🗺) sind Werkbänke 🔨 markiert');
 
     this.#senden(sitzung, {
       typ: NACHRICHT.ANMELDUNG_OK,

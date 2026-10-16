@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { KontenAuthentifizierung } from '../server/node/kontenAuthentifizierung.js';
@@ -37,4 +37,24 @@ test('Accounts auch direkt als JSON (Umgebungsvariable KONTEN_JSON beim Online-H
   const auth = new KontenAuthentifizierung('/gibt/es/nicht.json', { kontenJson });
   assert.equal((await auth.pruefe('online', 'geheim123')).ok, true);
   assert.equal((await auth.pruefe('online', 'falsch')).ok, false);
+});
+
+test('Klartext-Passwörter in konten.json werden beim Lesen verschlüsselt und funktionieren', async (t) => {
+  const ordner = await mkdtemp(path.join(tmpdir(), 'konten-'));
+  t.after(() => rm(ordner, { recursive: true, force: true }));
+  const datei = path.join(ordner, 'konten.json');
+  await writeFile(datei, JSON.stringify({ konten: [{ benutzername: 'Dennis', passwort: 'zombies!', admin: true }] }));
+  const auth = new KontenAuthentifizierung(datei, { protokoll: { info() {}, warn() {}, error() {} } });
+  assert.deepEqual(await auth.pruefe('dennis', 'zombies!'), { ok: true, benutzername: 'Dennis', admin: true });
+  const gespeichert = JSON.parse(await readFile(datei, 'utf8'));
+  assert.equal(gespeichert.konten[0].passwort, undefined, 'Klartext ist weg');
+  assert.match(gespeichert.konten[0].passwortHash, /^scrypt\$/);
+  assert.equal((await auth.pruefe('Dennis', 'zombies!')).ok, true, 'klappt auch mit Hash');
+  assert.equal((await auth.pruefe('Dennis', 'falsch')).ok, false);
+});
+
+test('Klartext im KONTEN_JSON (schreibgeschützt) klappt auch', async () => {
+  const auth = new KontenAuthentifizierung('/gibt/es/nicht.json', { kontenJson: JSON.stringify({ konten: [{ benutzername: 'Max', passwort: 'geheim123' }] }) });
+  assert.equal((await auth.pruefe('max', 'geheim123')).ok, true);
+  assert.equal((await auth.pruefe('max', 'geheim12')).ok, false);
 });

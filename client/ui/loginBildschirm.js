@@ -4,6 +4,26 @@
  * Zuletzt gewählter Server + Name werden im Browser gemerkt (localStorage, optional).
  */
 const SPEICHER_SCHLUESSEL = 'browserSurvival.login';
+const GAST_SCHLUESSEL = 'browserSurvival.gastName';
+
+/** Zufälliger Gastname, z. B. "Gast-4821" – wird im Browser gemerkt (gleicher Gast = gleicher Spielstand). */
+export function gastName(neu = false) {
+  let name = null;
+  try {
+    name = neu ? null : localStorage.getItem(GAST_SCHLUESSEL);
+  } catch {
+    // egal
+  }
+  if (!name || !/^Gast-\d{4,6}$/.test(name)) {
+    name = `Gast-${1000 + Math.floor(Math.random() * 9000)}`;
+    try {
+      localStorage.setItem(GAST_SCHLUESSEL, name);
+    } catch {
+      // egal
+    }
+  }
+  return name;
+}
 
 export class LoginBildschirm {
   #beiAnmeldung = null;
@@ -20,6 +40,8 @@ export class LoginBildschirm {
       passwortFeld: dokument.getElementById('login-passwort-feld'),
       passwort: dokument.getElementById('login-passwort'),
       knopf: dokument.getElementById('login-knopf'),
+      gast: dokument.getElementById('login-gast'),
+      gastName: dokument.getElementById('login-gast-name'),
       meldung: dokument.getElementById('login-meldung'),
     };
 
@@ -34,9 +56,14 @@ export class LoginBildschirm {
       this.#speichern(daten);
       this.#beiAnmeldung?.(daten);
     });
+    this.el.gast.addEventListener('click', () => {
+      const daten = { ...this.#werte(), benutzername: gastName(), passwort: '', gast: true };
+      this.#speichern({ ...daten, benutzername: this.el.name.value.trim() });
+      this.#beiAnmeldung?.(daten);
+    });
   }
 
-  /** fn({ server, adresse, benutzername, passwort }) */
+  /** fn({ server, adresse, benutzername, passwort, gast? }) */
   beiAnmeldung(fn) {
     this.#beiAnmeldung = fn;
   }
@@ -55,6 +82,7 @@ export class LoginBildschirm {
 
   setzeBeschaeftigt(beschaeftigt) {
     this.el.knopf.disabled = beschaeftigt;
+    this.el.gast.disabled = beschaeftigt;
     this.el.knopf.textContent = beschaeftigt ? 'Verbinde …' : 'Login';
     if (beschaeftigt) this.zeigeMeldung('');
   }
@@ -81,6 +109,8 @@ export class LoginBildschirm {
     const server = this.#aktuellerServer();
     this.el.adresseFeld.hidden = !(server.typ === 'websocket' && !server.adresse);
     this.el.passwortFeld.hidden = server.typ === 'lokal';
+    this.el.gast.hidden = server.typ === 'lokal'; // lokal ist ohnehin alles "Gast"
+    this.el.gastName.textContent = `(${gastName()})`;
   }
 
   #ladeGespeichertes() {

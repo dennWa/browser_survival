@@ -43,3 +43,6 @@ export const CHAT_PAUSE_MS = 700;
 
 /** Benutzernamen: 2–20 Zeichen, Buchstaben, Ziffern, _ und -. */
 export const BENUTZERNAME_MUSTER = /^[A-Za-z0-9_\-äöüÄÖÜß]{2,20}$/;
+
+/** Gast-Namen ("Gast-4821"): vom Client zufällig erzeugt und im Browser gemerkt → Gäste behalten ihren Spielstand. */
+export const GAST_MUSTER = /^Gast-\d{4,6}$/;

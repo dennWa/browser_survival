@@ -1,0 +1,6 @@
+{
+  "konten": [
+    { "benutzername": "Dennis", "passwort": "hier-dein-passwort", "admin": true },
+    { "benutzername": "Kumpel", "passwort": "anderes-passwort" }
+  ]
+}

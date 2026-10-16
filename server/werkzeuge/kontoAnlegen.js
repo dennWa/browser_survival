@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { BENUTZERNAME_MUSTER } from '../../gemeinsam/konstanten.js';
+import { BENUTZERNAME_MUSTER, GAST_MUSTER } from '../../gemeinsam/konstanten.js';
 import { hashePasswort } from '../node/passwort.js';
 
 /**
@@ -20,6 +20,10 @@ if (!benutzername || !passwort) {
 }
 if (!BENUTZERNAME_MUSTER.test(benutzername)) {
   console.error('Ungültiger Benutzername (2–20 Zeichen: Buchstaben, Ziffern, _ und -)');
+  process.exit(1);
+}
+if (GAST_MUSTER.test(benutzername)) {
+  console.error('Namen wie "Gast-1234" sind für Gäste reserviert');
   process.exit(1);
 }
 if (passwort.length < 6) {

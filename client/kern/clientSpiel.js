@@ -148,6 +148,15 @@ export class ClientSpiel {
       .sort((a, b) => a.localeCompare(b));
   }
 
+  /** Andere Spieler (letzter Schnappschuss) für die Karte. */
+  #mitspieler() {
+    const letzter = this.schnappschuesse[this.schnappschuesse.length - 1];
+    if (!letzter) return [];
+    const liste = [];
+    for (const e of letzter.entitaeten.values()) if (e.typ === 'spieler' && e.id !== this.eigeneId && !e.tot) liste.push({ name: e.name, x: e.x, y: e.y });
+    return liste;
+  }
+
   /** Developer-Modus (nur Admins – der Server prüft das). */
   entwickler(typ, daten = {}) {
     if (this.spielerDaten?.admin) this.#senden({ typ, ...daten });
@@ -494,6 +503,7 @@ export class ClientSpiel {
       bewegungsWinkel: Math.atan2(dy, dx),
       istEigener: true,
     };
+    if (this.karte.offen) this.karte.mitspieler = this.#mitspieler();
     if (!this.spielerDaten?.tot) this.karte.aktualisiere(eigen, jetzt);
     if (this.physik.ausdauerMax) this.hud.setzeAusdauer(this.lokal.ausdauer / this.physik.ausdauerMax, this.lokal.erschoepft);
     const andere = this.#interpolierteEntitaeten(jetzt - INTERPOLATIONS_VERZOEGERUNG_MS);

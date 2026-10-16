@@ -171,3 +171,25 @@ test('Chat: Nachricht geht an alle, wird bereinigt, Spam wird gebremst, Beitritt
   assert.equal(nachrichten.length, 1, 'zweite Nachricht zu schnell → verworfen');
   assert.equal(nachrichten[0].text, 'Hallo zusammen!');
 });
+
+test('Gast-Login: Gast-1234 ohne Passwort, nie Admin; abschaltbar', async (t) => {
+  const kontenAuth = { async pruefe() { return { ok: false, grund: 'nein' }; } }; // wie ein Konten-Server ohne Accounts
+  const server = new SpielServer({ authentifizierung: kontenAuth, konfiguration: { server: { zufallsStartwert: 1 } }, protokoll: stillerLog });
+  t.after(() => server.stoppen());
+  const gast = verbinde(server);
+  gast.senden({ typ: NACHRICHT.ANMELDEN, benutzername: 'Gast-4821', passwort: '', gast: true, protokoll: PROTOKOLL_VERSION });
+  await warteAuf(() => gast.empfangen.some((n) => n.typ === NACHRICHT.ANMELDUNG_OK), 'Gast drin');
+  const ok = gast.empfangen.find((n) => n.typ === NACHRICHT.ANMELDUNG_OK);
+  assert.equal(ok.spielerDaten.admin, false);
+  // Ungültiger Gastname
+  const frech = verbinde(server);
+  frech.senden({ typ: NACHRICHT.ANMELDEN, benutzername: 'Dennis', gast: true, protokoll: PROTOKOLL_VERSION });
+  await warteAuf(() => frech.empfangen.some((n) => n.typ === NACHRICHT.ANMELDUNG_FEHLER), 'abgelehnt');
+
+  const ohneGaeste = new SpielServer({ authentifizierung: kontenAuth, konfiguration: { server: { gaeste: false } }, protokoll: stillerLog });
+  t.after(() => ohneGaeste.stoppen());
+  const g2 = verbinde(ohneGaeste);
+  g2.senden({ typ: NACHRICHT.ANMELDEN, benutzername: 'Gast-1111', gast: true, protokoll: PROTOKOLL_VERSION });
+  await warteAuf(() => g2.empfangen.some((n) => n.typ === NACHRICHT.ANMELDUNG_FEHLER), 'Gäste aus');
+  assert.match(g2.empfangen.find((n) => n.typ === NACHRICHT.ANMELDUNG_FEHLER).grund, /Gäste/);
+});

@@ -11,6 +11,7 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     maxSpieler: 32,
     loginTimeoutMs: 20000,
     autosaveSekunden: 30, // Spielstände regelmäßig sichern (zusätzlich beim Logout/Stopp)
+    gaeste: true, // "Als Gast spielen" erlaubt (Name Gast-1234, ohne Passwort, nie Admin) – Node-Server: GAESTE=0 schaltet ab
     /** Startwert des Zufallsgenerators (gleicher Wert = gleiche Loot-Verteilung). null = zufällig */
     zufallsStartwert: null,
   },

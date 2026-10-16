@@ -5,7 +5,7 @@ import { PROTOKOLL_VERSION } from '../../gemeinsam/konstanten.js';
  * Login-Ablauf: ANMELDEN senden, auf ANMELDUNG_OK oder ANMELDUNG_FEHLER warten.
  * @returns {Promise<object>} Inhalt von ANMELDUNG_OK (Karte, Spieler-ID, Physik, Gegenstände …)
  */
-export function anmelden(verbindung, { benutzername, passwort }, timeoutMs = 8000) {
+export function anmelden(verbindung, { benutzername, passwort, gast = false }, timeoutMs = 8000) {
   return new Promise((erfuellen, ablehnen) => {
     const aufraeumen = () => {
       clearTimeout(timer);
@@ -30,6 +30,6 @@ export function anmelden(verbindung, { benutzername, passwort }, timeoutMs = 800
       ablehnen(new Error('Server antwortet nicht'));
     }, timeoutMs);
 
-    verbindung.senden({ typ: NACHRICHT.ANMELDEN, benutzername, passwort, protokoll: PROTOKOLL_VERSION });
+    verbindung.senden({ typ: NACHRICHT.ANMELDEN, benutzername, passwort, gast, protokoll: PROTOKOLL_VERSION });
   });
 }
