@@ -124,6 +124,11 @@ function schlafe(spielWelt, spieler, dt) {
   spieler.leben = Math.min(spieler.maxLeben, spieler.leben + (k.heilung / a.dauer) * schritt);
   a.rest -= dt;
   if (a.rest > 0) return;
+  if (!(k.stunden > 0)) {
+    // Standard: einfach nur schlafen (heilen), die Uhr läuft normal weiter
+    wacheAuf(spielWelt, spieler, k, true);
+    return;
+  }
   a.fertig = true; // wartet evtl. noch auf die anderen (Zeit läuft nur, wenn ALLE schlafen)
   a.rest = 0;
 
@@ -151,7 +156,7 @@ function wacheAuf(spielWelt, spieler, k, zeitVergangen) {
   const { uhrzeit } = tageszeit(spielWelt.zeit, spielWelt.tageszeitDauer());
   spielWelt.melde(
     spieler.id,
-    zeitVergangen ? `Ausgeschlafen – ${k.stunden} Stunden später, es ist ${uhrzeit}` : 'Ausgeruht – die Zeit vergeht nur, wenn alle schlafen',
+    zeitVergangen ? (k.stunden > 0 ? `Ausgeschlafen – ${k.stunden} Stunden später, es ist ${uhrzeit}` : 'Ausgeschlafen und erholt') : 'Ausgeruht – die Zeit vergeht nur, wenn alle schlafen',
   );
 }
 

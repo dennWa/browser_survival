@@ -42,7 +42,7 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     ausdauerVerbrauch: 22, // pro Sekunde Sprint (≈ 4,5 s am Stück)
     ausdauerRegeneration: 14, // pro Sekunde ohne Sprint
     sprintMinimum: 25, // nach völliger Erschöpfung erst ab diesem Wert wieder sprinten
-    sprintHoerRadius: 150, // Rennen ist laut: Zombies in diesem Umkreis hören es
+    sprintHoerRadius: 120, // Rennen ist laut: Zombies in diesem Umkreis hören es
     /** Bekommt jeder neue Spieler (und nach dem Tod wieder). magazin = Schuss in der Waffe; ausgeruestet = in der Hand */
     startInventar: [
       { defId: 'pistole', menge: 1, magazin: 15, ausgeruestet: true },
@@ -53,17 +53,17 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     ],
   },
   zombie: {
-    geschwindigkeit: 60, // Grundtempo (Umherschlurfen = knapp halbes Grundtempo)
-    jagdGeschwindigkeit: 85, // beim Verfolgen (Spieler: 150 → man kann entkommen)
+    geschwindigkeit: 54, // Grundtempo (Umherschlurfen = knapp halbes Grundtempo)
+    jagdGeschwindigkeit: 76, // beim Verfolgen (Spieler: 150 → man kann entkommen)
     radius: 13,
     leben: 60,
-    aggroRadius: 240, // ab dieser Entfernung (px) wird ein sichtbarer Spieler bemerkt
+    aggroRadius: 170, // ab dieser Entfernung (px) wird ein sichtbarer Spieler bemerkt
     dunkelFaktor: 0.45, // Nachts mit Taschenlampe aus → Spieler wird erst ab aggroRadius × dunkelFaktor bemerkt
     nachtLichtFaktor: 1.2, // Nachts mit Taschenlampe an → leuchtet wie ein Leuchtturm
     nachtTempoFaktor: 1.2, // nachts jagen Zombies schneller
     nachtHorde: 8, // zusätzliche Zombies, die bei Einbruch der Nacht auftauchen (verschwinden morgens)
     verlierRadius: 520, // weiter weg → Zombie gibt auf
-    hoerRadius: 480, // Schüsse in diesem Umkreis locken Zombies an
+    hoerRadius: 400, // Schüsse in diesem Umkreis locken Zombies an
     angriffsReichweite: 30,
     angriffsSchaden: 12,
     angriffsAbklingzeit: 1.0, // Sekunden zwischen zwei Angriffen
@@ -78,9 +78,9 @@ export const STANDARD_KONFIGURATION = Object.freeze({
      */
     varianten: {
       normal: { gewicht: 6, xp: 10 },
-      laeufer: { gewicht: 2, xp: 12, leben: 35, jagdGeschwindigkeit: 115, angriffsSchaden: 8, angriffsAbklingzeit: 0.7, groesse: 0.92 },
+      laeufer: { gewicht: 2, xp: 12, leben: 35, jagdGeschwindigkeit: 103, angriffsSchaden: 8, angriffsAbklingzeit: 0.7, groesse: 0.92 },
       // Boss (große Zombies): halten viel aus, teilen mehr aus; waffenChance = Wahrscheinlichkeit auf Waffe + Munition
-      brocken: { gewicht: 1, xp: 40, leben: 420, jagdGeschwindigkeit: 62, angriffsSchaden: 40, angriffsAbklingzeit: 1.5, radius: 15, groesse: 1.3, rueckstossFaktor: 0.15, waffenChance: 0.5 },
+      brocken: { gewicht: 1, xp: 40, leben: 420, jagdGeschwindigkeit: 56, angriffsSchaden: 40, angriffsAbklingzeit: 1.5, radius: 15, groesse: 1.3, rueckstossFaktor: 0.15, waffenChance: 0.5 },
     },
   },
   /** Autos: so viele Zombie-Schläge halten sie aus (ein normaler Zombie = 1 Schlag, Boss mehr); Überfahren kostet nur wenig. */
@@ -90,8 +90,8 @@ export const STANDARD_KONFIGURATION = Object.freeze({
   },
   /** Kleintiere (Hasen): Anzahl je 1000 Gras-Kacheln der Karte, scheu, geben 1× Fleisch. */
   tiere: {
-    hasenProTausend: 6,
-    hasenMax: 40,
+    hasenProTausend: 2,
+    hasenMax: 12,
     hasenLeben: 10,
     hasenTempo: 125, // Fluchttempo (Spieler 150)
     hasenScheuRadius: 150,
@@ -146,7 +146,7 @@ export const STANDARD_KONFIGURATION = Object.freeze({
   schlafen: {
     dauer: 6,
     heilung: 60,
-    stunden: 6,
+    stunden: 0, // 0 = Zeit läuft normal weiter (nur heilen); >0 = Uhr vorspulen
     hungerKosten: 8,
     durstKosten: 10,
     zombieAbstand: 300, // so nah darf beim Hinlegen kein jagender Zombie sein
@@ -160,7 +160,7 @@ export const STANDARD_KONFIGURATION = Object.freeze({
   },
   /** Basisbau (gemeinsam/basisbau/): Baugebiet-Flagge, Abriss. Kosten der Teile: gemeinsam/basisbau/teile.js */
   basisbau: {
-    radiusKacheln: 15, // Baugebiet um die Flagge (1 Kachel = 1 m); später durch Skillpunkte erweiterbar (territoriumSystem.radiusFuer)
+    radiusKacheln: 8, // Baugebiet um die Flagge (1 Kachel = 1 m); später durch Skillpunkte erweiterbar (territoriumSystem.radiusFuer)
     rueckgabe: 0.75, // Anteil der Baukosten, den man beim Abriss zurückbekommt (abgerundet pro Material)
     flaggeFreiraum: 2, // Kacheln um die Flagge, die frei von Karten-Gebäuden/Hindernissen/Wasser sein müssen
     flaggeMindestAbstand: 15, // Kacheln zwischen zwei Flaggen (verschiedener Spieler)

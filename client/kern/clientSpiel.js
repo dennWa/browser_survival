@@ -363,7 +363,7 @@ export class ClientSpiel {
       this.welt.naechstesBauwerk(x, y, BAUWERK_REICHWEITE, (b) => aktionFuer(b) !== null);
     if (bauwerk) return { ...aktionFuer(bauwerk), art: 'bauwerk' };
     if (this.#naheWerkbank()) return { art: 'werkbank', text: 'Werkbank benutzen', symbol: '🔨' };
-    if (this.welt.naechstesObjekt(x, y, BETT_REICHWEITE, (o) => o.typ.startsWith('bett'))) return { art: 'schlafen', text: 'Schlafen (heilt, 6 Std. vorspulen)', symbol: '🛏' };
+    if (this.welt.naechstesObjekt(x, y, BETT_REICHWEITE, (o) => o.typ.startsWith('bett'))) return { art: 'schlafen', text: 'Schlafen (heilt)', symbol: '🛏' };
     return null;
   }
 

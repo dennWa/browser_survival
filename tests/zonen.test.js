@@ -181,7 +181,7 @@ test('Zonen: pausierte Zone holt beim Betreten Zeit nach (Pflanzen wachsen weite
 });
 
 test('Schlafen zonenübergreifend: Zeit läuft nur, wenn auch die Spieler der anderen Zonen schlafen', () => {
-  const konfiguration = erstelleKonfiguration({ server: { zufallsStartwert: 4 } });
+  const konfiguration = erstelleKonfiguration({ server: { zufallsStartwert: 4 }, schlafen: { stunden: 6 } });
   const welt = new SpielWelt(konfiguration);
   for (const z of [...welt.alleVomTyp('zombie')]) welt.entfernen(z.id);
   const schlaefer = welt.spielerBetrittWelt('Murmel');

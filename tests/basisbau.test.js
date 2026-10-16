@@ -36,7 +36,7 @@ const KARTE = { id: 'wiese', name: 'Wiese', kacheln: ZEILEN, raeume: {} };
 const mitte = (t) => t * 32 + 16;
 
 function neueWelt(extra = {}) {
-  const konfiguration = erstelleKonfiguration({ server: { zufallsStartwert: 3 }, tiere: { hasenProTausend: 0 }, wetter: { aktiv: false }, ...extra, spieler: { startInventar: [], ...extra.spieler } });
+  const konfiguration = erstelleKonfiguration({ server: { zufallsStartwert: 3 }, tiere: { hasenProTausend: 0 }, wetter: { aktiv: false }, basisbau: { radiusKacheln: 15 }, ...extra, spieler: { startInventar: [], ...extra.spieler } });
   const welt = new SpielWelt(konfiguration, { kartenDefinition: KARTE });
   for (const z of [...welt.alleVomTyp('zombie')]) welt.entfernen(z.id);
   return { welt, konfiguration, ...baumeister(welt, 'Bob') };

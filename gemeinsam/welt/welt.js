@@ -270,10 +270,14 @@ export class Welt {
     return this.zeilen[ty][tx];
   }
 
-  /** Steht dieser Weltpunkt (px) in einem Gebäude? (Innenraumboden, siehe KACHELN.innen – Türschwellen zählen nicht) */
+  /** Steht dieser Weltpunkt (px) in einem Gebäude? (Innenraumboden, siehe KACHELN.innen – Türschwellen zählen nicht; oder unter einem selbstgebauten Dach) */
   istInnen(x, y) {
-    const zeichen = this.kachelAn(Math.floor(x / this.kachelGroesse), Math.floor(y / this.kachelGroesse));
-    return zeichen !== null && KACHELN[zeichen]?.innen === true;
+    const tx = Math.floor(x / this.kachelGroesse);
+    const ty = Math.floor(y / this.kachelGroesse);
+    const zeichen = this.kachelAn(tx, ty);
+    if (zeichen !== null && KACHELN[zeichen]?.innen === true) return true;
+    // Selbstgebautes Haus: ein Dach über der Kachel zählt als "drinnen"
+    return this.ebenenAnKachel.size > 0 && this.ebenenAnKachel.get(ty * this.breite + tx)?.dach !== undefined;
   }
 
   /**

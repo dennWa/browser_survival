@@ -192,9 +192,12 @@ export function raeumeZombiesWeg(spielWelt, x, y, radius) {
 
 /** Lärm (Schüsse, Kampf) lockt Zombies im Umkreis an – auch ohne Sichtkontakt. */
 export function alarmiereZombies(spielWelt, x, y, radius, quelleId) {
+  // Wände schlucken den Lärm: Wer drinnen ist, wird von Zombies draußen nicht gehört
+  const quelleInnen = spielWelt.welt.istInnen(x, y);
   for (const z of spielWelt.alleVomTyp('zombie')) {
     if (z.zustand !== 'ruhend' && z.zielId !== null) continue;
     if (Math.hypot(z.x - x, z.y - y) > radius) continue;
+    if (quelleInnen && !spielWelt.welt.istInnen(z.x, z.y)) continue;
     z.zielId = quelleId;
     z.zustand = 'verfolgend';
     z.letztesZielX = x;

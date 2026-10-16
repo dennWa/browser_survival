@@ -156,7 +156,8 @@ function waehleZiel(spielWelt, z, lebendeSpieler, k) {
  * (Witterung) gehen trotzdem.
  */
 function siehtZiel(welt, z, ziel) {
-  if (welt.istInnen(ziel.x, ziel.y) && !welt.istInnen(z.x, z.y)) return false;
+  // Wer schon hinter dem Spieler her ist (hat ihn draußen gesehen), verliert ihn beim Betreten des Hauses nicht
+  if (welt.istInnen(ziel.x, ziel.y) && !welt.istInnen(z.x, z.y) && z.zielId !== ziel.id) return false;
   return sichtlinieFrei(welt, z.x, z.y, ziel.x, ziel.y);
 }
 
@@ -278,6 +279,7 @@ function wittere(spielWelt, z, lebendeSpieler, dt) {
   let bestAbstand = HORDE_WITTERUNG;
   for (const s of lebendeSpieler) {
     const abstand = Math.hypot(s.x - z.x, s.y - z.y);
+    if (spielWelt.welt.istInnen(s.x, s.y) && !spielWelt.welt.istInnen(z.x, z.y)) continue; // drinnen = nicht zu wittern
     if (abstand < bestAbstand) {
       bester = s;
       bestAbstand = abstand;
