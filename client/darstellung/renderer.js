@@ -16,6 +16,7 @@ import { erzeugeWaffe, WAFFEN_NAMEN } from './waffenModelle.js';
 import { erzeugeTier } from './tierModelle.js';
 import { erzeugeAngel } from './angelModell.js';
 import { WetterEffekt } from './wetterEffekt.js';
+import { BlaetterEffekt } from './blaetterEffekt.js';
 
 /**
  * Renderer mit Three.js (WebGL): schräge Kamera, echte Lichter und Schatten, Tag & Nacht.
@@ -276,6 +277,8 @@ export class Renderer {
     this.gebietRing.verstecke();
     this.gebietVorschau.verstecke();
     this.zeigeVorschau(null);
+    this.blaetter?.entfernen();
+    this.blaetter = new BlaetterEffekt(this.szene, welt);
     this.karte = new KartenModell({
       welt,
       assets: this.assets,
@@ -315,6 +318,7 @@ export class Renderer {
     const dunkel = this.#tageslicht(tageszeit, _ziel);
 
     this.karte.aktualisiere(dt, dunkel);
+    this.blaetter?.aktualisiere(dt, fokus, jetzt, dunkel);
     this.#aktualisiereFahrzeuge(entitaeten, fokus);
     this.#aktualisiereFiguren(entitaeten, fokus, dt, jetzt);
     this.#aktualisiereTiere(entitaeten, fokus, jetzt);

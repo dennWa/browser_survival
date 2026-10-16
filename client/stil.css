@@ -1160,5 +1160,5 @@ button {
 #touch.fest .stick:not(.aktiv) { opacity: 0.4; }
 #einst-handy[hidden], #einst-stick-regler[hidden] { display: none; }
 #hud.touch #knopf-nachladen { bottom: 176px; right: 12px; }
-#hud.touch #knopf-angel { bottom: 246px; right: 12px; }
+#hud.touch #knopf-angel { bottom: 176px; right: auto; left: 12px; }
 #hud-arbeit.ohne-balken .balken { display: none; }
