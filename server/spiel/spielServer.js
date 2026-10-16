@@ -466,6 +466,8 @@ export class SpielServer {
     if (slot !== null && !gueltigerSlot(slot)) return;
     if (n.art === AKTIONEN.TAUSCHEN && !(gueltigerSlot(slot) && gueltigerSlot(n.ziel))) return;
     if (n.art === AKTIONEN.PLATZIEREN && !(gueltigerSlot(slot) && Number.isInteger(n.tx) && Number.isInteger(n.ty))) return;
+    if (n.art === AKTIONEN.FELD && !(Number.isInteger(n.tx) && Number.isInteger(n.ty))) return;
+    if ((n.art === AKTIONEN.KISTE_LEGEN || n.art === AKTIONEN.KISTE_NEHMEN) && slot === null) return;
     if (n.art === AKTIONEN.ADMIN && !GUELTIGE_ADMIN_BEFEHLE.has(n.befehl)) return;
     if (n.art === AKTIONEN.HERSTELLEN && !Object.hasOwn(REZEPTE, n.rezept)) return;
     if (spieler.aktionsPuffer.length >= MAX_AKTIONS_PUFFER) return;
@@ -473,7 +475,7 @@ export class SpielServer {
     if (n.art === AKTIONEN.ADMIN) aktion.befehl = n.befehl;
     if (n.art === AKTIONEN.HERSTELLEN) aktion.rezept = n.rezept;
     if (n.art === AKTIONEN.TAUSCHEN) aktion.ziel = n.ziel;
-    if (n.art === AKTIONEN.PLATZIEREN) Object.assign(aktion, { tx: n.tx, ty: n.ty });
+    if (n.art === AKTIONEN.PLATZIEREN || n.art === AKTIONEN.FELD) Object.assign(aktion, { tx: n.tx, ty: n.ty });
     if (n.art === AKTIONEN.SKILL) aktion.skill = typeof n.skill === 'string' ? n.skill : null;
     spieler.aktionsPuffer.push(aktion);
   }

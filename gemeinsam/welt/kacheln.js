@@ -15,6 +15,7 @@ export const KACHELN = Object.freeze({
   'T': { name: 'tuer', blockiert: false },
   '#': { name: 'wand', blockiert: true },
   'F': { name: 'fenster', blockiert: true },
+  '~': { name: 'wasser', blockiert: true, sichtFrei: true, wasser: true }, // See: nicht begehbar, aber Sicht & Schüsse gehen drüber; hier wird geangelt
 });
 
 /**

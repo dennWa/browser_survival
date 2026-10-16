@@ -2,6 +2,7 @@ import { BETT_REICHWEITE } from '../../../gemeinsam/konstanten.js';
 import { ABBAU_REICHWEITE } from '../../../gemeinsam/welt/ressourcen.js';
 import { sekundenFuerStunden, tageszeit } from '../../../gemeinsam/tageszeit.js';
 import { fuegeZumInventarHinzu, legeAufBoden } from './inventarSystem.js';
+import { gibXp } from './levelSystem.js';
 import { GEGENSTAENDE } from '../konfiguration/gegenstaende.js';
 import { sammelFaktor } from '../../../gemeinsam/spieler/skills.js';
 import { aktualisiereBauwerke, kochenFertig } from './bauSystem.js';
@@ -110,6 +111,7 @@ function schliesseAbbauAb(spielWelt, spieler, r) {
   }
   spielWelt.welt.setzeRessource(r.id, false);
   spielWelt.ressourcenNachwuchs.set(r.id, nachwachsen);
+  gibXp(spielWelt, spieler, spielWelt.konfiguration.level.xpProAbbau ?? 0);
   spielWelt.ereignis({ typ: 'abgebaut', art: r.art, x: r.x, y: r.y, id: r.id, von: spieler.id, sx: spieler.x, sy: spieler.y });
   spielWelt.melde(spieler.id, `+${menge} ${GEGENSTAENDE[r.art]?.name ?? r.art}${menge > 1 ? ' – Glück gehabt!' : ''}`);
 }

@@ -213,114 +213,212 @@
     "h": 67,
     "weltGroesse": 32
    },
-   "hacke": {
-    "x": 448,
-    "y": 216,
-    "b": 39,
-    "h": 72,
-    "weltGroesse": 28
-   },
    "feuerzeug": {
-    "x": 515,
+    "x": 443,
     "y": 216,
     "b": 50,
     "h": 72,
     "weltGroesse": 18
    },
    "tomate": {
-    "x": 0,
-    "y": 290,
+    "x": 504,
+    "y": 218,
     "b": 72,
     "h": 68,
     "weltGroesse": 18
    },
    "gurke": {
-    "x": 72,
+    "x": 0,
     "y": 312,
     "b": 72,
     "h": 24,
     "weltGroesse": 20
    },
    "kartoffel": {
-    "x": 144,
+    "x": 72,
     "y": 301,
     "b": 72,
     "h": 45,
     "weltGroesse": 18
    },
    "tomate_gebraten": {
-    "x": 216,
+    "x": 144,
     "y": 290,
     "b": 72,
     "h": 68,
     "weltGroesse": 18
    },
    "gurke_gebraten": {
-    "x": 288,
+    "x": 216,
     "y": 312,
     "b": 72,
     "h": 24,
     "weltGroesse": 20
    },
    "ofenkartoffel": {
-    "x": 360,
+    "x": 288,
     "y": 302,
     "b": 72,
     "h": 43,
     "weltGroesse": 22
    },
    "samen_tomate": {
-    "x": 432,
+    "x": 360,
     "y": 288,
     "b": 72,
     "h": 72,
     "weltGroesse": 16
    },
    "samen_gurke": {
-    "x": 504,
+    "x": 432,
     "y": 288,
     "b": 72,
     "h": 72,
     "weltGroesse": 16
    },
    "samen_kartoffel": {
+    "x": 504,
+    "y": 288,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 16
+   },
+   "samen_paprika": {
     "x": 0,
     "y": 360,
     "b": 72,
     "h": 72,
     "weltGroesse": 16
    },
-   "falle": {
+   "paprika": {
     "x": 72,
+    "y": 360,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 20
+   },
+   "paprika_gebraten": {
+    "x": 144,
+    "y": 360,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 20
+   },
+   "fleisch": {
+    "x": 216,
+    "y": 374,
+    "b": 72,
+    "h": 43,
+    "weltGroesse": 22
+   },
+   "fleisch_gebraten": {
+    "x": 291,
+    "y": 360,
+    "b": 66,
+    "h": 72,
+    "weltGroesse": 22
+   },
+   "fisch_barsch": {
+    "x": 360,
     "y": 360,
     "b": 72,
     "h": 72,
     "weltGroesse": 26
    },
-   "lagerfeuer": {
-    "x": 144,
+   "fisch_forelle": {
+    "x": 432,
     "y": 360,
     "b": 72,
     "h": 72,
     "weltGroesse": 28
    },
-   "werkbank": {
-    "x": 216,
+   "fisch_hecht": {
+    "x": 504,
     "y": 360,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 34
+   },
+   "fisch_barsch_gebraten": {
+    "x": 0,
+    "y": 432,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 26
+   },
+   "fisch_forelle_gebraten": {
+    "x": 72,
+    "y": 432,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 28
+   },
+   "fisch_hecht_gebraten": {
+    "x": 144,
+    "y": 432,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 34
+   },
+   "angel": {
+    "x": 216,
+    "y": 432,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 30
+   },
+   "kiste": {
+    "x": 288,
+    "y": 432,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 30
+   },
+   "holzwand": {
+    "x": 360,
+    "y": 432,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 28
+   },
+   "holzboden": {
+    "x": 432,
+    "y": 432,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 28
+   },
+   "falle": {
+    "x": 504,
+    "y": 432,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 26
+   },
+   "lagerfeuer": {
+    "x": 0,
+    "y": 504,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 28
+   },
+   "werkbank": {
+    "x": 72,
+    "y": 504,
     "b": 72,
     "h": 72,
     "weltGroesse": 30
    },
    "bretter": {
-    "x": 288,
-    "y": 360,
+    "x": 144,
+    "y": 504,
     "b": 71,
     "h": 72,
     "weltGroesse": 26
    },
    "rucksack": {
-    "x": 360,
-    "y": 362,
+    "x": 216,
+    "y": 506,
     "b": 72,
     "h": 67,
     "weltGroesse": 28

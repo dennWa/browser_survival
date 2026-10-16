@@ -39,6 +39,7 @@ export function erstelleSpielstand(spieler, kartenId) {
     skills: { ...spieler.skills },
     skillPunkte: spieler.skillPunkte,
     aussehen: { ...spieler.aussehen },
+    statistik: { ...spieler.statistik },
     erkundet,
     gespeichert: new Date().toISOString(),
   };
@@ -61,6 +62,7 @@ export function wendeSpielstandAn(spieler, stand, spielWelt) {
   ladeSkills(spieler, stand, spielWelt.konfiguration); // setzt maxLeben (Zähigkeit) – darum Leben erst danach
   spieler.leben = begrenze(stand.leben, 1, spieler.maxLeben);
   spieler.aussehen = pruefeAussehen(stand.aussehen);
+  ladeStatistik(spieler, stand.statistik);
   const kartenId = spielWelt.karte.daten.id;
   const erkundet = ladeErkundet(stand.erkundet);
   if (erkundet[kartenId] && spieler.erkundet) {
@@ -93,6 +95,12 @@ export function wendeSpielstandAn(spieler, stand, spielWelt) {
   spieler.ausgeruestet = kategorie === 'nahkampf' || kategorie === 'fernkampf' ? slot : null;
   aktualisiereAusruestung(spieler);
   return true;
+}
+
+/** Statistik (Tab-Liste): nur sinnvolle Zahlen übernehmen. */
+function ladeStatistik(spieler, roh) {
+  const zaehler = (v) => (Number.isFinite(v) && v >= 0 ? Math.min(Math.floor(v), 1e9) : 0);
+  spieler.statistik = { zombies: zaehler(roh?.zombies), spieler: zaehler(roh?.spieler), ueberlebt: Number.isFinite(roh?.ueberlebt) && roh.ueberlebt >= 0 ? Math.min(roh.ueberlebt, 1e9) : 0 };
 }
 
 /** Erkundung aus dem Spielstand: { kartenId: base64 } – alte Stände hatten { karte, daten } (nur eine Karte). */
@@ -130,7 +138,7 @@ function ladeSkills(spieler, stand, konfiguration) {
   wendeSkillsAn(spieler, konfiguration);
 }
 
-function pruefeEintrag(e) {
+export function pruefeEintrag(e) {
   const def = e && GEGENSTAENDE[e.defId];
   if (!def || !Number.isInteger(e.menge) || e.menge < 1) return null;
   const menge = Math.min(e.menge, def.stapelbar ?? 1);

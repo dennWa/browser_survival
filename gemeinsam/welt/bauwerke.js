@@ -20,7 +20,23 @@ export const BAUWERKE = Object.freeze({
   lagerfeuer: { name: 'Lagerfeuer', item: 'lagerfeuer', blockiert: true, draussen: true },
   falle: { name: 'Falle', item: 'falle', blockiert: false },
   beet: { name: 'Beet', item: null, blockiert: false, nurAuf: ['gras'] },
+  // Lagerkiste: 16 Plätze, Inhalt steht in b.inhalt (nur der Server kennt ihn – geht per KISTE-Nachricht an den, der sie öffnet)
+  kiste: { name: 'Lagerkiste', item: 'kiste', blockiert: true },
+  // Basisbau (Grundgerüst): Wand blockiert, Boden ist begehbar und darf auch auf Gras/Erde liegen
+  holzwand: { name: 'Holzwand', item: 'holzwand', blockiert: true },
+  holzboden: { name: 'Holzboden', item: 'holzboden', blockiert: false, nurAuf: ['gras'] },
 });
+
+/** Erdfeld (Spitzhacke, Taste G): quadratisch, FELD_GROESSE × FELD_GROESSE Kacheln, jede Kachel ein Beet. */
+export const FELD_GROESSE = 3;
+
+/** Kacheln eines Erdfelds um die Mittelkachel (tx, ty). */
+export function feldKacheln(tx, ty) {
+  const r = Math.floor(FELD_GROESSE / 2);
+  const liste = [];
+  for (let y = ty - r; y < ty - r + FELD_GROESSE; y++) for (let x = tx - r; x < tx - r + FELD_GROESSE; x++) liste.push({ tx: x, ty: y });
+  return liste;
+}
 
 /** So weit (px, Spieler → Kachelmitte) darf man von sich weg bauen. */
 export const BAU_REICHWEITE = 84;
@@ -32,6 +48,7 @@ export const PFLANZEN = Object.freeze({
   tomate: { name: 'Tomate', samen: 'samen_tomate', ernte: 'tomate', farbe: 0xd8392b },
   gurke: { name: 'Gurke', samen: 'samen_gurke', ernte: 'gurke', farbe: 0x4f9a2a },
   kartoffel: { name: 'Kartoffel', samen: 'samen_kartoffel', ernte: 'kartoffel', farbe: 0xc9a26a },
+  paprika: { name: 'Paprika', samen: 'samen_paprika', ernte: 'paprika', farbe: 0xe8a317 },
 });
 
 /** Kochen am brennenden Lagerfeuer: roh → gebraten (gebraten macht 30 % mehr satt, siehe gegenstaende.js). */
@@ -39,6 +56,11 @@ export const KOCHBAR = Object.freeze({
   tomate: 'tomate_gebraten',
   gurke: 'gurke_gebraten',
   kartoffel: 'ofenkartoffel',
+  paprika: 'paprika_gebraten',
+  fleisch: 'fleisch_gebraten',
+  fisch_barsch: 'fisch_barsch_gebraten',
+  fisch_forelle: 'fisch_forelle_gebraten',
+  fisch_hecht: 'fisch_hecht_gebraten',
 });
 
 /**
@@ -84,9 +106,11 @@ export function bauwerkAktion(b, inventar) {
       return b.gespannt ? { art: 'aufnehmen', text: 'Falle aufnehmen', symbol: '🪤' } : { art: 'spannen', text: 'Falle spannen', symbol: '🪤' };
     case 'lagerfeuer': {
       const roh = b.brennt ? inventar.find((e) => e && KOCHBAR[e.defId]) : null;
-      if (roh) return { art: 'kochen', text: `${roh.defId === 'kartoffel' ? 'Kartoffel backen' : roh.defId === 'gurke' ? 'Gurke braten' : 'Tomate braten'}`, symbol: '🍳' };
+      if (roh) return { art: 'kochen', text: roh.defId === 'kartoffel' ? 'Kartoffel backen' : 'Braten', symbol: '🍳' };
       return null;
     }
+    case 'kiste':
+      return { art: 'oeffnen', text: 'Kiste öffnen', symbol: '📦' };
     case 'beet': {
       if (!b.pflanze) {
         const samen = Object.entries(PFLANZEN).find(([, p]) => hat(p.samen));

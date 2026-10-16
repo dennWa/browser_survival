@@ -1,3 +1,5 @@
+import { STAPEL_MUNITION, STAPEL_STANDARD } from '../../../gemeinsam/konstanten.js';
+
 /**
  * Gegenstands-Definitionen (Item-Datenbank).
  * Schlüssel = defId (muss zu einem Icon in client/assets/atlas.json → items.icons passen; ein Test prüft das).
@@ -9,7 +11,7 @@
  * Werte lassen sich ingame im Developer-Modus ändern (Admin-Menü → Developer).
  * Neue Items: Icon in werkzeuge/assets/baue_assets.py (ITEMS) eintragen.
  */
-export const GEGENSTAENDE = Object.freeze({
+const ROH_GEGENSTAENDE = {
   // --- Essen ---
   konservendose: { name: 'Konservendose', kategorie: 'nahrung', naehrwert: 35, stapelbar: 5 },
   marmelade: { name: 'Glas Marmelade', kategorie: 'nahrung', naehrwert: 20, stapelbar: 5 },
@@ -42,7 +44,7 @@ export const GEGENSTAENDE = Object.freeze({
   feuerwehrbeil: { name: 'Feuerwehrbeil', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 50, reichweite: 62, abklingzeit: 1.0 },
   // --- Werkzeuge (auch als schwache Waffen nutzbar) ---
   axt: { name: 'Axt', kategorie: 'nahkampf', ausruestung: 'messer', werkzeug: true, schaden: 18, reichweite: 54, abklingzeit: 0.7 },
-  spitzhacke: { name: 'Spitzhacke', kategorie: 'nahkampf', ausruestung: 'messer', werkzeug: true, schaden: 16, reichweite: 54, abklingzeit: 0.75 },
+  spitzhacke: { name: 'Spitzhacke', kategorie: 'nahkampf', ausruestung: 'messer', werkzeug: true, beschreibung: 'Steine abbauen und mit G ein Erdfeld anlegen', schaden: 16, reichweite: 54, abklingzeit: 0.75 },
   // --- Fernkampf ---
   pistole: { name: 'Pistole (9 mm)', kategorie: 'fernkampf', ausruestung: 'pistole', schaden: 25, munition: 'munition_9mm', magazin: 15, abklingzeit: 0.28, reichweite: 520, streuung: 0.03, nachladezeit: 1.1 },
   schrotflinte: { name: 'Schrotflinte (Kal. 12)', kategorie: 'fernkampf', ausruestung: 'schrotflinte', schaden: 16, projektile: 7, munition: 'munition_12', magazin: 5, abklingzeit: 0.85, reichweite: 280, streuung: 0.2, nachladezeit: 1.8 },
@@ -64,12 +66,43 @@ export const GEGENSTAENDE = Object.freeze({
   lagerfeuer: { name: 'Lagerfeuer', kategorie: 'bauwerk', bauwerk: 'lagerfeuer', beschreibung: 'Draußen aufstellen, mit F und Feuerzeug anzünden, Essen braten' },
   falle: { name: 'Bärenfalle', kategorie: 'bauwerk', bauwerk: 'falle', stapelbar: 3, beschreibung: 'Auf den Boden legen – tritt ein Zombie hinein, ist er sofort tot' },
   // --- Werkzeug & Garten ---
-  hacke: { name: 'Gartenhacke', kategorie: 'werkzeug', baut: 'beet', beschreibung: 'Benutzen: auf Rasen ein Beet anlegen' },
   feuerzeug: { name: 'Feuerzeug', kategorie: 'werkzeug', beschreibung: 'Zum Anzünden von Lagerfeuern (F)' },
   samen_tomate: { name: 'Tomatensamen', kategorie: 'samen', pflanze: 'tomate', stapelbar: 10, beschreibung: 'In ein Beet pflanzen (E am Beet)' },
   samen_gurke: { name: 'Gurkensamen', kategorie: 'samen', pflanze: 'gurke', stapelbar: 10, beschreibung: 'In ein Beet pflanzen (E am Beet)' },
   samen_kartoffel: { name: 'Saatkartoffeln', kategorie: 'samen', pflanze: 'kartoffel', stapelbar: 10, beschreibung: 'In ein Beet pflanzen (E am Beet)' },
-});
+  samen_paprika: { name: 'Paprikasamen', kategorie: 'samen', pflanze: 'paprika', beschreibung: 'In ein Beet pflanzen (E am Beet)' },
+  paprika: { name: 'Paprika', kategorie: 'nahrung', naehrwert: 13, beschreibung: 'Am Lagerfeuer braten: macht 30 % mehr satt' },
+  paprika_gebraten: { name: 'Gebratene Paprika', kategorie: 'nahrung', naehrwert: 17 },
+  // --- Jagen & Angeln ---
+  fleisch: { name: 'Hasenfleisch', kategorie: 'nahrung', naehrwert: 14, beschreibung: 'Am Lagerfeuer braten: macht deutlich satter' },
+  fleisch_gebraten: { name: 'Hasenbraten', kategorie: 'nahrung', naehrwert: 32 },
+  fisch_barsch: { name: 'Barsch', kategorie: 'nahrung', naehrwert: 12, beschreibung: 'Am Lagerfeuer braten' },
+  fisch_forelle: { name: 'Forelle', kategorie: 'nahrung', naehrwert: 16, beschreibung: 'Am Lagerfeuer braten' },
+  fisch_hecht: { name: 'Hecht', kategorie: 'nahrung', naehrwert: 22, beschreibung: 'Am Lagerfeuer braten' },
+  fisch_barsch_gebraten: { name: 'Gebratener Barsch', kategorie: 'nahrung', naehrwert: 24 },
+  fisch_forelle_gebraten: { name: 'Gebratene Forelle', kategorie: 'nahrung', naehrwert: 30 },
+  fisch_hecht_gebraten: { name: 'Gebratener Hecht', kategorie: 'nahrung', naehrwert: 40 },
+  angel: { name: 'Angel', kategorie: 'werkzeug', beschreibung: 'Am Ufer Linksklick: auswerfen – wackelt die Pose, nochmal klicken' },
+  // --- Basisbau (Grundgerüst, siehe gemeinsam/welt/bauwerke.js) ---
+  kiste: { name: 'Lagerkiste', kategorie: 'bauwerk', bauwerk: 'kiste', beschreibung: 'Aufstellen: 16 Plätze (E zum Öffnen)' },
+  holzwand: { name: 'Holzwand', kategorie: 'bauwerk', bauwerk: 'holzwand', beschreibung: 'Basisbau: blockiert Zombies' },
+  holzboden: { name: 'Holzboden', kategorie: 'bauwerk', bauwerk: 'holzboden', beschreibung: 'Basisbau: begehbarer Boden' },
+};
+
+/**
+ * Stapelgrößen (einheitlich): Munition bis STAPEL_MUNITION, alles andere Stapelbare bis STAPEL_STANDARD.
+ * Waffen, Werkzeuge und Rucksäcke bleiben einzeln (1).
+ */
+function normalisiere(roh) {
+  const ergebnis = {};
+  for (const [id, def] of Object.entries(roh)) {
+    const einzeln = ['nahkampf', 'fernkampf', 'rucksack', 'werkzeug'].includes(def.kategorie) || def.werkzeug === true || id === 'erste_hilfe_kasten';
+    ergebnis[id] = { ...def, stapelbar: def.kategorie === 'munition' ? STAPEL_MUNITION : einzeln ? 1 : STAPEL_STANDARD }; // nicht eingefroren: der Developer-Modus ändert Werte
+  }
+  return ergebnis;
+}
+
+export const GEGENSTAENDE = Object.freeze(normalisiere(ROH_GEGENSTAENDE));
 
 /** Ausrüstung ohne Waffe in der Hand. */
 export const STANDARD_AUSRUESTUNG = 'taschenlampe';

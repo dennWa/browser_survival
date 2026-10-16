@@ -90,7 +90,6 @@ ITEMS = {
     'eisenerz': ('kenney_racing', 'PNG/Objects/rock2.png', 22, (1.25, 0.75, 0.55)),  # 4. Wert = Einfärbung (R, G, B)
     'rucksack_klein': ('props', 'PNG/256px/backpack.png', 24, (1.35, 1.1, 0.6)),
     'rucksack_gross': ('props', 'PNG/256px/backpack.png', 32, (0.55, 0.65, 1.4)),
-    'hacke': ('kenney_items', 'PNG/Colored/genericItem_color_022.png', 28),
     'feuerzeug': ('kenney_items', 'PNG/Colored/genericItem_color_095.png', 18),
     'tomate': ('glitch_food', 'food/tomato.svg', 18),
     'gurke': ('glitch_food', 'food/cucumber.svg', 20),
@@ -102,6 +101,21 @@ ITEMS = {
     'samen_tomate': ('prozedural', 'samen:#d84a3a', 16),
     'samen_gurke': ('prozedural', 'samen:#5aa83a', 16),
     'samen_kartoffel': ('prozedural', 'samen:#b98a4a', 16),
+    'samen_paprika': ('prozedural', 'samen:#e0a020', 16),
+    'paprika': ('prozedural', 'paprika:#d8392b', 20),
+    'paprika_gebraten': ('prozedural', 'paprika:#8a4a22', 20),
+    'fleisch': ('glitch_food', 'food/meat.svg', 22),
+    'fleisch_gebraten': ('glitch_food', 'food/ixstyle_braised_meat.svg', 22),
+    'fisch_barsch': ('prozedural', 'fisch:#6f8f3a', 26),
+    'fisch_forelle': ('prozedural', 'fisch:#c9788f', 28),
+    'fisch_hecht': ('prozedural', 'fisch:#3f7a5a', 34),
+    'fisch_barsch_gebraten': ('prozedural', 'fisch:#9a6a2a', 26),
+    'fisch_forelle_gebraten': ('prozedural', 'fisch:#a86a30', 28),
+    'fisch_hecht_gebraten': ('prozedural', 'fisch:#8a5a28', 34),
+    'angel': ('prozedural', 'angel', 30),
+    'kiste': ('prozedural', 'kiste', 30),
+    'holzwand': ('prozedural', 'holzwand', 28),
+    'holzboden': ('prozedural', 'holzboden', 28),
     'falle': ('prozedural', 'falle', 26),
     'lagerfeuer': ('prozedural', 'lagerfeuer', 28),
     'werkbank': ('prozedural', 'werkbank', 30),
@@ -234,6 +248,38 @@ def zeichne_prozedural(art, groesse):
         d.rectangle(r(10, 46, 63, 51), fill=(120, 78, 40, 255), outline=rand, width=int(2 * u))
         d.rectangle(r(44, 12, 58, 22), fill=(90, 94, 100, 255), outline=rand, width=int(2 * u))
         d.line([18 * u, 18 * u, 34 * u, 10 * u], fill=(90, 94, 100, 255), width=int(4 * u))
+    elif art.startswith('paprika:'):
+        farbe = art.split(':')[1]
+        d.rounded_rectangle(r(18, 18, 54, 62), radius=14 * u, fill=farbe, outline=rand, width=int(2.5 * u))
+        d.line([30 * u, 22 * u, 28 * u, 56 * u], fill=(255, 255, 255, 70), width=int(3 * u))
+        d.rectangle(r(32, 8, 40, 20), fill=(70, 130, 50, 255), outline=rand, width=int(2 * u))
+    elif art.startswith('fisch:'):
+        farbe = art.split(':')[1]
+        d.polygon([(54 * u, 36 * u), (68 * u, 22 * u), (68 * u, 50 * u)], fill=farbe, outline=rand)
+        d.ellipse(r(4, 22, 62, 50), fill=farbe, outline=rand, width=int(2.5 * u))
+        d.ellipse(r(40, 30, 46, 36), fill=(255, 255, 255, 235))
+        d.ellipse(r(41, 31, 45, 35), fill=(20, 20, 20, 255))
+        d.arc(r(14, 26, 30, 46), 100, 260, fill=(255, 255, 255, 140), width=int(2 * u))
+    elif art == 'angel':
+        d.line([8 * u, 64 * u, 58 * u, 8 * u], fill=(120, 80, 40, 255), width=int(5 * u))
+        d.line([58 * u, 8 * u, 64 * u, 40 * u], fill=(230, 230, 230, 255), width=int(1.5 * u))
+        d.ellipse(r(60, 40, 70, 50), fill=(220, 50, 40, 255), outline=rand)
+        d.ellipse(r(14, 50, 26, 62), fill=(90, 94, 100, 255), outline=rand)
+    elif art == 'kiste':
+        d.rectangle(r(8, 18, 64, 62), fill=(160, 112, 60, 255), outline=rand, width=int(3 * u))
+        d.rectangle(r(8, 18, 64, 30), fill=(190, 140, 80, 255), outline=rand, width=int(3 * u))
+        for x in (20, 36, 52):
+            d.line([x * u, 30 * u, x * u, 62 * u], fill=(120, 80, 40, 255), width=int(2 * u))
+        d.rectangle(r(30, 34, 42, 42), fill=(200, 200, 205, 255), outline=rand, width=int(2 * u))
+    elif art == 'holzwand':
+        for i in range(4):
+            d.rectangle(r(8 + i * 14, 8, 20 + i * 14, 64), fill=(150 + i * 8, 104, 56, 255), outline=rand, width=int(2.5 * u))
+        d.rectangle(r(6, 22, 66, 30), fill=(110, 76, 40, 255), outline=rand, width=int(2 * u))
+        d.rectangle(r(6, 44, 66, 52), fill=(110, 76, 40, 255), outline=rand, width=int(2 * u))
+    elif art == 'holzboden':
+        for i in range(4):
+            d.rectangle(r(6, 8 + i * 15, 66, 21 + i * 15), fill=(170 - i * 6, 124, 70, 255), outline=rand, width=int(2 * u))
+            d.line([(16 + i * 12) * u, (8 + i * 15) * u, (16 + i * 12) * u, (21 + i * 15) * u], fill=rand, width=int(1.5 * u))
     else:
         raise ValueError(f'Unbekanntes prozedurales Icon: {art}')
     return bild.resize((groesse, groesse), Image.LANCZOS)

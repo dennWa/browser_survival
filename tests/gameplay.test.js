@@ -864,11 +864,11 @@ test('Im Haus versteckt: Zombie draußen bemerkt den Spieler nicht, drinnen scho
   assert.equal(z.zielId, s.id, 'draußen wird man gesehen');
 });
 
-test('Tod: Zombies im Umkreis verschwinden; Brocken geben 15 XP', () => {
+test('Tod: Zombies im Umkreis verschwinden; Brocken geben 40 XP', () => {
   const { welt, spieler } = neueWelt();
   const brocken = welt.hinzufuegen(erzeugeZombie({ id: welt.neueId(), x: mitte(3), y: mitte(3), konfiguration: welt.konfiguration, variante: 'brocken' }));
   fuegeSchadenZu(welt, brocken, 9999, spieler);
-  assert.equal(spieler.xp, 15);
+  assert.equal(spieler.xp, 40);
   const nah = zombieBei(welt, 4, 4);
   platziere(spieler, 3, 3);
   fuegeSchadenZu(welt, spieler, 9999, null);

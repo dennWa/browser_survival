@@ -30,7 +30,7 @@ export const LOOT_TABELLEN = Object.freeze({
     { id: 'feuerwehrbeil', gewicht: 1 },
     { id: 'rucksack', gewicht: 1 },
     { id: 'rucksack_gross', gewicht: 0.5 },
-    { id: 'hacke', gewicht: 1 },
+    { id: 'angel', gewicht: 1 },
     { id: 'falle', gewicht: 1 },
     { id: 'samen_kartoffel', gewicht: 1 },
   ],
@@ -75,6 +75,14 @@ export const LOOT_TABELLEN = Object.freeze({
     { id: 'muesliriegel', gewicht: 2 },
     { id: 'energydrink', gewicht: 1 },
   ],
+  // Beute der Boss-Zombies (Brocken): immer eine Waffe – die passende Munition kommt dazu (lootSystem.lasseBossLootFallen)
+  boss: [
+    { id: 'pistole', gewicht: 3 },
+    { id: 'schrotflinte', gewicht: 2 },
+    { id: 'machete', gewicht: 2 },
+    { id: 'feuerwehrbeil', gewicht: 2 },
+    { id: 'hammer', gewicht: 2 },
+  ],
   verwaltung: [
     { id: 'kaffee', gewicht: 2 },
     { id: 'muesliriegel', gewicht: 2 },
@@ -108,7 +116,7 @@ export const LOOT_TABELLEN = Object.freeze({
     { id: 'samen_tomate', gewicht: 1 },
     { id: 'samen_gurke', gewicht: 1 },
     { id: 'samen_kartoffel', gewicht: 1 },
-    { id: 'hacke', gewicht: 0.7 },
+    { id: 'samen_paprika', gewicht: 1 },
   ],
   tankstelle: [
     { id: 'energydrink', gewicht: 4 },
@@ -126,7 +134,7 @@ export const LOOT_TABELLEN = Object.freeze({
     { id: 'wasserflasche', gewicht: 2 },
     { id: 'rucksack', gewicht: 1 },
     { id: 'falle', gewicht: 2 },
-    { id: 'hacke', gewicht: 1.5 },
+    { id: 'angel', gewicht: 1 },
     { id: 'feuerzeug', gewicht: 1 },
     { id: 'rucksack_gross', gewicht: 0.5 },
   ],
@@ -145,6 +153,7 @@ export const LOOT_TABELLEN = Object.freeze({
     { id: 'samen_tomate', gewicht: 1.5 },
     { id: 'samen_gurke', gewicht: 1.5 },
     { id: 'samen_kartoffel', gewicht: 1.5 },
+    { id: 'samen_paprika', gewicht: 1.5 },
   ],
   polizei: [
     { id: 'munition_9mm', gewicht: 4 },
@@ -177,6 +186,8 @@ export const LOOT_TABELLEN = Object.freeze({
     { id: 'axt', gewicht: 1 },
     { id: 'samen_gurke', gewicht: 1 },
     { id: 'samen_kartoffel', gewicht: 1 },
+    { id: 'samen_paprika', gewicht: 1 },
+    { id: 'angel', gewicht: 1 },
     { id: 'rucksack_klein', gewicht: 1 },
   ],
 });

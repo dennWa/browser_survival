@@ -13,6 +13,7 @@
  *     ergebnis: 'axt',                    ← welches Item man bekommt
  *     menge: 1,                           ← wie viele davon (optional, Standard 1)
  *     ort: 'inventar',                    ← optional: ohne Werkbank, direkt im Inventar (I) baubar
+ *     level: 3,                           ← optional: erst ab diesem Spieler-Level herstellbar (Standard 1 = von Anfang an)
  *   },
  *
  * Item-Namen (für zutaten und ergebnis) stehen in server/spiel/konfiguration/gegenstaende.js,
@@ -40,6 +41,34 @@ export const REZEPTE = {
     ergebnis: 'lagerfeuer',
   },
 
+  kiste: {
+    name: 'Lagerkiste',
+    kategorie: 'Bauen',
+    ort: 'inventar',
+    beschreibung: 'Zum Aufstellen: 16 Plätze. Mit E öffnen.',
+    zutaten: { holz: 8 },
+    ergebnis: 'kiste',
+  },
+  // Basisbau (Grundgerüst – die tiefen Mechaniken kommen später)
+  holzwand: {
+    name: 'Holzwand',
+    kategorie: 'Bauen',
+    ort: 'inventar',
+    beschreibung: 'Basisbau: eine Wandkachel, die Spieler und Zombies blockiert.',
+    zutaten: { holz: 6 },
+    ergebnis: 'holzwand',
+    level: 3,
+  },
+  holzboden: {
+    name: 'Holzboden',
+    kategorie: 'Bauen',
+    ort: 'inventar',
+    beschreibung: 'Basisbau: ein begehbarer Holzboden auf Rasen.',
+    zutaten: { holz: 3 },
+    ergebnis: 'holzboden',
+    level: 3,
+  },
+
   // --- Werkzeuge ---
   axt: {
     name: 'Axt',
@@ -47,6 +76,13 @@ export const REZEPTE = {
     beschreibung: 'Zum Bäume fällen. Taugt notfalls auch als Waffe.',
     zutaten: { holz: 3, stein: 2 },
     ergebnis: 'axt',
+  },
+  angel: {
+    name: 'Angel',
+    kategorie: 'Werkzeuge',
+    beschreibung: 'Am See Linksklick: auswerfen, bei Biss nochmal klicken. Muss nur im Inventar liegen.',
+    zutaten: { holz: 2, stein: 1 },
+    ergebnis: 'angel',
   },
   spitzhacke: {
     name: 'Spitzhacke',
@@ -70,6 +106,7 @@ export const REZEPTE = {
     beschreibung: 'Lange Klinge aus geschliffenem Stein: 40 Schaden, große Reichweite.',
     zutaten: { holz: 2, stein: 8 },
     ergebnis: 'machete',
+    level: 2,
   },
   feuerwehrbeil: {
     name: 'Kampfbeil',
@@ -77,6 +114,7 @@ export const REZEPTE = {
     beschreibung: 'Der stärkste Nahkampf: 50 Schaden, aber langsam.',
     zutaten: { holz: 5, stein: 6 },
     ergebnis: 'feuerwehrbeil',
+    level: 3,
   },
 
   // --- Bauen ---
@@ -94,6 +132,7 @@ export const REZEPTE = {
     beschreibung: 'Auf den Boden legen: Ein Zombie, der hineintritt, ist sofort tot. Danach neu spannen (E).',
     zutaten: { eisenerz: 3, holz: 1 },
     ergebnis: 'falle',
+    level: 2,
   },
 
   // --- Munition ---
@@ -112,5 +151,6 @@ export const REZEPTE = {
     zutaten: { stein: 3, holz: 2 },
     ergebnis: 'munition_12',
     menge: 3,
+    level: 2,
   },
 };

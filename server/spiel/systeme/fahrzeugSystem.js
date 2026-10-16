@@ -9,10 +9,31 @@ import { fuegeSchadenZu } from './kampfSystem.js';
 const ANFAHR_MIN_TEMPO = 55; // px/s – langsamer schiebt das Auto Zombies nur
 const ANFAHR_SCHADEN = 0.42; // Schaden pro px/s Tempo (Vollgas ≈ 140)
 
+/**
+ * Haltbarkeit: ein Zombie-Schlag = 1 (Boss mehr, siehe zombieSystem), ein überfahrener Zombie nur
+ * konfiguration.fahrzeug.ueberfahrSchaden (0,5). Bei 0: der Fahrer fliegt raus, das Auto bleibt als Wrack stehen.
+ */
+export function schlageFahrzeug(spielWelt, fz, schlaege) {
+  if (fz.kaputt || !(schlaege > 0)) return;
+  fz.leben = Math.max(0, fz.leben - schlaege);
+  spielWelt.ereignis({ typ: 'fahrzeugSchaden', id: fz.id, x: fz.x, y: fz.y, leben: fz.leben });
+  if (fz.leben > 0) return;
+  fz.kaputt = true;
+  const fahrer = fz.fahrerId !== null ? spielWelt.holen(fz.fahrerId) : null;
+  if (fahrer?.fahrzeug === fz) {
+    aussteigen(spielWelt, fahrer, { erzwingen: true });
+    spielWelt.melde(fahrer.id, '💥 Das Auto ist kaputt – du wurdest rausgeschleudert!');
+  }
+  fz.fahrerId = null;
+  fz.tempo = 0;
+  spielWelt.ereignis({ typ: 'fahrzeugKaputt', id: fz.id, x: fz.x, y: fz.y });
+}
+
 export function fahrzeugAktion(spielWelt, spieler) {
   if (spieler.fahrzeug) return aussteigen(spielWelt, spieler);
   const fz = naechstesFreiesFahrzeug(spielWelt, spieler.x, spieler.y);
   if (!fz) return;
+  if (fz.kaputt) return;
   fz.fahrerId = spieler.id;
   fz.tempo = 0;
   spieler.fahrzeug = fz;
@@ -33,9 +54,11 @@ export function aussteigen(spielWelt, spieler, { erzwingen = false } = {}) {
   spieler.fahrzeug = null;
   fz.fahrerId = null;
   fz.tempo = 0;
-  if (punkt) {
-    spieler.x = punkt.x;
-    spieler.y = punkt.y;
+  // Auto zerstört und rundum eingekeilt: trotzdem neben dem Wrack landen (nie im Wrack stecken bleiben)
+  const ziel = punkt ?? (erzwingen ? { x: fz.x - Math.sin(fz.winkel) * (fz.breite / 2 + 18), y: fz.y + Math.cos(fz.winkel) * (fz.breite / 2 + 18) } : null);
+  if (ziel) {
+    spieler.x = ziel.x;
+    spieler.y = ziel.y;
   }
   spielWelt.ereignis({ typ: 'fahrzeug', ein: false, x: fz.x, y: fz.y, von: spieler.id });
 }
@@ -44,7 +67,7 @@ export function naechstesFreiesFahrzeug(spielWelt, x, y) {
   let bestes = null;
   let bestAbstand = Infinity;
   for (const fz of spielWelt.alleVomTyp('fahrzeug')) {
-    if (fz.fahrerId !== null) continue;
+    if (fz.fahrerId !== null || fz.kaputt) continue;
     const abstand = abstandZumFahrzeug(fz, x, y);
     if (abstand <= EINSTIEG_ABSTAND && abstand < bestAbstand) {
       bestes = fz;
@@ -76,6 +99,10 @@ export function aktualisiereFahrzeuge(spielWelt, dt) {
       if (rest - dt <= 0) fz.treffer.delete(id);
       else fz.treffer.set(id, rest - dt);
     }
+    if (fz.kaputt) {
+      fz.tempo = 0;
+      continue;
+    }
     if (Math.abs(fz.tempo) >= ANFAHR_MIN_TEMPO) fahreZombiesAn(spielWelt, fz);
   }
 }
@@ -91,5 +118,7 @@ function fahreZombiesAn(spielWelt, fz) {
     spielWelt.ereignis({ typ: 'aufprall', x: z.x, y: z.y, tempo: Math.abs(fz.tempo) });
     fuegeSchadenZu(spielWelt, z, schaden, fahrer, fz.winkel + (fz.tempo < 0 ? Math.PI : 0));
     fz.tempo *= 0.8;
+    schlageFahrzeug(spielWelt, fz, spielWelt.konfiguration.fahrzeug.ueberfahrSchaden);
+    if (fz.kaputt) return;
   }
 }

@@ -4,6 +4,7 @@ import { lerpWinkel } from '../../../gemeinsam/mathe.js';
 import { findePfad } from './pfadfindung.js';
 import { fuegeSchadenZu } from './kampfSystem.js';
 import { schlageTuer } from './tuerSystem.js';
+import { abstandZumFahrzeug } from '../../../gemeinsam/physik/fahrzeug.js';
 
 /**
  * Zombie-KI pro Tick:
@@ -35,6 +36,7 @@ const HORDE_INTERVALL = 8; // Sekunden zwischen zwei "Witterungen"
 const WEGPUNKT_ERREICHT = 8;
 const ENGSTELLE_VORAUS = [0, 14, 30, 46]; // px vor dem Zombie, die auf Türkacheln geprüft werden
 const ANGRIFF_ANIMATION = 0.5;
+const AUTO_SCHLAG_ABSTAND = 22; // px zwischen Zombie-Rand und Karosserie, ab dem er aufs Auto einschlägt (Autos blockieren kachelweise → Luft)
 
 export function aktualisiereZombies(spielWelt, dt) {
   const k = spielWelt.konfiguration.zombie;
@@ -70,7 +72,11 @@ export function aktualisiereZombies(spielWelt, dt) {
     }
 
     const kontakt = z.radius + spielerRadius + 2;
-    if (sicht && abstand <= k.angriffsReichweite + spielerRadius + (z.radius - k.radius)) {
+    // Sitzt das Ziel im Auto, schlägt der Zombie auf die Karosserie (nicht auf die Fahrer-Mitte) – siehe fahrzeugSystem.schlageFahrzeug
+    const fz = ziel.fahrzeug ?? null;
+    const autoAbstand = fz ? abstandZumFahrzeug(fz, z.x, z.y) - z.radius : 0;
+    const inReichweite = fz ? autoAbstand <= AUTO_SCHLAG_ABSTAND : abstand <= k.angriffsReichweite + spielerRadius + (z.radius - k.radius);
+    if (sicht && inReichweite) {
       z.zustand = 'angreifend';
       z.blick = Math.atan2(ziel.y - z.y, ziel.x - z.x);
       if (z.angriffsAbklingzeit <= 0) {
@@ -81,8 +87,9 @@ export function aktualisiereZombies(spielWelt, dt) {
     } else {
       z.zustand = 'verfolgend';
     }
-    if (abstand > kontakt) {
-      bewegeZuZiel(spielWelt, z, ziel, sicht, dt, k);
+    if (fz ? !inReichweite : abstand > kontakt) {
+      // Fahrer im Auto: nicht zur (blockierten) Fahrer-Mitte laufen, sondern an die nächste Stelle der Karosserie
+      bewegeZuZiel(spielWelt, z, fz ? autoAnlaufpunkt(fz, z) : ziel, sicht, dt, k);
       z.jagtNoch = true;
     }
   }
@@ -94,6 +101,25 @@ export function aktualisiereZombies(spielWelt, dt) {
     pruefeObSteckt(spielWelt, z, Math.hypot(z.x - z.tickStartX, z.y - z.tickStartY), dt);
   }
   aktualisiereRespawns(spielWelt, dt, k);
+}
+
+/** Nächster Punkt rund ums Auto (außerhalb der Karosserie, im Abstand des Zombie-Radius) – dorthin läuft der Zombie. */
+function autoAnlaufpunkt(fz, z) {
+  const c = Math.cos(fz.winkel);
+  const s = Math.sin(fz.winkel);
+  const dx = z.x - fz.x;
+  const dy = z.y - fz.y;
+  const lx = dx * c + dy * s;
+  const ly = -dx * s + dy * c;
+  const hx = fz.laenge / 2 + z.radius + 1;
+  const hy = fz.breite / 2 + z.radius + 1;
+  let px = Math.max(-hx, Math.min(hx, lx));
+  let py = Math.max(-hy, Math.min(hy, ly));
+  if (Math.abs(lx) < hx && Math.abs(ly) < hy) {
+    if (hx - Math.abs(lx) < hy - Math.abs(ly)) px = (lx < 0 ? -1 : 1) * hx;
+    else py = (ly < 0 ? -1 : 1) * hy;
+  }
+  return { x: fz.x + px * c - py * s, y: fz.y + px * s + py * c };
 }
 
 /** Behält das aktuelle Ziel, solange es gültig ist – sonst nächster sichtbarer Spieler im Aggro-Radius (nachts: abhängig von der Lampe). */

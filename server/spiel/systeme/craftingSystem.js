@@ -6,12 +6,16 @@ import { aktualisiereAusruestung, fuegeZumInventarHinzu, legeAufBoden } from './
 /**
  * Crafting: AKTION 'herstellen' { rezept } an einer Werkbank (Kartenobjekt oder gebaute) in Reichweite –
  * Rezepte mit ort: 'inventar' gehen überall (Inventar-Fenster → Bauen).
- * Rezepte: server/spiel/konfiguration/rezepte.js. Der Server prüft Werkbank-Nähe und Zutaten.
+ * Rezepte: server/spiel/konfiguration/rezepte.js. Der Server prüft Level (rezept.level), Werkbank-Nähe und Zutaten.
  */
 
 export function stelleHer(spielWelt, spieler, rezeptName) {
   const rezept = REZEPTE[rezeptName];
   if (!rezept || !GEGENSTAENDE[rezept.ergebnis]) return;
+  if ((rezept.level ?? 1) > spieler.level) {
+    spielWelt.melde(spieler.id, `${rezept.name} kannst du erst ab Level ${rezept.level} herstellen`);
+    return;
+  }
   if (rezept.ort !== 'inventar' && !naeheWerkbank(spielWelt.welt, spieler.x, spieler.y)) {
     spielWelt.melde(spieler.id, 'Dafür brauchst du eine Werkbank');
     return;

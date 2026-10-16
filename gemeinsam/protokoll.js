@@ -55,6 +55,8 @@ export const NACHRICHT = Object.freeze({
   RESSOURCEN: 'ressourcen',
   /** { liste: [Bauwerke] } – alle gebauten Dinge (gemeinsam/welt/bauwerke.js), nur bei Änderung */
   BAUWERKE: 'bauwerke',
+  /** { id, inhalt: [16 Plätze] | null } – Inhalt der geöffneten Lagerkiste (null = geschlossen). Nur an den, der sie geöffnet hat. */
+  KISTE: 'kiste',
   /** { t } */
   PONG: 'pong',
   /** { von, text, admin, system } – Chatnachricht (system = Server-Hinweis wie "X ist beigetreten"); Typ wie CHAT */
@@ -76,6 +78,10 @@ export const AKTIONEN = Object.freeze({
   PLATZIEREN: 'platzieren', // { slot, tx, ty } Bauwerk-Item (oder Hacke → Beet) auf Kachel tx/ty aufstellen
   FEUER: 'feuer', // F: nächstes Lagerfeuer anzünden (Feuerzeug nötig) / löschen – sonst wie 'tuer'
   BAUWERK: 'bauwerk', // E am nächsten Bauwerk: Falle aufnehmen/spannen, kochen, pflanzen, ernten
+  FELD: 'feld', // { tx, ty } mit der Spitzhacke (Taste G) ein quadratisches Erdfeld um die Kachel anlegen
+  KISTE_LEGEN: 'kisteLegen', // { slot } Stapel aus dem Inventar in die geöffnete Lagerkiste legen
+  KISTE_NEHMEN: 'kisteNehmen', // { slot } Stapel aus der geöffneten Kiste (Kistenplatz 0..15) ins Inventar nehmen
+  KISTE_SCHLIESSEN: 'kisteSchliessen', // geöffnete Kiste schließen
   SKILL: 'skill', // { skill } einen Skillpunkt verteilen (gemeinsam/spieler/skills.js)
   FAHRZEUG: 'fahrzeug', // ins nächste freie Auto einsteigen bzw. aussteigen
   NACHLADEN: 'nachladen', // ausgerüstete Schusswaffe nachladen
@@ -113,6 +119,11 @@ export const ADMIN_BEFEHLE = Object.freeze({
  *   hack      { art, x, y }                  ein Axt-/Spitzhackenschlag (art: 'holz' | 'stein')
  *   abgebaut  { art, x, y }                  Baum fällt / Stein zerbricht
  *   hergestellt { von, rezept }              an der Werkbank gebaut
+ *   fahrzeugSchaden { id, x, y, leben }      Zombie-Schlag/überfahrener Zombie auf ein Auto
+ *   fahrzeugKaputt { id, x, y }              Auto zerstört → Wrack
+ *   angelWurf / angelBiss / gefangen { von, x, y, anzahl? }  Angeln (Pose ausgeworfen / Biss / Fang)
+ *   bossBeute { x, y }                       Boss-Zombie hat Waffe + Munition fallen lassen
+ * ZUSTAND.wetter = 'klar' | 'regen' | 'nebel'; Entität typ 'tier' (art 'hase').
  */
 
 /** Objekt → Text für den Transport. */

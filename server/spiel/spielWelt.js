@@ -1,9 +1,10 @@
-import { TICK_DAUER_S } from '../../gemeinsam/konstanten.js';
+import { KISTE_PLAETZE, TICK_DAUER_S } from '../../gemeinsam/konstanten.js';
 import { Welt } from '../../gemeinsam/welt/welt.js';
 import { ladeKarte, verarbeiteKarte } from './karten/kartenLader.js';
 import { Zufall } from './zufall.js';
 import { erzeugeSpieler, spielerZuNetzwerk } from './entitaeten/spieler.js';
 import { erzeugeZombie, waehleZombieVariante, zombieZuNetzwerk } from './entitaeten/zombie.js';
+import { tierZuNetzwerk } from './entitaeten/tier.js';
 import { gegenstandZuNetzwerk } from './entitaeten/gegenstand.js';
 import { verarbeiteSpielerEingaben } from './systeme/bewegungsSystem.js';
 import { verarbeiteAktionen, aktualisiereNachladen, gibStartausruestung } from './systeme/inventarSystem.js';
@@ -16,6 +17,10 @@ import { aktualisiereArbeit } from './systeme/arbeitSystem.js';
 import { aktualisiereBauwerke } from './systeme/bauSystem.js';
 import { aktualisiereFahrzeuge, aussteigen } from './systeme/fahrzeugSystem.js';
 import { aktualisiereTueren } from './systeme/tuerSystem.js';
+import { aktualisiereTiere, spawneStartTiere } from './systeme/tierSystem.js';
+import { aktualisiereAngeln } from './systeme/angelSystem.js';
+import { aktualisiereWetter } from './systeme/wetterSystem.js';
+import { pruefeEintrag } from './spielstand.js';
 import { pruefeUebergaenge } from './systeme/zonenSystem.js';
 import { erzeugeFahrzeug, fahrzeugZuNetzwerk } from './entitaeten/fahrzeug.js';
 import { FAHRZEUG_MODELLE, fahrzeugAusObjekt, passt } from '../../gemeinsam/physik/fahrzeug.js';
@@ -25,6 +30,7 @@ import { BAUWERKE, PFLANZEN, pruefePlatz } from '../../gemeinsam/welt/bauwerke.j
 const NETZWERK_SERIALISIERER = {
   spieler: spielerZuNetzwerk,
   zombie: zombieZuNetzwerk,
+  tier: tierZuNetzwerk,
   fahrzeug: fahrzeugZuNetzwerk,
 };
 
@@ -55,6 +61,11 @@ export class SpielWelt {
     this.ereignisse = [];
     this.meldungen = [];
     this.zombieRespawns = []; // [{ spawnIndex, rest }]
+    this.tierRespawns = []; // Sekunden bis ein erlegter Hase nachkommt
+    /** Wetter dieser Zone (systeme/wetterSystem.js): art 'klar' | 'regen' | 'nebel', rest = Sekunden bis zum Wechsel */
+    this.wetter = { art: 'klar', rest: 30 + this.zufall.zahl() * 120 };
+    /** Offene Kisten-Ansichten, die der Zone-Versand abholt: [{ spielerId, id, inhalt | null }] */
+    this.kistenNachrichten = [];
     this.lootZustand = [];
     /** Wird bei jeder Türänderung erhöht → Server schickt TUEREN */
     this.tuerenVersion = 0;
@@ -71,9 +82,10 @@ export class SpielWelt {
     /** Hook vom SpielServer: Spieler der übrigen Zonen (fürs zonenübergreifende Schlafen). Ohne Server: keine. */
     this.spielerAndererZonen = null;
 
-    for (const o of autos) this.hinzufuegen(erzeugeFahrzeug({ id: this.neueId(), ...fahrzeugAusObjekt(o, this.welt.kachelGroesse) }));
+    for (const o of autos) this.hinzufuegen(erzeugeFahrzeug({ id: this.neueId(), ...fahrzeugAusObjekt(o, this.welt.kachelGroesse), haltbarkeit: konfiguration.fahrzeug.haltbarkeit }));
     this.karte.zombieSpawns.forEach((spawn, spawnIndex) => this.spawneZombie(spawnIndex));
     verteileStartLoot(this);
+    spawneStartTiere(this);
   }
 
   neueId() {
@@ -89,7 +101,7 @@ export class SpielWelt {
    * gebaute Sachen (inkl. Beete & Pflanzen), Uhrzeit und Tag.
    */
   weltzustand() {
-    const fahrzeuge = [...this.alleVomTyp('fahrzeug')].map(({ modell, x, y, winkel }) => ({ modell, x, y, winkel }));
+    const fahrzeuge = [...this.alleVomTyp('fahrzeug')].map(({ modell, x, y, winkel, leben, kaputt }) => ({ modell, x, y, winkel, leben, kaputt }));
     return { version: 1, karte: this.karte.daten.id, zeit: this.zeit, tag: this.tag, bauwerke: [...this.welt.bauwerke.values()], fahrzeuge };
   }
 
@@ -113,6 +125,8 @@ export class SpielWelt {
       const [f] = gespeichert.splice(i, 1);
       const probe = { ...fz, x: f.x, y: f.y, winkel: f.winkel };
       if (passt(probe, f.x, f.y, this.welt)) Object.assign(fz, { x: f.x, y: f.y, winkel: f.winkel, letzteKacheln: '' });
+      if (Number.isFinite(f.leben)) fz.leben = Math.min(fz.maxLeben, Math.max(0, f.leben));
+      fz.kaputt = f.kaputt === true || fz.leben <= 0;
     }
     return true;
   }
@@ -211,6 +225,9 @@ export class SpielWelt {
     aktualisiereBauwerke(this, dt);
     aktualisiereTueren(this, dt);
     aktualisiereZombies(this, dt);
+    aktualisiereTiere(this, dt);
+    aktualisiereAngeln(this, dt);
+    aktualisiereWetter(this, dt);
     aktualisiereUeberleben(this, dt);
     aktualisiereLoot(this, dt);
     aktualisiereTageszeit(this, dt);
@@ -234,7 +251,12 @@ export class SpielWelt {
       const serialisierer = NETZWERK_SERIALISIERER[e.typ];
       if (serialisierer) entitaeten.push(serialisierer(e));
     }
-    return { tick: this.tick, zeit: Math.round(this.zeit * 10) / 10, tag: this.tag, entitaeten, ereignisse: this.ereignisse };
+    return { tick: this.tick, zeit: Math.round(this.zeit * 10) / 10, tag: this.tag, wetter: this.wetter.art, entitaeten, ereignisse: this.ereignisse };
+  }
+
+  /** Bauwerke fürs Netz: ohne privaten Kisten-Inhalt (der geht nur per KISTE an den, der die Kiste offen hat). */
+  bauwerkeOeffentlich() {
+    return [...this.welt.bauwerke.values()].map(({ inhalt, ...rest }) => rest);
   }
 
   gegenstaendeListe() {
@@ -252,5 +274,13 @@ function pruefeBauwerk(roh) {
     b.pflanze = PFLANZEN[roh.pflanze] ? roh.pflanze : null;
     b.wachstum = b.pflanze && Number.isFinite(roh.wachstum) ? Math.min(1, Math.max(0, roh.wachstum)) : 0;
   }
+  if (b.typ === 'kiste') b.inhalt = pruefeKistenInhalt(roh.inhalt);
   return b;
+}
+
+/** Inhalt einer Lagerkiste aus dem Spielstand: KISTE_PLAETZE Plätze, jeder Eintrag geprüft. */
+function pruefeKistenInhalt(roh) {
+  const inhalt = new Array(KISTE_PLAETZE).fill(null);
+  if (Array.isArray(roh)) roh.slice(0, KISTE_PLAETZE).forEach((e, i) => (inhalt[i] = pruefeEintrag(e)));
+  return inhalt;
 }

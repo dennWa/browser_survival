@@ -5,8 +5,10 @@ import { NAHKAMPF_KEGEL, STANDARD_AUSRUESTUNG } from '../konfiguration/gegenstae
 import { aktuelleWaffe, legeAufBoden, legeRucksackAb, starteNachladen, zaehleMunition } from './inventarSystem.js';
 import { gibXp, setzeLevelZurueck } from './levelSystem.js';
 import { staerkeFaktor } from '../../../gemeinsam/spieler/skills.js';
-import { aussteigen } from './fahrzeugSystem.js';
-import { lasseZombieLootFallen } from './lootSystem.js';
+import { aussteigen, schlageFahrzeug } from './fahrzeugSystem.js';
+import { behandleAngelKlick, brecheAngelnAb } from './angelSystem.js';
+import { planeTierRespawn } from './tierSystem.js';
+import { lasseBossLootFallen, lasseZombieLootFallen } from './lootSystem.js';
 
 /**
  * Kampfsystem: Angriffe der Spieler (Schuss per Strahl, Nahkampf per Trefferkegel),
@@ -19,6 +21,7 @@ const NAHKAMPF_HOERWEITE = 140;
 export function aktualisiereKampf(spielWelt, dt) {
   for (const spieler of spielWelt.alleVomTyp('spieler')) {
     spieler.angriffsAbklingzeit = Math.max(0, spieler.angriffsAbklingzeit - dt);
+    if (behandleAngelKlick(spielWelt, spieler)) continue; // Linksklick am Ufer = auswerfen/einholen, kein Angriff
     if (spieler.tot || !spieler.angriff || spieler.angriffsAbklingzeit > 0 || spieler.nachladenRest > 0) continue;
     const { eintrag, def } = aktuelleWaffe(spieler);
     if (def.kategorie === 'fernkampf') schiessen(spielWelt, spieler, eintrag, def);
@@ -84,12 +87,13 @@ function nahkampf(spielWelt, spieler, def) {
 
 function* moeglicheZiele(spielWelt, angreifer) {
   yield* spielWelt.alleVomTyp('zombie');
+  yield* spielWelt.alleVomTyp('tier');
   if (!spielWelt.konfiguration.kampf.pvp) return;
   for (const s of spielWelt.alleVomTyp('spieler')) if (s !== angreifer && !s.tot) yield s;
 }
 
 function radiusVon(spielWelt, entitaet) {
-  return entitaet.typ === 'zombie' ? entitaet.radius : spielWelt.konfiguration.spieler.radius;
+  return entitaet.radius ?? spielWelt.konfiguration.spieler.radius;
 }
 
 /**
@@ -97,8 +101,13 @@ function radiusVon(spielWelt, entitaet) {
  */
 export function fuegeSchadenZu(spielWelt, ziel, menge, quelle, winkel = 0) {
   if (ziel.tot || ziel.leben <= 0 || ziel.gottmodus) return;
-  if (ziel.fahrzeug && quelle?.typ === 'zombie') return; // im Auto ist man vor Bissen sicher
+  if (ziel.fahrzeug && quelle?.typ === 'zombie') {
+    // Im Auto ist man vor Bissen sicher – dafür leidet das Auto (Boss-Schläge zählen mehr)
+    schlageFahrzeug(spielWelt, ziel.fahrzeug, quelle.angriffsSchaden / spielWelt.konfiguration.zombie.angriffsSchaden);
+    return;
+  }
   ziel.leben -= menge;
+  if (ziel.angeln) brecheAngelnAb(ziel);
   if (ziel.arbeit) brecheArbeitAb(spielWelt, ziel, ziel.arbeit.art === 'schlafen' ? 'Aufgeschreckt!' : null);
   spielWelt.ereignis({ typ: 'treffer', x: ziel.x, y: ziel.y, winkel, ziel: ziel.typ });
 
@@ -121,12 +130,26 @@ export function toeten(spielWelt, ziel, quelle = null) {
   if (ziel.typ === 'zombie') {
     // XP je nach Variante (Brocken 15, Läufer 12 …), sonst level.xpProZombie – immer der aktuelle Wert (Developer-Modus)
     const k = spielWelt.konfiguration;
-    if (quelle?.typ === 'spieler') gibXp(spielWelt, quelle, k.zombie.varianten?.[ziel.variante]?.xp ?? k.level.xpProZombie);
+    if (quelle?.typ === 'spieler') {
+      gibXp(spielWelt, quelle, k.zombie.varianten?.[ziel.variante]?.xp ?? k.level.xpProZombie);
+      quelle.statistik.zombies++;
+    }
     spielWelt.entfernen(ziel.id);
     spielWelt.planeZombieRespawn(ziel.spawnIndex);
     lasseZombieLootFallen(spielWelt, ziel.x, ziel.y);
+    const waffenChance = k.zombie.varianten?.[ziel.variante]?.waffenChance ?? 0;
+    if (waffenChance > 0 && spielWelt.zufall.zahl() < waffenChance) lasseBossLootFallen(spielWelt, ziel.x, ziel.y);
     return;
   }
+  if (ziel.typ === 'tier') {
+    // Hase: 1× Fleisch (klein, mehr ist nicht dran)
+    spielWelt.entfernen(ziel.id);
+    planeTierRespawn(spielWelt);
+    legeAufBoden(spielWelt, { defId: 'fleisch', menge: 1 }, ziel.x, ziel.y);
+    return;
+  }
+  if (quelle?.typ === 'spieler' && quelle !== ziel) quelle.statistik.spieler++;
+  ziel.statistik.ueberlebt = 0;
   if (ziel.fahrzeug) aussteigen(spielWelt, ziel, { erzwingen: true });
   raeumeZombiesWeg(spielWelt, ziel.x, ziel.y, spielWelt.konfiguration.spieler.todesZombieRadius);
   // Spieler: alles fällt zu Boden (auch der Rucksack), nach respawnZeit geht's am Startpunkt weiter

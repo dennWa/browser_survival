@@ -98,7 +98,7 @@ test('Kaputte oder manipulierte Spielstände werden bereinigt', () => {
   assert.equal(spieler.leben, spieler.maxLeben);
   assert.equal(spieler.hunger, 0);
   assert.equal(spieler.inventar[0], null);
-  assert.deepEqual(spieler.inventar[1], { defId: 'munition_9mm', menge: 60 });
+  assert.deepEqual(spieler.inventar[1], { defId: 'munition_9mm', menge: 50 });
   assert.deepEqual(spieler.inventar[2], { defId: 'pistole', menge: 1, magazin: 15 });
   assert.equal(spieler.inventar[3], null);
   assert.equal(spieler.ausgeruestet, null);

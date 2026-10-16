@@ -14,6 +14,7 @@ export function aktualisiereUeberleben(spielWelt, dt) {
       if (spieler.respawnRest <= 0) wiederbeleben(spielWelt, spieler);
       continue;
     }
+    spieler.statistik.ueberlebt += dt;
     if (spieler.gottmodus) continue; // Götter essen nicht
     spieler.hunger = Math.max(0, spieler.hunger - (k.hungerProMinute / 60) * dt);
     spieler.durst = Math.max(0, spieler.durst - (k.durstProMinute / 60) * dt);

@@ -48,6 +48,7 @@ export const STANDARD_KONFIGURATION = Object.freeze({
       { defId: 'pistole', menge: 1, magazin: 15, ausgeruestet: true },
       { defId: 'axt', menge: 1 },
       { defId: 'spitzhacke', menge: 1 },
+      { defId: 'angel', menge: 1 },
     ],
   },
   zombie: {
@@ -77,8 +78,42 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     varianten: {
       normal: { gewicht: 6, xp: 10 },
       laeufer: { gewicht: 2, xp: 12, leben: 35, jagdGeschwindigkeit: 115, angriffsSchaden: 8, angriffsAbklingzeit: 0.7, groesse: 0.92 },
-      brocken: { gewicht: 1, xp: 15, leben: 180, jagdGeschwindigkeit: 62, angriffsSchaden: 25, angriffsAbklingzeit: 1.5, radius: 15, groesse: 1.3, rueckstossFaktor: 0.2 },
+      // Boss (große Zombies): halten viel aus, teilen mehr aus; waffenChance = Wahrscheinlichkeit auf Waffe + Munition
+      brocken: { gewicht: 1, xp: 40, leben: 420, jagdGeschwindigkeit: 62, angriffsSchaden: 40, angriffsAbklingzeit: 1.5, radius: 15, groesse: 1.3, rueckstossFaktor: 0.15, waffenChance: 0.5 },
     },
+  },
+  /** Autos: so viele Zombie-Schläge halten sie aus (ein normaler Zombie = 1 Schlag, Boss mehr); Überfahren kostet nur wenig. */
+  fahrzeug: {
+    haltbarkeit: 10,
+    ueberfahrSchaden: 0.5, // pro überfahrenem Zombie (verhindert endloses Zombie-Farmen mit dem Auto)
+  },
+  /** Kleintiere (Hasen): Anzahl je 1000 Gras-Kacheln der Karte, scheu, geben 1× Fleisch. */
+  tiere: {
+    hasenProTausend: 6,
+    hasenMax: 40,
+    hasenLeben: 10,
+    hasenTempo: 125, // Fluchttempo (Spieler 150)
+    hasenScheuRadius: 150,
+    hasenRespawn: 150,
+  },
+  /** Angeln: Angel im Inventar, Linksklick Richtung Wasser. Pose wackelt (biss) → in der Zeitspanne nochmal klicken. */
+  angeln: {
+    reichweite: 230, // px, so weit kann man auswerfen
+    wartenMin: 3,
+    wartenMax: 9,
+    bissMin: 2, // Zeitfenster, in dem die Pose wackelt (Sekunden)
+    bissMax: 3,
+    doppelChance: 0.1, // 10 %: gleich 2 Fische
+    fische: { fisch_barsch: 5, fisch_forelle: 3, fisch_hecht: 1.5 }, // Gewichte
+  },
+  /** Wetter: wechselt zufällig zwischen klar, Regen und Nebel (Dauer 1–5 Minuten). Regen halbiert die Wachstumszeit. */
+  wetter: {
+    aktiv: true,
+    dauerMin: 60,
+    dauerMax: 300,
+    pauseMin: 90,
+    pauseMax: 420,
+    regenAnteil: 0.6, // Rest Nebel
   },
   kampf: {
     pvp: false, // Spieler können sich gegenseitig verletzen
@@ -128,6 +163,7 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     ersteStufe: 50,
     zuwachs: 20,
     punkteProLevel: 1, // Skillpunkte pro Aufstieg (gemeinsam/spieler/skills.js)
+    xpProAbbau: 3, // XP für jede abgebaute Ressource (Baum, Stein, Erz)
   },
 });
 

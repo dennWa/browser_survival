@@ -274,7 +274,8 @@ export class Welt {
     const zeichen = this.kachelAn(tx, ty);
     if (zeichen === null) return true;
     if (this.istGeschlosseneTuer(tx, ty)) return true;
-    return KACHELN[zeichen]?.blockiert ?? true;
+    const kachel = KACHELN[zeichen];
+    return kachel ? kachel.blockiert && !kachel.sichtFrei : true;
   }
 
   /** Prüft, ob ein Rechteck (Weltpixel) irgendeine blockierte Kachel berührt. */

@@ -4,10 +4,10 @@
  */
 
 export const SPIEL_NAME = 'Browser Survival';
-export const SPIEL_VERSION = '0.9.1';
+export const SPIEL_VERSION = '0.10.0';
 
 /** Wird beim Login verglichen. Erhöhen, sobald sich das Nachrichtenformat inkompatibel ändert. */
-export const PROTOKOLL_VERSION = 7;
+export const PROTOKOLL_VERSION = 8;
 
 /** Simulationstakt (Ticks pro Sekunde). Server-Simulation und Client-Vorhersage laufen im selben Takt. */
 export const TICK_RATE = 30;
@@ -26,6 +26,12 @@ export const HOTBAR_PLAETZE = 8;
 export const INVENTAR_PLAETZE = 16;
 /** Obergrenze inkl. größtem Rucksack (für die Prüfung von Slot-Nummern). */
 export const INVENTAR_MAX = 32;
+
+/** Stapelgrößen: Munition bis 50, alles andere Stapelbare bis 20 (Waffen/Werkzeug/Rucksack einzeln). */
+export const STAPEL_MUNITION = 50;
+export const STAPEL_STANDARD = 20;
+/** Lagerkiste: so viele Plätze. */
+export const KISTE_PLAETZE = 16;
 
 /** So nah (px) muss man an einem Gegenstand stehen, um ihn aufzuheben. */
 export const AUFHEB_REICHWEITE = 48;

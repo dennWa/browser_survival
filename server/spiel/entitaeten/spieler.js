@@ -44,6 +44,12 @@ export function erzeugeSpieler({ id, benutzername, x, y, konfiguration, admin = 
     skills: leereSkills(),
     skillPunkte: 0,
     tempoFaktor: 1,
+    /** Statistik (Tab-Liste, öffentlich): getötete Zombies/Spieler (bleiben), Sekunden seit dem letzten Tod */
+    statistik: { zombies: 0, spieler: 0, ueberlebt: 0 },
+    /** Angeln (systeme/angelSystem.js): { phase, rest, x, y, startX, startY } oder null; Pose + Schnur sind öffentlich */
+    angeln: null,
+    angriffVorher: false, // [intern] Linksklick-Flanke fürs Angeln
+    offeneKiste: null, // [intern] ID der Lagerkiste, die dieser Spieler gerade geöffnet hat
     /** Aussehen (gemeinsam/spieler/aussehen.js) – öffentlich */
     aussehen: pruefeAussehen(null),
     // [privat]
@@ -98,10 +104,14 @@ export function spielerZuNetzwerk(s) {
     arbeit: s.arbeit?.art ?? null, // 'holz' | 'stein' | 'schlafen' → Animation/Werkzeug
     arbeitOrt: s.arbeit?.ort ?? null, // Bett beim Schlafen
     level: s.level,
+    zombiesGetoetet: s.statistik.zombies,
+    spielerGetoetet: s.statistik.spieler,
+    ueberlebt: Math.floor(s.statistik.ueberlebt),
+    angeln: s.angeln ? { phase: s.angeln.phase, x: Math.round(s.angeln.x), y: Math.round(s.angeln.y) } : null,
     rucksack: s.rucksack !== null, // Rucksack auf dem Rücken (3D-Modell)
     aussehen: aussehenKompakt(s.aussehen), // nur Abweichungen vom Standard (spart ~110 Bytes pro Spieler und Tick)
     // Im Auto: genauer Fahrzustand (der eigene Client rechnet damit die Vorhersage nach)
-    fahrzeug: s.fahrzeug ? { id: s.fahrzeug.id, winkel: s.fahrzeug.winkel, tempo: s.fahrzeug.tempo, laenge: s.fahrzeug.laenge, breite: s.fahrzeug.breite, modell: s.fahrzeug.modell } : null,
+    fahrzeug: s.fahrzeug ? { id: s.fahrzeug.id, winkel: s.fahrzeug.winkel, tempo: s.fahrzeug.tempo, laenge: s.fahrzeug.laenge, breite: s.fahrzeug.breite, modell: s.fahrzeug.modell, leben: Math.round(s.fahrzeug.leben * 10) / 10, maxLeben: s.fahrzeug.maxLeben } : null,
     seq: s.letzteVerarbeiteteSeq,
   };
 }

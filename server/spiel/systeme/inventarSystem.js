@@ -11,6 +11,8 @@ import { stelleHer } from './craftingSystem.js';
 import { benutzeBauwerk, feuer, platziere } from './bauSystem.js';
 import { setzeSkillpunkt } from './levelSystem.js';
 import { fahrzeugAktion } from './fahrzeugSystem.js';
+import { legeInKiste, nimmAusKiste, schliesseKiste } from './kistenSystem.js';
+import { legeFeldAn } from './bauSystem.js';
 
 /**
  * Inventar: Aufheben, Benutzen (Essen/Trinken/Medizin), Aus-/Abrüsten, Ablegen, Nachladen.
@@ -74,6 +76,18 @@ export function verarbeiteAktionen(spielWelt) {
           break;
         case AKTIONEN.PLATZIEREN:
           platziere(spielWelt, spieler, aktion.slot, aktion.tx, aktion.ty);
+          break;
+        case AKTIONEN.FELD:
+          legeFeldAn(spielWelt, spieler, aktion.tx, aktion.ty);
+          break;
+        case AKTIONEN.KISTE_LEGEN:
+          legeInKiste(spielWelt, spieler, aktion.slot);
+          break;
+        case AKTIONEN.KISTE_NEHMEN:
+          nimmAusKiste(spielWelt, spieler, aktion.slot);
+          break;
+        case AKTIONEN.KISTE_SCHLIESSEN:
+          schliesseKiste(spielWelt, spieler);
           break;
         case AKTIONEN.FEUER:
           feuer(spielWelt, spieler);
@@ -275,7 +289,7 @@ export function verbrauche(spieler, slot) {
   if (eintrag.menge <= 0) entferneSlot(spieler, slot);
 }
 
-function entferneSlot(spieler, slot) {
+export function entferneSlot(spieler, slot) {
   spieler.inventar[slot] = null;
   if (spieler.ausgeruestet === slot) {
     spieler.ausgeruestet = null;

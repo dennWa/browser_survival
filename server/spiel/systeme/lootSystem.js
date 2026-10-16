@@ -48,6 +48,23 @@ export function lasseZombieLootFallen(spielWelt, x, y) {
   erzeugeAusTabelle(spielWelt, 'zombie', x, y);
 }
 
+/**
+ * Boss-Beute: eine Waffe aus der Tabelle "boss" – Schusswaffen kommen geladen und mit Munition (eigener Stapel daneben).
+ */
+export function lasseBossLootFallen(spielWelt, x, y) {
+  const { zufall } = spielWelt;
+  const { id: defId } = zufall.gewichteteAuswahl(LOOT_TABELLEN.boss);
+  const def = GEGENSTAENDE[defId];
+  const waffe = erzeugeGegenstand({ id: spielWelt.neueId(), defId, x, y, menge: 1, magazin: def.kategorie === 'fernkampf' ? def.magazin : undefined });
+  spielWelt.hinzufuegen(waffe);
+  if (def.kategorie === 'fernkampf') {
+    const munition = GEGENSTAENDE[def.munition];
+    const menge = zufall.ganzzahl(munition.mengeBeimFund[0] * 2, munition.mengeBeimFund[1] * 2);
+    spielWelt.hinzufuegen(erzeugeGegenstand({ id: spielWelt.neueId(), defId: def.munition, x: x + 14, y: y + 6, menge }));
+  }
+  spielWelt.ereignis({ typ: 'bossBeute', x, y });
+}
+
 /** @returns true, wenn ein Gegenstand erzeugt wurde */
 function wuerfleLoot(spielWelt, punkt, index) {
   if (spielWelt.zufall.zahl() >= spielWelt.konfiguration.loot.spawnChance) return false;

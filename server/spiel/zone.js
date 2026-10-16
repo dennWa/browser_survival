@@ -64,7 +64,7 @@ export class Zone {
     if (w.gegenstaendeVersion !== g.gegenstaende) pakete.push(kodiere({ typ: NACHRICHT.GEGENSTAENDE, gegenstaende: w.gegenstaendeListe() }));
     if (w.tuerenVersion !== g.tueren) pakete.push(kodiere({ typ: NACHRICHT.TUEREN, offen: w.welt.offeneTueren() }));
     if (w.welt.ressourcenVersion !== g.ressourcen) pakete.push(kodiere({ typ: NACHRICHT.RESSOURCEN, abgebaut: [...w.welt.abgebaut] }));
-    if (w.welt.bauwerkeVersion !== g.bauwerke) pakete.push(kodiere({ typ: NACHRICHT.BAUWERKE, liste: [...w.welt.bauwerke.values()] }));
+    if (w.welt.bauwerkeVersion !== g.bauwerke) pakete.push(kodiere({ typ: NACHRICHT.BAUWERKE, liste: w.bauwerkeOeffentlich() }));
     this.#merkeVersionen();
     const schnappschuss = w.schnappschuss();
     let alle = null; // ungefiltert, nur einmal kodiert (wenn jemand alles sieht – auf kleinen Karten der Normalfall)
@@ -75,6 +75,12 @@ export class Zone {
       meldungen.get(spielerId).push(text);
     }
     w.meldungen = []; // erst nach dem Einsammeln leeren (auch Meldungen zwischen zwei Ticks kommen an)
+    const kisten = new Map(); // Kisten-Ansichten (nur der Öffner bekommt den Inhalt)
+    for (const k of w.kistenNachrichten) {
+      if (!kisten.has(k.spielerId)) kisten.set(k.spielerId, []);
+      kisten.get(k.spielerId).push(k);
+    }
+    w.kistenNachrichten = [];
 
     for (const sitzung of sitzungen) {
       for (const paket of pakete) sitzung.kanal.senden(paket);
@@ -83,6 +89,7 @@ export class Zone {
       if (sichtbar.length === schnappschuss.entitaeten.length) sitzung.kanal.senden((alle ??= kodiere({ typ: NACHRICHT.ZUSTAND, ...schnappschuss })));
       else sitzung.kanal.senden(kodiere({ typ: NACHRICHT.ZUSTAND, ...schnappschuss, entitaeten: sichtbar }));
       privat(sitzung);
+      for (const k of kisten.get(sitzung.spielerId) ?? []) sitzung.kanal.senden(kodiere({ typ: NACHRICHT.KISTE, id: k.id, inhalt: k.inhalt }));
       for (const text of meldungen.get(sitzung.spielerId) ?? []) sitzung.kanal.senden(kodiere({ typ: NACHRICHT.MELDUNG, text }));
     }
   }
@@ -96,7 +103,7 @@ export class Zone {
       gegenstaende: w.gegenstaendeListe(),
       tueren: w.welt.offeneTueren(),
       abgebaut: [...w.welt.abgebaut],
-      bauwerke: [...w.welt.bauwerke.values()],
+      bauwerke: w.bauwerkeOeffentlich(),
       tageszeit: w.tageszeitDauer(),
       zeit: w.zeit,
       tag: w.tag,
