@@ -10,6 +10,7 @@ import {
 import { ADMIN_BEFEHLE, AKTIONEN, NACHRICHT, dekodiere, kodiere } from '../../gemeinsam/protokoll.js';
 import { erstelleKonfiguration } from './konfiguration/spielKonfiguration.js';
 import { GEGENSTAENDE } from './konfiguration/gegenstaende.js';
+import { REZEPTE } from './konfiguration/rezepte.js';
 import { spielerDatenPrivat } from './entitaeten/spieler.js';
 import { erstelleSpielstand, wendeSpielstandAn } from './spielstand.js';
 import { ArbeitsspeicherSpeicher } from './speicher/arbeitsspeicherSpeicher.js';
@@ -57,6 +58,7 @@ export class SpielServer {
     this.sitzungen = new Set();
     this.gesendeteGegenstaendeVersion = this.spielWelt.gegenstaendeVersion;
     this.gesendeteTuerenVersion = this.spielWelt.tuerenVersion;
+    this.gesendeteRessourcenVersion = this.spielWelt.welt.ressourcenVersion;
     this.taktgeber = new Taktgeber(TICK_DAUER_MS, () => this.tickAusfuehren());
   }
 
@@ -123,6 +125,11 @@ export class SpielServer {
       this.gesendeteGegenstaendeVersion = this.spielWelt.gegenstaendeVersion;
       gegenstaende = kodiere({ typ: NACHRICHT.GEGENSTAENDE, gegenstaende: this.spielWelt.gegenstaendeListe() });
     }
+    let ressourcen = null;
+    if (this.spielWelt.welt.ressourcenVersion !== this.gesendeteRessourcenVersion) {
+      this.gesendeteRessourcenVersion = this.spielWelt.welt.ressourcenVersion;
+      ressourcen = kodiere({ typ: NACHRICHT.RESSOURCEN, abgebaut: [...this.spielWelt.welt.abgebaut] });
+    }
     let tueren = null;
     if (this.spielWelt.tuerenVersion !== this.gesendeteTuerenVersion) {
       this.gesendeteTuerenVersion = this.spielWelt.tuerenVersion;
@@ -140,6 +147,7 @@ export class SpielServer {
       if (sitzung.status !== 'imSpiel') continue;
       if (gegenstaende) sitzung.kanal.senden(gegenstaende);
       if (tueren) sitzung.kanal.senden(tueren);
+      if (ressourcen) sitzung.kanal.senden(ressourcen);
       sitzung.kanal.senden(zustand);
       this.#sendePrivateDaten(sitzung);
       for (const text of meldungen.get(sitzung.spielerId) ?? []) this.#senden(sitzung, { typ: NACHRICHT.MELDUNG, text });
@@ -246,6 +254,7 @@ export class SpielServer {
       itemDefinitionen: GEGENSTAENDE,
       spielerDaten: spielerDatenPrivat(spieler),
       tueren: this.spielWelt.welt.offeneTueren(),
+      abgebaut: [...this.spielWelt.welt.abgebaut],
       tageszeit: this.spielWelt.tageszeitDauer(),
       zeit: this.spielWelt.zeit,
       tag: this.spielWelt.tag,
@@ -296,8 +305,12 @@ export class SpielServer {
     const slot = n.slot === undefined ? null : n.slot;
     if (slot !== null && !(Number.isInteger(slot) && slot >= 0 && slot < INVENTAR_PLAETZE)) return;
     if (n.art === AKTIONEN.ADMIN && !GUELTIGE_ADMIN_BEFEHLE.has(n.befehl)) return;
+    if (n.art === AKTIONEN.HERSTELLEN && !Object.hasOwn(REZEPTE, n.rezept)) return;
     if (spieler.aktionsPuffer.length >= MAX_AKTIONS_PUFFER) return;
-    spieler.aktionsPuffer.push(n.art === AKTIONEN.ADMIN ? { art: n.art, slot, befehl: n.befehl } : { art: n.art, slot });
+    const aktion = { art: n.art, slot };
+    if (n.art === AKTIONEN.ADMIN) aktion.befehl = n.befehl;
+    if (n.art === AKTIONEN.HERSTELLEN) aktion.rezept = n.rezept;
+    spieler.aktionsPuffer.push(aktion);
   }
 
   #verbindungGetrennt(sitzung, grund) {

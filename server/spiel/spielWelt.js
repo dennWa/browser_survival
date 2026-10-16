@@ -6,12 +6,13 @@ import { erzeugeSpieler, spielerZuNetzwerk } from './entitaeten/spieler.js';
 import { erzeugeZombie, waehleZombieVariante, zombieZuNetzwerk } from './entitaeten/zombie.js';
 import { gegenstandZuNetzwerk } from './entitaeten/gegenstand.js';
 import { verarbeiteSpielerEingaben } from './systeme/bewegungsSystem.js';
-import { verarbeiteAktionen, aktualisiereNachladen } from './systeme/inventarSystem.js';
+import { verarbeiteAktionen, aktualisiereNachladen, gibStartausruestung } from './systeme/inventarSystem.js';
 import { aktualisiereKampf } from './systeme/kampfSystem.js';
 import { aktualisiereZombies } from './systeme/zombieSystem.js';
 import { aktualisiereUeberleben } from './systeme/ueberlebenSystem.js';
 import { verteileStartLoot, aktualisiereLoot } from './systeme/lootSystem.js';
 import { aktualisiereTageszeit } from './systeme/tageszeitSystem.js';
+import { aktualisiereArbeit } from './systeme/arbeitSystem.js';
 
 /** Welche Entitätstypen jeden Tick im Schnappschuss landen (dynamisch) – und wie sie serialisiert werden. */
 const NETZWERK_SERIALISIERER = {
@@ -46,6 +47,7 @@ export class SpielWelt {
     /** Wird bei jeder Türänderung erhöht → Server schickt TUEREN */
     this.tuerenVersion = 0;
     this.tuerLeben = new Map(); // Tür-ID → verbleibende Lebenspunkte (nur angeschlagene Türen)
+    this.ressourcenNachwuchs = new Map(); // Ressourcen-ID → Sekunden bis zum Nachwachsen
     if (konfiguration.welt.tuerenGeschlossen) for (const t of this.welt.tueren) this.welt.setzeTuer(t.id, false);
     /** Sekunden seit Tagesbeginn (siehe gemeinsam/tageszeit.js) und Tageszähler */
     this.zeit = konfiguration.welt.startZeit ?? 0;
@@ -112,7 +114,7 @@ export class SpielWelt {
   spielerBetrittWelt(benutzername, { admin = false } = {}) {
     const start = this.zufall.auswahl(this.karte.spielerStarts);
     return this.hinzufuegen(
-      erzeugeSpieler({ id: this.neueId(), benutzername, x: start.x, y: start.y, konfiguration: this.konfiguration, admin }),
+      gibStartausruestung(erzeugeSpieler({ id: this.neueId(), benutzername, x: start.x, y: start.y, konfiguration: this.konfiguration, admin }), this.konfiguration),
     );
   }
 
@@ -145,6 +147,7 @@ export class SpielWelt {
     verarbeiteAktionen(this);
     aktualisiereNachladen(this, dt);
     aktualisiereKampf(this, dt);
+    aktualisiereArbeit(this, dt);
     aktualisiereZombies(this, dt);
     aktualisiereUeberleben(this, dt);
     aktualisiereLoot(this, dt);

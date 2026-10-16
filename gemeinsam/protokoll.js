@@ -14,7 +14,7 @@ export const NACHRICHT = Object.freeze({
   ANMELDEN: 'anmelden',
   /** { seq, x, y, blick, angriff, sprint } – x/y: Bewegungsrichtung -1..1, blick: Winkel (Radiant), angriff/sprint: Taste gehalten */
   EINGABE: 'eingabe',
-  /** { art, slot?, befehl? } – einmalige Aktion (siehe AKTIONEN); befehl nur bei art 'admin' (siehe ADMIN_BEFEHLE) */
+  /** { art, slot?, befehl?, rezept? } – einmalige Aktion (siehe AKTIONEN); befehl bei 'admin', rezept bei 'herstellen' */
   AKTION: 'aktion',
   /** { t } – Zeitstempel des Clients, kommt als PONG zurück */
   PING: 'ping',
@@ -36,6 +36,8 @@ export const NACHRICHT = Object.freeze({
   GEGENSTAENDE: 'gegenstaende',
   /** { offen: [Tür-IDs] } – Türzustand, nur wenn er sich geändert hat (IDs: Welt.tueren) */
   TUEREN: 'tueren',
+  /** { abgebaut: [Ressourcen-IDs] } – gefällte Bäume / abgebaute Steine, nur bei Änderung (IDs: Welt.ressourcen) */
+  RESSOURCEN: 'ressourcen',
   /** { t } */
   PONG: 'pong',
   /** { text } – Hinweise vom Server (z. B. "Server startet neu") */
@@ -49,6 +51,9 @@ export const AKTIONEN = Object.freeze({
   ABLEGEN: 'ablegen', // ganzen Stapel auf den Boden legen
   NACHLADEN: 'nachladen', // ausgerüstete Schusswaffe nachladen
   TUER: 'tuer', // nächste Tür in Reichweite öffnen/schließen
+  ABBAUEN: 'abbauen', // nächsten Baum/Stein abbauen (Axt/Spitzhacke nötig, dauert)
+  SCHLAFEN: 'schlafen', // in ein Bett in Reichweite legen (heilt)
+  HERSTELLEN: 'herstellen', // { rezept } an einer Werkbank in Reichweite (siehe server/spiel/konfiguration/rezepte.js)
   LICHT: 'licht', // Taschenlampe an/aus (aus = Zombies bemerken einen erst aus der Nähe)
   WIEDERBELEBEN: 'wiederbeleben', // tot → sofort am Startpunkt neu spawnen (statt Countdown abzuwarten)
   ADMIN: 'admin', // Admin-Befehl (nur für Accounts mit Admin-Recht, prüft der Server)
@@ -75,6 +80,10 @@ export const ADMIN_BEFEHLE = Object.freeze({
  *   leer      { von }                        Klick – Magazin leer
  *   tuer      { id, offen, aufgebrochen, x, y }  Tür geht auf/zu (aufgebrochen = von Zombies)
  *   tuerSchlag { id, x, y }                  Zombie hämmert gegen eine Tür
+ *   tuerVerstaerkt { id, x, y }              Bretter an eine Tür genagelt
+ *   hack      { art, x, y }                  ein Axt-/Spitzhackenschlag (art: 'holz' | 'stein')
+ *   abgebaut  { art, x, y }                  Baum fällt / Stein zerbricht
+ *   hergestellt { von, rezept }              an der Werkbank gebaut
  */
 
 /** Objekt → Text für den Transport. */

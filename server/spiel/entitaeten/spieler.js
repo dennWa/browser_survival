@@ -32,6 +32,8 @@ export function erzeugeSpieler({ id, benutzername, x, y, konfiguration, admin = 
     /** Admin-Schalter (nur mit Admin-Recht setzbar) – öffentlich, damit alle sehen, wer schummelt */
     gottmodus: false,
     unsichtbar: false,
+    /** Laufende Arbeit (Abbauen, Schlafen) – siehe systeme/arbeitSystem.js; öffentlich ist nur die Art */
+    arbeit: null,
     // [privat]
     admin, // darf Admin-Befehle benutzen (kommt von der Authentifizierung)
     hunger: k.startHunger, // 100 = satt, 0 = verhungert
@@ -76,6 +78,8 @@ export function spielerZuNetzwerk(s) {
     lichtAn: s.lichtAn,
     gottmodus: s.gottmodus,
     unsichtbar: s.unsichtbar,
+    arbeit: s.arbeit?.art ?? null, // 'holz' | 'stein' | 'schlafen' → Animation/Werkzeug
+    arbeitOrt: s.arbeit?.ort ?? null, // Bett beim Schlafen
     seq: s.letzteVerarbeiteteSeq,
   };
 }
@@ -93,5 +97,7 @@ export function spielerDatenPrivat(s) {
     tot: s.tot,
     respawnIn: Math.ceil(s.respawnRest),
     admin: s.admin,
+    // Fortschritt in 5-%-Schritten (sonst würde jeder Tick neue Daten schicken)
+    arbeit: s.arbeit ? { art: s.arbeit.art, fortschritt: Math.round((1 - s.arbeit.rest / s.arbeit.dauer) * 20) / 20 } : null,
   };
 }

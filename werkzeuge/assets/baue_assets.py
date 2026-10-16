@@ -46,14 +46,14 @@ QUELLEN = {
 
 LIZENZEN = [
     ('Top-down Shooter', 'Kenney (kenney.nl)', 'CC0', 'https://kenney.nl/assets/top-down-shooter', 'Böden, Möbel, Pflanzen'),
-    ('Racing Pack', 'Kenney (kenney.nl)', 'CC0', 'https://kenney.nl/assets/racing-pack', 'Autos, Pylonen, Ölflecken'),
+    ('Racing Pack', 'Kenney (kenney.nl)', 'CC0', 'https://kenney.nl/assets/racing-pack', 'Autos, Pylonen, Ölflecken, Stein'),
     ('Animated Characters 3', 'Kenney (kenney.nl)', 'CC0', 'https://opengameart.org/content/animated-characters-3', '3D-Figuren (Spieler & Zombies)'),
-    ('Generic Items', 'Kenney (kenney.nl)', 'CC0', 'https://opengameart.org/content/generic-items', 'Erste-Hilfe-Kasten, Messer, Beil'),
+    ('Generic Items', 'Kenney (kenney.nl)', 'CC0', 'https://opengameart.org/content/generic-items', 'Erste-Hilfe-Kasten, Messer, Beil, Axt, Spitzhacke, Bretter'),
     ('Free Survival Props Pack', 'Olga Bikmullina (http://ahninniah.graphics)', 'CC-BY 3.0',
      'https://opengameart.org/content/free-survival-props-pack', 'Verband, Pillen, Hammer, Machete, Schrotpatronen'),
     ('2D Guns', 'opengameart.org/content/2d-guns', 'CC0', 'https://opengameart.org/content/2d-guns', 'Pistole, Schrotflinte, Munitionsbox'),
     ('Glitch Food & Drink Items', 'Tiny Speck (Glitch)', 'CC0',
-     'https://opengameart.org/content/glitch-food-drink-items-svg', 'Essen & Getränke'),
+     'https://opengameart.org/content/glitch-food-drink-items-svg', 'Essen & Getränke, Holz'),
 ]
 
 # ---------------------------------------------------------------------------
@@ -83,6 +83,11 @@ ITEMS = {
     'schrotflinte': ('guns', 'PNG/shotgun2.png', 40),
     'munition_9mm': ('guns', 'PNG/ammobox.png', 22),
     'munition_12': ('props', 'PNG/256px/ammo_3.png', 24),
+    'axt': ('kenney_items', 'PNG/Colored/genericItem_color_006.png', 28),
+    'spitzhacke': ('kenney_items', 'PNG/Colored/genericItem_color_021.png', 30),
+    'holz': ('glitch_food', 'food/plank.svg', 26),
+    'stein': ('kenney_racing', 'PNG/Objects/rock1.png', 22),
+    'bretter': ('kenney_items', 'PNG/Colored/genericItem_color_133.png', 26),
 }
 ITEM_ICON_GROESSE = 72
 

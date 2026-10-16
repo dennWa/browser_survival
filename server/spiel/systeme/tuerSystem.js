@@ -18,6 +18,29 @@ export function benutzeTuer(spielWelt, spieler) {
   setzeTuer(spielWelt, tuer, !offen);
 }
 
+/**
+ * Bretter an die nächste geschlossene Tür nageln: +welt.tuerVerstaerkung Lebenspunkte (bis zum Vierfachen).
+ * @returns true, wenn verstärkt wurde (dann wird ein Brett verbraucht)
+ */
+export function verstaerkeTuer(spielWelt, spieler) {
+  const k = spielWelt.konfiguration.welt;
+  const tuer = spielWelt.welt.naechsteTuer(spieler.x, spieler.y, TUER_REICHWEITE);
+  if (!tuer || spielWelt.welt.istTuerOffen(tuer.id)) {
+    spielWelt.melde(spieler.id, 'Stell dich vor eine geschlossene Tür');
+    return false;
+  }
+  const leben = spielWelt.tuerLeben.get(tuer.id) ?? k.tuerLeben;
+  const maximum = k.tuerLeben * 4;
+  if (leben >= maximum) {
+    spielWelt.melde(spieler.id, 'Die Tür ist schon voll verstärkt');
+    return false;
+  }
+  spielWelt.tuerLeben.set(tuer.id, Math.min(maximum, leben + k.tuerVerstaerkung));
+  spielWelt.ereignis({ typ: 'tuerVerstaerkt', id: tuer.id, x: tuer.x, y: tuer.y });
+  spielWelt.melde(spieler.id, `Tür verstärkt (${Math.round((Math.min(maximum, leben + k.tuerVerstaerkung) / k.tuerLeben) * 100)} %)`);
+  return true;
+}
+
 /** Zombie schlägt gegen eine geschlossene Tür; bei 0 Lebenspunkten fliegt sie auf. */
 export function schlageTuer(spielWelt, zombie, tuer) {
   const k = spielWelt.konfiguration.welt;

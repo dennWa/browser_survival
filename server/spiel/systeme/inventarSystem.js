@@ -4,7 +4,9 @@ import { GEGENSTAENDE, STANDARD_AUSRUESTUNG, UNBEWAFFNET } from '../konfiguratio
 import { erzeugeGegenstand } from '../entitaeten/gegenstand.js';
 import { wiederbeleben } from './ueberlebenSystem.js';
 import { fuehreAdminBefehlAus } from './adminSystem.js';
-import { benutzeTuer } from './tuerSystem.js';
+import { benutzeTuer, verstaerkeTuer as verstaerkeNaechsteTuer } from './tuerSystem.js';
+import { starteAbbau, starteSchlafen } from './arbeitSystem.js';
+import { stelleHer } from './craftingSystem.js';
 
 /**
  * Inventar: Aufheben, Benutzen (Essen/Trinken/Medizin), Aus-/Abrüsten, Ablegen, Nachladen.
@@ -40,6 +42,15 @@ export function verarbeiteAktionen(spielWelt) {
           break;
         case AKTIONEN.TUER:
           benutzeTuer(spielWelt, spieler);
+          break;
+        case AKTIONEN.ABBAUEN:
+          starteAbbau(spielWelt, spieler);
+          break;
+        case AKTIONEN.SCHLAFEN:
+          starteSchlafen(spielWelt, spieler);
+          break;
+        case AKTIONEN.HERSTELLEN:
+          stelleHer(spielWelt, spieler, aktion.rezept);
           break;
         case AKTIONEN.AUFHEBEN:
           aufheben(spielWelt, spieler);
@@ -188,7 +199,16 @@ function benutzen(spielWelt, spieler, slot) {
     case 'munition':
       spielWelt.melde(spieler.id, 'Munition wird beim Nachladen (R) verwendet');
       break;
+    case 'material':
+      if (eintrag.defId === 'bretter') verstaerkeTuer(spielWelt, spieler, slot);
+      else spielWelt.melde(spieler.id, `${def.name}: zum Bauen an der Werkbank`);
+      break;
   }
+}
+
+/** Bretter vor einer geschlossenen Tür → Tür hält mehr aus. */
+function verstaerkeTuer(spielWelt, spieler, slot) {
+  if (verstaerkeNaechsteTuer(spielWelt, spieler)) verbrauche(spieler, slot);
 }
 
 function verbrauche(spieler, slot) {
@@ -213,11 +233,22 @@ function ablegen(spielWelt, spieler, slot) {
   entferneSlot(spieler, slot);
 }
 
-/** Legt einen Inventareintrag als Gegenstand in die Welt. */
-export function legeAufBoden(spielWelt, eintrag, x, y) {
+/** Legt einen Inventareintrag als Gegenstand in die Welt. @param verfall Sekunden bis er verschwindet (null = nie) */
+export function legeAufBoden(spielWelt, eintrag, x, y, verfall = null) {
   spielWelt.hinzufuegen(
-    erzeugeGegenstand({ id: spielWelt.neueId(), defId: eintrag.defId, x, y, menge: eintrag.menge, magazin: eintrag.magazin }),
+    erzeugeGegenstand({ id: spielWelt.neueId(), defId: eintrag.defId, x, y, menge: eintrag.menge, magazin: eintrag.magazin, verfall }),
   );
+}
+
+/** Startausrüstung (konfiguration.spieler.startInventar) ins leere Inventar legen. @returns spieler */
+export function gibStartausruestung(spieler, konfiguration) {
+  for (const eintrag of konfiguration.spieler.startInventar ?? []) {
+    if (!GEGENSTAENDE[eintrag.defId]) continue;
+    fuegeZumInventarHinzu(spieler, eintrag.defId, eintrag.menge ?? 1, eintrag.magazin ?? 0);
+    if (eintrag.ausgeruestet) spieler.ausgeruestet = spieler.inventar.findIndex((e) => e?.defId === eintrag.defId);
+  }
+  aktualisiereAusruestung(spieler);
+  return spieler;
 }
 
 /** Nimmt bis zu `menge` Munition aus dem Inventar. @returns tatsächlich entnommene Menge */

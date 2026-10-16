@@ -1,12 +1,13 @@
 /**
  * Gegenstands-Definitionen (Item-Datenbank).
  * Schlüssel = defId (muss zu einem Icon in client/assets/atlas.json → items.icons passen; ein Test prüft das).
- * Kategorien: nahrung, getraenk, medizin, nahkampf, fernkampf, munition.
+ * Kategorien: nahrung, getraenk, medizin, nahkampf, fernkampf, munition, material.
  *
- * ausruestung = welches Animationsset die Spielfigur mit dieser Waffe in der Hand nutzt
- *               (taschenlampe | messer | pistole | schrotflinte – siehe atlas.json → figuren.survivor)
+ * ausruestung = Haltung/Waffenart (taschenlampe | messer | pistole | schrotflinte)
+ * werkzeug    = Werkzeug zum Abbauen (Axt → Bäume, Spitzhacke → Steine; siehe gemeinsam/welt/ressourcen.js)
  *
- * Werte sind Platzhalter fürs Balancing – Verwendung ab Phase 2 (Aufsammeln, Inventar, Kampf).
+ * Werte lassen sich ingame im Developer-Modus ändern (Admin-Menü → Developer).
+ * Neue Items: Icon in werkzeuge/assets/baue_assets.py (ITEMS) eintragen.
  */
 export const GEGENSTAENDE = Object.freeze({
   // --- Essen ---
@@ -32,12 +33,19 @@ export const GEGENSTAENDE = Object.freeze({
   hammer: { name: 'Hammer', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 30, reichweite: 32, abklingzeit: 0.7 },
   machete: { name: 'Machete', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 40, reichweite: 40, abklingzeit: 0.8 },
   feuerwehrbeil: { name: 'Feuerwehrbeil', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 50, reichweite: 40, abklingzeit: 1.0 },
+  // --- Werkzeuge (auch als schwache Waffen nutzbar) ---
+  axt: { name: 'Axt', kategorie: 'nahkampf', ausruestung: 'messer', werkzeug: true, schaden: 18, reichweite: 32, abklingzeit: 0.7 },
+  spitzhacke: { name: 'Spitzhacke', kategorie: 'nahkampf', ausruestung: 'messer', werkzeug: true, schaden: 16, reichweite: 32, abklingzeit: 0.75 },
   // --- Fernkampf ---
   pistole: { name: 'Pistole (9 mm)', kategorie: 'fernkampf', ausruestung: 'pistole', schaden: 25, munition: 'munition_9mm', magazin: 15, abklingzeit: 0.28, reichweite: 520, streuung: 0.03, nachladezeit: 1.1 },
   schrotflinte: { name: 'Schrotflinte (Kal. 12)', kategorie: 'fernkampf', ausruestung: 'schrotflinte', schaden: 16, projektile: 7, munition: 'munition_12', magazin: 5, abklingzeit: 0.85, reichweite: 280, streuung: 0.2, nachladezeit: 1.8 },
   // --- Munition ---
   munition_9mm: { name: 'Munition 9 mm', kategorie: 'munition', stapelbar: 60, mengeBeimFund: [5, 15] },
   munition_12: { name: 'Schrotpatronen Kal. 12', kategorie: 'munition', stapelbar: 30, mengeBeimFund: [2, 6] },
+  // --- Material (Abbau & Crafting) ---
+  holz: { name: 'Holz', kategorie: 'material', stapelbar: 50 },
+  stein: { name: 'Stein', kategorie: 'material', stapelbar: 50 },
+  bretter: { name: 'Bretter', kategorie: 'material', stapelbar: 10, beschreibung: 'Vor einer geschlossenen Tür benutzen: verstärkt sie' },
 });
 
 /** Ausrüstung ohne Waffe in der Hand. */

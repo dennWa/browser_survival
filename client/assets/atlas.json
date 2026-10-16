@@ -163,6 +163,41 @@
     "b": 72,
     "h": 33,
     "weltGroesse": 24
+   },
+   "axt": {
+    "x": 504,
+    "y": 148,
+    "b": 72,
+    "h": 63,
+    "weltGroesse": 28
+   },
+   "spitzhacke": {
+    "x": 7,
+    "y": 216,
+    "b": 58,
+    "h": 72,
+    "weltGroesse": 30
+   },
+   "holz": {
+    "x": 72,
+    "y": 219,
+    "b": 72,
+    "h": 65,
+    "weltGroesse": 26
+   },
+   "stein": {
+    "x": 144,
+    "y": 223,
+    "b": 72,
+    "h": 58,
+    "weltGroesse": 22
+   },
+   "bretter": {
+    "x": 216,
+    "y": 216,
+    "b": 71,
+    "h": 72,
+    "weltGroesse": 26
    }
   }
  },

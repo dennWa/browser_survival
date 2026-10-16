@@ -18,6 +18,7 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     karte: 'stadtrand',
     tuerenGeschlossen: true, // Start: alle Türen zu (man öffnet sie selbst)
     tuerLeben: 120, // so viel Schaden hält eine geschlossene Tür aus, bevor Zombies sie aufbrechen
+    tuerVerstaerkung: 150, // + Lebenspunkte pro Bretter-Verstärkung (höchstens 4× tuerLeben)
     tagSekunden: 600, // Tag (06:00–21:00) dauert 10 Minuten …
     nachtSekunden: 300, // … die Nacht (21:00–06:00) 5 Minuten
     startZeit: 30, // Sekunden nach Tagesbeginn beim Serverstart (kurz nach Sonnenaufgang)
@@ -40,6 +41,12 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     ausdauerRegeneration: 14, // pro Sekunde ohne Sprint
     sprintMinimum: 25, // nach völliger Erschöpfung erst ab diesem Wert wieder sprinten
     sprintHoerRadius: 150, // Rennen ist laut: Zombies in diesem Umkreis hören es
+    /** Bekommt jeder neue Spieler (und nach dem Tod wieder). magazin = Schuss in der Waffe; ausgeruestet = in der Hand */
+    startInventar: [
+      { defId: 'pistole', menge: 1, magazin: 15, ausgeruestet: true },
+      { defId: 'axt', menge: 1 },
+      { defId: 'spitzhacke', menge: 1 },
+    ],
   },
   zombie: {
     geschwindigkeit: 60, // Grundtempo (Umherschlurfen = knapp halbes Grundtempo)
@@ -80,6 +87,18 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     spawnChance: 0.7,
     /** Sekunden, bis an einem geplünderten Loot-Punkt neu gewürfelt wird */
     respawnZeit: 300,
+    /** Sekunden, die das Inventar eines Toten am Boden liegt, bevor es verschwindet */
+    todesVerfall: 180,
+  },
+  /** Abbau von Bäumen & Steinen (welche Objekte/Werkzeuge: gemeinsam/welt/ressourcen.js) */
+  ressourcen: {
+    holz: { menge: 2, dauer: 5, nachwachsen: 300 }, // menge pro Baum, dauer in Sekunden, nachwachsen in Sekunden
+    stein: { menge: 2, dauer: 5, nachwachsen: 240 },
+  },
+  /** Schlafen im Bett: heilt, solange man liegen bleibt (bricht ab bei Bewegung oder Schaden) */
+  schlafen: {
+    heilungProSekunde: 6,
+    zombieAbstand: 300, // so nah darf beim Hinlegen kein jagender Zombie sein
   },
 });
 

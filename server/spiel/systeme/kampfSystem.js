@@ -1,3 +1,4 @@
+import { brecheArbeitAb } from './arbeitSystem.js';
 import { strahlGegenWaende, strahlTrifftKreis } from '../../../gemeinsam/physik/strahl.js';
 import { bewegeKoerper } from '../../../gemeinsam/physik/bewegung.js';
 import { NAHKAMPF_KEGEL, STANDARD_AUSRUESTUNG } from '../konfiguration/gegenstaende.js';
@@ -94,6 +95,7 @@ function radiusVon(spielWelt, entitaet) {
 export function fuegeSchadenZu(spielWelt, ziel, menge, quelle, winkel = 0) {
   if (ziel.tot || ziel.leben <= 0 || ziel.gottmodus) return;
   ziel.leben -= menge;
+  if (ziel.arbeit) brecheArbeitAb(spielWelt, ziel, ziel.arbeit.art === 'schlafen' ? 'Aufgeschreckt!' : null);
   spielWelt.ereignis({ typ: 'treffer', x: ziel.x, y: ziel.y, winkel, ziel: ziel.typ });
 
   if (ziel.typ === 'zombie') {
@@ -121,7 +123,7 @@ export function toeten(spielWelt, ziel) {
   ziel.inventar.forEach((eintrag, slot) => {
     if (!eintrag) return;
     const w = (slot / ziel.inventar.length) * Math.PI * 2;
-    legeAufBoden(spielWelt, eintrag, ziel.x + Math.cos(w) * 14, ziel.y + Math.sin(w) * 14);
+    legeAufBoden(spielWelt, eintrag, ziel.x + Math.cos(w) * 14, ziel.y + Math.sin(w) * 14, spielWelt.konfiguration.loot.todesVerfall);
     ziel.inventar[slot] = null;
   });
   Object.assign(ziel, {
@@ -130,6 +132,7 @@ export function toeten(spielWelt, ziel) {
     ausgeruestet: null,
     ausruestung: STANDARD_AUSRUESTUNG,
     nachladenRest: 0,
+    arbeit: null,
     angriff: false,
     aktion: null,
     respawnRest: spielWelt.konfiguration.spieler.respawnZeit,

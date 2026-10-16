@@ -1,5 +1,6 @@
 import { STANDARD_AUSRUESTUNG } from '../konfiguration/gegenstaende.js';
 import { toeten } from './kampfSystem.js';
+import { gibStartausruestung } from './inventarSystem.js';
 
 /**
  * Überleben: Hunger & Durst sinken, bei 0 verliert man Leben; satt & getränkt heilt man langsam.
@@ -42,5 +43,8 @@ export function wiederbeleben(spielWelt, spieler) {
     erschoepft: false,
     ausgeruestet: null,
     ausruestung: STANDARD_AUSRUESTUNG,
+    arbeit: null,
   });
+  // Neues Leben, neue Grundausrüstung (das alte Inventar liegt noch eine Weile am Todesort)
+  if (spieler.inventar.every((e) => e === null)) gibStartausruestung(spieler, spielWelt.konfiguration);
 }

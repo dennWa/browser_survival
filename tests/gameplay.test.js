@@ -2,7 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { TICK_DAUER_S } from '../gemeinsam/konstanten.js';
 import { AKTIONEN, ADMIN_BEFEHLE } from '../gemeinsam/protokoll.js';
-import { UNBEWAFFNET } from '../server/spiel/konfiguration/gegenstaende.js';
+import { GEGENSTAENDE, UNBEWAFFNET } from '../server/spiel/konfiguration/gegenstaende.js';
+import { REZEPTE } from '../server/spiel/konfiguration/rezepte.js';
+import { fuegeSchadenZu } from '../server/spiel/systeme/kampfSystem.js';
 import { strahlGegenWaende, sichtlinieFrei } from '../gemeinsam/physik/strahl.js';
 import { erstelleKonfiguration } from '../server/spiel/konfiguration/spielKonfiguration.js';
 import { SpielWelt } from '../server/spiel/spielWelt.js';
@@ -33,7 +35,8 @@ const K = 32;
 const mitte = (t) => t * K + K / 2;
 
 function neueWelt(ueberschreibungen = {}) {
-  const konfiguration = erstelleKonfiguration({ server: { zufallsStartwert: 7 }, ...ueberschreibungen });
+  // Startausrüstung aus, damit Inventar-Tests bei null beginnen (eigener Test unten)
+  const konfiguration = erstelleKonfiguration({ server: { zufallsStartwert: 7 }, ...ueberschreibungen, spieler: { startInventar: [], ...ueberschreibungen.spieler } });
   const welt = new SpielWelt(konfiguration, { kartenDefinition: TESTKARTE });
   const spieler = welt.spielerBetrittWelt('Tester');
   return { welt, spieler, konfiguration };
@@ -565,4 +568,166 @@ test('Nachts kommt eine Horde, morgens zieht sie ab', () => {
   assert.equal(welt.istNacht, false);
   assert.equal(welt.tag, 2);
   assert.equal([...welt.alleVomTyp('zombie')].filter((z) => z.nacht).length, 0);
+});
+
+// ---------------------------------------------------------------------------
+// Start, Todes-Loot
+
+test('Startausrüstung: Pistole (15 Schuss, in der Hand), Axt, Spitzhacke – nach dem Tod wieder', () => {
+  const konfiguration = erstelleKonfiguration({ server: { zufallsStartwert: 2 } });
+  const welt = new SpielWelt(konfiguration, { kartenDefinition: TESTKARTE });
+  const spieler = welt.spielerBetrittWelt('Neu');
+  assert.deepEqual(spieler.inventar.slice(0, 3).map((e) => e?.defId), ['pistole', 'axt', 'spitzhacke']);
+  assert.equal(spieler.inventar[0].magazin, 15);
+  assert.equal(spieler.ausgeruestet, 0);
+  assert.equal(spieler.ausruestung, 'pistole');
+  spieler.leben = 0.5;
+  spieler.hunger = 0;
+  ticks(welt, Math.ceil(2 / TICK_DAUER_S));
+  assert.equal(spieler.tot, true);
+  spieler.aktionsPuffer.push({ art: AKTIONEN.WIEDERBELEBEN, slot: null });
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(spieler.inventar[1]?.defId, 'axt', 'nach dem Respawn wieder ausgerüstet');
+});
+
+test('Inventar eines Toten verschwindet nach loot.todesVerfall Sekunden', () => {
+  const { welt, spieler, konfiguration } = neueWelt({ loot: { todesVerfall: 2 } });
+  bewaffne(spieler);
+  spieler.leben = 0.4;
+  spieler.hunger = 0;
+  ticks(welt, Math.ceil(1 / TICK_DAUER_S));
+  assert.equal(spieler.tot, true);
+  assert.ok([...welt.alleVomTyp('gegenstand')].some((g) => g.defId === 'pistole'));
+  ticks(welt, Math.ceil(2.2 / TICK_DAUER_S));
+  assert.ok(![...welt.alleVomTyp('gegenstand')].some((g) => g.defId === 'pistole'), 'nach Ablauf weg');
+  assert.equal(konfiguration.loot.todesVerfall, 2);
+});
+
+// ---------------------------------------------------------------------------
+// Ressourcen, Crafting, Schlafen
+
+const HOFKARTE = {
+  id: 'hof',
+  name: 'Hof',
+  kacheln: [
+    '############',
+    '#S.........#',
+    '#..........#',
+    '#..........#',
+    '#..........#',
+    '############',
+  ],
+  raeume: {},
+  objekte: [
+    { typ: 'baum', x: 8, y: 1, b: 2, h: 2, ebene: 'oben' },
+    { typ: 'stein', x: 5, y: 4, b: 1, h: 1, blockiert: true },
+    { typ: 'werkbank', x: 1, y: 4, b: 2, h: 1, blockiert: true },
+    { typ: 'bett', x: 10, y: 3, b: 1, h: 2, blockiert: true },
+  ],
+};
+
+function hofWelt() {
+  const konfiguration = erstelleKonfiguration({ server: { zufallsStartwert: 4 } });
+  const welt = new SpielWelt(konfiguration, { kartenDefinition: HOFKARTE });
+  const spieler = welt.spielerBetrittWelt('Bauer');
+  return { welt, spieler, konfiguration };
+}
+
+const anzahl = (spieler, defId) => spieler.inventar.reduce((s, e) => s + (e?.defId === defId ? e.menge : 0), 0);
+
+test('Baum fällen: 5 Sekunden mit Axt → 2 Holz, Baum weg, wächst nach', () => {
+  const { welt, spieler, konfiguration } = hofWelt();
+  platziere(spieler, 7, 2);
+  spieler.aktionsPuffer.push({ art: AKTIONEN.ABBAUEN, slot: null });
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(spieler.arbeit?.art, 'holz');
+  ticks(welt, Math.ceil(4.5 / TICK_DAUER_S));
+  assert.equal(anzahl(spieler, 'holz'), 0, 'noch nicht fertig');
+  ticks(welt, Math.ceil(0.6 / TICK_DAUER_S));
+  assert.equal(anzahl(spieler, 'holz'), 2);
+  assert.equal(welt.welt.istRessourceDa(0), false);
+  welt.ressourcenNachwuchs.set(0, 0.01);
+  platziere(spieler, 2, 2);
+  ticks(welt, 2);
+  assert.equal(welt.welt.istRessourceDa(0), true, 'nachgewachsen');
+  assert.equal(konfiguration.ressourcen.holz.menge, 2);
+});
+
+test('Abbauen: ohne Werkzeug geht nichts, Bewegung bricht ab, Stein blockiert nur solange er da ist', () => {
+  const { welt, spieler } = hofWelt();
+  assert.equal(welt.welt.istBlockiert(5, 4), true);
+  spieler.inventar = spieler.inventar.map((e) => (e?.defId === 'spitzhacke' ? null : e));
+  platziere(spieler, 5, 3);
+  spieler.aktionsPuffer.push({ art: AKTIONEN.ABBAUEN, slot: null });
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(spieler.arbeit, null);
+  assert.ok(welt.meldungen.some((m) => m.text.includes('Spitzhacke')));
+
+  spieler.inventar[5] = { defId: 'spitzhacke', menge: 1 };
+  spieler.aktionsPuffer.push({ art: AKTIONEN.ABBAUEN, slot: null });
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(spieler.arbeit?.art, 'stein');
+  spieler.x += 20; // weggelaufen
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(spieler.arbeit, null, 'Bewegung bricht ab');
+
+  platziere(spieler, 5, 3);
+  spieler.aktionsPuffer.push({ art: AKTIONEN.ABBAUEN, slot: null });
+  ticks(welt, Math.ceil(5.2 / TICK_DAUER_S));
+  assert.equal(anzahl(spieler, 'stein'), 2);
+  assert.equal(welt.welt.istBlockiert(5, 4), false, 'abgebauter Stein ist kein Hindernis mehr');
+});
+
+test('Crafting: nur an der Werkbank, verbraucht Zutaten, gibt Ergebnis', () => {
+  const { welt, spieler } = hofWelt();
+  spieler.inventar = new Array(8).fill(null);
+  spieler.inventar[0] = { defId: 'holz', menge: 5 };
+  spieler.inventar[1] = { defId: 'stein', menge: 3 };
+  platziere(spieler, 8, 3);
+  spieler.aktionsPuffer.push({ art: AKTIONEN.HERSTELLEN, slot: null, rezept: 'axt' });
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(anzahl(spieler, 'axt'), 0, 'zu weit weg von der Werkbank');
+
+  platziere(spieler, 2, 3);
+  spieler.aktionsPuffer.push({ art: AKTIONEN.HERSTELLEN, slot: null, rezept: 'axt' });
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(anzahl(spieler, 'axt'), 1);
+  assert.equal(anzahl(spieler, 'holz'), 2);
+  assert.equal(anzahl(spieler, 'stein'), 1);
+
+  spieler.aktionsPuffer.push({ art: AKTIONEN.HERSTELLEN, slot: null, rezept: 'spitzhacke' });
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(anzahl(spieler, 'spitzhacke'), 0, 'zu wenig Zutaten');
+  assert.ok(welt.meldungen.some((m) => m.text.startsWith('Es fehlt')));
+});
+
+test('Alle Rezepte verweisen auf existierende Gegenstände', () => {
+  for (const [name, r] of Object.entries(REZEPTE)) {
+    assert.ok(GEGENSTAENDE[r.ergebnis], `${name}: Ergebnis "${r.ergebnis}" unbekannt`);
+    for (const item of Object.keys(r.zutaten)) assert.ok(GEGENSTAENDE[item], `${name}: Zutat "${item}" unbekannt`);
+    assert.ok(r.name && r.kategorie, `${name}: name/kategorie fehlt`);
+  }
+});
+
+test('Schlafen im Bett heilt, Schaden weckt auf', () => {
+  const { welt, spieler, konfiguration } = hofWelt();
+  platziere(spieler, 9, 3);
+  spieler.leben = 40;
+  spieler.aktionsPuffer.push({ art: AKTIONEN.SCHLAFEN, slot: null });
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(spieler.arbeit?.art, 'schlafen');
+  ticks(welt, Math.ceil(2 / TICK_DAUER_S));
+  assert.ok(spieler.leben > 40 + konfiguration.schlafen.heilungProSekunde * 1.5);
+  fuegeSchadenZu(welt, spieler, 5, null);
+  assert.equal(spieler.arbeit, null, 'aufgewacht');
+});
+
+test('Bretter verstärken eine geschlossene Tür', () => {
+  const { welt, spieler } = tuerWelt();
+  platziere(spieler, 4, 2);
+  spieler.inventar[0] = { defId: 'bretter', menge: 2 };
+  spieler.aktionsPuffer.push({ art: AKTIONEN.BENUTZEN, slot: 0 });
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(welt.tuerLeben.get(0), welt.konfiguration.welt.tuerLeben + welt.konfiguration.welt.tuerVerstaerkung);
+  assert.equal(spieler.inventar[0].menge, 1);
 });

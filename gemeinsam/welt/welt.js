@@ -109,6 +109,26 @@ export class Welt {
     return beste;
   }
 
+  /**
+   * Nächstes Kartenobjekt, für das `passt(objekt)` gilt und dessen Rand höchstens `reichweite` px entfernt ist.
+   * @returns { objekt, x, y } (x/y = Mitte in Weltpixeln) oder null
+   */
+  naechstesObjekt(x, y, reichweite, passt) {
+    const g = this.kachelGroesse;
+    let bestes = null;
+    let bestAbstand = reichweite;
+    for (const o of this.objekte) {
+      if (!passt(o)) continue;
+      const nx = Math.max(o.x * g, Math.min(x, (o.x + o.b) * g));
+      const ny = Math.max(o.y * g, Math.min(y, (o.y + o.h) * g));
+      const abstand = Math.hypot(x - nx, y - ny);
+      if (abstand > bestAbstand) continue;
+      bestAbstand = abstand;
+      bestes = { objekt: o, x: (o.x + o.b / 2) * g, y: (o.y + o.h / 2) * g };
+    }
+    return bestes;
+  }
+
   /** IDs aller offenen Türen (für Netzwerk & Tests). */
   offeneTueren() {
     return this.tueren.filter((t) => this.istTuerOffen(t.id)).map((t) => t.id);

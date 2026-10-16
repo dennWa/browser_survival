@@ -29,5 +29,9 @@ export const AUFHEB_REICHWEITE = 48;
 /** So nah (px, bis zur Türkante) muss man an einer Tür stehen, um sie zu öffnen/schließen. */
 export const TUER_REICHWEITE = 40;
 
+/** Reichweite (px, bis zum Rand) für Werkbank (Crafting) und Bett (Schlafen). */
+export const WERKBANK_REICHWEITE = 48;
+export const BETT_REICHWEITE = 40;
+
 /** Benutzernamen: 2–20 Zeichen, Buchstaben, Ziffern, _ und -. */
 export const BENUTZERNAME_MUSTER = /^[A-Za-z0-9_\-äöüÄÖÜß]{2,20}$/;

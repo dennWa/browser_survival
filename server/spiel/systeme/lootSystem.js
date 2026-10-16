@@ -14,6 +14,12 @@ export function verteileStartLoot(spielWelt) {
 }
 
 export function aktualisiereLoot(spielWelt, dt) {
+  // Liegengelassenes Inventar von Toten verschwindet nach loot.todesVerfall Sekunden
+  for (const g of [...spielWelt.alleVomTyp('gegenstand')]) {
+    if (g.verfallRest === undefined) continue;
+    g.verfallRest -= dt;
+    if (g.verfallRest <= 0) spielWelt.entfernen(g.id);
+  }
   const respawnZeit = spielWelt.konfiguration.loot.respawnZeit;
   spielWelt.karte.lootPunkte.forEach((punkt, i) => {
     const zustand = spielWelt.lootZustand[i];
