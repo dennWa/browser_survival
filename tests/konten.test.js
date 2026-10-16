@@ -31,3 +31,10 @@ test('Fehlende Kontendatei → niemand kann sich einloggen (kein Absturz)', asyn
   const auth = new KontenAuthentifizierung('/gibt/es/nicht.json');
   assert.equal((await auth.pruefe('Anna', 'x')).ok, false);
 });
+
+test('Accounts auch direkt als JSON (Umgebungsvariable KONTEN_JSON beim Online-Hoster)', async () => {
+  const kontenJson = JSON.stringify({ konten: [{ benutzername: 'Online', passwortHash: await hashePasswort('geheim123') }] });
+  const auth = new KontenAuthentifizierung('/gibt/es/nicht.json', { kontenJson });
+  assert.equal((await auth.pruefe('online', 'geheim123')).ok, true);
+  assert.equal((await auth.pruefe('online', 'falsch')).ok, false);
+});

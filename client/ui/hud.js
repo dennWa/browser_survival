@@ -15,6 +15,8 @@ const MELDUNG_DAUER_MS = 2600;
 const MAX_MELDUNGEN = 4;
 const LANGES_DRUECKEN_MS = 500;
 const ICON_GROESSE = 48;
+const CHAT_ZEILEN = 8;
+const CHAT_SICHTBAR_MS = 15000;
 
 export class Hud {
   #aktionen = {};
@@ -60,6 +62,12 @@ export class Hud {
       arbeitText: el('hud-arbeit-text'),
       licht: el('hud-licht'),
       karte: el('hud-karte'),
+      chatKnopf: el('hud-chat'),
+      chat: el('chat'),
+      chatLog: el('chat-log'),
+      chatForm: el('chat-form'),
+      chatEingabe: el('chat-eingabe'),
+      spielerliste: el('spielerliste'),
       admin: el('hud-admin'),
       adminPanel: el('admin-panel'),
     };
@@ -79,6 +87,18 @@ export class Hud {
     this.el.wiederbeleben.addEventListener('click', () => this.#aktionen.wiederbeleben?.());
     this.el.licht.addEventListener('click', () => this.#aktionen.licht?.());
     this.el.karte.addEventListener('click', () => this.#aktionen.karte?.());
+    this.el.chatKnopf.addEventListener('click', () => this.chatOeffnen());
+    this.el.status.addEventListener('click', () => this.#aktionen.spielerliste?.()); // Touch: Statuszeile antippen
+    this.el.chatForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const text = this.el.chatEingabe.value.trim();
+      if (text) this.#aktionen.chat?.(text);
+      this.chatSchliessen();
+    });
+    this.el.chatEingabe.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') this.chatSchliessen();
+    });
+    this.el.chatEingabe.addEventListener('blur', () => setTimeout(() => this.chatSchliessen(), 0));
     this.el.admin.addEventListener('click', () => this.adminMenuUmschalten());
     for (const knopf of this.el.adminPanel.querySelectorAll('button[data-befehl]')) {
       knopf.addEventListener('click', () => this.#aktionen.admin?.(knopf.dataset.befehl));
@@ -124,7 +144,7 @@ export class Hud {
     this.el.vollbild.hidden = !istTouch || !document.fullscreenEnabled;
     this.el.hilfe.textContent = istTouch
       ? 'Links: laufen · Rechts: zielen, ganz drücken = Angriff'
-      : 'WASD laufen · Maus zielen · Klick/Leertaste Angriff · E benutzen · F Tür · R nachladen · L Lampe · K Karte · 1–8 Inventar';
+      : 'WASD laufen · Maus zielen · Klick/Leertaste Angriff · E benutzen · F Tür · R nachladen · L Lampe · K Karte · T Chat · Tab Spieler · 1–8 Inventar';
     this.#letzterHinweis = null;
     this.#letzterTuerHinweis = null;
     this.#letzteUhr = '';
@@ -138,6 +158,9 @@ export class Hud {
     this.el.arbeit.hidden = true;
     this.werkbank.zeige(null);
     this.entwickler.zeige(false);
+    this.chatSchliessen();
+    this.el.chatLog.replaceChildren();
+    this.el.spielerliste.hidden = true;
     this.#istAdmin = false;
     this.#nachtsicht = false;
     this.#schalterStand = '';
@@ -305,6 +328,41 @@ export class Hud {
         if (e.pointerType !== 'touch') this.#aktionen.ablegen?.(slot);
       });
     }
+  }
+
+  /** Chatzeile anzeigen: { von, text, admin, system } – verblasst nach CHAT_SICHTBAR_MS */
+  chatNachricht(n) {
+    const zeile = Object.assign(this.dokument.createElement('div'), { className: `chat-zeile${n.system ? ' system' : ''}${n.admin ? ' admin' : ''}` });
+    if (n.system) zeile.textContent = n.text;
+    else zeile.append(Object.assign(this.dokument.createElement('b'), { textContent: `${n.von}: ` }), n.text);
+    this.el.chatLog.append(zeile);
+    while (this.el.chatLog.children.length > CHAT_ZEILEN) this.el.chatLog.firstElementChild.remove();
+    setTimeout(() => zeile.classList.add('alt'), CHAT_SICHTBAR_MS);
+  }
+
+  chatOeffnen() {
+    this.el.chatForm.hidden = false;
+    this.el.chat.classList.add('offen');
+    this.el.chatEingabe.focus();
+  }
+
+  chatSchliessen() {
+    if (this.el.chatForm.hidden) return;
+    this.el.chatEingabe.value = '';
+    this.el.chatForm.hidden = true;
+    this.el.chat.classList.remove('offen');
+    this.el.chatEingabe.blur();
+  }
+
+  /** Wer ist online? (Tab) */
+  spielerlisteUmschalten(namen) {
+    const el = this.el.spielerliste;
+    el.hidden = !el.hidden;
+    if (el.hidden) return;
+    el.replaceChildren(
+      Object.assign(this.dokument.createElement('h3'), { textContent: `${namen.length} online` }),
+      ...namen.map((name) => Object.assign(this.dokument.createElement('div'), { textContent: name })),
+    );
   }
 
   /** Werkbank-Menü zeigen (rezepte = null → schließen). */

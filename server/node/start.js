@@ -16,6 +16,8 @@ import { bindeWebsocketServer } from './websocketAnbindung.js';
  *   PORT=8080        HTTP/WebSocket-Port
  *   GAST_MODUS=1     Login ohne Account (nur zum Testen!) – alternativ: npm run start:gast
  *   SPIELSTAENDE=…   Ordner für Spielstände (Standard: server/daten/spielstaende)
+ *   KONTEN_JSON=…    Accounts direkt als JSON (statt server/daten/konten.json) – praktisch beim Online-Hoster;
+ *                    den Text erzeugt  npm run konto -- <name> <passwort>  (steht am Ende der Ausgabe)
  */
 const WURZEL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const DATEN = path.join(WURZEL, 'server/daten');
@@ -23,7 +25,9 @@ const PORT = Number(process.env.PORT ?? 8080);
 const KONTEN_DATEI = path.join(DATEN, 'konten.json');
 
 const gastModus = process.env.GAST_MODUS === '1' || process.argv.includes('--gast');
-const authentifizierung = gastModus ? new GastAuthentifizierung() : new KontenAuthentifizierung(KONTEN_DATEI);
+const authentifizierung = gastModus
+  ? new GastAuthentifizierung()
+  : new KontenAuthentifizierung(KONTEN_DATEI, { kontenJson: process.env.KONTEN_JSON || null });
 
 const spielServer = new SpielServer({
   authentifizierung,
@@ -40,7 +44,7 @@ spielServer.starten();
 httpServer.listen(PORT, () => {
   console.info(`[Server] Spiel erreichbar unter http://localhost:${PORT}`);
   if (gastModus) console.warn('[Server] GAST_MODUS aktiv – jeder kann sich ohne Passwort einloggen!');
-  else if (!existsSync(KONTEN_DATEI)) {
+  else if (!existsSync(KONTEN_DATEI) && !process.env.KONTEN_JSON) {
     console.warn('[Server] Keine Accounts vorhanden. Anlegen mit: npm run konto -- <name> <passwort>');
   }
 });

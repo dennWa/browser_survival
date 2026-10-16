@@ -1,7 +1,8 @@
 # Browser Survival
 
 Top-Down-Survival in 3D im Browser – Mehrspieler mit autoritativem Node.js-Server.
-Karte: ein Stadtrand rund ums St.-Elisabeth-Krankenhaus. Plündern, Türen verrammeln, die Nacht überleben.
+Karte: ein Stadtrand rund ums St.-Elisabeth-Krankenhaus. Plündern, Holz & Stein sammeln, an der Werkbank bauen,
+Türen verrammeln, die Nacht überleben – allein oder mit Freunden.
 
 ## Schnellstart
 
@@ -17,9 +18,10 @@ oder **"Dieser Server"** für Mehrspieler mit Account. Das Spiel braucht WebGL (
 Ein Tag dauert 10 Minuten, eine Nacht 5 – nachts kommt eine Horde. Türen sind zu und lassen sich öffnen/schließen.
 Im Lokal-Modus bist du automatisch Admin (🛡-Menü). Spielstände werden automatisch gespeichert (Server: `server/daten/spielstaende/`, Lokal: im Browser).
 
-Steuerung: **WASD** laufen · **Maus** zielen · **Klick/Leertaste** Angriff · **E** aufheben · **F** Tür auf/zu · **R** nachladen ·
+Steuerung: **WASD** laufen · **Maus** zielen · **Klick/Leertaste** Angriff · **E** benutzen (aufheben, Baum fällen, Stein abbauen, Werkbank, schlafen) · **F** Tür auf/zu · **R** nachladen ·
+**K** Karte · **T** Chat · **Tab** Spielerliste ·
 **1–8** Inventar benutzen/ausrüsten · **Rechtsklick** auf Inventarplatz = ablegen · **Shift** sprinten · **L** Taschenlampe an/aus (nachts: aus = Zombies sehen dich schlechter) · **Enter** (tot) sofort wiederbeleben · **P** Admin-Menü · **M** Ton · **F3** Debug
-Handy/Tablet: **linker Daumen** laufen · **rechter Daumen** zielen (ganz durchdrücken = Angriff) · Knöpfe für Tür/Aufheben/Nachladen/🔦/🛡 · Inventarplatz lange drücken = ablegen
+Handy/Tablet: **linker Daumen** laufen · **rechter Daumen** zielen (ganz durchdrücken = Angriff) · Knöpfe für Aktion/Tür/Nachladen/🗺/💬/🔦/🛡 · Inventarplatz lange drücken = ablegen
 
 ## Weitere Befehle
 
@@ -29,7 +31,16 @@ Handy/Tablet: **linker Daumen** laufen · **rechter Daumen** zielen (ganz durchd
 | `npm test` | Automatische Tests |
 | `PORT=3000 npm start` | Anderer Port |
 
-Server-Balancing anpassen: `server/daten/einstellungen.beispiel.json` nach `einstellungen.json` kopieren und Werte ändern.
+Werte anpassen ohne Code: im Spiel **Admin-Menü → 🛠 Developer** (Lokal-Modus: man ist immer Admin). Änderungen bleiben gespeichert
+(Server: `server/daten/einstellungen.json`, Lokal: im Browser). **Crafting-Rezepte:** `server/spiel/konfiguration/rezepte.js`.
+
+## Online stellen (mit Freunden spielen)
+
+1. Bei [Render](https://render.com) anmelden → **New + → Blueprint** → dieses Repository wählen (liest `render.yaml`).
+2. Accounts anlegen: lokal `npm run konto -- Name Passwort` (mit `--admin` für dich) – die letzte Ausgabezeile
+   ist der Wert für die Umgebungsvariable **`KONTEN_JSON`** → in Render unter *Environment* eintragen.
+3. Im Spiel als Server **„Dieser Server“** wählen. Der kostenlose Plan hat keine dauerhafte Festplatte (Spielstände
+   gehen bei Neustarts verloren) – für dauerhaftes Speichern einen Plan mit *Disk* nehmen.
 
 Grafiken neu erzeugen (nur bei Grafik-Änderungen, braucht Python 3):
 `python3 -m venv .venv && .venv/bin/pip install -r werkzeuge/assets/anforderungen.txt && .venv/bin/python werkzeuge/assets/baue_assets.py && npm run assets:3d`

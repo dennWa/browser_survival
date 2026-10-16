@@ -134,6 +134,20 @@ export class ClientSpiel {
     this.karte.zeige(offen);
   }
 
+  chat(text) {
+    this.#senden({ typ: NACHRICHT.CHAT, text });
+  }
+
+  /** Namen aller Spieler im letzten Schnappschuss (für die Spielerliste). */
+  spielerNamen() {
+    const letzter = this.schnappschuesse[this.schnappschuesse.length - 1];
+    if (!letzter) return [];
+    return [...letzter.entitaeten.values()]
+      .filter((e) => e.typ === 'spieler')
+      .map((e) => (e.id === this.eigeneId ? `${e.name} (du)` : e.name))
+      .sort((a, b) => a.localeCompare(b));
+  }
+
   /** Developer-Modus (nur Admins – der Server prüft das). */
   entwickler(typ, daten = {}) {
     if (this.spielerDaten?.admin) this.#senden({ typ, ...daten });
@@ -165,7 +179,8 @@ export class ClientSpiel {
     const ressource = this.welt.naechsteRessource(x, y, ABBAU_REICHWEITE);
     if (ressource) return { art: 'abbauen', text: RESSOURCEN_OBJEKTE[ressource.typ].aktion, symbol: ressource.art === 'holz' ? '🪓' : '⛏' };
     if (this.#naheWerkbank()) return { art: 'werkbank', text: 'Werkbank benutzen', symbol: '🔨' };
-    if (this.welt.naechstesObjekt(x, y, BETT_REICHWEITE, (o) => o.typ.startsWith('bett'))) return { art: 'schlafen', text: 'Schlafen', symbol: '🛏' };
+    const verletzt = this.spielerDaten && this.spielerDaten.leben < this.spielerDaten.maxLeben;
+    if (verletzt && this.welt.naechstesObjekt(x, y, BETT_REICHWEITE, (o) => o.typ.startsWith('bett'))) return { art: 'schlafen', text: 'Schlafen (heilt)', symbol: '🛏' };
     return null;
   }
 
@@ -231,6 +246,10 @@ export class ClientSpiel {
         break;
       case NACHRICHT.GEGENSTAENDE:
         this.gegenstaende = n.gegenstaende;
+        break;
+      case NACHRICHT.CHAT:
+        this.hud.chatNachricht(n);
+        if (!n.system && n.von) this.sound?.spiele('aufheben', { lautstaerke: 0.4 });
         break;
       case NACHRICHT.DEV_WERTE:
         this.hud.entwickler.setzeWerte(n.felder, n.ueberschreibungen);

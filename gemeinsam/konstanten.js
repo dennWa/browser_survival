@@ -4,10 +4,10 @@
  */
 
 export const SPIEL_NAME = 'Browser Survival';
-export const SPIEL_VERSION = '0.6.0';
+export const SPIEL_VERSION = '0.7.0';
 
 /** Wird beim Login verglichen. Erhöhen, sobald sich das Nachrichtenformat inkompatibel ändert. */
-export const PROTOKOLL_VERSION = 3;
+export const PROTOKOLL_VERSION = 4;
 
 /** Simulationstakt (Ticks pro Sekunde). Server-Simulation und Client-Vorhersage laufen im selben Takt. */
 export const TICK_RATE = 30;
@@ -32,6 +32,10 @@ export const TUER_REICHWEITE = 40;
 /** Reichweite (px, bis zum Rand) für Werkbank (Crafting) und Bett (Schlafen). */
 export const WERKBANK_REICHWEITE = 48;
 export const BETT_REICHWEITE = 56;
+
+/** Chat: maximale Länge einer Nachricht und Mindestabstand zwischen zwei Nachrichten (Spam-Schutz). */
+export const CHAT_MAX_LAENGE = 160;
+export const CHAT_PAUSE_MS = 700;
 
 /** Benutzernamen: 2–20 Zeichen, Buchstaben, Ziffern, _ und -. */
 export const BENUTZERNAME_MUSTER = /^[A-Za-z0-9_\-äöüÄÖÜß]{2,20}$/;

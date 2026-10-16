@@ -149,3 +149,25 @@ test('Developer-Modus: nur Admins dürfen Werte ändern – wirkt sofort und wir
   assert.equal(server.konfiguration.spieler.geschwindigkeit, 150);
   assert.equal(gespeichert.at(-1).spieler?.geschwindigkeit, undefined);
 });
+
+test('Chat: Nachricht geht an alle, wird bereinigt, Spam wird gebremst, Beitritt wird angesagt', async (t) => {
+  const server = neuerServer();
+  t.after(() => server.stoppen());
+  const anmelden = async (name) => {
+    const c = verbinde(server);
+    c.senden({ typ: NACHRICHT.ANMELDEN, benutzername: name, passwort: '', protokoll: PROTOKOLL_VERSION });
+    await warteAuf(() => c.empfangen.some((n) => n?.typ === NACHRICHT.ANMELDUNG_OK), `Login ${name}`);
+    return c;
+  };
+  const anna = await anmelden('Anna');
+  const ben = await anmelden('Ben');
+  await warteAuf(() => anna.empfangen.some((n) => n?.typ === NACHRICHT.CHAT && n.system && n.text.includes('Ben')), 'Beitritt angesagt');
+
+  ben.senden({ typ: NACHRICHT.CHAT, text: '  Hallo\n   zusammen!  ' });
+  ben.senden({ typ: NACHRICHT.CHAT, text: 'Spam' });
+  await warteAuf(() => anna.empfangen.some((n) => n?.typ === NACHRICHT.CHAT && n.von === 'Ben'), 'Chat angekommen');
+  await warte(20);
+  const nachrichten = anna.empfangen.filter((n) => n?.typ === NACHRICHT.CHAT && n.von === 'Ben');
+  assert.equal(nachrichten.length, 1, 'zweite Nachricht zu schnell → verworfen');
+  assert.equal(nachrichten[0].text, 'Hallo zusammen!');
+});

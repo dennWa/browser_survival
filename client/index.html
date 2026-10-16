@@ -34,6 +34,7 @@
           <span id="hud-status"></span>
         </div>
         <div class="hud-knoepfe">
+          <button id="hud-chat" type="button" title="Chat (T)">💬</button>
           <button id="hud-karte" type="button" title="Karte (K)">🗺</button>
           <button id="hud-licht" type="button" title="Taschenlampe an/aus (L) – aus = Zombies sehen dich schlechter">🔦</button>
           <button id="hud-admin" type="button" title="Admin-Menü (P)" hidden>🛡</button>
@@ -49,6 +50,15 @@
         <div class="wert" id="wert-ausdauer" title="Ausdauer (Shift = sprinten)"><span class="symbol">⚡</span><div class="balken"><div class="fuellung"></div></div></div>
       </div>
       <pre id="hud-debug" hidden></pre>
+      <!-- Chat: T öffnet das Eingabefeld, Enter schickt ab -->
+      <div id="chat">
+        <div id="chat-log" aria-live="polite"></div>
+        <form id="chat-form" hidden autocomplete="off">
+          <input id="chat-eingabe" type="text" maxlength="160" placeholder="Nachricht an alle … (Enter)" enterkeyhint="send" />
+        </form>
+      </div>
+      <!-- Spielerliste (Tab) -->
+      <div id="spielerliste" hidden></div>
       <!-- Admin-Menü (nur für Accounts mit Admin-Recht; der Server prüft jeden Befehl) -->
       <div id="admin-panel" hidden>
         <h3>Admin</h3>

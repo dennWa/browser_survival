@@ -10,7 +10,8 @@
 
 Top-Down-Survival in **3D** (schräge Vogelperspektive, Three.js) im Browser – für PC/Laptop, spielbar auch auf
 Handy & Tablet. Gameplay bleibt flach (2D auf dem Boden), nur die Darstellung ist 3D.
-Startkarte: **Stadtrand mit dem St.-Elisabeth-Krankenhaus** (110 × 86 Kacheln). Tag & Nacht, Türen, Horde.
+Startkarte: **Stadtrand mit dem St.-Elisabeth-Krankenhaus** (110 × 86 Kacheln). Tag & Nacht, Türen, Horde,
+Ressourcen (Holz, Stein), Crafting an Werkbänken, Schlafen, Karte mit Erkundung, Chat, Developer-Modus.
 
 | Thema | Entscheidung |
 |---|---|
@@ -24,6 +25,8 @@ Startkarte: **Stadtrand mit dem St.-Elisabeth-Krankenhaus** (110 × 86 Kacheln).
 | Modi | **Lokal**: echter SpielServer läuft im Browser-Tab (ohne Account) · **Mehrspieler**: Node-Server, Login mit Account |
 | Accounts | Keine Registrierung. Admin legt Accounts an: `npm run konto -- <name> <passwort> [--admin]` (scrypt-Hash in `server/daten/konten.json`) |
 | Admin-Recht | `"admin": true` im Konto (bzw. `--admin`) → Admin-Menü 🛡 (Taste P): Gottmodus, Unsichtbar, Heilen, Waffen, Zombie spawnen/alle töten, Tag ⇄ Nacht, Nachtsicht. Lokal-Modus: immer Admin. Der Server prüft jeden Befehl. |
+| Developer-Modus | Admin-Menü → 🛠 Developer: Werte aus `entwicklerFelder.js` ingame ändern; dauerhaft in `server/daten/einstellungen.json` (Node) bzw. im Browser (Lokal) |
+| Online stellen | `render.yaml` (Render-Blueprint), Accounts per Umgebungsvariable `KONTEN_JSON` (Text gibt `npm run konto` aus) |
 | Zielgröße | Einige bis ein paar Dutzend gleichzeitige Spieler pro Server (Standard: max. 32) |
 
 ### Starten
@@ -61,13 +64,15 @@ im Node-Server (Mehrspieler) und im Browser (Lokal-Modus). Client und Server spr
 
 ### Datenfluss pro Tick (30×/s)
 1. Client: Tasten lesen → `EINGABE {seq, x, y, blick, angriff}` senden **und** Bewegung sofort lokal anwenden (Vorhersage).
-   Einmalige Aktionen (aufheben, benutzen, ablegen, nachladen, tuer, licht, wiederbeleben, admin) gehen als `AKTION {art, slot?, befehl?}`.
+   Einmalige Aktionen (aufheben, benutzen, ablegen, nachladen, tuer, abbauen, schlafen, herstellen, licht, wiederbeleben,
+   admin) gehen als `AKTION {art, slot?, befehl?, rezept?}`. Chat: `CHAT {text}`; Developer: `DEV_ABFRAGEN/SETZEN/ZURUECKSETZEN`.
 2. Server: Eingaben/Aktionen prüfen → Puffer des Spielers (je max. 8)
 3. Server-Tick `SpielWelt.aktualisiere()` – Systeme in fester Reihenfolge:
    Aktionen ablaufen lassen → Bewegung → Inventar-Aktionen → Nachladen → Kampf (Spielerangriffe)
-   → Zombie-KI → Überleben (Hunger/Durst/Respawn) → Loot-Nachschub → Tageszeit (Uhr, Horde)
+   → Arbeit (Abbauen, Schlafen, Nachwachsen) → Zombie-KI → Überleben (Hunger/Durst/Respawn) → Loot-Nachschub → Tageszeit (Uhr, Horde)
 4. Server sendet an alle: `ZUSTAND` (Spieler & Zombies, Uhrzeit `zeit`/`tag` + `ereignisse` des Ticks: Schüsse,
-   Treffer, Tode, Türen …), `GEGENSTAENDE` und `TUEREN` nur bei Änderung. An jeden einzeln: `SPIELER_DATEN` (Inventar, Hunger, Durst … nur bei Änderung)
+   Treffer, Tode, Türen, Hacken …), `GEGENSTAENDE`, `TUEREN`, `RESSOURCEN` nur bei Änderung; `CHAT` und
+   `EINSTELLUNGEN` (nach Developer-Änderungen: Physik, Tageslänge, Item-Werte) an alle. An jeden einzeln: `SPIELER_DATEN` (Inventar, Hunger, Durst … nur bei Änderung)
    und `MELDUNG`en ("Inventar voll").
 5. Client: eigene Position übernehmen + unbestätigte Eingaben nachspielen (Reconciliation); andere Entitäten
    100 ms verzögert interpolieren; Ereignisse → Effekte (fremde ebenfalls 100 ms verzögert, eigene sofort).
@@ -86,6 +91,15 @@ im Node-Server (Mehrspieler) und im Browser (Lokal-Modus). Client und Server spr
   F / 🚪 öffnet/schließt die nächste Tür (≤ `TUER_REICHWEITE`); schließen geht nicht, wenn jemand drinsteht.
   Geschlossen = blockiert Laufen, Sicht und Schüsse. Zombies planen per A* durch Türen (`tuerKosten`) und schlagen
   sie auf (`welt.tuerLeben` Schaden), danach ist die Tür offen.
+- **Start:** im Schlafzimmer eines Wohnhauses neben dem Bett, mit Pistole (15 Schuss, in der Hand), Axt und
+  Spitzhacke (`spieler.startInventar`) – nach dem Tod wieder. Das alte Inventar liegt `loot.todesVerfall` (180 s) am Boden.
+- **Taste E / Aktions-Knopf** macht das Naheliegendste: Gegenstand aufheben → Baum/Stein abbauen → Werkbank → Schlafen.
+- **Ressourcen** (`gemeinsam/welt/ressourcen.js`, `arbeitSystem.js`): Baum (Axt) → 2 Holz, Stein (Spitzhacke) → 2 Stein,
+  je 5 s (`konfiguration.ressourcen`). Bewegung/Angriff/Schaden bricht ab. Abgebautes wächst nach (Holz 300 s, Stein 240 s).
+- **Crafting** (`craftingSystem.js`, Rezepte in `konfiguration/rezepte.js`): an einer Werkbank (Wohnhäuser, Werkstatt);
+  Menü mit Kategorien. Bretter verstärken geschlossene Türen (+`welt.tuerVerstaerkung`, max. 4× Haltbarkeit).
+- **Schlafen:** im Bett (verletzt, keine jagenden Zombies in `schlafen.zombieAbstand`) heilt `heilungProSekunde`;
+  Bewegung oder Schaden weckt auf.
 - **Kampf:** Schusswaffen = Strahl (Hitscan) bis zur ersten Wand, Schrotflinte mit 7 Projektilen + Streuung;
   leeres Magazin → automatisch nachladen (falls Munition da), sonst "Klick". Nahkampf = Trefferkegel ±57° vor der
   Figur; ohne Waffe **Faustschlag** (5 Schaden, `UNBEWAFFNET` in `gegenstaende.js`). PvP standardmäßig aus (`kampf.pvp`).
@@ -100,6 +114,8 @@ im Node-Server (Mehrspieler) und im Browser (Lokal-Modus). Client und Server spr
   identisch). Sprinten ist laut (`sprintHoerRadius`).
 - **Zombie-Varianten** (`konfiguration.zombie.varianten`): normal, Läufer (schnell, schwach, blass), Brocken
   (langsam, zäh, starker Biss, groß). Ruhende Zombies schlurfen im `wanderRadius` um ihren Spawnpunkt.
+- **Karte** (K / 🗺, `client/ui/karte.js`): zeigt nur erkundete Bereiche (Umkreis 9 Kacheln), gespeichert im Browser
+  pro Server + Account. **Chat** (T / 💬), **Spielerliste** (Tab / Statuszeile antippen), Beitritt/Verlassen wird angesagt.
 
 ### Spielstände
 Beim Login lädt der SpielServer den Stand über eine austauschbare **Speicher-Schnittstelle**
@@ -120,18 +136,23 @@ Skins) und schreibt `client/assets/atlas.json` + `LIZENZEN.md`. Danach **immer**
 **Lizenzpflicht:** CC-BY-Grafiken (Survival Props) verlangen Namensnennung → Credits-Dialog im Login
 (Daten aus `atlas.json → lizenzen`). Nicht entfernen!
 
-### Darstellung (Three.js, `client/darstellung/renderer.js`)
+### Darstellung (Three.js, `client/darstellung/renderer.js` + `kartenModell.js`)
 Gameplay bleibt flach (x/y); Weltpixel x → three.x, y → three.z, Höhe → three.y (1 Einheit = 1 Weltpixel).
+**Performance (Ziel 60 FPS):** Karte in ~100 Draw-Calls (Möbel zusammengefasst, Bäume/Steine/Wände instanziert,
+statische Matrizen eingefroren), feste Lichteranzahl (6er Lampen-Pool für die nächsten Kartenlampen, 3 Taschenlampen,
+2 Mündungsblitze → keine Shader-Neubauten), alle Shader beim Laden vorkompiliert, adaptive Auflösung, Vignette/
+Schadensblitz per CSS, ferne Figuren werden nicht animiert. F3 zeigt Draw-Calls & Auflösung.
 - Boden = `BodenTextur` (ganze Karte in ein Canvas: Texturen, Asphalt, Straßenmarkierungen, Gehwegplatten, Teppiche,
   Türschwellen) als Textur; Innenräume abgedunkelt (kein Dach)
 - Wände = InstancedMesh-Blöcke (+ Sturz über Türen), Fenster mit Glas; Möbel = Quader mit Sprite-Deckel
-  (`MOEBEL_HOEHE`); Bäume Stamm + Krone
+  (`MOEBEL_HOEHE`), Werkbank aus Quadern; Bäume Stamm + Krone (gefällt → Stumpf), Steine als Felsbrocken
 - **Türen** = Flügel mit Scharnier, schwingen weich auf/zu (folgen `welt.istTuerOffen`)
 - **Wand-Schnitt:** Wände/Türen zwischen Kamera und eigener Figur werden nahe der Figur per Shader weggeschnitten
   (`#mitSchnitt`, `SCHNITT_RADIUS`) – man sieht sich auch hinter Südwänden
 - **Figuren** = Kenney "Animated Characters 3" (Skins pro Zombie-Variante), Animationen stehen/rennen; darüber
   prozedurale **Arm-Haltung** (`figurHaltung.js`): Pistole beidhändig, Flinte an der Schulter, Rückstoß beim Schuss,
-  Nachladen, Nahkampf-Schwung, Faustschlag, Taschenlampe in der linken Hand, Zombies mit ausgestreckten Armen
+  Nachladen, Nahkampf-Schwung, Faustschlag, Hacken mit Axt/Spitzhacke, Taschenlampe in der linken Hand,
+  Zombies mit ausgestreckten Armen; Schlafende liegen im Bett
 - **Waffen** = prozedurale Modelle (`waffenModelle.js`), Auswahl über `spieler.waffe` (Item-ID, z. B. `hammer`)
 - **Licht:** Sonne/Mond wandern mit der Tageszeit, Himmel-/Nebelfarbe Tag → Dämmerung → Nacht (`#tageslicht`);
   Taschenlampen als SpotLights aus der Lampe/Mündung; Kartenlampen nur bei Dunkelheit; Mündungsfeuer
@@ -139,13 +160,15 @@ Gameplay bleibt flach (x/y); Weltpixel x → three.x, y → three.z, Höhe → t
 
 ### Sound
 `client/audio/sound.js`: komplett synthetisch (Web Audio, keine Dateien). Räumlich (Entfernung + Stereo).
-Auslöser: Server-Ereignisse (`feuer`, `treffer`, `tod`, `nahkampf`, `leer`, `tuer`, `tuerSchlag`), Änderungen der
+Auslöser: Server-Ereignisse (`feuer`, `treffer`, `tod`, `nahkampf`, `leer`, `tuer`, `tuerSchlag`, `hack`, `abgebaut`,
+`hergestellt`, `tuerVerstaerkt`), Chat, Änderungen der
 eigenen Daten (essen, trinken, aufheben, nachladen), Schritte (Vorhersage), zufälliges Zombie-Stöhnen. Taste M / 🔊.
 
 ### Login-Ablauf
 `LoginBildschirm` → `verbindungAufbauen()` (Lokal oder WebSocket) → `anmelden()` sendet `ANMELDEN`
 → Server: Protokollversion prüfen → Name prüfen → `authentifizierung.pruefe()` → Doppel-Login/Server-voll prüfen
-→ `ANMELDUNG_OK` (Karte, Startposition, Physik, Gegenstände, offene Türen, Uhrzeit) → `ClientSpiel` startet.
+→ `ANMELDUNG_OK` (Karte, Startposition, Physik, Gegenstände, offene Türen, abgebaute Ressourcen, Rezepte, Uhrzeit)
+→ `ClientSpiel` startet.
 Schutz: 20 s Login-Timeout, nach 5 Fehlversuchen Verbindung trennen, gleiche Fehlermeldung für
 "unbekannter Name" und "falsches Passwort".
 
@@ -167,14 +190,16 @@ browser_survival/
 │   ├── mathe.js                   lerp, Winkel-Interpolation, normalisiere …
 │   ├── tageszeit.js               Uhrzeit, Tag/Nacht, Helligkeit aus Sekunden (Server-Logik + Client-Licht)
 │   ├── welt/kacheln.js            Kacheltypen (Zeichen → Name, blockiert?) + Marker (S, Z, a–z)
-│   ├── welt/welt.js               Klasse Welt: Kachelabfragen, istBlockiert, Türen (Gruppen, Zustand, naechsteTuer)
+│   ├── welt/welt.js               Klasse Welt: Kachelabfragen, istBlockiert, Türen, Ressourcen-Knoten, naechstesObjekt
+│   ├── welt/ressourcen.js         Welche Kartenobjekte abbaubar sind (Baum → Holz/Axt, Stein → Stein/Spitzhacke)
 │   └── physik/
 │       ├── bewegung.js            wendeEingabeAn, bewegeKoerper (Kollision) – deterministisch!
 │       └── strahl.js              Raycasts: strahlGegenWaende, sichtlinieFrei, wegFrei, strahlTrifftKreis
 │
 ├── server/
 │   ├── spiel/                     ── Autoritative Spiellogik (läuft in Node UND Browser) ──
-│   │   ├── spielServer.js         Sitzungen, Login, Nachrichten-Routing, Tick → Versand
+│   │   ├── spielServer.js         Sitzungen, Login, Nachrichten-Routing, Chat, Developer-Modus, Tick → Versand
+│   │   ├── entwickler.js          Developer-Werte lesen/setzen/zurücksetzen (inkl. Wirkung auf laufende Figuren)
 │   │   ├── spielWelt.js           Spielzustand: Entitäten-Map, Tick, Systemreihenfolge, Schnappschuss
 │   │   ├── taktgeber.js           Fester Simulationstakt (setTimeout-basiert)
 │   │   ├── zufall.js              Seedbarer Zufall (mulberry32)
@@ -190,6 +215,8 @@ browser_survival/
 │   │   │   ├── zombieSystem.js    Zombie-KI: Sicht, Verfolgen, Angriff, Türen aufbrechen, Horde, Respawn
 │   │   │   ├── tuerSystem.js      Türen öffnen/schließen, Aufbrechen durch Zombies
 │   │   │   ├── tageszeitSystem.js Uhr, Nachtbeginn (Horde) / Morgen (Horde zieht ab)
+│   │   │   ├── arbeitSystem.js    Arbeiten mit Dauer: Abbauen (Holz/Stein), Schlafen; Nachwachsen
+│   │   │   ├── craftingSystem.js  Herstellen an der Werkbank (prüft Nähe & Zutaten)
 │   │   │   ├── pfadfindung.js     A* auf dem Kachelraster (geschlossene Türen optional "teuer passierbar")
 │   │   │   ├── ueberlebenSystem.js Hunger, Durst, Heilung, Wiederbelebung
 │   │   │   └── lootSystem.js      Start-Loot, Nachschub an Loot-Punkten, Zombie-Beute
@@ -198,6 +225,8 @@ browser_survival/
 │   │   │   └── stadtrand.js       Standardkarte (ASCII, 110×86): Krankenhaus + Umgebung, Räume, Möbel, Lampen
 │   │   ├── konfiguration/
 │   │   │   ├── spielKonfiguration.js  Balancing-Standardwerte + Überschreib-Logik
+│   │   │   ├── rezepte.js         ★ Crafting-Rezepte (einfach selbst anpassbar, Anleitung im Kopf der Datei)
+│   │   │   ├── entwicklerFelder.js ★ Welche Werte der Developer-Modus anbietet
 │   │   │   ├── gegenstaende.js    Item-Datenbank (Essen, Trinken, Medizin, Waffen, Munition)
 │   │   │   └── lootTabellen.js    Welcher Raumtyp welche Items (gewichtet)
 │   │   ├── netz/speicherKanal.js  In-Memory-Kanal (Lokal-Modus, Tests) + Kanal-Schnittstelle
@@ -211,7 +240,7 @@ browser_survival/
 │   │   ├── kontenAuthentifizierung.js  Login gegen konten.json
 │   │   ├── passwort.js            scrypt-Hashing
 │   │   ├── dateiSpeicher.js       Spielstände als JSON-Dateien (atomar geschrieben)
-│   │   └── einstellungenLaden.js  einstellungen.json → Konfiguration
+│   │   └── einstellungenLaden.js  einstellungen.json laden + Developer-Änderungen zurückschreiben
 │   ├── werkzeuge/kontoAnlegen.js  CLI: npm run konto -- <name> <passwort>
 │   └── daten/                     konten.json, einstellungen.json, spielstaende/ (gitignored) + einstellungen.beispiel.json
 │
@@ -242,7 +271,9 @@ browser_survival/
 │   ├── audio/
 │   │   └── sound.js               Synthetisierte Geräusche (Rezepte), räumlicher Klang, Atmosphäre
 │   ├── darstellung/
-│   │   ├── renderer.js            Three.js-Szene: Kamera, Boden, Wände, Türen, Möbel, Figuren, Licht/Tageszeit, Wand-Schnitt, Overlay
+│   │   ├── renderer.js            Three.js: Kamera, Figuren, Licht/Tageszeit, Lampen-Pool, Effekte, Wand-Schnitt, Overlay, Vorkompilieren
+│   │   ├── kartenModell.js        Statische Karte in wenigen Draw-Calls: Boden, Wände, Möbel, Türen, Bäume/Steine (abbaubar), Lampen
+│   │   ├── geometrie.js           Geometrien zusammenfassen, Matrizen, Einfrieren
 │   │   ├── figurHaltung.js        Prozedurale Arm-Haltung (Zielen, Rückstoß, Schlag) + Waffe in der Hand
 │   │   ├── waffenModelle.js       Waffen-/Lampenmodelle aus einfachen Körpern
 │   │   ├── bodenTextur.js         Boden der ganzen Karte als Canvas (Texturen, Markierungen, Gehweg, Schwellen)
@@ -252,7 +283,10 @@ browser_survival/
 │   │   └── farben.js              Farben für Prozedurales + Ersatzfarben
 │   └── ui/
 │       ├── loginBildschirm.js     Login-Formular, Serverauswahl
-│       ├── hud.js                 Uhr, Balken, Schnellleiste, Munition, Tür-/Aufheben-/Nachladen-Knöpfe, Meldungen, Tod, Admin, Debug
+│       ├── hud.js                 Uhr, Balken, Schnellleiste, Aktions-/Tür-Knopf, Fortschritt, Chat, Spielerliste, Tod, Admin, Debug
+│       ├── werkbankMenue.js       Crafting-Menü (Kategorien, Zutaten, Herstellen)
+│       ├── karte.js               Karte mit Nebel (erkundete Bereiche, localStorage)
+│       ├── entwicklerFenster.js   Developer-Modus (Werte ändern, Export/Import)
 │       └── credits.js             Credits-Dialog (Grafik-Lizenzen)
 │
 └── tests/                         node:test – Karte, Bewegung, Server-Ablauf, Konten, Inhalte (Erreichbarkeit, Grafiken)
@@ -265,6 +299,16 @@ browser_survival/
 | Wunsch | Datei(en) |
 |---|---|
 | Zombie-Verhalten (Aggro, Verfolgen, Angriff, Umherschlurfen) | `server/spiel/systeme/zombieSystem.js` (+ Werte in `spielKonfiguration.js` → `zombie`) |
+| **Crafting-Rezepte** | `server/spiel/konfiguration/rezepte.js` (Anleitung steht oben in der Datei) |
+| **Werte ingame ändern** | Admin-Menü → 🛠 Developer; weitere Werte freischalten: `server/spiel/konfiguration/entwicklerFelder.js` |
+| Startausrüstung | `spielKonfiguration.js` → `spieler.startInventar` |
+| Abbau (Menge, Dauer, Nachwachsen) / was abbaubar ist | `spielKonfiguration.js` → `ressourcen`; Objekt→Ressource/Werkzeug: `gemeinsam/welt/ressourcen.js` |
+| Schlafen (Heilung) | `spielKonfiguration.js` → `schlafen`; Logik `arbeitSystem.js` |
+| Werkbänke, Steine, Betten, Spawn platzieren | `server/spiel/karten/stadtrand.js` (`objekte`: `werkbank`, `stein`; `S` = Start) |
+| Interaktion mit E (Reihenfolge) | `client/kern/clientSpiel.js` → `#interaktion` |
+| Karte (Sichtradius, Aussehen) | `client/ui/karte.js` |
+| Chat (Länge, Spam-Pause) | `gemeinsam/konstanten.js` → `CHAT_MAX_LAENGE`, `CHAT_PAUSE_MS`; UI `client/ui/hud.js` |
+| Grafik-Performance (Lampen-Pool, Auflösung, Sichtweite) | `client/darstellung/renderer.js` → `LAMPEN_POOL`, `AUFLOESUNG_MIN`, `SICHTWEITE` |
 | Zombie-Typen (Werte, Häufigkeit) | `spielKonfiguration.js` → `zombie.varianten`; Aussehen: `SKINS` in `client/darstellung/renderer.js` |
 | Tag-/Nachtlänge, Horde, Nacht-Wahrnehmung | `spielKonfiguration.js` → `welt.tagSekunden/nachtSekunden`, `zombie.nachtHorde/nachtTempoFaktor/nachtLichtFaktor/dunkelFaktor` |
 | Licht-Stimmung (Farben Tag/Nacht/Dämmerung) | `client/darstellung/renderer.js` → `TAG`, `NACHT`, `DAEMMERUNG`, `#tageslicht` |
@@ -391,10 +435,36 @@ browser_survival/
 - Admin: Tag ⇄ Nacht; Protokoll v3 (TUEREN, Uhrzeit, AKTION `tuer`)
 - Tests: 58
 
-### ⏳ Nächste Ideen (wartet auf Entscheidung)
-- Mehrspieler online: Render-Konfiguration (`render.yaml`), Accounts als Umgebungsvariable statt Datei
-- Barrikaden (Bretter vor Türen/Fenster), Crafting light (Verband, Molotow), Waffenhaltbarkeit
-- Minimap / Karte (Tab), kurzes Tutorial beim ersten Spawn
+### ✅ Phase 5 – Ressourcen, Crafting, Performance, Developer, Multiplayer-Basis (fertig, v0.7.0)
+- Performance: ~1000+ → ~95 Draw-Calls, Lampen-Pool, Shader vorkompiliert, adaptive Auflösung, A*-Budget
+- Holz & Stein abbauen (Axt/Spitzhacke, 5 s, Hack-Animation), Nachwachsen; Steine auf der Karte
+- Crafting an Werkbänken (Menü mit Kategorien), Rezeptdatei zum Selbst-Bearbeiten; Bretter verstärken Türen
+- Schlafen im Bett heilt; Spawn im Wohnhaus neben dem Bett; Startausrüstung Pistole/Axt/Spitzhacke
+- Todes-Loot verschwindet nach 3 min; Waffen (selten) in Wohnhäusern
+- Karte mit Nebel des Krieges (K); Chat (T), Spielerliste (Tab), Beitritt/Verlassen-Ansage
+- Developer-Modus mit dauerhafter Speicherung, Export/Import; Online-Deploy: `render.yaml`, `KONTEN_JSON`
+- Protokoll v4; Tests: 69
+
+### 💡 Ideen-Sammlung (für später, grob nach Aufwand)
+**Schnell umsetzbar**
+- Eisen (in der Werkstatt/Autos ausschlachten) → bessere Rezepte (Machete, Nägel, Munition)
+- Lagerfeuer bauen: Wärme in der Nacht, Essen braten (rohes Fleisch von Tieren)
+- Fenster verbarrikadieren, Fallen (Stacheldraht, Bärenfalle), Kiste als Lager im Haus
+- Waffenhaltbarkeit, Reparieren an der Werkbank
+- Tutorial-Hinweise beim ersten Start (E benutzen, Tür, Werkbank …), Erfolge/Statistik (Tage überlebt, Kills)
+**Mittel**
+- Bauen: Wände/Türen selbst setzen (Raster), Basis mit Spielern teilen
+- Tiere (Rehe, Hunde) zum Jagen; Fischen am Teich; Garten (Saatgut → Gemüse)
+- Fahrzeuge reparieren und fahren (Benzin von der Tankstelle)
+- Wetter (Regen, Nebel) – beeinflusst Sicht & Geräusche; Krankheiten/Infektion durch Bisse
+- Quests per Funkgerät ("Hole Medikamente aus der Apotheke") mit Belohnung
+**Groß**
+- Mehrere Karten (Stadt, Wald, Militärbasis) mit Übergängen; Evakuierungs-Finale
+- Gruppen/Clans, Handel zwischen Spielern, PvP-Zonen
+- Interest Management & Server-Sichtlinie (nur Sichtbares senden) für viele Spieler online
+
+### ⏳ Nächste Schritte (wartet auf Entscheidung)
+- Online stellen (Render, siehe `render.yaml`) und mit Freunden testen
 - Musik & echte Geräusch-Aufnahmen (statt Synthese)
 
 ### 🔭 Später
@@ -414,7 +484,9 @@ browser_survival/
 - Nahkampf trifft sofort beim Tastendruck (nicht erst im passenden Animationsframe)
 - Figuren-Animationen nur stehen/rennen; Arme werden prozedural gedreht (keine echte Animations-Mischung)
 - Leistung auf schwachen Handys: Schatten + große Bodentextur (3520×2752) – ggf. Qualitätsstufe nachrüsten
-- Uhrzeit wird nur gesendet, nicht gespeichert: Server-Neustart beginnt wieder am Morgen von Tag 1
+- Uhrzeit, abgebaute Ressourcen und Türen werden nicht gespeichert: Server-Neustart beginnt wieder am Morgen von Tag 1
+- Developer-Werte gelten im Lokal-Modus nur in diesem Browser (Export/Import zum Übertragen)
+- Render-Free-Plan: keine dauerhafte Festplatte → Spielstände & Einstellungen gehen beim Neustart verloren
 
 ---
 
@@ -428,3 +500,4 @@ browser_survival/
 | 0.4.0 | 2026-10-15 | Handy-Scroll-Fix, Sprint/Ausdauer, Zombie-Varianten, Umherschlurfen, Spielstände, Dunkelheit + Taschenlampe, Sound, 3D-Prototyp |
 | 0.5.0 | 2026-10-15 | Weniger/langsamere Zombies (nur draußen), Faust, Taschenlampe schaltbar (Tarnung), Sofort-Wiederbeleben, Admin-Modus (Gottmodus …) |
 | 0.6.0 | 2026-10-15 | Nur noch 3D, Karte „Stadtrand“, Türen (öffnen/schließen/aufbrechen), Tag & Nacht mit Horde, Waffen in der Hand + Haltungen, Wand-Schnitt (Protokoll v3) |
+| 0.7.0 | 2026-10-16 | Performance (~95 Draw-Calls), Holz & Stein abbauen, Crafting an Werkbänken, Schlafen, Start im Haus mit Pistole/Axt/Spitzhacke, Todes-Loot 3 min, Karte mit Erkundung, Developer-Modus, Chat & Spielerliste, Render-Deploy (Protokoll v4) |

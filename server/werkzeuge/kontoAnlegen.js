@@ -43,4 +43,6 @@ if (!vorhanden) daten.konten.push(konto);
 
 await mkdir(path.dirname(DATEI), { recursive: true });
 await writeFile(DATEI, JSON.stringify(daten, null, 2) + '\n');
+console.info('\nFür einen Online-Server ohne Dateien (z. B. Render): Umgebungsvariable KONTEN_JSON =');
+console.info(JSON.stringify({ konten: daten.konten.map(({ benutzername, passwortHash, admin }) => ({ benutzername, passwortHash, admin })) }));
 console.info((vorhanden ? `Passwort für "${benutzername}" geändert.` : `Account "${benutzername}" angelegt.`) + (konto.admin ? ' (Admin)' : ''));

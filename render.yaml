@@ -1,0 +1,20 @@
+# Online stellen bei Render (https://render.com) – kostenloser Web-Service reicht zum Ausprobieren.
+# Ablauf: Render-Konto → "New +" → "Blueprint" → dieses Repository wählen → Render liest diese Datei.
+# Danach unter Environment die Variable KONTEN_JSON setzen (Text erzeugt: npm run konto -- <name> <passwort> [--admin]).
+#
+# Hinweis: Der kostenlose Plan hat keine dauerhafte Festplatte → Spielstände & Developer-Einstellungen gehen bei
+# jedem Neustart/Deploy verloren. Für dauerhaftes Speichern: bezahlten Plan mit "Disk" nutzen und
+# SPIELSTAENDE=/var/data/spielstaende setzen.
+services:
+  - type: web
+    name: browser-survival
+    runtime: node
+    plan: free
+    buildCommand: npm install --omit=dev
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: KONTEN_JSON
+        sync: false # Wert im Render-Dashboard eintragen (nicht ins Repository!)

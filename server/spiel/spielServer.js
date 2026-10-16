@@ -1,5 +1,7 @@
 import {
   BENUTZERNAME_MUSTER,
+  CHAT_MAX_LAENGE,
+  CHAT_PAUSE_MS,
   INVENTAR_PLAETZE,
   MAX_EINGABE_PUFFER,
   PROTOKOLL_VERSION,
@@ -197,6 +199,9 @@ export class SpielServer {
       case NACHRICHT.PING:
         if (Number.isFinite(nachricht.t)) this.#senden(sitzung, { typ: NACHRICHT.PONG, t: nachricht.t });
         break;
+      case NACHRICHT.CHAT:
+        if (sitzung.status === 'imSpiel') this.#chat(sitzung, nachricht);
+        break;
       case NACHRICHT.DEV_ABFRAGEN:
       case NACHRICHT.DEV_SETZEN:
       case NACHRICHT.DEV_ZURUECKSETZEN:
@@ -273,6 +278,7 @@ export class SpielServer {
       tag: this.spielWelt.tag,
     });
     this.log.info?.(`[Server] ${name} ist beigetreten (${this.spielerAnzahl} online)`);
+    this.#anAlle({ typ: NACHRICHT.CHAT, system: true, text: `${name} ist beigetreten` });
   }
 
   /** Spielstand sichern – Daten werden SOFORT erfasst, das Schreiben läuft im Hintergrund. */
@@ -326,6 +332,23 @@ export class SpielServer {
     spieler.aktionsPuffer.push(aktion);
   }
 
+  /** Chat: Text prüfen (Länge, Steuerzeichen, Spam-Pause) und an alle verteilen. */
+  #chat(sitzung, n) {
+    if (typeof n.text !== 'string') return;
+    // Steuerzeichen raus, Leerraum zusammenfassen
+    const text = n.text.replace(/[\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim().slice(0, CHAT_MAX_LAENGE);
+    const jetzt = Date.now();
+    if (!text || jetzt - (sitzung.letzterChat ?? 0) < CHAT_PAUSE_MS) return;
+    sitzung.letzterChat = jetzt;
+    const spieler = this.spielWelt.holen(sitzung.spielerId);
+    this.#anAlle({ typ: NACHRICHT.CHAT, von: sitzung.benutzername, text, admin: !!spieler?.admin });
+  }
+
+  #anAlle(nachricht) {
+    const text = kodiere(nachricht);
+    for (const s of this.sitzungen) if (s.status === 'imSpiel') s.kanal.senden(text);
+  }
+
   /** Developer-Modus: nur für Admins. Werte setzen → sofort wirksam, an alle verteilt, dauerhaft gespeichert. */
   #entwickler(sitzung, n) {
     const spieler = this.spielWelt.holen(sitzung.spielerId);
@@ -365,6 +388,7 @@ export class SpielServer {
       if (!this.gestoppt) this.#speichere(sitzung); // beim Stopp ist schon gespeichert
       this.spielWelt.entfernen(sitzung.spielerId);
       this.log.info?.(`[Server] ${sitzung.benutzername} hat das Spiel verlassen (${grund ?? 'getrennt'})`);
+      if (!this.gestoppt) this.#anAlle({ typ: NACHRICHT.CHAT, system: true, text: `${sitzung.benutzername} hat das Spiel verlassen` });
     }
   }
 }

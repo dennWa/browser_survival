@@ -18,6 +18,8 @@ export const NACHRICHT = Object.freeze({
   AKTION: 'aktion',
   /** { t } – Zeitstempel des Clients, kommt als PONG zurück */
   PING: 'ping',
+  /** { text } – Chatnachricht an alle (max. CHAT_MAX_LAENGE Zeichen) */
+  CHAT: 'chat',
   /** {} – Developer-Modus: aktuelle Werte anfordern (nur Admins) */
   DEV_ABFRAGEN: 'devAbfragen',
   /** { werte: { pfad: zahl } } – Developer-Modus: Werte setzen (nur Admins; Pfade aus entwicklerFelder.js) */
@@ -46,6 +48,7 @@ export const NACHRICHT = Object.freeze({
   RESSOURCEN: 'ressourcen',
   /** { t } */
   PONG: 'pong',
+  /** { von, text, admin, system } – Chatnachricht (system = Server-Hinweis wie "X ist beigetreten"); Typ wie CHAT */
   /** { felder: [{ pfad, name, gruppe, min, max, schritt, einheit, wert, standard }], ueberschreibungen } – nur an Admins */
   DEV_WERTE: 'devWerte',
   /** { physik, tageszeit, itemDefinitionen } – nach Developer-Änderungen an alle (Vorhersage, Uhr, HUD) */

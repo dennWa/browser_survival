@@ -39,6 +39,8 @@ eingabe.beiTaste('admin', () => hud.adminMenuUmschalten());
 eingabe.beiTaste('aufheben', () => aktuellesSpiel?.interagieren());
 eingabe.beiTaste('menue', () => aktuellesSpiel?.menuesSchliessen());
 eingabe.beiTaste('karte', () => aktuellesSpiel?.karteUmschalten());
+eingabe.beiTaste('chat', () => aktuellesSpiel && hud.chatOeffnen());
+eingabe.beiTaste('spielerliste', () => aktuellesSpiel && hud.spielerlisteUmschalten(aktuellesSpiel.spielerNamen()));
 eingabe.beiTaste('nachladen', () => aktuellesSpiel?.nachladen());
 eingabe.beiSlotTaste((slot) => aktuellesSpiel?.benutzen(slot));
 hud.beiAbmelden(() => aktuellesSpiel?.beenden('Abgemeldet'));
@@ -57,6 +59,8 @@ hud.beiAktionen({
   tuer: () => aktuellesSpiel?.tuer(),
   interagieren: () => aktuellesSpiel?.interagieren(),
   karte: () => aktuellesSpiel?.karteUmschalten(),
+  chat: (text) => aktuellesSpiel?.chat(text),
+  spielerliste: () => aktuellesSpiel && hud.spielerlisteUmschalten(aktuellesSpiel.spielerNamen()),
   entwicklerAbfragen: () => aktuellesSpiel?.entwickler(NACHRICHT.DEV_ABFRAGEN),
   entwicklerSetzen: (werte) => aktuellesSpiel?.entwickler(NACHRICHT.DEV_SETZEN, { werte }),
   entwicklerZuruecksetzen: () => aktuellesSpiel?.entwickler(NACHRICHT.DEV_ZURUECKSETZEN),

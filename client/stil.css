@@ -166,6 +166,7 @@ button {
 }
 
 #hud-oben { padding-top: env(safe-area-inset-top); }
+#hud-status { pointer-events: auto; cursor: pointer; }
 
 .hud-links { display: flex; gap: 8px; align-items: center; min-width: 0; }
 
@@ -506,6 +507,67 @@ button {
   .untertitel, .hinweis { display: none; }
   input, select { padding: 7px 10px; }
   #login-knopf { padding: 9px; }
+}
+
+/* ---------- Chat & Spielerliste ---------- */
+#chat {
+  position: absolute;
+  left: 12px;
+  bottom: calc(150px + env(safe-area-inset-bottom));
+  width: min(380px, calc(100vw - 24px));
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+#chat-log { display: flex; flex-direction: column; gap: 3px; }
+
+.chat-zeile {
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 3px 9px;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 6px;
+  transition: opacity 0.6s;
+}
+
+.chat-zeile b { color: #f3d36b; }
+.chat-zeile.admin b { color: #8cc4ff; }
+.chat-zeile.system { color: var(--text-gedimmt); font-style: italic; }
+.chat-zeile.alt { opacity: 0; }
+#chat.offen .chat-zeile.alt { opacity: 1; }
+
+#chat-eingabe {
+  width: 100%;
+  pointer-events: auto;
+  padding: 8px 10px;
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(243, 211, 107, 0.6);
+  border-radius: 8px;
+}
+
+#spielerliste {
+  position: absolute;
+  left: 50%;
+  top: 70px;
+  transform: translateX(-50%);
+  min-width: 220px;
+  padding: 10px 16px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid var(--rand);
+  border-radius: 10px;
+}
+
+#spielerliste h3 { margin: 0 0 6px; font-size: 0.85rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-gedimmt); }
+#spielerliste div { padding: 2px 0; }
+
+@media (max-width: 700px), (max-height: 500px) {
+  #chat { bottom: auto; top: calc(96px + env(safe-area-inset-top)); width: min(300px, 45vw); }
+  .chat-zeile { font-size: 0.75rem; }
 }
 
 /* ---------- Arbeit (Abbauen, Schlafen) ---------- */

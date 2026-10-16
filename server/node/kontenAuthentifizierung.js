@@ -9,8 +9,14 @@ import { pruefePasswort } from './passwort.js';
  * Die Datei wird bei jedem Login frisch gelesen → neue Accounts gelten ohne Server-Neustart.
  */
 export class KontenAuthentifizierung {
-  constructor(dateipfad) {
+  /**
+   * @param dateipfad   konten.json
+   * @param kontenJson  alternativ: Inhalt als Text (z. B. Umgebungsvariable KONTEN_JSON beim Online-Hoster,
+   *                    wo es keine dauerhafte Datei gibt)
+   */
+  constructor(dateipfad, { kontenJson = null } = {}) {
     this.dateipfad = dateipfad;
+    this.kontenJson = kontenJson;
   }
 
   async pruefe(benutzername, passwort) {
@@ -24,6 +30,10 @@ export class KontenAuthentifizierung {
   }
 
   async #ladeKonten() {
+    if (this.kontenJson) {
+      const inhalt = JSON.parse(this.kontenJson);
+      return Array.isArray(inhalt.konten) ? inhalt.konten : [];
+    }
     try {
       const inhalt = JSON.parse(await readFile(this.dateipfad, 'utf8'));
       return Array.isArray(inhalt.konten) ? inhalt.konten : [];

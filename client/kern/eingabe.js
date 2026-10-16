@@ -17,6 +17,8 @@ export const TASTEN = Object.freeze({
   aufheben: ['KeyE'], // Aufheben / Abbauen / Werkbank / Schlafen – je nachdem, was in der Nähe ist
   menue: ['Escape'], // offene Menüs schließen
   karte: ['KeyK'], // Karte auf/zu
+  chat: ['KeyT'], // Chat-Eingabe öffnen
+  spielerliste: ['Tab'], // Wer ist online?
   tuer: ['KeyF'], // Tür öffnen/schließen
   nachladen: ['KeyR'],
   licht: ['KeyL'], // Taschenlampe an/aus
@@ -47,7 +49,7 @@ export class Eingabe {
 
     fenster.addEventListener('keydown', (e) => {
       if (!this.#aktiv || istEingabefeld(e.target)) return;
-      if (TASTEN.debug.includes(e.code) || TASTEN.angriff.includes(e.code)) e.preventDefault();
+      if (TASTEN.debug.includes(e.code) || TASTEN.angriff.includes(e.code) || TASTEN.spielerliste.includes(e.code) || TASTEN.chat.includes(e.code)) e.preventDefault();
       if (!e.repeat) {
         for (const fn of this.#tastenHoerer.get(e.code) ?? []) fn();
         const slot = SLOT_TASTEN.indexOf(e.code);
