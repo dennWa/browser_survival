@@ -28,14 +28,14 @@ export const GEGENSTAENDE = Object.freeze({
   schmerzmittel: { name: 'Schmerzmittel', kategorie: 'medizin', heilung: 25, stapelbar: 10 },
   erste_hilfe_kasten: { name: 'Erste-Hilfe-Kasten', kategorie: 'medizin', heilung: 60, stapelbar: 1 },
   // --- Nahkampf ---
-  skalpell: { name: 'Skalpell', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 15, reichweite: 28, abklingzeit: 0.35 },
-  kuechenmesser: { name: 'Küchenmesser', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 20, reichweite: 30, abklingzeit: 0.4 },
-  hammer: { name: 'Hammer', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 30, reichweite: 32, abklingzeit: 0.7 },
-  machete: { name: 'Machete', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 40, reichweite: 40, abklingzeit: 0.8 },
-  feuerwehrbeil: { name: 'Feuerwehrbeil', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 50, reichweite: 40, abklingzeit: 1.0 },
+  skalpell: { name: 'Skalpell', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 15, reichweite: 48, abklingzeit: 0.35 },
+  kuechenmesser: { name: 'Küchenmesser', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 20, reichweite: 50, abklingzeit: 0.4 },
+  hammer: { name: 'Hammer', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 30, reichweite: 54, abklingzeit: 0.7 },
+  machete: { name: 'Machete', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 40, reichweite: 62, abklingzeit: 0.8 },
+  feuerwehrbeil: { name: 'Feuerwehrbeil', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 50, reichweite: 62, abklingzeit: 1.0 },
   // --- Werkzeuge (auch als schwache Waffen nutzbar) ---
-  axt: { name: 'Axt', kategorie: 'nahkampf', ausruestung: 'messer', werkzeug: true, schaden: 18, reichweite: 32, abklingzeit: 0.7 },
-  spitzhacke: { name: 'Spitzhacke', kategorie: 'nahkampf', ausruestung: 'messer', werkzeug: true, schaden: 16, reichweite: 32, abklingzeit: 0.75 },
+  axt: { name: 'Axt', kategorie: 'nahkampf', ausruestung: 'messer', werkzeug: true, schaden: 18, reichweite: 54, abklingzeit: 0.7 },
+  spitzhacke: { name: 'Spitzhacke', kategorie: 'nahkampf', ausruestung: 'messer', werkzeug: true, schaden: 16, reichweite: 54, abklingzeit: 0.75 },
   // --- Fernkampf ---
   pistole: { name: 'Pistole (9 mm)', kategorie: 'fernkampf', ausruestung: 'pistole', schaden: 25, munition: 'munition_9mm', magazin: 15, abklingzeit: 0.28, reichweite: 520, streuung: 0.03, nachladezeit: 1.1 },
   schrotflinte: { name: 'Schrotflinte (Kal. 12)', kategorie: 'fernkampf', ausruestung: 'schrotflinte', schaden: 16, projektile: 7, munition: 'munition_12', magazin: 5, abklingzeit: 0.85, reichweite: 280, streuung: 0.2, nachladezeit: 1.8 },
@@ -53,8 +53,12 @@ export const STANDARD_AUSRUESTUNG = 'taschenlampe';
 
 /** Angriff ohne ausgerüstete Waffe: Faustschlag – geht immer, macht aber kaum Schaden (Notlösung!). */
 export const UNBEWAFFNET = Object.freeze({
-  name: 'Faust', kategorie: 'nahkampf', ausruestung: STANDARD_AUSRUESTUNG, schaden: 5, reichweite: 28, abklingzeit: 0.5,
+  name: 'Faust', kategorie: 'nahkampf', ausruestung: STANDARD_AUSRUESTUNG, schaden: 5, reichweite: 44, abklingzeit: 0.5,
 });
 
-/** Öffnungswinkel (± Radiant) des Nahkampf-Trefferkegels vor der Figur. */
-export const NAHKAMPF_KEGEL = 1.0;
+/**
+ * Öffnungswinkel (± Radiant) des Nahkampf-Trefferkegels vor der Figur.
+ * Reichweite = Abstand bis zum RAND des Ziels. Zombies beißen ab ~42 px (Mitte zu Mitte) → Nahkampfwaffen
+ * reichen bewusst weiter (Faust 44 = ~57 px Mitte zu Mitte), sonst hat man im Nahkampf keine Chance.
+ */
+export const NAHKAMPF_KEGEL = 1.15;

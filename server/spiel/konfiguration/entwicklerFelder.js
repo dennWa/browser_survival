@@ -52,6 +52,10 @@ export const ENTWICKLER_FELDER = [
   { pfad: 'gegenstaende.hammer.schaden', name: 'Hammer: Schaden', gruppe: 'Waffen', min: 0, max: 200, schritt: 1 },
   { pfad: 'gegenstaende.machete.schaden', name: 'Machete: Schaden', gruppe: 'Waffen', min: 0, max: 200, schritt: 1 },
   { pfad: 'gegenstaende.feuerwehrbeil.schaden', name: 'Beil: Schaden', gruppe: 'Waffen', min: 0, max: 300, schritt: 1 },
+  { pfad: 'gegenstaende.kuechenmesser.reichweite', name: 'Messer: Reichweite', gruppe: 'Waffen', min: 10, max: 150, schritt: 2, einheit: 'px' },
+  { pfad: 'gegenstaende.axt.reichweite', name: 'Axt: Reichweite', gruppe: 'Waffen', min: 10, max: 150, schritt: 2, einheit: 'px' },
+  { pfad: 'gegenstaende.hammer.reichweite', name: 'Hammer: Reichweite', gruppe: 'Waffen', min: 10, max: 150, schritt: 2, einheit: 'px' },
+  { pfad: 'gegenstaende.machete.reichweite', name: 'Machete: Reichweite', gruppe: 'Waffen', min: 10, max: 150, schritt: 2, einheit: 'px' },
 
   // --- Welt ---
   { pfad: 'welt.tagSekunden', name: 'Länge eines Tages', gruppe: 'Welt', min: 30, max: 3600, schritt: 10, einheit: 's' },
