@@ -72,7 +72,7 @@ AKTIONEN: aufheben benutzen ablegen tauschen rucksackAblegen platzieren **bauen{
 - Türen: Tests, die Türen manuell öffnen, müssen `welt.tuerHaltOffen.set(id, 999)` setzen, sonst schließt `aktualisiereTueren` sie wieder.
 
 - Linksklick-Flanke: `behandleAngelKlick` läuft im Kampf-Loop VOR dem Angriff und pflegt `spieler.angriffVorher` – nie davor `continue`n (Tote/Auto räumt es selbst ab).
-- Wasser `~` blockiert die Bewegung, aber `istSichtBlockiert` ignoriert `sichtFrei`-Kacheln (Schüsse/Zombie-Sicht gehen drüber).
+- Stadtrand hat einen Teich (Angeltest) mitten auf dem Parkplatz (x≈55–69, y≈47–55; Generator `stadtrand.py`, Grasufer). Wasser `~` blockiert die Bewegung, aber `istSichtBlockiert` ignoriert `sichtFrei`-Kacheln (Schüsse/Zombie-Sicht gehen drüber).
 - Autos blockieren kachelweise → Zombies schlagen schon ab `AUTO_SCHLAG_ABSTAND` (22 px) zur Karosserie, laufen zum `autoAnlaufpunkt`, nicht zur Fahrer-Mitte (A* zu blockierter Kachel = aufgeben).
 - Kisten-Inhalt nie ins Netz (`bauwerkeOeffentlich`), `weltzustand()` speichert ihn; Items in Kisten laufen über `pruefeEintrag` (spielstand.js).
 - `GEGENSTAENDE`-Einträge NICHT einfrieren (Developer-Modus schreibt Werte); Stapelgrößen kommen aus `normalisiere()`.

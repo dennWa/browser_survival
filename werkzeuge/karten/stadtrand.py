@@ -89,6 +89,12 @@ fill(28, 2, 93, 4, '_')
 fill(28, 43, 93, 44, '-')
 fill(32, 45, 91, 57, '_')
 fill(58, 58, 65, 59, '_')
+# Kleiner Teich mitten auf dem Parkplatz (Angeln): Grasufer mit Wasser darin
+for ty in range(45, 58):
+    for tx in range(32, 92):
+        d = ((tx - 62) / 8.0) ** 2 + ((ty - 51) / 4.6) ** 2
+        if d <= 1.0:
+            g[ty][tx] = '~' if d <= 0.45 else ','
 # Krankenwagen-Zufahrt zur Notaufnahme (Westseite)
 fill(28, 33, 31, 42, '_')
 
