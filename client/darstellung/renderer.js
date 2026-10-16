@@ -333,10 +333,17 @@ export class Renderer {
       const nah = Math.abs(e.x - fokus.x) < SICHTWEITE && Math.abs(e.y - fokus.y) < SICHTWEITE;
       f.gruppe.visible = !e.tot && nah;
       if (!f.gruppe.visible) continue;
-      f.gruppe.position.set(e.x, 0, e.y);
-      const schlaeft = e.arbeit === 'schlafen';
-      f.gruppe.rotation.set(schlaeft ? -Math.PI / 2 : 0, Math.PI / 2 - e.blick, 0, 'YXZ');
-      if (schlaeft) f.gruppe.position.y = 22;
+      const schlaeft = e.arbeit === 'schlafen' && e.arbeitOrt;
+      if (schlaeft) {
+        // Im Bett liegen: auf die Matratze, Kopf zum Kopfende
+        // Rücken nach unten (x-Drehung), Kopf nach Norden bzw. Osten; Ursprung der Figur = Füße
+        const laengs = e.arbeitOrt.laengs;
+        f.gruppe.position.set(e.arbeitOrt.x - (laengs ? 0 : 30), 20, e.arbeitOrt.y + (laengs ? 30 : 0));
+        f.gruppe.rotation.set(-Math.PI / 2, laengs ? 0 : -Math.PI / 2, 0, 'YXZ');
+      } else {
+        f.gruppe.position.set(e.x, 0, e.y);
+        f.gruppe.rotation.set(0, Math.PI / 2 - e.blick, 0, 'YXZ');
+      }
 
       const tempo = e.geschwindigkeit ?? 0;
       const name = tempo > 12 ? 'rennen' : 'stehen';

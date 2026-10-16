@@ -31,7 +31,7 @@ export const TUER_REICHWEITE = 40;
 
 /** Reichweite (px, bis zum Rand) für Werkbank (Crafting) und Bett (Schlafen). */
 export const WERKBANK_REICHWEITE = 48;
-export const BETT_REICHWEITE = 40;
+export const BETT_REICHWEITE = 56;
 
 /** Benutzernamen: 2–20 Zeichen, Buchstaben, Ziffern, _ und -. */
 export const BENUTZERNAME_MUSTER = /^[A-Za-z0-9_\-äöüÄÖÜß]{2,20}$/;

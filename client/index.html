@@ -34,6 +34,7 @@
           <span id="hud-status"></span>
         </div>
         <div class="hud-knoepfe">
+          <button id="hud-karte" type="button" title="Karte (K)">🗺</button>
           <button id="hud-licht" type="button" title="Taschenlampe an/aus (L) – aus = Zombies sehen dich schlechter">🔦</button>
           <button id="hud-admin" type="button" title="Admin-Menü (P)" hidden>🛡</button>
           <button id="hud-ton" type="button" title="Ton an/aus (M)">🔊</button>
@@ -61,6 +62,10 @@
         <button type="button" data-nachtsicht>Nachtsicht</button>
       </div>
       <div id="hud-meldungen" aria-live="polite"></div>
+      <div id="hud-arbeit" hidden>
+        <span id="hud-arbeit-text"></span>
+        <div class="balken"><div class="fuellung"></div></div>
+      </div>
       <div id="hud-unten">
         <div class="aktionsknoepfe">
           <button id="knopf-tuer" type="button" hidden></button>
@@ -71,6 +76,27 @@
       </div>
       <button id="knopf-nachladen" type="button" hidden aria-label="Nachladen">↻</button>
       <div id="hud-hilfe"></div>
+    </div>
+
+    <!-- Karte (nur erkundete Bereiche) -->
+    <div id="karte" hidden>
+      <div class="karte-kopf">
+        <h2>🗺 Karte</h2>
+        <span id="karte-anteil"></span>
+        <button id="karte-schliessen" type="button" aria-label="Schließen">✕</button>
+      </div>
+      <div class="karte-rahmen"><canvas id="karte-bild"></canvas></div>
+    </div>
+
+    <!-- Werkbank (Crafting) -->
+    <div id="werkbank" hidden>
+      <div class="werkbank-kopf">
+        <h2>🔨 Werkbank</h2>
+        <button id="werkbank-schliessen" type="button" aria-label="Schließen">✕</button>
+      </div>
+      <div id="werkbank-reiter"></div>
+      <div id="werkbank-liste"></div>
+      <p class="werkbank-hinweis">Rezepte anpassen: <code>server/spiel/konfiguration/rezepte.js</code></p>
     </div>
 
     <!-- Todesbildschirm -->

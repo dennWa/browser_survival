@@ -9,6 +9,7 @@ import { LoginBildschirm } from './ui/loginBildschirm.js';
 import { Hud } from './ui/hud.js';
 import { zeigeCredits } from './ui/credits.js';
 import { Sound } from './audio/sound.js';
+import { lokalerServer } from './netzwerk/lokalerServer.js';
 
 /**
  * Einstiegspunkt des Clients. Verdrahtet nur die Bausteine – keine Spiellogik hier.
@@ -34,7 +35,9 @@ eingabe.beiTaste('licht', () => aktuellesSpiel?.licht());
 eingabe.beiTaste('tuer', () => aktuellesSpiel?.tuer());
 eingabe.beiTaste('wiederbeleben', () => aktuellesSpiel?.wiederbeleben());
 eingabe.beiTaste('admin', () => hud.adminMenuUmschalten());
-eingabe.beiTaste('aufheben', () => aktuellesSpiel?.aufheben());
+eingabe.beiTaste('aufheben', () => aktuellesSpiel?.interagieren());
+eingabe.beiTaste('menue', () => aktuellesSpiel?.menuesSchliessen());
+eingabe.beiTaste('karte', () => aktuellesSpiel?.karteUmschalten());
 eingabe.beiTaste('nachladen', () => aktuellesSpiel?.nachladen());
 eingabe.beiSlotTaste((slot) => aktuellesSpiel?.benutzen(slot));
 hud.beiAbmelden(() => aktuellesSpiel?.beenden('Abgemeldet'));
@@ -51,11 +54,24 @@ hud.beiAktionen({
   ablegen: (slot) => aktuellesSpiel?.ablegen(slot),
   licht: () => aktuellesSpiel?.licht(),
   tuer: () => aktuellesSpiel?.tuer(),
+  interagieren: () => aktuellesSpiel?.interagieren(),
+  karte: () => aktuellesSpiel?.karteUmschalten(),
+  herstellen: (rezept) => aktuellesSpiel?.herstellen(rezept),
+  werkbankSchliessen: () => aktuellesSpiel?.werkbankUmschalten(false),
   wiederbeleben: () => aktuellesSpiel?.wiederbeleben(),
   admin: (befehl) => aktuellesSpiel?.admin(befehl),
   // Nachtsicht: Dunkelheit im Renderer aus – rein optisch, daher nur im Admin-Menü
   nachtsicht: () => renderer && hud.setzeNachtsicht(renderer.nachtsichtUmschalten()),
 });
+// Für Neugierige & Tests: in der Browser-Konsole `browserSurvival.spiel` bzw. `.server` (nur Lokal-Modus)
+window.browserSurvival = {
+  get spiel() {
+    return aktuellesSpiel;
+  },
+  get server() {
+    return lokalerServer();
+  },
+};
 document.getElementById('credits-knopf').addEventListener('click', () => zeigeCredits(document, assets));
 
 login.beiAnmeldung(async ({ server, adresse, benutzername, passwort }) => {
@@ -69,14 +85,14 @@ login.beiAnmeldung(async ({ server, adresse, benutzername, passwort }) => {
   try {
     verbindung = await verbindungAufbauen(server, adresse);
     const anmeldeDaten = await anmelden(verbindung, { benutzername, passwort });
-    spielStarten(verbindung, anmeldeDaten);
+    spielStarten(verbindung, anmeldeDaten, benutzername);
   } catch (fehler) {
     if (verbindung && !verbindung.getrennt) verbindung.trennen('Login abgebrochen');
     login.anzeigen(fehler.message);
   }
 });
 
-function spielStarten(verbindung, anmeldeDaten) {
+function spielStarten(verbindung, anmeldeDaten, benutzername) {
   if (renderer.nachtsicht) renderer.nachtsichtUmschalten(); // Nachtsicht aus der letzten Runde zurücksetzen
   renderer.anzeigen();
   login.verbergen();
@@ -90,6 +106,7 @@ function spielStarten(verbindung, anmeldeDaten) {
     renderer,
     hud,
     sound,
+    benutzername,
     beiEnde: (grund) => {
       aktuellesSpiel = null;
       eingabe.aktiv = false;

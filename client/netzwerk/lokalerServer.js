@@ -11,6 +11,11 @@ import { LOKALE_LATENZ_MS } from '../konfiguration.js';
  */
 let server = null;
 
+/** Der im Tab laufende Server (für Konsole/Developer-Werkzeuge) – null, solange keiner läuft. */
+export function lokalerServer() {
+  return server;
+}
+
 export function oeffneLokalenKanal() {
   if (!server) {
     server = new SpielServer({

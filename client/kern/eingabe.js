@@ -14,7 +14,9 @@ export const TASTEN = Object.freeze({
   rechts: ['KeyD', 'ArrowRight'],
   angriff: ['Space'], // zusätzlich: linke Maustaste
   sprint: ['ShiftLeft', 'ShiftRight'],
-  aufheben: ['KeyE'],
+  aufheben: ['KeyE'], // Aufheben / Abbauen / Werkbank / Schlafen – je nachdem, was in der Nähe ist
+  menue: ['Escape'], // offene Menüs schließen
+  karte: ['KeyK'], // Karte auf/zu
   tuer: ['KeyF'], // Tür öffnen/schließen
   nachladen: ['KeyR'],
   licht: ['KeyL'], // Taschenlampe an/aus

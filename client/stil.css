@@ -507,3 +507,153 @@ button {
   input, select { padding: 7px 10px; }
   #login-knopf { padding: 9px; }
 }
+
+/* ---------- Arbeit (Abbauen, Schlafen) ---------- */
+#hud-arbeit {
+  position: absolute;
+  left: 50%;
+  bottom: calc(150px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px 10px;
+  font-weight: 600;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 10px;
+}
+
+#hud-arbeit .balken { width: 200px; height: 8px; }
+#hud-arbeit .fuellung { background: linear-gradient(90deg, #d4a017, #f3d36b); transition: width 0.15s linear; }
+
+/* ---------- Karte ---------- */
+#karte {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  width: min(940px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  padding: 12px 14px 14px;
+  background: rgba(14, 16, 20, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+
+.karte-kopf { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.karte-kopf h2 { margin: 0; font-size: 1.15rem; }
+#karte-anteil { flex: 1; font-size: 0.85rem; color: var(--text-gedimmt); }
+.karte-rahmen { min-height: 0; overflow: auto; border-radius: 8px; background: #000; }
+#karte-bild { display: block; width: 100%; height: auto; image-rendering: auto; }
+
+#karte-schliessen {
+  width: 36px;
+  height: 36px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+}
+
+/* ---------- Werkbank ---------- */
+#werkbank {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  width: min(640px, calc(100vw - 24px));
+  max-height: min(560px, calc(100dvh - 24px));
+  padding: 16px;
+  color: var(--text);
+  background: linear-gradient(180deg, rgba(38, 30, 22, 0.97), rgba(20, 17, 14, 0.97));
+  border: 1px solid rgba(212, 160, 23, 0.55);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+
+.werkbank-kopf { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.werkbank-kopf h2 { margin: 0; font-size: 1.25rem; letter-spacing: 0.04em; color: #f3d36b; }
+
+#werkbank-schliessen {
+  width: 38px;
+  height: 38px;
+  font-size: 1.1rem;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+}
+
+#werkbank-reiter { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+
+#werkbank-reiter button {
+  padding: 7px 14px;
+  font-weight: 600;
+  color: var(--text-gedimmt);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+}
+
+#werkbank-reiter button.aktiv { color: #1b1408; background: #d4a017; border-color: #d4a017; }
+
+#werkbank-liste { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; padding-right: 4px; }
+
+.rezept {
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+}
+
+.rezept.machbar { border-color: rgba(120, 200, 110, 0.45); background: rgba(90, 160, 80, 0.08); }
+.rezept-icon { width: 56px; height: 56px; background: rgba(0, 0, 0, 0.3); border-radius: 8px; }
+.rezept-name { font-weight: 700; font-size: 1rem; }
+.rezept-info { margin: 2px 0 6px; font-size: 0.8rem; color: var(--text-gedimmt); }
+.rezept-zutaten { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.zutat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px 2px 2px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border-radius: 12px;
+}
+
+.zutat canvas { width: 20px; height: 20px; }
+.zutat.ok { color: #9fe39a; background: rgba(90, 170, 80, 0.15); }
+.zutat.fehlt { color: #ff9a8a; background: rgba(200, 60, 50, 0.15); }
+
+.herstellen {
+  min-height: 40px;
+  padding: 8px 14px;
+  font-weight: 700;
+  color: #1b1408;
+  background: #d4a017;
+  border: none;
+  border-radius: 8px;
+}
+
+.herstellen:disabled { color: var(--text-gedimmt); background: rgba(255, 255, 255, 0.08); cursor: not-allowed; }
+.herstellen:not(:disabled):hover { background: #f0bd2c; }
+.werkbank-hinweis { margin: 10px 0 0; font-size: 0.72rem; color: var(--text-gedimmt); }
+
+@media (max-width: 560px) {
+  .rezept { grid-template-columns: 44px 1fr; }
+  .rezept-icon { width: 44px; height: 44px; }
+  .herstellen { grid-column: 1 / -1; }
+}

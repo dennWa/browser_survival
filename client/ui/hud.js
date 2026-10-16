@@ -1,4 +1,5 @@
 import { INVENTAR_PLAETZE } from '../../gemeinsam/konstanten.js';
+import { WerkbankMenue } from './werkbankMenue.js';
 
 /**
  * HUD (Head-Up-Display) über dem Spiel:
@@ -22,6 +23,7 @@ export class Hud {
   #letzterHinweis = null;
   #letzterTuerHinweis = null;
   #letzteUhr = '';
+  #letzteArbeit = '';
   #letzteAusdauer = -1;
   #letztErschoepft = false;
   #istAdmin = false;
@@ -53,7 +55,10 @@ export class Hud {
       tod: el('tod-overlay'),
       todText: el('tod-countdown'),
       wiederbeleben: el('tod-wiederbeleben'),
+      arbeit: el('hud-arbeit'),
+      arbeitText: el('hud-arbeit-text'),
       licht: el('hud-licht'),
+      karte: el('hud-karte'),
       admin: el('hud-admin'),
       adminPanel: el('admin-panel'),
     };
@@ -64,11 +69,15 @@ export class Hud {
       if (dokument.fullscreenElement) dokument.exitFullscreen?.();
       else dokument.documentElement.requestFullscreen?.().catch(() => {});
     });
-    this.el.aufheben.addEventListener('click', () => this.#aktionen.aufheben?.());
+    this.el.aufheben.addEventListener('click', () => this.#aktionen.interagieren?.());
+    this.werkbank = new WerkbankMenue(dokument, { zeichneIcon: (canvas, defId) => this.zeichneIcon(canvas, defId) });
+    this.werkbank.beiHerstellen((rezept) => this.#aktionen.herstellen?.(rezept));
+    this.werkbank.beiSchliessen(() => this.#aktionen.werkbankSchliessen?.());
     this.el.tuer.addEventListener('click', () => this.#aktionen.tuer?.());
     this.el.nachladen.addEventListener('click', () => this.#aktionen.nachladen?.());
     this.el.wiederbeleben.addEventListener('click', () => this.#aktionen.wiederbeleben?.());
     this.el.licht.addEventListener('click', () => this.#aktionen.licht?.());
+    this.el.karte.addEventListener('click', () => this.#aktionen.karte?.());
     this.el.admin.addEventListener('click', () => this.adminMenuUmschalten());
     for (const knopf of this.el.adminPanel.querySelectorAll('button[data-befehl]')) {
       knopf.addEventListener('click', () => this.#aktionen.admin?.(knopf.dataset.befehl));
@@ -107,7 +116,7 @@ export class Hud {
     this.el.vollbild.hidden = !istTouch || !document.fullscreenEnabled;
     this.el.hilfe.textContent = istTouch
       ? 'Links: laufen · Rechts: zielen, ganz drücken = Angriff'
-      : 'WASD laufen · Maus zielen · Klick/Leertaste Angriff · E aufheben · F Tür · R nachladen · L Lampe · 1–8 Inventar · F3 Debug';
+      : 'WASD laufen · Maus zielen · Klick/Leertaste Angriff · E benutzen · F Tür · R nachladen · L Lampe · K Karte · 1–8 Inventar';
     this.#letzterHinweis = null;
     this.#letzterTuerHinweis = null;
     this.#letzteUhr = '';
@@ -118,6 +127,8 @@ export class Hud {
     this.el.tod.hidden = true;
     this.el.adminPanel.hidden = true;
     this.el.tuer.hidden = true;
+    this.el.arbeit.hidden = true;
+    this.werkbank.zeige(null);
     this.#istAdmin = false;
     this.#nachtsicht = false;
     this.#schalterStand = '';
@@ -221,12 +232,15 @@ export class Hud {
         this.el.uhr.classList.toggle('nacht', d.uhr.istNacht);
       }
     }
-    const hinweis = d.aufhebbar ? `${this.#istTouch ? '✋' : '[E]'} ${d.aufhebbar} aufheben` : null;
+    const i = d.interaktion;
+    const hinweis = i ? `${this.#istTouch ? (i.symbol ?? '✋') : '[E]'} ${i.text}` : null;
     if (hinweis !== this.#letzterHinweis) {
       this.#letzterHinweis = hinweis;
       this.el.aufheben.hidden = !hinweis;
       if (hinweis) this.el.aufheben.textContent = hinweis;
     }
+
+    this.#zeigeArbeit(d.arbeit);
 
     const jetzt = performance.now();
     if (jetzt - this.letzteAktualisierung < AKTUALISIERUNG_MS) return;
@@ -284,6 +298,37 @@ export class Hud {
     }
   }
 
+  /** Werkbank-Menü zeigen (rezepte = null → schließen). */
+  zeigeWerkbank(rezepte, spielerDaten, itemDefinitionen) {
+    this.werkbank.zeige(rezepte, spielerDaten, itemDefinitionen);
+  }
+
+  /** Fortschrittsbalken für Abbauen/Schlafen. */
+  #zeigeArbeit(arbeit) {
+    const schluessel = arbeit ? `${arbeit.art}${arbeit.fortschritt}` : '';
+    if (schluessel === this.#letzteArbeit) return;
+    this.#letzteArbeit = schluessel;
+    this.el.arbeit.hidden = !arbeit;
+    if (!arbeit) return;
+    const text = { holz: '🪓 Baum fällen …', stein: '⛏ Stein abbauen …', schlafen: '💤 Schlafen … (bewegen = aufwachen)' }[arbeit.art] ?? '…';
+    this.el.arbeitText.textContent = text;
+    this.el.arbeit.querySelector('.fuellung').style.width = `${Math.round(arbeit.fortschritt * 100)}%`;
+  }
+
+  /** Item-Icon aus dem Atlas zentriert in ein Canvas malen (Schnellleiste, Werkbank). */
+  zeichneIcon(canvas, defId) {
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const rahmen = defId && this.#assets?.item(defId);
+    const bild = this.#assets?.itemBild;
+    if (!rahmen || !bild) return false;
+    const faktor = (canvas.width * 0.82) / Math.max(rahmen.b, rahmen.h);
+    const b = rahmen.b * faktor;
+    const h = rahmen.h * faktor;
+    ctx.drawImage(bild, rahmen.x, rahmen.y, rahmen.b, rahmen.h, (canvas.width - b) / 2, (canvas.height - h) / 2, b, h);
+    return true;
+  }
+
   #zeichneSlot(slot, eintrag, itemDefinitionen, ausgeruestet) {
     slot.knopf.classList.toggle('ausgeruestet', ausgeruestet);
     slot.knopf.classList.toggle('leer', !eintrag);
@@ -292,24 +337,12 @@ export class Hud {
     if (slot.defId === (eintrag?.defId ?? null)) return; // Icon unverändert
     slot.defId = eintrag?.defId ?? null;
 
+    if (this.zeichneIcon(slot.icon, eintrag?.defId) || !eintrag) return;
     const ctx = slot.icon.getContext('2d');
-    ctx.clearRect(0, 0, slot.icon.width, slot.icon.height);
-    const rahmen = eintrag && this.#assets?.item(eintrag.defId);
-    const bild = this.#assets?.itemBild;
-    if (!rahmen || !bild) {
-      if (eintrag) {
-        ctx.fillStyle = '#9aa0a8';
-        ctx.font = '600 22px system-ui';
-        ctx.textAlign = 'center';
-        ctx.fillText(slot.knopf.title.slice(0, 2), slot.icon.width / 2, slot.icon.height / 2 + 8);
-      }
-      return;
-    }
-    const platz = slot.icon.width * 0.82;
-    const faktor = platz / Math.max(rahmen.b, rahmen.h);
-    const b = rahmen.b * faktor;
-    const h = rahmen.h * faktor;
-    ctx.drawImage(bild, rahmen.x, rahmen.y, rahmen.b, rahmen.h, (slot.icon.width - b) / 2, (slot.icon.height - h) / 2, b, h);
+    ctx.fillStyle = '#9aa0a8';
+    ctx.font = '600 22px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText(slot.knopf.title.slice(0, 2), slot.icon.width / 2, slot.icon.height / 2 + 8);
   }
 }
 

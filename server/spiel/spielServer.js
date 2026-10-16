@@ -255,6 +255,7 @@ export class SpielServer {
       spielerDaten: spielerDatenPrivat(spieler),
       tueren: this.spielWelt.welt.offeneTueren(),
       abgebaut: [...this.spielWelt.welt.abgebaut],
+      rezepte: REZEPTE,
       tageszeit: this.spielWelt.tageszeitDauer(),
       zeit: this.spielWelt.zeit,
       tag: this.spielWelt.tag,

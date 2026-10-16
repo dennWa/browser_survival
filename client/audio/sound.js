@@ -218,6 +218,36 @@ const REZEPTE = {
     ton(ctx, ausgang, t, { typ: 'sine', von: 90 * tonhoehe, bis: 40, dauer: 0.2, lautstaerke: 0.6 });
     return 0.25;
   },
+  // Abbau & Handwerk
+  hack_holz: ({ ctx, ausgang, t, rauschen, tonhoehe }) => {
+    rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.09, typ: 'bandpass', frequenz: 900 * tonhoehe, lautstaerke: 0.8 });
+    ton(ctx, ausgang, t, { typ: 'triangle', von: 220 * tonhoehe, bis: 120, dauer: 0.12, lautstaerke: 0.45 });
+    return 0.15;
+  },
+  hack_stein: ({ ctx, ausgang, t, rauschen, tonhoehe }) => {
+    rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.05, typ: 'highpass', frequenz: 2500, lautstaerke: 0.5 });
+    ton(ctx, ausgang, t, { typ: 'square', von: 1400 * tonhoehe, bis: 1100, dauer: 0.08, lautstaerke: 0.12, filter: 3000 });
+    ton(ctx, ausgang, t, { typ: 'sine', von: 2600 * tonhoehe, bis: 2400, dauer: 0.18, lautstaerke: 0.08 });
+    return 0.2;
+  },
+  baum_faellt: ({ ctx, ausgang, t, rauschen }) => {
+    for (let i = 0; i < 5; i++) klick(ctx, ausgang, t + i * 0.05, 300 + i * 90, 0.18); // Knacken
+    rauschStoss(ctx, ausgang, rauschen, t + 0.3, { dauer: 0.6, typ: 'lowpass', frequenz: 700, lautstaerke: 0.8 }); // Rauschen der Krone
+    ton(ctx, ausgang, t + 0.75, { typ: 'sine', von: 70, bis: 30, dauer: 0.45, lautstaerke: 0.9 }); // Aufprall
+    return 1.25;
+  },
+  stein_bricht: ({ ctx, ausgang, t, rauschen }) => {
+    rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.35, typ: 'bandpass', frequenz: 1400, lautstaerke: 0.8 });
+    for (let i = 0; i < 4; i++) klick(ctx, ausgang, t + 0.08 + i * 0.06, 900 - i * 120, 0.2);
+    return 0.45;
+  },
+  werkeln: ({ ctx, ausgang, t, rauschen }) => {
+    for (let i = 0; i < 3; i++) {
+      rauschStoss(ctx, ausgang, rauschen, t + i * 0.18, { dauer: 0.05, typ: 'bandpass', frequenz: 1800, lautstaerke: 0.5 });
+      ton(ctx, ausgang, t + i * 0.18, { typ: 'triangle', von: 700, bis: 500, dauer: 0.06, lautstaerke: 0.25 });
+    }
+    return 0.6;
+  },
   tuer_bricht: ({ ctx, ausgang, t, rauschen }) => {
     rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.5, typ: 'bandpass', frequenz: 900, lautstaerke: 0.9 });
     for (let i = 0; i < 4; i++) klick(ctx, ausgang, t + 0.05 + i * 0.07, 600 + i * 250, 0.25);

@@ -1,4 +1,5 @@
-import { AUFHEB_REICHWEITE, TICK_DAUER_MS, TICK_DAUER_S, TUER_REICHWEITE } from '../../gemeinsam/konstanten.js';
+import { AUFHEB_REICHWEITE, BETT_REICHWEITE, TICK_DAUER_MS, TICK_DAUER_S, TUER_REICHWEITE, WERKBANK_REICHWEITE } from '../../gemeinsam/konstanten.js';
+import { ABBAU_REICHWEITE, RESSOURCEN_OBJEKTE } from '../../gemeinsam/welt/ressourcen.js';
 import { tageszeit } from '../../gemeinsam/tageszeit.js';
 import { AKTIONEN, NACHRICHT } from '../../gemeinsam/protokoll.js';
 import { Welt } from '../../gemeinsam/welt/welt.js';
@@ -7,6 +8,7 @@ import { lerp, lerpWinkel } from '../../gemeinsam/mathe.js';
 import { INTERPOLATIONS_VERZOEGERUNG_MS, PING_INTERVALL_MS } from '../konfiguration.js';
 import { Effekte } from '../darstellung/effekte.js';
 import { SpielSchleife } from './spielSchleife.js';
+import { Karte } from '../ui/karte.js';
 
 /** Maximal gemerkte, vom Server noch nicht bestätigte Eingaben (~4 s). */
 const MAX_OFFENE_EINGABEN = 120;
@@ -29,7 +31,7 @@ const ZOMBIE_TONHOEHE = { normal: 1, laeufer: 1.35, brocken: 0.7 };
  * (EINGABE.angriff, AKTION) und zeigt das Ergebnis an.
  */
 export class ClientSpiel {
-  constructor({ verbindung, anmeldeDaten, eingabe, renderer, hud, sound, beiEnde }) {
+  constructor({ verbindung, anmeldeDaten, eingabe, renderer, hud, sound, beiEnde, benutzername = '' }) {
     this.verbindung = verbindung;
     this.eingabe = eingabe;
     this.renderer = renderer;
@@ -41,6 +43,14 @@ export class ClientSpiel {
     this.eigeneId = anmeldeDaten.spielerId;
     this.welt = new Welt(anmeldeDaten.karte);
     if (anmeldeDaten.tueren) this.welt.uebernimmOffeneTueren(anmeldeDaten.tueren);
+    if (anmeldeDaten.abgebaut) this.welt.uebernimmAbgebaute(anmeldeDaten.abgebaut);
+    this.rezepte = anmeldeDaten.rezepte ?? {};
+    this.karte = new Karte(document, {
+      welt: this.welt,
+      assets: renderer.assets,
+      schluessel: `${anmeldeDaten.serverName}:${benutzername.toLowerCase()}:${this.welt.id}`,
+    });
+    this.werkbankOffen = false;
     // Uhr: Serverzeit + seit Empfang vergangene Zeit (läuft zwischen den Schnappschüssen weich weiter)
     this.tageszeitDauer = anmeldeDaten.tageszeit ?? { tagSekunden: 600, nachtSekunden: 300 };
     this.serverZeit = anmeldeDaten.zeit ?? 0;
@@ -91,6 +101,8 @@ export class ClientSpiel {
     if (this.beendet) return;
     this.beendet = true;
     this.schleife.stoppen();
+    this.karte.speichern();
+    this.karte.zeige(false);
     this.sound?.stoppeAtmosphaere();
     clearInterval(this.pingTimer);
     for (const ab of this.abmelden) ab();
@@ -103,6 +115,56 @@ export class ClientSpiel {
 
   aufheben() {
     if (this.#naechsterGegenstand()) this.#aktion(AKTIONEN.AUFHEBEN);
+  }
+
+  /**
+   * Taste E / Aktions-Knopf: macht das Naheliegendste – Gegenstand aufheben, sonst Baum/Stein abbauen,
+   * sonst Werkbank öffnen, sonst ins Bett legen.
+   */
+  interagieren() {
+    const was = this.#interaktion();
+    if (!was) return;
+    if (was.art === 'aufheben') this.#aktion(AKTIONEN.AUFHEBEN);
+    else if (was.art === 'abbauen') this.#aktion(AKTIONEN.ABBAUEN);
+    else if (was.art === 'schlafen') this.#aktion(AKTIONEN.SCHLAFEN);
+    else if (was.art === 'werkbank') this.werkbankUmschalten(true);
+  }
+
+  karteUmschalten(offen) {
+    this.karte.zeige(offen);
+  }
+
+  /** Escape: offene Fenster schließen. */
+  menuesSchliessen() {
+    this.karte.zeige(false);
+    this.werkbankUmschalten(false);
+  }
+
+  /** Werkbank-Menü öffnen/schließen (nur in Reichweite einer Werkbank). */
+  werkbankUmschalten(offen = !this.werkbankOffen) {
+    this.werkbankOffen = offen && this.#naheWerkbank();
+    this.hud.zeigeWerkbank(this.werkbankOffen ? this.rezepte : null, this.spielerDaten, this.itemDefinitionen);
+  }
+
+  herstellen(rezept) {
+    this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.HERSTELLEN, rezept });
+  }
+
+  /** Was würde E gerade tun? → { art, text } oder null */
+  #interaktion() {
+    if (this.spielerDaten?.tot || this.spielerDaten?.arbeit) return null;
+    const { x, y } = this.lokal;
+    const gegenstand = this.#naechsterGegenstand();
+    if (gegenstand) return { art: 'aufheben', text: `${gegenstand.menge > 1 ? `${gegenstand.name} ×${gegenstand.menge}` : gegenstand.name} aufheben`, gegenstand };
+    const ressource = this.welt.naechsteRessource(x, y, ABBAU_REICHWEITE);
+    if (ressource) return { art: 'abbauen', text: RESSOURCEN_OBJEKTE[ressource.typ].aktion, symbol: ressource.art === 'holz' ? '🪓' : '⛏' };
+    if (this.#naheWerkbank()) return { art: 'werkbank', text: 'Werkbank benutzen', symbol: '🔨' };
+    if (this.welt.naechstesObjekt(x, y, BETT_REICHWEITE, (o) => o.typ.startsWith('bett'))) return { art: 'schlafen', text: 'Schlafen', symbol: '🛏' };
+    return null;
+  }
+
+  #naheWerkbank() {
+    return this.welt.naechstesObjekt(this.lokal.x, this.lokal.y, WERKBANK_REICHWEITE, (o) => o.typ === 'werkbank') !== null;
   }
 
   nachladen() {
@@ -164,6 +226,9 @@ export class ClientSpiel {
       case NACHRICHT.GEGENSTAENDE:
         this.gegenstaende = n.gegenstaende;
         break;
+      case NACHRICHT.RESSOURCEN:
+        this.welt.uebernimmAbgebaute(n.abgebaut);
+        break;
       case NACHRICHT.TUEREN:
         // Kollision der Vorhersage nutzt dieselbe Welt → Türen gelten sofort auch lokal
         this.welt.uebernimmOffeneTueren(n.offen);
@@ -190,6 +255,7 @@ export class ClientSpiel {
     if (vorher?.tot && !daten.tot) this.offeneEingaben = []; // Respawn: neue Position kommt vom Server
     this.spielerDaten = daten;
     this.hud.setzeSpielerDaten(daten, this.itemDefinitionen);
+    if (this.werkbankOffen) this.hud.zeigeWerkbank(this.rezepte, daten, this.itemDefinitionen);
   }
 
   #zustandEmpfangen(n) {
@@ -301,6 +367,16 @@ export class ClientSpiel {
       case 'tuer':
         this.sound.spiele(e.aufgebrochen ? 'tuer_bricht' : e.offen ? 'tuer_auf' : 'tuer_zu', { x: e.x, y: e.y });
         break;
+      case 'hack':
+        this.sound.spiele(e.art === 'holz' ? 'hack_holz' : 'hack_stein', { x: e.x, y: e.y, tonhoehe: 0.9 + Math.random() * 0.2 });
+        break;
+      case 'abgebaut':
+        this.sound.spiele(e.art === 'holz' ? 'baum_faellt' : 'stein_bricht', { x: e.x, y: e.y });
+        break;
+      case 'hergestellt':
+      case 'tuerVerstaerkt':
+        if (e.typ === 'tuerVerstaerkt' || e.von === this.eigeneId) this.sound.spiele('werkeln', { x: e.x ?? this.lokal.x, y: e.y ?? this.lokal.y });
+        break;
       case 'tuerSchlag':
         this.sound.spiele('tuer_schlag', { x: e.x, y: e.y, tonhoehe: 0.85 + Math.random() * 0.3 });
         break;
@@ -364,9 +440,12 @@ export class ClientSpiel {
       bewegungsWinkel: Math.atan2(dy, dx),
       istEigener: true,
     };
+    if (!this.spielerDaten?.tot) this.karte.aktualisiere(eigen, jetzt);
     if (this.physik.ausdauerMax) this.hud.setzeAusdauer(this.lokal.ausdauer / this.physik.ausdauerMax, this.lokal.erschoepft);
     const andere = this.#interpolierteEntitaeten(jetzt - INTERPOLATIONS_VERZOEGERUNG_MS);
-    const aufhebbar = this.spielerDaten?.tot ? null : this.#naechsterGegenstand();
+    const interaktion = this.#interaktion();
+    const aufhebbar = interaktion?.gegenstand ?? null;
+    if (this.werkbankOffen && !this.#naheWerkbank()) this.werkbankUmschalten(false); // weggegangen → zu
     const tuer = this.#naechsteTuer();
     const uhr = tageszeit(this.serverZeit + (jetzt - this.zeitEmpfangen) / 1000, this.tageszeitDauer);
 
@@ -391,7 +470,8 @@ export class ClientSpiel {
       gegenstaende: this.gegenstaende.length,
       offeneEingaben: this.offeneEingaben.length,
       grafik: this.hud.debug ? this.renderer.statistik?.() : null,
-      aufhebbar: aufhebbar ? (aufhebbar.menge > 1 ? `${aufhebbar.name} ×${aufhebbar.menge}` : aufhebbar.name) : null,
+      interaktion,
+      arbeit: this.spielerDaten?.arbeit ?? null,
       tuer: tuer ? (this.welt.istTuerOffen(tuer.id) ? 'schließen' : 'öffnen') : null,
       uhr: { ...uhr, tag: this.tag },
     });
