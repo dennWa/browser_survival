@@ -10,6 +10,7 @@ import { starteAbbau, starteSchlafen } from './arbeitSystem.js';
 import { stelleHer } from './craftingSystem.js';
 import { benutzeBauwerk, feuer, platziere } from './bauSystem.js';
 import { setzeSkillpunkt } from './levelSystem.js';
+import { fahrzeugAktion } from './fahrzeugSystem.js';
 
 /**
  * Inventar: Aufheben, Benutzen (Essen/Trinken/Medizin), Aus-/Abrüsten, Ablegen, Nachladen.
@@ -39,6 +40,8 @@ export function verarbeiteAktionen(spielWelt) {
         continue;
       }
       if (spieler.tot) continue;
+      // Im Auto geht nur: aussteigen, Licht, Fähigkeiten, Inventar umsortieren
+      if (spieler.fahrzeug && ![AKTIONEN.FAHRZEUG, AKTIONEN.LICHT, AKTIONEN.SKILL, AKTIONEN.TAUSCHEN].includes(aktion.art)) continue;
       switch (aktion.art) {
         case AKTIONEN.LICHT:
           spieler.lichtAn = !spieler.lichtAn;
@@ -78,6 +81,9 @@ export function verarbeiteAktionen(spielWelt) {
           break;
         case AKTIONEN.BAUWERK:
           benutzeBauwerk(spielWelt, spieler);
+          break;
+        case AKTIONEN.FAHRZEUG:
+          fahrzeugAktion(spielWelt, spieler);
           break;
         case AKTIONEN.SKILL:
           setzeSkillpunkt(spielWelt, spieler, aktion.skill);

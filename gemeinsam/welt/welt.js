@@ -48,6 +48,24 @@ export class Welt {
     this.bauwerke = new Map();
     this.bauwerkAnKachel = new Map(); // Kachelindex → Bauwerk-ID
     this.bauwerkeVersion = 0;
+    /** Fahrzeuge blockieren die Kacheln unter sich (gemeinsam/physik/fahrzeug.js → fahrzeugKacheln) */
+    this.fahrzeugAnKachel = new Map(); // Kachelindex → Fahrzeug-ID
+    this.fahrzeugKachelListe = new Map(); // Fahrzeug-ID → [Kachelindizes]
+  }
+
+  // --- Fahrzeuge --------------------------------------------------------------
+
+  /** Belegte Kacheln eines Fahrzeugs setzen (alte werden freigegeben). */
+  setzeFahrzeugKacheln(id, kacheln) {
+    this.entferneFahrzeugKacheln(id);
+    const liste = kacheln.map(({ tx, ty }) => ty * this.breite + tx);
+    for (const index of liste) this.fahrzeugAnKachel.set(index, id);
+    this.fahrzeugKachelListe.set(id, liste);
+  }
+
+  entferneFahrzeugKacheln(id) {
+    for (const index of this.fahrzeugKachelListe.get(id) ?? []) if (this.fahrzeugAnKachel.get(index) === id) this.fahrzeugAnKachel.delete(index);
+    this.fahrzeugKachelListe.delete(id);
   }
 
   // --- Bauwerke -------------------------------------------------------------
@@ -222,11 +240,18 @@ export class Welt {
     return zeichen !== null && KACHELN[zeichen]?.innen === true;
   }
 
-  /** Außerhalb der Karte gilt alles als blockiert (unsichtbare Grenze). */
-  istBlockiert(tx, ty) {
+  /**
+   * Außerhalb der Karte gilt alles als blockiert (unsichtbare Grenze).
+   * @param ignoriereFahrzeug  Fahrzeug-ID, deren eigene Kacheln nicht zählen (das Auto stößt nicht an sich selbst)
+   */
+  istBlockiert(tx, ty, ignoriereFahrzeug = null) {
     const zeichen = this.kachelAn(tx, ty);
     if (zeichen === null) return true;
     if (this.moebelBlockiert.has(ty * this.breite + tx)) return true;
+    if (this.fahrzeugAnKachel.size > 0) {
+      const fz = this.fahrzeugAnKachel.get(ty * this.breite + tx);
+      if (fz !== undefined && fz !== ignoriereFahrzeug) return true;
+    }
     if (this.istGeschlosseneTuer(tx, ty)) return true;
     if (this.bauwerkAnKachel.size > 0) {
       const b = this.bauwerke.get(this.bauwerkAnKachel.get(ty * this.breite + tx));

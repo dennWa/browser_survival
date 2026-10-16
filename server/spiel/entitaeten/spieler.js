@@ -56,6 +56,7 @@ export function erzeugeSpieler({ id, benutzername, x, y, konfiguration, admin = 
      */
     inventar: new Array(INVENTAR_PLAETZE).fill(null),
     rucksack: null, // defId des getragenen Rucksacks oder null
+    fahrzeug: null, // [intern] Fahrzeug-Entität, in der der Spieler sitzt (systeme/fahrzeugSystem.js)
     ausgeruestet: null, // Inventarplatz der Waffe in der Hand
     nachladenRest: 0, // Sekunden, solange nachgeladen wird
     respawnRest: 0,
@@ -99,6 +100,8 @@ export function spielerZuNetzwerk(s) {
     level: s.level,
     rucksack: s.rucksack !== null, // Rucksack auf dem Rücken (3D-Modell)
     aussehen: s.aussehen,
+    // Im Auto: genauer Fahrzustand (der eigene Client rechnet damit die Vorhersage nach)
+    fahrzeug: s.fahrzeug ? { id: s.fahrzeug.id, winkel: s.fahrzeug.winkel, tempo: s.fahrzeug.tempo, laenge: s.fahrzeug.laenge, breite: s.fahrzeug.breite, modell: s.fahrzeug.modell } : null,
     seq: s.letzteVerarbeiteteSeq,
   };
 }

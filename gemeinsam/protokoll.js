@@ -73,6 +73,7 @@ export const AKTIONEN = Object.freeze({
   FEUER: 'feuer', // F: nächstes Lagerfeuer anzünden (Feuerzeug nötig) / löschen – sonst wie 'tuer'
   BAUWERK: 'bauwerk', // E am nächsten Bauwerk: Falle aufnehmen/spannen, kochen, pflanzen, ernten
   SKILL: 'skill', // { skill } einen Skillpunkt verteilen (gemeinsam/spieler/skills.js)
+  FAHRZEUG: 'fahrzeug', // ins nächste freie Auto einsteigen bzw. aussteigen
   NACHLADEN: 'nachladen', // ausgerüstete Schusswaffe nachladen
   TUER: 'tuer', // nächste Tür in Reichweite öffnen/schließen
   ABBAUEN: 'abbauen', // nächsten Baum/Stein abbauen (Axt/Spitzhacke nötig, dauert)

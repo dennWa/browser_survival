@@ -1,3 +1,4 @@
+import { fahre } from './fahrzeug.js';
 import { normalisiere, begrenze } from '../mathe.js';
 
 /**
@@ -23,6 +24,16 @@ export function richtungAusEingabe(eingabe) {
  * @returns true, wenn in diesem Schritt gesprintet wurde
  */
 export function wendeEingabeAn(koerper, eingabe, welt, parameter, dt) {
+  // Im Auto: Eingabe steuert das Fahrzeug, der Körper sitzt in dessen Mitte
+  if (koerper.fahrzeug) {
+    fahre(koerper.fahrzeug, eingabe, welt, dt);
+    koerper.x = koerper.fahrzeug.x;
+    koerper.y = koerper.fahrzeug.y;
+    if (Number.isFinite(eingabe.blick)) koerper.blick = eingabe.blick;
+    koerper.sprintet = false;
+    aktualisiereAusdauer(koerper, false, parameter, dt);
+    return false;
+  }
   const richtung = richtungAusEingabe(eingabe);
   const willSprinten = eingabe.sprint === true && Math.hypot(richtung.x, richtung.y) > 0.1;
   const sprintet = aktualisiereAusdauer(koerper, willSprinten, parameter, dt);

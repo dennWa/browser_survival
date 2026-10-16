@@ -66,7 +66,7 @@ export class Fussspuren {
       s.x = e.x;
       s.y = e.y;
       // Teleport/Respawn oder tot/schlafend → keine Spur dazwischen
-      if (strecke > 60 || e.tot || e.arbeit === 'schlafen') {
+      if (strecke > 60 || e.tot || e.arbeit === 'schlafen' || e.fahrzeug || e.fahrzeugId) {
         s.weg = 0;
         continue;
       }

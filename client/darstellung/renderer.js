@@ -4,6 +4,8 @@ import { KartenModell } from './kartenModell.js';
 import { vereineGeometrien } from './geometrie.js';
 import { Fussspuren } from './fussspuren.js';
 import { erzeugeBauwerk, erzeugeVorschau } from './bauwerkModelle.js';
+import { erzeugeFahrzeugModell } from './fahrzeugModelle.js';
+import { FAHRZEUG_MODELLE } from '../../gemeinsam/physik/fahrzeug.js';
 import { AUSSEHEN, skinFuer } from '../../gemeinsam/spieler/aussehen.js';
 import { itemGeometrie, ITEM_MATERIAL, rucksackTeile } from './itemModelle.js';
 import { zeichneBeschriftung } from './beschriftung.js';
@@ -126,6 +128,8 @@ export class Renderer {
     this.bauwerkeStand = -1;
     this.feuerLampen = []; // brennende Lagerfeuer als Lampen für den Lampen-Pool
     this.vorschau = null; // { typ, gruppe }
+    this.fahrzeuge = new Map(); // Fahrzeug-ID → Gruppe
+    this.fahrZoom = 1; // Kamera geht beim Fahren etwas weiter weg
 
     // Adaptive Qualität (siehe QUALITAETS_STUFEN)
     this.aufloesungMax = Math.min(window.devicePixelRatio || 1, this.istHandy ? 1.5 : 2);
@@ -208,6 +212,8 @@ export class Renderer {
     this.figuren.clear();
     for (const m of this.items.values()) this.szene.remove(m);
     this.items.clear();
+    for (const g of this.fahrzeuge.values()) this.szene.remove(g);
+    this.fahrzeuge.clear();
     for (const b of this.bauwerke.values()) this.szene.remove(b.gruppe);
     this.bauwerke.clear();
     this.bauwerkeStand = -1;
@@ -239,15 +245,17 @@ export class Renderer {
     this.letzteZeit = jetzt;
     this.#passeAufloesungAn(dt, jetzt);
 
-    // Kamera folgt weich dem eigenen Spieler
+    // Kamera folgt weich dem eigenen Spieler (im Auto etwas weiter weg – man ist schneller)
+    this.fahrZoom += ((fokus.fahrzeugId ? 1.3 : 1) - this.fahrZoom) * Math.min(1, dt * 2);
     _ziel.set(fokus.x, 0, fokus.y);
-    _kameraZiel.copy(_ziel).add(this.kameraVersatz);
+    _kameraZiel.copy(this.kameraVersatz).multiplyScalar(this.fahrZoom).add(_ziel);
     this.kamera3d.position.lerp(_kameraZiel, Math.min(1, dt * 8) || 1);
     this.kamera3d.lookAt(_ziel.x, 0, _ziel.z - 20);
     this.schnitt.uFokus.value.set(fokus.x, 0, fokus.y);
     const dunkel = this.#tageslicht(tageszeit, _ziel);
 
     this.karte.aktualisiere(dt, dunkel);
+    this.#aktualisiereFahrzeuge(entitaeten, fokus);
     this.#aktualisiereFiguren(entitaeten, fokus, dt, jetzt);
     this.#aktualisiereTaschenlampen(entitaeten, fokus, dunkel);
     this.#aktualisiereItems(gegenstaende, markiertId, jetzt);
@@ -280,6 +288,29 @@ export class Renderer {
     this.szene.add(gruppe);
     // Drehachse senkrecht zur Fallrichtung (rechte Hand: Spitze kippt Richtung +dx/+dz)
     this.fallendeBaeume.push({ gruppe, achse: new THREE.Vector3(dz, 0, -dx), zeit: 0 });
+  }
+
+  /** Autos: ein Mesh pro Fahrzeug, Position/Drehung jedes Frame (Front = +z → Drehung wie bei Figuren). */
+  #aktualisiereFahrzeuge(entitaeten, fokus) {
+    const gesehen = new Set();
+    for (const e of entitaeten) {
+      if (e.typ !== 'fahrzeug') continue;
+      gesehen.add(e.id);
+      let g = this.fahrzeuge.get(e.id);
+      if (!g) {
+        g = erzeugeFahrzeugModell(e.modell, e.laenge, e.breite);
+        this.fahrzeuge.set(e.id, g);
+        this.szene.add(g);
+      }
+      g.visible = Math.abs(e.x - fokus.x) < SICHTWEITE && Math.abs(e.y - fokus.y) < SICHTWEITE;
+      g.position.set(e.x, 0, e.y);
+      g.rotation.y = Math.PI / 2 - e.winkel;
+    }
+    for (const [id, g] of this.fahrzeuge) {
+      if (gesehen.has(id)) continue;
+      this.szene.remove(g);
+      this.fahrzeuge.delete(id);
+    }
   }
 
   /** Bauwerke der Welt als 3D-Gruppen – neu aufbauen nur, wenn sich die Liste geändert hat (bauwerkeVersion). */
@@ -414,6 +445,7 @@ export class Renderer {
       probe.add(f.gruppe);
     }
     for (const name of WAFFEN_NAMEN) probe.add(erzeugeWaffe(name));
+    for (const modell of Object.keys(FAHRZEUG_MODELLE)) probe.add(erzeugeFahrzeugModell(modell, 150, 70));
     for (const typ of ['werkbank', 'lagerfeuer', 'falle', 'beet']) {
       const zustand = { typ, brennt: true, gespannt: true, pflanze: 'tomate', wachstum: 1 };
       const b = erzeugeBauwerk(zustand);
@@ -560,7 +592,7 @@ export class Renderer {
         this.figuren.set(e.id, f);
       }
       const nah = Math.abs(e.x - fokus.x) < SICHTWEITE && Math.abs(e.y - fokus.y) < SICHTWEITE;
-      f.gruppe.visible = !e.tot && nah;
+      f.gruppe.visible = !e.tot && nah && !e.fahrzeug && !e.fahrzeugId; // im Auto sieht man die Figur nicht
       if (!f.gruppe.visible) continue;
       const schlaeft = e.arbeit === 'schlafen' && e.arbeitOrt;
       if (schlaeft) {
@@ -656,6 +688,17 @@ export class Renderer {
       const s = spieler[i];
       if (!s) {
         spot.intensity = 0;
+        return;
+      }
+      // Im Auto: Scheinwerfer statt Taschenlampe (von der Front in Fahrtrichtung)
+      const autoId = s.fahrzeugId ?? s.fahrzeug?.id;
+      const auto = autoId !== undefined && autoId !== null ? entitaeten.find((e) => e.id === autoId) : null;
+      if (auto) {
+        const ax = Math.cos(auto.winkel);
+        const az = Math.sin(auto.winkel);
+        spot.position.set(auto.x + ax * (auto.laenge / 2 + 2), 22, auto.y + az * (auto.laenge / 2 + 2));
+        spot.target.position.set(auto.x + ax * 380, 0, auto.y + az * 380);
+        spot.intensity = this.nachtsicht ? 600 : 500 + 2600 * dunkel;
         return;
       }
       const vx = Math.cos(s.blick);

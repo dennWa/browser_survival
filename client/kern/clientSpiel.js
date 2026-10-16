@@ -5,6 +5,7 @@ import { tageszeit } from '../../gemeinsam/tageszeit.js';
 import { AKTIONEN, NACHRICHT } from '../../gemeinsam/protokoll.js';
 import { Welt } from '../../gemeinsam/welt/welt.js';
 import { wendeEingabeAn } from '../../gemeinsam/physik/bewegung.js';
+import { EINSTIEG_ABSTAND, FAHRZEUG_MODELLE, abstandZumFahrzeug, fahrzeugKacheln } from '../../gemeinsam/physik/fahrzeug.js';
 import { lerp, lerpWinkel } from '../../gemeinsam/mathe.js';
 import { INTERPOLATIONS_VERZOEGERUNG_MS, PING_INTERVALL_MS } from '../konfiguration.js';
 import { Effekte } from '../darstellung/effekte.js';
@@ -89,6 +90,7 @@ export class ClientSpiel {
      */
     this.tickNull = null;
     this.interpolationsPool = new Map(); // id → wiederverwendetes Objekt (kein Müll pro Frame)
+    this.fahrzeugStand = new Map(); // Fahrzeug-ID → letzte Position (Kacheln nur bei Änderung neu setzen)
     this.ping = null;
     this.letzterTick = 0;
     this.beendet = false;
@@ -122,6 +124,7 @@ export class ClientSpiel {
     this.karte.speichern();
     this.karte.zeige(false);
     this.sound?.stoppeAtmosphaere();
+    this.sound?.motor(null);
     clearInterval(this.pingTimer);
     for (const ab of this.abmelden) ab();
     if (!this.verbindung.getrennt) this.verbindung.trennen('Abgemeldet');
@@ -143,6 +146,7 @@ export class ClientSpiel {
     if (this.platzierung) return this.platzierungBestaetigen();
     const was = this.#interaktion();
     if (!was) return;
+    if (was.art === 'fahrzeug') return this.#aktion(AKTIONEN.FAHRZEUG);
     if (was.art === 'aufheben') this.#aktion(AKTIONEN.AUFHEBEN);
     else if (was.art === 'abbauen') this.#aktion(AKTIONEN.ABBAUEN);
     else if (was.art === 'bauwerk') this.#aktion(AKTIONEN.BAUWERK);
@@ -211,8 +215,11 @@ export class ClientSpiel {
   #interaktion() {
     if (this.spielerDaten?.tot || this.spielerDaten?.arbeit) return null;
     const { x, y } = this.lokal;
+    if (this.lokal.fahrzeug) return { art: 'fahrzeug', text: 'Aussteigen', symbol: '🚪' };
     const gegenstand = this.#naechsterGegenstand();
     if (gegenstand) return { art: 'aufheben', text: `${gegenstand.menge > 1 ? `${gegenstand.name} ×${gegenstand.menge}` : gegenstand.name} aufheben`, gegenstand };
+    const auto = this.#naechstesFreiesFahrzeug();
+    if (auto) return { art: 'fahrzeug', text: `Einsteigen (${FAHRZEUG_MODELLE[auto.modell]?.name ?? 'Auto'})`, symbol: '🚗' };
     const ressource = this.welt.naechsteRessource(x, y, ABBAU_REICHWEITE);
     if (ressource) return { art: 'abbauen', text: RESSOURCEN_OBJEKTE[ressource.typ].aktion, symbol: ressource.art === 'holz' ? '🪓' : '⛏' };
     const inventar = this.spielerDaten?.inventar ?? [];
@@ -221,6 +228,23 @@ export class ClientSpiel {
     if (this.#naheWerkbank()) return { art: 'werkbank', text: 'Werkbank benutzen', symbol: '🔨' };
     if (this.welt.naechstesObjekt(x, y, BETT_REICHWEITE, (o) => o.typ.startsWith('bett'))) return { art: 'schlafen', text: 'Schlafen (heilt, 6 Std. vorspulen)', symbol: '🛏' };
     return null;
+  }
+
+  /** Freies Fahrzeug in Einstiegsreichweite (aus dem letzten Schnappschuss) */
+  #naechstesFreiesFahrzeug() {
+    const letzter = this.schnappschuesse[this.schnappschuesse.length - 1];
+    if (!letzter) return null;
+    let bestes = null;
+    let bestAbstand = EINSTIEG_ABSTAND;
+    for (const e of letzter.entitaeten.values()) {
+      if (e.typ !== 'fahrzeug' || e.fahrerId !== null) continue;
+      const abstand = abstandZumFahrzeug(e, this.lokal.x, this.lokal.y);
+      if (abstand <= bestAbstand) {
+        bestes = e;
+        bestAbstand = abstand;
+      }
+    }
+    return bestes;
   }
 
   #naheWerkbank() {
@@ -439,6 +463,15 @@ export class ClientSpiel {
 
     const entitaeten = new Map(n.entitaeten.map((e) => [e.id, e]));
     this.schnappschuesse.push({ empfangen: jetzt, tick: n.tick, entitaeten });
+    // Fahrzeuge blockieren ihre Kacheln – auch für die eigene Laufvorhersage
+    const g = this.welt.kachelGroesse;
+    for (const e of entitaeten.values()) {
+      if (e.typ !== 'fahrzeug') continue;
+      const stand = `${Math.round(e.x)}|${Math.round(e.y)}|${e.winkel.toFixed(2)}`;
+      if (this.fahrzeugStand.get(e.id) === stand) continue;
+      this.fahrzeugStand.set(e.id, stand);
+      this.welt.setzeFahrzeugKacheln(e.id, fahrzeugKacheln(e, g));
+    }
     const geschaetzt = jetzt - n.tick * TICK_DAUER_MS;
     if (this.tickNull === null || geschaetzt < this.tickNull || geschaetzt - this.tickNull > 500) this.tickNull = geschaetzt;
     else this.tickNull += (geschaetzt - this.tickNull) * 0.02;
@@ -457,6 +490,8 @@ export class ClientSpiel {
     this.offeneEingaben = this.offeneEingaben.filter((e) => e.seq > eigene.seq);
     this.lokal.x = eigene.x;
     this.lokal.y = eigene.y;
+    // Im Auto: Fahrzustand vom Server übernehmen, dann wie beim Laufen die offenen Eingaben nachspielen
+    this.lokal.fahrzeug = eigene.fahrzeug ? { ...eigene.fahrzeug, x: eigene.x, y: eigene.y } : null;
     this.lokal.ausdauer = eigene.ausdauer;
     this.lokal.erschoepft = eigene.erschoepft;
     if (eigene.tot) {
@@ -493,10 +528,12 @@ export class ClientSpiel {
 
     this.lokalVorher.x = this.lokal.x;
     this.lokalVorher.y = this.lokal.y;
+    this.lokalVorher.winkel = this.lokal.fahrzeug?.winkel;
     if (!tot) wendeEingabeAn(this.lokal, eingabe, this.welt, this.physik, TICK_DAUER_S);
     this.#schritte();
     this.#zombieStoehnen();
     this.#feuerKnistern();
+    this.sound?.motor(this.lokal.fahrzeug ? this.lokal.fahrzeug.tempo : null);
 
     this.offeneEingaben.push(eingabe);
     if (this.offeneEingaben.length > MAX_OFFENE_EINGABEN) this.offeneEingaben.shift();
@@ -557,6 +594,12 @@ export class ClientSpiel {
       case 'tuerVerstaerkt':
         if (e.typ === 'tuerVerstaerkt' || e.von === this.eigeneId) this.sound.spiele('werkeln', { x: e.x ?? this.lokal.x, y: e.y ?? this.lokal.y });
         break;
+      case 'fahrzeug':
+        this.sound.spiele('autotuer', { x: e.x, y: e.y });
+        break;
+      case 'aufprall':
+        this.sound.spiele('aufprall', { x: e.x, y: e.y, lautstaerke: Math.min(1, e.tempo / 250) });
+        break;
       case 'gebaut':
         this.sound.spiele(e.bauwerk === 'beet' ? 'graben' : 'gebaut', { x: e.x, y: e.y });
         break;
@@ -596,6 +639,7 @@ export class ClientSpiel {
   }
 
   #schritte() {
+    if (this.lokal.fahrzeug) return; // im Auto keine Schritte (dafür brummt der Motor)
     const weg = Math.hypot(this.lokal.x - this.lokalVorher.x, this.lokal.y - this.lokalVorher.y);
     this.schrittWeg += weg;
     if (this.schrittWeg < SCHRITT_ABSTAND * (this.lokal.sprintet ? 1.35 : 1)) return;
@@ -653,6 +697,16 @@ export class ClientSpiel {
     if (!this.spielerDaten?.tot) this.karte.aktualisiere(eigen, jetzt);
     if (this.physik.ausdauerMax) this.hud.setzeAusdauer(this.lokal.ausdauer / this.physik.ausdauerMax, this.lokal.erschoepft);
     const andere = this.#interpolierteEntitaeten(jetzt);
+    // Eigenes Auto: aus der Vorhersage (weich interpoliert) statt aus den verzögerten Schnappschüssen
+    const fz = this.lokal.fahrzeug;
+    if (fz) {
+      const i = andere.findIndex((e) => e.id === fz.id);
+      const winkel = this.lokalVorher.winkel !== undefined ? lerpWinkel(this.lokalVorher.winkel, fz.winkel, alpha) : fz.winkel;
+      const eigenesAuto = { ...(i >= 0 ? andere[i] : { id: fz.id, typ: 'fahrzeug', modell: fz.modell, laenge: fz.laenge, breite: fz.breite }), x: eigen.x, y: eigen.y, winkel, tempo: fz.tempo, fahrerId: this.eigeneId };
+      if (i >= 0) andere[i] = eigenesAuto;
+      else andere.push(eigenesAuto);
+      eigen.fahrzeugId = fz.id;
+    }
     const interaktion = this.#interaktion();
     const aufhebbar = interaktion?.gegenstand ?? null;
     if (this.werkbankOffen && !this.#naheWerkbank()) this.werkbankUmschalten(false); // weggegangen → zu
@@ -727,6 +781,7 @@ export class ClientSpiel {
       e.x = lerp(alt.x, neu.x, t);
       e.y = lerp(alt.y, neu.y, t);
       e.blick = lerpWinkel(alt.blick, neu.blick, t);
+      if (neu.winkel !== undefined) e.winkel = lerpWinkel(alt.winkel, neu.winkel, t); // Fahrzeuge
       e.geschwindigkeit = Math.hypot(dx, dy) / dauer; // für Lauf-Animationen
       e.bewegungsWinkel = Math.atan2(dy, dx);
       ergebnis.push(e);

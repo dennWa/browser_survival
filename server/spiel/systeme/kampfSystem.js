@@ -5,6 +5,7 @@ import { NAHKAMPF_KEGEL, STANDARD_AUSRUESTUNG } from '../konfiguration/gegenstae
 import { aktuelleWaffe, legeAufBoden, legeRucksackAb, starteNachladen, zaehleMunition } from './inventarSystem.js';
 import { gibXp, setzeLevelZurueck } from './levelSystem.js';
 import { staerkeFaktor } from '../../../gemeinsam/spieler/skills.js';
+import { aussteigen } from './fahrzeugSystem.js';
 import { lasseZombieLootFallen } from './lootSystem.js';
 
 /**
@@ -96,6 +97,7 @@ function radiusVon(spielWelt, entitaet) {
  */
 export function fuegeSchadenZu(spielWelt, ziel, menge, quelle, winkel = 0) {
   if (ziel.tot || ziel.leben <= 0 || ziel.gottmodus) return;
+  if (ziel.fahrzeug && quelle?.typ === 'zombie') return; // im Auto ist man vor Bissen sicher
   ziel.leben -= menge;
   if (ziel.arbeit) brecheArbeitAb(spielWelt, ziel, ziel.arbeit.art === 'schlafen' ? 'Aufgeschreckt!' : null);
   spielWelt.ereignis({ typ: 'treffer', x: ziel.x, y: ziel.y, winkel, ziel: ziel.typ });
@@ -125,6 +127,7 @@ export function toeten(spielWelt, ziel, quelle = null) {
     lasseZombieLootFallen(spielWelt, ziel.x, ziel.y);
     return;
   }
+  if (ziel.fahrzeug) aussteigen(spielWelt, ziel, { erzwingen: true });
   raeumeZombiesWeg(spielWelt, ziel.x, ziel.y, spielWelt.konfiguration.spieler.todesZombieRadius);
   // Spieler: alles fällt zu Boden (auch der Rucksack), nach respawnZeit geht's am Startpunkt weiter
   legeRucksackAb(spielWelt, ziel, spielWelt.konfiguration.loot.todesVerfall);

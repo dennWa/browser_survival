@@ -24,6 +24,7 @@ export class Sound {
   #ausgang = null;
   #rauschen = null;
   #atmosphaere = null;
+  #motor = null;
   #hoerer = { x: 0, y: 0 };
 
   constructor() {
@@ -102,6 +103,46 @@ export class Sound {
     ziel.connect(this.#ausgang);
     const dauer = rezept({ ctx, ausgang: lautstaerkeKnoten, t: ctx.currentTime + VORLAUF, rauschen: this.#rauschen, tonhoehe });
     setTimeout(() => ziel.disconnect(), (dauer + 0.5) * 1000);
+  }
+
+  /**
+   * Motorgeräusch beim Fahren: zwei verstimmte Oszillatoren durch einen Tiefpass, Tonhöhe & Lautstärke folgen
+   * dem Tempo. tempo = null → Motor aus (weich ausblenden).
+   */
+  motor(tempo) {
+    const ctx = this.#ctx;
+    if (!ctx || ctx.state !== 'running') return;
+    if (tempo === null) {
+      if (!this.#motor) return;
+      const { knoten, gain } = this.#motor;
+      gain.gain.setTargetAtTime(0, ctx.currentTime, 0.12);
+      setTimeout(() => knoten.forEach((k) => k.stop()), 600);
+      this.#motor = null;
+      return;
+    }
+    if (!this.#motor) {
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 420;
+      const a = ctx.createOscillator();
+      a.type = 'sawtooth';
+      const b = ctx.createOscillator();
+      b.type = 'square';
+      a.connect(filter);
+      b.connect(filter);
+      filter.connect(gain).connect(this.#ausgang);
+      a.start();
+      b.start();
+      this.#motor = { knoten: [a, b], gain, filter, a, b };
+    }
+    const anteil = Math.min(1, Math.abs(tempo) / 340);
+    const t = ctx.currentTime;
+    this.#motor.a.frequency.setTargetAtTime(34 + anteil * 70, t, 0.08);
+    this.#motor.b.frequency.setTargetAtTime(17.3 + anteil * 36, t, 0.08);
+    this.#motor.filter.frequency.setTargetAtTime(300 + anteil * 700, t, 0.1);
+    this.#motor.gain.gain.setTargetAtTime(0.05 + anteil * 0.08, t, 0.1);
   }
 
   /** Leises, unheimliches Hintergrundbrummen (Wind, entferntes Grollen). */
@@ -204,6 +245,18 @@ const REZEPTE = {
   trinken: ({ ctx, ausgang, t }) => {
     for (let i = 0; i < 3; i++) ton(ctx, ausgang, t + i * 0.22, { typ: 'sine', von: 320, bis: 190, dauer: 0.12, lautstaerke: 0.3 });
     return 0.75;
+  },
+  // Fahrzeuge
+  autotuer: ({ ctx, ausgang, t, rauschen }) => {
+    rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.12, typ: 'lowpass', frequenz: 700, lautstaerke: 0.7, anschlag: 0.002 });
+    ton(ctx, ausgang, t, { typ: 'sine', von: 140, bis: 70, dauer: 0.15, lautstaerke: 0.4, anschlag: 0.002 });
+    klick(ctx, ausgang, t + 0.09, 1800, 0.12);
+    return 0.3;
+  },
+  aufprall: ({ ctx, ausgang, t, rauschen }) => {
+    ton(ctx, ausgang, t, { typ: 'sine', von: 110, bis: 40, dauer: 0.25, lautstaerke: 0.8, anschlag: 0.002 });
+    rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.2, typ: 'lowpass', frequenz: 900, lautstaerke: 0.8, anschlag: 0.002 });
+    return 0.3;
   },
   // Bauen & Garten
   gebaut: ({ ctx, ausgang, t, rauschen }) => {

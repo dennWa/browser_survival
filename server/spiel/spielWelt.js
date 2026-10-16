@@ -14,12 +14,16 @@ import { verteileStartLoot, aktualisiereLoot } from './systeme/lootSystem.js';
 import { aktualisiereTageszeit } from './systeme/tageszeitSystem.js';
 import { aktualisiereArbeit } from './systeme/arbeitSystem.js';
 import { aktualisiereBauwerke } from './systeme/bauSystem.js';
+import { aktualisiereFahrzeuge, aussteigen } from './systeme/fahrzeugSystem.js';
+import { erzeugeFahrzeug, fahrzeugZuNetzwerk } from './entitaeten/fahrzeug.js';
+import { FAHRZEUG_MODELLE, fahrzeugAusObjekt, passt } from '../../gemeinsam/physik/fahrzeug.js';
 import { BAUWERKE, PFLANZEN, pruefePlatz } from '../../gemeinsam/welt/bauwerke.js';
 
 /** Welche Entitätstypen jeden Tick im Schnappschuss landen (dynamisch) – und wie sie serialisiert werden. */
 const NETZWERK_SERIALISIERER = {
   spieler: spielerZuNetzwerk,
   zombie: zombieZuNetzwerk,
+  fahrzeug: fahrzeugZuNetzwerk,
 };
 
 /**
@@ -35,7 +39,10 @@ export class SpielWelt {
   constructor(konfiguration, { kartenDefinition } = {}) {
     this.konfiguration = konfiguration;
     this.zufall = new Zufall(konfiguration.server.zufallsStartwert ?? undefined);
-    this.karte = kartenDefinition ? verarbeiteKarte(kartenDefinition) : ladeKarte(konfiguration.welt.karte);
+    const karte = kartenDefinition ? verarbeiteKarte(kartenDefinition) : ladeKarte(konfiguration.welt.karte);
+    // Autos auf der Karte werden zu Fahrzeugen (Entitäten) – aus den Möbeln raus, auch für den Client (karte.daten)
+    const autos = karte.daten.objekte.filter((o) => FAHRZEUG_MODELLE[o.typ]);
+    this.karte = { ...karte, daten: { ...karte.daten, objekte: karte.daten.objekte.filter((o) => !FAHRZEUG_MODELLE[o.typ]) } };
     this.welt = new Welt(this.karte.daten);
     this.entitaeten = new Map();
     this.tick = 0;
@@ -57,6 +64,7 @@ export class SpielWelt {
     this.tag = 1;
     this.istNacht = false;
 
+    for (const o of autos) this.hinzufuegen(erzeugeFahrzeug({ id: this.neueId(), ...fahrzeugAusObjekt(o, this.welt.kachelGroesse) }));
     this.karte.zombieSpawns.forEach((spawn, spawnIndex) => this.spawneZombie(spawnIndex));
     verteileStartLoot(this);
   }
@@ -74,7 +82,8 @@ export class SpielWelt {
    * gebaute Sachen (inkl. Beete & Pflanzen), Uhrzeit und Tag.
    */
   weltzustand() {
-    return { version: 1, karte: this.karte.daten.id, zeit: this.zeit, tag: this.tag, bauwerke: [...this.welt.bauwerke.values()] };
+    const fahrzeuge = [...this.alleVomTyp('fahrzeug')].map(({ modell, x, y, winkel }) => ({ modell, x, y, winkel }));
+    return { version: 1, karte: this.karte.daten.id, zeit: this.zeit, tag: this.tag, bauwerke: [...this.welt.bauwerke.values()], fahrzeuge };
   }
 
   /** Gespeicherten Weltzustand übernehmen – alles wird geprüft (Datei kann alt oder kaputt sein). */
@@ -88,6 +97,16 @@ export class SpielWelt {
       b.id = this.neueBauwerkId();
       this.welt.setzeBauwerk(b);
     }
+    // Autos stehen da, wo sie zuletzt geparkt wurden (Anzahl & Modelle wie auf der Karte)
+    const gespeichert = Array.isArray(stand.fahrzeuge) ? stand.fahrzeuge : [];
+    const vorhanden = [...this.alleVomTyp('fahrzeug')];
+    for (const fz of vorhanden) {
+      const i = gespeichert.findIndex((f) => f?.modell === fz.modell && Number.isFinite(f.x) && Number.isFinite(f.y) && Number.isFinite(f.winkel));
+      if (i < 0) continue;
+      const [f] = gespeichert.splice(i, 1);
+      const probe = { ...fz, x: f.x, y: f.y, winkel: f.winkel };
+      if (passt(probe, f.x, f.y, this.welt)) Object.assign(fz, { x: f.x, y: f.y, winkel: f.winkel, letzteKacheln: '' });
+    }
     return true;
   }
 
@@ -100,6 +119,8 @@ export class SpielWelt {
   entfernen(id) {
     const entitaet = this.entitaeten.get(id);
     if (!entitaet) return;
+    if (entitaet.fahrzeug) aussteigen(this, entitaet, { erzwingen: true }); // Spieler geht offline im Auto
+    if (entitaet.typ === 'fahrzeug') this.welt.entferneFahrzeugKacheln(id);
     this.entitaeten.delete(id);
     if (entitaet.typ === 'gegenstand') this.gegenstaendeVersion++;
   }
@@ -173,6 +194,7 @@ export class SpielWelt {
     this.ereignisse = []; // Meldungen leert der SpielServer nach dem Versand
     this.#beendeAbgelaufeneAktionen();
     verarbeiteSpielerEingaben(this);
+    aktualisiereFahrzeuge(this, dt);
     verarbeiteAktionen(this);
     aktualisiereNachladen(this, dt);
     aktualisiereKampf(this, dt);
