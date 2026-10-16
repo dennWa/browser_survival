@@ -62,6 +62,10 @@ export const ENTWICKLER_FELDER = [
   { pfad: 'wetter.dauerMax', name: 'Wetter: längste Dauer Regen/Nebel', gruppe: 'Welt', min: 60, max: 1800, schritt: 30, einheit: 's' },
   { pfad: 'wetter.pauseMax', name: 'Wetter: längste Pause dazwischen', gruppe: 'Welt', min: 60, max: 3600, schritt: 30, einheit: 's' },
 
+  // --- Basisbau (v0.11) ---
+  { pfad: 'basisbau.radiusKacheln', name: 'Baugebiet-Radius (neue Flaggen)', gruppe: 'Welt', min: 3, max: 60, schritt: 1, einheit: 'm' },
+  { pfad: 'basisbau.rueckgabe', name: 'Abriss: Anteil Rückerstattung', gruppe: 'Welt', min: 0, max: 1, schritt: 0.05 },
+
   // --- Waffen ---
   { pfad: 'gegenstaende.pistole.schaden', name: 'Pistole: Schaden', gruppe: 'Waffen', min: 0, max: 500, schritt: 1 },
   { pfad: 'gegenstaende.pistole.magazin', name: 'Pistole: Magazin', gruppe: 'Waffen', min: 1, max: 100, schritt: 1 },

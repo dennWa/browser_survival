@@ -3,7 +3,8 @@ import { FBXLoader, SkeletonUtils } from '../vendor/three/addons.js';
 import { KartenModell } from './kartenModell.js';
 import { vereineGeometrien } from './geometrie.js';
 import { Fussspuren } from './fussspuren.js';
-import { erzeugeBauwerk, erzeugeVorschau } from './bauwerkModelle.js';
+import { bauwerkDrehungY, erzeugeBauwerk, erzeugeVorschau } from './bauwerkModelle.js';
+import { BASIS_MATERIAL, BasisbauSchicht, INSTANZ_TYPEN, bauteilGeometrie, erzeugeGebietRing, initialisiereBasisbauModelle, markierungsHoehe, wirdInstanziert } from './basisbauModelle.js';
 import { animiereWrack, erzeugeFahrzeugModell, macheWrack } from './fahrzeugModelle.js';
 import { FAHRZEUG_MODELLE } from '../../gemeinsam/physik/fahrzeug.js';
 import { erzeugeFrisur } from './haarModell.js';
@@ -23,6 +24,8 @@ import { WetterEffekt } from './wetterEffekt.js';
  *   Weltpixel x → three.x, Weltpixel y → three.z, Höhe → three.y (1 Einheit = 1 Weltpixel)
  *
  * v0.10: Tiere (Hase), Angel (Rute/Schnur/Pose), Wetter (wetterEffekt.js: Regen, Nebel, Licht), Wracks, Erdfeld-Vorschau.
+ * v0.11 Basisbau: Böden/Wände/Dächer als instanzierte Schicht (basisbauModelle.js → BasisbauSchicht), Bau-Hologramm (zeigeVorschau mit
+ *   drehung, 'abriss'-Markierung, 'flagge'), roter Baugebiet-Ring (zeigeGebiet, nur Besitzer) + Flaggen-Ring (zeigeGebietVorschau).
  *
  * Ebenen: WebGL-Canvas (#spielflaeche3d) liegt UNTER dem 2D-Canvas (#spielflaeche). Das 2D-Canvas bleibt
  * durchsichtig, empfängt Maus/Touch und zeigt Namen & Lebensbalken. Vignette und Schadensblitz sind CSS.
@@ -149,6 +152,12 @@ export class Renderer {
     this.bauwerkeStand = -1;
     this.feuerLampen = []; // brennende Lagerfeuer als Lampen für den Lampen-Pool
     this.vorschau = null; // { typ, gruppe }
+    // Basisbau: instanzierte Böden/Wände/Dächer, roter Baugebiet-Ring (nur der Besitzer sieht ihn) und Ring fürs Flaggen-Hologramm
+    initialisiereBasisbauModelle({ mitSchnitt: (m) => this.#mitSchnitt(m) });
+    this.basisbau = new BasisbauSchicht(this.szene);
+    this.gebietRing = erzeugeGebietRing(0xff3b30);
+    this.gebietVorschau = erzeugeGebietRing(0x7dff6a);
+    this.szene.add(this.gebietRing.mesh, this.gebietVorschau.mesh);
     this.fahrzeuge = new Map(); // Fahrzeug-ID → Gruppe
     this.tiere = new Map(); // Tier-ID → { gruppe, aktualisiere }
     this.angelnde = new Map(); // Spieler-ID → Angel-Darstellung (Rute, Schnur, Pose)
@@ -255,6 +264,9 @@ export class Renderer {
     for (const b of this.bauwerke.values()) this.szene.remove(b.gruppe);
     this.bauwerke.clear();
     this.bauwerkeStand = -1;
+    this.basisbau.leeren();
+    this.gebietRing.verstecke();
+    this.gebietVorschau.verstecke();
     this.zeigeVorschau(null);
     this.karte = new KartenModell({
       welt,
@@ -302,7 +314,9 @@ export class Renderer {
     this.#aktualisiereTaschenlampen(entitaeten, fokus, dunkel);
     this.#aktualisiereItems(gegenstaende, markiertId, jetzt);
     this.#aktualisiereFallendeBaeume(dt);
-    this.#aktualisiereBauwerke(jetzt);
+    this.#aktualisiereBauwerke(jetzt, fokus);
+    this.gebietRing.animiere(jetzt);
+    this.gebietVorschau.animiere(jetzt);
     this.fussspuren.aktualisiere(entitaeten, jetzt);
     this.#aktualisiereLampenPool(fokus, jetzt, dunkel);
     if (effekte) {
@@ -404,23 +418,30 @@ export class Renderer {
     }
   }
 
-  /** Bauwerke der Welt als 3D-Gruppen – neu aufbauen nur, wenn sich die Liste geändert hat (bauwerkeVersion). */
-  #aktualisiereBauwerke(jetzt) {
+  /**
+   * Bauwerke der Welt als 3D-Gruppen – neu aufbauen nur, wenn sich die Liste geändert hat (bauwerkeVersion).
+   * Viele gleiche Basisbau-Teile (Boden, Wand, Dach …) zeichnet stattdessen die BasisbauSchicht instanziert.
+   */
+  #aktualisiereBauwerke(jetzt, fokus) {
     const welt = this.welt;
+    this.basisbau.aktualisiere(welt, fokus);
     if (welt.bauwerkeVersion !== this.bauwerkeStand) {
       this.bauwerkeStand = welt.bauwerkeVersion;
       const g = welt.kachelGroesse;
       for (const [id, b] of this.bauwerke) {
-        if (welt.bauwerke.get(id)?.typ === b.typ) continue;
+        const jetztB = welt.bauwerke.get(id);
+        // Ausgerichtete Einzelstücke (Tür, Bett) neu stellen, wenn sich die Richtung ändert – sonst nur bei Typwechsel
+        if (jetztB?.typ === b.typ && (jetztB.drehung ?? 0) === b.drehung) continue;
         this.szene.remove(b.gruppe);
         this.bauwerke.delete(id);
       }
       for (const b of welt.bauwerke.values()) {
-        if (this.bauwerke.has(b.id)) continue;
+        if (this.bauwerke.has(b.id) || wirdInstanziert(b.typ)) continue;
         const neu = erzeugeBauwerk(b);
         neu.typ = b.typ;
+        neu.drehung = b.drehung ?? 0;
         neu.gruppe.position.set((b.tx + 0.5) * g, 0, (b.ty + 0.5) * g);
-        neu.gruppe.rotation.y = ((b.tx * 7 + b.ty * 13) % 4) * (Math.PI / 2) * (b.typ === 'werkbank' ? 0 : 1);
+        neu.gruppe.rotation.y = bauwerkDrehungY(b);
         this.szene.add(neu.gruppe);
         this.bauwerke.set(b.id, neu);
       }
@@ -431,6 +452,23 @@ export class Renderer {
       this.naechsteLampen = null;
     }
     for (const [id, b] of this.bauwerke) b.aktualisiere(welt.bauwerke.get(id), jetzt);
+  }
+
+  /**
+   * Eigenes Baugebiet als roter Ring (nur der Besitzer kennt es, siehe SPIELER_DATEN.flagge) – oder null/false = aus.
+   * @param gebiet { tx, ty, radius } in Kacheln
+   */
+  zeigeGebiet(gebiet) {
+    if (!gebiet) return this.gebietRing.verstecke();
+    const g = this.welt.kachelGroesse;
+    this.gebietRing.setze((gebiet.tx + 0.5) * g, (gebiet.ty + 0.5) * g, (gebiet.radius + 0.5) * g);
+  }
+
+  /** Vorschau-Ring beim Platzieren der Flagge: { tx, ty, radius, ok } oder null. */
+  zeigeGebietVorschau(daten) {
+    if (!daten) return this.gebietVorschau.verstecke();
+    const g = this.welt.kachelGroesse;
+    this.gebietVorschau.setze((daten.tx + 0.5) * g, (daten.ty + 0.5) * g, (daten.radius + 0.5) * g, daten.ok ? 0x7dff6a : 0xff4a3a);
   }
 
   /** Platzier-Vorschau: { typ, tx, ty, ok } oder null (weg). */
@@ -447,6 +485,8 @@ export class Renderer {
     }
     const g = this.welt.kachelGroesse;
     this.vorschau.gruppe.position.set((daten.tx + 0.5) * g, 0.2, (daten.ty + 0.5) * g);
+    this.vorschau.gruppe.rotation.y = (daten.drehung ?? 0) * (Math.PI / 2); // nur Teile mit Richtung bekommen drehung != 0
+    if (daten.typ === 'abriss') this.vorschau.gruppe.userData.kasten.scale.y = markierungsHoehe(daten.ziel);
     if (this.vorschau.ok !== daten.ok) {
       this.vorschau.ok = daten.ok;
       this.vorschau.gruppe.userData.setzeOk(daten.ok);
@@ -537,7 +577,17 @@ export class Renderer {
     }
     for (const name of WAFFEN_NAMEN) probe.add(erzeugeWaffe(name));
     for (const modell of Object.keys(FAHRZEUG_MODELLE)) probe.add(erzeugeFahrzeugModell(modell, 150, 70));
-    for (const typ of ['werkbank', 'lagerfeuer', 'falle', 'beet']) {
+    for (const typ of Object.keys(INSTANZ_TYPEN)) {
+      // Instanzierte Basisbau-Teile haben eine eigene Shader-Variante (USE_INSTANCING)
+      const m = new THREE.InstancedMesh(bauteilGeometrie(typ), BASIS_MATERIAL, 1);
+      m.castShadow = m.receiveShadow = true;
+      probe.add(m);
+    }
+    for (const typ of ['werkbank', 'lagerfeuer', 'falle', 'beet', 'kiste', 'holztuer', 'bett', 'flagge', 'abriss']) {
+      if (typ === 'abriss') {
+        probe.add(erzeugeVorschau(typ));
+        continue;
+      }
       const zustand = { typ, brennt: true, gespannt: true, pflanze: 'tomate', wachstum: 1 };
       const b = erzeugeBauwerk(zustand);
       b.aktualisiere(zustand, 0);
@@ -547,6 +597,11 @@ export class Renderer {
     probe.add(icon, this.#itemMesh({ id: -2, defId: 'apfel', x: 0, y: 0 }), this.#blutMesh({ sprite: 'blutlache', groesse: 10, winkel: 0, x: 0, y: 0 }));
     this.szene.add(probe);
     this.lampenPool.forEach((l) => (l.intensity = 1));
+    for (const ring of [this.gebietRing, this.gebietVorschau]) {
+      const kopie = ring.mesh.clone();
+      kopie.visible = true;
+      probe.add(kopie);
+    }
     this.gl.compile(this.szene, this.kamera3d);
     for (const t of [this.karte.bodenTextur, ...Object.values(this.skins)]) this.gl.initTexture(t);
     this.gl.render(this.szene, this.kamera3d); // auch Schatten-Shader & Uploads einmal anstoßen

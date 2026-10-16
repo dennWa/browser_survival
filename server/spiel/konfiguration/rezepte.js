@@ -41,34 +41,6 @@ export const REZEPTE = {
     ergebnis: 'lagerfeuer',
   },
 
-  kiste: {
-    name: 'Lagerkiste',
-    kategorie: 'Bauen',
-    ort: 'inventar',
-    beschreibung: 'Zum Aufstellen: 16 Plätze. Mit E öffnen.',
-    zutaten: { holz: 8 },
-    ergebnis: 'kiste',
-  },
-  // Basisbau (Grundgerüst – die tiefen Mechaniken kommen später)
-  holzwand: {
-    name: 'Holzwand',
-    kategorie: 'Bauen',
-    ort: 'inventar',
-    beschreibung: 'Basisbau: eine Wandkachel, die Spieler und Zombies blockiert.',
-    zutaten: { holz: 6 },
-    ergebnis: 'holzwand',
-    level: 3,
-  },
-  holzboden: {
-    name: 'Holzboden',
-    kategorie: 'Bauen',
-    ort: 'inventar',
-    beschreibung: 'Basisbau: ein begehbarer Holzboden auf Rasen.',
-    zutaten: { holz: 3 },
-    ergebnis: 'holzboden',
-    level: 3,
-  },
-
   // --- Werkzeuge ---
   axt: {
     name: 'Axt',
@@ -96,7 +68,8 @@ export const REZEPTE = {
   hammer: {
     name: 'Hammer',
     kategorie: 'Waffen',
-    beschreibung: 'Solider Nahkampf: 30 Schaden.',
+    ort: 'inventar', // ohne Werkbank baubar – der Hammer ist das Werkzeug fürs Bauen (BUILD) und Abreißen
+    beschreibung: 'Solider Nahkampf: 30 Schaden. Außerdem dein Bauwerkzeug (BUILD).',
     zutaten: { holz: 2, stein: 2 },
     ergebnis: 'hammer',
   },

@@ -39,6 +39,7 @@
         <div class="hud-knoepfe">
           <button id="hud-chat" type="button" title="Chat (T)">💬</button>
           <button id="hud-inventar" type="button" title="Inventar (I)">🎒</button>
+          <button id="hud-bauen" type="button" title="Bauen (B): Basis-Flagge, Wände, Böden, Möbel – mit dem Hammer">🔨 BUILD</button>
           <button id="hud-skills" type="button" title="Fähigkeiten (U)">⭐</button>
           <button id="hud-feld" type="button" title="Erdfeld anlegen (G) – mit der Spitzhacke">🌱</button>
           <button id="hud-zoom" class="nur-touch" type="button" title="Zoom (am PC: Mausrad)">🔍</button>
@@ -76,10 +77,13 @@
         <button type="button" data-befehl="zombiesToeten">Alle Zombies töten</button>
         <button type="button" data-befehl="zeitSpringen">Tag ⇄ Nacht</button>
         <button type="button" data-befehl="wetter">Wetter wechseln</button>
+        <button type="button" data-befehl="flaggeEntfernen">🚩 Meine Basis-Flagge entfernen</button>
         <button type="button" data-nachtsicht>Nachtsicht</button>
         <button type="button" data-entwickler class="dev-knopf">🛠 Developer</button>
       </div>
       <div id="hud-meldungen" aria-live="polite"></div>
+      <!-- Bau-Menü (Basisbau, Taste B): Reiter, Bauteil-Karten, Werkzeuge – wird von ui/bauMenue.js gefüllt -->
+      <div id="bau-menue" hidden></div>
       <!-- Platzier-Modus: Vorschau in der Welt, hier Bestätigen/Abbrechen (Touch & Maus) -->
       <div id="hud-platzieren" hidden>
         <span id="hud-platzieren-text"></span>

@@ -125,10 +125,28 @@ Spieler aller Zonen schlafen; der Zeitsprung gilt dann für alle aktiven Zonen. 
   **Erdfelds** (`FELD_GROESSE`² = 3×3 Beete, grün/rot) → Klick/E legt es an (AKTION `feld`, `bauSystem.legeFeldAn`). Samen
   (Tomate, Gurke, Kartoffel, **Paprika**; Loot) mit E bzw. Benutzen pflanzen; wächst in 1 Spieltag (24 h, Schlafen spult mit),
   **bei Regen doppelt so schnell** (= halbe Zeit, `WACHSTUM_REGEN_FAKTOR`), Ernte 2 Früchte (`konfiguration.bauen`).
-- **Lagerkiste** (v0.10): 8 Holz (Inventar → Bauen), aufstellen, **E** öffnet (Fenster `kisteFenster.js`, 16 Plätze, Antippen
+- **Lagerkiste** (v0.10, ab v0.11 übers Bau-Menü): 8 Holz, **E** öffnet (Fenster `kisteFenster.js`, 16 Plätze, Antippen
   schiebt Stapel; Inhalt privat, nur per `KISTE`-Nachricht an den Öffner; schließt sich beim Weggehen; wird mit der Zone gespeichert).
-- **Basisbau-Gerüst** (v0.10): Holzwand (blockiert) + Holzboden (begehbar, nur Rasen) als Bauwerke/Items/Rezepte (Level 3) –
-  die tiefen Mechaniken (Räume, Türen, Verfall …) kommen später (`gemeinsam/welt/bauwerke.js`).
+  Nur der Besitzer (bzw. Berechtigte) kommt dran.
+- **Basisbau** (v0.11, Protokoll 9): **BUILD-Knopf / Taste B** → Hammer in die Hand + Bau-Menü (Reiter Basis · Struktur · Einrichtung).
+  1. **Basis-Flagge** (kostenlos, eine pro Spieler über alle Zonen): nur auf flachem Rasen, 2 Kacheln Freiraum ohne Gebäude/Hindernisse/Wasser,
+     ≥ 15 Kacheln Abstand zu fremden Flaggen. Danach verschwindet die Flagge – es bleibt das **Baugebiet** (Radius 15 m, `basisbau.radiusKacheln`,
+     Haken `radiusZuschlag` für spätere Skillpunkte). Der **rote Ring** ist rein clientseitig (nur der Besitzer erfährt das Gebiet,
+     `SPIELER_DATEN.flagge`), sichtbar mit Hammer in der Hand, Taste **V** schaltet ihn.
+  2. **Bauteile** (Registry `gemeinsam/basisbau/teile.js`): Holzboden/-dach/-wand/-wand mit Fenster/-wand mit Türöffnung je 8 Holz, Holztür 6 Holz
+     (nur in eine Türöffnung), Lagerkiste 8 Holz, Bett 5 Holz + 2 Stein + 2 **Stoff** (neues Item, Loot in Wohnungen/Lagern). Das Raster ist die Kachel
+     (1 Kachel = 1 m): Boden frei auf dem Raster, **Wand dockt an Boden oder Wand an** (Eckwände auch diagonal am Boden – Wandring in beliebiger Reihenfolge), Dach über Boden/Wand bzw. neben Dach, Türrahmen/Fenster
+     richten sich automatisch aus (Taste **R** dreht), bei knappem Zielen **springt das Hologramm auf die nächste gültige Kachel** (Magnet).
+     Hologramm **grün = baubar, rot = blockiert / außerhalb des Gebiets / Material fehlt / zu weit weg** (dieselbe Prüfung wie der Server).
+     Pro Kachel liegt je **Ebene** (Boden, Objekt, Wand, Tür, Dach) ein Teil – ein Haus ist also Boden + Wandring + Dach auf denselben Kacheln.
+     Wände blockieren Laufen + Sicht + Schüsse (Fenster nur Laufen), geschlossene Türen alles; **Dächer werden unsichtbar, solange man darunter steht**.
+  3. **Abriss** (Menü „Abriss“ / Taste X): mit dem Hammer ein eigenes Bauteil anvisieren (orange Markierung), Klick → **75 % der Kosten** (abgerundet)
+     ins Inventar (voll → vor die Füße). Reihenfolge Tür → Möbel → Wand → Dach → Boden; ein Türrahmen nimmt seine Tür mit; eine Kiste verstreut ihren Inhalt.
+  4. **Rechte** (`gemeinsam/basisbau/rechte.js`): nur der Besitzer der Flagge baut/reißt ab im Gebiet und öffnet eigene Kisten/Türen/Betten.
+     `flagge.mitglieder = { name: [RECHT…] }` ist für Gruppen schon vorbereitet (wird gespeichert und von `hatRecht` ausgewertet).
+  5. **Bett**: E → „Spawn Point setzen (Unterkunft)“ (`spieler.spawn`, im Spielstand). Nach dem Tod wacht man neben dem Bett auf (auch aus einer
+     anderen Zone: der Server zieht um); fehlt das Bett, gilt der normale Start. Hammer: im Start-Inventar, auch im Inventar herstellbar (2 Holz + 2 Stein).
+  Kein Bauen in der freien Welt (ohne Flagge/außerhalb des Radius). Werkbank/Lagerfeuer/Falle/Beet bleiben wie gehabt über Inventar-Items.
 - **Crafting-Level** (v0.10): Rezepte haben optional `level` (Standard 1); Server prüft `spieler.level`, Menüs zeigen „Level N“
   und sperren den Knopf. Aktuell: Machete/Falle/Schrotpatronen 2, Kampfbeil 3, Holzwand/-boden 3.
 - **Jagen** (v0.10): **Hasen** (`entitaeten/tier.js`, `tierSystem.js`; ~6 je 1000 Rasenkacheln, max. 40) hoppeln umher, fliehen
@@ -291,6 +309,11 @@ browser_survival/
 │   ├── welt/welt.js               Klasse Welt: Kachelabfragen, istBlockiert, Türen, Ressourcen-Knoten, naechstesObjekt
 │   ├── welt/ressourcen.js         Welche Kartenobjekte abbaubar sind (Baum → Holz/Axt, Stein → Stein/Spitzhacke)
 │   ├── welt/wasser.js             (v0.10) istWasserKachel, wurfZiel – Wo landet die Angel-Pose? (Server + Client-Hinweis)
+│   ├── basisbau/                  (v0.11) Basisbau – von Server UND Client geteilte Regeln
+│   │   ├── teile.js               BAUTEILE-Registry (Menü, Kosten, Kategorien), Rückerstattung, Material-Hilfen
+│   │   ├── rechte.js              RECHT, hatRecht/darfBenutzen/darfAbreissen (Gruppen vorbereitet)
+│   │   ├── territorium.js         Territorium (Flaggen einer Zone), pruefeFlaggenPlatz
+│   │   └── platzierung.js         pruefeBauteil, pruefeAnschluss, snappe (Magnet), autoDrehung, findeAbrissZiel
 │   └── physik/
 │       ├── bewegung.js            wendeEingabeAn, bewegeKoerper (Kollision) – deterministisch!
 │       ├── pfadfindung.js         (v0.10, früher server) A* auf dem Kachelraster – Zombies UND Auto-Lauf per Kartenklick
@@ -325,7 +348,10 @@ browser_survival/
 │   │   │   ├── angelSystem.js     (v0.10) Angeln: Auswerfen (Linksklick), Biss-Fenster, Fang (10 % doppelt)
 │   │   │   ├── wetterSystem.js    (v0.10) Wetter pro Zone (klar/Regen/Nebel, 1–5 min), WACHSTUM_REGEN_FAKTOR
 │   │   │   ├── kistenSystem.js    (v0.10) Lagerkisten: öffnen, einlegen/entnehmen, schließen
-│   │   │   ├── bauSystem.js       Bauwerke platzieren, Lagerfeuer, Fallen, Beete/Wachstum, Kochen
+│   │   │   ├── bauSystem.js       Bauwerke platzieren, Lagerfeuer, Fallen, Beete/Wachstum, Kochen, E am Bauwerk (Tür, Bett, Kiste), neuesBauwerk()
+│   │   │   ├── basisbauSystem.js  (v0.11) AKTION bauen/abreissen: Hammer, Gebiet, Anschluss, Kosten, Abriss mit 75 %
+│   │   │   ├── territoriumSystem.js (v0.11) Basis-Flagge setzen/entfernen, Radius (+Skill-Haken), Speichern/Laden der Flaggen
+│   │   │   ├── spawnSystem.js     (v0.11) Bett = Spawn Point (setzen, Respawn-Punkt, Bett weg → vergessen)
 │   │   │   ├── fahrzeugSystem.js  Ein-/Aussteigen, Fahren, Zombies anfahren
 │   │   │   ├── zonenSystem.js     Übergangs-Rechtecke erkennen → spieler.zonenwechsel
 │   │   │   ├── ueberlebenSystem.js Hunger, Durst, Heilung, Wiederbelebung
@@ -373,6 +399,7 @@ browser_survival/
 │   ├── konfiguration.js           Serverliste (★ ONLINE_SERVER für die Pages-Version), Interpolation, Lokal-Latenz
 │   ├── kern/
 │   │   ├── clientSpiel.js         Laufende Sitzung: Vorhersage, Reconciliation, Interpolation
+│   │   ├── bauModus.js            (v0.11) Bau-Modus: BUILD, Hologramm, Snapping-Ziel, Klicks, Gebiets-Ring
 │   │   ├── spielSchleife.js       requestAnimationFrame-Loop mit festem Takt
 │   │   ├── eingabe.js             Tastatur/Maus/Touch vereint: richtung(), blickWinkel(), Tastenbelegung (TASTEN)
 │   │   └── touchSteuerung.js      Virtuelle Joysticks (Pointer Events)
@@ -389,6 +416,7 @@ browser_survival/
 │   ├── darstellung/
 │   │   ├── renderer.js            Three.js: Kamera, Figuren, Licht/Tageszeit, Lampen-Pool, Effekte, Wand-Schnitt, Overlay, Vorkompilieren
 │   │   ├── tierModelle.js         (v0.10) Hase (Comic-Platzhalter, prozedurale Textur) – hier echte Modelle einhängen
+│   │   ├── basisbauModelle.js     (v0.11) Basisbau-3D: Geometrien, instanzierte Schicht (Boden/Wand/Dach), Gebiets-Ring, Dach-Ausblendung
 │   │   ├── angelModell.js         (v0.10) Rute, Schnur, Pose (wackelt beim Biss)
 │   │   ├── wetterEffekt.js        (v0.10) Regen-Striche + weiche Übergänge Regen/Nebel (Licht, Nebelweite, Ton)
 │   │   ├── kartenModell.js        Statische Karte in wenigen Draw-Calls: Boden, Wände, Möbel, Türen, Bäume/Steine (abbaubar), Lampen
@@ -408,6 +436,7 @@ browser_survival/
 │       ├── hud.js                 Uhr, Balken, Schnellleiste, Aktions-/Tür-Knopf, Fortschritt, Chat, Spielerliste, Tod, Admin, Debug
 │       ├── werkbankMenue.js       Crafting-Menü (Kategorien, Zutaten, Herstellen)
 │       ├── inventarFenster.js     Inventar (I): Schnellleiste/Tasche/Rucksack, Drag & Drop, Rauswerfen
+│       ├── bauMenue.js            (v0.11) Bau-Menü (Reiter, Karten aus der Registry, Werkzeuge)
 │       ├── kisteFenster.js        (v0.10) Lagerkiste: 16 Plätze + Inventar, Antippen = verschieben
 │       ├── karte.js               Karte mit Nebel (erkundete Bereiche, localStorage), Minikarte (zeichneMini), Klick → Auto-Lauf
 │       ├── entwicklerFenster.js   Developer-Modus (Werte ändern, Export/Import)
@@ -483,7 +512,13 @@ browser_survival/
 | Angeln (Zeiten, Fische, Doppelfang) | `spielKonfiguration.js` → `angeln`; `angelSystem.js`, `gemeinsam/welt/wasser.js`; Darstellung `angelModell.js`; Hinweis `clientSpiel.js → #angelHinweis` |
 | Wetter (Dauer, Häufigkeit) | `spielKonfiguration.js` → `wetter`; `wetterSystem.js`; Darstellung `wetterEffekt.js` + `renderer.js → #tageslicht`; Ton `sound.js → regen()` |
 | Erdfeld-Größe, Samen/Pflanzen | `gemeinsam/welt/bauwerke.js` (`FELD_GROESSE`, `PFLANZEN`), `bauSystem.legeFeldAn`, Taste `G` (`eingabe.js`) |
-| Lagerkiste (Plätze) / Basisbau-Teile | `KISTE_PLAETZE` in `konstanten.js`, `kistenSystem.js`, `kisteFenster.js`; Bauwerke `holzwand`/`holzboden` in `bauwerke.js` |
+| Lagerkiste (Plätze) | `KISTE_PLAETZE` in `konstanten.js`, `kistenSystem.js`, `kisteFenster.js` |
+| **Basisbau: neues Bauteil (Möbel, Ofen …)** | 1) Eintrag in `gemeinsam/basisbau/teile.js` (Menü, Kosten) · 2) Eintrag in `BAUWERKE` (`gemeinsam/welt/bauwerke.js`: Ebene, Kollision, `anschluss`) · 3) Geometrie in `client/darstellung/basisbauModelle.js` (`GEO_BAUPLAN`) + Fall in `bauwerkModelle.erzeugeBauwerk` · 4) bei E-Aktion: `bauwerkAktion` + `bauSystem.benutzeBauwerk`; Zustand speichern: `spielWelt.pruefeBauwerk` |
+| Basisbau: Kosten, Rückgabe, Radius, Reichweite | Kosten `teile.js` (`kosten`); Rückgabe/Radius/Flaggen-Freiraum `spielKonfiguration.js` → `basisbau` (auch im Developer-Fenster); Reichweite `BAU_REICHWEITE_BASIS` |
+| Basisbau: Rechte / Gruppen | `gemeinsam/basisbau/rechte.js` (`hatRecht`), Flaggen-Daten `territoriumSystem.js` (`mitglieder`) |
+| Basisbau: Snapping-Regeln (was dockt woran) | `anschluss` je Typ in `BAUWERKE` + `platzierung.js` (`pruefeAnschluss`, `snappe`, `autoDrehung`) |
+| Basisbau: Bau-Menü / Hologramm / Tasten | `client/ui/bauMenue.js`, `client/kern/bauModus.js`; Tasten `TASTEN.bauen/abriss/gebiet` (+ R dreht) in `eingabe.js` |
+| Spawn Point / Respawn | `spawnSystem.js`, `ueberlebenSystem.wiederbeleben`, Zonenwechsel `spielServer.#wechsleZone`; Daten `spieler.spawn` (Spielstand) |
 | Crafting-Level je Rezept | `rezept.level` in `rezepte.js` (Server prüft in `craftingSystem.js`, Menüs zeigen es) |
 | Stapelgrößen | `STAPEL_MUNITION`/`STAPEL_STANDARD` in `konstanten.js` (angewendet in `gegenstaende.js → normalisiere`) |
 | XP fürs Abbauen | `spielKonfiguration.js` → `level.xpProAbbau` |
@@ -631,6 +666,14 @@ browser_survival/
 - HUD: FPS, Minikarte (ein/aus), Auto-Haltbarkeit; **Musik**-Ordnersystem, leiserer Wind, Regenton
 - Fix: „extrem dunkel im Norden im Auto“ = fast schwarzer Rasen jenseits des Kartenrands + Nebel, der beim Rauszoomen nicht mitwuchs
 
+### ✅ Phase 9 – Basisbau (fertig, v0.11.0, Protokoll 9)
+- **BUILD-Modus** (Knopf/Taste B): Hammer wird ausgerüstet, Bau-Menü, Hologramm grün/rot, Snapping (Magnet), Drehen (R), Abriss (X) mit 75 % Rückgabe
+- **Territorium:** Basis-Flagge (eine pro Spieler, flacher freier Rasen), Baugebiet 15 m, roter Ring nur für den Besitzer (V schaltet), Rechteprüfung zentral (`rechte.js`, Gruppen vorbereitet)
+- **Teile Tier 1 (Holz):** Boden, Dach, Wand, Wand mit Fenster, Wand mit Türöffnung, Tür, Lagerkiste, Bett (+ neues Item **Stoff**); Ebenen-System (Boden/Objekt/Wand/Tür/Dach pro Kachel)
+- **Bett = Spawn Point** (auch zonenübergreifend), Weltstand speichert Flaggen, Tür-Zustand, Drehung; Delta-Pakete `BAUWERKE_AENDERUNG`
+- Performance: Böden/Wände/Dächer als InstancedMesh (1 Draw-Call je Typ), Dach-Ausblendung per Flood-Fill nur bei Änderung, Karte zeichnet Struktur als Farbfelder
+- Tests: `tests/basisbau.test.js` (152 insgesamt)
+
 ### 💡 Ideen-Sammlung (für später, grob nach Aufwand)
 **Schnell umsetzbar**
 - Eisen (in der Werkstatt/Autos ausschlachten) → bessere Rezepte (Machete, Nägel, Munition)
@@ -657,7 +700,8 @@ browser_survival/
 
 ### 🔭 Später
 - Sichtlinie / Nebel des Krieges serverseitig (aktuell sieht der Client alle Zombies, nur die Grafik verdeckt sie)
-- Dächer, die beim Betreten ausgeblendet werden; Innenräume ohne Sicht nach außen abdunkeln
+- Innenräume ohne Sicht nach außen abdunkeln; Zombies erkennen selbstgebaute Häuser (`istInnen` + Dach) als „Haus“; Zombies greifen Wände/Türen an
+- Basisbau-Ausbau: Gruppen/Einladen (Rechte sind vorbereitet), Skill „Baugebiet erweitern“ (`radiusZuschlag`), Stein-/Metall-Tier, Möbel/Öfen, Verfall, Flagge verschieben/entfernen für Spieler
 - Interest Management (nur nahe Entitäten senden), Delta-Kompression – sobald Spielerzahl/Karte wächst
 - Treffer-Vorhersage im Client (sofortiges Feedback trotz Ping)
 - Mehrere Karten / Serverbrowser mit Live-Status
@@ -672,6 +716,8 @@ browser_survival/
 - Nahkampf trifft sofort beim Tastendruck (nicht erst im passenden Animationsframe)
 - Figuren-Animationen nur stehen/rennen; Arme werden prozedural gedreht (keine echte Animations-Mischung)
 - Leistung auf schwachen Handys: Schatten + große Bodentextur (3520×2752) – ggf. Qualitätsstufe nachrüsten
+- Basisbau-Wände füllen eine ganze Kachel (kein dünnes Kanten-Raster) – Kollision, Pfadsuche und Sicht bleiben kachelbasiert; Zombies kennen selbstgebaute Wände nur als Hindernis
+- Die Basis-Flagge lässt sich nur per Admin-Befehl entfernen (Admin-Menü); Gebiete mehrerer Flaggen dürfen sich am Rand überlappen (näheste Flagge gewinnt)
 - Abgebaute Ressourcen und Türen werden nicht gespeichert (Uhr, Bauwerke, Beete, Autos schon, pro Zone)
 - Developer-Werte gelten im Lokal-Modus nur in diesem Browser (Export/Import zum Übertragen)
 - Render-Free-Plan: keine dauerhafte Festplatte → Spielstände & Einstellungen gehen beim Neustart verloren
@@ -693,3 +739,4 @@ browser_survival/
 | 0.9.0 | 2026-10-16 | Zoom/Schärfe/Ruckeln/Maus-Fixes, Zombies (Haus, Türen, Despawn), Eisenerz, Bauen/Farmen/Kochen, Skills, Rucksäcke, Charakterwahl, Autos, Server-Spielstand (Erkundung, Skills), **Zonen/Open World** (Waldweg, Tiled-Import), Netzwerk-Diät (Rundung, Interest Mgmt, Kompression), KI_INDEX + Rauchtest (Protokoll v7) |
 | 0.9.1 | 2026-10-16 | Wind bricht nicht mehr ab (eigener Bus am Kompressor vorbei, 12-s-Schleife), Schritte entfernt, **Einstellungen ⚙** (Lautstärke Gesamt/Effekte/Wind, Grafik hoch/mittel/niedrig, Vollbild, Abmelden – auch am Handy), Unschärfe-Bug (Auflösung wird im Profil „hoch“ nicht mehr automatisch gesenkt), **Automatiktüren**, Frau mit langen Haaren (`haarModell.js`), Fix: eigene Figur wurde manchmal mit falschem Geschlecht gebaut |
 | 0.10.0 | 2026-10-16 | Große Zone Waldweg (160×120, Ringstraße, See, Angelhütte), Auto-Haltbarkeit + Wrack, Boss-Beute, Hasen, Angeln, Wetter (Regen/Nebel), Abbau-XP, Crafting-Level, Stapelgrößen, Statistik, Lagerkiste, Erdfeld (Spitzhacke) + Paprika, Basisbau-Gerüst, FPS/Minikarte, Auto-Lauf per Karte, Musik-Ordnersystem, Wind leiser, Fix Dunkelheit im Auto (Protokoll v8) |
+| 0.11.0 | 2026-10-16 | **Basisbau:** BUILD-Modus (B) mit Hammer + Bau-Menü, Basis-Flagge/Baugebiet (roter Ring nur für den Besitzer), Bauteile Holz (Boden, Dach, Wand, Fenster, Türöffnung, Tür, Kiste, Bett + Item Stoff), Hologramm grün/rot + Snapping/Magnet, Abriss mit 75 % Rückgabe, Rechte (Gruppen vorbereitet), Bett = Spawn Point, Ebenen-System, instanzierte Darstellung, Delta-Pakete für Bauwerke, Admin „Flagge entfernen“ (Protokoll v9) |

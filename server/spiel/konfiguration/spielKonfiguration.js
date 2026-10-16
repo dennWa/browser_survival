@@ -49,6 +49,7 @@ export const STANDARD_KONFIGURATION = Object.freeze({
       { defId: 'axt', menge: 1 },
       { defId: 'spitzhacke', menge: 1 },
       { defId: 'angel', menge: 1 },
+      { defId: 'hammer', menge: 1 }, // Baumodus (BUILD): rüstet den Hammer aus
     ],
   },
   zombie: {
@@ -156,6 +157,13 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     kochDauer: 4, // Sekunden pro gebratenem Lebensmittel
     wachstumsTage: 1, // Pflanzen brauchen so viele Spieltage (1 = 24 Spielstunden; Schlafen spult mit vor)
     ernteMenge: 2, // Früchte pro Ernte
+  },
+  /** Basisbau (gemeinsam/basisbau/): Baugebiet-Flagge, Abriss. Kosten der Teile: gemeinsam/basisbau/teile.js */
+  basisbau: {
+    radiusKacheln: 15, // Baugebiet um die Flagge (1 Kachel = 1 m); später durch Skillpunkte erweiterbar (territoriumSystem.radiusFuer)
+    rueckgabe: 0.75, // Anteil der Baukosten, den man beim Abriss zurückbekommt (abgerundet pro Material)
+    flaggeFreiraum: 2, // Kacheln um die Flagge, die frei von Karten-Gebäuden/Hindernissen/Wasser sein müssen
+    flaggeMindestAbstand: 15, // Kacheln zwischen zwei Flaggen (verschiedener Spieler)
   },
   /** Level: XP pro Zombie; für Level 2 braucht man `ersteStufe` XP, jedes weitere Level `zuwachs` mehr. Tod = alles weg. */
   level: {

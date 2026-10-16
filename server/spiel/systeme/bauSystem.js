@@ -1,4 +1,7 @@
 import { BAUWERKE, BAUWERK_REICHWEITE, KOCHBAR, PFLANZEN, bauwerkAktion, feldKacheln, kachelInReichweite, pruefePlatz } from '../../../gemeinsam/welt/bauwerke.js';
+import { flaggeFuerBauteil, gebietBei } from './territoriumSystem.js';
+import { RECHT, hatRecht } from '../../../gemeinsam/basisbau/rechte.js';
+import { setzeSpawn } from './spawnSystem.js';
 import { GEGENSTAENDE } from '../konfiguration/gegenstaende.js';
 import { fuegeZumInventarHinzu, legeAufBoden, verbrauche } from './inventarSystem.js';
 import { toeten } from './kampfSystem.js';
@@ -6,8 +9,10 @@ import { aktualisiereKisten, leererKistenInhalt, oeffneKiste } from './kistenSys
 import { WACHSTUM_REGEN_FAKTOR } from './wetterSystem.js';
 
 /**
- * Bauwerke (Werkbank, Lagerfeuer, Falle, Beet) – Regeln & Daten: gemeinsam/welt/bauwerke.js.
- * Gespeichert in spielWelt.welt.bauwerke (Map) – die Welt-Klasse kümmert sich um Kollision.
+ * Bauwerke (Werkbank, Lagerfeuer, Falle, Beet; Basisbau-Teile werden von basisbauSystem.js gesetzt) – Regeln & Daten:
+ * gemeinsam/welt/bauwerke.js. Gespeichert in spielWelt.welt.bauwerke (Map) – die Welt-Klasse kümmert sich um Kollision.
+ * E an einem Bauwerk (benutzeBauwerk) gilt auch für Basisbau-Teile: Tür öffnen/schließen, Kiste öffnen, Bett (Spawn Point) –
+ * geschützte Teile (Kiste, Tür, Bett) nur für ihren Besitzer bzw. Berechtigte (gemeinsam/basisbau/rechte.js).
  *
  *   AKTION platzieren { slot, tx, ty }  Item aus dem Inventar aufstellen
  *   AKTION feld { tx, ty }              mit der Spitzhacke (im Inventar genügt) ein Erdfeld FELD_GROESSE² um (tx, ty) anlegen
@@ -34,20 +39,35 @@ export function platziere(spielWelt, spieler, slot, tx, ty) {
     spielWelt.melde(spieler.id, platz.grund);
     return;
   }
+  if (fremdesGebiet(spielWelt, spieler, tx, ty)) return;
   if (BAUWERKE[typ].blockiert && kachelBesetzt(spielWelt, tx, ty)) {
     spielWelt.melde(spieler.id, 'Da steht jemand');
     return;
   }
-  const b = { id: spielWelt.neueBauwerkId(), typ, tx, ty, besitzer: spieler.name };
-  if (typ === 'lagerfeuer') Object.assign(b, { brennt: false, brennRest: 0 });
-  if (typ === 'falle') b.gespannt = true;
-  if (typ === 'beet') Object.assign(b, { pflanze: null, wachstum: 0 });
-  if (typ === 'kiste') b.inhalt = leererKistenInhalt();
-  welt.setzeBauwerk(b);
+  welt.setzeBauwerk(neuesBauwerk(spielWelt, typ, tx, ty, spieler.name));
   if (def.kategorie === 'bauwerk') verbrauche(spieler, slot);
   const g = welt.kachelGroesse;
   spielWelt.ereignis({ typ: 'gebaut', bauwerk: typ, x: (tx + 0.5) * g, y: (ty + 0.5) * g, von: spieler.id });
   spielWelt.melde(spieler.id, typ === 'beet' ? 'Beet angelegt – jetzt Samen pflanzen (E)' : `${BAUWERKE[typ].name} aufgestellt`);
+}
+
+/** Liegt die Kachel im Baugebiet eines anderen (ohne BAUEN-Recht)? Dann meldet das und gibt true zurück. */
+function fremdesGebiet(spielWelt, spieler, tx, ty) {
+  const gebiet = gebietBei(spielWelt, tx, ty);
+  if (!gebiet || hatRecht(gebiet, spieler.name, RECHT.BAUEN)) return false;
+  spielWelt.melde(spieler.id, 'Fremdes Baugebiet');
+  return true;
+}
+
+/** Frisches Bauwerk mit den Startwerten seines Typs (id vergibt die Welt). Auch für den Basisbau. */
+export function neuesBauwerk(spielWelt, typ, tx, ty, besitzer, zusatz = {}) {
+  const b = { id: spielWelt.neueBauwerkId(), typ, tx, ty, besitzer, ...zusatz };
+  if (typ === 'lagerfeuer') Object.assign(b, { brennt: false, brennRest: 0 });
+  if (typ === 'falle') b.gespannt = true;
+  if (typ === 'beet') Object.assign(b, { pflanze: null, wachstum: 0 });
+  if (typ === 'kiste') b.inhalt = leererKistenInhalt();
+  if (BAUWERKE[typ].schaltbar) b.offen = false;
+  return b;
 }
 
 /**
@@ -67,6 +87,7 @@ export function legeFeldAn(spielWelt, spieler, tx, ty) {
     return;
   }
   for (const k of kacheln) {
+    if (fremdesGebiet(spielWelt, spieler, k.tx, k.ty)) return;
     const platz = pruefePlatz(welt, 'beet', k.tx, k.ty);
     if (!platz.ok) {
       spielWelt.melde(spieler.id, `Hier geht kein Feld: ${platz.grund}`);
@@ -106,14 +127,26 @@ export function feuer(spielWelt, spieler) {
  */
 export function benutzeBauwerk(spielWelt, spieler, bauwerkId = null, wunschPflanze = null) {
   const welt = spielWelt.welt;
+  const aktionFuer = (x) => bauwerkAktion(x, spieler.inventar, spieler.name, flaggeFuerBauteil(spielWelt, x));
+  // Erst Benutzbares, erst danach "gesperrt" (eine fremde Kiste in der Nähe soll das eigene Bett nicht verdecken)
   const b =
     bauwerkId !== null
       ? welt.bauwerke.get(bauwerkId)
-      : welt.naechstesBauwerk(spieler.x, spieler.y, BAUWERK_REICHWEITE, (x) => bauwerkAktion(x, spieler.inventar) !== null);
-  if (!b || !bauwerkAktion(b, spieler.inventar)) return;
-  const aktion = bauwerkAktion(b, spieler.inventar);
+      : (welt.naechstesBauwerk(spieler.x, spieler.y, BAUWERK_REICHWEITE, (x) => aktionFuer(x) !== null && aktionFuer(x).art !== 'gesperrt') ??
+        welt.naechstesBauwerk(spieler.x, spieler.y, BAUWERK_REICHWEITE, (x) => aktionFuer(x) !== null));
+  const aktion = b && aktionFuer(b);
+  if (!aktion) return;
   const k = spielWelt.konfiguration.bauen;
   switch (aktion.art) {
+    case 'gesperrt':
+      spielWelt.melde(spieler.id, aktion.text);
+      return;
+    case 'tuerSchalten':
+      schalteTuer(spielWelt, spieler, b);
+      return;
+    case 'spawn':
+      setzeSpawn(spielWelt, spieler, b);
+      return;
     case 'aufnehmen': {
       const rest = fuegeZumInventarHinzu(spieler, 'falle', 1);
       if (rest > 0) {
@@ -157,6 +190,17 @@ export function benutzeBauwerk(spielWelt, spieler, bauwerkId = null, wunschPflan
       spielWelt.melde(spieler.id, `+${k.ernteMenge} ${GEGENSTAENDE[p.ernte].name}`);
     }
   }
+}
+
+/** Holztür (Basisbau) öffnen/schließen. Zu geht nicht, solange jemand im Durchgang steht. */
+function schalteTuer(spielWelt, spieler, tuer) {
+  if (tuer.offen && kachelBesetzt(spielWelt, tuer.tx, tuer.ty)) {
+    spielWelt.melde(spieler.id, 'Da steht jemand im Weg');
+    return;
+  }
+  tuer.offen = !tuer.offen;
+  spielWelt.welt.setzeBauwerk(tuer);
+  spielWelt.ereignis({ typ: 'tuerBau', offen: tuer.offen, x: mitteX(spielWelt, tuer), y: mitteY(spielWelt, tuer) });
 }
 
 /** Kochen fertig (vom arbeitSystem aufgerufen): ein rohes Lebensmittel → gebratene Variante. */
@@ -221,7 +265,8 @@ function pruefeFalle(spielWelt, b) {
   }
 }
 
-function kachelBesetzt(spielWelt, tx, ty) {
+/** Steht ein lebender Spieler/Zombie auf der Kachel? (blockierende Bauwerke dürfen nicht auf jemanden gesetzt werden) */
+export function kachelBesetzt(spielWelt, tx, ty) {
   const g = spielWelt.welt.kachelGroesse;
   for (const e of spielWelt.entitaeten.values()) {
     if (e.typ !== 'spieler' && e.typ !== 'zombie') continue;

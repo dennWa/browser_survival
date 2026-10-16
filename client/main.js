@@ -26,7 +26,7 @@ const leinwand = document.getElementById('spielflaeche');
 let renderer = null;
 const eingabe = new Eingabe(window, leinwand);
 // Rechtsklick bricht das Aufstellen (Platzier-Modus) ab
-leinwand.addEventListener('contextmenu', () => aktuellesSpiel?.platzierungAbbrechen());
+leinwand.addEventListener('contextmenu', () => aktuellesSpiel?.rechtsklick());
 // Mausrad: rein-/rauszoomen (nur im Spiel)
 leinwand.addEventListener(
   'wheel',
@@ -62,6 +62,9 @@ eingabe.beiTaste('chat', () => aktuellesSpiel && hud.chatOeffnen());
 eingabe.beiTaste('spielerliste', () => aktuellesSpiel && hud.spielerlisteUmschalten(aktuellesSpiel.spielerStatistik()));
 eingabe.beiTaste('nachladen', () => aktuellesSpiel?.nachladen());
 eingabe.beiTaste('feld', () => aktuellesSpiel?.feldModus());
+eingabe.beiTaste('bauen', () => aktuellesSpiel?.bauUmschalten());
+eingabe.beiTaste('abriss', () => aktuellesSpiel?.bauAbriss());
+eingabe.beiTaste('gebiet', () => aktuellesSpiel?.bauGebiet());
 eingabe.beiSlotTaste((slot) => aktuellesSpiel?.benutzen(slot));
 hud.beiAbmelden(() => aktuellesSpiel?.beenden('Abgemeldet'));
 const tonUmschalten = () => {
@@ -80,6 +83,7 @@ hud.beiAktionen({
   zoomStufe: () => renderer?.naechsteZoomStufe(),
   skill: (name) => aktuellesSpiel?.skill(name),
   feld: () => aktuellesSpiel?.feldModus(),
+  bauen: () => aktuellesSpiel?.bauUmschalten(),
   autoLaufStopp: () => aktuellesSpiel?.autoLaufStoppen(),
   kisteLegen: (slot) => aktuellesSpiel?.kisteLegen(slot),
   kisteNehmen: (slot) => aktuellesSpiel?.kisteNehmen(slot),

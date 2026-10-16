@@ -25,6 +25,7 @@ import { pruefeUebergaenge } from './systeme/zonenSystem.js';
 import { erzeugeFahrzeug, fahrzeugZuNetzwerk } from './entitaeten/fahrzeug.js';
 import { FAHRZEUG_MODELLE, fahrzeugAusObjekt, passt } from '../../gemeinsam/physik/fahrzeug.js';
 import { BAUWERKE, PFLANZEN, pruefePlatz } from '../../gemeinsam/welt/bauwerke.js';
+import { erzeugeTerritorium, territoriumLaden, territoriumSpeichern } from './systeme/territoriumSystem.js';
 
 /** Welche Entitätstypen jeden Tick im Schnappschuss landen (dynamisch) – und wie sie serialisiert werden. */
 const NETZWERK_SERIALISIERER = {
@@ -39,6 +40,7 @@ const NETZWERK_SERIALISIERER = {
  * Kennt KEINE Verbindungen oder Accounts – das macht der SpielServer.
  *
  * v0.10 zusätzlich: wetter {art, rest}, tierRespawns, kistenNachrichten (private Kisten-Ansichten), bauwerkeOeffentlich().
+ * v0.11 Basisbau: territorium (Baugebiete der Zone, im Weltzustand gespeichert), bauwerkAenderungen + nimmBauwerkAenderungen() (Delta fürs Netz).
  *
  * Pro Tick gesammelt (und danach vom SpielServer verschickt):
  *   ereignisse  → an alle (Schüsse, Treffer, Tode … für Effekte)
@@ -54,6 +56,11 @@ export class SpielWelt {
     const autos = karte.daten.objekte.filter((o) => FAHRZEUG_MODELLE[o.typ]);
     this.karte = { ...karte, daten: { ...karte.daten, objekte: karte.daten.objekte.filter((o) => !FAHRZEUG_MODELLE[o.typ]) } };
     this.welt = new Welt(this.karte.daten);
+    /** Baugebiete (Basis-Flaggen) dieser Zone – gemeinsam/basisbau/territorium.js, Logik: systeme/territoriumSystem.js */
+    this.territorium = erzeugeTerritorium();
+    /** IDs der Bauwerke, die sich seit dem letzten Versand geändert haben (Zone.versende schickt daraus BAUWERKE_AENDERUNG) */
+    this.bauwerkAenderungen = new Set();
+    this.welt.beiBauwerkAenderung = (id) => this.bauwerkAenderungen.add(id);
     this.entitaeten = new Map();
     this.tick = 0;
     /** Wird erhöht, wenn Gegenstände hinzukommen/verschwinden/sich ändern → Server schickt neue Liste. */
@@ -104,7 +111,7 @@ export class SpielWelt {
    */
   weltzustand() {
     const fahrzeuge = [...this.alleVomTyp('fahrzeug')].map(({ modell, x, y, winkel, leben, kaputt }) => ({ modell, x, y, winkel, leben, kaputt }));
-    return { version: 1, karte: this.karte.daten.id, zeit: this.zeit, tag: this.tag, bauwerke: [...this.welt.bauwerke.values()], fahrzeuge };
+    return { version: 1, karte: this.karte.daten.id, zeit: this.zeit, tag: this.tag, bauwerke: [...this.welt.bauwerke.values()], flaggen: territoriumSpeichern(this.territorium), fahrzeuge };
   }
 
   /** Gespeicherten Weltzustand übernehmen – alles wird geprüft (Datei kann alt oder kaputt sein). */
@@ -112,9 +119,10 @@ export class SpielWelt {
     if (!stand || stand.version !== 1 || stand.karte !== this.karte.daten.id) return false;
     if (Number.isFinite(stand.zeit) && stand.zeit >= 0) this.zeit = stand.zeit;
     if (Number.isInteger(stand.tag) && stand.tag >= 1) this.tag = stand.tag;
+    territoriumLaden(this, stand.flaggen);
     for (const roh of Array.isArray(stand.bauwerke) ? stand.bauwerke : []) {
       const b = pruefeBauwerk(roh);
-      if (!b || !pruefePlatz(this.welt, b.typ, b.tx, b.ty).ok) continue;
+      if (!b || !pruefePlatz(this.welt, b.typ, b.tx, b.ty, false).ok) continue;
       b.id = this.neueBauwerkId();
       this.welt.setzeBauwerk(b);
     }
@@ -261,6 +269,27 @@ export class SpielWelt {
     return [...this.welt.bauwerke.values()].map(({ inhalt, ...rest }) => rest);
   }
 
+  /**
+   * Änderungen seit dem letzten Aufruf als Paket für BAUWERKE_AENDERUNG: { gesetzt: [Bauwerke], entfernt: [IDs] } – oder null, wenn so viel
+   * passiert ist (> maxAenderungen), dass die ganze Liste kleiner/einfacher ist. Leert die Merkliste.
+   */
+  nimmBauwerkAenderungen(maxAenderungen = 200) {
+    const ids = this.bauwerkAenderungen;
+    this.bauwerkAenderungen = new Set();
+    if (ids.size > maxAenderungen) return null;
+    const gesetzt = [];
+    const entfernt = [];
+    for (const id of ids) {
+      const b = this.welt.bauwerke.get(id);
+      if (!b) entfernt.push(id);
+      else {
+        const { inhalt, ...rest } = b;
+        gesetzt.push(rest);
+      }
+    }
+    return { gesetzt, entfernt };
+  }
+
   gegenstaendeListe() {
     return [...this.alleVomTyp('gegenstand')].map(gegenstandZuNetzwerk);
   }
@@ -277,6 +306,8 @@ function pruefeBauwerk(roh) {
     b.wachstum = b.pflanze && Number.isFinite(roh.wachstum) ? Math.min(1, Math.max(0, roh.wachstum)) : 0;
   }
   if (b.typ === 'kiste') b.inhalt = pruefeKistenInhalt(roh.inhalt);
+  if (BAUWERKE[b.typ].schaltbar) b.offen = roh.offen === true;
+  if (roh.drehung === 0 || roh.drehung === 1) b.drehung = roh.drehung;
   return b;
 }
 

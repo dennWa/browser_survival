@@ -1,6 +1,6 @@
 import { KACHELN } from './kacheln.js';
 import { RESSOURCEN_OBJEKTE } from './ressourcen.js';
-import { BAUWERKE } from './bauwerke.js';
+import { blockiertBauwerk, ebeneVon, sichtBlockiertBauwerk } from './bauwerke.js';
 
 /**
  * Laufzeit-Abbild einer Karte: Kachelabfragen und Kollision.
@@ -48,8 +48,11 @@ export class Welt {
     this.ressourcenVersion = 0; // steigt bei jeder Änderung (Renderer muss nur dann neu zeichnen)
     /** Von Spielern gebaute Dinge (gemeinsam/welt/bauwerke.js): id → Bauwerk */
     this.bauwerke = new Map();
-    this.bauwerkAnKachel = new Map(); // Kachelindex → Bauwerk-ID
+    /** Kachelindex → { objekt?, boden?, wand?, tuer?, dach? } (Bauwerk-IDs je Ebene, siehe EBENEN in bauwerke.js) */
+    this.ebenenAnKachel = new Map();
     this.bauwerkeVersion = 0;
+    /** Server: (id, vorhanden) bei jedem Setzen/Entfernen – daraus entstehen die BAUWERKE_AENDERUNG-Pakete (Delta statt ganzer Liste) */
+    this.beiBauwerkAenderung = null;
     /** Fahrzeuge blockieren die Kacheln unter sich (gemeinsam/physik/fahrzeug.js → fahrzeugKacheln) */
     this.fahrzeugAnKachel = new Map(); // Kachelindex → Fahrzeug-ID
     this.fahrzeugKachelListe = new Map(); // Fahrzeug-ID → [Kachelindizes]
@@ -72,37 +75,68 @@ export class Welt {
 
   // --- Bauwerke -------------------------------------------------------------
 
+  #belege(b) {
+    const index = b.ty * this.breite + b.tx;
+    let ebenen = this.ebenenAnKachel.get(index);
+    if (!ebenen) this.ebenenAnKachel.set(index, (ebenen = {}));
+    ebenen[ebeneVon(b.typ)] = b.id;
+  }
+
+  #raeume(b) {
+    const index = b.ty * this.breite + b.tx;
+    const ebenen = this.ebenenAnKachel.get(index);
+    if (!ebenen) return;
+    const ebene = ebeneVon(b.typ);
+    if (ebenen[ebene] === b.id) delete ebenen[ebene];
+    if (Object.keys(ebenen).length === 0) this.ebenenAnKachel.delete(index);
+  }
+
   /** Neues oder geändertes Bauwerk eintragen. */
   setzeBauwerk(b) {
     const alt = this.bauwerke.get(b.id);
-    if (alt) this.bauwerkAnKachel.delete(alt.ty * this.breite + alt.tx);
+    if (alt) this.#raeume(alt);
     this.bauwerke.set(b.id, b);
-    this.bauwerkAnKachel.set(b.ty * this.breite + b.tx, b.id);
+    this.#belege(b);
     this.bauwerkeVersion++;
+    this.beiBauwerkAenderung?.(b.id, true);
   }
 
   entferneBauwerk(id) {
     const b = this.bauwerke.get(id);
     if (!b) return;
+    this.#raeume(b);
     this.bauwerke.delete(id);
-    this.bauwerkAnKachel.delete(b.ty * this.breite + b.tx);
     this.bauwerkeVersion++;
+    this.beiBauwerkAenderung?.(id, false);
   }
 
   /** Client: komplette Liste vom Server übernehmen. */
   uebernimmBauwerke(liste) {
     this.bauwerke.clear();
-    this.bauwerkAnKachel.clear();
+    this.ebenenAnKachel.clear();
     for (const b of liste) {
       this.bauwerke.set(b.id, b);
-      this.bauwerkAnKachel.set(b.ty * this.breite + b.tx, b.id);
+      this.#belege(b);
     }
     this.bauwerkeVersion++;
   }
 
-  bauwerkBei(tx, ty) {
-    const id = this.bauwerkAnKachel.get(ty * this.breite + tx);
-    return id === undefined ? null : this.bauwerke.get(id);
+  /** Client: nur die Änderungen (BAUWERKE_AENDERUNG) einarbeiten – ganze Basen wären sonst bei jedem Hammerschlag ein großes Paket. */
+  wendeBauwerkAenderungAn(gesetzt, entfernt) {
+    for (const id of entfernt) this.entferneBauwerk(id);
+    for (const b of gesetzt) this.setzeBauwerk(b);
+  }
+
+  /** Bauwerk dieser Ebene (Standard 'objekt') auf der Kachel – oder null. */
+  bauwerkBei(tx, ty, ebene = 'objekt') {
+    const id = this.ebenenAnKachel.get(ty * this.breite + tx)?.[ebene];
+    return id === undefined ? null : (this.bauwerke.get(id) ?? null);
+  }
+
+  /** Alle Bauwerke auf der Kachel (jede Ebene). */
+  bauwerkeAn(tx, ty) {
+    const ebenen = this.ebenenAnKachel.get(ty * this.breite + tx);
+    return ebenen ? Object.values(ebenen).map((id) => this.bauwerke.get(id)).filter(Boolean) : [];
   }
 
   /** Nächstes Bauwerk (Kachelmitte ≤ reichweite px), auf das `passt` zutrifft – oder null. */
@@ -255,10 +289,28 @@ export class Welt {
       if (fz !== undefined && fz !== ignoriereFahrzeug) return true;
     }
     if (this.istGeschlosseneTuer(tx, ty)) return true;
-    if (this.bauwerkAnKachel.size > 0) {
-      const b = this.bauwerke.get(this.bauwerkAnKachel.get(ty * this.breite + tx));
-      if (b && BAUWERKE[b.typ]?.blockiert) return true;
+    if (this.ebenenAnKachel.size > 0) {
+      const e = this.ebenenAnKachel.get(ty * this.breite + tx);
+      if (e !== undefined) {
+        // Nur diese drei Ebenen können blockieren (Boden & Dach nie)
+        if (e.objekt !== undefined && blockiertBauwerk(this.bauwerke.get(e.objekt))) return true;
+        if (e.wand !== undefined && blockiertBauwerk(this.bauwerke.get(e.wand))) return true;
+        if (e.tuer !== undefined && blockiertBauwerk(this.bauwerke.get(e.tuer))) return true;
+      }
     }
+    if (this.ressourceAnKachel.size > 0) {
+      const id = this.ressourceAnKachel.get(ty * this.breite + tx);
+      if (id !== undefined && !this.abgebaut.has(id)) return true;
+    }
+    return KACHELN[zeichen]?.blockiert ?? true;
+  }
+
+  /** Wie istBlockiert, aber nur die Karte selbst (Kachel, Möbel, Bäume/Steine, Türen) – ohne Spielerbauten. Für Flagge, Boden und Dach. */
+  istKartenBlockiert(tx, ty) {
+    const zeichen = this.kachelAn(tx, ty);
+    if (zeichen === null) return true;
+    if (this.moebelBlockiert.has(ty * this.breite + tx)) return true;
+    if (this.istGeschlosseneTuer(tx, ty)) return true;
     if (this.ressourceAnKachel.size > 0) {
       const id = this.ressourceAnKachel.get(ty * this.breite + tx);
       if (id !== undefined && !this.abgebaut.has(id)) return true;
@@ -274,6 +326,13 @@ export class Welt {
     const zeichen = this.kachelAn(tx, ty);
     if (zeichen === null) return true;
     if (this.istGeschlosseneTuer(tx, ty)) return true;
+    if (this.ebenenAnKachel.size > 0) {
+      const e = this.ebenenAnKachel.get(ty * this.breite + tx);
+      if (e !== undefined) {
+        if (e.wand !== undefined && sichtBlockiertBauwerk(this.bauwerke.get(e.wand))) return true;
+        if (e.tuer !== undefined && sichtBlockiertBauwerk(this.bauwerke.get(e.tuer))) return true;
+      }
+    }
     const kachel = KACHELN[zeichen];
     return kachel ? kachel.blockiert && !kachel.sichtFrei : true;
   }

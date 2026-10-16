@@ -1,6 +1,7 @@
 import { STANDARD_AUSRUESTUNG } from '../konfiguration/gegenstaende.js';
 import { toeten } from './kampfSystem.js';
 import { gibStartausruestung } from './inventarSystem.js';
+import { bettFehlt, spawnPunkt } from './spawnSystem.js';
 
 /**
  * Überleben: Hunger & Durst sinken, bei 0 verliert man Leben; satt & getränkt heilt man langsam.
@@ -28,10 +29,25 @@ export function aktualisiereUeberleben(spielWelt, dt) {
   }
 }
 
-/** Am zufälligen Startpunkt neu beginnen (nach Countdown oder sofort per Knopf). */
+/**
+ * Neu beginnen (nach Countdown oder sofort per Knopf): neben dem eigenen Bett (Spawn Point, spawnSystem.js),
+ * sonst an einem zufälligen Startpunkt. Liegt das Bett in einer anderen Zone, zieht der SpielServer den Spieler dorthin um.
+ */
 export function wiederbeleben(spielWelt, spieler) {
   const k = spielWelt.konfiguration.spieler;
-  const start = spielWelt.zufall.auswahl(spielWelt.karte.spielerStarts);
+  let start = null;
+  if (spieler.spawn) {
+    if (spieler.spawn.karte !== spielWelt.karte.daten.id) {
+      spieler.zonenwechsel = { ziel: spieler.spawn.karte, ankunft: null, name: 'Dein Bett', spawn: true };
+    } else {
+      start = spawnPunkt(spielWelt, spieler.spawn);
+      if (!start) {
+        if (bettFehlt(spielWelt, spieler.spawn)) spieler.spawn = null;
+        spielWelt.melde(spieler.id, 'Dein Bett ist weg oder zugebaut – du startest am normalen Startpunkt');
+      }
+    }
+  }
+  start ??= spielWelt.zufall.auswahl(spielWelt.karte.spielerStarts);
   Object.assign(spieler, {
     x: start.x,
     y: start.y,

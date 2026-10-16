@@ -178,29 +178,19 @@ test('Abbau gibt 3 XP', () => {
 test('Crafting-Level: höherwertige Rezepte erst ab Spieler-Level', () => {
   assert.ok(REZEPTE.feuerwehrbeil.level > 1);
   const { welt, spieler } = neueWelt();
-  fuegeZumInventarHinzu(spieler, 'holz', 20);
-  spieler.aktionsPuffer.push({ art: AKTIONEN.HERSTELLEN, slot: null, rezept: 'holzwand' });
+  welt.welt.setzeBauwerk({ id: welt.neueBauwerkId(), typ: 'werkbank', tx: 3, ty: 1, besitzer: 'Tester' }); // Werkbank neben dem Start
+  spieler.x = mitte(2);
+  spieler.y = mitte(1);
+  fuegeZumInventarHinzu(spieler, 'holz', 5);
+  fuegeZumInventarHinzu(spieler, 'stein', 6);
+  spieler.aktionsPuffer.push({ art: AKTIONEN.HERSTELLEN, slot: null, rezept: 'feuerwehrbeil' });
   ticks(welt, 1);
-  assert.equal(anzahl(spieler, 'holzwand'), 0, 'Level zu niedrig');
-  assert.equal(anzahl(spieler, 'holz'), 20, 'nichts verbraucht');
-  spieler.level = REZEPTE.holzwand.level;
-  spieler.aktionsPuffer.push({ art: AKTIONEN.HERSTELLEN, slot: null, rezept: 'holzwand' });
+  assert.equal(anzahl(spieler, 'feuerwehrbeil'), 0, 'Level zu niedrig');
+  assert.equal(anzahl(spieler, 'holz'), 5, 'nichts verbraucht');
+  spieler.level = REZEPTE.feuerwehrbeil.level;
+  spieler.aktionsPuffer.push({ art: AKTIONEN.HERSTELLEN, slot: null, rezept: 'feuerwehrbeil' });
   ticks(welt, 1);
-  assert.equal(anzahl(spieler, 'holzwand'), 1);
-});
-
-test('Basisbau-Gerüst: Holzwand blockiert, Holzboden nicht', () => {
-  const { welt, spieler } = neueWelt();
-  fuegeZumInventarHinzu(spieler, 'holzwand', 1);
-  fuegeZumInventarHinzu(spieler, 'holzboden', 1);
-  spieler.x = mitte(5);
-  spieler.y = mitte(2);
-  spieler.aktionsPuffer.push({ art: AKTIONEN.PLATZIEREN, slot: spieler.inventar.findIndex((e) => e?.defId === 'holzwand'), tx: 6, ty: 2 });
-  spieler.aktionsPuffer.push({ art: AKTIONEN.PLATZIEREN, slot: spieler.inventar.findIndex((e) => e?.defId === 'holzboden'), tx: 4, ty: 2 });
-  ticks(welt, 1);
-  assert.equal(welt.welt.istBlockiert(6, 2), true);
-  assert.equal(welt.welt.bauwerkBei(4, 2)?.typ, 'holzboden');
-  assert.equal(welt.welt.istBlockiert(4, 2), false);
+  assert.equal(anzahl(spieler, 'feuerwehrbeil'), 1);
 });
 
 // ---------------------------------------------------------------------------

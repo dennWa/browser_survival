@@ -13,6 +13,7 @@ import { setzeSkillpunkt } from './levelSystem.js';
 import { fahrzeugAktion } from './fahrzeugSystem.js';
 import { legeInKiste, nimmAusKiste, schliesseKiste } from './kistenSystem.js';
 import { legeFeldAn } from './bauSystem.js';
+import { baue, reisseAb } from './basisbauSystem.js';
 
 /**
  * Inventar: Aufheben, Benutzen (Essen/Trinken/Medizin), Aus-/Abrüsten, Ablegen, Nachladen.
@@ -80,6 +81,12 @@ export function verarbeiteAktionen(spielWelt) {
         case AKTIONEN.FELD:
           legeFeldAn(spielWelt, spieler, aktion.tx, aktion.ty);
           break;
+        case AKTIONEN.BAUEN:
+          baue(spielWelt, spieler, aktion);
+          break;
+        case AKTIONEN.ABREISSEN:
+          reisseAb(spielWelt, spieler, aktion);
+          break;
         case AKTIONEN.KISTE_LEGEN:
           legeInKiste(spielWelt, spieler, aktion.slot);
           break;
@@ -118,7 +125,7 @@ export function aktualisiereNachladen(spielWelt, dt) {
     spieler.nachladenRest = 0;
     const { eintrag, def } = aktuelleWaffe(spieler);
     if (!eintrag || def.kategorie !== 'fernkampf') continue;
-    eintrag.magazin += entnehmeMunition(spieler, def.munition, def.magazin - eintrag.magazin);
+    eintrag.magazin += entferneItems(spieler, def.munition, def.magazin - eintrag.magazin);
   }
 }
 
@@ -422,8 +429,8 @@ export function gibStartausruestung(spieler, konfiguration) {
   return spieler;
 }
 
-/** Nimmt bis zu `menge` Munition aus dem Inventar. @returns tatsächlich entnommene Menge */
-function entnehmeMunition(spieler, defId, menge) {
+/** Nimmt bis zu `menge` Stück von `defId` aus dem Inventar (Munition, Baumaterial …). @returns tatsächlich entnommene Menge */
+export function entferneItems(spieler, defId, menge) {
   let genommen = 0;
   for (let slot = 0; slot < spieler.inventar.length && genommen < menge; slot++) {
     const e = spieler.inventar[slot];

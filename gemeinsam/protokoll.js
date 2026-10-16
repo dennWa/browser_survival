@@ -43,7 +43,8 @@ export const NACHRICHT = Object.freeze({
   /** { tick, zeit, tag, entitaeten: [...], ereignisse: [...] } – Schnappschuss aller dynamischen Entitäten + Ereignisse dieses Ticks
    *  zeit = Sekunden seit Tagesbeginn (gemeinsam/tageszeit.js), tag = Tageszähler */
   ZUSTAND: 'zustand',
-  /** { leben, maxLeben, hunger, durst, inventar, ausgeruestet, nachladen, tot, respawnIn, admin } – nur an den eigenen Spieler, bei Änderung */
+  /** { leben, maxLeben, hunger, durst, inventar, ausgeruestet, nachladen, tot, respawnIn, admin, flagge, spawn } – nur an den eigenen Spieler, bei Änderung
+   *  flagge = { tx, ty, radius } | null (eigenes Baugebiet, nur der Besitzer erfährt es), spawn = { karte, tx, ty } | null (Bett) */
   SPIELER_DATEN: 'spielerDaten',
   /** { text } – kurze Info nur für diesen Spieler (z. B. "Inventar voll") */
   MELDUNG: 'meldung',
@@ -55,6 +56,8 @@ export const NACHRICHT = Object.freeze({
   RESSOURCEN: 'ressourcen',
   /** { liste: [Bauwerke] } – alle gebauten Dinge (gemeinsam/welt/bauwerke.js), nur bei Änderung */
   BAUWERKE: 'bauwerke',
+  /** { gesetzt: [Bauwerke], entfernt: [IDs] } – nur die Änderungen seit dem letzten Paket (Basisbau: sonst ginge bei jedem Hammerschlag die ganze Basis raus) */
+  BAUWERKE_AENDERUNG: 'bauwerkeAenderung',
   /** { id, inhalt: [16 Plätze] | null } – Inhalt der geöffneten Lagerkiste (null = geschlossen). Nur an den, der sie geöffnet hat. */
   KISTE: 'kiste',
   /** { t } */
@@ -78,6 +81,8 @@ export const AKTIONEN = Object.freeze({
   PLATZIEREN: 'platzieren', // { slot, tx, ty } Bauwerk-Item (oder Hacke → Beet) auf Kachel tx/ty aufstellen
   FEUER: 'feuer', // F: nächstes Lagerfeuer anzünden (Feuerzeug nötig) / löschen – sonst wie 'tuer'
   BAUWERK: 'bauwerk', // E am nächsten Bauwerk: Falle aufnehmen/spannen, kochen, pflanzen, ernten
+  BAUEN: 'bauen', // { teil, tx, ty, drehung? } Basisbau: Bauteil (gemeinsam/basisbau/teile.js) setzen, auch die Basis-Flagge; Hammer in der Hand nötig
+  ABREISSEN: 'abreissen', // { tx, ty, ebene? } mit dem Hammer ein eigenes Bauteil abreißen (75 % der Kosten zurück)
   FELD: 'feld', // { tx, ty } mit der Spitzhacke (Taste G) ein quadratisches Erdfeld um die Kachel anlegen
   KISTE_LEGEN: 'kisteLegen', // { slot } Stapel aus dem Inventar in die geöffnete Lagerkiste legen
   KISTE_NEHMEN: 'kisteNehmen', // { slot } Stapel aus der geöffneten Kiste (Kistenplatz 0..15) ins Inventar nehmen
@@ -104,6 +109,7 @@ export const ADMIN_BEFEHLE = Object.freeze({
   ZOMBIES_TOETEN: 'zombiesToeten', // alle Zombies umfallen lassen (sie respawnen normal)
   ZEIT_SPRINGEN: 'zeitSpringen', // tagsüber → gleich Abend, nachts → gleich Morgen
   WETTER: 'wetter', // klar → Regen → Nebel → klar (zum Testen)
+  FLAGGE_ENTFERNEN: 'flaggeEntfernen', // eigene Basis-Flagge zurücknehmen (Bauteile bleiben stehen, gehören aber niemandem mehr)
 });
 
 /**
@@ -124,6 +130,7 @@ export const ADMIN_BEFEHLE = Object.freeze({
  *   fahrzeugKaputt { id, x, y }              Auto zerstört → Wrack
  *   angelWurf / angelBiss / gefangen { von, x, y, anzahl? }  Angeln (Pose ausgeworfen / Biss / Fang)
  *   bossBeute { x, y }                       Boss-Zombie hat Waffe + Munition fallen lassen
+ *   gebaut { bauwerk, x, y, von } / abgerissen { bauwerk, x, y, von } / tuerBau { offen, x, y }   Basisbau
  * ZUSTAND.wetter = 'klar' | 'regen' | 'nebel'; Entität typ 'tier' (art 'hase').
  */
 

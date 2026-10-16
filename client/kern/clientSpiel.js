@@ -13,6 +13,7 @@ import { INTERPOLATIONS_VERZOEGERUNG_MS, PING_INTERVALL_MS } from '../konfigurat
 import { Effekte } from '../darstellung/effekte.js';
 import { SpielSchleife } from './spielSchleife.js';
 import { Karte } from '../ui/karte.js';
+import { BauModus } from './bauModus.js';
 
 /** Maximal gemerkte, vom Server noch nicht bestätigte Eingaben (~4 s). */
 const MAX_OFFENE_EINGABEN = 120;
@@ -34,7 +35,7 @@ const ANGEL_REICHWEITE = 230; // wie konfiguration.angeln.reichweite (Server) �
  *   3. Entity Interpolation:   Andere Spieler/Zombies werden zwischen zwei Server-Schnappschüssen
  *                              weich interpoliert (leicht verzögert dargestellt).
  *
- * Außerdem hier: Platzier-Modus (Bauwerke, Erdfeld mit G), Lagerkiste (KISTE-Nachricht → hud.kiste), Wetter (ZUSTAND.wetter →
+ * Außerdem hier: Platzier-Modus (Bauwerke, Erdfeld mit G), Bau-Modus (BUILD, Basisbau → kern/bauModus.js), Lagerkiste (KISTE-Nachricht → hud.kiste), Wetter (ZUSTAND.wetter →
  * Renderer/Regenton), Angel-Hinweis, Minikarte, Tab-Statistik und der AUTO-LAUF (Klick auf die große Karte → A* →
  * Eingaben statt Tasten; jede manuelle Eingabe bricht ab).
  *
@@ -65,6 +66,17 @@ export class ClientSpiel {
     if (anmeldeDaten.bauwerke) this.welt.uebernimmBauwerke(anmeldeDaten.bauwerke);
     /** Platzier-Modus (Bauwerk-Item bzw. Erdfeld mit der Spitzhacke): { slot, defId, typ, name, art?: 'feld' } oder null */
     this.platzierung = null;
+    /** Basisbau: Bau-Modus mit Menü, Hologramm, Baugebiet-Ring (kern/bauModus.js) */
+    this.bau = new BauModus({
+      welt: this.welt,
+      renderer,
+      eingabe,
+      hud,
+      sound,
+      senden: (n) => this.#senden(n),
+      kontext: () => ({ daten: this.spielerDaten, lokal: this.lokal, name: this.benutzername, defs: this.itemDefinitionen, eigeneDaten: this.eigeneDaten }),
+      vorBeginn: () => this.platzierungAbbrechen(),
+    });
     this.wetter = 'klar'; // 'klar' | 'regen' | 'nebel' (vom Server)
     /** Auto-Lauf: { ziel: {tx, ty}, pfad: [{x, y}], stuck: Sekunden, letzterNeuStart } oder null */
     this.autoLauf = null;
@@ -91,6 +103,7 @@ export class ClientSpiel {
     this.gegenstaende = anmeldeDaten.gegenstaende ?? [];
     this.itemDefinitionen = anmeldeDaten.itemDefinitionen ?? {};
     this.spielerDaten = anmeldeDaten.spielerDaten;
+    this.bau.beiSpielerDaten(this.spielerDaten); // eigenes Baugebiet aus den Spielerdaten
     this.effekte = new Effekte();
     this.effekte.beiEreignis = (e) => {
       if (e.typ === 'abgebaut' && e.art === 'holz') this.renderer.baumFaellt(e); // Baum kippt um
@@ -163,6 +176,7 @@ export class ClientSpiel {
     this.karte.speichern();
     this.karte.zeige(false);
     if (this.platzierung) this.platzierungAbbrechen();
+    this.bau.stoppen();
     if (this.werkbankOffen) this.werkbankUmschalten(false);
     this.autoLaufStoppen();
     this.hud.kiste.zeige(null);
@@ -301,6 +315,7 @@ export class ClientSpiel {
     this.kisteSchliessen();
     this.autoLaufStoppen();
     this.platzierungAbbrechen();
+    if (this.bau.aktiv && !this.bau.abbrechen()) this.bau.umschalten(false); // Esc: erst Auswahl lösen, dann Bau-Modus beenden
   }
 
   // --- Lagerkiste ---------------------------------------------------------------
@@ -341,8 +356,12 @@ export class ClientSpiel {
     const ressource = this.welt.naechsteRessource(x, y, ABBAU_REICHWEITE);
     if (ressource) return { art: 'abbauen', text: RESSOURCEN_OBJEKTE[ressource.typ].aktion, symbol: ressource.art === 'holz' ? '🪓' : '⛏' };
     const inventar = this.spielerDaten?.inventar ?? [];
-    const bauwerk = this.welt.naechstesBauwerk(x, y, BAUWERK_REICHWEITE, (b) => bauwerkAktion(b, inventar) !== null);
-    if (bauwerk) return { ...bauwerkAktion(bauwerk, inventar), art: 'bauwerk' };
+    // Basisbau: Kisten, Türen und Betten gehören ihrem Besitzer – erst Benutzbares, dann der "gesperrt"-Hinweis
+    const aktionFuer = (b) => bauwerkAktion(b, inventar, this.bau.name, this.bau.territorium.gebietBei(b.tx, b.ty));
+    const bauwerk =
+      this.welt.naechstesBauwerk(x, y, BAUWERK_REICHWEITE, (b) => aktionFuer(b)?.art !== undefined && aktionFuer(b).art !== 'gesperrt') ??
+      this.welt.naechstesBauwerk(x, y, BAUWERK_REICHWEITE, (b) => aktionFuer(b) !== null);
+    if (bauwerk) return { ...aktionFuer(bauwerk), art: 'bauwerk' };
     if (this.#naheWerkbank()) return { art: 'werkbank', text: 'Werkbank benutzen', symbol: '🔨' };
     if (this.welt.naechstesObjekt(x, y, BETT_REICHWEITE, (o) => o.typ.startsWith('bett'))) return { art: 'schlafen', text: 'Schlafen (heilt, 6 Std. vorspulen)', symbol: '🛏' };
     return null;
@@ -387,6 +406,7 @@ export class ClientSpiel {
       return;
     }
     this.platzierungAbbrechen();
+    this.bau.umschalten(false);
     this.platzierung = { art: 'feld', slot: -1, defId: 'spitzhacke', typ: 'erdfeld', name: 'Erdfeld anlegen (Spitzhacke)' };
     this.hud.inventar.zeige(false);
     this.hud.zeigePlatzierung(this.platzierung.name);
@@ -396,6 +416,7 @@ export class ClientSpiel {
   #startePlatzierung(slot, defId, def) {
     if (this.platzierung?.slot === slot) return this.platzierungAbbrechen(); // nochmal = abbrechen
     const typ = def.bauwerk;
+    this.bau.umschalten(false);
     this.platzierung = { slot, defId, typ, name: `${def.name} aufstellen` };
     this.hud.inventar.zeige(false);
     this.hud.zeigePlatzierung(this.platzierung.name);
@@ -452,11 +473,33 @@ export class ClientSpiel {
     return { tx, ty, ok: true };
   }
 
+  // --- Basisbau (BUILD) ---------------------------------------------------------
+
+  bauUmschalten() {
+    this.bau.umschalten();
+  }
+
+  bauAbriss() {
+    this.bau.abrissModus();
+  }
+
+  bauGebiet() {
+    this.bau.radiusUmschalten();
+  }
+
+  /** Rechtsklick: im Bau-Modus löst er die Auswahl, sonst bricht er das Platzieren ab. */
+  rechtsklick() {
+    if (this.bau.aktiv) this.bau.abbrechen();
+    else this.platzierungAbbrechen();
+  }
+
   nachladen() {
+    if (this.bau.aktiv) return this.bau.drehen(); // R dreht im Bau-Modus das Bauteil
     this.#aktion(AKTIONEN.NACHLADEN);
   }
 
   benutzen(slot) {
+    if (this.bau.beiWaffenwahl(slot)) return; // Hammer ist schon in der Hand – nicht abrüsten
     this.letzterSlot = slot;
     const eintrag = this.spielerDaten?.inventar[slot];
     const def = eintrag && this.itemDefinitionen[eintrag.defId];
@@ -561,6 +604,9 @@ export class ClientSpiel {
       case NACHRICHT.BAUWERKE:
         this.welt.uebernimmBauwerke(n.liste);
         break;
+      case NACHRICHT.BAUWERKE_AENDERUNG:
+        this.welt.wendeBauwerkAenderungAn(n.gesetzt, n.entfernt);
+        break;
       case NACHRICHT.TUEREN:
         // Kollision der Vorhersage nutzt dieselbe Welt → Türen gelten sofort auch lokal
         this.welt.uebernimmOffeneTueren(n.offen);
@@ -586,6 +632,7 @@ export class ClientSpiel {
     if (vorher) this.#datenSound(vorher, daten);
     if (vorher?.tot && !daten.tot) this.offeneEingaben = []; // Respawn: neue Position kommt vom Server
     this.spielerDaten = daten;
+    this.bau.beiSpielerDaten(daten);
     this.lokal.tempoFaktor = daten.tempoFaktor ?? 1; // Skill "Schnelligkeit" → Vorhersage läuft gleich schnell wie der Server
     this.hud.setzeSpielerDaten(daten, this.itemDefinitionen);
     if (this.werkbankOffen) this.hud.zeigeWerkbank(this.rezepte, daten, this.itemDefinitionen);
@@ -671,7 +718,10 @@ export class ClientSpiel {
     }
     // Im Platzier-Modus bedeutet Klick "hier aufstellen" statt Angriff
     let angriff = !tot && this.eingabe.angriff();
-    if (this.platzierung) {
+    if (this.bau.aktiv) {
+      this.bau.takt(angriff); // Klick = bauen/abreißen, kein Hammerschwung
+      angriff = false;
+    } else if (this.platzierung) {
       if (angriff && !this.letzterKlick) this.platzierungBestaetigen();
       this.letzterKlick = angriff;
       angriff = false;
@@ -760,6 +810,15 @@ export class ClientSpiel {
         break;
       case 'gebaut':
         this.sound.spiele(e.bauwerk === 'beet' ? 'graben' : 'gebaut', { x: e.x, y: e.y });
+        break;
+      case 'abgerissen':
+        this.sound.spiele('werkeln', { x: e.x, y: e.y, tonhoehe: 0.8 });
+        break;
+      case 'tuerBau':
+        this.sound.spiele(e.offen ? 'tuer_auf' : 'tuer_zu', { x: e.x, y: e.y });
+        break;
+      case 'spawnGesetzt':
+        this.sound.spiele('aufheben', { x: e.x, y: e.y, tonhoehe: 0.8 });
         break;
       case 'feuer':
         this.sound.spiele(e.an ? 'feuer_an' : 'feuer_aus', { x: e.x, y: e.y });
@@ -880,6 +939,7 @@ export class ClientSpiel {
     const uhr = tageszeit(this.serverZeit + (jetzt - this.zeitEmpfangen) / 1000, this.tageszeitDauer);
 
     if (this.platzierung) this.renderer.zeigeVorschau({ typ: this.platzierung.typ, ...this.#platzierungsZiel() });
+    this.bau.aktualisiere();
     this.#oberflaecheAktualisieren(eigen, jetzt);
     this.renderer.zeichne({
       fokus: eigen,

@@ -17,7 +17,10 @@ export const TASTEN = Object.freeze({
   aufheben: ['KeyE'], // Aufheben / Abbauen / Werkbank / Schlafen – je nachdem, was in der Nähe ist
   menue: ['Escape'], // offene Menüs schließen
   karte: ['KeyK'], // Karte auf/zu
-  inventar: ['KeyI', 'KeyB'], // Inventar-Fenster auf/zu
+  inventar: ['KeyI'], // Inventar-Fenster auf/zu
+  bauen: ['KeyB'], // Bau-Modus (BUILD) an/aus – R dreht dort das Bauteil
+  abriss: ['KeyX'], // im Bau-Modus: Abriss-Werkzeug
+  gebiet: ['KeyV'], // roten Baugebiet-Ring ein-/ausblenden (Hammer in der Hand)
   skills: ['KeyU'], // Fähigkeiten (Skillpunkte verteilen)
   fallenlassen: ['KeyQ'], // Item fallen lassen (unter der Maus im Inventar, sonst das in der Hand)
   chat: ['KeyT'], // Chat-Eingabe öffnen

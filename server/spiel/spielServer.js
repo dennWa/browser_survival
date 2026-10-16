@@ -24,6 +24,9 @@ import { KARTEN } from './karten/kartenLader.js';
 import { holeZeitNach, uebernimmZeitsprung } from './systeme/arbeitSystem.js';
 import { Taktgeber } from './taktgeber.js';
 import { Zone } from './zone.js';
+import { BAUTEILE } from '../../gemeinsam/basisbau/teile.js';
+import { EBENEN } from '../../gemeinsam/welt/bauwerke.js';
+import { spawnPunkt } from './systeme/spawnSystem.js';
 
 /** Danach wird die Verbindung getrennt (Schutz gegen Passwort-Raten). */
 const MAX_FEHLVERSUCHE = 5;
@@ -249,11 +252,12 @@ export class SpielServer {
    * Ankunftspunkt rein, Client baut neu auf (ZONE_WECHSEL). Unbekanntes Ziel → Weg "versperrt".
    */
   async #wechsleZone(sitzung, spieler) {
-    const { ziel, ankunft, name } = spieler.zonenwechsel;
+    const { ziel, ankunft, name, spawn = false } = spieler.zonenwechsel;
     spieler.zonenwechsel = null;
     const alt = sitzung.zone;
     const zone = ziel === alt.id ? null : this.zone(ziel);
     if (!zone) {
+      if (spawn) spieler.spawn = null; // Bett-Zone gibt es nicht (mehr) → normaler Start
       alt.spielWelt.melde(spieler.id, `${name}: Dieser Weg ist noch versperrt`);
       return;
     }
@@ -278,7 +282,16 @@ export class SpielServer {
     this.#aktiviere(zone);
     const neu = zone.spielWelt.spielerBetrittWelt(sitzung.benutzername, { admin: spieler.admin });
     wendeSpielstandAn(neu, stand, zone.spielWelt);
-    const punkt = zone.ankunft(ankunft);
+    // Respawn am Bett einer anderen Zone: neben dem Bett aufwachen (fehlt es inzwischen, normaler Start dieser Zone)
+    let punkt = null;
+    if (spawn) {
+      punkt = spawnPunkt(zone.spielWelt, neu.spawn);
+      if (!punkt) {
+        if (neu.spawn && zone.spielWelt.welt.bauwerkBei(neu.spawn.tx, neu.spawn.ty)?.typ !== 'bett') neu.spawn = null;
+        zone.spielWelt.melde(neu.id, 'Dein Bett ist weg oder zugebaut – du startest am normalen Startpunkt');
+      }
+    }
+    punkt ??= zone.ankunft(ankunft);
     Object.assign(neu, behalten, { x: punkt.x, y: punkt.y });
     sitzung.zone = zone;
     sitzung.spielerId = neu.id;
@@ -298,7 +311,7 @@ export class SpielServer {
       tickRate: TICK_RATE,
       start: { x: spieler.x, y: spieler.y },
       itemDefinitionen: GEGENSTAENDE,
-      spielerDaten: spielerDatenPrivat(spieler, this.konfiguration),
+      spielerDaten: spielerDatenPrivat(spieler, this.konfiguration, zone.spielWelt),
       erkundet: packeErkundet(spieler.erkundet),
       rezepte: REZEPTE,
       ...zone.weltDaten(),
@@ -309,7 +322,7 @@ export class SpielServer {
   #sendePrivateDaten(sitzung) {
     const spieler = this.#spieler(sitzung);
     if (!spieler) return;
-    const text = kodiere({ typ: NACHRICHT.SPIELER_DATEN, ...spielerDatenPrivat(spieler, this.konfiguration) });
+    const text = kodiere({ typ: NACHRICHT.SPIELER_DATEN, ...spielerDatenPrivat(spieler, this.konfiguration, sitzung.zone.spielWelt) });
     if (text === sitzung.letzteSpielerDaten) return;
     sitzung.letzteSpielerDaten = text;
     sitzung.kanal.senden(text);
@@ -467,6 +480,8 @@ export class SpielServer {
     if (n.art === AKTIONEN.TAUSCHEN && !(gueltigerSlot(slot) && gueltigerSlot(n.ziel))) return;
     if (n.art === AKTIONEN.PLATZIEREN && !(gueltigerSlot(slot) && Number.isInteger(n.tx) && Number.isInteger(n.ty))) return;
     if (n.art === AKTIONEN.FELD && !(Number.isInteger(n.tx) && Number.isInteger(n.ty))) return;
+    if (n.art === AKTIONEN.BAUEN && !(Object.hasOwn(BAUTEILE, n.teil) && Number.isInteger(n.tx) && Number.isInteger(n.ty))) return;
+    if (n.art === AKTIONEN.ABREISSEN && !(Number.isInteger(n.tx) && Number.isInteger(n.ty) && (n.ebene === undefined || EBENEN.includes(n.ebene)))) return;
     if ((n.art === AKTIONEN.KISTE_LEGEN || n.art === AKTIONEN.KISTE_NEHMEN) && slot === null) return;
     if (n.art === AKTIONEN.ADMIN && !GUELTIGE_ADMIN_BEFEHLE.has(n.befehl)) return;
     if (n.art === AKTIONEN.HERSTELLEN && !Object.hasOwn(REZEPTE, n.rezept)) return;
@@ -476,6 +491,8 @@ export class SpielServer {
     if (n.art === AKTIONEN.HERSTELLEN) aktion.rezept = n.rezept;
     if (n.art === AKTIONEN.TAUSCHEN) aktion.ziel = n.ziel;
     if (n.art === AKTIONEN.PLATZIEREN || n.art === AKTIONEN.FELD) Object.assign(aktion, { tx: n.tx, ty: n.ty });
+    if (n.art === AKTIONEN.BAUEN) Object.assign(aktion, { teil: n.teil, tx: n.tx, ty: n.ty, drehung: n.drehung === 0 || n.drehung === 1 ? n.drehung : null });
+    if (n.art === AKTIONEN.ABREISSEN) Object.assign(aktion, { tx: n.tx, ty: n.ty, ebene: n.ebene ?? null });
     if (n.art === AKTIONEN.SKILL) aktion.skill = typeof n.skill === 'string' ? n.skill : null;
     spieler.aktionsPuffer.push(aktion);
   }

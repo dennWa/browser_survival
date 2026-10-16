@@ -5,6 +5,7 @@ import { InventarFenster } from './inventarFenster.js';
 import { KisteFenster } from './kisteFenster.js';
 import { SkillFenster } from './skillFenster.js';
 import { EinstellungenFenster } from './einstellungen.js';
+import { BauMenue } from './bauMenue.js';
 
 /**
  * HUD (Head-Up-Display) über dem Spiel:
@@ -14,6 +15,8 @@ import { EinstellungenFenster } from './einstellungen.js';
  *
  * v0.10: FPS-Anzeige (oben rechts), Minikarte (Schalter in den Einstellungen), Auto-Haltbarkeit, Angel-Hinweis, Auto-Lauf-Banner,
  *   Tab-Spielerliste mit Statistik, Lagerkisten-Fenster (kisteFenster.js), Erdfeld-Knopf 🌱.
+ *
+ * v0.11: BUILD-Knopf 🔨 (Bau-Modus, hud.bauMenue = ui/bauMenue.js), markiereBauen().
  *
  * Bedienung Schnellleiste: Klick/Tippen = benutzen bzw. ausrüsten · Rechtsklick/lange drücken = ablegen.
  */
@@ -142,6 +145,9 @@ export class Hud {
       zuruecksetzen: () => this.#aktionen.entwicklerZuruecksetzen?.(),
     });
     this.el.adminPanel.querySelector('[data-entwickler]').addEventListener('click', () => this.entwickler.zeige());
+    this.bauMenue = new BauMenue(dokument);
+    this.el.bauen = el('hud-bauen');
+    this.el.bauen.addEventListener('click', () => this.#aktionen.bauen?.());
     this.inventar = new InventarFenster(dokument, { zeichneIcon: (canvas, defId) => this.zeichneIcon(canvas, defId) });
     this.inventar.beiAktionen({
       benutzen: (slot) => this.#aktionen.benutzen?.(slot),
@@ -202,7 +208,7 @@ export class Hud {
     this.el.vollbild.hidden = !istTouch || !document.fullscreenEnabled;
     this.el.hilfe.textContent = istTouch
       ? 'Links: laufen · Rechts: zielen, ganz drücken = Angriff'
-      : 'WASD laufen · Maus zielen · Klick/Leertaste Angriff · E benutzen · F Feuer · R nachladen · L Lampe · I Inventar · U Fähigkeiten · Q fallen lassen · K Karte · T Chat · Tab Spieler · 1–8 Schnellleiste';
+      : 'WASD laufen · Maus zielen · Klick/Leertaste Angriff · E benutzen · F Feuer · R nachladen · L Lampe · I Inventar · U Fähigkeiten · Q fallen lassen · B bauen · K Karte · T Chat · Tab Spieler · 1–8 Schnellleiste';
     this.#letzterHinweis = null;
     this.#letzterTuerHinweis = null;
     this.#letzteUhr = '';
@@ -217,6 +223,8 @@ export class Hud {
     this.el.tuer.hidden = true;
     this.el.arbeit.hidden = true;
     this.zeigePlatzierung(null);
+    this.bauMenue.zeige(false);
+    this.markiereBauen(false);
     this.werkbank.zeige(null);
     this.entwickler.zeige(false);
     this.inventar.zeige(false);
@@ -297,6 +305,11 @@ export class Hud {
   debugUmschalten() {
     this.debug = !this.debug;
     this.el.debug.hidden = !this.debug;
+  }
+
+  /** BUILD-Knopf hervorheben, solange der Bau-Modus läuft. */
+  markiereBauen(an) {
+    this.el.bauen?.classList.toggle('aktiv', an);
   }
 
   /** Platzier-Leiste zeigen (name) bzw. verstecken (null). */

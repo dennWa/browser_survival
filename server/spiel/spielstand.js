@@ -42,6 +42,8 @@ export function erstelleSpielstand(spieler, kartenId) {
     skillPunkte: spieler.skillPunkte,
     aussehen: { ...spieler.aussehen },
     statistik: { ...spieler.statistik },
+    spawn: spieler.spawn ? { ...spieler.spawn } : null,
+    flaggeKarte: spieler.flaggeKarte,
     erkundet,
     gespeichert: new Date().toISOString(),
   };
@@ -65,6 +67,7 @@ export function wendeSpielstandAn(spieler, stand, spielWelt) {
   spieler.leben = begrenze(stand.leben, 1, spieler.maxLeben);
   spieler.aussehen = pruefeAussehen(stand.aussehen);
   ladeStatistik(spieler, stand.statistik);
+  ladeBasis(spieler, stand);
   const kartenId = spielWelt.karte.daten.id;
   const erkundet = ladeErkundet(stand.erkundet);
   if (erkundet[kartenId] && spieler.erkundet) {
@@ -101,6 +104,14 @@ export function wendeSpielstandAn(spieler, stand, spielWelt) {
   spieler.ausgeruestet = kategorie === 'nahkampf' || kategorie === 'fernkampf' ? slot : null;
   aktualisiereAusruestung(spieler);
   return true;
+}
+
+/** Basisbau: Respawn-Bett und Zone der Basis-Flagge (nur wohlgeformte Werte). */
+function ladeBasis(spieler, stand) {
+  const idOk = (id) => typeof id === 'string' && /^[a-z0-9_-]{1,40}$/.test(id);
+  const s = stand.spawn;
+  spieler.spawn = s && idOk(s.karte) && Number.isInteger(s.tx) && Number.isInteger(s.ty) ? { karte: s.karte, tx: s.tx, ty: s.ty } : null;
+  spieler.flaggeKarte = idOk(stand.flaggeKarte) ? stand.flaggeKarte : null;
 }
 
 /** Statistik (Tab-Liste): nur sinnvolle Zahlen übernehmen. */

@@ -113,9 +113,7 @@ ITEMS = {
     'fisch_forelle_gebraten': ('prozedural', 'fisch:#a86a30', 28),
     'fisch_hecht_gebraten': ('prozedural', 'fisch:#8a5a28', 34),
     'angel': ('prozedural', 'angel', 30),
-    'kiste': ('prozedural', 'kiste', 30),
-    'holzwand': ('prozedural', 'holzwand', 28),
-    'holzboden': ('prozedural', 'holzboden', 28),
+    'stoff': ('prozedural', 'stoff', 22),
     'falle': ('prozedural', 'falle', 26),
     'lagerfeuer': ('prozedural', 'lagerfeuer', 28),
     'werkbank': ('prozedural', 'werkbank', 30),
@@ -265,21 +263,14 @@ def zeichne_prozedural(art, groesse):
         d.line([58 * u, 8 * u, 64 * u, 40 * u], fill=(230, 230, 230, 255), width=int(1.5 * u))
         d.ellipse(r(60, 40, 70, 50), fill=(220, 50, 40, 255), outline=rand)
         d.ellipse(r(14, 50, 26, 62), fill=(90, 94, 100, 255), outline=rand)
-    elif art == 'kiste':
-        d.rectangle(r(8, 18, 64, 62), fill=(160, 112, 60, 255), outline=rand, width=int(3 * u))
-        d.rectangle(r(8, 18, 64, 30), fill=(190, 140, 80, 255), outline=rand, width=int(3 * u))
-        for x in (20, 36, 52):
-            d.line([x * u, 30 * u, x * u, 62 * u], fill=(120, 80, 40, 255), width=int(2 * u))
-        d.rectangle(r(30, 34, 42, 42), fill=(200, 200, 205, 255), outline=rand, width=int(2 * u))
-    elif art == 'holzwand':
-        for i in range(4):
-            d.rectangle(r(8 + i * 14, 8, 20 + i * 14, 64), fill=(150 + i * 8, 104, 56, 255), outline=rand, width=int(2.5 * u))
-        d.rectangle(r(6, 22, 66, 30), fill=(110, 76, 40, 255), outline=rand, width=int(2 * u))
-        d.rectangle(r(6, 44, 66, 52), fill=(110, 76, 40, 255), outline=rand, width=int(2 * u))
-    elif art == 'holzboden':
-        for i in range(4):
-            d.rectangle(r(6, 8 + i * 15, 66, 21 + i * 15), fill=(170 - i * 6, 124, 70, 255), outline=rand, width=int(2 * u))
-            d.line([(16 + i * 12) * u, (8 + i * 15) * u, (16 + i * 12) * u, (21 + i * 15) * u], fill=rand, width=int(1.5 * u))
+    elif art == 'stoff':
+        # zwei übereinandergelegte, gefaltete Stoffbahnen
+        d.polygon([(8 * u, 40 * u), (50 * u, 28 * u), (66 * u, 44 * u), (24 * u, 58 * u)], fill=(120, 150, 205, 255), outline=rand)
+        d.polygon([(8 * u, 40 * u), (24 * u, 58 * u), (24 * u, 64 * u), (8 * u, 46 * u)], fill=(86, 112, 164, 255), outline=rand)
+        d.polygon([(24 * u, 58 * u), (66 * u, 44 * u), (66 * u, 50 * u), (24 * u, 64 * u)], fill=(98, 126, 182, 255), outline=rand)
+        d.polygon([(12 * u, 30 * u), (52 * u, 16 * u), (64 * u, 30 * u), (24 * u, 44 * u)], fill=(232, 224, 200, 255), outline=rand)
+        d.line([30 * u, 36 * u, 52 * u, 26 * u], fill=(190, 178, 150, 255), width=int(2 * u))
+        d.line([22 * u, 32 * u, 44 * u, 24 * u], fill=(190, 178, 150, 255), width=int(2 * u))
     else:
         raise ValueError(f'Unbekanntes prozedurales Icon: {art}')
     return bild.resize((groesse, groesse), Image.LANCZOS)

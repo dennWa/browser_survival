@@ -171,13 +171,22 @@ export class Karte {
       ctx.fillText(`${pfeil} ${u.name}`, x, ty);
     }
     ctx.font = '15px system-ui, sans-serif';
-    // Selbst gebaute Sachen (Bauwerke)
-    const symbole = { werkbank: '🔨', lagerfeuer: '🔥', beet: '🌱', falle: '🪤', kiste: '📦', holzwand: '🧱', holzboden: '🟫' };
-    ctx.font = '12px system-ui, sans-serif';
+    // Selbst gebaute Sachen: Basisbau-Struktur (Boden, Wände) als Farbfelder (schnell, auch bei großen Basen), Möbel & Co. als Symbol
+    const symbole = { werkbank: '🔨', lagerfeuer: '🔥', beet: '🌱', falle: '🪤', kiste: '📦', bett: '🛏', holztuer: '🚪' };
+    const flaechen = { holzboden: 'rgba(199, 154, 98, 0.85)', holzwand: '#6b4424', holzwand_fenster: '#8aa7c0', holzwand_tuer: '#a77a44' };
+    const kachel = g * s;
+    const sichtbar = (b) => this.erkundet[b.ty * this.welt.breite + b.tx];
     for (const b of this.welt.bauwerke.values()) {
-      if (!this.erkundet[b.ty * this.welt.breite + b.tx]) continue;
+      if (!flaechen[b.typ] || !sichtbar(b)) continue;
+      ctx.fillStyle = flaechen[b.typ];
+      ctx.fillRect(b.tx * kachel, b.ty * kachel, kachel, kachel);
+    }
+    ctx.font = '12px system-ui, sans-serif';
+    ctx.fillStyle = '#fff';
+    for (const b of this.welt.bauwerke.values()) {
+      if (!symbole[b.typ] || !sichtbar(b)) continue;
       ctx.globalAlpha = b.typ === 'lagerfeuer' && !b.brennt ? 0.5 : 1;
-      ctx.fillText(symbole[b.typ] ?? '■', (b.tx + 0.5) * g * s, (b.ty + 0.5) * g * s + 1);
+      ctx.fillText(symbole[b.typ], (b.tx + 0.5) * kachel, (b.ty + 0.5) * kachel + 1);
     }
     ctx.globalAlpha = 1;
     // Mitspieler: blaue Punkte mit Namen

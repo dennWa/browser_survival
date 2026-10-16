@@ -7,6 +7,7 @@ import { erstelleKonfiguration } from '../server/spiel/konfiguration/spielKonfig
 import { SpielWelt } from '../server/spiel/spielWelt.js';
 import { erzeugeZombie } from '../server/spiel/entitaeten/zombie.js';
 import { fuegeZumInventarHinzu } from '../server/spiel/systeme/inventarSystem.js';
+import { neuesBauwerk } from '../server/spiel/systeme/bauSystem.js';
 
 /**
  * Bauwerke: Werkbank/Lagerfeuer aus dem Inventar bauen und aufstellen, Feuer + Kochen, Falle, Beet & Ernte,
@@ -182,13 +183,9 @@ test('Regen halbiert die Wachstumszeit', () => {
   assert.ok(Math.abs(regen / klar - 2) < 0.01, `Regen wächst doppelt so schnell (${regen / klar})`);
 });
 
-test('Lagerkiste: aus 8 Holz, 16 Plätze, einlegen/entnehmen, Inhalt überlebt Neustart, nicht im Netz-Bauwerk', () => {
+test('Lagerkiste: 16 Plätze, einlegen/entnehmen, Inhalt überlebt Neustart, nicht im Netz-Bauwerk (Aufbau übers Menü: basisbau.test.js)', () => {
   const { welt, spieler } = gartenWelt();
-  fuegeZumInventarHinzu(spieler, 'holz', 8);
-  aktion(welt, spieler, { art: AKTIONEN.HERSTELLEN, rezept: 'kiste' });
-  assert.equal(anzahl(spieler, 'kiste'), 1);
-  assert.equal(anzahl(spieler, 'holz'), 0);
-  aktion(welt, spieler, { art: AKTIONEN.PLATZIEREN, slot: slotVon(spieler, 'kiste'), tx: 4, ty: 2 });
+  welt.welt.setzeBauwerk(neuesBauwerk(welt, 'kiste', 4, 2, spieler.name));
   const kiste = welt.welt.bauwerkBei(4, 2);
   assert.equal(kiste.inhalt.length, KISTE_PLAETZE);
   fuegeZumInventarHinzu(spieler, 'apfel', 7);

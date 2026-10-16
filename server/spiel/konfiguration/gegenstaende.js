@@ -83,10 +83,8 @@ const ROH_GEGENSTAENDE = {
   fisch_forelle_gebraten: { name: 'Gebratene Forelle', kategorie: 'nahrung', naehrwert: 30 },
   fisch_hecht_gebraten: { name: 'Gebratener Hecht', kategorie: 'nahrung', naehrwert: 40 },
   angel: { name: 'Angel', kategorie: 'werkzeug', beschreibung: 'Am Ufer Linksklick: auswerfen – wackelt die Pose, nochmal klicken' },
-  // --- Basisbau (Grundgerüst, siehe gemeinsam/welt/bauwerke.js) ---
-  kiste: { name: 'Lagerkiste', kategorie: 'bauwerk', bauwerk: 'kiste', beschreibung: 'Aufstellen: 16 Plätze (E zum Öffnen)' },
-  holzwand: { name: 'Holzwand', kategorie: 'bauwerk', bauwerk: 'holzwand', beschreibung: 'Basisbau: blockiert Zombies' },
-  holzboden: { name: 'Holzboden', kategorie: 'bauwerk', bauwerk: 'holzboden', beschreibung: 'Basisbau: begehbarer Boden' },
+  // Basisbau-Material (Teile & Kosten: gemeinsam/basisbau/teile.js)
+  stoff: { name: 'Stoff', kategorie: 'material', mengeBeimFund: [1, 3], beschreibung: 'Für Betten – findest du in Wohnungen und Läden' },
 };
 
 /**

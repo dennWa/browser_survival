@@ -64,7 +64,11 @@ export class Zone {
     if (w.gegenstaendeVersion !== g.gegenstaende) pakete.push(kodiere({ typ: NACHRICHT.GEGENSTAENDE, gegenstaende: w.gegenstaendeListe() }));
     if (w.tuerenVersion !== g.tueren) pakete.push(kodiere({ typ: NACHRICHT.TUEREN, offen: w.welt.offeneTueren() }));
     if (w.welt.ressourcenVersion !== g.ressourcen) pakete.push(kodiere({ typ: NACHRICHT.RESSOURCEN, abgebaut: [...w.welt.abgebaut] }));
-    if (w.welt.bauwerkeVersion !== g.bauwerke) pakete.push(kodiere({ typ: NACHRICHT.BAUWERKE, liste: w.bauwerkeOeffentlich() }));
+    if (w.welt.bauwerkeVersion !== g.bauwerke) {
+      // Wenige Änderungen (ein Hammerschlag) → nur das Delta; sehr viele (Weltstand geladen) → ganze Liste
+      const delta = w.nimmBauwerkAenderungen();
+      pakete.push(kodiere(delta ? { typ: NACHRICHT.BAUWERKE_AENDERUNG, ...delta } : { typ: NACHRICHT.BAUWERKE, liste: w.bauwerkeOeffentlich() }));
+    }
     this.#merkeVersionen();
     const schnappschuss = w.schnappschuss();
     let alle = null; // ungefiltert, nur einmal kodiert (wenn jemand alles sieht – auf kleinen Karten der Normalfall)

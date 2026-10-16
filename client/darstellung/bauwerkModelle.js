@@ -2,9 +2,12 @@ import * as THREE from 'three';
 import { vereineGeometrien, matrixAus } from './geometrie.js';
 import { werkbankTeile } from './kartenModell.js';
 import { PFLANZEN, feldKacheln } from '../../gemeinsam/welt/bauwerke.js';
+import { BASIS_MATERIAL, IST_AUSGERICHTET, bauteilGeometrie } from './basisbauModelle.js';
 
 /**
- * 3D-Modelle der Bauwerke (gemeinsam/welt/bauwerke.js): Werkbank, Lagerfeuer, Bärenfalle, Beet.
+ * 3D-Modelle der Bauwerke (gemeinsam/welt/bauwerke.js): Werkbank, Lagerfeuer, Bärenfalle, Beet, Lagerkiste und die
+ * Basisbau-Teile (Geometrien: basisbauModelle.js – Böden/Wände/Dächer zeichnet im Spiel die instanzierte BasisbauSchicht,
+ * hier entstehen sie nur fürs Hologramm; Tür & Bett sind Einzelstücke).
  * Jedes Bauwerk ist eine Gruppe; Zustände (Feuer an, Falle zu, Pflanzen-Stufe) setzt aktualisiere().
  * Ursprung = Kachelmitte am Boden. Bauwerke sind wenige → einzelne Meshes reichen (Geometrien gecacht).
  */
@@ -15,6 +18,7 @@ const FLAMME_INNEN = new THREE.MeshBasicMaterial({ color: 0xffe08a, transparent:
 const GLUT = new THREE.MeshBasicMaterial({ color: 0xff4a12 });
 const ASCHE = new THREE.MeshBasicMaterial({ color: 0x3a3330 });
 
+const TUER_OFFEN_WINKEL = -1.5; // Radiant: Türblatt schwingt fast 90° auf
 const f = (hex) => new THREE.Color(hex);
 const teil = (geometrie, matrix, farbe) => ({ geometrie, matrix, farbe: f(farbe) });
 const cache = new Map();
@@ -66,23 +70,16 @@ const GEOMETRIEN = {
       teil(new THREE.BoxGeometry(2.4, 18.5, 20.6), matrixAus(8, 9.2, 0), 0x6b4a28),
       teil(new THREE.BoxGeometry(5, 5, 1.6), matrixAus(0, 14, 10.4), 0xc9ccd1),
     ]),
-  holzwand: () =>
-    geometrie('holzwand', () => {
-      const teile = [];
-      for (let i = 0; i < 4; i++) teile.push(teil(new THREE.BoxGeometry(7.4, 40, 30), matrixAus(-12 + i * 8, 20, 0), i % 2 ? 0x8a5f33 : 0x9a6c3a));
-      teile.push(teil(new THREE.BoxGeometry(32, 4, 4), matrixAus(0, 12, 15), 0x5f4122), teil(new THREE.BoxGeometry(32, 4, 4), matrixAus(0, 30, 15), 0x5f4122));
-      return teile;
-    }),
-  holzboden: () =>
-    geometrie('holzboden', () => {
-      const teile = [];
-      for (let i = 0; i < 4; i++) teile.push(teil(new THREE.BoxGeometry(7.6, 1.6, 31), matrixAus(-12 + i * 8, 0.8, 0), i % 2 ? 0xb98650 : 0xc79a62));
-      return teile;
-    }),
   blatt: () => geometrie('blatt', () => [teil(new THREE.SphereGeometry(3, 6, 4), matrixAus(0, 0, 0, 0, new THREE.Vector3(1.4, 0.35, 0.8)), 0x4f9a2a)]),
   stiel: () => geometrie('stiel', () => [teil(new THREE.CylinderGeometry(0.5, 0.7, 1, 5).translate(0, 0.5, 0), new THREE.Matrix4(), 0x3f7a22)]),
   frucht: () => geometrie('frucht', () => [teil(new THREE.SphereGeometry(2.2, 8, 6), new THREE.Matrix4(), 0xffffff)]),
 };
+
+/** Drehung um y (Radiant) für ein Bauwerk: ausgerichtete Teile nach `drehung` (0/1 × 90°), alles andere zufällig-aber-stabil pro Kachel. */
+export function bauwerkDrehungY(b) {
+  if (IST_AUSGERICHTET.has(b.typ)) return (b.drehung ?? 0) * (Math.PI / 2);
+  return b.typ === 'werkbank' ? 0 : (((b.tx * 7 + b.ty * 13) % 4) * Math.PI) / 2;
+}
 
 /** Neues 3D-Bauwerk. @returns { gruppe, aktualisiere(b, jetzt) } */
 export function erzeugeBauwerk(b) {
@@ -143,11 +140,30 @@ export function erzeugeBauwerk(b) {
       gruppe.add(mesh(GEOMETRIEN.kiste()));
       break;
     case 'holzwand':
-      gruppe.add(mesh(GEOMETRIEN.holzwand()));
-      break;
     case 'holzboden':
-      gruppe.add(mesh(GEOMETRIEN.holzboden()));
+    case 'holzdach':
+    case 'holzwand_fenster':
+    case 'holzwand_tuer':
+    case 'bett':
+    case 'flagge':
+      gruppe.add(mesh(bauteilGeometrie(b.typ), BASIS_MATERIAL));
       break;
+    case 'holztuer': {
+      // Türblatt schwingt um das Scharnier (am linken Pfosten) auf und zu
+      const blatt = new THREE.Group();
+      blatt.position.x = -13;
+      blatt.add(mesh(bauteilGeometrie('holztuer'), BASIS_MATERIAL));
+      gruppe.add(blatt);
+      let winkel = b.offen ? TUER_OFFEN_WINKEL : 0;
+      blatt.rotation.y = winkel;
+      aktualisiere = (zustand) => {
+        const ziel = zustand.offen ? TUER_OFFEN_WINKEL : 0;
+        if (Math.abs(ziel - winkel) < 0.002) return;
+        winkel += (ziel - winkel) * 0.22;
+        blatt.rotation.y = winkel;
+      };
+      break;
+    }
     case 'beet': {
       gruppe.add(mesh(GEOMETRIEN.beet()));
       const pflanzen = new THREE.Group();
@@ -208,9 +224,19 @@ function baueSetzlinge(gruppe, pflanze, stufe, mesh) {
 /** Halbtransparente Vorschau (grün = geht, rot = geht nicht). */
 const GEIST_OK = new THREE.MeshBasicMaterial({ color: 0x7dff6a, transparent: true, opacity: 0.45, depthWrite: false });
 const GEIST_NEIN = new THREE.MeshBasicMaterial({ color: 0xff4a3a, transparent: true, opacity: 0.45, depthWrite: false });
+const ABRISS_MARKIERUNG = new THREE.MeshBasicMaterial({ color: 0xff8a1f, transparent: true, opacity: 0.5, depthWrite: false });
 export function erzeugeVorschau(typ) {
   let gruppe;
   const rahmenGeo = new THREE.RingGeometry(20, 22.6, 4, 1, Math.PI / 4).rotateX(-Math.PI / 2);
+  if (typ === 'abriss') {
+    // Orange Markierung um das Bauteil, das der Hammer abreißen würde (Höhe setzt der Renderer über scale.y)
+    gruppe = new THREE.Group();
+    const kasten = new THREE.Mesh(new THREE.BoxGeometry(34, 1, 34).translate(0, 0.5, 0), ABRISS_MARKIERUNG);
+    gruppe.add(kasten);
+    gruppe.userData.setzeOk = () => {};
+    gruppe.userData.kasten = kasten;
+    return gruppe;
+  }
   if (typ === 'erdfeld') {
     // Erdfeld (Spitzhacke): FELD_GROESSE² Beete, Rahmen um jede Kachel – die Gruppe sitzt auf der Mittelkachel
     gruppe = new THREE.Group();

@@ -6,7 +6,7 @@
  *   npm run rauchtest -- --online      über den Node-Server (WebSocket, Gast-Login)
  *   npm run rauchtest -- --port 8099   anderer Port (Standard 8093)
  *
- * Ablauf: Login → Ladebildschirm weg → laufen → Inventar (I) → Karte (K) → Zonenwechsel Waldweg und zurück
+ * Ablauf: Login → Ladebildschirm weg → laufen → Inventar (I) → Karte (K) → Bau-Modus (B) → Zonenwechsel Waldweg und zurück
  * (nur lokal, über browserSurvival.zone) → Screenshots nach werkzeuge/test/ausgabe/ → Fehlerliste.
  * Exit-Code 1 bei Seiten-/Konsolenfehlern. Braucht Playwright + Chromium (lokal installiert oder global:
  * `npm i -g playwright`); in Cloud-Sandboxen ist es meist schon da.
@@ -84,6 +84,14 @@ try {
   await bild('4_karte');
   await seite.keyboard.press('KeyK');
   schritt('Inventar & Karte');
+  // Bau-Modus (B): Menü geht auf, Hammer in der Hand, Hologramm läuft ohne Fehler; B beendet ihn wieder
+  await seite.keyboard.press('KeyB');
+  await seite.waitForSelector('#bau-menue:not([hidden])', { timeout: 5000 });
+  await seite.waitForTimeout(500);
+  await bild('4b_bauen');
+  await seite.keyboard.press('KeyB');
+  await seite.waitForSelector('#bau-menue', { state: 'hidden', timeout: 5000 });
+  schritt('Bau-Modus (B)');
   if (!online) {
     for (const ziel of ['waldweg', 'stadtrand']) {
       await seite.evaluate((z) => browserSurvival.zone(z), ziel);

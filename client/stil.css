@@ -864,6 +864,62 @@ button {
 #hud-platzieren #platzieren-weg { background: #7d2c2c; }
 #hud-platzieren small { width: 100%; text-align: center; font-weight: 400; font-size: 0.72rem; opacity: 0.75; }
 
+/* Bau-Menü (Basisbau, Taste B): Reiter, Bauteil-Karten, Werkzeuge – über der Schnellleiste */
+#hud-bauen.aktiv { background: #3f7d2c; border-color: rgba(185, 224, 143, 0.8); color: #fff; }
+#bau-menue {
+  position: absolute;
+  left: 50%;
+  bottom: calc(150px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: min(700px, calc(100vw - 24px));
+  padding: 6px 8px;
+  pointer-events: auto;
+  background: rgba(20, 24, 18, 0.9);
+  border: 1px solid rgba(140, 200, 110, 0.55);
+  border-radius: 12px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
+}
+#bau-menue .bau-kopf { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+#bau-menue .bau-reiter { display: flex; gap: 4px; }
+#bau-menue .bau-tab { padding: 3px 10px; font-size: 0.8rem; color: var(--text); background: rgba(255, 255, 255, 0.06); border: 1px solid transparent; border-radius: 8px; }
+#bau-menue .bau-tab.aktiv { background: #3f7d2c; color: #fff; }
+#bau-menue .bau-status { flex: 1 1 140px; min-width: 0; overflow: hidden; text-align: right; text-overflow: ellipsis; white-space: nowrap; font-size: 0.78rem; color: #cfe8b8; }
+#bau-menue .bau-zu { padding: 2px 9px; color: #fff; background: #7d2c2c; border: 0; border-radius: 8px; }
+#bau-menue .bau-karten { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
+#bau-menue .bau-karte {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 88px;
+  padding: 4px 8px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+  border: 2px solid transparent;
+  border-radius: 10px;
+}
+#bau-menue .bau-karte.gewaehlt { border-color: #8fd36a; background: rgba(110, 190, 80, 0.2); }
+#bau-menue .bau-karte.gesperrt { opacity: 0.4; }
+#bau-menue .bau-symbol { font-size: 1.25rem; line-height: 1.1; }
+#bau-menue .bau-name { font-size: 0.74rem; font-weight: 600; white-space: nowrap; }
+#bau-menue .bau-kosten { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 6px; font-size: 0.66rem; }
+#bau-menue .bau-kosten .ok { color: #b9e08f; }
+#bau-menue .bau-kosten .fehlt { color: var(--fehler); }
+#bau-menue .bau-werkzeuge { display: flex; flex-wrap: wrap; gap: 4px; }
+#bau-menue .bau-knopf { padding: 3px 9px; font-size: 0.78rem; color: var(--text); background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 8px; }
+#bau-menue .bau-knopf:disabled { opacity: 0.35; }
+#bau-menue .bau-knopf.aktiv { background: #8a4a1c; border-color: #ff8a1f; color: #fff; }
+#bau-menue .bau-ok { font-weight: 700; color: #fff; background: #3f7d2c; border: 0; }
+@media (max-width: 700px) {
+  #bau-menue { bottom: calc(130px + env(safe-area-inset-bottom)); gap: 4px; padding: 6px 8px; }
+  #bau-menue .bau-karte { min-width: 80px; padding: 3px 6px; }
+}
+
 /* Inventar → Bauen (Rezepte ohne Werkbank) */
 #inventar-bauen { display: flex; flex-direction: column; gap: 6px; }
 .inv-rezept { display: flex; align-items: center; gap: 10px; padding: 6px 8px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; opacity: 0.75; }

@@ -5,6 +5,7 @@ import { erzeugeZombie, waehleZombieVariante } from '../entitaeten/zombie.js';
 import { fuegeZumInventarHinzu } from './inventarSystem.js';
 import { toeten } from './kampfSystem.js';
 import { setzeWetter } from './wetterSystem.js';
+import { entferneFlagge } from './territoriumSystem.js';
 
 /**
  * Admin-Befehle (Gottmodus & Co.). Läuft nur für Spieler mit `admin = true` –
@@ -50,6 +51,9 @@ export function fuehreAdminBefehlAus(spielWelt, spieler, befehl) {
     }
     case ADMIN_BEFEHLE.ZOMBIE_SPAWNEN:
       spawneVorSpieler(spielWelt, spieler);
+      break;
+    case ADMIN_BEFEHLE.FLAGGE_ENTFERNEN:
+      spielWelt.melde(spieler.id, entferneFlagge(spielWelt, spieler) ? 'Basis-Flagge zurückgenommen – du kannst eine neue setzen' : 'Hier stand keine Flagge – Flaggen-Vermerk zurückgesetzt');
       break;
     case ADMIN_BEFEHLE.ZEIT_SPRINGEN: {
       // 3 Sekunden vor den nächsten Wechsel – Dämmerung und Horde laufen ganz normal ab
