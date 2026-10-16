@@ -109,3 +109,19 @@ test('Vorhersage: Client-Welt + gleiche Eingaben ergeben dieselbe Fahrt wie auf 
   assert.ok(Math.abs(lokal.x - spieler.x) < 0.001 && Math.abs(lokal.y - spieler.y) < 0.001, 'gleiche Position');
   assert.ok(Math.abs(lokal.fahrzeug.winkel - auto.winkel) < 1e-9);
 });
+
+test('Auto klemmt beim Lenken an der Wand nicht fest (Drehung nur in freie Pose)', async () => {
+  const { fahre, passt } = await import('../gemeinsam/physik/fahrzeug.js');
+  const g = 32;
+  // Wand: alles mit ty >= 10 ist blockiert
+  const welt = { kachelGroesse: g, istBlockiert: (tx, ty) => ty >= 10 };
+  const fz = { id: 1, x: 200, y: 10 * g - 20, winkel: 0, tempo: 120, laenge: 70, breite: 34 };
+  for (let i = 0; i < 120; i++) {
+    fahre(fz, { x: 1, y: -1 }, welt, 1 / 30);
+    assert.ok(passt(fz, fz.x, fz.y, welt), 'Pose bleibt frei (Schritt ' + i + ')');
+  }
+  // und wieder wegfahren können
+  const y0 = fz.y;
+  for (let i = 0; i < 60; i++) fahre(fz, { x: 0, y: 1 }, welt, 1 / 30);
+  assert.ok(Math.hypot(fz.x - 200, fz.y - y0) > 5, 'Auto kommt vom Fleck');
+});

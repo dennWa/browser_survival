@@ -59,6 +59,7 @@ AKTIONEN: aufheben benutzen ablegen tauschen rucksackAblegen platzieren **bauen{
 - FBX-Knochen haben Skala 100 → Anbauteile (Rucksack) an die Figurgruppe hängen, nicht an Knochen.
 - InstancedMesh mit aus-/einblendbaren Instanzen: `frustumCulled = false`.
 - Zonenwechsel: neue Entitäts-ID in neuer Zone; Server übernimmt `letzteEmpfangeneSeq`, Client zählt seq weiter (sonst werden Eingaben verworfen).
+- Auto-Lenkung (`fahre`): Drehung nur in freie Pose (`passt(...,winkel)`, Fallback ½/¼), sonst klemmte das Auto in Wänden; `steckt` (Pose schon ungültig) = Freifahr-Modus. Nie Winkel ungeprüft ändern.
 - Fahrzeug-Kacheln blockieren auch die Vorhersage; C entfernt Kacheln von Autos, die nicht mehr im (gefilterten) Schnappschuss sind.
 - Schnappschuss: Zombie/Auto-Werte gerundet (0,01 px); eigener Spieler + `spieler.fahrzeug` exakt (Reconciliation!). Nicht runden.
 - Karten-JS `stadtrand.js`/`waldweg.js` sind generiert → Generator ändern, nicht die JS-Datei (oder via Tiled importieren & Generator nicht mehr nutzen).

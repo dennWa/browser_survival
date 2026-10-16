@@ -7,6 +7,7 @@
  * Eingabe wie beim Laufen: y = -1 (W) Gas, y = +1 (S) Bremse/rückwärts, x = lenken.
  *
  * Kollision: drei Kreise entlang der Längsachse (vorne, Mitte, hinten) gegen blockierte Kacheln –
+ * Lenken prüft die neue Pose (kein Einklemmen); steckt das Auto schon fest, darf es freifahren.
  * die eigenen Fahrzeug-Kacheln zählen nicht (welt.istBlockiert(tx, ty, ignoriereFahrzeug)).
  */
 export const FAHRZEUG = Object.freeze({
@@ -65,7 +66,18 @@ export function fahre(fz, eingabe, welt, dt) {
   else fz.tempo = Math.sign(fz.tempo) * Math.max(0, Math.abs(fz.tempo) - p.rollReibung * dt);
   fz.tempo = Math.max(-p.rueckwaertsMax, Math.min(p.max, fz.tempo));
   // Lenken wirkt nur in Fahrt (rückwärts andersherum, wie im echten Auto)
-  fz.winkel += lenken * p.lenkung * dt * Math.max(-1, Math.min(1, fz.tempo / 110));
+  // Drehung nur, wenn die neue Pose frei ist (sonst klemmt das Auto in der Wand und ist stuck)
+  const drehung = lenken * p.lenkung * dt * Math.max(-1, Math.min(1, fz.tempo / 110));
+  const steckt = !passt(fz, fz.x, fz.y, welt); // schon eingeklemmt (z. B. Altstand) → Freifahr-Modus
+  if (drehung !== 0) {
+    for (const f of [1, 0.5, 0.25]) {
+      const w = fz.winkel + drehung * f;
+      if (steckt || passt(fz, fz.x, fz.y, welt, w)) {
+        fz.winkel = w;
+        break;
+      }
+    }
+  }
   const dx = Math.cos(fz.winkel) * fz.tempo * dt;
   const dy = Math.sin(fz.winkel) * fz.tempo * dt;
   if (dx === 0 && dy === 0) return { aufprall: false };
@@ -79,18 +91,24 @@ export function fahre(fz, eingabe, welt, dt) {
       return { aufprall: mx !== dx || my !== dy };
     }
   }
+  if (steckt) {
+    // Eingeklemmt: trotzdem langsam herausfahren, bis das Auto wieder frei steht
+    fz.x += dx * 0.5;
+    fz.y += dy * 0.5;
+    return { aufprall: true };
+  }
   fz.tempo = -fz.tempo * p.abprallen;
   return { aufprall: true };
 }
 
 /** Passt das Fahrzeug an Position (x, y)? Drei Kreise entlang der Längsachse. */
-export function passt(fz, x, y, welt) {
+export function passt(fz, x, y, welt, winkel = fz.winkel) {
   const r = fz.breite / 2;
   const versatz = fz.laenge / 2 - r;
   const g = welt.kachelGroesse;
   for (const s of [-versatz, 0, versatz]) {
-    const cx = x + Math.cos(fz.winkel) * s;
-    const cy = y + Math.sin(fz.winkel) * s;
+    const cx = x + Math.cos(winkel) * s;
+    const cy = y + Math.sin(winkel) * s;
     const r2 = r * 0.92;
     for (let ty = Math.floor((cy - r2) / g); ty <= Math.floor((cy + r2) / g); ty++) {
       for (let tx = Math.floor((cx - r2) / g); tx <= Math.floor((cx + r2) / g); tx++) {
