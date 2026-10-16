@@ -10,6 +10,7 @@ export class WerkbankMenue {
   #beiHerstellen = null;
   #beiSchliessen = null;
   #schluessel = '';
+  #level = 1;
 
   constructor(dokument, { zeichneIcon }) {
     this.dokument = dokument;
@@ -42,7 +43,8 @@ export class WerkbankMenue {
     this.el.hidden = false;
     const bestand = zaehleInventar(spielerDaten?.inventar ?? []);
     // Nur neu aufbauen, wenn sich Inventar oder Reiter geändert haben
-    const schluessel = `${this.#kategorie}|${JSON.stringify(bestand)}`;
+    this.#level = spielerDaten?.level ?? 1;
+    const schluessel = `${this.#kategorie}|${this.#level}|${JSON.stringify(bestand)}`;
     if (schluessel === this.#schluessel) return;
     this.#schluessel = schluessel;
 
@@ -67,12 +69,14 @@ export class WerkbankMenue {
   }
 
   #karte(id, rezept, bestand, itemDefinitionen) {
-    const machbar = Object.entries(rezept.zutaten).every(([item, anzahl]) => (bestand[item] ?? 0) >= anzahl);
-    const karte = this.#element('div', { className: `rezept${machbar ? ' machbar' : ''}` });
+    const levelOk = (rezept.level ?? 1) <= (this.#level ?? 1);
+    const machbar = levelOk && Object.entries(rezept.zutaten).every(([item, anzahl]) => (bestand[item] ?? 0) >= anzahl);
+    const karte = this.#element('div', { className: `rezept${machbar ? ' machbar' : ''}${levelOk ? '' : ' gesperrt'}` });
     const icon = this.#element('canvas', { className: 'rezept-icon', width: ICON * 2, height: ICON * 2 });
     this.zeichneIcon(icon, rezept.ergebnis);
     const text = this.#element('div', { className: 'rezept-text' });
     const titel = this.#element('div', { className: 'rezept-name', textContent: `${rezept.name}${(rezept.menge ?? 1) > 1 ? ` ×${rezept.menge}` : ''}` });
+    if ((rezept.level ?? 1) > 1) titel.append(this.#element('span', { className: `rezept-level${levelOk ? '' : ' fehlt'}`, textContent: `Level ${rezept.level}` }));
     const info = this.#element('div', { className: 'rezept-info', textContent: rezept.beschreibung ?? '' });
     const zutaten = this.#element('div', { className: 'rezept-zutaten' });
     for (const [item, anzahl] of Object.entries(rezept.zutaten)) {

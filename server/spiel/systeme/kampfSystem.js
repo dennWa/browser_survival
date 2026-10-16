@@ -11,6 +11,7 @@ import { planeTierRespawn } from './tierSystem.js';
 import { lasseBossLootFallen, lasseZombieLootFallen } from './lootSystem.js';
 
 /**
+ * (Linksklick am Ufer mit Angel im Inventar ist KEIN Angriff: behandleAngelKlick läuft zuerst, siehe angelSystem.js.)
  * Kampfsystem: Angriffe der Spieler (Schuss per Strahl, Nahkampf per Trefferkegel),
  * Schaden, Tod. fuegeSchadenZu() ist die EINZIGE Stelle, an der Leben durch Angriffe sinkt.
  */

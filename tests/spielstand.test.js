@@ -157,3 +157,14 @@ test('Server-Stopp speichert alle eingeloggten Spieler', async () => {
   const stand = await speicher.laden('bleiber');
   assert.deepEqual(stand.inventar[5], { defId: 'machete', menge: 1 });
 });
+
+test('Spielstand: Altstapel (vor v0.10 bis 60) werden auf mehrere Plätze verteilt, nichts geht verloren', () => {
+  const welt = new SpielWelt(erstelleKonfiguration({ spieler: { startInventar: [] } }));
+  const spieler = welt.spielerBetrittWelt('Alt');
+  const stand = { version: 1, karte: 'stadtrand', leben: 50, hunger: 50, durst: 50, inventar: [{ defId: 'holz', menge: 45 }, { defId: 'munition_9mm', menge: 60 }] };
+  assert.equal(wendeSpielstandAn(spieler, stand, welt), true);
+  const summe = (id) => spieler.inventar.reduce((s, e) => s + (e?.defId === id ? e.menge : 0), 0);
+  assert.equal(summe('holz'), 45);
+  assert.equal(summe('munition_9mm'), 60);
+  assert.ok(spieler.inventar.every((e) => !e || e.menge <= (e.defId === 'munition_9mm' ? 50 : 20)));
+});

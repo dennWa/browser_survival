@@ -4,7 +4,7 @@ import { KartenModell } from './kartenModell.js';
 import { vereineGeometrien } from './geometrie.js';
 import { Fussspuren } from './fussspuren.js';
 import { erzeugeBauwerk, erzeugeVorschau } from './bauwerkModelle.js';
-import { erzeugeFahrzeugModell } from './fahrzeugModelle.js';
+import { animiereWrack, erzeugeFahrzeugModell, macheWrack } from './fahrzeugModelle.js';
 import { FAHRZEUG_MODELLE } from '../../gemeinsam/physik/fahrzeug.js';
 import { erzeugeFrisur } from './haarModell.js';
 import { AUSSEHEN, skinFuer } from '../../gemeinsam/spieler/aussehen.js';
@@ -12,12 +12,17 @@ import { itemGeometrie, ITEM_MATERIAL, rucksackTeile } from './itemModelle.js';
 import { zeichneBeschriftung } from './beschriftung.js';
 import { richteFigurEin, aktualisiereHaltung } from './figurHaltung.js';
 import { erzeugeWaffe, WAFFEN_NAMEN } from './waffenModelle.js';
+import { erzeugeTier } from './tierModelle.js';
+import { erzeugeAngel } from './angelModell.js';
+import { WetterEffekt } from './wetterEffekt.js';
 
 /**
  * Renderer mit Three.js (WebGL): schräge Kamera, echte Lichter und Schatten, Tag & Nacht.
  *
  * Gameplay bleibt 2D (x/y auf dem Boden); nur die Darstellung ist 3D:
  *   Weltpixel x → three.x, Weltpixel y → three.z, Höhe → three.y (1 Einheit = 1 Weltpixel)
+ *
+ * v0.10: Tiere (Hase), Angel (Rute/Schnur/Pose), Wetter (wetterEffekt.js: Regen, Nebel, Licht), Wracks, Erdfeld-Vorschau.
  *
  * Ebenen: WebGL-Canvas (#spielflaeche3d) liegt UNTER dem 2D-Canvas (#spielflaeche). Das 2D-Canvas bleibt
  * durchsichtig, empfängt Maus/Touch und zeigt Namen & Lebensbalken. Vignette und Schadensblitz sind CSS.
@@ -39,6 +44,7 @@ const ZIELHOEHE = 36; // Mausstrahl trifft diese Höhe (Brust) → Zielen fühlt
 const KAMERA_VERSATZ = new THREE.Vector3(0, 560, 380);
 const SKINS = { normal: 'zombieMaleA', laeufer: 'zombieFemaleA', brocken: 'zombieMaleA' }; // Zombies; Spieler: aussehen.js
 const KOPF = { hoehe: 1.22, breite: 0.9, tiefe: 1.07 }; // Schädelmaße im Verhältnis zum Abstand Kopfknochen → Head_end (gemessen)
+const _wetterGrau = new THREE.Color();
 const MAX_TASCHENLAMPEN = 3;
 const LAMPEN_POOL = 6; // so viele Kartenlampen leuchten gleichzeitig echt (die nächsten)
 const MUENDUNGS_LICHTER = 2;
@@ -144,6 +150,9 @@ export class Renderer {
     this.feuerLampen = []; // brennende Lagerfeuer als Lampen für den Lampen-Pool
     this.vorschau = null; // { typ, gruppe }
     this.fahrzeuge = new Map(); // Fahrzeug-ID → Gruppe
+    this.tiere = new Map(); // Tier-ID → { gruppe, aktualisiere }
+    this.angelnde = new Map(); // Spieler-ID → Angel-Darstellung (Rute, Schnur, Pose)
+    this.wetterEffekt = new WetterEffekt(this.szene); // Regen-Striche + weiche Übergänge für Nebel/Licht
     this.fahrZoom = 1; // Kamera geht beim Fahren etwas weiter weg
 
     // Adaptive Qualität (siehe QUALITAETS_STUFEN)
@@ -239,6 +248,10 @@ export class Renderer {
     this.items.clear();
     for (const g of this.fahrzeuge.values()) this.szene.remove(g);
     this.fahrzeuge.clear();
+    for (const t of this.tiere.values()) this.szene.remove(t.gruppe);
+    this.tiere.clear();
+    for (const a of this.angelnde.values()) a.freigeben();
+    this.angelnde.clear();
     for (const b of this.bauwerke.values()) this.szene.remove(b.gruppe);
     this.bauwerke.clear();
     this.bauwerkeStand = -1;
@@ -265,7 +278,7 @@ export class Renderer {
   /**
    * @param tageszeit  { helligkeit 0..1, istNacht, anteil } (gemeinsam/tageszeit.js)
    */
-  zeichne({ fokus, entitaeten, gegenstaende, jetzt, effekte = null, markiertId = null, tageszeit = null }) {
+  zeichne({ fokus, entitaeten, gegenstaende, jetzt, effekte = null, markiertId = null, tageszeit = null, wetter = 'klar' }) {
     const dt = this.letzteZeit ? Math.min(0.1, (jetzt - this.letzteZeit) / 1000) : 0;
     this.letzteZeit = jetzt;
     this.#passeAufloesungAn(dt, jetzt);
@@ -277,11 +290,15 @@ export class Renderer {
     this.kamera3d.position.lerp(_kameraZiel, Math.min(1, dt * 8) || 1);
     this.kamera3d.lookAt(_ziel.x, 0, _ziel.z - 20);
     this.schnitt.uFokus.value.set(fokus.x, 0, fokus.y);
+    this.wetterEffekt.setzeArt(wetter);
+    this.wetterEffekt.aktualisiere(dt, fokus.x, fokus.y);
     const dunkel = this.#tageslicht(tageszeit, _ziel);
 
     this.karte.aktualisiere(dt, dunkel);
     this.#aktualisiereFahrzeuge(entitaeten, fokus);
     this.#aktualisiereFiguren(entitaeten, fokus, dt, jetzt);
+    this.#aktualisiereTiere(entitaeten, fokus, jetzt);
+    this.#aktualisiereAngeln(entitaeten, fokus, jetzt);
     this.#aktualisiereTaschenlampen(entitaeten, fokus, dunkel);
     this.#aktualisiereItems(gegenstaende, markiertId, jetzt);
     this.#aktualisiereFallendeBaeume(dt);
@@ -330,11 +347,60 @@ export class Renderer {
       g.visible = Math.abs(e.x - fokus.x) < SICHTWEITE && Math.abs(e.y - fokus.y) < SICHTWEITE;
       g.position.set(e.x, 0, e.y);
       g.rotation.y = Math.PI / 2 - e.winkel;
+      if (e.kaputt && !g.userData.wrack) macheWrack(g);
+      if (g.userData.wrack) animiereWrack(g, performance.now());
     }
     for (const [id, g] of this.fahrzeuge) {
       if (gesehen.has(id)) continue;
       this.szene.remove(g);
       this.fahrzeuge.delete(id);
+    }
+  }
+
+  /** Tiere (Hasen): ein Modell pro Tier, hüpft beim Laufen. */
+  #aktualisiereTiere(entitaeten, fokus, jetzt) {
+    const gesehen = new Set();
+    for (const e of entitaeten) {
+      if (e.typ !== 'tier') continue;
+      gesehen.add(e.id);
+      let t = this.tiere.get(e.id);
+      if (!t) {
+        t = erzeugeTier(e.art);
+        this.tiere.set(e.id, t);
+        this.szene.add(t.gruppe);
+      }
+      t.gruppe.visible = Math.abs(e.x - fokus.x) < SICHTWEITE && Math.abs(e.y - fokus.y) < SICHTWEITE;
+      if (!t.gruppe.visible) continue;
+      t.gruppe.position.set(e.x, 0, e.y);
+      t.gruppe.rotation.y = Math.PI / 2 - e.blick;
+      t.aktualisiere(e, jetzt);
+    }
+    for (const [id, t] of this.tiere) {
+      if (gesehen.has(id)) continue;
+      this.szene.remove(t.gruppe);
+      this.tiere.delete(id);
+    }
+  }
+
+  /** Angelnde Spieler: Rute in der Hand, Schnur, Pose im Wasser (e.angeln kommt vom Server). */
+  #aktualisiereAngeln(entitaeten, fokus, jetzt) {
+    const gesehen = new Set();
+    for (const e of entitaeten) {
+      if (e.typ !== 'spieler' || !e.angeln || e.tot) continue;
+      gesehen.add(e.id);
+      let a = this.angelnde.get(e.id);
+      if (!a) {
+        a = erzeugeAngel();
+        this.angelnde.set(e.id, a);
+        this.szene.add(a.gruppe);
+      }
+      a.gruppe.visible = Math.abs(e.x - fokus.x) < SICHTWEITE && Math.abs(e.y - fokus.y) < SICHTWEITE;
+      if (a.gruppe.visible) a.aktualisiere(e, jetzt);
+    }
+    for (const [id, a] of this.angelnde) {
+      if (gesehen.has(id)) continue;
+      a.freigeben();
+      this.angelnde.delete(id);
     }
   }
 
@@ -906,8 +972,21 @@ export class Renderer {
     this.umgebung.intensity = 0.55 + hell * 0.75;
     this.szene.background.copy(NACHT.hintergrund).lerp(TAG.hintergrund, hell).lerp(DAEMMERUNG.hintergrund, daemmerung * 0.5);
     this.szene.fog.color.copy(this.szene.background);
-    this.szene.fog.near = 650 + hell * 600;
-    this.szene.fog.far = 1500 + hell * 1500;
+    // Nebel wandert mit der Kamera (Zoom, Auto-Fahrt): sonst liegt beim Rauszoomen/Fahren alles hinter dem Nebel
+    const abstand = (this.grundAbstand ?? 1) * this.zoom * this.fahrZoom;
+    // Wetter: Regen/Nebel dämpfen Sonne & Himmel, färben den Hintergrund grau und rücken den Nebel heran
+    const { regen, nebel } = this.wetterEffekt;
+    const stimmung = Math.max(regen, nebel);
+    if (stimmung > 0.001) {
+      this.mond.intensity *= 1 - 0.4 * regen * hell - 0.25 * nebel * hell;
+      this.umgebung.intensity *= 1 - 0.18 * regen;
+      _wetterGrau.setRGB(0.6, 0.64, 0.7).multiplyScalar(0.12 + 0.88 * hell);
+      this.szene.background.lerp(_wetterGrau, 0.7 * stimmung);
+      this.szene.fog.color.copy(this.szene.background);
+    }
+    const dicht = Math.min(1, nebel + 0.35 * regen);
+    this.szene.fog.near = (650 + hell * 600) * abstand * (1 - 0.82 * dicht);
+    this.szene.fog.far = (1500 + hell * 1500) * abstand * (1 - 0.62 * dicht);
     return dunkel;
   }
 

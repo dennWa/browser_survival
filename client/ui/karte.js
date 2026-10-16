@@ -6,10 +6,12 @@ import { entpackeErkundet } from '../../gemeinsam/welt/erkundung.js';
  * Karte (Taste K / 🗺): zeigt die ganze Zone – aber nur dort, wo man schon war ("Nebel des Krieges").
  * Erkundet wird alles im Umkreis von SICHT_KACHELN um die eigene Figur. Der Fortschritt wird pro
  * Server + Account + Karte im Browser gespeichert (localStorage), überlebt also Neuladen und Logout.
+ * v0.10: Klick/Tippen auf einen erkundeten Ort → beiZielWahl (Auto-Lauf, clientSpiel.js); zeichneMini() = Minikarte im HUD.
  */
 const SICHT_KACHELN = 9;
 const MASSSTAB = 0.25; // Kartenbild: 8 Pixel pro Kachel
 const SPEICHER_INTERVALL_MS = 10000;
+const MINI_RADIUS_KACHELN = 20; // Minikarte zeigt so viele Kacheln in jede Richtung
 
 export class Karte {
   constructor(dokument, { welt, assets, schluessel }) {
@@ -30,7 +32,19 @@ export class Karte {
     this.nebel = document.createElement('canvas'); // 1 Pixel pro Kachel, weich hochskaliert
     this.nebel.width = welt.breite;
     this.nebel.height = welt.hoehe;
+    this.nebelVeraltet = true;
+    this.gesehen = 0;
     dokument.getElementById('karte-schliessen').addEventListener('click', () => this.zeige(false));
+    /** Auto-Lauf: Klick/Tippen auf einen erkundeten Ort → beiZielWahl(tx, ty); ziel = aktuelles Ziel (Flagge auf der Karte) */
+    this.beiZielWahl = null;
+    this.ziel = null;
+    this.leinwand.addEventListener('click', (e) => {
+      const r = this.leinwand.getBoundingClientRect();
+      const tx = Math.floor(((e.clientX - r.left) / r.width) * this.welt.breite);
+      const ty = Math.floor(((e.clientY - r.top) / r.height) * this.welt.hoehe);
+      if (tx < 0 || ty < 0 || tx >= this.welt.breite || ty >= this.welt.hoehe) return;
+      this.beiZielWahl?.(tx, ty, this.erkundet[ty * this.welt.breite + tx] === 1);
+    });
   }
 
   get offen() {
@@ -44,6 +58,7 @@ export class Karte {
     for (let i = 0; i < vomServer.length; i++) if (vomServer[i] && !this.erkundet[i]) {
       this.erkundet[i] = 1;
       this.geaendert = true;
+      this.nebelVeraltet = true;
     }
   }
 
@@ -83,6 +98,7 @@ export class Karte {
           if (!this.erkundet[i]) {
             this.erkundet[i] = 1;
             this.geaendert = true;
+            this.nebelVeraltet = true;
           }
         }
       }
@@ -115,17 +131,10 @@ export class Karte {
     ctx.drawImage(this.bild, 0, 0);
 
     // Nebel: unerkundete Kacheln schwarz, weich auslaufend
-    const n = this.nebel.getContext('2d');
-    const daten = n.createImageData(this.welt.breite, this.welt.hoehe);
-    let gesehen = 0;
-    for (let i = 0; i < this.erkundet.length; i++) {
-      daten.data[i * 4 + 3] = this.erkundet[i] ? 0 : 255;
-      gesehen += this.erkundet[i];
-    }
-    n.putImageData(daten, 0, 0);
+    this.#aktualisiereNebel();
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(this.nebel, 0, 0, this.leinwand.width, this.leinwand.height);
-    this.anteilEl.textContent = `${Math.round((gesehen / this.erkundet.length) * 100)} % erkundet`;
+    this.anteilEl.textContent = `${Math.round((this.gesehen / this.erkundet.length) * 100)} % erkundet`;
 
     this.letztesZeichnen = performance.now();
     const s = MASSSTAB;
@@ -163,7 +172,7 @@ export class Karte {
     }
     ctx.font = '15px system-ui, sans-serif';
     // Selbst gebaute Sachen (Bauwerke)
-    const symbole = { werkbank: '🔨', lagerfeuer: '🔥', beet: '🌱', falle: '🪤' };
+    const symbole = { werkbank: '🔨', lagerfeuer: '🔥', beet: '🌱', falle: '🪤', kiste: '📦', holzwand: '🧱', holzboden: '🟫' };
     ctx.font = '12px system-ui, sans-serif';
     for (const b of this.welt.bauwerke.values()) {
       if (!this.erkundet[b.ty * this.welt.breite + b.tx]) continue;
@@ -187,6 +196,19 @@ export class Karte {
       ctx.fillStyle = '#cfe6ff';
       ctx.fillText(m.name, m.x * s, m.y * s - 10);
     }
+    if (this.ziel) {
+      // Ziel des Auto-Laufs: Flagge
+      const fx = (this.ziel.tx + 0.5) * g * s;
+      const fy = (this.ziel.ty + 0.5) * g * s;
+      ctx.font = '20px system-ui, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = 'rgba(255, 211, 77, 0.35)';
+      ctx.beginPath();
+      ctx.arc(fx, fy, 9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillText('🚩', fx - 4, fy - 2);
+      ctx.textAlign = 'center';
+    }
     if (!spieler) return;
     // Eigene Position als Pfeil in Blickrichtung
     ctx.save();
@@ -200,6 +222,84 @@ export class Karte {
     ctx.lineTo(-6, 6);
     ctx.lineTo(-3, 0);
     ctx.lineTo(-6, -6);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  /** Nebel-Bild (1 Pixel pro Kachel) nur neu berechnen, wenn sich die Erkundung geändert hat. */
+  #aktualisiereNebel() {
+    if (!this.nebelVeraltet) return;
+    this.nebelVeraltet = false;
+    const n = this.nebel.getContext('2d');
+    const daten = n.createImageData(this.welt.breite, this.welt.hoehe);
+    let gesehen = 0;
+    for (let i = 0; i < this.erkundet.length; i++) {
+      daten.data[i * 4 + 3] = this.erkundet[i] ? 0 : 255;
+      gesehen += this.erkundet[i];
+    }
+    n.putImageData(daten, 0, 0);
+    this.gesehen = gesehen;
+  }
+
+  /**
+   * Minikarte (HUD): Ausschnitt ±MINI_RADIUS_KACHELN um den Spieler aus demselben Kartenbild wie die große Karte,
+   * unerkundetes bleibt schwarz. @param punkte [{ x, y, art: 'zombie' | 'spieler' | 'tier' }] in Weltpixeln
+   */
+  zeichneMini(leinwand, spieler, punkte = []) {
+    if (!this.bild) this.bild = this.#erzeugeBild();
+    this.#aktualisiereNebel();
+    const g = this.welt.kachelGroesse;
+    const k = g * MASSSTAB; // Pixel pro Kachel im Kartenbild
+    const px = spieler.x / g;
+    const py = spieler.y / g;
+    const r = MINI_RADIUS_KACHELN;
+    const gr = leinwand.width;
+    const ctx = leinwand.getContext('2d');
+    ctx.fillStyle = '#0a0c0f';
+    ctx.fillRect(0, 0, gr, gr);
+    ctx.imageSmoothingEnabled = true;
+    // Ausschnitt auf die Karte begrenzen (am Rand bleibt schwarz)
+    const x0 = Math.max(0, px - r);
+    const y0 = Math.max(0, py - r);
+    const x1 = Math.min(this.welt.breite, px + r);
+    const y1 = Math.min(this.welt.hoehe, py + r);
+    if (x1 <= x0 || y1 <= y0) return;
+    const ziel = [((x0 - (px - r)) / (2 * r)) * gr, ((y0 - (py - r)) / (2 * r)) * gr, ((x1 - x0) / (2 * r)) * gr, ((y1 - y0) / (2 * r)) * gr];
+    ctx.drawImage(this.bild, x0 * k, y0 * k, (x1 - x0) * k, (y1 - y0) * k, ...ziel);
+    ctx.drawImage(this.nebel, x0, y0, x1 - x0, y1 - y0, ...ziel);
+    const proKachel = gr / (2 * r);
+    const bildX = (wx) => (wx / g - (px - r)) * proKachel;
+    const bildY = (wy) => (wy / g - (py - r)) * proKachel;
+    // Wege in andere Zonen (blau), immer sichtbar
+    ctx.fillStyle = 'rgba(77, 163, 255, 0.55)';
+    for (const u of this.welt.uebergaenge) ctx.fillRect(bildX(u.px.x0), bildY(u.px.y0), (u.px.x1 - u.px.x0) * (proKachel / g), (u.px.y1 - u.px.y0) * (proKachel / g));
+    const farben = { zombie: '#e5483c', spieler: '#4da3ff', tier: '#e8d9b5' };
+    for (const p of punkte) {
+      const x = bildX(p.x);
+      const y = bildY(p.y);
+      if (x < 0 || y < 0 || x > gr || y > gr) continue;
+      ctx.fillStyle = farben[p.art] ?? '#fff';
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x, y, p.art === 'tier' ? 3 : 5, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fill();
+    }
+    // Ich: gelber Pfeil in Blickrichtung
+    ctx.save();
+    ctx.translate(gr / 2, gr / 2);
+    ctx.rotate(spieler.blick ?? 0);
+    ctx.fillStyle = '#ffd34d';
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(11, 0);
+    ctx.lineTo(-7, 7);
+    ctx.lineTo(-3, 0);
+    ctx.lineTo(-7, -7);
     ctx.closePath();
     ctx.stroke();
     ctx.fill();

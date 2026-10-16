@@ -1,6 +1,6 @@
 import { INVENTAR_PLAETZE } from '../../gemeinsam/konstanten.js';
 import { GEGENSTAENDE } from './konfiguration/gegenstaende.js';
-import { aktualisiereAusruestung, legeRucksackAn } from './systeme/inventarSystem.js';
+import { aktualisiereAusruestung, fuegeZumInventarHinzu, legeRucksackAn } from './systeme/inventarSystem.js';
 import { wendeSkillsAn } from './systeme/levelSystem.js';
 import { SKILLS, leereSkills } from '../../gemeinsam/spieler/skills.js';
 import { pruefeAussehen } from '../../gemeinsam/spieler/aussehen.js';
@@ -15,6 +15,8 @@ import { entpackeErkundet, packeErkundet } from '../../gemeinsam/welt/erkundung.
 export const SPIELSTAND_VERSION = 1;
 /** Höchstens so viele Karten-Erkundungen pro Spielstand (Schutz gegen aufgeblähte/manipulierte Stände). */
 const MAX_ERKUNDETE_KARTEN = 64;
+/** Vor v0.10 gab es Stapel bis 60 – größere Altstapel werden beim Laden auf mehrere Plätze verteilt, nichts geht verloren. Mehr als das ist manipuliert. */
+const ALTES_STAPEL_MAX = 60;
 
 /**
  * @param kartenId  Zone, in der der Spieler gerade ist (dort taucht er beim nächsten Login wieder auf)
@@ -85,9 +87,13 @@ export function wendeSpielstandAn(spieler, stand, spielWelt) {
   spieler.rucksack = null;
   if (GEGENSTAENDE[stand.rucksack]?.kategorie === 'rucksack') legeRucksackAn(null, spieler, stand.rucksack);
   if (Array.isArray(stand.inventar)) {
+    const ueberschuss = []; // alte Stände mit größeren Stapeln (z. B. 50 Holz): Rest in freie Plätze statt wegwerfen
     stand.inventar.slice(0, spieler.inventar.length).forEach((e, slot) => {
       spieler.inventar[slot] = pruefeEintrag(e);
+      const eintrag = spieler.inventar[slot];
+      if (eintrag && Number.isInteger(e.menge) && e.menge > eintrag.menge && e.menge <= ALTES_STAPEL_MAX && eintrag.magazin === undefined) ueberschuss.push({ defId: eintrag.defId, menge: e.menge - eintrag.menge });
     });
+    for (const u of ueberschuss) fuegeZumInventarHinzu(spieler, u.defId, u.menge);
   }
   const slot = stand.ausgeruestet;
   const waffe = Number.isInteger(slot) ? spieler.inventar[slot] : null;

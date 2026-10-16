@@ -11,7 +11,7 @@ import { fuegeZumInventarHinzu } from '../server/spiel/systeme/inventarSystem.js
 import { fuegeSchadenZu } from '../server/spiel/systeme/kampfSystem.js';
 import { schlageFahrzeug } from '../server/spiel/systeme/fahrzeugSystem.js';
 import { spawneHase } from '../server/spiel/systeme/tierSystem.js';
-import { wurfZiel } from '../server/spiel/systeme/angelSystem.js';
+import { wurfZiel } from '../gemeinsam/welt/wasser.js';
 import { setzeWetter } from '../server/spiel/systeme/wetterSystem.js';
 import { spielerZuNetzwerk } from '../server/spiel/entitaeten/spieler.js';
 import { erstelleSpielstand, wendeSpielstandAn } from '../server/spiel/spielstand.js';

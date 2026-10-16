@@ -19,6 +19,10 @@ const MIME_TYPEN = {
   '.svg': 'image/svg+xml',
   '.ogg': 'audio/ogg',
   '.mp3': 'audio/mpeg',
+  '.wav': 'audio/wav',
+  '.m4a': 'audio/mp4',
+  '.flac': 'audio/flac',
+  '.opus': 'audio/ogg',
   '.ico': 'image/x-icon',
 };
 

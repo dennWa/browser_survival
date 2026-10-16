@@ -1,6 +1,6 @@
 {
   "name": "browser-survival",
-  "version": "0.9.1",
+  "version": "0.10.0",
   "description": "Top-Down-Survival im Browser – autoritativer Server, WebSocket-Mehrspieler",
   "private": true,
   "type": "module",
@@ -11,6 +11,7 @@
     "start": "node server/node/start.js",
     "start:gast": "node server/node/start.js --gast",
     "konto": "node server/werkzeuge/kontoAnlegen.js",
+    "musik:index": "node werkzeuge/musik/indexieren.mjs",
     "assets:3d": "node werkzeuge/assets/baue_3d.mjs",
     "karte:export": "node werkzeuge/karten/tiled.mjs export",
     "karte:import": "node werkzeuge/karten/tiled.mjs import",

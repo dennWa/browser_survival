@@ -121,12 +121,40 @@ Spieler aller Zonen schlafen; der Zeitsprung gilt dann für alle aktiven Zonen. 
   Werkbank (4 Holz), Lagerfeuer (3 Holz), Bärenfalle herstellen → Item benutzen → Platzier-Modus mit grün/roter Vorschau
   (Maus/Tippen setzt, Rechtsklick/✕ bricht ab). Lagerfeuer nur draußen, mit **F + Feuerzeug** anzünden, brennt 5 min,
   daran mit E **kochen** (gebraten = +30 % Sättigung). Falle: tötet Zombies sofort, mit E aufnehmen/spannen.
-- **Farmen:** Hacke benutzen → Beet auf Rasen; Samen (Loot) mit E pflanzen; wächst in 1 Spieltag (24 h, Schlafen spult
-  mit), Ernte 2 Tomaten/Gurken/Kartoffeln (`konfiguration.bauen`). Beete & Bauwerke werden pro Zone gespeichert.
+- **Farmen** (v0.10): **Spitzhacke** (im Inventar genügt, „auto-ausgerüstet“) + **G / 🌱** → Vorschau eines quadratischen
+  **Erdfelds** (`FELD_GROESSE`² = 3×3 Beete, grün/rot) → Klick/E legt es an (AKTION `feld`, `bauSystem.legeFeldAn`). Samen
+  (Tomate, Gurke, Kartoffel, **Paprika**; Loot) mit E bzw. Benutzen pflanzen; wächst in 1 Spieltag (24 h, Schlafen spult mit),
+  **bei Regen doppelt so schnell** (= halbe Zeit, `WACHSTUM_REGEN_FAKTOR`), Ernte 2 Früchte (`konfiguration.bauen`).
+- **Lagerkiste** (v0.10): 8 Holz (Inventar → Bauen), aufstellen, **E** öffnet (Fenster `kisteFenster.js`, 16 Plätze, Antippen
+  schiebt Stapel; Inhalt privat, nur per `KISTE`-Nachricht an den Öffner; schließt sich beim Weggehen; wird mit der Zone gespeichert).
+- **Basisbau-Gerüst** (v0.10): Holzwand (blockiert) + Holzboden (begehbar, nur Rasen) als Bauwerke/Items/Rezepte (Level 3) –
+  die tiefen Mechaniken (Räume, Türen, Verfall …) kommen später (`gemeinsam/welt/bauwerke.js`).
+- **Crafting-Level** (v0.10): Rezepte haben optional `level` (Standard 1); Server prüft `spieler.level`, Menüs zeigen „Level N“
+  und sperren den Knopf. Aktuell: Machete/Falle/Schrotpatronen 2, Kampfbeil 3, Holzwand/-boden 3.
+- **Jagen** (v0.10): **Hasen** (`entitaeten/tier.js`, `tierSystem.js`; ~6 je 1000 Rasenkacheln, max. 40) hoppeln umher, fliehen
+  ab 150 px, 10 Leben, geben **1× Fleisch** (am Feuer braten); kommen nach 150 s nach. Comic-Platzhalter-Modell `tierModelle.js`.
+- **Angeln** (v0.10, `angelSystem.js`, `gemeinsam/welt/wasser.js`): Angel im Inventar genügt (auto-ausgerüstet). **Linksklick**
+  Richtung Wasser = auswerfen (statt Angriff; nicht, wenn ein Zombie jagt), nach 3–9 s **wackelt die Pose** 2–3 s → **erneut
+  klicken** = Fang (Barsch/Forelle/Hecht nach Gewicht, **10 % Doppelfang**); zu früh/zu spät/Bewegung = nichts. See = Kachel `~`
+  (`wasser: true`: nicht begehbar, Sicht & Schüsse gehen drüber). Fische am Feuer braten (`KOCHBAR`).
+- **Wetter** (v0.10, `wetterSystem.js`): pro Zone klar → **Regen/Nebel** (1–5 min, `konfiguration.wetter`) → Pause; im Schnappschuss
+  (`wetter`). Client: Regen-Striche + Regenton, Nebel/Dämmerlicht (`wetterEffekt.js`, Renderer `#tageslicht`).
+- **Boss-Zombies** (Variante `brocken`): 420 Leben, 40 Schaden, 40 XP, **50 % Waffe + Munition** (`lootSystem.lasseBossLootFallen`,
+  Tabelle `boss`).
+- **Statistik** (Tab): pro Spieler Level, getötete Zombies, getötete Spieler, **Zeit überlebt** (seit dem letzten Tod); im Spielstand.
+- **XP fürs Abbauen:** `level.xpProAbbau` = 3 pro Baum/Stein/Erz.
+- **Stapel:** Munition bis 50, alles andere Stapelbare bis 20, Waffen/Werkzeug/Rucksack einzeln (`normalisiere()` in `gegenstaende.js`).
+- **HUD** (v0.10): FPS oben rechts, **Minikarte** (±20 Kacheln, nur Erkundetes, Zombies rot/Mitspieler blau; ⚙ ein/aus),
+  Auto-Haltbarkeit, Angel-Hinweis (gelber „JETZT klicken!“), **Auto-Lauf**: große Karte → erkundeten Ort anklicken/antippen → der
+  Charakter läuft per A* in normalem Tempo hin (jede Eingabe bricht ab, Banner mit ✕).
+- **Musik** (v0.10): Ordner `client/musik/<zonenId>/` (+ `alle/`), Index `npm run musik:index` → `musik.json`; zufällige Stücke,
+  Überblendung beim Zonenwechsel, Regler „Musik“ in den Einstellungen (`audio/zonenMusik.js`). Wind ist leiser (Regler „Wind & Regen“).
 - **Autos** (`gemeinsam/physik/fahrzeug.js`, `fahrzeugSystem.js`): Kartenautos sind Fahrzeuge; E steigt ein/aus,
   W/S Gas/Bremse, A/D lenken (Touch: linker Stick). Gemeinsame Physik → Vorhersage wie beim Laufen. Zombies anfahren
-  macht Schaden je Tempo (+XP), im Auto beißen Zombies nicht. Scheinwerfer, Motorsound, Kamera zoomt raus. Parkposition
-  wird gespeichert. Durch Zonen-Übergänge geht es nur zu Fuß.
+  macht Schaden je Tempo (+XP) und kostet das Auto nur **0,5** Haltbarkeit; **Haltbarkeit 10 Zombie-Schläge** (Boss-Schlag
+  zählt nach Angriffsschaden mehr) – Zombies schlagen auf die Karosserie, der Fahrer bleibt unverletzt. Bei 0: Fahrer wird
+  **ausgeworfen**, das Auto bleibt als **Wrack** (kaputt, qualmt, nicht einsteigbar, wird gespeichert). Scheinwerfer, Motorsound,
+  Kamera zoomt raus. Parkposition wird gespeichert. Durch Zonen-Übergänge geht es nur zu Fuß.
 - **Crafting** (`craftingSystem.js`, Rezepte in `konfiguration/rezepte.js`): an einer Werkbank (Wohnhäuser, Werkstatt);
   Menü mit Kategorien. Bretter verstärken geschlossene Türen (+`welt.tuerVerstaerkung`, max. 4× Haltbarkeit).
 - **Schlafen:** in jedem Bett, jederzeit (keine jagenden Zombies in `schlafen.zombieAbstand`): dauert `schlafen.dauer`
@@ -134,7 +162,7 @@ Spieler aller Zonen schlafen; der Zeitsprung gilt dann für alle aktiven Zonen. 
   im Mehrspieler nur, wenn **alle** lebenden Spieler schlafen (wer früher fertig ist, wartet liegend). Bild wird
   dunkel (`#schlafblende`). Bewegung oder Schaden weckt auf. Umrechnung Stunden → Sekunden: `sekundenFuerStunden()`.
 - **Level** (`levelSystem.js`, `konfiguration.level`): XP pro getötetem Zombie je Variante (normal 10, Läufer 12,
-  Brocken 15), Level 2 bei 50 XP, dann +20 pro Stufe (70, 90 …). **Tod = zurück auf Level 1, Skills weg.** HUD:
+  Brocken 40; Abbauen 3), Level 2 bei 50 XP, dann +20 pro Stufe (70, 90 …). **Tod = zurück auf Level 1, Skills weg.** HUD:
   goldene Plakette + XP-Balken, Spielerliste zeigt das Level.
 - **Skills** (`gemeinsam/spieler/skills.js`, Fenster U / ⭐): 1 Punkt pro Level-Aufstieg; Schnelligkeit (+3 % Tempo),
   Stärke (+8 % Nahkampf), Zähigkeit (+10 max. Leben), Sammeln (6 % schneller abbauen), je max. 10.
@@ -262,8 +290,10 @@ browser_survival/
 │   ├── welt/kacheln.js            Kacheltypen (Zeichen → Name, blockiert?) + Marker (S, Z, a–z)
 │   ├── welt/welt.js               Klasse Welt: Kachelabfragen, istBlockiert, Türen, Ressourcen-Knoten, naechstesObjekt
 │   ├── welt/ressourcen.js         Welche Kartenobjekte abbaubar sind (Baum → Holz/Axt, Stein → Stein/Spitzhacke)
+│   ├── welt/wasser.js             (v0.10) istWasserKachel, wurfZiel – Wo landet die Angel-Pose? (Server + Client-Hinweis)
 │   └── physik/
 │       ├── bewegung.js            wendeEingabeAn, bewegeKoerper (Kollision) – deterministisch!
+│       ├── pfadfindung.js         (v0.10, früher server) A* auf dem Kachelraster – Zombies UND Auto-Lauf per Kartenklick
 │       └── strahl.js              Raycasts: strahlGegenWaende, sichtlinieFrei, wegFrei, strahlTrifftKreis
 │
 ├── server/
@@ -277,6 +307,8 @@ browser_survival/
 │   │   ├── entitaeten/
 │   │   │   ├── spieler.js         erzeugeSpieler + spielerZuNetzwerk
 │   │   │   ├── zombie.js          erzeugeZombie + zombieZuNetzwerk
+│   │   │   ├── tier.js            (v0.10) erzeugeTier (Hase) + tierZuNetzwerk
+│   │   │   ├── fahrzeug.js        Fahrzeug-Entität (leben/maxLeben/kaputt = Haltbarkeit, Wrack)
 │   │   │   └── gegenstand.js      erzeugeGegenstand + gegenstandZuNetzwerk
 │   │   ├── systeme/
 │   │   │   ├── bewegungsSystem.js Spieler-Eingaben anwenden (inkl. Angriffstaste)
@@ -289,7 +321,10 @@ browser_survival/
 │   │   │   ├── arbeitSystem.js    Arbeiten mit Dauer: Abbauen (Holz/Stein), Schlafen (+ Zeit vorspulen); Nachwachsen
 │   │   │   ├── levelSystem.js     XP & Level (gibXp, xpFuerNaechstesLevel, Zurücksetzen beim Tod)
 │   │   │   ├── craftingSystem.js  Herstellen an der Werkbank (prüft Nähe & Zutaten)
-│   │   │   ├── pfadfindung.js     A* auf dem Kachelraster (geschlossene Türen optional "teuer passierbar")
+│   │   │   ├── tierSystem.js      (v0.10) Hasen: Spawn auf Rasen, Fluchtverhalten, Nachschub
+│   │   │   ├── angelSystem.js     (v0.10) Angeln: Auswerfen (Linksklick), Biss-Fenster, Fang (10 % doppelt)
+│   │   │   ├── wetterSystem.js    (v0.10) Wetter pro Zone (klar/Regen/Nebel, 1–5 min), WACHSTUM_REGEN_FAKTOR
+│   │   │   ├── kistenSystem.js    (v0.10) Lagerkisten: öffnen, einlegen/entnehmen, schließen
 │   │   │   ├── bauSystem.js       Bauwerke platzieren, Lagerfeuer, Fallen, Beete/Wachstum, Kochen
 │   │   │   ├── fahrzeugSystem.js  Ein-/Aussteigen, Fahren, Zombies anfahren
 │   │   │   ├── zonenSystem.js     Übergangs-Rechtecke erkennen → spieler.zonenwechsel
@@ -298,7 +333,7 @@ browser_survival/
 │   │   ├── karten/
 │   │   │   ├── kartenLader.js     Kartenregister + ASCII → Kacheln/Spawns/Loot-Punkte
 │   │   │   ├── stadtrand.js       Startzone (110×86, GENERIERT von werkzeuge/karten/stadtrand.py)
-│   │   │   └── waldweg.js         Zone Waldweg (64×52, GENERIERT von werkzeuge/karten/waldweg.py)
+│   │   │   └── waldweg.js         Zone Waldweg (160×120: Ringstraße mit Autos, Wald, See, Angelhütte; GENERIERT von werkzeuge/karten/waldweg.py)
 │   │   ├── konfiguration/
 │   │   │   ├── spielKonfiguration.js  Balancing-Standardwerte + Überschreib-Logik
 │   │   │   ├── rezepte.js         ★ Crafting-Rezepte (einfach selbst anpassbar, Anleitung im Kopf der Datei)
@@ -322,6 +357,7 @@ browser_survival/
 │
 ├── werkzeuge/karten/              Kartengeneratoren (Python), Tiled-Export/-Import (`tiled.mjs`, `tiledKarte.mjs`), README
 ├── werkzeuge/test/rauchtest.mjs   Browser-Rauchtest (Playwright) → `npm run rauchtest`
+├── werkzeuge/musik/indexieren.mjs (v0.10) schreibt client/musik/musik.json → `npm run musik:index`
 ├── werkzeuge/assets/              ── Grafik-Pipeline ──
 │   ├── baue_assets.py             (Python) Quellen, Item-/Möbel-Zuordnung, Spritesheets, 3D-Figur → client/assets/
 │   ├── baue_3d.mjs                (Node, danach) 3D-Animationen → JSON, Three.js verkleinert → client/vendor/three/
@@ -330,6 +366,7 @@ browser_survival/
 ├── client/                        ── Nur Browser ──
 │   ├── assets/                    GENERIERT: atlas.json, items.webp, umgebung.webp, 3d/ (Figur, Skins, Animationen), LIZENZEN.md
 │   ├── vendor/three/              GENERIERT: Three.js (MIT)
+│   ├── musik/                     (v0.10) Musik-Ordner: stadtrand/, waldweg/, alle/ + musik.json (siehe README dort; NICHT generiert, nicht überschrieben)
 │   ├── index.html                 Canvas, Touch-Sticks, HUD, Ladebildschirm, Login, Credits-Dialog
 │   ├── stil.css                   Gesamtes UI-Styling
 │   ├── main.js                    Einstieg: verdrahtet Login → Verbindung → ClientSpiel
@@ -347,9 +384,13 @@ browser_survival/
 │   │   ├── browserSpeicher.js     Spielstände im localStorage (Lokal-Modus)
 │   │   └── anmeldung.js           Login-Handshake (Promise)
 │   ├── audio/
+│   │   ├── zonenMusik.js          (v0.10) Zonen-Musik aus client/musik/<zone>/ (Index musik.json, Überblenden, Zufall)
 │   │   └── sound.js               Synthetisierte Geräusche (Rezepte), räumlicher Klang, Wind/Atmosphäre (eigener Bus am Kompressor vorbei), Lautstärke-Kanäle (gesamt/effekte/atmosphaere), keine Schritte mehr
 │   ├── darstellung/
 │   │   ├── renderer.js            Three.js: Kamera, Figuren, Licht/Tageszeit, Lampen-Pool, Effekte, Wand-Schnitt, Overlay, Vorkompilieren
+│   │   ├── tierModelle.js         (v0.10) Hase (Comic-Platzhalter, prozedurale Textur) – hier echte Modelle einhängen
+│   │   ├── angelModell.js         (v0.10) Rute, Schnur, Pose (wackelt beim Biss)
+│   │   ├── wetterEffekt.js        (v0.10) Regen-Striche + weiche Übergänge Regen/Nebel (Licht, Nebelweite, Ton)
 │   │   ├── kartenModell.js        Statische Karte in wenigen Draw-Calls: Boden, Wände, Möbel, Türen, Bäume/Steine (abbaubar), Lampen
 │   │   ├── baumModell.js          Prozedurale Cartoon-Bäume/Büsche/Stümpfe (Toon + Umriss)
 │   │   ├── itemModelle.js         ★ 3D-Modelle der Items am Boden (neues Modell = Eintrag in BAUPLAENE) + Rucksack
@@ -367,7 +408,8 @@ browser_survival/
 │       ├── hud.js                 Uhr, Balken, Schnellleiste, Aktions-/Tür-Knopf, Fortschritt, Chat, Spielerliste, Tod, Admin, Debug
 │       ├── werkbankMenue.js       Crafting-Menü (Kategorien, Zutaten, Herstellen)
 │       ├── inventarFenster.js     Inventar (I): Schnellleiste/Tasche/Rucksack, Drag & Drop, Rauswerfen
-│       ├── karte.js               Karte mit Nebel (erkundete Bereiche, localStorage)
+│       ├── kisteFenster.js        (v0.10) Lagerkiste: 16 Plätze + Inventar, Antippen = verschieben
+│       ├── karte.js               Karte mit Nebel (erkundete Bereiche, localStorage), Minikarte (zeichneMini), Klick → Auto-Lauf
 │       ├── entwicklerFenster.js   Developer-Modus (Werte ändern, Export/Import)
 │       └── credits.js             Credits-Dialog (Grafik-Lizenzen)
 │
@@ -403,7 +445,7 @@ browser_survival/
 | Licht-Stimmung (Farben Tag/Nacht/Dämmerung) | `client/darstellung/renderer.js` → `TAG`, `NACHT`, `DAEMMERUNG`, `#tageslicht` |
 | Türen (Auto-Radius, Haltbarkeit, Startzustand) | `gemeinsam/konstanten.js` → `TUER_AUTO_OEFFNEN/SCHLIESSEN/BRUCH_OFFEN`, `TUER_REICHWEITE` (nur Bretter); `spielKonfiguration.js` → `welt.tuerLeben/tuerenGeschlossen`; Logik `tuerSystem.js` |
 | Sprint / Ausdauer | Werte: `spielKonfiguration.js` → `spieler`; Logik: `aktualisiereAusdauer` in `gemeinsam/physik/bewegung.js` |
-| Zombie-Wegfindung | `server/spiel/systeme/pfadfindung.js` (A*), "geradeaus oder Umweg?" → `wegFrei` in `gemeinsam/physik/strahl.js` |
+| Zombie-Wegfindung / Auto-Lauf-Weg | `gemeinsam/physik/pfadfindung.js` (A*), "geradeaus oder Umweg?" → `wegFrei` in `gemeinsam/physik/strahl.js` |
 | Waffenwerte (Schaden, Magazin, Streuung, Nachladezeit) | `server/spiel/konfiguration/gegenstaende.js`; Schlag ohne Waffe: `UNBEWAFFNET` |
 | Wirkung von Essen/Trinken/Medizin | `gegenstaende.js` (`naehrwert`, `durstwert`, `heilung`), Logik: `inventarSystem.js` → `benutzen` |
 | Hunger-/Durst-Tempo, Heilung, Respawn-Zeit | `spielKonfiguration.js` → `spieler` |
@@ -434,7 +476,19 @@ browser_survival/
 | Autos | Physik `gemeinsam/physik/fahrzeug.js`, Logik `fahrzeugSystem.js`, Modelle `client/darstellung/fahrzeugModelle.js` |
 | Charakter-Aussehen | `gemeinsam/spieler/aussehen.js` (Merkmale), Auswahl `client/ui/loginBildschirm.js`, Skin `renderer.js` |
 | Netzwerk-Last (Reichweite, Rundung, Kompression) | `server/spiel/zone.js` (`NETZ_SICHTWEITE`), `…ZuNetzwerk`, `server/node/websocketAnbindung.js` |
-| Neuer Kacheltyp (z. B. Wasser) | `gemeinsam/welt/kacheln.js` + Textur in `baue_assets.py` (`BODEN`) oder Farbe in `farben.js` |
+| Neuer Kacheltyp (z. B. Wasser `~`) | `gemeinsam/welt/kacheln.js` (Flags `blockiert`, `sichtFrei`, `wasser`) + Textur in `baue_assets.py` (`BODEN`) oder Farbe in `farben.js`/`bodenTextur.js` (`#wasser`) |
+| **Auto-Haltbarkeit, Überfahr-Schaden** | `spielKonfiguration.js` → `fahrzeug`; Logik `fahrzeugSystem.js` (`schlageFahrzeug`), Zombie-Schläge `zombieSystem.js` (`autoAnlaufpunkt`), `kampfSystem.js` |
+| Boss-Werte & Beute | `zombie.varianten.brocken` (`waffenChance`), Tabelle `boss` in `lootTabellen.js`, `lootSystem.lasseBossLootFallen` |
+| Hasen / Tiere (Anzahl, Tempo, Scheu) | `spielKonfiguration.js` → `tiere`; `tierSystem.js`, `entitaeten/tier.js`; Modell `client/darstellung/tierModelle.js` |
+| Angeln (Zeiten, Fische, Doppelfang) | `spielKonfiguration.js` → `angeln`; `angelSystem.js`, `gemeinsam/welt/wasser.js`; Darstellung `angelModell.js`; Hinweis `clientSpiel.js → #angelHinweis` |
+| Wetter (Dauer, Häufigkeit) | `spielKonfiguration.js` → `wetter`; `wetterSystem.js`; Darstellung `wetterEffekt.js` + `renderer.js → #tageslicht`; Ton `sound.js → regen()` |
+| Erdfeld-Größe, Samen/Pflanzen | `gemeinsam/welt/bauwerke.js` (`FELD_GROESSE`, `PFLANZEN`), `bauSystem.legeFeldAn`, Taste `G` (`eingabe.js`) |
+| Lagerkiste (Plätze) / Basisbau-Teile | `KISTE_PLAETZE` in `konstanten.js`, `kistenSystem.js`, `kisteFenster.js`; Bauwerke `holzwand`/`holzboden` in `bauwerke.js` |
+| Crafting-Level je Rezept | `rezept.level` in `rezepte.js` (Server prüft in `craftingSystem.js`, Menüs zeigen es) |
+| Stapelgrößen | `STAPEL_MUNITION`/`STAPEL_STANDARD` in `konstanten.js` (angewendet in `gegenstaende.js → normalisiere`) |
+| XP fürs Abbauen | `spielKonfiguration.js` → `level.xpProAbbau` |
+| Minikarte / FPS-Anzeige / Auto-Lauf | `client/ui/karte.js` (`zeichneMini`, Klick), `hud.js`, `clientSpiel.js` (`autoLaufStarten`, `#oberflaecheAktualisieren`) |
+| Zonen-Musik hinzufügen | Dateien in `client/musik/<zonenId>/` legen, `npm run musik:index`, committen (`audio/zonenMusik.js`) |
 | Kollision / Bewegungsphysik | `gemeinsam/physik/bewegung.js` (wirkt auf Server UND Client-Vorhersage) |
 | Kampf, Treffer, Schaden zufügen | `server/spiel/systeme/kampfSystem.js` (`fuegeSchadenZu` = einzige Schadensstelle) |
 | Neue Aktion (z. B. "werfen") | `AKTIONEN` in `gemeinsam/protokoll.js` → `inventarSystem.js` (`verarbeiteAktionen`) → `clientSpiel.js` + Taste in `eingabe.js` + Touch-Knopf im HUD |
@@ -568,6 +622,15 @@ browser_survival/
 - Performance: Schnappschüsse gerundet/kompakt, Interest Management, WebSocket-Kompression (~5× kleiner)
 - Werkzeuge/Doku: `KI_INDEX.md`, `npm run rauchtest`, `werkzeuge/karten/README.md`; Tests: 118
 
+### ✅ Phase 8 – Welt, Jagd & Wetter (fertig, v0.10.0, Protokoll 8)
+- **Große Zone Waldweg** (160×120): Ringstraße mit 5 Autos, See (Angeln), Angelhütte, dichter Wald; Auto-Lauf per Kartenklick (A*)
+- **Autos:** 10 Schläge Haltbarkeit, Überfahren 0,5, Wrack + Auswurf; **Boss-Zombies** zäher/stärker, 50 % Waffe + Munition
+- **Hasen** (Fleisch), **Angeln** (3 Fische, 10 % doppelt), **Wetter** (Regen/Nebel 1–5 min, Regen halbiert Pflanzenzeit)
+- **XP** fürs Abbauen (3), **Crafting-Level**, **Stapelgrößen** (Munition 50, sonst 20), **Statistik** im Tab, **Lagerkiste**,
+  **Erdfeld** mit der Spitzhacke (+ Paprika), **Basisbau-Gerüst** (Holzwand/-boden)
+- HUD: FPS, Minikarte (ein/aus), Auto-Haltbarkeit; **Musik**-Ordnersystem, leiserer Wind, Regenton
+- Fix: „extrem dunkel im Norden im Auto“ = fast schwarzer Rasen jenseits des Kartenrands + Nebel, der beim Rauszoomen nicht mitwuchs
+
 ### 💡 Ideen-Sammlung (für später, grob nach Aufwand)
 **Schnell umsetzbar**
 - Eisen (in der Werkstatt/Autos ausschlachten) → bessere Rezepte (Machete, Nägel, Munition)
@@ -629,3 +692,4 @@ browser_survival/
 | 0.8.0 | 2026-10-16 | Türen großzügiger + Zombies verkeilen nicht, Nahkampf-Reichweite, 3D-Cartoon-Bäume & Stümpfe, Sound ohne Knistern, Schlafen spult 6 h vor, Level-System, Inventar-Fenster mit Drag & Drop + Rucksack, 3D-Items, Fußspuren, Gast-Login, Konten-Datei (Klartext → Hash), Online-Checkliste (Protokoll v5) |
 | 0.9.0 | 2026-10-16 | Zoom/Schärfe/Ruckeln/Maus-Fixes, Zombies (Haus, Türen, Despawn), Eisenerz, Bauen/Farmen/Kochen, Skills, Rucksäcke, Charakterwahl, Autos, Server-Spielstand (Erkundung, Skills), **Zonen/Open World** (Waldweg, Tiled-Import), Netzwerk-Diät (Rundung, Interest Mgmt, Kompression), KI_INDEX + Rauchtest (Protokoll v7) |
 | 0.9.1 | 2026-10-16 | Wind bricht nicht mehr ab (eigener Bus am Kompressor vorbei, 12-s-Schleife), Schritte entfernt, **Einstellungen ⚙** (Lautstärke Gesamt/Effekte/Wind, Grafik hoch/mittel/niedrig, Vollbild, Abmelden – auch am Handy), Unschärfe-Bug (Auflösung wird im Profil „hoch“ nicht mehr automatisch gesenkt), **Automatiktüren**, Frau mit langen Haaren (`haarModell.js`), Fix: eigene Figur wurde manchmal mit falschem Geschlecht gebaut |
+| 0.10.0 | 2026-10-16 | Große Zone Waldweg (160×120, Ringstraße, See, Angelhütte), Auto-Haltbarkeit + Wrack, Boss-Beute, Hasen, Angeln, Wetter (Regen/Nebel), Abbau-XP, Crafting-Level, Stapelgrößen, Statistik, Lagerkiste, Erdfeld (Spitzhacke) + Paprika, Basisbau-Gerüst, FPS/Minikarte, Auto-Lauf per Karte, Musik-Ordnersystem, Wind leiser, Fix Dunkelheit im Auto (Protokoll v8) |

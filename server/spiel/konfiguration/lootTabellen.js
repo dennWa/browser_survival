@@ -177,6 +177,16 @@ export const LOOT_TABELLEN = Object.freeze({
     { id: 'feuerzeug', gewicht: 2 },
     { id: 'samen_tomate', gewicht: 1 },
   ],
+  // Zone "Waldweg": Angelhütte am See
+  angler: [
+    { id: 'angel', gewicht: 3 },
+    { id: 'konservendose', gewicht: 2 },
+    { id: 'wasserflasche', gewicht: 2 },
+    { id: 'kaffee', gewicht: 1 },
+    { id: 'verband', gewicht: 1 },
+    { id: 'feuerzeug', gewicht: 1 },
+    { id: 'rucksack_klein', gewicht: 0.6 },
+  ],
   // Zone "Waldweg": Försterhütte
   huette: [
     { id: 'konservendose', gewicht: 3 },

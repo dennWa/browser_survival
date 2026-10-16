@@ -103,6 +103,7 @@ export const ADMIN_BEFEHLE = Object.freeze({
   ZOMBIE_SPAWNEN: 'zombieSpawnen', // Zombie vor einem erscheinen lassen
   ZOMBIES_TOETEN: 'zombiesToeten', // alle Zombies umfallen lassen (sie respawnen normal)
   ZEIT_SPRINGEN: 'zeitSpringen', // tagsüber → gleich Abend, nachts → gleich Morgen
+  WETTER: 'wetter', // klar → Regen → Nebel → klar (zum Testen)
 });
 
 /**

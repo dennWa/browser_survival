@@ -13,6 +13,7 @@ export const KACHEL_FARBEN = {
   tuer: '#8a5a33',
   wand: '#3b4048',
   fenster: '#3b4048',
+  wasser: '#2d78b0',
 };
 
 export const FARBEN = {

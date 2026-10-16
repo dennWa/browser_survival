@@ -51,6 +51,17 @@ export const ENTWICKLER_FELDER = [
   { pfad: 'zombie.nachtHorde', name: 'Größe der Nacht-Horde', gruppe: 'Zombies', min: 0, max: 40, schritt: 1 },
   { pfad: 'zombie.nachtTempoFaktor', name: 'Nachts schneller', gruppe: 'Zombies', min: 0.5, max: 3, schritt: 0.05, einheit: '×' },
 
+  // --- Neu in v0.10 ---
+  { pfad: 'level.xpProAbbau', name: 'XP pro Abbau (Baum/Stein/Erz)', gruppe: 'Spieler', min: 0, max: 100, schritt: 1, einheit: 'XP' },
+  { pfad: 'zombie.varianten.brocken.waffenChance', name: 'Boss: Chance auf Waffe + Munition', gruppe: 'Zombies', min: 0, max: 1, schritt: 0.05 },
+  { pfad: 'fahrzeug.haltbarkeit', name: 'Auto-Haltbarkeit (Zombie-Schläge)', gruppe: 'Welt', min: 1, max: 100, schritt: 1 },
+  { pfad: 'fahrzeug.ueberfahrSchaden', name: 'Auto: Schaden pro überfahrenem Zombie', gruppe: 'Welt', min: 0, max: 5, schritt: 0.1 },
+  { pfad: 'tiere.hasenProTausend', name: 'Hasen je 1000 Rasenkacheln (nach Neustart)', gruppe: 'Welt', min: 0, max: 40, schritt: 1 },
+  { pfad: 'angeln.doppelChance', name: 'Angeln: Chance auf 2 Fische', gruppe: 'Welt', min: 0, max: 1, schritt: 0.05 },
+  { pfad: 'angeln.bissMax', name: 'Angeln: Zeitfenster beim Biss (max.)', gruppe: 'Welt', min: 0.5, max: 10, schritt: 0.5, einheit: 's' },
+  { pfad: 'wetter.dauerMax', name: 'Wetter: längste Dauer Regen/Nebel', gruppe: 'Welt', min: 60, max: 1800, schritt: 30, einheit: 's' },
+  { pfad: 'wetter.pauseMax', name: 'Wetter: längste Pause dazwischen', gruppe: 'Welt', min: 60, max: 3600, schritt: 30, einheit: 's' },
+
   // --- Waffen ---
   { pfad: 'gegenstaende.pistole.schaden', name: 'Pistole: Schaden', gruppe: 'Waffen', min: 0, max: 500, schritt: 1 },
   { pfad: 'gegenstaende.pistole.magazin', name: 'Pistole: Magazin', gruppe: 'Waffen', min: 1, max: 100, schritt: 1 },

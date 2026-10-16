@@ -1,4 +1,4 @@
-import { KACHELN } from '../../../gemeinsam/welt/kacheln.js';
+import { wurfZiel } from '../../../gemeinsam/welt/wasser.js';
 import { GEGENSTAENDE } from '../konfiguration/gegenstaende.js';
 import { fuegeZumInventarHinzu, legeAufBoden } from './inventarSystem.js';
 
@@ -16,31 +16,7 @@ import { fuegeZumInventarHinzu, legeAufBoden } from './inventarSystem.js';
  * Werte: konfiguration.angeln. Öffentlich (Netz) ist nur { phase, x, y } → Pose + Schnur im Renderer.
  */
 const ABBRUCH_WEG = 14;
-const MIN_WURF = 36; // px: mindestens so weit weg muss das Wasser sein
 const ZOMBIE_SPERRE = 260; // jagt einen ein Zombie in dieser Nähe, ist Linksklick immer Angriff
-
-export const istWasserKachel = (welt, tx, ty) => KACHELN[welt.kachelAn(tx, ty)]?.wasser === true;
-
-/** Wo würde die Pose landen, wenn man von (x, y) in Richtung `blick` auswirft? { x, y } oder null (kein Wasser in Reichweite). */
-export function wurfZiel(welt, x, y, blick, reichweite) {
-  const g = welt.kachelGroesse;
-  const dx = Math.cos(blick);
-  const dy = Math.sin(blick);
-  for (let d = MIN_WURF; d <= reichweite; d += 6) {
-    const px = x + dx * d;
-    const py = y + dy * d;
-    const tx = Math.floor(px / g);
-    const ty = Math.floor(py / g);
-    if (istWasserKachel(welt, tx, ty)) {
-      // ein Stück weiter ins Wasser, solange es Wasser bleibt
-      let weit = d;
-      while (weit + 10 <= reichweite && istWasserKachel(welt, Math.floor((x + dx * (weit + 10)) / g), Math.floor((y + dy * (weit + 10)) / g))) weit += 10;
-      return { x: x + dx * Math.min(weit, d + 40), y: y + dy * Math.min(weit, d + 40) };
-    }
-    if (welt.istSichtBlockiert(tx, ty)) return null; // Wand davor
-  }
-  return null;
-}
 
 /**
  * Wird vom kampfSystem jeden Tick VOR dem Angriff aufgerufen.

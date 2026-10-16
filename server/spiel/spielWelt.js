@@ -38,6 +38,8 @@ const NETZWERK_SERIALISIERER = {
  * Der komplette autoritative Spielzustand: Karte, alle Entitäten, Tick-Zähler.
  * Kennt KEINE Verbindungen oder Accounts – das macht der SpielServer.
  *
+ * v0.10 zusätzlich: wetter {art, rest}, tierRespawns, kistenNachrichten (private Kisten-Ansichten), bauwerkeOeffentlich().
+ *
  * Pro Tick gesammelt (und danach vom SpielServer verschickt):
  *   ereignisse  → an alle (Schüsse, Treffer, Tode … für Effekte)
  *   meldungen   → { spielerId, text } nur an den jeweiligen Spieler (sammeln sich bis zum Versand)

@@ -1,5 +1,5 @@
 /**
- * A*-Pfadfindung auf dem Kachelraster (für Zombies).
+ * A*-Pfadfindung auf dem Kachelraster (für Zombies UND den Auto-Lauf per Kartenklick im Client).
  * 8 Richtungen; diagonal nur, wenn beide angrenzenden geraden Kacheln frei sind (keine Ecken schneiden).
  * Blockiert ist, was auch die Bewegung blockiert (Wände, Fenster, Möbel, geschlossene Türen).
  * Mit `tuerKosten` gelten geschlossene Türen als passierbar, aber teuer – so planen Zombies den Weg

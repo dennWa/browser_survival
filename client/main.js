@@ -10,6 +10,7 @@ import { LoginBildschirm, gastName } from './ui/loginBildschirm.js';
 import { Hud } from './ui/hud.js';
 import { zeigeCredits } from './ui/credits.js';
 import { Sound } from './audio/sound.js';
+import { ZonenMusik } from './audio/zonenMusik.js';
 import { lokalerServer } from './netzwerk/lokalerServer.js';
 import { NACHRICHT } from '../gemeinsam/protokoll.js';
 
@@ -39,6 +40,7 @@ leinwand.addEventListener(
 const login = new LoginBildschirm(document, SERVER_LISTE);
 const hud = new Hud(document, { debug: DEBUG_START });
 const sound = new Sound();
+const musik = new ZonenMusik(sound); // Zonen-Musik aus client/musik/<zone>/ (läuft über Zonenwechsel weiter)
 hud.zeigeTon(sound.stumm);
 hud.einstellungen.verbinde({ sound, renderer: () => renderer });
 
@@ -57,8 +59,9 @@ eingabe.beiTaste('inventar', () => aktuellesSpiel && hud.inventar.zeige());
 eingabe.beiTaste('skills', () => aktuellesSpiel && hud.skills.zeige());
 eingabe.beiTaste('fallenlassen', () => aktuellesSpiel?.fallenlassen(hud.inventar.platzUnterMaus));
 eingabe.beiTaste('chat', () => aktuellesSpiel && hud.chatOeffnen());
-eingabe.beiTaste('spielerliste', () => aktuellesSpiel && hud.spielerlisteUmschalten(aktuellesSpiel.spielerNamen()));
+eingabe.beiTaste('spielerliste', () => aktuellesSpiel && hud.spielerlisteUmschalten(aktuellesSpiel.spielerStatistik()));
 eingabe.beiTaste('nachladen', () => aktuellesSpiel?.nachladen());
+eingabe.beiTaste('feld', () => aktuellesSpiel?.feldModus());
 eingabe.beiSlotTaste((slot) => aktuellesSpiel?.benutzen(slot));
 hud.beiAbmelden(() => aktuellesSpiel?.beenden('Abgemeldet'));
 const tonUmschalten = () => {
@@ -76,6 +79,11 @@ hud.beiAktionen({
   rucksackAblegen: () => aktuellesSpiel?.rucksackAblegen(),
   zoomStufe: () => renderer?.naechsteZoomStufe(),
   skill: (name) => aktuellesSpiel?.skill(name),
+  feld: () => aktuellesSpiel?.feldModus(),
+  autoLaufStopp: () => aktuellesSpiel?.autoLaufStoppen(),
+  kisteLegen: (slot) => aktuellesSpiel?.kisteLegen(slot),
+  kisteNehmen: (slot) => aktuellesSpiel?.kisteNehmen(slot),
+  kisteSchliessen: () => aktuellesSpiel?.kisteSchliessen(),
   platzierenOk: () => aktuellesSpiel?.platzierungBestaetigen(),
   platzierenAbbrechen: () => aktuellesSpiel?.platzierungAbbrechen(),
   licht: () => aktuellesSpiel?.licht(),
@@ -83,7 +91,7 @@ hud.beiAktionen({
   interagieren: () => aktuellesSpiel?.interagieren(),
   karte: () => aktuellesSpiel?.karteUmschalten(),
   chat: (text) => aktuellesSpiel?.chat(text),
-  spielerliste: () => aktuellesSpiel && hud.spielerlisteUmschalten(aktuellesSpiel.spielerNamen()),
+  spielerliste: () => aktuellesSpiel && hud.spielerlisteUmschalten(aktuellesSpiel.spielerStatistik()),
   entwicklerAbfragen: () => aktuellesSpiel?.entwickler(NACHRICHT.DEV_ABFRAGEN),
   entwicklerSetzen: (werte) => aktuellesSpiel?.entwickler(NACHRICHT.DEV_SETZEN, { werte }),
   entwicklerZuruecksetzen: () => aktuellesSpiel?.entwickler(NACHRICHT.DEV_ZURUECKSETZEN),
@@ -171,6 +179,7 @@ async function spielStarten(verbindung, anmeldeDaten, benutzername, { zone = nul
     renderer,
     hud,
     sound,
+    musik,
     benutzername,
     seq,
     vorabNachrichten: vorab,

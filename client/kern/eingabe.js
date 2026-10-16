@@ -22,6 +22,7 @@ export const TASTEN = Object.freeze({
   fallenlassen: ['KeyQ'], // Item fallen lassen (unter der Maus im Inventar, sonst das in der Hand)
   chat: ['KeyT'], // Chat-Eingabe öffnen
   spielerliste: ['Tab'], // Wer ist online?
+  feld: ['KeyG'], // Erdfeld anlegen (Spitzhacke im Inventar)
   tuer: ['KeyF'], // Lagerfeuer an/aus (Name historisch)
   nachladen: ['KeyR'],
   licht: ['KeyL'], // Taschenlampe an/aus

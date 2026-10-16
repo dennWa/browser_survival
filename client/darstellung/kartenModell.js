@@ -45,6 +45,7 @@ export class KartenModell {
     this.statisch = new THREE.Group();
     this.beweglich = new THREE.Group(); // Türen, Ressourcen
     this.#baueBoden(bodenMassstab);
+    this.#baueWasser();
     this.#baueWaende();
     this.#baueMoebel();
     this.#baueLampen();
@@ -68,6 +69,12 @@ export class KartenModell {
       t.fluegel.rotation.y = t.winkel;
     }
     if (this.abgebautStand !== this.welt.ressourcenVersion) this.#zeigeRessourcen();
+    if (this.wasser) {
+      // Wellen ziehen langsam; nachts blasser (der Wellen-Glanz leuchtet nicht)
+      this.wasser.textur.offset.x = (this.wasser.textur.offset.x + dt * 0.035) % 1;
+      this.wasser.textur.offset.y = (this.wasser.textur.offset.y + dt * 0.014) % 1;
+      this.wasser.material.opacity = 0.5 * (1 - dunkel * 0.85);
+    }
     this.lampenGluehen.visible = dunkel > 0.08;
     this.lampenGluehen.material.opacity = Math.min(1, dunkel * 1.4);
   }
@@ -110,10 +117,47 @@ export class KartenModell {
     boden.rotation.x = -Math.PI / 2;
     boden.position.set(welt.pixelBreite / 2, 0, welt.pixelHoehe / 2);
     boden.receiveShadow = true;
-    const draussen = new THREE.Mesh(new THREE.PlaneGeometry(8000, 8000), new THREE.MeshStandardMaterial({ color: 0x1d2a1a, roughness: 1 }));
+    const draussen = new THREE.Mesh(new THREE.PlaneGeometry(8000, 8000), new THREE.MeshStandardMaterial({ color: 0x3f8f4f, roughness: 1 }) /* Rasen jenseits des Kartenrands – war fast schwarz und wirkte im Auto (Kamera weiter weg) wie "extrem dunkel" im Norden */);
     draussen.rotation.x = -Math.PI / 2;
     draussen.position.set(welt.pixelBreite / 2, -0.5, welt.pixelHoehe / 2);
     this.statisch.add(boden, draussen);
+  }
+
+  /** Seen: bewegte Wellen als ein InstancedMesh (ein Draw-Call) über dem gemalten Wasserboden. */
+  #baueWasser() {
+    const welt = this.welt;
+    const g = this.g;
+    const felder = [];
+    for (let ty = 0; ty < welt.hoehe; ty++) for (let tx = 0; tx < welt.breite; tx++) if (KACHELN[welt.kachelAn(tx, ty)]?.wasser) felder.push([tx, ty]);
+    this.wasser = null;
+    if (felder.length === 0) return;
+    const leinwand = document.createElement('canvas');
+    leinwand.width = leinwand.height = 64;
+    const c = leinwand.getContext('2d');
+    c.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+    c.lineWidth = 2.2;
+    c.lineCap = 'round';
+    // Wellenbögen, an den Rändern gespiegelt gemalt → nahtlos kachelbar
+    for (const [x, y] of [[8, 14], [38, 30], [18, 50], [50, 8], [30, 58]]) {
+      for (const ox of [-64, 0, 64]) {
+        for (const oy of [-64, 0, 64]) {
+          c.beginPath();
+          c.moveTo(x + ox, y + oy);
+          c.quadraticCurveTo(x + 7 + ox, y - 5 + oy, x + 14 + ox, y + oy);
+          c.stroke();
+        }
+      }
+    }
+    const textur = new THREE.CanvasTexture(leinwand);
+    textur.wrapS = textur.wrapT = THREE.RepeatWrapping;
+    textur.colorSpace = THREE.SRGBColorSpace;
+    const material = new THREE.MeshBasicMaterial({ map: textur, transparent: true, opacity: 0.5, depthWrite: false });
+    const mesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(g, g).rotateX(-Math.PI / 2), material, felder.length);
+    felder.forEach(([tx, ty], i) => mesh.setMatrixAt(i, _matrix.makeTranslation((tx + 0.5) * g, 0.45, (ty + 0.5) * g)));
+    mesh.frustumCulled = false;
+    mesh.renderOrder = 1;
+    this.statisch.add(mesh);
+    this.wasser = { material, textur };
   }
 
   #baueWaende() {

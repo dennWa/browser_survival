@@ -2,6 +2,7 @@ import { HOTBAR_PLAETZE } from '../../gemeinsam/konstanten.js';
 import { WerkbankMenue } from './werkbankMenue.js';
 import { EntwicklerFenster } from './entwicklerFenster.js';
 import { InventarFenster } from './inventarFenster.js';
+import { KisteFenster } from './kisteFenster.js';
 import { SkillFenster } from './skillFenster.js';
 import { EinstellungenFenster } from './einstellungen.js';
 
@@ -10,6 +11,9 @@ import { EinstellungenFenster } from './einstellungen.js';
  *   Statuszeile, Balken (Leben/Hunger/Durst), Schnellleiste (Inventar 1–8), Munition,
  *   Aufheben-Knopf, Nachladen-Knopf (Touch), Taschenlampen-Knopf, Meldungen,
  *   Todesbildschirm (mit "Sofort wiederbeleben"), Admin-Menü (nur Admins), Debug (F3).
+ *
+ * v0.10: FPS-Anzeige (oben rechts), Minikarte (Schalter in den Einstellungen), Auto-Haltbarkeit, Angel-Hinweis, Auto-Lauf-Banner,
+ *   Tab-Spielerliste mit Statistik, Lagerkisten-Fenster (kisteFenster.js), Erdfeld-Knopf 🌱.
  *
  * Bedienung Schnellleiste: Klick/Tippen = benutzen bzw. ausrüsten · Rechtsklick/lange drücken = ablegen.
  */
@@ -20,6 +24,8 @@ const LANGES_DRUECKEN_MS = 500;
 const ICON_GROESSE = 48;
 const CHAT_ZEILEN = 8;
 const CHAT_SICHTBAR_MS = 15000;
+const MINIKARTE_SCHLUESSEL = 'browserSurvival.minikarte';
+const FPS_INTERVALL_MS = 500;
 
 export class Hud {
   #aktionen = {};
@@ -36,6 +42,10 @@ export class Hud {
   #istAdmin = false;
   #nachtsicht = false;
   #schalterStand = '';
+  #minikarteAn = true;
+  #letztesFps = 0;
+  #letzterAngelText = '';
+  #letzteAutoAnzeige = '';
 
   constructor(dokument, { debug = false } = {}) {
     this.dokument = dokument;
@@ -78,6 +88,12 @@ export class Hud {
       spielerliste: el('spielerliste'),
       admin: el('hud-admin'),
       adminPanel: el('admin-panel'),
+      fps: el('hud-fps'),
+      minikarte: el('minikarte'),
+      feld: el('hud-feld'),
+      angeln: el('hud-angeln'),
+      auto: el('hud-auto'),
+      autoText: el('hud-auto-text'),
     };
     this.debug = debug;
     this.letzteAktualisierung = 0;
@@ -95,6 +111,13 @@ export class Hud {
     this.el.wiederbeleben.addEventListener('click', () => this.#aktionen.wiederbeleben?.());
     this.el.licht.addEventListener('click', () => this.#aktionen.licht?.());
     this.el.karte.addEventListener('click', () => this.#aktionen.karte?.());
+    this.el.feld.addEventListener('click', () => this.#aktionen.feld?.());
+    el('autolauf-stopp').addEventListener('click', () => this.#aktionen.autoLaufStopp?.());
+    try {
+      this.#minikarteAn = localStorage.getItem(MINIKARTE_SCHLUESSEL) !== 'aus';
+    } catch {
+      // egal
+    }
     this.el.chatKnopf.addEventListener('click', () => this.chatOeffnen());
     this.el.status.addEventListener('click', () => this.#aktionen.spielerliste?.()); // Touch: Statuszeile antippen
     this.el.chatForm.addEventListener('submit', (e) => {
@@ -128,7 +151,15 @@ export class Hud {
       herstellen: (rezept) => this.#aktionen.herstellen?.(rezept),
     });
     el('hud-inventar').addEventListener('click', () => this.inventar.zeige());
+    this.kiste = new KisteFenster(dokument, { zeichneIcon: (canvas, defId) => this.zeichneIcon(canvas, defId) });
+    this.kiste.beiAktionen({
+      legen: (slot) => this.#aktionen.kisteLegen?.(slot),
+      nehmen: (slot) => this.#aktionen.kisteNehmen?.(slot),
+      schliessen: () => this.#aktionen.kisteSchliessen?.(),
+    });
     this.einstellungen = new EinstellungenFenster(dokument);
+    this.einstellungen.beiMinikarte(() => this.setzeMinikarte(!this.#minikarteAn));
+    this.einstellungen.zeigeMinikarte(this.#minikarteAn);
     this.skills = new SkillFenster(dokument);
     this.skills.beiSkill((name) => this.#aktionen.skill?.(name));
     el('hud-skills').addEventListener('click', () => this.skills.zeige());
@@ -166,6 +197,8 @@ export class Hud {
     this.el.hud.hidden = false;
     this.el.hud.classList.toggle('touch', istTouch);
     this.el.debug.hidden = !this.debug;
+    this.el.fps.hidden = false;
+    this.el.minikarte.hidden = !this.#minikarteAn;
     this.el.vollbild.hidden = !istTouch || !document.fullscreenEnabled;
     this.el.hilfe.textContent = istTouch
       ? 'Links: laufen · Rechts: zielen, ganz drücken = Angriff'
@@ -187,8 +220,14 @@ export class Hud {
     this.werkbank.zeige(null);
     this.entwickler.zeige(false);
     this.inventar.zeige(false);
+    this.kiste.zeige(null);
     this.skills.zeige(false);
     this.einstellungen.zeige(false);
+    this.el.fps.hidden = true;
+    this.el.minikarte.hidden = true;
+    this.el.angeln.hidden = true;
+    this.el.auto.hidden = true;
+    this.zeigeAutoLauf(false);
     this.chatSchliessen();
     this.el.chatLog.replaceChildren();
     this.el.spielerliste.hidden = true;
@@ -209,6 +248,50 @@ export class Hud {
   setzeNachtsicht(an) {
     this.#nachtsicht = an;
     this.#schalterStand = '';
+  }
+
+  /** Minikarte an/aus (Einstellungen), wird im Browser gemerkt. */
+  setzeMinikarte(an) {
+    this.#minikarteAn = an;
+    this.el.minikarte.hidden = !an || this.el.hud.hidden;
+    this.einstellungen.zeigeMinikarte(an);
+    try {
+      localStorage.setItem(MINIKARTE_SCHLUESSEL, an ? 'an' : 'aus');
+    } catch {
+      // egal
+    }
+  }
+
+  get minikarteAn() {
+    return this.#minikarteAn && !this.el.hud.hidden;
+  }
+
+  /** Angeln: Hinweistext (phase 'biss' = große gelbe Warnung) oder null = verstecken. */
+  zeigeAngeln(text, biss = false) {
+    const stand = `${text}|${biss}`;
+    if (stand === this.#letzterAngelText) return;
+    this.#letzterAngelText = stand;
+    this.el.angeln.hidden = !text;
+    this.el.angeln.textContent = text ?? '';
+    this.el.angeln.classList.toggle('biss', biss);
+  }
+
+  /** Banner "Auto-Lauf" (mit Stopp-Knopf für Touch). */
+  zeigeAutoLauf(an) {
+    this.dokument.getElementById('hud-autolauf').hidden = !an;
+  }
+
+  /** Haltbarkeit des eigenen Autos (null = nicht im Auto). */
+  zeigeAuto(auto) {
+    const stand = auto ? `${auto.leben}|${auto.maxLeben}` : '';
+    if (stand === this.#letzteAutoAnzeige) return;
+    this.#letzteAutoAnzeige = stand;
+    this.el.auto.hidden = !auto;
+    if (!auto) return;
+    const anteil = Math.max(0, auto.leben / auto.maxLeben);
+    this.el.auto.querySelector('.fuellung').style.width = `${anteil * 100}%`;
+    this.el.auto.classList.toggle('kritisch', anteil < 0.3);
+    this.el.autoText.textContent = `${Math.ceil(auto.leben * 2) / 2} / ${auto.maxLeben}`;
   }
 
   debugUmschalten() {
@@ -254,6 +337,7 @@ export class Hud {
       this.#zeichneSlot(this.#slots[slot], daten.inventar[slot], itemDefinitionen, slot === daten.ausgeruestet);
     }
     this.inventar.setzeDaten(daten, itemDefinitionen);
+    this.kiste.setzeDaten(daten, itemDefinitionen);
     this.skills.setzeDaten(daten);
     this.dokument.getElementById('hud-skills').classList.toggle('hinweis', (daten.skillPunkte ?? 0) > 0);
     this.el.level.classList.toggle('punkte-frei', (daten.skillPunkte ?? 0) > 0);
@@ -319,6 +403,12 @@ export class Hud {
     }
 
     this.#zeigeArbeit(d.arbeit);
+    const t = performance.now();
+    if (t - this.#letztesFps > FPS_INTERVALL_MS) {
+      this.#letztesFps = t;
+      this.el.fps.textContent = `${d.fps ?? '–'} FPS`;
+      this.el.fps.classList.toggle('langsam', (d.fps ?? 60) < 25);
+    }
 
     const jetzt = performance.now();
     if (jetzt - this.letzteAktualisierung < AKTUALISIERUNG_MS) return;
@@ -401,15 +491,34 @@ export class Hud {
     this.el.chatEingabe.blur();
   }
 
-  /** Wer ist online? (Tab) */
-  spielerlisteUmschalten(namen) {
+  /**
+   * Spielerliste (Tab) mit Statistik: Level, getötete Zombies, getötete Spieler, überlebte Zeit.
+   * @param spieler [{ name, level, zombies, spieler, ueberlebt (Sekunden), ich, tot }]
+   */
+  spielerlisteUmschalten(spieler) {
     const el = this.el.spielerliste;
     el.hidden = !el.hidden;
     if (el.hidden) return;
-    el.replaceChildren(
-      Object.assign(this.dokument.createElement('h3'), { textContent: `${namen.length} online` }),
-      ...namen.map((name) => Object.assign(this.dokument.createElement('div'), { textContent: name })),
-    );
+    this.zeigeSpielerliste(spieler);
+  }
+
+  /** Offene Liste auffrischen (Zeit läuft weiter). */
+  zeigeSpielerliste(spieler) {
+    const el = this.el.spielerliste;
+    if (el.hidden) return;
+    const d = this.dokument;
+    const zelle = (tag, text) => Object.assign(d.createElement(tag), { textContent: text });
+    const tabelle = d.createElement('table');
+    const kopf = d.createElement('tr');
+    for (const t of ['Spieler', 'Lv', '🧟 Zombies', '☠ Spieler', '⏱ überlebt']) kopf.append(zelle('th', t));
+    tabelle.append(kopf);
+    for (const s of spieler) {
+      const zeile = d.createElement('tr');
+      zeile.className = `${s.ich ? 'ich' : ''}${s.tot ? ' tot' : ''}`;
+      zeile.append(zelle('td', s.name), zelle('td', s.level ?? 1), zelle('td', s.zombies ?? 0), zelle('td', s.spieler ?? 0), zelle('td', formatiereDauer(s.ueberlebt ?? 0)));
+      tabelle.append(zeile);
+    }
+    el.replaceChildren(zelle('h3', `${spieler.length} online`), tabelle);
   }
 
   /** Werkbank-Menü zeigen (rezepte = null → schließen). */
@@ -431,7 +540,7 @@ export class Hud {
     // nicht setzeBalken(): wenig XP ist kein "kritischer" Wert, soll also nicht blinken
     el.level.querySelector('.fuellung').style.width = `${Math.min(100, (daten.xp / Math.max(1, daten.xpNaechstes)) * 100)}%`;
     el.levelXp.textContent = `${daten.xp}/${daten.xpNaechstes}`;
-    el.level.title = `Level ${daten.level} – ${daten.xp} von ${daten.xpNaechstes} XP bis Level ${daten.level + 1} (10 XP pro Zombie, beim Tod ist alles weg)`;
+    el.level.title = `Level ${daten.level} – ${daten.xp} von ${daten.xpNaechstes} XP bis Level ${daten.level + 1} (Zombies 10–40 XP, Abbauen 3 XP, beim Tod ist alles weg)`;
   }
 
   /** Fortschrittsbalken für Abbauen/Schlafen. */
@@ -444,7 +553,7 @@ export class Hud {
     if (!arbeit) return;
     const text = arbeit.wartet
       ? '💤 Warte, bis alle schlafen … (bewegen = aufstehen)'
-      : ({ holz: '🪓 Baum fällen …', stein: '⛏ Stein abbauen …', eisenerz: '⛏ Eisenerz abbauen …', kochen: '🍳 Braten …', schlafen: '💤 Schlafen … (bewegen = aufwachen)' }[arbeit.art] ?? '…');
+      : ({ angeln: '🎣 …', holz: '🪓 Baum fällen …', stein: '⛏ Stein abbauen …', eisenerz: '⛏ Eisenerz abbauen …', kochen: '🍳 Braten …', schlafen: '💤 Schlafen … (bewegen = aufwachen)' }[arbeit.art] ?? '…');
     this.el.arbeitText.textContent = text;
     this.el.arbeit.querySelector('.fuellung').style.width = `${Math.round(arbeit.fortschritt * 100)}%`;
   }
@@ -484,4 +593,13 @@ function setzeBalken(element, anteil) {
   const wert = Math.max(0, Math.min(1, anteil || 0));
   element.querySelector('.fuellung').style.width = `${wert * 100}%`;
   element.classList.toggle('kritisch', wert < 0.2);
+}
+
+/** Sekunden → "1:05:09" bzw. "4:12" */
+function formatiereDauer(sekunden) {
+  const s = Math.max(0, Math.floor(sekunden));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const rest = String(s % 60).padStart(2, '0');
+  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${rest}` : `${m}:${rest}`;
 }

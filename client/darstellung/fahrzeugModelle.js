@@ -61,3 +61,40 @@ function baueGeometrie(modell, L, B) {
   }
   return vereineGeometrien(teile, { mitFarbe: true });
 }
+
+// ---------------------------------------------------------------------------
+// Wrack (Auto kaputt, siehe server fahrzeugSystem.schlageFahrzeug): verkohlt, schief, qualmt
+
+const WRACK_MATERIAL = new THREE.MeshStandardMaterial({ vertexColors: true, color: 0x4a423c, roughness: 1, metalness: 0 });
+
+/** Macht aus einem Auto-Modell ein Wrack (einmalig; erkennt man an gruppe.userData.wrack). */
+export function macheWrack(gruppe) {
+  gruppe.userData.wrack = true;
+  const mesh = gruppe.children[0];
+  mesh.material = WRACK_MATERIAL;
+  mesh.rotation.z = 0.07;
+  mesh.position.y = -1.5;
+  const rauch = new THREE.Group();
+  for (let i = 0; i < 4; i++) {
+    const wolke = new THREE.Mesh(
+      new THREE.SphereGeometry(7, 8, 6),
+      new THREE.MeshBasicMaterial({ color: 0x4d4a47, transparent: true, opacity: 0.4, depthWrite: false }),
+    );
+    wolke.userData.versatz = i / 4;
+    wolke.position.x = (i - 1.5) * 8;
+    rauch.add(wolke);
+  }
+  rauch.position.y = 32;
+  gruppe.add(rauch);
+  gruppe.userData.rauch = rauch;
+}
+
+/** Rauch steigt aus dem Wrack auf. */
+export function animiereWrack(gruppe, jetzt) {
+  for (const wolke of gruppe.userData.rauch.children) {
+    const t = ((jetzt / 3200 + wolke.userData.versatz) % 1 + 1) % 1;
+    wolke.position.y = t * 55;
+    wolke.scale.setScalar(0.5 + t * 1.4);
+    wolke.material.opacity = 0.42 * (1 - t);
+  }
+}

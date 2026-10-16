@@ -177,19 +177,23 @@ export class InventarFenster {
     const bestand = {};
     for (const e of this.#daten.inventar) if (e) bestand[e.defId] = (bestand[e.defId] ?? 0) + e.menge;
     const liste = Object.entries(this.rezepte).filter(([, r]) => r.ort === 'inventar');
-    const stand = JSON.stringify(liste.map(([, r]) => Object.keys(r.zutaten).map((z) => bestand[z] ?? 0)));
+    const level = this.#daten.level ?? 1;
+    const stand = `${level}|${JSON.stringify(liste.map(([, r]) => Object.keys(r.zutaten).map((z) => bestand[z] ?? 0)))}`;
     if (stand === this.bauenStand) return;
     this.bauenStand = stand;
     const d = this.dokument;
     this.bauenListe.replaceChildren(
       ...liste.map(([id, r]) => {
-        const machbar = Object.entries(r.zutaten).every(([z, n]) => (bestand[z] ?? 0) >= n);
-        const zeile = Object.assign(d.createElement('div'), { className: `inv-rezept${machbar ? ' machbar' : ''}`, title: r.beschreibung ?? '' });
+        const levelOk = (r.level ?? 1) <= level;
+        const machbar = levelOk && Object.entries(r.zutaten).every(([z, n]) => (bestand[z] ?? 0) >= n);
+        const zeile = Object.assign(d.createElement('div'), { className: `inv-rezept${machbar ? ' machbar' : ''}${levelOk ? '' : ' gesperrt'}`, title: r.beschreibung ?? '' });
         const icon = Object.assign(d.createElement('canvas'), { width: 72, height: 72 });
         this.zeichneIcon(icon, r.ergebnis);
         const text = Object.assign(d.createElement('span'), { className: 'inv-rezept-text' });
+        const titel = Object.assign(d.createElement('b'), { textContent: r.name });
+        if ((r.level ?? 1) > 1) titel.append(Object.assign(d.createElement('span'), { className: `rezept-level${levelOk ? '' : ' fehlt'}`, textContent: `Level ${r.level}` }));
         text.append(
-          Object.assign(d.createElement('b'), { textContent: r.name }),
+          titel,
           Object.assign(d.createElement('small'), {
             textContent: Object.entries(r.zutaten).map(([z, n]) => `${Math.min(bestand[z] ?? 0, n)}/${n} ${this.#itemDefinitionen[z]?.name ?? z}`).join(' · '),
           }),

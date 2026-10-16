@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { vereineGeometrien, matrixAus } from './geometrie.js';
 import { werkbankTeile } from './kartenModell.js';
-import { PFLANZEN } from '../../gemeinsam/welt/bauwerke.js';
+import { PFLANZEN, feldKacheln } from '../../gemeinsam/welt/bauwerke.js';
 
 /**
  * 3D-Modelle der Bauwerke (gemeinsam/welt/bauwerke.js): Werkbank, Lagerfeuer, Bärenfalle, Beet.
@@ -53,8 +53,30 @@ const GEOMETRIEN = {
     }),
   beet: () =>
     geometrie('beet', () => {
-      const teile = [teil(new THREE.BoxGeometry(30, 3, 30), matrixAus(0, 1.2, 0), 0x4a2f1c)];
-      for (const z of [-9, 0, 9]) teile.push(teil(new THREE.BoxGeometry(26, 1.4, 4), matrixAus(0, 3, z), 0x5e3c24));
+      // Volle Kachelbreite: nebeneinander liegende Beete eines Erdfelds ergeben eine geschlossene Fläche
+      const teile = [teil(new THREE.BoxGeometry(32, 3, 32), matrixAus(0, 1.2, 0), 0x4a2f1c)];
+      for (const z of [-10, 0, 10]) teile.push(teil(new THREE.BoxGeometry(28, 1.4, 4.5), matrixAus(0, 3, z), 0x5e3c24));
+      return teile;
+    }),
+  kiste: () =>
+    geometrie('kiste', () => [
+      teil(new THREE.BoxGeometry(26, 18, 20), matrixAus(0, 9, 0), 0x9a6c3a),
+      teil(new THREE.BoxGeometry(27, 3, 21), matrixAus(0, 19.5, 0), 0xb78650),
+      teil(new THREE.BoxGeometry(2.4, 18.5, 20.6), matrixAus(-8, 9.2, 0), 0x6b4a28),
+      teil(new THREE.BoxGeometry(2.4, 18.5, 20.6), matrixAus(8, 9.2, 0), 0x6b4a28),
+      teil(new THREE.BoxGeometry(5, 5, 1.6), matrixAus(0, 14, 10.4), 0xc9ccd1),
+    ]),
+  holzwand: () =>
+    geometrie('holzwand', () => {
+      const teile = [];
+      for (let i = 0; i < 4; i++) teile.push(teil(new THREE.BoxGeometry(7.4, 40, 30), matrixAus(-12 + i * 8, 20, 0), i % 2 ? 0x8a5f33 : 0x9a6c3a));
+      teile.push(teil(new THREE.BoxGeometry(32, 4, 4), matrixAus(0, 12, 15), 0x5f4122), teil(new THREE.BoxGeometry(32, 4, 4), matrixAus(0, 30, 15), 0x5f4122));
+      return teile;
+    }),
+  holzboden: () =>
+    geometrie('holzboden', () => {
+      const teile = [];
+      for (let i = 0; i < 4; i++) teile.push(teil(new THREE.BoxGeometry(7.6, 1.6, 31), matrixAus(-12 + i * 8, 0.8, 0), i % 2 ? 0xb98650 : 0xc79a62));
       return teile;
     }),
   blatt: () => geometrie('blatt', () => [teil(new THREE.SphereGeometry(3, 6, 4), matrixAus(0, 0, 0, 0, new THREE.Vector3(1.4, 0.35, 0.8)), 0x4f9a2a)]),
@@ -117,6 +139,15 @@ export function erzeugeBauwerk(b) {
       };
       break;
     }
+    case 'kiste':
+      gruppe.add(mesh(GEOMETRIEN.kiste()));
+      break;
+    case 'holzwand':
+      gruppe.add(mesh(GEOMETRIEN.holzwand()));
+      break;
+    case 'holzboden':
+      gruppe.add(mesh(GEOMETRIEN.holzboden()));
+      break;
     case 'beet': {
       gruppe.add(mesh(GEOMETRIEN.beet()));
       const pflanzen = new THREE.Group();
@@ -178,12 +209,27 @@ function baueSetzlinge(gruppe, pflanze, stufe, mesh) {
 const GEIST_OK = new THREE.MeshBasicMaterial({ color: 0x7dff6a, transparent: true, opacity: 0.45, depthWrite: false });
 const GEIST_NEIN = new THREE.MeshBasicMaterial({ color: 0xff4a3a, transparent: true, opacity: 0.45, depthWrite: false });
 export function erzeugeVorschau(typ) {
-  const { gruppe, aktualisiere } = erzeugeBauwerk({ typ, gespannt: true, brennt: false, pflanze: null, wachstum: 0 });
-  aktualisiere({ typ, gespannt: true, brennt: false, pflanze: null, wachstum: 0 }, 0);
-  // Rahmen um die Kachel
-  const rahmen = new THREE.Mesh(new THREE.RingGeometry(20, 22.6, 4, 1, Math.PI / 4).rotateX(-Math.PI / 2), GEIST_OK);
-  rahmen.position.y = 0.6;
-  gruppe.add(rahmen);
+  let gruppe;
+  const rahmenGeo = new THREE.RingGeometry(20, 22.6, 4, 1, Math.PI / 4).rotateX(-Math.PI / 2);
+  if (typ === 'erdfeld') {
+    // Erdfeld (Spitzhacke): FELD_GROESSE² Beete, Rahmen um jede Kachel – die Gruppe sitzt auf der Mittelkachel
+    gruppe = new THREE.Group();
+    for (const k of feldKacheln(0, 0)) {
+      const { gruppe: beet } = erzeugeBauwerk({ typ: 'beet', pflanze: null, wachstum: 0 });
+      beet.position.set(k.tx * 32, 0, k.ty * 32);
+      const rahmen = new THREE.Mesh(rahmenGeo, GEIST_OK);
+      rahmen.position.set(k.tx * 32, 0.6, k.ty * 32);
+      gruppe.add(beet, rahmen);
+    }
+  } else {
+    const modell = erzeugeBauwerk({ typ, gespannt: true, brennt: false, pflanze: null, wachstum: 0 });
+    gruppe = modell.gruppe;
+    modell.aktualisiere({ typ, gespannt: true, brennt: false, pflanze: null, wachstum: 0 }, 0);
+    // Rahmen um die Kachel
+    const rahmen = new THREE.Mesh(rahmenGeo, GEIST_OK);
+    rahmen.position.y = 0.6;
+    gruppe.add(rahmen);
+  }
   gruppe.userData.setzeOk = (ok) => {
     gruppe.traverse((o) => {
       if (o.isMesh) {

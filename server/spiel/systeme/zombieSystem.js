@@ -1,7 +1,7 @@
 import { bewegeKoerper } from '../../../gemeinsam/physik/bewegung.js';
 import { sichtlinieFrei, wegFrei } from '../../../gemeinsam/physik/strahl.js';
 import { lerpWinkel } from '../../../gemeinsam/mathe.js';
-import { findePfad } from './pfadfindung.js';
+import { findePfad } from '../../../gemeinsam/physik/pfadfindung.js';
 import { fuegeSchadenZu } from './kampfSystem.js';
 import { schlageTuer } from './tuerSystem.js';
 import { abstandZumFahrzeug } from '../../../gemeinsam/physik/fahrzeug.js';

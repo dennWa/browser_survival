@@ -12,7 +12,7 @@ import { sekundenFuerStunden, tageszeit } from '../gemeinsam/tageszeit.js';
 import { xpFuerNaechstesLevel } from '../server/spiel/systeme/levelSystem.js';
 import { erzeugeGegenstand } from '../server/spiel/entitaeten/gegenstand.js';
 import { erzeugeZombie, waehleZombieVariante } from '../server/spiel/entitaeten/zombie.js';
-import { findePfad } from '../server/spiel/systeme/pfadfindung.js';
+import { findePfad } from '../gemeinsam/physik/pfadfindung.js';
 import { wendeEingabeAn } from '../gemeinsam/physik/bewegung.js';
 import { Zufall } from '../server/spiel/zufall.js';
 

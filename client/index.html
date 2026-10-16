@@ -29,6 +29,8 @@
 
     <!-- HUD über dem Spiel -->
     <div id="hud" hidden>
+      <div id="hud-fps" title="Bilder pro Sekunde" hidden>– FPS</div>
+      <canvas id="minikarte" width="296" height="296" hidden title="Minikarte (in den Einstellungen ausblendbar)"></canvas>
       <div id="hud-oben">
         <div class="hud-links">
           <span id="hud-uhr" title="Tag 10 Minuten, Nacht 5 Minuten – nachts kommt die Horde">☀ 06:00</span>
@@ -38,6 +40,7 @@
           <button id="hud-chat" type="button" title="Chat (T)">💬</button>
           <button id="hud-inventar" type="button" title="Inventar (I)">🎒</button>
           <button id="hud-skills" type="button" title="Fähigkeiten (U)">⭐</button>
+          <button id="hud-feld" type="button" title="Erdfeld anlegen (G) – mit der Spitzhacke">🌱</button>
           <button id="hud-zoom" class="nur-touch" type="button" title="Zoom (am PC: Mausrad)">🔍</button>
           <button id="hud-karte" type="button" title="Karte (K)">🗺</button>
           <button id="hud-licht" type="button" title="Taschenlampe an/aus (L) – aus = Zombies sehen dich schlechter">🔦</button>
@@ -72,6 +75,7 @@
         <button type="button" data-befehl="zombieSpawnen">Zombie spawnen</button>
         <button type="button" data-befehl="zombiesToeten">Alle Zombies töten</button>
         <button type="button" data-befehl="zeitSpringen">Tag ⇄ Nacht</button>
+        <button type="button" data-befehl="wetter">Wetter wechseln</button>
         <button type="button" data-nachtsicht>Nachtsicht</button>
         <button type="button" data-entwickler class="dev-knopf">🛠 Developer</button>
       </div>
@@ -83,6 +87,12 @@
         <button id="platzieren-weg" type="button">✕</button>
         <small id="hud-platzieren-hilfe">Klick / E = aufstellen · Esc / Rechtsklick = abbrechen</small>
       </div>
+      <!-- Auto-Lauf (Karte anklicken): Banner mit Abbrechen -->
+      <div id="hud-autolauf" hidden><span>🧭 Auto-Lauf …</span><button id="autolauf-stopp" type="button">✕ Stopp</button></div>
+      <!-- Angeln: Hinweis Linksklick / Biss -->
+      <div id="hud-angeln" hidden></div>
+      <!-- Auto-Haltbarkeit (nur im Auto) -->
+      <div id="hud-auto" hidden><span>🚗</span><div class="balken"><div class="fuellung"></div></div><span id="hud-auto-text"></span></div>
       <div id="hud-arbeit" hidden>
         <span id="hud-arbeit-text"></span>
         <div class="balken"><div class="fuellung"></div></div>
@@ -104,6 +114,7 @@
       <div class="karte-kopf">
         <h2>🗺 Karte</h2>
         <span id="karte-anteil"></span>
+        <small id="karte-tipp">Tipp: erkundeten Ort antippen = automatisch hinlaufen</small>
         <button id="karte-schliessen" type="button" aria-label="Schließen">✕</button>
       </div>
       <div class="karte-rahmen"><canvas id="karte-bild"></canvas></div>
@@ -127,6 +138,7 @@
           <p id="einstellungen-grafik-info" class="werkbank-hinweis"></p>
           <h3 class="inv-titel">Spiel</h3>
           <div class="einst-reihe">
+            <button id="einst-minikarte" type="button" class="einst-knopf">🧭 Minikarte an</button>
             <button id="hud-vollbild" type="button" class="einst-knopf" hidden>⛶ Vollbild</button>
             <button id="hud-abmelden" type="button" class="einst-knopf gefahr">Abmelden</button>
           </div>
@@ -173,6 +185,19 @@
       <h3 class="inv-titel">Bauen <small>ohne Werkbank – danach aus dem Inventar aufstellen</small></h3>
       <div id="inventar-bauen"></div>
       <p class="werkbank-hinweis inv-hilfe">Klick = benutzen · ziehen = umsortieren · aus dem Fenster ziehen = fallen lassen · Q = fallen lassen</p>
+    </div>
+
+    <!-- Lagerkiste (E an der Kiste): 16 Plätze, Antippen schiebt Stapel hin und her -->
+    <div id="kiste" hidden>
+      <div class="werkbank-kopf">
+        <h2>📦 Lagerkiste</h2>
+        <button id="kiste-schliessen" type="button" aria-label="Schließen">✕</button>
+      </div>
+      <h3 class="inv-titel">In der Kiste <small>antippen = ins Inventar</small></h3>
+      <div id="kiste-raster" class="inv-raster"></div>
+      <h3 class="inv-titel">Dein Inventar <small>antippen = in die Kiste legen</small></h3>
+      <div id="kiste-inventar" class="inv-raster"></div>
+      <p id="kiste-info"></p>
     </div>
 
     <!-- Fähigkeiten (U): Skillpunkte verteilen -->

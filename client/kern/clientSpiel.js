@@ -1,6 +1,8 @@
 import { AUFHEB_REICHWEITE, BETT_REICHWEITE, TICK_DAUER_MS, TICK_DAUER_S, WERKBANK_REICHWEITE } from '../../gemeinsam/konstanten.js';
 import { ABBAU_REICHWEITE, RESSOURCEN_OBJEKTE } from '../../gemeinsam/welt/ressourcen.js';
-import { BAUWERKE, BAUWERK_REICHWEITE, bauwerkAktion, feuerText, kachelInReichweite, pruefePlatz, zielKachel } from '../../gemeinsam/welt/bauwerke.js';
+import { BAUWERKE, BAUWERK_REICHWEITE, bauwerkAktion, feldKacheln, feuerText, kachelInReichweite, pruefePlatz, zielKachel } from '../../gemeinsam/welt/bauwerke.js';
+import { wurfZiel } from '../../gemeinsam/welt/wasser.js';
+import { findePfad } from '../../gemeinsam/physik/pfadfindung.js';
 import { tageszeit } from '../../gemeinsam/tageszeit.js';
 import { AKTIONEN, NACHRICHT } from '../../gemeinsam/protokoll.js';
 import { Welt } from '../../gemeinsam/welt/welt.js';
@@ -17,6 +19,10 @@ const MAX_OFFENE_EINGABEN = 120;
 const STOEHN_REICHWEITE = 650; // Zombies in diesem Umkreis stöhnen gelegentlich
 const STOEHN_PAUSE_MS = 900; // höchstens ein Stöhnen pro Pause (sonst Chor)
 const ZOMBIE_TONHOEHE = { normal: 1, laeufer: 1.35, brocken: 0.7 };
+const AUTOLAUF_ANKUNFT_PX = 9; // so nah an der Kachelmitte des Ziels gilt man als angekommen
+const AUTOLAUF_WEGPUNKT_PX = 10;
+const AUTOLAUF_STECKT_S = 1.2; // so lange ohne Fortschritt → Weg neu suchen, dann aufgeben
+const ANGEL_REICHWEITE = 230; // wie konfiguration.angeln.reichweite (Server) – nur für den Hinweis "Linksklick: auswerfen"
 
 /**
  * Eine laufende Spielsitzung im Client (existiert ab erfolgreichem Login bis zur Trennung).
@@ -28,6 +34,10 @@ const ZOMBIE_TONHOEHE = { normal: 1, laeufer: 1.35, brocken: 0.7 };
  *   3. Entity Interpolation:   Andere Spieler/Zombies werden zwischen zwei Server-Schnappschüssen
  *                              weich interpoliert (leicht verzögert dargestellt).
  *
+ * Außerdem hier: Platzier-Modus (Bauwerke, Erdfeld mit G), Lagerkiste (KISTE-Nachricht → hud.kiste), Wetter (ZUSTAND.wetter →
+ * Renderer/Regenton), Angel-Hinweis, Minikarte, Tab-Statistik und der AUTO-LAUF (Klick auf die große Karte → A* →
+ * Eingaben statt Tasten; jede manuelle Eingabe bricht ab).
+ *
  * Angriffe, Inventar & Co. entscheidet allein der Server – der Client schickt nur Wünsche
  * (EINGABE.angriff, AKTION) und zeigt das Ergebnis an.
  */
@@ -36,12 +46,13 @@ export class ClientSpiel {
    * @param beiZonenwechsel (daten, sitzung) → ZONE_WECHSEL kam an: main.js räumt diese Sitzung ab (uebergeben) und baut neu auf
    * @param seq             letzte Eingabe-Nummer der vorigen Zone (der Server zählt über Zonen hinweg weiter)
    */
-  constructor({ verbindung, anmeldeDaten, eingabe, renderer, hud, sound, beiEnde, beiZonenwechsel, benutzername = '', vorabNachrichten = [], seq = 0 }) {
+  constructor({ verbindung, anmeldeDaten, eingabe, renderer, hud, sound, musik = null, beiEnde, beiZonenwechsel, benutzername = '', vorabNachrichten = [], seq = 0 }) {
     this.verbindung = verbindung;
     this.eingabe = eingabe;
     this.renderer = renderer;
     this.hud = hud;
     this.sound = sound;
+    this.musik = musik; // Zonen-Musik (läuft über Zonenwechsel hinweg weiter, siehe audio/zonenMusik.js)
     this.beiEnde = beiEnde;
     this.beiZonenwechsel = beiZonenwechsel;
     this.benutzername = benutzername;
@@ -52,8 +63,14 @@ export class ClientSpiel {
     if (anmeldeDaten.tueren) this.welt.uebernimmOffeneTueren(anmeldeDaten.tueren);
     if (anmeldeDaten.abgebaut) this.welt.uebernimmAbgebaute(anmeldeDaten.abgebaut);
     if (anmeldeDaten.bauwerke) this.welt.uebernimmBauwerke(anmeldeDaten.bauwerke);
-    /** Platzier-Modus (Bauwerk-Item oder Hacke benutzt): { slot, defId, typ, name } oder null */
+    /** Platzier-Modus (Bauwerk-Item bzw. Erdfeld mit der Spitzhacke): { slot, defId, typ, name, art?: 'feld' } oder null */
     this.platzierung = null;
+    this.wetter = 'klar'; // 'klar' | 'regen' | 'nebel' (vom Server)
+    /** Auto-Lauf: { ziel: {tx, ty}, pfad: [{x, y}], stuck: Sekunden, letzterNeuStart } oder null */
+    this.autoLauf = null;
+    this.letzteMiniKarte = 0;
+    this.letzterRegenTon = -1;
+    this.letzteListe = 0;
     this.letzterKlick = false;
     this.rezepte = anmeldeDaten.rezepte ?? {};
     hud.inventar.setzeRezepte(this.rezepte);
@@ -62,6 +79,7 @@ export class ClientSpiel {
       assets: renderer.assets,
       schluessel: `${anmeldeDaten.serverName}:${benutzername.toLowerCase()}:${this.welt.id}`,
     });
+    this.karte.beiZielWahl = (tx, ty, erkundet) => this.autoLaufStarten(tx, ty, erkundet);
     if (anmeldeDaten.erkundet) this.karte.uebernimm(anmeldeDaten.erkundet); // vom Server (auch von anderen Geräten)
     this.werkbankOffen = false;
     // Uhr: Serverzeit + seit Empfang vergangene Zeit (läuft zwischen den Schnappschüssen weich weiter)
@@ -121,12 +139,14 @@ export class ClientSpiel {
     });
     this.schleife.starten();
     this.sound?.starteAtmosphaere();
+    this.musik?.setzeZone(this.welt.id);
   }
 
   /** Sitzung beenden (Logout, Kick, Verbindungsverlust). Idempotent. */
   beenden(grund) {
     if (this.beendet) return;
     this.#aufraeumen();
+    this.musik?.stoppen();
     if (!this.verbindung.getrennt) this.verbindung.trennen('Abgemeldet');
     this.beiEnde?.(grund);
   }
@@ -144,6 +164,10 @@ export class ClientSpiel {
     this.karte.zeige(false);
     if (this.platzierung) this.platzierungAbbrechen();
     if (this.werkbankOffen) this.werkbankUmschalten(false);
+    this.autoLaufStoppen();
+    this.hud.kiste.zeige(null);
+    this.hud.zeigeAngeln(null);
+    this.hud.zeigeAuto(null);
     this.sound?.stoppeAtmosphaere();
     this.sound?.motor(null);
     clearInterval(this.pingTimer);
@@ -173,6 +197,62 @@ export class ClientSpiel {
     else if (was.art === 'werkbank') this.werkbankUmschalten(true);
   }
 
+  // --- Auto-Lauf (Karte anklicken) ----------------------------------------------
+
+  /**
+   * Klick auf die große Karte: nur erkundete, begehbare Orte. Der Charakter läuft in normalem Tempo (kein Sprint)
+   * den A*-Weg ab; jede Eingabe (WASD, Stick, Angriff, Einsteigen), Tod oder Zonenwechsel bricht ab.
+   */
+  autoLaufStarten(tx, ty, erkundet = true) {
+    if (this.spielerDaten?.tot || this.lokal.fahrzeug) return this.hud.meldung('Auto-Lauf geht nur zu Fuß');
+    if (!erkundet) return this.hud.meldung('Dorthin kannst du nur, wo du schon warst');
+    if (this.welt.istBlockiert(tx, ty)) return this.hud.meldung('Dort kommt man nicht hin');
+    const pfad = findePfad(this.welt, this.lokal.x, this.lokal.y, (tx + 0.5) * this.welt.kachelGroesse, (ty + 0.5) * this.welt.kachelGroesse, { maxKnoten: 90000, tuerKosten: 6 });
+    if (!pfad || pfad.length === 0) return this.hud.meldung(pfad ? 'Du bist schon da' : 'Dorthin gibt es keinen Weg');
+    this.autoLauf = { ziel: { tx, ty }, pfad, stuck: 0, letzteX: this.lokal.x, letzteY: this.lokal.y, neuVersuche: 0 };
+    this.karte.ziel = { tx, ty };
+    this.karte.zeige(false);
+    this.hud.zeigeAutoLauf(true);
+    this.hud.meldung('🧭 Auto-Lauf – jede Taste bricht ab');
+  }
+
+  autoLaufStoppen(grund = null) {
+    if (!this.autoLauf) return;
+    this.autoLauf = null;
+    this.karte.ziel = null;
+    this.hud.zeigeAutoLauf(false);
+    if (grund) this.hud.meldung(grund);
+  }
+
+  /** Bewegungsrichtung des Auto-Laufs für diesen Tick (oder null = fertig/abgebrochen). */
+  #autoLaufRichtung() {
+    const a = this.autoLauf;
+    const { x, y } = this.lokal;
+    while (a.pfad.length > 1 && Math.hypot(a.pfad[0].x - x, a.pfad[0].y - y) < AUTOLAUF_WEGPUNKT_PX) a.pfad.shift();
+    const punkt = a.pfad[0];
+    const abstand = Math.hypot(punkt.x - x, punkt.y - y);
+    if (a.pfad.length === 1 && abstand < AUTOLAUF_ANKUNFT_PX) {
+      this.autoLaufStoppen('Ziel erreicht');
+      return null;
+    }
+    // Kommt man nicht voran (Zombie, Tür, Auto im Weg), einmal neu planen, dann aufgeben
+    a.stuck = Math.hypot(x - a.letzteX, y - a.letzteY) < 0.5 * this.physik.geschwindigkeit * TICK_DAUER_S ? a.stuck + TICK_DAUER_S : 0;
+    a.letzteX = x;
+    a.letzteY = y;
+    if (a.stuck > AUTOLAUF_STECKT_S) {
+      a.stuck = 0;
+      const neu = a.neuVersuche < 2 ? findePfad(this.welt, x, y, (a.ziel.tx + 0.5) * this.welt.kachelGroesse, (a.ziel.ty + 0.5) * this.welt.kachelGroesse, { maxKnoten: 90000, tuerKosten: 6 }) : null;
+      if (!neu || neu.length === 0) {
+        this.autoLaufStoppen('Auto-Lauf: Weg versperrt');
+        return null;
+      }
+      a.pfad = neu;
+      a.neuVersuche++;
+    }
+    const laenge = Math.hypot(punkt.x - x, punkt.y - y) || 1;
+    return { x: (punkt.x - x) / laenge, y: (punkt.y - y) / laenge };
+  }
+
   karteUmschalten(offen) {
     this.karte.zeige(offen);
   }
@@ -181,14 +261,14 @@ export class ClientSpiel {
     this.#senden({ typ: NACHRICHT.CHAT, text });
   }
 
-  /** Namen aller Spieler im letzten Schnappschuss (für die Spielerliste). */
-  spielerNamen() {
+  /** Alle Spieler im letzten Schnappschuss mit Statistik (für die Tab-Liste), nach Name sortiert. */
+  spielerStatistik() {
     const letzter = this.schnappschuesse[this.schnappschuesse.length - 1];
     if (!letzter) return [];
     return [...letzter.entitaeten.values()]
       .filter((e) => e.typ === 'spieler')
-      .map((e) => `${e.name}${e.level ? ` · Lv ${e.level}` : ''}${e.id === this.eigeneId ? ' (du)' : ''}`)
-      .sort((a, b) => a.localeCompare(b));
+      .map((e) => ({ name: e.name, level: e.level, zombies: e.zombiesGetoetet, spieler: e.spielerGetoetet, ueberlebt: e.ueberlebt, ich: e.id === this.eigeneId, tot: e.tot }))
+      .sort((a, b) => a.name.localeCompare(b.name));
   }
 
   /** Andere Spieler (letzter Schnappschuss) für die Karte. */
@@ -218,7 +298,25 @@ export class ClientSpiel {
     this.hud.skills.zeige(false);
     this.hud.einstellungen.zeige(false);
     this.werkbankUmschalten(false);
+    this.kisteSchliessen();
+    this.autoLaufStoppen();
     this.platzierungAbbrechen();
+  }
+
+  // --- Lagerkiste ---------------------------------------------------------------
+
+  kisteLegen(slot) {
+    this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.KISTE_LEGEN, slot });
+  }
+
+  kisteNehmen(slot) {
+    this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.KISTE_NEHMEN, slot });
+  }
+
+  kisteSchliessen() {
+    if (!this.hud.kiste.offen) return;
+    this.hud.kiste.zeige(null);
+    this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.KISTE_SCHLIESSEN });
   }
 
   /** Werkbank-Menü öffnen/schließen (nur in Reichweite einer Werkbank). */
@@ -277,11 +375,28 @@ export class ClientSpiel {
 
   // --- Platzieren (Bauwerke, Beet mit der Hacke) ------------------------------
 
+  /**
+   * Taste G / 🌱: Erdfeld anlegen – Vorschau (FELD_GROESSE² Kacheln) folgt der Maus, Klick/E legt es an.
+   * Die Spitzhacke muss nur im Inventar liegen ("auto-ausgerüstet").
+   */
+  feldModus() {
+    if (this.spielerDaten?.tot || this.lokal.fahrzeug) return;
+    if (this.platzierung?.art === 'feld') return this.platzierungAbbrechen();
+    if (!this.spielerDaten?.inventar.some((e) => e?.defId === 'spitzhacke')) {
+      this.hud.meldung('Du brauchst eine Spitzhacke für ein Erdfeld');
+      return;
+    }
+    this.platzierungAbbrechen();
+    this.platzierung = { art: 'feld', slot: -1, defId: 'spitzhacke', typ: 'erdfeld', name: 'Erdfeld anlegen (Spitzhacke)' };
+    this.hud.inventar.zeige(false);
+    this.hud.zeigePlatzierung(this.platzierung.name);
+  }
+
   /** Platzier-Modus an/aus. Vorschau folgt Maus bzw. Blickrichtung (#platzierungsZiel). */
   #startePlatzierung(slot, defId, def) {
     if (this.platzierung?.slot === slot) return this.platzierungAbbrechen(); // nochmal = abbrechen
-    const typ = def.bauwerk ?? def.baut;
-    this.platzierung = { slot, defId, typ, name: def.baut ? 'Beet anlegen' : `${def.name} aufstellen` };
+    const typ = def.bauwerk;
+    this.platzierung = { slot, defId, typ, name: `${def.name} aufstellen` };
     this.hud.inventar.zeige(false);
     this.hud.zeigePlatzierung(this.platzierung.name);
   }
@@ -301,7 +416,8 @@ export class ClientSpiel {
       this.hud.meldung(ziel.grund ?? 'Hier nicht');
       return;
     }
-    this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.PLATZIEREN, slot: this.platzierung.slot, tx: ziel.tx, ty: ziel.ty });
+    if (this.platzierung.art === 'feld') this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.FELD, tx: ziel.tx, ty: ziel.ty });
+    else this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.PLATZIEREN, slot: this.platzierung.slot, tx: ziel.tx, ty: ziel.ty });
     this.platzierungAbbrechen();
   }
 
@@ -309,7 +425,8 @@ export class ClientSpiel {
   #platzierungsZiel() {
     const p = this.platzierung;
     if (!p) return null;
-    if (this.spielerDaten?.inventar[p.slot]?.defId !== p.defId || this.spielerDaten?.tot) {
+    const hatItem = p.art === 'feld' ? this.spielerDaten?.inventar.some((e) => e?.defId === 'spitzhacke') : this.spielerDaten?.inventar[p.slot]?.defId === p.defId;
+    if (!hatItem || this.spielerDaten?.tot || this.lokal.fahrzeug) {
       this.platzierungAbbrechen();
       return null;
     }
@@ -318,6 +435,13 @@ export class ClientSpiel {
     const punkt = maus ? this.renderer.kamera.bildschirmZuBoden(this.eingabe.mausX, this.eingabe.mausY) : null;
     const { tx, ty } = zielKachel(this.welt, x, y, blick, punkt);
     if (!kachelInReichweite(this.welt, x, y, tx, ty)) return { tx, ty, ok: false, grund: 'Zu weit weg' };
+    if (p.art === 'feld') {
+      for (const k of feldKacheln(tx, ty)) {
+        const feld = pruefePlatz(this.welt, 'beet', k.tx, k.ty);
+        if (!feld.ok) return { tx, ty, ok: false, grund: `Hier geht kein Feld: ${feld.grund}` };
+      }
+      return { tx, ty, ok: true };
+    }
     const platz = pruefePlatz(this.welt, p.typ, tx, ty);
     if (!platz.ok) return { tx, ty, ok: false, grund: platz.grund };
     // Nicht auf sich selbst bauen (blockierende Bauwerke)
@@ -336,7 +460,7 @@ export class ClientSpiel {
     this.letzterSlot = slot;
     const eintrag = this.spielerDaten?.inventar[slot];
     const def = eintrag && this.itemDefinitionen[eintrag.defId];
-    if (def && (def.bauwerk || def.baut) && !this.spielerDaten.tot) return this.#startePlatzierung(slot, eintrag.defId, def);
+    if (def && def.bauwerk && !this.spielerDaten.tot) return this.#startePlatzierung(slot, eintrag.defId, def);
     this.#aktion(AKTIONEN.BENUTZEN, slot);
   }
 
@@ -427,6 +551,10 @@ export class ClientSpiel {
         this.tageszeitDauer = n.tageszeit ?? this.tageszeitDauer;
         this.itemDefinitionen = n.itemDefinitionen ?? this.itemDefinitionen;
         break;
+      case NACHRICHT.KISTE:
+        this.hud.kiste.zeige(n.inhalt);
+        if (n.inhalt) this.hud.inventar.zeige(false);
+        break;
       case NACHRICHT.RESSOURCEN:
         this.welt.uebernimmAbgebaute(n.abgebaut);
         break;
@@ -473,6 +601,7 @@ export class ClientSpiel {
       this.tag = n.tag ?? this.tag;
     }
 
+    this.wetter = n.wetter ?? 'klar';
     const entitaeten = new Map(n.entitaeten.map((e) => [e.id, e]));
     this.schnappschuesse.push({ empfangen: jetzt, tick: n.tick, entitaeten });
     // Fahrzeuge blockieren ihre Kacheln – auch für die eigene Laufvorhersage
@@ -527,7 +656,19 @@ export class ClientSpiel {
 
   #festerTakt() {
     const tot = this.spielerDaten?.tot ?? false;
-    const richtung = tot ? { x: 0, y: 0 } : this.eingabe.richtung();
+    let richtung = tot ? { x: 0, y: 0 } : this.eingabe.richtung();
+    let autoBlick = null;
+    if (this.autoLauf) {
+      const manuell = richtung.x !== 0 || richtung.y !== 0 || this.eingabe.angriff() || this.eingabe.sprint();
+      if (tot || manuell || this.lokal.fahrzeug) this.autoLaufStoppen();
+      else {
+        const r = this.#autoLaufRichtung();
+        if (r) {
+          richtung = r;
+          autoBlick = Math.atan2(r.y, r.x);
+        }
+      }
+    }
     // Im Platzier-Modus bedeutet Klick "hier aufstellen" statt Angriff
     let angriff = !tot && this.eingabe.angriff();
     if (this.platzierung) {
@@ -539,7 +680,7 @@ export class ClientSpiel {
       seq: ++this.seq,
       x: richtung.x,
       y: richtung.y,
-      blick: this.#blick(),
+      blick: autoBlick ?? this.#blick(),
       angriff,
       sprint: !tot && this.eingabe.sprint(),
     };
@@ -635,6 +776,24 @@ export class ClientSpiel {
       case 'gekocht':
         this.sound.spiele('brutzeln', { x: e.x, y: e.y });
         break;
+      case 'angelWurf':
+        this.sound.spiele('angel_wurf', { x: e.x, y: e.y });
+        break;
+      case 'angelBiss':
+        this.sound.spiele('angel_biss', { x: e.x, y: e.y });
+        break;
+      case 'gefangen':
+        this.sound.spiele('gefangen', { x: e.x, y: e.y });
+        break;
+      case 'fahrzeugSchaden':
+        this.sound.spiele('fahrzeug_schaden', { x: e.x, y: e.y });
+        break;
+      case 'fahrzeugKaputt':
+        this.sound.spiele('fahrzeug_kaputt', { x: e.x, y: e.y });
+        break;
+      case 'bossBeute':
+        this.sound.spiele('beute', { x: e.x, y: e.y });
+        break;
       case 'levelAuf':
         if (e.id === this.eigeneId) this.sound.spiele('level_auf');
         break;
@@ -721,6 +880,7 @@ export class ClientSpiel {
     const uhr = tageszeit(this.serverZeit + (jetzt - this.zeitEmpfangen) / 1000, this.tageszeitDauer);
 
     if (this.platzierung) this.renderer.zeigeVorschau({ typ: this.platzierung.typ, ...this.#platzierungsZiel() });
+    this.#oberflaecheAktualisieren(eigen, jetzt);
     this.renderer.zeichne({
       fokus: eigen,
       entitaeten: [...andere, eigen],
@@ -729,6 +889,7 @@ export class ClientSpiel {
       effekte: this.effekte,
       markiertId: aufhebbar?.id ?? null,
       tageszeit: uhr,
+      wetter: this.wetter,
     });
     this.hud.aktualisiere({
       serverName: this.serverName,
@@ -747,6 +908,50 @@ export class ClientSpiel {
       fAktion: this.#fAktion(),
       uhr: { ...uhr, tag: this.tag },
     });
+  }
+
+  /** Minikarte, Angel-Hinweis, Auto-Anzeige, Tab-Liste, Regenton – alles, was nicht jeden Frame neu muss. */
+  #oberflaecheAktualisieren(eigen, jetzt) {
+    this.hud.zeigeAuto(this.lokal.fahrzeug && this.eigeneDaten?.fahrzeug ? this.eigeneDaten.fahrzeug : null);
+    const angel = this.#angelHinweis();
+    this.hud.zeigeAngeln(angel?.text ?? null, angel?.biss ?? false);
+    if (this.hud.minikarteAn && jetzt - this.letzteMiniKarte > 180) {
+      this.letzteMiniKarte = jetzt;
+      this.karte.zeichneMini(this.hud.el.minikarte, eigen, this.#minikartenPunkte());
+    }
+    if (!this.hud.el.spielerliste.hidden && jetzt - this.letzteListe > 1000) {
+      this.letzteListe = jetzt;
+      this.hud.zeigeSpielerliste(this.spielerStatistik());
+    }
+    const regen = Math.round(this.renderer.wetterEffekt.regen * 20) / 20;
+    if (regen !== this.letzterRegenTon) {
+      this.letzterRegenTon = regen;
+      this.sound?.regen(regen);
+    }
+  }
+
+  /** Zombies, Tiere und Mitspieler im Umkreis (letzter Schnappschuss) für die Minikarte. */
+  #minikartenPunkte() {
+    const letzter = this.schnappschuesse[this.schnappschuesse.length - 1];
+    if (!letzter) return [];
+    const punkte = [];
+    for (const e of letzter.entitaeten.values()) {
+      if (e.id === this.eigeneId || e.tot) continue;
+      const art = e.typ === 'zombie' ? 'zombie' : e.typ === 'spieler' ? 'spieler' : e.typ === 'tier' ? 'tier' : null;
+      if (art) punkte.push({ x: e.x, y: e.y, art });
+    }
+    return punkte;
+  }
+
+  /** Angeln: Text für die Hinweis-Leiste (auswerfen / warten / Biss) oder null. */
+  #angelHinweis() {
+    const d = this.spielerDaten;
+    if (!d || d.tot || this.lokal.fahrzeug) return null;
+    const a = this.eigeneDaten?.angeln;
+    if (a) return a.phase === 'biss' ? { text: '❗ JETZT klicken!', biss: true } : { text: '🎣 Warte auf den Biss … (Klick = einholen)', biss: false };
+    if (this.platzierung || !d.inventar.some((e) => e?.defId === 'angel')) return null;
+    if (wurfZiel(this.welt, this.lokal.x, this.lokal.y, this.lokal.blick, ANGEL_REICHWEITE)) return { text: this.eingabe.touch.istTouchGeraet ? '🎣 Rechten Stick ganz drücken: auswerfen' : '🎣 Linksklick: Angel auswerfen', biss: false };
+    return null;
   }
 
   /** Alle fremden Entitäten zur Zeit `renderZeit` – zwischen den beiden passenden Schnappschüssen. */

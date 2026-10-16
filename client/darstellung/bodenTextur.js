@@ -62,6 +62,36 @@ export class BodenTextur {
     if (name === 'asphalt' || name === 'strasse') this.#asphaltKoernung(ctx, tx, ty);
     if (name === 'strasse') this.#strassenMarkierung(ctx, tx, ty);
     if (name === 'gehweg') this.#gehwegPlatten(ctx, tx, ty);
+    if (name === 'wasser') this.#wasser(ctx, tx, ty);
+  }
+  /** See: tiefes Blau in der Mitte, helle Uferkante zum Land, ein paar Wellenstriche (die bewegten Wellen liegen in kartenModell). */
+  #wasser(ctx, tx, ty) {
+    const g = this.g;
+    const istWasser = (x, y) => KACHELN[this.welt.kachelAn(x, y)]?.wasser === true;
+    let tief = true;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (!istWasser(tx + dx, ty + dy)) tief = false;
+    if (tief) {
+      ctx.fillStyle = 'rgba(10, 40, 90, 0.35)';
+      ctx.fillRect(tx * g, ty * g, g + 0.25, g + 0.25);
+    }
+    // Ufer: helle Kante, wo Land angrenzt
+    ctx.fillStyle = 'rgba(214, 238, 246, 0.55)';
+    if (!istWasser(tx, ty - 1)) ctx.fillRect(tx * g, ty * g, g, 3);
+    if (!istWasser(tx, ty + 1)) ctx.fillRect(tx * g, ty * g + g - 3, g, 3);
+    if (!istWasser(tx - 1, ty)) ctx.fillRect(tx * g, ty * g, 3, g);
+    if (!istWasser(tx + 1, ty)) ctx.fillRect(tx * g + g - 3, ty * g, 3, g);
+    let h = streuwert(tx, ty);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
+    ctx.lineWidth = 1.5;
+    for (let i = 0; i < 2; i++) {
+      h = (h * 1103515245 + 12345) >>> 0;
+      const x = tx * g + 4 + (h % (g - 14));
+      const y = ty * g + 6 + ((h >> 8) % (g - 12));
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.quadraticCurveTo(x + 5, y - 3, x + 10, y);
+      ctx.stroke();
+    }
   }
   #asphaltKoernung(ctx, tx, ty) {
     const g = this.g;

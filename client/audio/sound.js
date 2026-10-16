@@ -10,8 +10,8 @@
  * Browser erlauben Ton erst nach einer Nutzeraktion → entsperren() beim Login-Klick aufrufen.
  */
 const SPEICHER_SCHLUESSEL = 'browserSurvival.ton';
-/** Regler in den Einstellungen: gesamt = alles, effekte = Aktionen/Kampf/Zombies, atmosphaere = Wind & Brummen. */
-export const LAUTSTAERKE_KANAELE = Object.freeze({ gesamt: 'Gesamt', effekte: 'Effekte', atmosphaere: 'Wind & Umgebung' });
+/** Regler in den Einstellungen: gesamt = alles, effekte = Aktionen/Kampf/Zombies, atmosphaere = Wind, Regen & Brummen, musik = Zonen-Musik (client/musik). */
+export const LAUTSTAERKE_KANAELE = Object.freeze({ gesamt: 'Gesamt', effekte: 'Effekte', atmosphaere: 'Wind & Regen', musik: 'Musik' });
 const HOERWEITE = 900; // px, ab hier unhörbar
 /**
  * Anschlag-Zeit (s): Lautstärke steigt kurz an statt von 0 auf 100 % zu springen – harte Sprünge
@@ -25,6 +25,8 @@ export class Sound {
   #ctx = null;
   #ausgang = null; // Gesamtlautstärke → Lautsprecher
   #effekte = null; // Effekte → Kompressor → #ausgang
+  #musikBus = null;
+  #regen = null;
   #atmoBus = null; // Wind & Co. laufen am Kompressor vorbei: laute Schüsse drücken sie sonst weg ("Wind bricht ab")
   #rauschen = null;
   #wind = null;
@@ -33,7 +35,7 @@ export class Sound {
 
   constructor() {
     this.stumm = false;
-    this.lautstaerken = { gesamt: 0.7, effekte: 1, atmosphaere: 1 };
+    this.lautstaerken = { gesamt: 0.7, effekte: 1, atmosphaere: 0.6, musik: 0.5 };
     try {
       const gespeichert = JSON.parse(localStorage.getItem(SPEICHER_SCHLUESSEL) ?? '{}');
       if (typeof gespeichert.stumm === 'boolean') this.stumm = gespeichert.stumm;
@@ -68,6 +70,7 @@ export class Sound {
     this.#ausgang.gain.setTargetAtTime(this.stumm ? 0 : this.lautstaerken.gesamt, t, 0.05);
     this.#effekte.gain.setTargetAtTime(this.lautstaerken.effekte, t, 0.05);
     this.#atmoBus.gain.setTargetAtTime(this.lautstaerken.atmosphaere, t, 0.05);
+    this.#musikBus.gain.setTargetAtTime(this.lautstaerken.musik, t, 0.05);
   }
   /** Muss in einem Klick-/Tastenereignis aufgerufen werden (Autoplay-Sperre der Browser). */
   entsperren() {
@@ -79,8 +82,10 @@ export class Sound {
       this.#ausgang = this.#ctx.createGain();
       this.#effekte = this.#ctx.createGain();
       this.#atmoBus = this.#ctx.createGain();
+      this.#musikBus = this.#ctx.createGain();
       this.#effekte.connect(kompressor).connect(this.#ausgang);
       this.#atmoBus.connect(this.#ausgang);
+      this.#musikBus.connect(this.#ausgang); // Musik am Kompressor vorbei (Schüsse drücken sie nicht weg)
       this.#ausgang.connect(this.#ctx.destination);
       this.#rauschen = erzeugeRauschen(this.#ctx);
       this.#wendeLautstaerkenAn();
@@ -196,7 +201,7 @@ export class Sound {
     filter.frequency.value = 520;
     filter.Q.value = 0.7;
     const gain = ctx.createGain();
-    gain.gain.value = 0.55;
+    gain.gain.value = 0.22; // Wind bewusst leise (war 0.55)
     const lfo = ctx.createOscillator(); // Böen: Klangfarbe …
     lfo.frequency.value = 0.09;
     const lfoFilter = ctx.createGain();
@@ -205,13 +210,13 @@ export class Sound {
     const lfo2 = ctx.createOscillator(); // … und Lautstärke schwellen in anderem Takt an und ab
     lfo2.frequency.value = 0.053;
     const lfoGain = ctx.createGain();
-    lfoGain.gain.value = 0.25;
+    lfoGain.gain.value = 0.09;
     lfo2.connect(lfoGain).connect(gain.gain);
     const brummen = ctx.createOscillator();
     brummen.type = 'sine';
     brummen.frequency.value = 49; // Netzbrummen der Notbeleuchtung
     const brummGain = ctx.createGain();
-    brummGain.gain.value = 0.02;
+    brummGain.gain.value = 0.012;
     quelle.connect(filter).connect(gain).connect(this.#atmoBus);
     brummen.connect(brummGain).connect(this.#atmoBus);
     for (const knoten of [quelle, lfo, lfo2, brummen]) knoten.start();
@@ -221,6 +226,72 @@ export class Sound {
   stoppeAtmosphaere() {
     for (const knoten of this.#wind ?? []) knoten.stop();
     this.#wind = null;
+    this.regen(0);
+  }
+
+  /**
+   * Regenrauschen (Atmosphäre-Bus): staerke 0 = aus … 1 = Platzregen; blendet weich ein/aus.
+   * Nebel hat keinen eigenen Ton (er dämpft nur den Wind: staerke wirkt dann nicht).
+   */
+  regen(staerke) {
+    const ctx = this.#ctx;
+    if (!ctx || ctx.state !== 'running') return;
+    if (!this.#regen) {
+      if (staerke <= 0) return;
+      const quelle = ctx.createBufferSource();
+      quelle.buffer = this.#rauschen;
+      quelle.loop = true;
+      const hoch = ctx.createBiquadFilter();
+      hoch.type = 'highpass';
+      hoch.frequency.value = 1400;
+      const tief = ctx.createBiquadFilter();
+      tief.type = 'lowpass';
+      tief.frequency.value = 7500;
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      quelle.connect(hoch).connect(tief).connect(gain).connect(this.#atmoBus);
+      quelle.start();
+      this.#regen = { quelle, gain };
+    }
+    const ziel = Math.max(0, Math.min(1, staerke)) * 0.16;
+    this.#regen.gain.gain.setTargetAtTime(ziel, ctx.currentTime, 1.5);
+    if (staerke <= 0) {
+      const alt = this.#regen;
+      this.#regen = null;
+      setTimeout(() => alt.quelle.stop(), 6000);
+    }
+  }
+
+  /**
+   * Musikstück abspielen (Zonen-Musik, siehe audio/zonenMusik.js). Läuft über einen Audio-Tag, damit lange Dateien
+   * gestreamt werden. @returns { stoppen(fadeSekunden), beiEnde(fn) } oder null (Ton noch gesperrt)
+   */
+  spieleMusik(url, { fade = 3 } = {}) {
+    const ctx = this.#ctx;
+    if (!ctx) return null;
+    const audio = new Audio(url);
+    audio.crossOrigin = 'anonymous';
+    audio.preload = 'auto';
+    const quelle = ctx.createMediaElementSource(audio);
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    quelle.connect(gain).connect(this.#musikBus);
+    let endeHoerer = null;
+    audio.addEventListener('ended', () => endeHoerer?.());
+    audio.addEventListener('error', () => endeHoerer?.(true));
+    audio.play().then(() => gain.gain.setTargetAtTime(1, ctx.currentTime, fade / 3)).catch(() => endeHoerer?.(true));
+    return {
+      beiEnde: (fn) => (endeHoerer = fn),
+      stoppen: (fadeSekunden = fade) => {
+        endeHoerer = null;
+        gain.gain.setTargetAtTime(0, ctx.currentTime, Math.max(0.05, fadeSekunden / 3));
+        setTimeout(() => {
+          audio.pause();
+          quelle.disconnect();
+          gain.disconnect();
+        }, fadeSekunden * 1000 + 300);
+      },
+    };
   }
 }
 
@@ -283,6 +354,42 @@ const REZEPTE = {
   trinken: ({ ctx, ausgang, t }) => {
     for (let i = 0; i < 3; i++) ton(ctx, ausgang, t + i * 0.22, { typ: 'sine', von: 320, bis: 190, dauer: 0.12, lautstaerke: 0.3 });
     return 0.75;
+  },
+  // Angeln
+  angel_wurf: ({ ctx, ausgang, t, rauschen }) => {
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.Q.value = 1.5;
+    f.frequency.setValueAtTime(3000, t);
+    f.frequency.exponentialRampToValueAtTime(700, t + 0.25); // Schnur zischt durch die Luft
+    rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.28, filter: f, lautstaerke: 0.3, anschlag: 0.02 });
+    ton(ctx, ausgang, t + 0.34, { typ: 'sine', von: 420, bis: 180, dauer: 0.16, lautstaerke: 0.35 }); // Plopp
+    rauschStoss(ctx, ausgang, rauschen, t + 0.34, { dauer: 0.12, typ: 'lowpass', frequenz: 1200, lautstaerke: 0.3 });
+    return 0.6;
+  },
+  angel_biss: ({ ctx, ausgang, t }) => {
+    for (let i = 0; i < 2; i++) ton(ctx, ausgang, t + i * 0.14, { typ: 'sine', von: 700, bis: 330, dauer: 0.11, lautstaerke: 0.35 }); // Blub Blub
+    return 0.4;
+  },
+  gefangen: ({ ctx, ausgang, t, rauschen }) => {
+    rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.5, typ: 'bandpass', frequenz: 1800, lautstaerke: 0.5, anschlag: 0.02 }); // Platsch
+    [660, 880, 1100].forEach((f, i) => ton(ctx, ausgang, t + 0.15 + i * 0.08, { typ: 'triangle', von: f, bis: f, dauer: 0.16, lautstaerke: 0.18 }));
+    return 0.8;
+  },
+  fahrzeug_schaden: ({ ctx, ausgang, t, rauschen }) => {
+    ton(ctx, ausgang, t, { typ: 'square', von: 220, bis: 110, dauer: 0.12, lautstaerke: 0.18, filter: 1400 });
+    rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.1, typ: 'bandpass', frequenz: 1600, lautstaerke: 0.6, anschlag: 0.002 });
+    return 0.2;
+  },
+  fahrzeug_kaputt: ({ ctx, ausgang, t, rauschen }) => {
+    ton(ctx, ausgang, t, { typ: 'sine', von: 90, bis: 28, dauer: 0.9, lautstaerke: 1.0, anschlag: 0.003 });
+    rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.9, typ: 'lowpass', frequenz: 1100, lautstaerke: 0.9, anschlag: 0.003 });
+    rauschStoss(ctx, ausgang, rauschen, t + 0.05, { dauer: 0.4, typ: 'highpass', frequenz: 2500, lautstaerke: 0.4, anschlag: 0.002 });
+    return 1.1;
+  },
+  beute: ({ ctx, ausgang, t }) => {
+    [392, 523, 659, 784].forEach((f, i) => ton(ctx, ausgang, t + i * 0.07, { typ: 'square', von: f, bis: f, dauer: 0.12, lautstaerke: 0.1, filter: 2400 }));
+    return 0.5;
   },
   // Fahrzeuge
   autotuer: ({ ctx, ausgang, t, rauschen }) => {

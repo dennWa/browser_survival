@@ -4,6 +4,7 @@ import { GEGENSTAENDE } from '../konfiguration/gegenstaende.js';
 import { erzeugeZombie, waehleZombieVariante } from '../entitaeten/zombie.js';
 import { fuegeZumInventarHinzu } from './inventarSystem.js';
 import { toeten } from './kampfSystem.js';
+import { setzeWetter } from './wetterSystem.js';
 
 /**
  * Admin-Befehle (Gottmodus & Co.). Läuft nur für Spieler mit `admin = true` –
@@ -55,6 +56,12 @@ export function fuehreAdminBefehlAus(spielWelt, spieler, befehl) {
       const { tagSekunden, nachtSekunden } = spielWelt.tageszeitDauer();
       spielWelt.zeit = (spielWelt.istNacht ? tagSekunden + nachtSekunden : tagSekunden) - 3;
       spielWelt.melde(spieler.id, spielWelt.istNacht ? 'Gleich wird es hell …' : 'Gleich wird es dunkel …');
+      break;
+    }
+    case ADMIN_BEFEHLE.WETTER: {
+      const naechstes = { klar: 'regen', regen: 'nebel', nebel: 'klar' }[spielWelt.wetter.art] ?? 'klar';
+      setzeWetter(spielWelt, naechstes, 120);
+      spielWelt.melde(spieler.id, `Wetter: ${naechstes}`);
       break;
     }
     case ADMIN_BEFEHLE.ZOMBIES_TOETEN: {

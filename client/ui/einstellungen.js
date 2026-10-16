@@ -10,6 +10,7 @@ import { GRAFIK_PROFILE } from '../darstellung/renderer.js';
 export class EinstellungenFenster {
   #sound = null;
   #renderer = () => null;
+  #minikarteWechseln = null;
 
   constructor(dokument) {
     this.dokument = dokument;
@@ -19,6 +20,8 @@ export class EinstellungenFenster {
     this.grafikInfo = dokument.getElementById('einstellungen-grafik-info');
     dokument.getElementById('einstellungen-schliessen').addEventListener('click', () => this.zeige(false));
     dokument.getElementById('hud-einstellungen').addEventListener('click', () => this.zeige());
+    this.minikarteKnopf = dokument.getElementById('einst-minikarte');
+    this.minikarteKnopf.addEventListener('click', () => this.#minikarteWechseln?.());
   }
 
   /** @param sound Sound-Objekt · @param renderer Funktion, die den Renderer (oder null) liefert */
@@ -27,6 +30,16 @@ export class EinstellungenFenster {
     this.#renderer = renderer;
     this.#baueRegler();
     this.#baueGrafik();
+  }
+
+  /** Minikarte ein-/ausblenden: wechsle() schaltet um (Hud), zeigeMinikarte() aktualisiert die Beschriftung. */
+  beiMinikarte(wechsle) {
+    this.#minikarteWechseln = wechsle;
+  }
+
+  zeigeMinikarte(an) {
+    this.minikarteKnopf.textContent = an ? '🧭 Minikarte an' : '🧭 Minikarte aus';
+    this.minikarteKnopf.classList.toggle('aus', !an);
   }
 
   get offen() {
