@@ -23,6 +23,7 @@ export class Hud {
   #assets = null;
   #istTouch = false;
   #slots = [];
+  #letztesLevel = null;
   #letzterHinweis = null;
   #letzterTuerHinweis = null;
   #letzteUhr = '';
@@ -45,6 +46,10 @@ export class Hud {
       vollbild: el('hud-vollbild'),
       ton: el('hud-ton'),
       leben: el('wert-leben'),
+      level: el('wert-level'),
+      levelZahl: el('level-zahl'),
+      levelXp: el('level-xp'),
+      schlafblende: el('schlafblende'),
       hunger: el('wert-hunger'),
       durst: el('wert-durst'),
       ausdauer: el('wert-ausdauer'),
@@ -148,9 +153,11 @@ export class Hud {
     this.#letzterHinweis = null;
     this.#letzterTuerHinweis = null;
     this.#letzteUhr = '';
+    this.#letztesLevel = null;
   }
 
   verbergen() {
+    this.el.schlafblende.classList.remove('an');
     this.el.hud.hidden = true;
     this.el.tod.hidden = true;
     this.el.adminPanel.hidden = true;
@@ -205,6 +212,7 @@ export class Hud {
   /** Private Spielerdaten vom Server (bei jeder Änderung). */
   setzeSpielerDaten(daten, itemDefinitionen) {
     setzeBalken(this.el.leben, daten.leben / daten.maxLeben);
+    this.#zeigeLevel(daten);
     setzeBalken(this.el.hunger, daten.hunger / 100);
     setzeBalken(this.el.durst, daten.durst / 100);
 
@@ -370,14 +378,34 @@ export class Hud {
     this.werkbank.zeige(rezepte, spielerDaten, itemDefinitionen);
   }
 
+  /** Level-Plakette + XP-Balken; beim Aufstieg pulsiert die Plakette kurz. */
+  #zeigeLevel(daten) {
+    if (!Number.isInteger(daten.level)) return;
+    const el = this.el;
+    if (this.#letztesLevel !== null && daten.level > this.#letztesLevel) {
+      el.level.classList.remove('aufgestiegen');
+      void el.level.offsetWidth; // Animation neu starten
+      el.level.classList.add('aufgestiegen');
+    }
+    this.#letztesLevel = daten.level;
+    el.levelZahl.textContent = daten.level;
+    // nicht setzeBalken(): wenig XP ist kein "kritischer" Wert, soll also nicht blinken
+    el.level.querySelector('.fuellung').style.width = `${Math.min(100, (daten.xp / Math.max(1, daten.xpNaechstes)) * 100)}%`;
+    el.levelXp.textContent = `${daten.xp}/${daten.xpNaechstes}`;
+    el.level.title = `Level ${daten.level} – ${daten.xp} von ${daten.xpNaechstes} XP bis Level ${daten.level + 1} (10 XP pro Zombie, beim Tod ist alles weg)`;
+  }
+
   /** Fortschrittsbalken für Abbauen/Schlafen. */
   #zeigeArbeit(arbeit) {
-    const schluessel = arbeit ? `${arbeit.art}${arbeit.fortschritt}` : '';
+    this.el.schlafblende.classList.toggle('an', arbeit?.art === 'schlafen');
+    const schluessel = arbeit ? `${arbeit.art}${arbeit.fortschritt}${arbeit.wartet}` : '';
     if (schluessel === this.#letzteArbeit) return;
     this.#letzteArbeit = schluessel;
     this.el.arbeit.hidden = !arbeit;
     if (!arbeit) return;
-    const text = { holz: '🪓 Baum fällen …', stein: '⛏ Stein abbauen …', schlafen: '💤 Schlafen … (bewegen = aufwachen)' }[arbeit.art] ?? '…';
+    const text = arbeit.wartet
+      ? '💤 Warte, bis alle schlafen … (bewegen = aufstehen)'
+      : ({ holz: '🪓 Baum fällen …', stein: '⛏ Stein abbauen …', schlafen: '💤 Schlafen … (bewegen = aufwachen)' }[arbeit.art] ?? '…');
     this.el.arbeitText.textContent = text;
     this.el.arbeit.querySelector('.fuellung').style.width = `${Math.round(arbeit.fortschritt * 100)}%`;
   }

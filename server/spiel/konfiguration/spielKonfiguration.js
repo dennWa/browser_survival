@@ -95,10 +95,24 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     holz: { menge: 2, dauer: 5, nachwachsen: 300 }, // menge pro Baum, dauer in Sekunden, nachwachsen in Sekunden
     stein: { menge: 2, dauer: 5, nachwachsen: 240 },
   },
-  /** Schlafen im Bett: heilt, solange man liegen bleibt (bricht ab bei Bewegung oder Schaden) */
+  /**
+   * Schlafen im Bett (in jedem Bett, jederzeit): dauert `dauer` echte Sekunden, heilt, kostet etwas Hunger/Durst
+   * und spult die Uhr um `stunden` Spielstunden vor – im Mehrspieler nur, wenn ALLE lebenden Spieler schlafen.
+   * Bricht ab bei Bewegung oder Schaden.
+   */
   schlafen: {
-    heilungProSekunde: 6,
+    dauer: 6,
+    heilung: 60,
+    stunden: 6,
+    hungerKosten: 8,
+    durstKosten: 10,
     zombieAbstand: 300, // so nah darf beim Hinlegen kein jagender Zombie sein
+  },
+  /** Level: XP pro Zombie; für Level 2 braucht man `ersteStufe` XP, jedes weitere Level `zuwachs` mehr. Tod = alles weg. */
+  level: {
+    xpProZombie: 10,
+    ersteStufe: 50,
+    zuwachs: 20,
   },
 });
 

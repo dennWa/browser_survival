@@ -167,7 +167,7 @@ export class SpielServer {
   #sendePrivateDaten(sitzung) {
     const spieler = this.spielWelt.holen(sitzung.spielerId);
     if (!spieler) return;
-    const text = kodiere({ typ: NACHRICHT.SPIELER_DATEN, ...spielerDatenPrivat(spieler) });
+    const text = kodiere({ typ: NACHRICHT.SPIELER_DATEN, ...spielerDatenPrivat(spieler, this.konfiguration) });
     if (text === sitzung.letzteSpielerDaten) return;
     sitzung.letzteSpielerDaten = text;
     sitzung.kanal.senden(text);
@@ -269,7 +269,7 @@ export class SpielServer {
       start: { x: spieler.x, y: spieler.y },
       gegenstaende: this.spielWelt.gegenstaendeListe(),
       itemDefinitionen: GEGENSTAENDE,
-      spielerDaten: spielerDatenPrivat(spieler),
+      spielerDaten: spielerDatenPrivat(spieler, this.konfiguration),
       tueren: this.spielWelt.welt.offeneTueren(),
       abgebaut: [...this.spielWelt.welt.abgebaut],
       rezepte: REZEPTE,

@@ -26,7 +26,12 @@ export const ENTWICKLER_FELDER = [
   { pfad: 'spieler.durstProMinute', name: 'Durst pro Minute', gruppe: 'Spieler', min: 0, max: 50, schritt: 0.5 },
   { pfad: 'spieler.regenerationProSekunde', name: 'Heilung (satt & getränkt)', gruppe: 'Spieler', min: 0, max: 10, schritt: 0.05, einheit: '/s' },
   { pfad: 'spieler.respawnZeit', name: 'Wiederbelebung nach', gruppe: 'Spieler', min: 0, max: 60, schritt: 1, einheit: 's' },
-  { pfad: 'schlafen.heilungProSekunde', name: 'Heilung beim Schlafen', gruppe: 'Spieler', min: 0, max: 50, schritt: 1, einheit: '/s' },
+  { pfad: 'schlafen.heilung', name: 'Heilung pro Schlaf', gruppe: 'Spieler', min: 0, max: 200, schritt: 5, einheit: 'LP' },
+  { pfad: 'schlafen.dauer', name: 'Schlafdauer', gruppe: 'Spieler', min: 1, max: 60, schritt: 1, einheit: 's' },
+  { pfad: 'schlafen.stunden', name: 'Schlaf spult vor', gruppe: 'Welt', min: 0, max: 23, schritt: 1, einheit: 'h' },
+  { pfad: 'level.xpProZombie', name: 'XP pro Zombie', gruppe: 'Spieler', min: 0, max: 500, schritt: 1, einheit: 'XP' },
+  { pfad: 'level.ersteStufe', name: 'XP für Level 2', gruppe: 'Spieler', min: 1, max: 5000, schritt: 5, einheit: 'XP' },
+  { pfad: 'level.zuwachs', name: 'XP mehr pro Level', gruppe: 'Spieler', min: 0, max: 5000, schritt: 5, einheit: 'XP' },
 
   // --- Zombies ---
   { pfad: 'zombie.leben', name: 'Leben (normal)', gruppe: 'Zombies', min: 1, max: 1000, schritt: 5 },

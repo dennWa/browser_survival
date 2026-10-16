@@ -1,5 +1,6 @@
 import { INVENTAR_PLAETZE } from '../../../gemeinsam/konstanten.js';
 import { STANDARD_AUSRUESTUNG } from '../konfiguration/gegenstaende.js';
+import { xpFuerNaechstesLevel } from '../systeme/levelSystem.js';
 
 /**
  * Spieler-Entität ("Männeken").
@@ -34,6 +35,9 @@ export function erzeugeSpieler({ id, benutzername, x, y, konfiguration, admin = 
     unsichtbar: false,
     /** Laufende Arbeit (Abbauen, Schlafen) – siehe systeme/arbeitSystem.js; öffentlich ist nur die Art */
     arbeit: null,
+    /** Level (öffentlich, steht in der Spielerliste) und XP im aktuellen Level – siehe systeme/levelSystem.js */
+    level: 1,
+    xp: 0,
     // [privat]
     admin, // darf Admin-Befehle benutzen (kommt von der Authentifizierung)
     hunger: k.startHunger, // 100 = satt, 0 = verhungert
@@ -80,13 +84,17 @@ export function spielerZuNetzwerk(s) {
     unsichtbar: s.unsichtbar,
     arbeit: s.arbeit?.art ?? null, // 'holz' | 'stein' | 'schlafen' → Animation/Werkzeug
     arbeitOrt: s.arbeit?.ort ?? null, // Bett beim Schlafen
+    level: s.level,
     seq: s.letzteVerarbeiteteSeq,
   };
 }
 
 /** Private Daten nur für den Spieler selbst (Inventar, Hunger, Durst …). */
-export function spielerDatenPrivat(s) {
+export function spielerDatenPrivat(s, konfiguration) {
   return {
+    level: s.level,
+    xp: s.xp,
+    xpNaechstes: xpFuerNaechstesLevel(s.level, konfiguration.level),
     leben: Math.ceil(s.leben),
     maxLeben: s.maxLeben,
     hunger: Math.ceil(s.hunger),
@@ -98,6 +106,8 @@ export function spielerDatenPrivat(s) {
     respawnIn: Math.ceil(s.respawnRest),
     admin: s.admin,
     // Fortschritt in 5-%-Schritten (sonst würde jeder Tick neue Daten schicken)
-    arbeit: s.arbeit ? { art: s.arbeit.art, fortschritt: Math.round((1 - s.arbeit.rest / s.arbeit.dauer) * 20) / 20 } : null,
+    arbeit: s.arbeit
+      ? { art: s.arbeit.art, fortschritt: Math.round((1 - s.arbeit.rest / s.arbeit.dauer) * 20) / 20, wartet: s.arbeit.fertig === true }
+      : null,
   };
 }

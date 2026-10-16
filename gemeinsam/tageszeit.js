@@ -42,3 +42,22 @@ export function tageszeit(zeit, { tagSekunden, nachtSekunden }) {
     anteil,
   };
 }
+
+/** Spielstunden seit 06:00 (fortlaufend, über Tage hinweg) → Sekunden; Umkehrung zu tageszeit(). */
+function sekundenAusStunden(stunden, { tagSekunden, nachtSekunden }) {
+  const zyklen = Math.floor(stunden / 24);
+  const rest = stunden - zyklen * 24;
+  const imZyklus = rest <= TAG_STUNDEN ? (rest / TAG_STUNDEN) * tagSekunden : tagSekunden + ((rest - TAG_STUNDEN) / NACHT_STUNDEN) * nachtSekunden;
+  return zyklen * (tagSekunden + nachtSekunden) + imZyklus;
+}
+
+/**
+ * Wie viele Sekunden muss die Uhr ab `zeit` vorlaufen, damit `stunden` Spielstunden vergehen?
+ * (Tag und Nacht laufen unterschiedlich schnell – darum nicht einfach Dreisatz.)
+ */
+export function sekundenFuerStunden(zeit, stunden, dauer) {
+  const zyklus = dauer.tagSekunden + dauer.nachtSekunden;
+  const t = ((zeit % zyklus) + zyklus) % zyklus;
+  const seitSechs = t < dauer.tagSekunden ? (t / dauer.tagSekunden) * TAG_STUNDEN : TAG_STUNDEN + ((t - dauer.tagSekunden) / dauer.nachtSekunden) * NACHT_STUNDEN;
+  return sekundenAusStunden(seitSechs + stunden, dauer) - sekundenAusStunden(seitSechs, dauer);
+}

@@ -8,12 +8,13 @@ import { fuegeSchadenZu } from '../server/spiel/systeme/kampfSystem.js';
 import { strahlGegenWaende, sichtlinieFrei } from '../gemeinsam/physik/strahl.js';
 import { erstelleKonfiguration } from '../server/spiel/konfiguration/spielKonfiguration.js';
 import { SpielWelt } from '../server/spiel/spielWelt.js';
+import { sekundenFuerStunden, tageszeit } from '../gemeinsam/tageszeit.js';
+import { xpFuerNaechstesLevel } from '../server/spiel/systeme/levelSystem.js';
 import { erzeugeGegenstand } from '../server/spiel/entitaeten/gegenstand.js';
 import { erzeugeZombie, waehleZombieVariante } from '../server/spiel/entitaeten/zombie.js';
 import { findePfad } from '../server/spiel/systeme/pfadfindung.js';
 import { wendeEingabeAn } from '../gemeinsam/physik/bewegung.js';
 import { Zufall } from '../server/spiel/zufall.js';
-import { tageszeit } from '../gemeinsam/tageszeit.js';
 
 // Kachel = 32 px. Wand in Spalte 5 (Zeilen 3–5) trennt links/rechts teilweise.
 const TESTKARTE = {
@@ -717,9 +718,66 @@ test('Schlafen im Bett heilt, Schaden weckt auf', () => {
   welt.aktualisiere(TICK_DAUER_S);
   assert.equal(spieler.arbeit?.art, 'schlafen');
   ticks(welt, Math.ceil(2 / TICK_DAUER_S));
-  assert.ok(spieler.leben > 40 + konfiguration.schlafen.heilungProSekunde * 1.5);
+  const k = konfiguration.schlafen;
+  assert.ok(spieler.leben > 40 + (k.heilung / k.dauer) * 1.5);
   fuegeSchadenZu(welt, spieler, 5, null);
   assert.equal(spieler.arbeit, null, 'aufgewacht');
+});
+
+test('Schlafen geht auch unverletzt und spult 6 Stunden vor', () => {
+  const { welt, spieler, konfiguration } = hofWelt();
+  platziere(spieler, 9, 3);
+  welt.zeit = 0; // 06:00
+  const hungerVorher = spieler.hunger;
+  spieler.aktionsPuffer.push({ art: AKTIONEN.SCHLAFEN, slot: null });
+  ticks(welt, Math.ceil((konfiguration.schlafen.dauer + 0.5) / TICK_DAUER_S));
+  assert.equal(spieler.arbeit, null, 'ausgeschlafen');
+  const { stunde } = tageszeit(welt.zeit, welt.tageszeitDauer());
+  assert.equal(stunde, 12, `nach 6 h Schlaf ab 06:00 sollte es ~12 Uhr sein, ist ${stunde}`);
+  assert.ok(spieler.hunger < hungerVorher - konfiguration.schlafen.hungerKosten + 1);
+});
+
+test('Mehrspieler: Zeit springt nur, wenn alle schlafen', () => {
+  const { welt, spieler, konfiguration } = hofWelt();
+  const zweiter = welt.spielerBetrittWelt('Wachbleiber');
+  platziere(spieler, 9, 3);
+  platziere(zweiter, 3, 3);
+  welt.zeit = 0;
+  spieler.aktionsPuffer.push({ art: AKTIONEN.SCHLAFEN, slot: null });
+  ticks(welt, Math.ceil((konfiguration.schlafen.dauer + 0.5) / TICK_DAUER_S));
+  assert.equal(spieler.arbeit, null);
+  assert.ok(tageszeit(welt.zeit, welt.tageszeitDauer()).stunde < 8, 'Zeit ist nicht gesprungen');
+});
+
+test('Uhr: sekundenFuerStunden rechnet Tag und Nacht richtig um', () => {
+  const dauer = { tagSekunden: 600, nachtSekunden: 300 };
+  assert.equal(sekundenFuerStunden(0, 15, dauer), 600); // 06:00 → 21:00 = ganzer Tag
+  assert.equal(sekundenFuerStunden(600, 9, dauer), 300); // 21:00 → 06:00 = ganze Nacht
+  assert.equal(sekundenFuerStunden(0, 24, dauer), 900);
+  const t = 560; // 20:00
+  assert.equal(tageszeit(t, dauer).stunde, 20);
+  assert.equal(tageszeit(t + sekundenFuerStunden(t, 6, dauer), dauer).stunde, 2); // über 21 Uhr hinweg → 02:00
+});
+
+test('Level: 10 XP pro Zombie, 50/70/90 … pro Stufe, Tod setzt zurück', () => {
+  const { welt, spieler, konfiguration } = neueWelt();
+  const k = konfiguration.level;
+  assert.equal(spieler.level, 1);
+  assert.equal(xpFuerNaechstesLevel(1, k), 50);
+  assert.equal(xpFuerNaechstesLevel(2, k), 70);
+  assert.equal(xpFuerNaechstesLevel(3, k), 90);
+  for (let i = 0; i < 5; i++) {
+    const z = zombieBei(welt, 3, 3);
+    fuegeSchadenZu(welt, z, 9999, spieler);
+  }
+  assert.equal(spieler.level, 2, '5 Zombies = 50 XP = Level 2');
+  assert.equal(spieler.xp, 0);
+  const z = zombieBei(welt, 3, 3);
+  fuegeSchadenZu(welt, z, 9999, null); // ohne Spieler als Quelle → keine XP
+  assert.equal(spieler.xp, 0);
+  fuegeSchadenZu(welt, spieler, 9999, null);
+  assert.equal(spieler.level, 1);
+  assert.equal(spieler.xp, 0);
 });
 
 test('Bretter verstärken eine geschlossene Tür', () => {

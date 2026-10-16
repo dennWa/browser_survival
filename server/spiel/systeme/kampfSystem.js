@@ -3,6 +3,7 @@ import { strahlGegenWaende, strahlTrifftKreis } from '../../../gemeinsam/physik/
 import { bewegeKoerper } from '../../../gemeinsam/physik/bewegung.js';
 import { NAHKAMPF_KEGEL, STANDARD_AUSRUESTUNG } from '../konfiguration/gegenstaende.js';
 import { aktuelleWaffe, legeAufBoden, starteNachladen, zaehleMunition } from './inventarSystem.js';
+import { gibXp, setzeLevelZurueck } from './levelSystem.js';
 import { lasseZombieLootFallen } from './lootSystem.js';
 
 /**
@@ -108,12 +109,14 @@ export function fuegeSchadenZu(spielWelt, ziel, menge, quelle, winkel = 0) {
       ziel.letztesZielY = quelle.y;
     }
   }
-  if (ziel.leben <= 0) toeten(spielWelt, ziel);
+  if (ziel.leben <= 0) toeten(spielWelt, ziel, quelle);
 }
 
-export function toeten(spielWelt, ziel) {
+/** @param quelle Wer getötet hat (Spieler bekommt XP) – null z. B. bei Admin-Befehlen */
+export function toeten(spielWelt, ziel, quelle = null) {
   spielWelt.ereignis({ typ: 'tod', id: ziel.id, x: ziel.x, y: ziel.y, ziel: ziel.typ });
   if (ziel.typ === 'zombie') {
+    if (quelle?.typ === 'spieler') gibXp(spielWelt, quelle, spielWelt.konfiguration.level.xpProZombie);
     spielWelt.entfernen(ziel.id);
     spielWelt.planeZombieRespawn(ziel.spawnIndex);
     lasseZombieLootFallen(spielWelt, ziel.x, ziel.y);
@@ -137,7 +140,9 @@ export function toeten(spielWelt, ziel) {
     aktion: null,
     respawnRest: spielWelt.konfiguration.spieler.respawnZeit,
   });
-  spielWelt.melde(ziel.id, 'Du bist gestorben');
+  const verlorenesLevel = ziel.level;
+  setzeLevelZurueck(ziel);
+  spielWelt.melde(ziel.id, verlorenesLevel > 1 ? `Du bist gestorben – Level ${verlorenesLevel} ist weg, zurück auf Level 1` : 'Du bist gestorben');
 }
 
 /** Lärm (Schüsse, Kampf) lockt Zombies im Umkreis an – auch ohne Sichtkontakt. */

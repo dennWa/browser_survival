@@ -205,6 +205,10 @@ const REZEPTE = {
     for (let i = 0; i < 3; i++) ton(ctx, ausgang, t + i * 0.22, { typ: 'sine', von: 320, bis: 190, dauer: 0.12, lautstaerke: 0.3 });
     return 0.75;
   },
+  level_auf: ({ ctx, ausgang, t }) => {
+    [523, 659, 784, 1047].forEach((f, i) => ton(ctx, ausgang, t + i * 0.09, { typ: 'triangle', von: f, bis: f, dauer: 0.22, lautstaerke: 0.22 }));
+    return 0.6;
+  },
   heilen: ({ ctx, ausgang, t }) => {
     ton(ctx, ausgang, t, { typ: 'sine', von: 440, bis: 660, dauer: 0.35, lautstaerke: 0.2 });
     return 0.4;

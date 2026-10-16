@@ -144,7 +144,7 @@ export class ClientSpiel {
     if (!letzter) return [];
     return [...letzter.entitaeten.values()]
       .filter((e) => e.typ === 'spieler')
-      .map((e) => (e.id === this.eigeneId ? `${e.name} (du)` : e.name))
+      .map((e) => `${e.name}${e.level ? ` · Lv ${e.level}` : ''}${e.id === this.eigeneId ? ' (du)' : ''}`)
       .sort((a, b) => a.localeCompare(b));
   }
 
@@ -179,8 +179,7 @@ export class ClientSpiel {
     const ressource = this.welt.naechsteRessource(x, y, ABBAU_REICHWEITE);
     if (ressource) return { art: 'abbauen', text: RESSOURCEN_OBJEKTE[ressource.typ].aktion, symbol: ressource.art === 'holz' ? '🪓' : '⛏' };
     if (this.#naheWerkbank()) return { art: 'werkbank', text: 'Werkbank benutzen', symbol: '🔨' };
-    const verletzt = this.spielerDaten && this.spielerDaten.leben < this.spielerDaten.maxLeben;
-    if (verletzt && this.welt.naechstesObjekt(x, y, BETT_REICHWEITE, (o) => o.typ.startsWith('bett'))) return { art: 'schlafen', text: 'Schlafen (heilt)', symbol: '🛏' };
+    if (this.welt.naechstesObjekt(x, y, BETT_REICHWEITE, (o) => o.typ.startsWith('bett'))) return { art: 'schlafen', text: 'Schlafen (heilt, 6 Std. vorspulen)', symbol: '🛏' };
     return null;
   }
 
@@ -410,6 +409,9 @@ export class ClientSpiel {
       case 'hergestellt':
       case 'tuerVerstaerkt':
         if (e.typ === 'tuerVerstaerkt' || e.von === this.eigeneId) this.sound.spiele('werkeln', { x: e.x ?? this.lokal.x, y: e.y ?? this.lokal.y });
+        break;
+      case 'levelAuf':
+        if (e.id === this.eigeneId) this.sound.spiele('level_auf');
         break;
       case 'tuerSchlag':
         this.sound.spiele('tuer_schlag', { x: e.x, y: e.y, tonhoehe: 0.85 + Math.random() * 0.3 });

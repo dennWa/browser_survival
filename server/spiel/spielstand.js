@@ -21,6 +21,8 @@ export function erstelleSpielstand(spieler, kartenId) {
     durst: spieler.durst,
     inventar: spieler.inventar.map((e) => (e ? { ...e } : null)),
     ausgeruestet: spieler.ausgeruestet,
+    level: spieler.level,
+    xp: spieler.xp,
     gespeichert: new Date().toISOString(),
   };
 }
@@ -38,6 +40,8 @@ export function wendeSpielstandAn(spieler, stand, spielWelt) {
   spieler.leben = begrenze(stand.leben, 1, spieler.maxLeben);
   spieler.hunger = begrenze(zahl(stand.hunger) ?? spieler.hunger, 0, 100);
   spieler.durst = begrenze(zahl(stand.durst) ?? spieler.durst, 0, 100);
+  if (Number.isInteger(stand.level) && stand.level >= 1) spieler.level = Math.min(stand.level, 999);
+  if (Number.isFinite(stand.xp) && stand.xp >= 0) spieler.xp = Math.floor(stand.xp);
 
   // Position nur, wenn gleiche Karte und begehbar (Karte könnte sich geändert haben)
   const g = spielWelt.welt.kachelGroesse;

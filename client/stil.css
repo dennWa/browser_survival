@@ -33,13 +33,17 @@ html, body {
   display: block;
 }
 
-#vignette, #schadensblitz {
+#vignette, #schadensblitz, #schlafblende {
   position: fixed;
   inset: 0;
   pointer-events: none;
 }
 
 #vignette { background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.5) 100%); }
+
+/* Schlafen: Bild wird langsam schwarz (Augen zu), beim Aufwachen wieder hell */
+#schlafblende { background: #05070c; opacity: 0; transition: opacity 1.2s ease; }
+#schlafblende.an { opacity: 0.88; }
 
 #schadensblitz {
   opacity: 0;
@@ -313,6 +317,11 @@ button {
 .balken { width: 140px; height: 9px; overflow: hidden; background: rgba(255, 255, 255, 0.12); border-radius: 5px; }
 .fuellung { height: 100%; width: 100%; border-radius: 5px; transition: width 0.25s; }
 #wert-leben .fuellung { background: #d64541; }
+#wert-level .fuellung { background: linear-gradient(90deg, #f2c94c, #f2994a); }
+#level-zahl { width: 18px; height: 18px; line-height: 18px; border-radius: 50%; background: #f2c94c; color: #2a1f05; font-weight: 700; font-size: 0.7rem; }
+#level-xp { font-size: 0.68rem; opacity: 0.75; min-width: 3.2em; }
+#wert-level.aufgestiegen #level-zahl { animation: levelPuls 0.5s 3 alternate; }
+@keyframes levelPuls { to { transform: scale(1.5); box-shadow: 0 0 12px #f2c94c; } }
 #wert-hunger .fuellung { background: #e0902b; }
 #wert-durst .fuellung { background: #3a9be0; }
 #wert-ausdauer .fuellung { background: #c9d94a; transition: width 0.08s; }
