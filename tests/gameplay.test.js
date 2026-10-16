@@ -731,3 +731,15 @@ test('Bretter verstärken eine geschlossene Tür', () => {
   assert.equal(welt.tuerLeben.get(0), welt.konfiguration.welt.tuerLeben + welt.konfiguration.welt.tuerVerstaerkung);
   assert.equal(spieler.inventar[0].menge, 1);
 });
+
+test('Zwei Zombies kommen nacheinander durch eine schmale Tür (kein Verkeilen)', () => {
+  const { welt, spieler } = tuerWelt();
+  welt.welt.setzeTuer(0, true);
+  platziere(spieler, 2, 2);
+  spieler.gottmodus = true;
+  const a = zombieBei(welt, 8, 2);
+  const b = zombieBei(welt, 8, 1);
+  for (const z of [a, b]) Object.assign(z, { zielId: spieler.id, zustand: 'verfolgend', letztesZielX: spieler.x, letztesZielY: spieler.y });
+  ticks(welt, Math.ceil(12 / TICK_DAUER_S));
+  assert.ok(a.x < 5 * 32 && b.x < 5 * 32, `beide durch die Tür (a=${Math.round(a.x)}, b=${Math.round(b.x)})`);
+});

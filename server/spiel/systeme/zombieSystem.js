@@ -26,6 +26,7 @@ const DREHGESCHWINDIGKEIT = 8; // je höher, desto schneller drehen sie sich zum
 const TUER_KOSTEN = 8; // A*: eine geschlossene Tür "kostet" so viele Schritte Umweg
 const TUER_SCHLAG_ABSTAND = 10; // px zwischen Zombie-Rand und Tür, ab dem er zuschlägt
 const HORDE_WITTERUNG = 1100; // px
+const STECK_ZEIT = 0.7; // Sekunden fast ohne Fortschritt → ausweichen
 const PFAD_BUDGET = 4; // höchstens so viele A*-Suchen pro Tick (große Karte → teuer), der Rest wartet einen Tick
 const HORDE_INTERVALL = 8; // Sekunden zwischen zwei "Witterungen"
 const WEGPUNKT_ERREICHT = 8;
@@ -70,7 +71,12 @@ export function aktualisiereZombies(spielWelt, dt) {
     } else {
       z.zustand = 'verfolgend';
     }
-    if (abstand > kontakt) bewegeZuZiel(spielWelt, z, ziel, sicht, dt, k);
+    if (abstand > kontakt) {
+      const vorherX = z.x;
+      const vorherY = z.y;
+      bewegeZuZiel(spielWelt, z, ziel, sicht, dt, k);
+      pruefeObSteckt(spielWelt, z, Math.hypot(z.x - vorherX, z.y - vorherY), dt);
+    }
   }
 
   trenneZombies(spielWelt, zombies);
@@ -106,6 +112,13 @@ function waehleZiel(spielWelt, z, lebendeSpieler, k) {
 }
 
 function bewegeZuZiel(spielWelt, z, ziel, sicht, dt, k) {
+  // Gerade beim Ausweichen (siehe pruefeObSteckt)? Dann erst seitlich weg
+  if (z.ausweichen) {
+    z.ausweichen.rest -= dt;
+    const w = z.ausweichen.winkel;
+    if (z.ausweichen.rest <= 0) z.ausweichen = null;
+    else return gehe(spielWelt, z, { x: z.x + Math.cos(w) * 50, y: z.y + Math.sin(w) * 50 }, z.jagdGeschwindigkeit, dt);
+  }
   let punkt;
   if (sicht && wegFrei(spielWelt.welt, z.x, z.y, ziel.x, ziel.y, z.radius)) {
     punkt = ziel;
@@ -136,6 +149,23 @@ function bewegeZuZiel(spielWelt, z, ziel, sicht, dt, k) {
   }
   const tempo = z.jagdGeschwindigkeit * (spielWelt.istNacht ? k.nachtTempoFaktor : 1);
   gehe(spielWelt, z, punkt, tempo, dt);
+}
+
+/**
+ * Steck-Erkennung: Kommt ein jagender Zombie (z. B. zu zweit in einer Tür verkeilt) kaum voran, weicht er kurz
+ * seitlich aus und plant den Weg neu. Türschläge zählen nicht als "stecken".
+ */
+function pruefeObSteckt(spielWelt, z, gelaufen, dt) {
+  if (z.zustand === 'angreifend' || z.ausweichen) return;
+  const soll = z.jagdGeschwindigkeit * dt;
+  z.steckt = gelaufen < soll * 0.25 ? (z.steckt ?? 0) + dt : Math.max(0, (z.steckt ?? 0) - dt * 2);
+  if (z.steckt < STECK_ZEIT) return;
+  z.steckt = 0;
+  // Ein Stück zurück und schräg weg – macht dem Vordermann Platz
+  const seite = spielWelt.zufall.zahl() < 0.5 ? -1 : 1;
+  z.ausweichen = { winkel: z.blick + Math.PI + seite * (0.4 + spielWelt.zufall.zahl() * 0.6), rest: 0.4 };
+  z.pfad = null;
+  z.pfadTimer = 0;
 }
 
 /** Liegt der nächste Wegpunkt in einer geschlossenen Tür und steht der Zombie davor → zuschlagen statt laufen. */
@@ -221,9 +251,11 @@ function trenneZombies(spielWelt, zombies) {
       if (abstand >= mindestAbstand) continue;
       const nx = abstand > 0.01 ? dx / abstand : 1;
       const ny = abstand > 0.01 ? dy / abstand : 0;
-      const schub = (mindestAbstand - abstand) / 2;
-      bewegeKoerper(a, -nx * schub, -ny * schub, a.radius, spielWelt.welt);
-      bewegeKoerper(b, nx * schub, ny * schub, b.radius, spielWelt.welt);
+      // Vorfahrt: Der Ältere (kleinere ID) wird kaum geschoben, der andere weicht → kein Patt in engen Türen
+      const ueberlappung = mindestAbstand - abstand;
+      const [anteilA, anteilB] = a.id < b.id ? [0.15, 0.85] : [0.85, 0.15];
+      bewegeKoerper(a, -nx * ueberlappung * anteilA, -ny * ueberlappung * anteilA, a.radius, spielWelt.welt);
+      bewegeKoerper(b, nx * ueberlappung * anteilB, ny * ueberlappung * anteilB, b.radius, spielWelt.welt);
     }
   }
 }

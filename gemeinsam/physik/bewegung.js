@@ -64,9 +64,53 @@ export function aktualisiereAusdauer(koerper, willSprinten, p, dt) {
  * Kollisionsform: Quadrat mit halber Kantenlänge = radius (für Kacheln gut genug).
  */
 export function bewegeKoerper(koerper, dx, dy, radius, welt) {
-  if (dx !== 0) bewegeX(koerper, dx, radius, welt);
-  if (dy !== 0) bewegeY(koerper, dy, radius, welt);
+  if (dx !== 0) {
+    const vorher = koerper.x;
+    bewegeX(koerper, dx, radius, welt);
+    // Blockiert, aber nicht seitlich unterwegs → in eine nahe Öffnung (Tür) gleiten
+    if (dy === 0 && Math.abs(koerper.x - vorher) < Math.abs(dx) * 0.5) gleiteInOeffnung(koerper, Math.sign(dx), 0, Math.abs(dx), radius, welt);
+  }
+  if (dy !== 0) {
+    const vorher = koerper.y;
+    bewegeY(koerper, dy, radius, welt);
+    if (dx === 0 && Math.abs(koerper.y - vorher) < Math.abs(dy) * 0.5) gleiteInOeffnung(koerper, 0, Math.sign(dy), Math.abs(dy), radius, welt);
+  }
 }
+
+/**
+ * Ecken-Gleiten: Läuft man knapp neben einer Öffnung (z. B. Tür) gegen die Kante, schiebt es einen quer zur
+ * Laufrichtung in die Öffnung – man muss also nicht pixelgenau zielen. Gilt für Spieler und Zombies.
+ * Sucht in der Kachelspalte/-zeile direkt voraus eine freie Kachel, deren Mitte höchstens GLEIT_WEITE entfernt ist.
+ */
+function gleiteInOeffnung(k, richtungX, richtungY, tempo, r, welt) {
+  const g = welt.kachelGroesse;
+  const weite = g * GLEIT_ANTEIL;
+  if (richtungX !== 0) {
+    const tx = Math.floor((k.x + richtungX * (r + 1)) / g); // Spalte direkt voraus
+    const mitte = suchePassendeMitte(k.y, weite, g, (ty) => !welt.istBlockiert(tx, ty) && !welt.istBlockiert(Math.floor(k.x / g), ty));
+    if (mitte !== null) bewegeY(k, Math.sign(mitte - k.y) * Math.min(Math.abs(mitte - k.y), tempo), r, welt);
+  } else {
+    const ty = Math.floor((k.y + richtungY * (r + 1)) / g);
+    const mitte = suchePassendeMitte(k.x, weite, g, (tx) => !welt.istBlockiert(tx, ty) && !welt.istBlockiert(tx, Math.floor(k.y / g)));
+    if (mitte !== null) bewegeX(k, Math.sign(mitte - k.x) * Math.min(Math.abs(mitte - k.x), tempo), r, welt);
+  }
+}
+
+/** Nächste Kachelmitte (quer zur Laufrichtung) innerhalb `weite`, deren Kachel frei ist – oder null. */
+function suchePassendeMitte(position, weite, g, frei) {
+  const kachel = Math.floor(position / g);
+  let beste = null;
+  for (const t of [kachel, kachel - 1, kachel + 1]) {
+    const mitte = t * g + g / 2;
+    const abstand = Math.abs(mitte - position);
+    if (abstand > weite || abstand < 0.01 || !frei(t)) continue;
+    if (beste === null || abstand < Math.abs(beste - position)) beste = mitte;
+  }
+  return beste;
+}
+
+/** Wie weit (Anteil einer Kachel) man beim Ecken-Gleiten seitlich in eine Öffnung geschoben wird. */
+const GLEIT_ANTEIL = 0.6;
 
 function bewegeX(k, dx, r, welt) {
   const g = welt.kachelGroesse;
