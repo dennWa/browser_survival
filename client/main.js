@@ -13,6 +13,7 @@ import { Sound } from './audio/sound.js';
 import { ZonenMusik } from './audio/zonenMusik.js';
 import { lokalerServer } from './netzwerk/lokalerServer.js';
 import { NACHRICHT } from '../gemeinsam/protokoll.js';
+import { EgoModus } from './ego/egoModus.js'; // EGO-PROTOTYP (siehe EGO_PROTOTYP.md)
 
 /**
  * Einstiegspunkt des Clients. Verdrahtet nur die Bausteine – keine Spiellogik hier.
@@ -49,6 +50,7 @@ hud.einstellungen.verbinde({ sound, renderer: () => renderer });
 hud.einstellungen.verbindeHandy({ hud, touch: eingabe.touch });
 
 let aktuellesSpiel = null;
+new EgoModus({ eingabe, leinwand, holeRenderer: () => renderer, holeSpiel: () => aktuellesSpiel }); // EGO-PROTOTYP: Taste C
 let assets = null;
 
 eingabe.beiTaste('debug', () => hud.debugUmschalten());

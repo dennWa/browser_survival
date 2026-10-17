@@ -321,6 +321,7 @@ export class Renderer {
     this.blaetter?.aktualisiere(dt, fokus, jetzt, dunkel);
     this.#aktualisiereFahrzeuge(entitaeten, fokus);
     this.#aktualisiereFiguren(entitaeten, fokus, dt, jetzt);
+    this.egoHaken?.(this.kamera3d, fokus); // EGO-PROTOTYP (client/ego/, siehe EGO_PROTOTYP.md)
     this.#aktualisiereTiere(entitaeten, fokus, jetzt);
     this.#aktualisiereAngeln(entitaeten, fokus, jetzt);
     this.#aktualisiereTaschenlampen(entitaeten, fokus, dunkel);

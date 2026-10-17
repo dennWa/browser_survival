@@ -90,3 +90,6 @@ AKTIONEN: aufheben benutzen ablegen tauschen rucksackAblegen platzieren **bauen{
 
 ## 8 · Offene Baustellen / Ideen
 Zonen-Grundlage steht (2 Zonen, Waldweg groß mit See). Nächstes sinnvoll: Basisbau ausbauen (Räume/Türen/Verfall), mehr Tiere/Jagdwaffen, echte Musik in `client/musik`, mehr Zonen (Tiled), Zonen-Chat/-Liste, Fahrzeug durch Übergang (aktuell: aussteigen), Server-Sichtlinie (Nebel serverseitig), Delta-Kompression bei >30 Spielern, Charakter-Editor ausbauen (aussehen.js `aktiv:false`-Merkmale), Ideen-Liste im Manifest §6.
+
+## 9 · Experiment: Ego-Prototyp (entfernbar)
+`client/ego/egoModus.js` (Taste C, nur PC): Kamera im Auge via `renderer.egoHaken` (1 Zeile in `renderer.zeichne`), überschreibt `eingabe.richtung/blickWinkel` am Objekt (Pointer-Lock-Maus). Entfernen: siehe `EGO_PROTOTYP.md`. Basisbau/Touch/Zielring in Ego nicht angepasst.
