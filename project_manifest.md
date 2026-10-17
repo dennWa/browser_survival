@@ -746,6 +746,16 @@ Stationen (Lagerfeuer-Kochen, Schmelzofen) mit eigenem Menü, Haltbarkeit, Hand-
 
 ---
 
+## 8. Map-Editor (`editor/`, eigener Einstieg `editor/index.html`)
+
+> Getrennt vom Spiel: liest Spielcode (Kacheln, Registries, Kartenlader), schreibt nie Repo-Dateien. Anleitung: `editor/LIESMICH.md`, KI-Kurzfassung: `KI_INDEX.md` §10.
+
+| Phase | Stand |
+|---|---|
+| 0 Bestandsaufnahme | ✅ `editor/BESTANDSAUFNAHME.md` (alle Kacheln, Objekte, Bauwerke, Spawn-/Loot-/Wetterwerte) |
+
+---
+
 ## 7. Änderungsprotokoll
 
 | Version | Datum | Änderung |
