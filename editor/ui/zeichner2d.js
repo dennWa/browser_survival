@@ -29,6 +29,8 @@ export class Zeichner2D {
     this.zonenVorschau = null; // { x, y, b, h } beim Größe ändern
     this.nachbarn = []; // [{ karte, dx, dy }] Nachbarzonen relativ (Phase 7)
     this.innen = null; // Uint8Array, gesetzt von außen (Spiel-Berechnung)
+    /** Hervorhebungen über allem (KI-Diff, Prüf-Fehler): [{ rechteck, farbe, gestrichelt?, text? }] */
+    this.ueberlagerungen = [];
     this.#angefragt = false;
     zustand.bei('karte', (ops) => this.#aufOps(ops));
     zustand.bei('zone', () => {
@@ -190,6 +192,7 @@ export class Zeichner2D {
       this.#zeichneMarker(ctx, k);
       this.#zeichneUebergaenge(ctx, k);
       this.#zeichneAuswahlRechteck(ctx);
+      this.#zeichneUeberlagerungen(ctx);
       this.#zeichneVorschau(ctx);
       this.#zeichneZonenRand(ctx, k);
     }
@@ -446,6 +449,22 @@ export class Zeichner2D {
       ctx.lineWidth = 2;
       ctx.strokeRect(r.x + 1, r.y + 1, r.b - 2, r.h - 2);
       this.#text(ctx, `→ ${u.ziel || '?'} (${u.ankunft || '?'})`, r.x + r.b / 2, r.y + r.h / 2, '#cfe4ff');
+    }
+  }
+
+  #zeichneUeberlagerungen(ctx) {
+    for (const u of this.ueberlagerungen) {
+      const r = this.#rechteckBild(u.rechteck.x, u.rechteck.y, u.rechteck.b, u.rechteck.h);
+      if (!this.#sichtbar(r)) continue;
+      ctx.save();
+      ctx.fillStyle = `${u.farbe}55`;
+      ctx.fillRect(r.x, r.y, r.b, r.h);
+      if (u.gestrichelt) ctx.setLineDash([5, 3]);
+      ctx.strokeStyle = u.farbe;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(r.x + 1, r.y + 1, Math.max(2, r.b - 2), Math.max(2, r.h - 2));
+      ctx.restore();
+      if (u.text && this.zoom >= 10) this.#text(ctx, u.text, r.x + r.b / 2, r.y - 8, u.farbe, 11);
     }
   }
 

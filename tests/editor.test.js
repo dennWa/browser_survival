@@ -319,3 +319,95 @@ test('Zonen verbinden: Nachbarn erkennen, Übergänge auf Wegen vorschlagen (mit
   assert.equal(v2[0].a.rechteck.x, 9);
   assert.ok(v2[0].laenge <= 5);
 });
+
+test('Ausschnitt-Export: Bereich, ASCII mit Achsen, Objekte mit IDs, Prüfsumme nur für den Bereich', async () => {
+  const { ausschnitt, ausschnittText, bereichsPruefsumme, rasterMitAchsen } = await import('../editor/kern/ausschnitt.js');
+  const { karte } = ausDefinition(testZone());
+  const a = ausschnitt(karte, { x: 1, y: 1, b: 4, h: 4 }, { jetzt: 'x' });
+  assert.equal(a.format, 'browser-survival-ausschnitt');
+  assert.equal(a.formatVersion, 1);
+  assert.equal(a.bereich.text, 'x 1–4, y 1–4');
+  assert.deepEqual(a.raster, ['  1234', '1 ####', '2 #..#', '3 #.a#', '4 ##T#']);
+  assert.equal(a.objekte.length, 1);
+  assert.ok(Number.isInteger(a.objekte[0].id));
+  assert.deepEqual(a.marker, [{ x: 3, y: 3, art: 'loot', raum: 'a' }]);
+  assert.deepEqual(Object.keys(a.raeume), ['a']);
+  assert.match(ausschnittText(a), /## So antwortest du/);
+  // Achsen bei zweistelligen Koordinaten: Zehner- und Einerzeile
+  assert.deepEqual(rasterMitAchsen({ x0: 9, x1: 11, y0: 8, y1: 10 }, () => 'abc'), ['    11', '   901', ' 8 abc', ' 9 abc', '10 abc']);
+  const vorher = bereichsPruefsumme(karte, a.bereich);
+  karte.anwenden([{ s: 'kachel', i: karte.index(8, 7), neu: '=' }]);
+  assert.equal(bereichsPruefsumme(karte, a.bereich), vorher, 'Änderung außerhalb zählt nicht');
+  karte.anwenden([{ s: 'kachel', i: karte.index(2, 2), neu: '+' }]);
+  assert.notEqual(bereichsPruefsumme(karte, a.bereich), vorher);
+});
+
+test('KI-Import: Antwort lesen, prüfen (Bereich, Typen, Platzierung), Diff, erst danach anwenden', async () => {
+  const { leseKiAntwort, pruefeAenderungen } = await import('../editor/kern/kiImport.js');
+  const { ausschnitt } = await import('../editor/kern/ausschnitt.js');
+  const { karte } = ausDefinition(testZone());
+  const tischId = [...karte.s('objekte').keys()][0];
+  const a = ausschnitt(karte, { x: 0, y: 0, b: 10, h: 6 });
+  const antwort = `Klar! Hier:\n\`\`\`json\n${JSON.stringify([
+    { aktion: 'bereich', zone: 'test', x0: 0, x1: 9, y0: 0, y1: 5, pruefsumme: a.pruefsumme },
+    { aktion: 'setze', typ: 'baum', x: 6, y: 0 },
+    { aktion: 'setze', typ: 'palme', x: 6, y: 2 },
+    { aktion: 'setze', typ: 'kiste', x: 8, y: 7 },
+    { aktion: 'setze', typ: 'kiste', x: 1, y: 2 },
+    { aktion: 'entferne', id: tischId },
+    { aktion: 'kachel', x: 5, y: 0, b: 3, h: 1, zeichen: 'strasse' },
+    { aktion: 'linie', von: [9, 0], bis: [9, 3], zeichen: '#' },
+    { aktion: 'raum', buchstabe: 'b', name: 'Schuppen', lootTabelle: 'werkstatt' },
+    { aktion: 'marker', art: 'loot', raum: 'b', x: 7, y: 4 },
+    { aktion: 'marker', art: 'zombie', x: 2, y: 2 },
+    { aktion: 'bauwerk', typ: 'zaun', x: 6, y: 5 },
+    { aktion: 'tanzen' },
+  ])}\n\`\`\`\nViel Spaß`;
+  const gelesen = leseKiAntwort(antwort, karte);
+  assert.deepEqual(gelesen.meta.bereich, { x0: 0, x1: 9, y0: 0, y1: 5 });
+  const vorher = JSON.stringify(nachDefinition(karte));
+  const e = pruefeAenderungen(karte, gelesen);
+  assert.equal(JSON.stringify(nachDefinition(karte)), vorher, 'Vorschau ändert die Karte nicht');
+  const arten = e.eintraege.map((x) => x.art);
+  assert.deepEqual(arten, ['neu', 'ungueltig', 'ungueltig', 'ungueltig', 'weg', 'aendern', 'aendern', 'neu', 'neu', 'ungueltig', 'neu', 'ungueltig']);
+  assert.match(e.eintraege[1].text, /unbekannter Objekttyp „palme“/);
+  assert.match(e.eintraege[2].text, /außerhalb des Bereichs/);
+  assert.match(e.eintraege[3].text, /wand/);
+  assert.match(e.eintraege[9].text, /nur draußen/);
+  assert.match(e.eintraege[11].text, /unbekannte Aktion/);
+  assert.deepEqual(e.warnungen, []);
+  karte.anwenden(e.ops);
+  assert.equal(karte.s('objekte').size, 1);
+  assert.equal([...karte.s('objekte').values()][0].typ, 'baum');
+  assert.equal(karte.kachelAn(6, 0), '=');
+  assert.equal(karte.kachelAn(9, 2), '#');
+  assert.deepEqual(karte.markerAn(7, 4), { art: 'loot', raum: 'b' });
+  assert.equal(karte.s('bauwerke').size, 1);
+  // Prüfsumme passt nicht mehr → Warnung; falsche Zone → Fehler; kein Bereich → Fehler
+  assert.match(pruefeAenderungen(karte, gelesen).warnungen.join(), /geändert/);
+  assert.throws(() => pruefeAenderungen(karte, { aktionen: [], meta: { zone: 'andere', bereich: { x0: 0, x1: 1, y0: 0, y1: 1 } } }), /Zone „andere“/);
+  assert.throws(() => pruefeAenderungen(karte, { aktionen: [] }), /Kein Bereich/);
+  assert.throws(() => leseKiAntwort('das ist kein json'), /kein JSON/);
+  // Aktuelle Markierung als Bereich, aendere per id
+  const baumId = [...karte.s('objekte').keys()][0];
+  const v = pruefeAenderungen(karte, leseKiAntwort([{ aktion: 'aendere', id: baumId, x: 7, drehung: 90 }]), { bereich: { x0: 5, x1: 9, y0: 0, y1: 5 } });
+  assert.equal(v.eintraege[0].art, 'aendern');
+  assert.match(v.eintraege[0].text, /x 6→7/);
+});
+
+test('KI-Import: veränderter Ausschnitt zurück → Aktionen (Raster-Diff, Objekte per id)', async () => {
+  const { leseKiAntwort, pruefeAenderungen } = await import('../editor/kern/kiImport.js');
+  const { ausschnitt } = await import('../editor/kern/ausschnitt.js');
+  const { karte } = ausDefinition(testZone());
+  const a = JSON.parse(JSON.stringify(ausschnitt(karte, { x: 0, y: 0, b: 10, h: 8 })));
+  a.raster[1 + 6] = a.raster[1 + 6].slice(0, 2) + '======' + a.raster[1 + 6].slice(8); // Zeile y 6: Straße x 0–5
+  a.raster[1 + 5] = a.raster[1 + 5].replace('Z', ','); // Zombie weg
+  a.objekte = [{ typ: 'stein', x: 8, y: 1, b: 1, h: 1, blockiert: true }]; // Tisch weg, Stein neu
+  const gelesen = leseKiAntwort(JSON.stringify(a), karte);
+  const e = pruefeAenderungen(karte, gelesen);
+  assert.equal(e.zaehler.ungueltig, 0, JSON.stringify(e.eintraege.filter((x) => x.art === 'ungueltig')));
+  karte.anwenden(e.ops);
+  assert.equal(karte.kachelAn(3, 6), '=');
+  assert.equal(karte.markerAn(7, 5), null);
+  assert.deepEqual([...karte.s('objekte').values()].map((o) => o.typ), ['stein']);
+});

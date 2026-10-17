@@ -78,6 +78,34 @@ Koordinaten sind **Kacheln** (1 Kachel = 1 m = 32 px im Spiel), x nach rechts, y
 - Von Hand: Kategorie **Zonen** → „Übergang (am Rand)“ aufziehen, Zielzone und Ankunft wählen; im Panel „📍 Ankunft in
   der Zielzone setzen“. Die Prüfung meldet: Ziel fehlt, Ankunft fehlt/liegt im Übergang (Ping-Pong), kein Rückweg.
 
+## Mit einer KI arbeiten (Export / Import)
+
+1. **Bereich markieren** wie in Excel: Auswahl-Werkzeug ⬚ (V), ins Leere ziehen. Die Koordinaten („x 20–40, y 10–25“)
+   stehen am Rahmen und in der Statusleiste.
+2. **📤 Export → 🤖 Ausschnitt für KI** (oder Panel-Knopf): Der Editor erzeugt einen Text mit Bereich, ASCII-Raster mit
+   Achsen-Beschriftung, Belegungsraster (welches Objekt wo), Objektliste mit **IDs** und Eigenschaften, Spawns, Loot,
+   Übergängen, Räumen – und einer Anleitung, wie die KI antworten soll. „📋 Text kopieren“ und in den KI-Chat einfügen
+   (oder die JSON-Datei geben). Ganze Karte: „📄 Ganze Karte als JSON“ + „📝 LIESMICH.txt“ (Feld-Erklärung).
+3. Die KI antwortet mit einer **Aktionsliste**, z. B.
+   ```json
+   [{"aktion":"bereich","zone":"waldweg","x0":20,"x1":40,"y0":10,"y1":25,"pruefsumme":"…"},
+    {"aktion":"setze","typ":"baum","x":23,"y":14},
+    {"aktion":"entferne","id":17},
+    {"aktion":"aendere","id":5,"x":24,"drehung":90},
+    {"aktion":"kachel","x":20,"y":12,"b":5,"h":1,"zeichen":"="},
+    {"aktion":"linie","von":[20,10],"bis":[30,10],"zeichen":"#"},
+    {"aktion":"marker","art":"zombie","x":25,"y":20},
+    {"aktion":"bauwerk","typ":"zaun","x":21,"y":11},
+    {"aktion":"raum","buchstabe":"d","name":"Scheune","lootTabelle":"werkstatt"}]
+   ```
+   Alternativ darf sie den Ausschnitt (JSON) verändert zurückgeben – der Editor rechnet die Unterschiede aus.
+4. **🤖 KI-Import**: Antwort einfügen (Text drumherum und ```json-Blöcke sind egal) → **Prüfen**. Der Reiter „KI-Import“
+   zeigt den **Diff**: ＋ neu (grün), － weg (rot), ～ geändert (gelb), ✗ ungültig (orange, mit Grund) – und hebt alles auf
+   der Karte hervor. Ungültige Einträge (unbekannter Typ, außerhalb des Bereichs, Zombie im Haus, Wand im Weg …) werden
+   gemeldet und **nicht** übernommen. Nur der markierte Bereich darf sich ändern.
+5. **✔ Übernehmen** → ein einziger Verlaufsschritt (Strg+Z macht alles rückgängig). Hat sich die Karte seit dem Export
+   geändert, warnt der Editor (Prüfsumme).
+
 ## Speichern
 
 - Automatisch: jede Änderung landet nach ~1 s im Browser (IndexedDB, sonst localStorage). Oben rechts steht der Status.

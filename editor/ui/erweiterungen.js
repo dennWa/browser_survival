@@ -2,6 +2,7 @@ import { innenRaster } from '../kern/innen.js';
 import { prefabUi } from './prefabUi.js';
 import { raeumeUi } from './raeumeUi.js';
 import { zonenUi } from './zonenUi.js';
+import { kiUi } from './kiUi.js';
 
 /**
  * Sammelpunkt der Funktionen späterer Phasen (Zonen-Übersicht, Prefabs, KI-Export/-Import, Testen, 3D, Texturen …).
@@ -18,5 +19,7 @@ export function erweiterungen({ zustand, zeichner, panel, aktionen, sonderAktion
   raeumeUi({ zustand, panel, aktionen });
   // Phase 7: Zonen verbinden
   zonenUi({ zustand, panel, aktionen, sonderAktionen, zeichner, projektZonen });
+  // Phase 8: KI-Export/-Import
+  kiUi({ zustand, panel, aktionen, sonderAktionen, zeichner, auswahlBereich });
   return erw;
 }

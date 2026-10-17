@@ -8,6 +8,7 @@ import { markerSchluessel, ID_SAMMLUNGEN, kopie } from './kern/karte.js';
 import { validiere, hatFehler } from './kern/validierung.js';
 import { veroeffentlichung } from './kern/veroeffentlichen.js';
 import { pruefeMarker } from './kern/platzierung.js';
+import { AKTIONEN_ANLEITUNG } from './kern/ausschnitt.js';
 import { verschiebeOps, Werkzeuge } from './ui/werkzeuge.js';
 import { EditorSpeicher, herunterladen, dateiWaehlen } from './ui/speicher.js';
 import { Zustand } from './ui/zustand.js';
@@ -416,7 +417,7 @@ async function exportDialog() {
     beiOeffnen: (b) => b.querySelectorAll('[data-w]').forEach((x) => x.addEventListener('click', () => import('./ui/dialoge.js').then((d) => d.schliesse(x.dataset.w)))),
   });
   if (w === 'json') herunterladen(`${k.id}.karte.json`, JSON.stringify(exportJson(k), null, 1));
-  if (w === 'liesmich') herunterladen('LIESMICH.txt', `${LIESMICH_TEXT.join('\n\n')}\n`, 'text/plain');
+  if (w === 'liesmich') herunterladen('LIESMICH.txt', `${LIESMICH_TEXT.join('\n\n')}\n\nKI-Änderungen zurückgeben (Aktionsliste):\n${AKTIONEN_ANLEITUNG.map((z) => `  ${z}`).join('\n')}\n`, 'text/plain');
   if (w === 'ausschnitt') sonderAktionen.ausschnittExport?.();
   if (w === 'alle') for (const [id, e] of zustand.zonen) herunterladen(`${id}.entwurf.json`, JSON.stringify(entwurfJson(e.karte, e.verlauf)));
   if (w === 'veroeffentlichen') veroeffentlichen();

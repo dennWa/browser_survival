@@ -178,6 +178,29 @@ try {
     await seite.waitForTimeout(400);
     await seite.screenshot({ path: path.join(AUSGABE, 'editor-6-zonen.png') });
 
+    schritt('KI (Phase 8): Bereich markieren, Ausschnitt exportieren, Antwort importieren mit Vorschau');
+    await seite.evaluate(() => window.mapEditor.zustand.aktiviere('waldweg'));
+    await seite.evaluate(() => window.mapEditor.zeichner.springeZu(40, 16, 18));
+    await seite.keyboard.press('v');
+    await ziehe([30, 10], [50, 22]);
+    const rechteck = await seite.evaluate(() => window.mapEditor.zustand.auswahlRechteck);
+    pruefe(rechteck?.x === 30 && rechteck?.b === 21, `Bereich markiert (${JSON.stringify(rechteck)})`);
+    await seite.click('[data-befehl="exportieren"]');
+    await seite.click('#dialog [data-w="ausschnitt"]');
+    const text = await seite.inputValue('#dialog textarea');
+    pruefe(text.includes('x 30–50, y 10–22') && text.includes('## So antwortest du'), 'Ausschnitt-Text mit Bereich + Anleitung');
+    await seite.click('#dialog button:has-text("Schließen")');
+    await seite.click('[data-befehl="kiImport"]');
+    await seite.fill('#dialog [name="text"]', 'Gerne:\n```json\n[{"aktion":"setze","typ":"busch","x":32,"y":20},{"aktion":"setze","typ":"palme","x":33,"y":20},{"aktion":"marker","art":"zombie","x":80,"y":80}]\n```');
+    await seite.click('#dialog button:has-text("Prüfen")');
+    await seite.waitForSelector('#panel-reiter button:has-text("KI-Import")');
+    const diff = await seite.locator('#panel-inhalt').textContent();
+    pruefe(diff.includes('1 neu') && diff.includes('2 ungültig') && diff.includes('palme'), 'Vorschau: 1 neu, 2 ungültig mit Grund');
+    await seite.screenshot({ path: path.join(AUSGABE, 'editor-7-ki-import.png') });
+    const vorherObj = await seite.evaluate(() => window.mapEditor.zustand.karte.s('objekte').size);
+    await seite.click('#panel-inhalt button:has-text("Übernehmen")');
+    pruefe((await seite.evaluate(() => window.mapEditor.zustand.karte.s('objekte').size)) === vorherObj + 1, 'nach Bestätigung übernommen');
+
     schritt('3D-Ansicht');
     await seite.keyboard.press('3');
     await seite.waitForTimeout(1500);
