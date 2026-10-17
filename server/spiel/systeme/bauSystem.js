@@ -138,7 +138,7 @@ export function feuer(spielWelt, spieler) {
     spielWelt.melde(spieler.id, 'Das Feuer brennt');
   }
   spielWelt.welt.setzeBauwerk(b);
-  spielWelt.ereignis({ typ: 'feuer', an: b.brennt, x: mitteX(spielWelt, b), y: mitteY(spielWelt, b) });
+  spielWelt.ereignis({ typ: 'lagerfeuer', an: b.brennt, x: mitteX(spielWelt, b), y: mitteY(spielWelt, b) });
   return true;
 }
 
@@ -242,7 +242,7 @@ export function aktualisiereBauwerke(spielWelt, dt, spielSekunden = dt) {
         if (b.brennRest <= 0 || regen) {
           Object.assign(b, { brennt: false, brennRest: 0 });
           welt.setzeBauwerk(b);
-          spielWelt.ereignis({ typ: 'feuer', an: false, x: mitteX(spielWelt, b), y: mitteY(spielWelt, b), geloescht: regen });
+          spielWelt.ereignis({ typ: 'lagerfeuer', an: false, x: mitteX(spielWelt, b), y: mitteY(spielWelt, b), geloescht: regen });
         }
       }
       if (dt > 0) aktualisiereStation(spielWelt, b, dt);

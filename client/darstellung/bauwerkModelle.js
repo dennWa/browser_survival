@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { vereineGeometrien, matrixAus } from './geometrie.js';
-import { werkbankTeile } from './kartenModell.js';
+import { TUER_EBENE, werkbankTeile } from './kartenModell.js';
 import { PFLANZEN, feldKacheln } from '../../gemeinsam/welt/bauwerke.js';
 import { BASIS_MATERIAL, IST_AUSGERICHTET, bauteilGeometrie } from './basisbauModelle.js';
 
@@ -43,6 +43,15 @@ const GEOMETRIEN = {
       }
       return teile;
     }),
+  ofen: () =>
+    geometrie('ofen', () => [
+      teil(new THREE.BoxGeometry(24, 20, 22), matrixAus(0, 10, 0), 0x8a8c92),
+      teil(new THREE.BoxGeometry(26, 3, 24), matrixAus(0, 21.5, 0), 0x6f7279),
+      teil(new THREE.CylinderGeometry(3.6, 4.4, 16, 8), matrixAus(6, 31, -5), 0x5f6269),
+      teil(new THREE.BoxGeometry(11, 9, 2), matrixAus(0, 8, 11.2), 0x241a16),
+      teil(new THREE.BoxGeometry(14, 1.6, 2.4), matrixAus(0, 13.4, 11.4), 0x4a4d54),
+      teil(new THREE.BoxGeometry(14, 1.6, 2.4), matrixAus(0, 3, 11.4), 0x4a4d54),
+    ]),
   falleBasis: () => geometrie('falleBasis', () => [teil(new THREE.CylinderGeometry(10, 10.5, 1.4, 16), matrixAus(0, 0.7, 0), 0x5d6168), teil(new THREE.CylinderGeometry(3, 3, 1.8, 10), matrixAus(0, 1.2, 0), 0x8a8d91)]),
   falleBacke: () =>
     geometrie('falleBacke', () => {
@@ -140,6 +149,18 @@ export function erzeugeBauwerk(b) {
     case 'kiste':
       gruppe.add(mesh(GEOMETRIEN.kiste()));
       break;
+    case 'schmelzofen': {
+      // Steinofen mit Schornstein; wenn er heiß ist, glüht die Öffnung
+      gruppe.add(mesh(GEOMETRIEN.ofen()));
+      const glut = new THREE.Mesh(new THREE.BoxGeometry(9, 7, 1), new THREE.MeshBasicMaterial({ color: 0xff6a1a }));
+      glut.position.set(0, 8, 11.6);
+      gruppe.add(glut);
+      aktualisiere = (zustand, jetzt) => {
+        glut.visible = zustand.brennt === true;
+        if (zustand.brennt) glut.scale.setScalar(0.9 + Math.sin(jetzt / 90) * 0.06 + Math.sin(jetzt / 37) * 0.04);
+      };
+      break;
+    }
     case 'holzwand':
     case 'holzboden':
     case 'holzdach':
@@ -153,7 +174,9 @@ export function erzeugeBauwerk(b) {
       // Türblatt schwingt um das Scharnier (am linken Pfosten) auf und zu
       const blatt = new THREE.Group();
       blatt.position.x = -13;
-      blatt.add(mesh(bauteilGeometrie('holztuer'), BASIS_MATERIAL));
+      const tuerMesh = mesh(bauteilGeometrie('holztuer'), BASIS_MATERIAL);
+      tuerMesh.layers.enable(TUER_EBENE); // hinter Wänden als Schimmer sichtbar (Renderer)
+      blatt.add(tuerMesh);
       gruppe.add(blatt);
       let winkel = b.offen ? TUER_OFFEN_WINKEL : 0;
       blatt.rotation.y = winkel;

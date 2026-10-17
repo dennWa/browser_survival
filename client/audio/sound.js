@@ -25,7 +25,7 @@ const VORLAUF = 0.012;
 const PROBEN_PEGEL = {
   pistole: 1.0, schrotflinte: 1.15, hack_holz: 1.0, hack_stein: 0.9, treffer_zombie: 0.8, treffer_spieler: 0.9,
   tuer_auf: 0.7, tuer_zu: 0.8, tuer_schlag: 1.0, tuer_bricht: 1.1, aufprall: 1.0, fahrzeug_schaden: 0.8, fahrzeug_kaputt: 1.0,
-  autotuer: 0.7, gebaut: 0.8, werkeln: 0.7, graben: 0.7, stein_bricht: 1.0, baum_faellt: 1.1,
+  autotuer: 0.7, gebaut: 0.8, werkeln: 0.7, graben: 0.7, stein_bricht: 1.0, 
   zombie_stoehnen: 0.8, zombie_angriff: 0.9, zombie_tod: 0.9, aufheben: 0.25,
 };
 
@@ -193,8 +193,8 @@ export class Sound {
   }
 
   /**
-   * Motorgeräusch beim Fahren: zwei verstimmte Oszillatoren durch einen Tiefpass, Tonhöhe & Lautstärke folgen
-   * dem Tempo. tempo = null → Motor aus (weich ausblenden).
+   * Motorgeräusch beim Fahren: dumpfes Tuckern (tiefes Rauschen + weicher Sinus, dessen Lautstärke im Zündtakt pulsiert).
+   * Drehzahl (Takt, Tonhöhe, Filter) und Lautstärke folgen dem Tempo. tempo = null → Motor aus (weich ausblenden).
    */
   motor(tempo) {
     const ctx = this.#ctx;
@@ -202,34 +202,48 @@ export class Sound {
     if (tempo === null) {
       if (!this.#motor) return;
       const { knoten, gain } = this.#motor;
-      gain.gain.setTargetAtTime(0, ctx.currentTime, 0.12);
-      setTimeout(() => knoten.forEach((k) => k.stop()), 600);
+      gain.gain.setTargetAtTime(0, ctx.currentTime, 0.15);
+      setTimeout(() => knoten.forEach((k) => k.stop()), 800);
       this.#motor = null;
       return;
     }
     if (!this.#motor) {
       const gain = ctx.createGain();
       gain.gain.value = 0;
+      // Brummen: Rauschschleife, stark tiefpassgefiltert
+      const rauschen = ctx.createBufferSource();
+      rauschen.buffer = this.#rauschen;
+      rauschen.loop = true;
       const filter = ctx.createBiquadFilter();
       filter.type = 'lowpass';
-      filter.frequency.value = 420;
-      const a = ctx.createOscillator();
-      a.type = 'sawtooth';
-      const b = ctx.createOscillator();
-      b.type = 'square';
-      a.connect(filter);
-      b.connect(filter);
-      filter.connect(gain).connect(this.#effekte);
-      a.start();
-      b.start();
-      this.#motor = { knoten: [a, b], gain, filter, a, b };
+      filter.frequency.value = 160;
+      filter.Q.value = 0.9;
+      const rauschPegel = ctx.createGain();
+      rauschPegel.gain.value = 0.9;
+      // Grundton: weicher Dreieck-Ton, pulsiert im Zündtakt
+      const ton = ctx.createOscillator();
+      ton.type = 'triangle';
+      const tonPegel = ctx.createGain();
+      tonPegel.gain.value = 0.5;
+      const takt = ctx.createOscillator();
+      takt.type = 'sine';
+      const taktTiefe = ctx.createGain();
+      taktTiefe.gain.value = 0.3;
+      const huelle = ctx.createGain();
+      huelle.gain.value = 0.7;
+      takt.connect(taktTiefe).connect(huelle.gain);
+      rauschen.connect(filter).connect(rauschPegel).connect(huelle);
+      ton.connect(tonPegel).connect(huelle);
+      huelle.connect(gain).connect(this.#effekte);
+      for (const k of [rauschen, ton, takt]) k.start();
+      this.#motor = { knoten: [rauschen, ton, takt], gain, filter, ton, takt };
     }
     const anteil = Math.min(1, Math.abs(tempo) / 340);
     const t = ctx.currentTime;
-    this.#motor.a.frequency.setTargetAtTime(34 + anteil * 70, t, 0.08);
-    this.#motor.b.frequency.setTargetAtTime(17.3 + anteil * 36, t, 0.08);
-    this.#motor.filter.frequency.setTargetAtTime(300 + anteil * 700, t, 0.1);
-    this.#motor.gain.gain.setTargetAtTime(0.05 + anteil * 0.08, t, 0.1);
+    this.#motor.ton.frequency.setTargetAtTime(46 + anteil * 54, t, 0.12);
+    this.#motor.takt.frequency.setTargetAtTime(7 + anteil * 17, t, 0.12);
+    this.#motor.filter.frequency.setTargetAtTime(150 + anteil * 260, t, 0.15);
+    this.#motor.gain.gain.setTargetAtTime(0.1 + anteil * 0.16, t, 0.15);
   }
 
   /**
@@ -564,6 +578,41 @@ const REZEPTE = {
       rauschStoss(ctx, ausgang, rauschen, t + 1.7 + i * 0.07 + Math.random() * 0.05, { dauer: 0.03, typ: 'bandpass', frequenz: 900 + Math.random() * 1500, lautstaerke: 0.3, anschlag: 0.001 });
     }
     return 2.5;
+  },
+  // Stein abbauen (Fels): dumpfes, körniges Pochen – kein Metallklang
+  hack_felsen: ({ ctx, ausgang, t, rauschen, tonhoehe }) => {
+    rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.1, typ: 'lowpass', frequenz: 650 * tonhoehe, lautstaerke: 0.8, anschlag: 0.002 });
+    ton(ctx, ausgang, t, { typ: 'sine', von: 130, bis: 55, dauer: 0.16, lautstaerke: 0.7, anschlag: 0.002 });
+    for (let i = 0; i < 4; i++) rauschStoss(ctx, ausgang, rauschen, t + 0.03 + i * 0.03 + Math.random() * 0.02, { dauer: 0.02, typ: 'bandpass', frequenz: 500 + Math.random() * 700, lautstaerke: 0.22, anschlag: 0.001 });
+    return 0.3;
+  },
+  felsen_bricht: ({ ctx, ausgang, t, rauschen }) => {
+    ton(ctx, ausgang, t, { typ: 'sine', von: 90, bis: 32, dauer: 0.5, lautstaerke: 0.9, anschlag: 0.003 });
+    rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.5, typ: 'lowpass', frequenz: 900, lautstaerke: 0.85, anschlag: 0.003 });
+    for (let i = 0; i < 7; i++) rauschStoss(ctx, ausgang, rauschen, t + 0.12 + i * 0.07 + Math.random() * 0.04, { dauer: 0.03, typ: 'bandpass', frequenz: 400 + Math.random() * 600, lautstaerke: 0.3, anschlag: 0.001 });
+    return 0.9;
+  },
+  // Lagerfeuer-Küche: Brutzeln beim Garen, Glöckchen wenn fertig, Zischen beim Verbrennen
+  brutzel: ({ ctx, ausgang, t, rauschen }) => {
+    rauschStoss(ctx, ausgang, rauschen, t, { dauer: 1.1, typ: 'highpass', frequenz: 4200, lautstaerke: 0.12, anschlag: 0.1 });
+    for (let i = 0; i < 26; i++) rauschStoss(ctx, ausgang, rauschen, t + Math.random() * 1.0, { dauer: 0.012 + Math.random() * 0.01, typ: 'bandpass', frequenz: 2500 + Math.random() * 4500, lautstaerke: 0.15 + Math.random() * 0.25, anschlag: 0.001 });
+    return 1.2;
+  },
+  fertig: ({ ctx, ausgang, t }) => {
+    ton(ctx, ausgang, t, { typ: 'sine', von: 1046, bis: 1046, dauer: 0.35, lautstaerke: 0.28, anschlag: 0.003 });
+    ton(ctx, ausgang, t + 0.12, { typ: 'sine', von: 1568, bis: 1568, dauer: 0.5, lautstaerke: 0.24, anschlag: 0.003 });
+    return 0.8;
+  },
+  verbrannt: ({ ctx, ausgang, t, rauschen }) => {
+    rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.6, typ: 'highpass', frequenz: 2200, lautstaerke: 0.35, anschlag: 0.03 });
+    ton(ctx, ausgang, t, { typ: 'sawtooth', von: 180, bis: 90, dauer: 0.4, lautstaerke: 0.1, filter: 500 });
+    return 0.7;
+  },
+  holz_nachlegen: ({ ctx, ausgang, t, rauschen }) => {
+    ton(ctx, ausgang, t, { typ: 'triangle', von: 200, bis: 110, dauer: 0.1, lautstaerke: 0.4, anschlag: 0.002 });
+    rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.08, typ: 'bandpass', frequenz: 900, lautstaerke: 0.5, anschlag: 0.002 });
+    rauschStoss(ctx, ausgang, rauschen, t + 0.1, { dauer: 0.5, typ: 'bandpass', frequenz: 1400, lautstaerke: 0.3, anschlag: 0.15 });
+    return 0.7;
   },
   stein_bricht: ({ ctx, ausgang, t, rauschen }) => {
     rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.35, typ: 'bandpass', frequenz: 1400, lautstaerke: 0.8 });

@@ -3,6 +3,8 @@ import { WerkbankMenue } from './werkbankMenue.js';
 import { EntwicklerFenster } from './entwicklerFenster.js';
 import { InventarFenster } from './inventarFenster.js';
 import { KisteFenster } from './kisteFenster.js';
+import { StationFenster } from './stationFenster.js';
+import { setzeHaltbarkeit } from './haltbarkeit.js';
 import { SkillFenster } from './skillFenster.js';
 import { EinstellungenFenster } from './einstellungen.js';
 import { BauMenue } from './bauMenue.js';
@@ -29,6 +31,11 @@ const CHAT_ZEILEN = 8;
 const CHAT_SICHTBAR_MS = 15000;
 const MINIKARTE_SCHLUESSEL = 'browserSurvival.minikarte';
 const FPS_INTERVALL_MS = 500;
+
+/** Kleines Maus-Symbol (linke Taste gelb): Fisch hat angebissen → Linksklick holt ihn ein. */
+const KLICK_SYMBOL =
+  '<svg class="klick-symbol" viewBox="0 0 24 32" width="20" height="26" aria-hidden="true"><rect x="2" y="2" width="20" height="28" rx="10" fill="none" stroke="currentColor" stroke-width="2"/>' +
+  '<path d="M12 2 H12 A10 10 0 0 0 2 12 V14 H12 Z" fill="#ffd54a" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><line x1="12" y1="2" x2="12" y2="14" stroke="currentColor" stroke-width="2"/></svg>';
 
 export class Hud {
   #aktionen = {};
@@ -94,6 +101,7 @@ export class Hud {
       fps: el('hud-fps'),
       minikarte: el('minikarte'),
       feld: el('hud-feld'),
+      kofferraum: el('hud-kofferraum'),
       angeln: el('hud-angeln'),
       auto: el('hud-auto'),
       angelKnopf: el('knopf-angel'),
@@ -118,6 +126,7 @@ export class Hud {
     this.el.licht.addEventListener('click', () => this.#aktionen.licht?.());
     this.el.karte.addEventListener('click', () => this.#aktionen.karte?.());
     this.el.feld.addEventListener('click', () => this.#aktionen.feld?.());
+    this.el.kofferraum.addEventListener('click', () => this.#aktionen.kofferraum?.());
     el('autolauf-stopp').addEventListener('click', () => this.#aktionen.autoLaufStopp?.());
     try {
       this.#minikarteAn = localStorage.getItem(MINIKARTE_SCHLUESSEL) !== 'aus';
@@ -168,6 +177,14 @@ export class Hud {
       herstellen: (rezept) => this.#aktionen.herstellen?.(rezept),
     });
     el('hud-inventar').addEventListener('click', () => this.inventar.zeige());
+    this.station = new StationFenster(dokument, { zeichneIcon: (canvas, defId) => this.zeichneIcon(canvas, defId) });
+    this.station.beiAktionen({
+      legen: (slot) => this.#aktionen.stationLegen?.(slot),
+      nehmen: (platz) => this.#aktionen.stationNehmen?.(platz),
+      schliessen: () => this.#aktionen.stationSchliessen?.(),
+      feuer: () => this.#aktionen.tuer?.(),
+      sitzen: () => this.#aktionen.stationSitzen?.(),
+    });
     this.kiste = new KisteFenster(dokument, { zeichneIcon: (canvas, defId) => this.zeichneIcon(canvas, defId) });
     this.kiste.beiAktionen({
       legen: (slot) => this.#aktionen.kisteLegen?.(slot),
@@ -220,7 +237,7 @@ export class Hud {
     this.el.vollbild.hidden = !istTouch || !document.fullscreenEnabled;
     this.el.hilfe.textContent = istTouch
       ? 'Links: laufen · Rechts: zielen, ganz drücken = Angriff'
-      : 'WASD laufen · Maus zielen · Klick/Leertaste Angriff · E benutzen · F Feuer · R nachladen · L Lampe · I Inventar · U Fähigkeiten · Q fallen lassen · B bauen · K Karte · T Chat · Tab Spieler · 1–8 Schnellleiste';
+      : 'WASD laufen · Maus zielen · Klick/Leertaste Angriff · E benutzen · F Feuer · R nachladen · L Lampe · Tab Inventar · U Fähigkeiten · Q wegwerfen · B bauen · K Karte · T Chat · I Spieler · 1–8 Schnellleiste';
     this.#letzterHinweis = null;
     this.#letzterTuerHinweis = null;
     this.#letzteUhr = '';
@@ -241,6 +258,7 @@ export class Hud {
     this.entwickler.zeige(false);
     this.inventar.zeige(false);
     this.kiste.zeige(null);
+    this.station.zeige(null);
     this.skills.zeige(false);
     this.einstellungen.zeige(false);
     this.el.fps.hidden = true;
@@ -317,7 +335,9 @@ export class Hud {
     if (stand === this.#letzterAngelText) return;
     this.#letzterAngelText = stand;
     this.el.angeln.hidden = !text;
-    this.el.angeln.textContent = text ?? '';
+    // Biss: kleines Maus-Symbol mit hervorgehobener linker Taste ("jetzt klicken")
+    if (biss) this.el.angeln.innerHTML = `${KLICK_SYMBOL}<span>${text}</span>`;
+    else this.el.angeln.textContent = text ?? '';
     this.el.angeln.classList.toggle('biss', biss);
   }
 
@@ -328,6 +348,12 @@ export class Hud {
     if (!modus) return;
     k.textContent = modus === 'auswerfen' ? '🎣 Auswerfen' : '🎣 Einholen';
     k.classList.toggle('biss', modus === 'biss');
+  }
+
+  /** Kofferraum-Knopf 🧳: nur in der Nähe eines Autos (oder im Auto) sichtbar. */
+  zeigeKofferraumKnopf(an) {
+    if (this.el.kofferraum.hidden === !an) return;
+    this.el.kofferraum.hidden = !an;
   }
 
   /** Banner "Auto-Lauf" (mit Stopp-Knopf für Touch). */
@@ -397,6 +423,7 @@ export class Hud {
     }
     this.inventar.setzeDaten(daten, itemDefinitionen);
     this.kiste.setzeDaten(daten, itemDefinitionen);
+    this.station.setzeDaten(daten, itemDefinitionen);
     this.skills.setzeDaten(daten);
     this.dokument.getElementById('hud-skills').classList.toggle('hinweis', (daten.skillPunkte ?? 0) > 0);
     this.el.level.classList.toggle('punkte-frei', (daten.skillPunkte ?? 0) > 0);
@@ -638,6 +665,7 @@ export class Hud {
     slot.knopf.classList.toggle('leer', !eintrag);
     slot.knopf.title = eintrag ? itemDefinitionen[eintrag.defId]?.name ?? eintrag.defId : '';
     slot.menge.textContent = eintrag && eintrag.menge > 1 ? String(eintrag.menge) : eintrag?.magazin !== undefined ? `${eintrag.magazin}` : '';
+    setzeHaltbarkeit(slot.knopf, eintrag, itemDefinitionen);
     if (slot.defId === (eintrag?.defId ?? null)) return; // Icon unverändert
     slot.defId = eintrag?.defId ?? null;
 

@@ -1,7 +1,7 @@
 import { HOTBAR_PLAETZE, INVENTAR_PLAETZE } from '../../gemeinsam/konstanten.js';
 
 /**
- * Inventar-Fenster (Taste I bzw. 🎒): Schnellleiste (Plätze 0–7), Tasche (8–15) und – mit Rucksack – 8 weitere.
+ * Inventar-Fenster (Taste Tab bzw. 🎒): Schnellleiste (Plätze 0–7), Tasche (8–15) und – mit Rucksack – 8 weitere.
  *
  * Bedienung (Maus und Touch gleich, über Pointer-Events):
  *   antippen/klicken      → benutzen (essen, ausrüsten …) + Info unten anzeigen
@@ -12,6 +12,9 @@ import { HOTBAR_PLAETZE, INVENTAR_PLAETZE } from '../../gemeinsam/konstanten.js'
  */
 const ICON = 48;
 const ZIEH_SCHWELLE = 7; // px Bewegung, ab der aus einem Klick ein Ziehen wird
+
+/** Haltbarkeits-Balken (Axt, Hacke …) am Platz: siehe ui/haltbarkeit.js */
+import { setzeHaltbarkeit } from './haltbarkeit.js';
 
 export class InventarFenster {
   #aktionen = {};
@@ -223,6 +226,7 @@ export class InventarFenster {
       s.knopf.classList.toggle('leer', !eintrag);
       s.knopf.title = eintrag ? (this.#itemDefinitionen[eintrag.defId]?.name ?? eintrag.defId) : '';
       s.menge.textContent = eintrag && eintrag.menge > 1 ? String(eintrag.menge) : eintrag?.magazin !== undefined ? `${eintrag.magazin}` : '';
+      setzeHaltbarkeit(s.knopf, eintrag, this.#itemDefinitionen);
       const defId = eintrag?.defId ?? null;
       if (s.defId === defId) return;
       s.defId = defId;

@@ -74,6 +74,11 @@ const BAUPLAENE = {
   samen_tomate: () => samentuete(0xd84a3a),
   samen_gurke: () => samentuete(0x5aa83a),
   samen_kartoffel: () => samentuete(0xb98a4a),
+  eisenbarren: () => [box(8, 2.6, 4, 0xaab2bd), box(6, 0.8, 3, 0xdfe5ec, 0, 1.6, 0)],
+  verkohlt: () => [kugel(2.8, 0x2a2624, 0, 0, 0, 1.3, 0.8, 1), kugel(0.7, 0xd2601e, 1, 1.6, 0.6)],
+  muell: () => [zyl(1.8, 4.4, 0x9a9a78, -1.5, 0, 0, 8, 1.5), box(5, 0.4, 4, 0x78a078, 1.8, 0, 1, 0.4)],
+  schrott: () => [box(7, 0.8, 2.6, 0x8c6040, 0, 0, 0, 0.5), box(4, 0.8, 4, 0x787c82, 1, 0.8, 1, -0.3)],
+  schmelzofen: () => [box(8, 6, 7, 0x8a8c92), zyl(1.2, 4, 0x5f6269, 2, 5, -1.5), box(3.4, 2.4, 0.5, 0x241a16, 0, 1.4, 3.7)],
   hacke: () => [rolle(0.8, 16, 0x8a5a2b), box(1, 4, 5, 0x9aa0a6, 8.4, 0, 0)],
   feuerzeug: () => [box(2, 4.4, 1.2, 0xc0392b), box(2.1, 1.2, 1.3, 0xb8bcc2, 0, 2.6, 0)],
   // Bauwerke als Pakete

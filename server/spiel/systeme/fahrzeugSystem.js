@@ -1,5 +1,5 @@
 import { EINSTIEG_ABSTAND, abstandZumFahrzeug, ausstiegsPunkt, fahrzeugKacheln } from '../../../gemeinsam/physik/fahrzeug.js';
-import { fuegeSchadenZu } from './kampfSystem.js';
+import { fuegeSchadenZu, toeten } from './kampfSystem.js';
 
 /**
  * Fahrzeuge: AKTION 'fahrzeug' = einsteigen (nächstes freies Auto in Reichweite) bzw. aussteigen.
@@ -103,7 +103,20 @@ export function aktualisiereFahrzeuge(spielWelt, dt) {
       fz.tempo = 0;
       continue;
     }
-    if (Math.abs(fz.tempo) >= ANFAHR_MIN_TEMPO) fahreZombiesAn(spielWelt, fz);
+    if (Math.abs(fz.tempo) >= ANFAHR_MIN_TEMPO) {
+      fahreZombiesAn(spielWelt, fz);
+      fahreTiereUeber(spielWelt, fz);
+    }
+  }
+}
+
+/** Hasen unter dem Auto: sofort überfahren (Fleisch liegt dort), das Auto bremst nicht und nimmt keinen Schaden. */
+function fahreTiereUeber(spielWelt, fz) {
+  const fahrer = fz.fahrerId !== null ? spielWelt.holen(fz.fahrerId) : null;
+  for (const t of [...spielWelt.alleVomTyp('tier')]) {
+    if (abstandZumFahrzeug(fz, t.x, t.y) > t.radius + 4) continue;
+    spielWelt.ereignis({ typ: 'aufprall', x: t.x, y: t.y, tempo: 70 });
+    toeten(spielWelt, t, fahrer);
   }
 }
 

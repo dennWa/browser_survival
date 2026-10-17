@@ -28,6 +28,10 @@ const MOEBEL_HOEHE = {
 };
 const _matrix = new THREE.Matrix4();
 const NULL_MATRIX = new THREE.Matrix4().makeScale(0, 0, 0);
+/** Kantenlänge (Kacheln) der Blöcke, in die Bäume/Steine fürs Frustum-Culling aufgeteilt werden (Performance: sonst zeichnet jeder Frame ALLE Bäume der Karte). */
+const CHUNK_KACHELN = 12;
+/** Three.js-Layer, auf dem alle Türblätter zusätzlich liegen: der Renderer zeichnet sie nochmal als Schimmer, wo Wände sie verdecken. */
+export const TUER_EBENE = 2;
 
 export class KartenModell {
   /**
@@ -387,6 +391,7 @@ export class KartenModell {
         griff.position.set(richtung * (g - 7), TUER_HOEHE * 0.48, 0);
         blatt.castShadow = true;
         blatt.receiveShadow = true;
+        blatt.layers.enable(TUER_EBENE);
         fluegel.add(blatt, griff);
         scharnier.add(fluegel);
         if (tuer.senkrecht) {
@@ -409,52 +414,79 @@ export class KartenModell {
     const g = this.g;
     const baeume = this.welt.objekte.filter((o) => o.ebene === 'oben');
     const ressourceVon = new Map(this.welt.ressourcen.map((r) => [r.objekt, r]));
-    const typen = [...new Set(baeume.map((o) => o.typ))];
+    const steine = this.welt.objekte.filter((o) => o.typ === 'stein' || o.typ === 'eisenerz');
 
-    // Pro Baumtyp: Körper (Toon, Vertexfarben) + schwarzer Umriss – je ein InstancedMesh
+    // Alles in räumliche Blöcke (Chunks) aufteilen: ein einziges riesiges InstancedMesh lässt sich nicht per Frustum-Culling
+    // aussortieren – dann würden jeden Frame (und in der Schatten-Runde nochmal) ALLE Bäume der Karte gezeichnet.
+    const BLOCK = CHUNK_KACHELN * g;
+    const blockVon = (o) => `${Math.floor(((o.x + o.b / 2) * g) / BLOCK)},${Math.floor(((o.y + o.h / 2) * g) / BLOCK)}`;
+    const kugelFuer = (schluessel) => {
+      const [bx, bz] = schluessel.split(',').map(Number);
+      return new THREE.Sphere(new THREE.Vector3((bx + 0.5) * BLOCK, 40, (bz + 0.5) * BLOCK), BLOCK * 0.72 + 90);
+    };
+    const neuesMesh = (geometrie, material, anzahl, schluessel, { schatten = true } = {}) => {
+      const mesh = new THREE.InstancedMesh(geometrie, material, anzahl);
+      mesh.castShadow = schatten;
+      mesh.receiveShadow = schatten;
+      mesh.boundingSphere = kugelFuer(schluessel); // feste Kugel: Instanzen werden ein-/ausgeblendet (Nullmatrix), nie neu berechnen
+      mesh.frustumCulled = true;
+      return mesh;
+    };
+
+    // Pro Baumtyp: Körper (Toon, Vertexfarben) + schwarzer Umriss – je Block ein InstancedMesh
     const umrissMaterial = this.mitSchnitt(new THREE.MeshBasicMaterial({ color: 0x14100c, side: THREE.BackSide }));
     this.baumArten = new Map();
+    const stumpfGeo = baueStumpf();
+    const stumpfMaterial = toonMaterial({ vertexColors: true });
+    const stuempfe = new Map(); // Block → { mesh, naechster }
+    const typen = [...new Set(baeume.map((o) => o.typ))];
     for (const typ of typen) {
-      const anzahl = baeume.filter((o) => o.typ === typ).length;
       const { koerper, umriss, grundflaeche } = baueBaum(typ);
-      const mesh = new THREE.InstancedMesh(koerper, this.mitSchnitt(toonMaterial({ vertexColors: true })), anzahl);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      const rand = new THREE.InstancedMesh(umriss, umrissMaterial, anzahl);
-      this.baumArten.set(typ, { mesh, rand, grundflaeche, naechster: 0 });
+      const material = this.mitSchnitt(toonMaterial({ vertexColors: true }));
+      const bloecke = new Map();
+      for (const o of baeume) if (o.typ === typ) bloecke.set(blockVon(o), (bloecke.get(blockVon(o)) ?? 0) + 1);
+      const teile = new Map();
+      for (const [schluessel, anzahl] of bloecke) {
+        const mesh = neuesMesh(koerper, material, anzahl, schluessel);
+        const rand = neuesMesh(umriss, umrissMaterial, anzahl, schluessel, { schatten: false });
+        rand.castShadow = false;
+        rand.receiveShadow = false;
+        teile.set(schluessel, { mesh, rand, naechster: 0 });
+      }
+      this.baumArten.set(typ, { teile, grundflaeche });
     }
-    const stammAnzahl = baeume.filter((o) => o.typ !== 'busch').length;
-    this.stuempfe = new THREE.InstancedMesh(baueStumpf(), toonMaterial({ vertexColors: true }), Math.max(1, stammAnzahl));
-    this.stuempfe.castShadow = true;
-    this.stuempfe.receiveShadow = true;
-    const steine = this.welt.objekte.filter((o) => o.typ === 'stein' || o.typ === 'eisenerz');
-    this.steine = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(14, 0), new THREE.MeshStandardMaterial({ color: 0x8a8d91, roughness: 0.95, flatShading: true }), Math.max(1, steine.length));
-    this.steine.castShadow = true;
-    this.steine.receiveShadow = true;
+    const stammBloecke = new Map();
+    for (const o of baeume) if (o.typ !== 'busch') stammBloecke.set(blockVon(o), (stammBloecke.get(blockVon(o)) ?? 0) + 1);
+    for (const [schluessel, anzahl] of stammBloecke) stuempfe.set(schluessel, { mesh: neuesMesh(stumpfGeo, stumpfMaterial, anzahl, schluessel), naechster: 0 });
+
+    // Steine & Eisenerz
+    const steinGeo = new THREE.DodecahedronGeometry(14, 0);
+    const steinMaterial = new THREE.MeshStandardMaterial({ color: 0x8a8d91, roughness: 0.95, flatShading: true });
     // Eisenerz: dunklerer, rostiger Fels mit orange glänzenden Erzbrocken (ein Mesh mit Vertexfarben)
     const erzTeile = [{ geometrie: new THREE.DodecahedronGeometry(14, 0), matrix: new THREE.Matrix4(), farbe: new THREE.Color(0x6e5a4e) }];
     for (const [x, y, z, r] of [[7, 6, 5, 4], [-6, 8, -3, 3.5], [2, 11, -7, 3], [-8, 2, 8, 3.2], [9, -1, -6, 2.6]]) {
       erzTeile.push({ geometrie: new THREE.OctahedronGeometry(r, 0), matrix: matrixAus(x, y, z, x), farbe: new THREE.Color(0xd9772e) });
     }
-    this.erze = new THREE.InstancedMesh(
-      vereineGeometrien(erzTeile, { mitFarbe: true }),
-      new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.35, flatShading: true }),
-      Math.max(1, steine.filter((o) => o.typ === 'eisenerz').length),
-    );
-    this.erze.castShadow = true;
-    this.erze.receiveShadow = true;
+    const erzGeo = vereineGeometrien(erzTeile, { mitFarbe: true });
+    const erzMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.35, flatShading: true });
+    const steinBloecke = new Map();
+    const erzBloecke = new Map();
+    for (const o of steine) {
+      const ziel = o.typ === 'eisenerz' ? erzBloecke : steinBloecke;
+      ziel.set(blockVon(o), (ziel.get(blockVon(o)) ?? 0) + 1);
+    }
+    const steinMeshes = new Map([...steinBloecke].map(([k, n]) => [k, { mesh: neuesMesh(steinGeo, steinMaterial, n, k), naechster: 0 }]));
+    const erzMeshes = new Map([...erzBloecke].map(([k, n]) => [k, { mesh: neuesMesh(erzGeo, erzMaterial, n, k), naechster: 0 }]));
 
     // Pro Ressourcen-ID merken, welche Instanzen dazugehören
     this.ressourcenInstanzen = new Map();
-    let stumpfIndex = 0;
-    let steinIndex = 0;
-    let erzIndex = 0;
     for (const o of [...baeume, ...steine]) {
       const x = (o.x + o.b / 2) * g;
       const z = (o.y + o.h / 2) * g;
       const r = ressourceVon.get(o);
       const zufall = streuung(o.x, o.y);
       const eintrag = { teile: [] };
+      const block = blockVon(o);
       if (o.typ === 'stein' || o.typ === 'eisenerz') {
         const erz = o.typ === 'eisenerz';
         const m = new THREE.Matrix4().compose(
@@ -462,30 +494,29 @@ export class KartenModell {
           new THREE.Quaternion().setFromEuler(erz ? new THREE.Euler(0, zufall * 7, 0) : new THREE.Euler(zufall * 3, zufall * 7, zufall * 2)),
           new THREE.Vector3(1 + zufall * 0.4, 0.7 + zufall * 0.3, 1.1 - zufall * 0.3).multiplyScalar(erz ? 1 : o.groesse === 'gross' ? 1.3 : 0.8),
         );
-        eintrag.teile.push(erz ? { mesh: this.erze, index: erzIndex++, matrix: m } : { mesh: this.steine, index: steinIndex++, matrix: m });
+        const ziel = (erz ? erzMeshes : steinMeshes).get(block);
+        eintrag.teile.push({ mesh: ziel.mesh, index: ziel.naechster++, matrix: m });
       } else {
         const art = this.baumArten.get(o.typ);
         // Größe passend zur Grundfläche, dazu etwas Zufall in Größe und Drehung – kein Baum gleicht dem anderen
         const groesse = ((Math.min(o.b, o.h) * g) / art.grundflaeche) * (0.9 + zufall * 0.22) * (o.groesse === 'gross' ? 1.25 : o.groesse === 'klein' ? 0.8 : 1);
         const matrix = matrixAus(x, 0, z, zufall * Math.PI * 2, groesse);
-        const index = art.naechster++;
-        eintrag.teile.push({ mesh: art.mesh, index, matrix }, { mesh: art.rand, index, matrix });
-        if (o.typ !== 'busch') eintrag.stumpf = { mesh: this.stuempfe, index: stumpfIndex++, matrix: matrixAus(x, 0, z, zufall * 5, groesse * 1.3) };
+        const teil = art.teile.get(block);
+        const index = teil.naechster++;
+        eintrag.teile.push({ mesh: teil.mesh, index, matrix }, { mesh: teil.rand, index, matrix });
+        if (o.typ !== 'busch') {
+          const st = stuempfe.get(block);
+          eintrag.stumpf = { mesh: st.mesh, index: st.naechster++, matrix: matrixAus(x, 0, z, zufall * 5, groesse * 1.3) };
+        }
       }
       for (const t of eintrag.teile) t.mesh.setMatrixAt(t.index, t.matrix);
       if (eintrag.stumpf) eintrag.stumpf.mesh.setMatrixAt(eintrag.stumpf.index, NULL_MATRIX);
       if (r) this.ressourcenInstanzen.set(r.id, eintrag);
     }
-    this.stuempfe.count = stumpfIndex;
-    this.steine.count = steinIndex;
-    this.erze.count = erzIndex;
-    const meshes = [this.stuempfe, this.steine, this.erze];
-    for (const art of this.baumArten.values()) meshes.push(art.mesh, art.rand);
+    const meshes = [...stuempfe.values(), ...steinMeshes.values(), ...erzMeshes.values()].map((e) => e.mesh);
+    for (const art of this.baumArten.values()) for (const t of art.teile.values()) meshes.push(t.mesh, t.rand);
     for (const m of meshes) {
       m.instanceMatrix.needsUpdate = true;
-      // Kein Frustum-Culling: Instanzen werden ein-/ausgeblendet, eine einmal berechnete Bounding-Sphere
-      // (z. B. als alle Stümpfe noch versteckt waren) wäre sonst falsch → Stümpfe blieben unsichtbar.
-      m.frustumCulled = false;
       this.beweglich.add(m);
     }
     this.abgebautStand = -1;
@@ -518,8 +549,10 @@ export class KartenModell {
   /** Qualitätsstufe: Baum-Umrisse und -Schatten an/aus (spart viel bei schwacher Grafik). */
   setzeBaumDetail(an) {
     for (const art of this.baumArten.values()) {
-      art.rand.visible = an;
-      art.mesh.castShadow = an;
+      for (const t of art.teile.values()) {
+        t.rand.visible = an;
+        t.mesh.castShadow = an;
+      }
     }
   }
 

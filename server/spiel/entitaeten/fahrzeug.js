@@ -3,8 +3,10 @@
  * leben = Haltbarkeit in Zombie-Schlägen; bei 0 ist das Auto ein Wrack (kaputt: true, nicht mehr fahrbar, bleibt stehen).
  * Fährt jemand, hängt dasselbe Objekt auch am Spieler (spieler.fahrzeug) – die Bewegungsphysik bewegt es direkt.
  */
+import { KOFFERRAUM_PLAETZE } from '../../../gemeinsam/konstanten.js';
+
 export function erzeugeFahrzeug({ id, modell, x, y, winkel, laenge, breite, haltbarkeit = 10 }) {
-  return { id, typ: 'fahrzeug', modell, x, y, winkel, tempo: 0, laenge, breite, fahrerId: null, letzteKacheln: '', treffer: new Map(), leben: haltbarkeit, maxLeben: haltbarkeit, kaputt: false };
+  return { id, typ: 'fahrzeug', modell, x, y, winkel, tempo: 0, laenge, breite, fahrerId: null, letzteKacheln: '', treffer: new Map(), leben: haltbarkeit, maxLeben: haltbarkeit, kaputt: false, kofferraum: new Array(KOFFERRAUM_PLAETZE).fill(null) }; // kofferraum: [null | { defId, menge, magazin? }] – nur Server
 }
 
 /** Gerundet wie Zombies – die genauen Fahrwerte für die eigene Vorhersage stehen beim Fahrer (spielerZuNetzwerk). */

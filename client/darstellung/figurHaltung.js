@@ -90,6 +90,8 @@ export function aktualisiereHaltung(figur, e, jetzt) {
     richteKnochen(oberarm, unterarm, inWelt(pose[seite][0], gruppe));
     richteKnochen(unterarm, hand, inWelt(pose[seite][1], gruppe));
   }
+  // Holzfällen: beide Hände am Stiel – die linke Hand greift ein Stück weiter vorn an die Axt (statt parallel neben der rechten zu hängen)
+  if (haltungsName === 'hacken' && e.arbeit === 'holz') greifeMitLinkerHand(figur, gruppe);
 
   // Sitzen: Oberschenkel nach vorn, Unterschenkel nach unten (Figur ist dafür tiefer gesetzt, siehe renderer)
   if (haltungsName === 'sitzen') {
@@ -124,7 +126,15 @@ export function aktualisiereHaltung(figur, e, jetzt) {
       if (haltungsName === 'hacken') richtung.y += e.arbeit === 'holz' ? 0.15 : 0.6; // Kopf des Werkzeugs vorne-oben (Axt seitlich: fast waagerecht)
       richtung.normalize();
     }
-    figur.waffe.quaternion.setFromUnitVectors(VORNE, richtung);
+    if (haltungsName === 'hacken' && e.arbeit === 'holz') {
+      // Axt: Schneide (Modell +y) zeigt in Schwungrichtung (waagerecht quer zum Stiel) – man schlägt mit der scharfen Kante seitlich gegen den Stamm
+      const kante = _f.set(0, 1, 0).cross(richtung);
+      if (kante.lengthSq() > 1e-4) {
+        kante.normalize();
+        _g.copy(kante).cross(richtung);
+        figur.waffe.quaternion.setFromRotationMatrix(_basis.makeBasis(_g, kante, richtung));
+      } else figur.waffe.quaternion.setFromUnitVectors(VORNE, richtung);
+    } else figur.waffe.quaternion.setFromUnitVectors(VORNE, richtung);
     figur.waffe.updateMatrixWorld(true);
     const muendung = figur.waffe.userData.muendung;
     figur.hatMuendung = !!muendung;
@@ -201,6 +211,18 @@ function seitSchwung(pose, p) {
   }
 }
 
+/** Linke Hand an den Stiel: Arm zeigt zum Punkt ~7 px vor der rechten Hand, in Stielrichtung (rechte Hand/Unterarm sind schon ausgerichtet). */
+function greifeMitLinkerHand(figur, gruppe) {
+  const [oR, uR, hR] = figur.knochen.rechts;
+  const [oL, uL, hL] = figur.knochen.links;
+  const stiel = _f.copy(hR.getWorldPosition(_a)).sub(uR.getWorldPosition(_b)).normalize();
+  const ziel = _g.copy(hR.getWorldPosition(_a)).addScaledVector(stiel, 7);
+  for (const [knochen, kind] of [[oL, uL], [uL, hL]]) {
+    knochen.getWorldPosition(_c);
+    richteKnochen(knochen, kind, _d.copy(ziel).sub(_c).normalize());
+  }
+}
+
 function setzeWaffe(figur, name) {
   if (figur.waffenName === name) return;
   if (figur.waffe) figur.gruppe.remove(figur.waffe);
@@ -218,6 +240,9 @@ const _b = new THREE.Vector3();
 const _c = new THREE.Vector3();
 const _d = new THREE.Vector3();
 const _e = new THREE.Vector3();
+const _f = new THREE.Vector3();
+const _g = new THREE.Vector3();
+const _basis = new THREE.Matrix4();
 const _p0 = new THREE.Vector3();
 const _p1 = new THREE.Vector3();
 const _q = new THREE.Quaternion();

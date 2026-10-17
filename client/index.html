@@ -38,10 +38,11 @@
         </div>
         <div class="hud-knoepfe">
           <button id="hud-chat" type="button" title="Chat (T)">💬</button>
-          <button id="hud-inventar" type="button" title="Inventar (I)">🎒</button>
+          <button id="hud-inventar" type="button" title="Inventar (Tab)">🎒</button>
           <button id="hud-bauen" type="button" title="Bauen (B): Basis-Flagge, Wände, Böden, Möbel – mit dem Hammer">🔨 BUILD</button>
           <button id="hud-skills" type="button" title="Fähigkeiten (U)">⭐</button>
-          <button id="hud-feld" type="button" title="Erdfeld anlegen (G) – Hacke in die Hand nehmen">🌱</button>
+          <button id="hud-kofferraum" type="button" title="Kofferraum öffnen (G)" hidden>🧳</button>
+          <button id="hud-feld" type="button" title="Ackerfeld zurück zu Rasen (Rechtsklick) – Hacke in der Hand">🌱</button>
           <button id="hud-zoom" class="nur-touch" type="button" title="Zoom (am PC: Mausrad)">🔍</button>
           <button id="hud-karte" type="button" title="Karte (K)">🗺</button>
           <button id="hud-licht" type="button" title="Taschenlampe an/aus (L) – aus = Zombies sehen dich schlechter">🔦</button>
@@ -64,7 +65,7 @@
           <input id="chat-eingabe" type="text" maxlength="160" placeholder="Nachricht an alle … (Enter)" enterkeyhint="send" />
         </form>
       </div>
-      <!-- Spielerliste (Tab) -->
+      <!-- Spielerliste (I) -->
       <div id="spielerliste" hidden></div>
       <!-- Admin-Menü (nur für Accounts mit Admin-Recht; der Server prüft jeden Befehl) -->
       <div id="admin-panel" hidden>
@@ -77,6 +78,8 @@
         <button type="button" data-befehl="zombieSpawnen">Zombie spawnen</button>
         <button type="button" data-befehl="zombiesToeten">Alle Zombies töten</button>
         <button type="button" data-befehl="zeitSpringen">Tag ⇄ Nacht</button>
+        <button type="button" data-befehl="zeitVor12">⏩ +12 Stunden (Pflanzen wachsen)</button>
+        <button type="button" data-befehl="unendlichMunition">∞ Unendlich Munition</button>
         <button type="button" data-befehl="wetter">Wetter wechseln</button>
         <button type="button" data-befehl="flaggeEntfernen">🚩 Meine Basis-Flagge entfernen</button>
         <button type="button" data-nachtsicht>Nachtsicht</button>
@@ -142,6 +145,7 @@
           <h3 class="inv-titel">Grafik</h3>
           <div id="einstellungen-grafik" class="einst-reihe"></div>
           <p id="einstellungen-grafik-info" class="werkbank-hinweis"></p>
+          <button id="einst-sichtkegel" type="button" class="einst-knopf" title="Dunkler Schleier außerhalb deines Sichtfelds">👁 Sichtkegel an</button>
           <div id="einst-handy">
             <h3 class="inv-titel">Handy</h3>
             <p class="werkbank-hinweis">Statusanzeige</p>
@@ -193,7 +197,7 @@
     </div>
 
     <!-- Werkbank (Crafting) -->
-    <!-- Inventar (I): Schnellleiste, Tasche, Rucksack – Ziehen zum Umsortieren, aus dem Fenster ziehen = fallen lassen -->
+    <!-- Inventar (Tab): Schnellleiste, Tasche, Rucksack – Ziehen zum Umsortieren, aus dem Fenster ziehen = fallen lassen -->
     <div id="inventar" hidden>
       <div class="werkbank-kopf">
         <h2>🎒 Inventar</h2>
@@ -217,14 +221,31 @@
     <!-- Lagerkiste (E an der Kiste): 16 Plätze, Antippen schiebt Stapel hin und her -->
     <div id="kiste" hidden>
       <div class="werkbank-kopf">
-        <h2>📦 Lagerkiste</h2>
+        <h2 id="kiste-titel">📦 Lagerkiste</h2>
         <button id="kiste-schliessen" type="button" aria-label="Schließen">✕</button>
       </div>
-      <h3 class="inv-titel">In der Kiste <small>antippen = ins Inventar</small></h3>
+      <h3 class="inv-titel">Im Behälter <small>antippen = ins Inventar</small></h3>
       <div id="kiste-raster" class="inv-raster"></div>
-      <h3 class="inv-titel">Dein Inventar <small>antippen = in die Kiste legen</small></h3>
+      <h3 class="inv-titel">Dein Inventar <small>antippen = hineinlegen</small></h3>
       <div id="kiste-inventar" class="inv-raster"></div>
       <p id="kiste-info"></p>
+    </div>
+
+    <!-- Station (E am Lagerfeuer / Schmelzofen): Koch-/Schmelzplätze mit Fortschritt, Inventar zum Hineinlegen -->
+    <div id="station" hidden>
+      <div class="werkbank-kopf">
+        <h2 id="station-titel">🔥 Lagerfeuer</h2>
+        <button id="station-schliessen" type="button" aria-label="Schließen">✕</button>
+      </div>
+      <p id="station-status"></p>
+      <div id="station-raster" class="inv-raster station-plaetze"></div>
+      <div id="station-knoepfe">
+        <button id="station-feuer" type="button"></button>
+        <button id="station-sitzen" type="button">🪑 Hinsetzen</button>
+      </div>
+      <h3 class="inv-titel">Dein Inventar <small>antippen = hineinlegen</small></h3>
+      <div id="station-inventar" class="inv-raster"></div>
+      <p id="station-info"></p>
     </div>
 
     <!-- Fähigkeiten (U): Skillpunkte verteilen -->

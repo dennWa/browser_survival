@@ -12,7 +12,7 @@ import { zeigeCredits } from './ui/credits.js';
 import { Sound } from './audio/sound.js';
 import { ZonenMusik } from './audio/zonenMusik.js';
 import { lokalerServer } from './netzwerk/lokalerServer.js';
-import { NACHRICHT } from '../gemeinsam/protokoll.js';
+import { AKTIONEN, NACHRICHT } from '../gemeinsam/protokoll.js';
 import { EgoModus } from './ego/egoModus.js'; // EGO-PROTOTYP (siehe EGO_PROTOTYP.md)
 
 /**
@@ -67,7 +67,7 @@ eingabe.beiTaste('fallenlassen', () => aktuellesSpiel?.fallenlassen(hud.inventar
 eingabe.beiTaste('chat', () => aktuellesSpiel && hud.chatOeffnen());
 eingabe.beiTaste('spielerliste', () => aktuellesSpiel && hud.spielerlisteUmschalten(aktuellesSpiel.spielerStatistik()));
 eingabe.beiTaste('nachladen', () => aktuellesSpiel?.nachladen());
-eingabe.beiTaste('feld', () => aktuellesSpiel?.feldModus());
+eingabe.beiTaste('kofferraum', () => aktuellesSpiel?.kofferraum());
 eingabe.beiTaste('bauen', () => aktuellesSpiel?.bauUmschalten(eingabe.sprint())); // Umschalt+B (Admin): Flugmodus
 eingabe.beiTaste('abriss', () => aktuellesSpiel?.bauAbriss());
 eingabe.beiTaste('gebiet', () => aktuellesSpiel?.bauGebiet());
@@ -89,17 +89,22 @@ hud.beiAktionen({
   rucksackAblegen: () => aktuellesSpiel?.rucksackAblegen(),
   zoomStufe: () => renderer?.naechsteZoomStufe(),
   skill: (name) => aktuellesSpiel?.skill(name),
-  feld: () => aktuellesSpiel?.feldModus(),
+  feld: () => aktuellesSpiel?.feldEntfernen(),
   bauen: () => aktuellesSpiel?.bauUmschalten(),
   autoLaufStopp: () => aktuellesSpiel?.autoLaufStoppen(),
   kisteLegen: (slot) => aktuellesSpiel?.kisteLegen(slot),
   kisteNehmen: (slot) => aktuellesSpiel?.kisteNehmen(slot),
   kisteSchliessen: () => aktuellesSpiel?.kisteSchliessen(),
+  stationLegen: (slot) => aktuellesSpiel?.stationAktion(AKTIONEN.STATION_LEGEN, slot),
+  stationNehmen: (platz) => aktuellesSpiel?.stationAktion(AKTIONEN.STATION_NEHMEN, platz),
+  stationSchliessen: () => aktuellesSpiel?.stationSchliessen(),
+  stationSitzen: () => aktuellesSpiel?.stationSitzen(),
   platzierenOk: () => aktuellesSpiel?.platzierungBestaetigen(),
   platzierenAbbrechen: () => aktuellesSpiel?.platzierungAbbrechen(),
   licht: () => aktuellesSpiel?.licht(),
   tuer: () => aktuellesSpiel?.tuer(),
   interagieren: () => aktuellesSpiel?.interagieren(),
+  kofferraum: () => aktuellesSpiel?.kofferraum(),
   karte: () => aktuellesSpiel?.karteUmschalten(),
   chat: (text) => aktuellesSpiel?.chat(text),
   spielerliste: () => aktuellesSpiel && hud.spielerlisteUmschalten(aktuellesSpiel.spielerStatistik()),

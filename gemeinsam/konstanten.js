@@ -32,6 +32,8 @@ export const STAPEL_MUNITION = 50;
 export const STAPEL_STANDARD = 20;
 /** Lagerkiste: so viele Plätze. */
 export const KISTE_PLAETZE = 16;
+/** Plätze im Kofferraum eines Autos (E-Taste G): eigenes Inventar je Fahrzeug, bleibt im Welt-Spielstand erhalten. */
+export const KOFFERRAUM_PLAETZE = 10;
 
 /** So nah (px) muss man an einem Gegenstand stehen, um ihn aufzuheben. */
 export const AUFHEB_REICHWEITE = 48;

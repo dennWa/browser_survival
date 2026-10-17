@@ -11,7 +11,7 @@ import { stelleHer } from './craftingSystem.js';
 import { benutzeBauwerk, feuer, platziere } from './bauSystem.js';
 import { setzeSkillpunkt } from './levelSystem.js';
 import { fahrzeugAktion } from './fahrzeugSystem.js';
-import { legeInKiste, nimmAusKiste, schliesseKiste } from './kistenSystem.js';
+import { legeInKiste, nimmAusKiste, oeffneKofferraum, schliesseKiste } from './kistenSystem.js';
 import { entferneFeld, legeFeldAn } from './bauSystem.js';
 import { legeInStation, nimmAusStation, schliesseStation, setzeAmFeuer } from './stationSystem.js';
 import { baue, reisseAb } from './basisbauSystem.js';
@@ -45,7 +45,7 @@ export function verarbeiteAktionen(spielWelt) {
       }
       if (spieler.tot) continue;
       // Im Auto geht nur: aussteigen, Licht, Fähigkeiten, Inventar umsortieren
-      if (spieler.fahrzeug && ![AKTIONEN.FAHRZEUG, AKTIONEN.LICHT, AKTIONEN.SKILL, AKTIONEN.TAUSCHEN].includes(aktion.art)) continue;
+      if (spieler.fahrzeug && ![AKTIONEN.FAHRZEUG, AKTIONEN.LICHT, AKTIONEN.SKILL, AKTIONEN.TAUSCHEN, AKTIONEN.KOFFERRAUM, AKTIONEN.KISTE_LEGEN, AKTIONEN.KISTE_NEHMEN, AKTIONEN.KISTE_SCHLIESSEN].includes(aktion.art)) continue;
       switch (aktion.art) {
         case AKTIONEN.LICHT:
           spieler.lichtAn = !spieler.lichtAn;
@@ -108,6 +108,9 @@ export function verarbeiteAktionen(spielWelt) {
           break;
         case AKTIONEN.KISTE_NEHMEN:
           nimmAusKiste(spielWelt, spieler, aktion.slot);
+          break;
+        case AKTIONEN.KOFFERRAUM:
+          oeffneKofferraum(spielWelt, spieler);
           break;
         case AKTIONEN.KISTE_SCHLIESSEN:
           schliesseKiste(spielWelt, spieler);

@@ -59,6 +59,12 @@ export class EinstellungenFenster {
     this.#renderer = renderer;
     this.#baueRegler();
     this.#baueGrafik();
+    const sicht = this.dokument.getElementById('einst-sichtkegel');
+    sicht.addEventListener('click', () => {
+      const kegel = this.#renderer()?.sichtkegel;
+      kegel?.setzeAn(!kegel.an);
+      this.#aktualisiere();
+    });
   }
 
   /** Minikarte ein-/ausblenden: wechsle() schaltet um (Hud), zeigeMinikarte() aktualisiert die Beschriftung. */
@@ -113,6 +119,10 @@ export class EinstellungenFenster {
   #aktualisiere() {
     const aktuell = this.#renderer()?.grafik;
     for (const knopf of this.grafikEl.children) knopf.classList.toggle('aktiv', knopf.dataset.grafik === aktuell);
+    const kegel = this.#renderer()?.sichtkegel;
+    const sicht = this.dokument.getElementById('einst-sichtkegel');
+    sicht.textContent = kegel?.an === false ? '👁 Sichtkegel aus' : '👁 Sichtkegel an';
+    sicht.classList.toggle('aktiv', kegel?.an !== false);
     this.grafikInfo.textContent = aktuell ? `${GRAFIK_PROFILE[aktuell].name}: ${GRAFIK_PROFILE[aktuell].beschreibung}` : '';
     if (this.#handy) {
       const { hud, touch } = this.#handy;

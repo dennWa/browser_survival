@@ -22,6 +22,7 @@ export class KisteFenster {
     this.rasterKiste = dokument.getElementById('kiste-raster');
     this.rasterInventar = dokument.getElementById('kiste-inventar');
     this.info = dokument.getElementById('kiste-info');
+    this.titel = dokument.getElementById('kiste-titel');
     dokument.getElementById('kiste-schliessen').addEventListener('click', () => this.#aktionen.schliessen?.());
     for (let i = 0; i < KISTE_PLAETZE; i++) this.#kisten.push(this.#baueSlot(this.rasterKiste, i, (slot) => this.#aktionen.nehmen?.(slot)));
     for (let i = 0; i < INVENTAR_MAX; i++) this.#inventar.push(this.#baueSlot(this.rasterInventar, i, (slot) => this.#aktionen.legen?.(slot)));
@@ -37,9 +38,10 @@ export class KisteFenster {
   }
 
   /** inhalt = Array(16) → öffnen/aktualisieren, null → schließen */
-  zeige(inhalt) {
+  zeige(inhalt, titel = null) {
     this.#inhalt = inhalt;
     this.el.hidden = !inhalt;
+    if (inhalt) this.titel.textContent = titel ?? '📦 Lagerkiste';
     if (inhalt) this.#zeichne();
   }
 
@@ -67,7 +69,7 @@ export class KisteFenster {
   }
 
   #zeichne() {
-    this.#zeichneReihe(this.#kisten, this.#inhalt ?? []);
+    this.#zeichneReihe(this.#kisten, this.#inhalt ?? [], this.#inhalt?.length ?? KISTE_PLAETZE);
     const inventar = this.#daten?.inventar ?? [];
     this.#zeichneReihe(this.#inventar, inventar, inventar.length);
   }

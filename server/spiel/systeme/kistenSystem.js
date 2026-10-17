@@ -1,6 +1,7 @@
 import { BAUWERK_REICHWEITE } from '../../../gemeinsam/welt/bauwerke.js';
 import { KISTE_PLAETZE } from '../../../gemeinsam/konstanten.js';
 import { GEGENSTAENDE } from '../konfiguration/gegenstaende.js';
+import { EINSTIEG_ABSTAND, abstandZumFahrzeug } from '../../../gemeinsam/physik/fahrzeug.js';
 import { entferneSlot, fuegeZumInventarHinzu } from './inventarSystem.js';
 
 /**
@@ -20,23 +21,55 @@ export function oeffneKiste(spielWelt, spieler, kiste) {
   sendeKiste(spielWelt, spieler, kiste);
 }
 
+/**
+ * AKTION kofferraum: Kofferraum des nächsten Autos in Reichweite (sitzt man drin: des eigenen) – gleiche Oberfläche wie die Lagerkiste.
+ * `spieler.offeneKiste` ist dann 'f<Fahrzeug-ID>' statt der Bauwerk-ID.
+ */
+export function oeffneKofferraum(spielWelt, spieler) {
+  let fz = spieler.fahrzeug;
+  if (!fz) {
+    let best = EINSTIEG_ABSTAND;
+    for (const f of spielWelt.alleVomTyp('fahrzeug')) {
+      const abstand = abstandZumFahrzeug(f, spieler.x, spieler.y);
+      if (abstand <= best) {
+        best = abstand;
+        fz = f;
+      }
+    }
+  }
+  if (!fz?.kofferraum) return;
+  spieler.offeneKiste = `f${fz.id}`;
+  sendeKiste(spielWelt, spieler, fz);
+}
+
 export function schliesseKiste(spielWelt, spieler) {
   if (spieler.offeneKiste === null) return;
   spielWelt.kistenNachrichten.push({ spielerId: spieler.id, id: spieler.offeneKiste, inhalt: null });
   spieler.offeneKiste = null;
 }
 
+/** Der geöffnete Behälter: Lagerkiste (Bauwerk mit inhalt) oder Kofferraum ('f<ID>' → Fahrzeug mit kofferraum). */
 function offeneKiste(spielWelt, spieler) {
   if (spieler.offeneKiste === null) return null;
-  const b = spielWelt.welt.bauwerke.get(spieler.offeneKiste);
+  const k = behaelterVon(spielWelt, spieler.offeneKiste);
+  return k;
+}
+
+function behaelterVon(spielWelt, ref) {
+  if (typeof ref === 'string') {
+    const fz = spielWelt.holen(Number(ref.slice(1)));
+    return fz?.typ === 'fahrzeug' && fz.kofferraum ? { id: ref, inhalt: fz.kofferraum, titel: '🚗 Kofferraum', fahrzeug: fz } : null;
+  }
+  const b = spielWelt.welt.bauwerke.get(ref);
   return b?.typ === 'kiste' && b.inhalt ? b : null;
 }
 
-function sendeKiste(spielWelt, spieler, kiste) {
-  spielWelt.kistenNachrichten.push({ spielerId: spieler.id, id: kiste.id, inhalt: kiste.inhalt.map((e) => (e ? { ...e } : null)) });
+function sendeKiste(spielWelt, spieler, behaelter) {
+  const k = behaelter.typ === 'fahrzeug' ? behaelterVon(spielWelt, `f${behaelter.id}`) : behaelter; // Kiste-Bauwerk oder Fahrzeug → einheitlich
+  spielWelt.kistenNachrichten.push({ spielerId: spieler.id, id: k.id, titel: k.titel, inhalt: k.inhalt.map((e) => (e ? { ...e } : null)) });
 }
 
-/** Alle, die diese Kiste offen haben, sehen die Änderung. */
+/** Alle, die diesen Behälter offen haben, sehen die Änderung. */
 function aktualisiereAnsichten(spielWelt, kiste) {
   for (const s of spielWelt.alleVomTyp('spieler')) if (s.offeneKiste === kiste.id) sendeKiste(spielWelt, s, kiste);
 }
@@ -87,12 +120,19 @@ export function nimmAusKiste(spielWelt, spieler, slot) {
   aktualisiereAnsichten(spielWelt, kiste);
 }
 
-/** Pro Tick: wer sich von der Kiste entfernt (oder wessen Kiste weg ist), dem schließt sie sich. */
+/** Pro Tick: wer sich von der Kiste/dem Auto entfernt (oder wessen Behälter weg ist), dem schließt sie sich. */
 export function aktualisiereKisten(spielWelt) {
+  const g = spielWelt.welt.kachelGroesse;
   for (const s of spielWelt.alleVomTyp('spieler')) {
     if (s.offeneKiste === null) continue;
     const b = offeneKiste(spielWelt, s);
-    const g = spielWelt.welt.kachelGroesse;
-    if (!b || s.tot || s.fahrzeug || Math.hypot((b.tx + 0.5) * g - s.x, (b.ty + 0.5) * g - s.y) > BAUWERK_REICHWEITE + OEFFNEN_TOLERANZ) schliesseKiste(spielWelt, s);
+    if (!b || s.tot) {
+      schliesseKiste(spielWelt, s);
+      continue;
+    }
+    const weg = b.fahrzeug
+      ? !s.fahrzeug && abstandZumFahrzeug(b.fahrzeug, s.x, s.y) > EINSTIEG_ABSTAND + OEFFNEN_TOLERANZ
+      : s.fahrzeug || Math.hypot((b.tx + 0.5) * g - s.x, (b.ty + 0.5) * g - s.y) > BAUWERK_REICHWEITE + OEFFNEN_TOLERANZ;
+    if (weg) schliesseKiste(spielWelt, s);
   }
 }

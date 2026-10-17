@@ -111,7 +111,7 @@ export class SpielWelt {
    * gebaute Sachen (inkl. Beete & Pflanzen), Uhrzeit und Tag.
    */
   weltzustand() {
-    const fahrzeuge = [...this.alleVomTyp('fahrzeug')].map(({ modell, x, y, winkel, leben, kaputt }) => ({ modell, x, y, winkel, leben, kaputt }));
+    const fahrzeuge = [...this.alleVomTyp('fahrzeug')].map(({ modell, x, y, winkel, leben, kaputt, kofferraum }) => ({ modell, x, y, winkel, leben, kaputt, kofferraum }));
     return { version: 1, karte: this.karte.daten.id, zeit: this.zeit, tag: this.tag, bauwerke: [...this.welt.bauwerke.values()], flaggen: territoriumSpeichern(this.territorium), fahrzeuge };
   }
 
@@ -138,6 +138,7 @@ export class SpielWelt {
       if (passt(probe, f.x, f.y, this.welt)) Object.assign(fz, { x: f.x, y: f.y, winkel: f.winkel, letzteKacheln: '' });
       if (Number.isFinite(f.leben)) fz.leben = Math.min(fz.maxLeben, Math.max(0, f.leben));
       fz.kaputt = f.kaputt === true || fz.leben <= 0;
+      if (Array.isArray(f.kofferraum)) f.kofferraum.slice(0, fz.kofferraum.length).forEach((e, k) => (fz.kofferraum[k] = pruefeEintrag(e)));
     }
     return true;
   }

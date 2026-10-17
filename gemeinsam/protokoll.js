@@ -93,6 +93,7 @@ export const AKTIONEN = Object.freeze({
   STATION_NEHMEN: 'stationNehmen', // { slot } Koch-/Ofenplatz leeren (Item ins Inventar); slot = -1… nicht erlaubt, Platz 0..
   STATION_SCHLIESSEN: 'stationSchliessen', // geöffnete Station schließen
   STATION_SITZEN: 'stationSitzen', // am geöffneten (brennenden) Lagerfeuer hinsetzen
+  KOFFERRAUM: 'kofferraum', // G: Kofferraum des nächsten Autos (oder des eigenen, wenn man drin sitzt) öffnen – danach kisteLegen/kisteNehmen/kisteSchliessen
   FELD_ENTFERNEN: 'feldEntfernen', // { tx, ty } mit der Hacke in der Hand ein Ackerfeld (Beet) wieder zu Rasen machen (Rechtsklick)
   SKILL: 'skill', // { skill } einen Skillpunkt verteilen (gemeinsam/spieler/skills.js)
   FAHRZEUG: 'fahrzeug', // ins nächste freie Auto einsteigen bzw. aussteigen

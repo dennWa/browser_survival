@@ -17,15 +17,15 @@ export const TASTEN = Object.freeze({
   aufheben: ['KeyE'], // Aufheben / Abbauen / Werkbank / Schlafen – je nachdem, was in der Nähe ist
   menue: ['Escape'], // offene Menüs schließen
   karte: ['KeyK'], // Karte auf/zu
-  inventar: ['KeyI'], // Inventar-Fenster auf/zu
+  inventar: ['Tab'], // Inventar-Fenster auf/zu
   bauen: ['KeyB'], // Bau-Modus (BUILD) an/aus – R dreht dort das Bauteil; Admin: Umschalt+B = Flugmodus
   abriss: ['KeyX'], // im Bau-Modus: Abriss-Werkzeug
   gebiet: ['KeyV'], // roten Baugebiet-Ring ein-/ausblenden (Hammer in der Hand)
   skills: ['KeyU'], // Fähigkeiten (Skillpunkte verteilen)
   fallenlassen: ['KeyQ'], // Item fallen lassen (unter der Maus im Inventar, sonst das in der Hand)
   chat: ['KeyT'], // Chat-Eingabe öffnen
-  spielerliste: ['Tab'], // Wer ist online?
-  feld: ['KeyG'], // Erdfeld anlegen (Hacke in der Hand)
+  spielerliste: ['KeyI'], // Spieler-Info: wer ist online (Level, Kills, überlebte Zeit)
+  kofferraum: ['KeyG'], // Kofferraum des Autos öffnen (daneben stehen oder drinsitzen)
   tuer: ['KeyF'], // Lagerfeuer an/aus (Name historisch)
   nachladen: ['KeyR'],
   licht: ['KeyL'], // Taschenlampe an/aus
@@ -57,7 +57,7 @@ export class Eingabe {
 
     fenster.addEventListener('keydown', (e) => {
       if (!this.#aktiv || istEingabefeld(e.target)) return;
-      if (TASTEN.debug.includes(e.code) || TASTEN.angriff.includes(e.code) || TASTEN.spielerliste.includes(e.code) || TASTEN.chat.includes(e.code)) e.preventDefault();
+      if (TASTEN.debug.includes(e.code) || TASTEN.angriff.includes(e.code) || TASTEN.inventar.includes(e.code) || TASTEN.chat.includes(e.code)) e.preventDefault();
       if (!e.repeat) {
         for (const fn of this.#tastenHoerer.get(e.code) ?? []) fn();
         const slot = SLOT_TASTEN.indexOf(e.code);

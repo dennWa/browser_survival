@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { FBXLoader, SkeletonUtils } from '../vendor/three/addons.js';
-import { KartenModell } from './kartenModell.js';
+import { KartenModell, TUER_EBENE } from './kartenModell.js';
 import { vereineGeometrien } from './geometrie.js';
 import { Fussspuren } from './fussspuren.js';
 import { bauwerkDrehungY, erzeugeBauwerk, erzeugeVorschau } from './bauwerkModelle.js';
@@ -16,6 +16,7 @@ import { erzeugeWaffe, WAFFEN_NAMEN } from './waffenModelle.js';
 import { erzeugeTier } from './tierModelle.js';
 import { erzeugeAngel } from './angelModell.js';
 import { WetterEffekt } from './wetterEffekt.js';
+import { Sichtkegel } from './sichtkegel.js';
 import { BlaetterEffekt } from './blaetterEffekt.js';
 
 /**
@@ -45,7 +46,7 @@ const FIGUR_HOEHE = 64;
 const SCHNITT_RADIUS = 0; // 0 = aus: kein Durchschauen durch Wände mehr (verdeckte Figur zeigt stattdessen die Silhouette)
 const SCHNITT_HOEHE = 10; // bis zu dieser Höhe bleiben aufgeschnittene Wände als Sockel stehen
 const ZIELHOEHE = 36; // Mausstrahl trifft diese Höhe (Brust) → Zielen fühlt sich richtig an
-const KAMERA_VERSATZ = new THREE.Vector3(0, 600, 320);
+const KAMERA_VERSATZ = new THREE.Vector3(0, 540, 400); // etwas flacher als früher (600/320): schrägerer Blick, nicht rein von oben
 const SKINS = { normal: 'zombieMaleA', laeufer: 'zombieFemaleA', brocken: 'zombieMaleA' }; // Zombies; Spieler: aussehen.js
 const KOPF = { hoehe: 1.22, breite: 0.9, tiefe: 1.07 }; // Schädelmaße im Verhältnis zum Abstand Kopfknochen → Head_end (gemessen)
 const _wetterGrau = new THREE.Color();
@@ -85,13 +86,13 @@ const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 1.9;
 /** Lichtfarben für Tag, Nacht und Dämmerung (siehe #tageslicht) */
 const TAG = { sonne: new THREE.Color(0xfff1dc), himmel: new THREE.Color(0xbfd8ff), boden: new THREE.Color(0x4a4636), hintergrund: new THREE.Color(0x9cc3e4) };
-const NACHT = { sonne: new THREE.Color(0x9db4e8), himmel: new THREE.Color(0x3a4a70), boden: new THREE.Color(0x101010), hintergrund: new THREE.Color(0x04060b) };
+const NACHT = { sonne: new THREE.Color(0x8aa0d8), himmel: new THREE.Color(0x1b2238), boden: new THREE.Color(0x050505), hintergrund: new THREE.Color(0x02030a) };
 const DAEMMERUNG = { sonne: new THREE.Color(0xff9a4d), hintergrund: new THREE.Color(0xe08a5a) };
 
 const _ziel = new THREE.Vector3();
 const _kameraZiel = new THREE.Vector3();
 
-const ITEM_NAMEN_RADIUS = 320; // px: so nah müssen Bodenitems sein, damit ihr Name erscheint
+const ITEM_NAMEN_RADIUS = 58; // px: Namen von Bodenitems erscheinen erst, wenn man (fast) davor steht
 const PARTIKEL_FARBE = new THREE.Color();
 
 // Silhouette: Ist die eigene Figur hinter einer Wand verschwunden, bleibt ein grauer Umriss sichtbar.
@@ -104,6 +105,11 @@ const SILHOUETTE_MARKE = new THREE.MeshBasicMaterial({
 const SILHOUETTE_GRAU = new THREE.MeshBasicMaterial({
   color: 0x9aa3b0, transparent: true, opacity: 0.55, depthWrite: false, depthFunc: THREE.GreaterDepth, fog: false,
   stencilWrite: true, stencilFunc: THREE.NotEqualStencilFunc, stencilRef: 1, stencilZPass: THREE.ReplaceStencilOp,
+});
+
+// Türen hinter Wänden: ein leichter Farbschimmer zeigt, wo der Eingang ist (nur dort gezeichnet, wo etwas Näheres die Tür verdeckt).
+const TUER_UMRISS = new THREE.MeshBasicMaterial({
+  color: 0xffc04a, transparent: true, opacity: 0.4, depthWrite: false, depthFunc: THREE.GreaterDepth, fog: false,
 });
 
 export class Renderer {
@@ -121,6 +127,7 @@ export class Renderer {
     this.leinwand = Object.assign(document.createElement('canvas'), { id: 'spielflaeche3d' });
     leinwand2d.before(this.leinwand);
     this.vignette = document.getElementById('vignette');
+    this.sichtkegel = new Sichtkegel(leinwand2d); // Sichtfeld-Schleier (Einstellungen ⚙ → Sichtkegel)
     this.schadenEbene = document.getElementById('schadensblitz');
     this.istHandy = matchMedia('(pointer: coarse)').matches;
 
@@ -356,6 +363,8 @@ export class Renderer {
 
     this.gl.render(this.szene, this.kamera3d);
     this.#zeichneSilhouette(fokus);
+    this.#zeichneTuerUmrisse();
+    this.sichtkegel.zeichne(this.kamera, fokus, dunkel, !fokus.tot && !this.egoHaken);
     this.#zeichneOverlay(entitaeten, fokus, gegenstaende, itemDefinitionen);
     if (this.ruhigWarter) this.#pruefeRuhig(dt, jetzt);
   }
@@ -376,6 +385,25 @@ export class Renderer {
     szene.overrideMaterial = SILHOUETTE_MARKE;
     gl.render(szene, kamera3d);
     szene.overrideMaterial = SILHOUETTE_GRAU;
+    gl.render(szene, kamera3d);
+    szene.overrideMaterial = null;
+    szene.background = hintergrund;
+    kamera3d.layers.mask = ebenen;
+    gl.autoClear = true;
+    gl.shadowMap.autoUpdate = schatten;
+  }
+
+  /** Zusätzlicher Durchgang: Türen (Ebene TUER_EBENE), die von Wänden verdeckt sind, als goldener Schimmer. */
+  #zeichneTuerUmrisse() {
+    const { gl, szene, kamera3d } = this;
+    const schatten = gl.shadowMap.autoUpdate;
+    const ebenen = kamera3d.layers.mask;
+    gl.shadowMap.autoUpdate = false;
+    gl.autoClear = false;
+    const hintergrund = szene.background;
+    szene.background = null;
+    kamera3d.layers.set(TUER_EBENE);
+    szene.overrideMaterial = TUER_UMRISS;
     gl.render(szene, kamera3d);
     szene.overrideMaterial = null;
     szene.background = hintergrund;
@@ -1099,10 +1127,10 @@ export class Renderer {
     // Farben mischen: Nacht (blau) → Dämmerung (orange) → Tag (warm-weiß)
     const daemmerung = Math.max(0, 1 - Math.abs(hell - 0.35) / 0.35) * (tageszeit?.istNacht ? 0 : 1);
     this.mond.color.copy(NACHT.sonne).lerp(TAG.sonne, hell).lerp(DAEMMERUNG.sonne, daemmerung * 0.6);
-    this.mond.intensity = 0.9 + hell * 2.1;
+    this.mond.intensity = 0.22 + hell * 2.78; // Nächte sind richtig dunkel (früher 0,9 → ohne Lampe/Feuer kaum etwas zu sehen)
     this.umgebung.color.copy(NACHT.himmel).lerp(TAG.himmel, hell);
     this.umgebung.groundColor.copy(NACHT.boden).lerp(TAG.boden, hell);
-    this.umgebung.intensity = 0.55 + hell * 0.75;
+    this.umgebung.intensity = 0.16 + hell * 1.14;
     this.szene.background.copy(NACHT.hintergrund).lerp(TAG.hintergrund, hell).lerp(DAEMMERUNG.hintergrund, daemmerung * 0.5);
     this.szene.fog.color.copy(this.szene.background);
     // Nebel wandert mit der Kamera (Zoom, Auto-Fahrt): sonst liegt beim Rauszoomen/Fahren alles hinter dem Nebel
@@ -1121,8 +1149,10 @@ export class Renderer {
     // Dichter Nebel darf kräftig sein, aber nie die Figur selbst verschlucken (Top-Down: Kamera ~677 px × Zoom entfernt)
     const kamAbstand = KAMERA_VERSATZ.length() * abstand;
     const nah = Math.max((650 + hell * 600) * abstand * (1 - 0.82 * dicht), kamAbstand * 0.92);
-    this.szene.fog.near = nah;
-    this.szene.fog.far = Math.max((1500 + hell * 1500) * abstand * (1 - 0.62 * dicht), nah + kamAbstand * (0.5 + 0.3 * hell));
+    // Reingezoomt (< 1) schaut man auf einen kleinen Ausschnitt: Nebel weiter nach hinten schieben, sonst liegt ein grauer Schleier über dem oberen Bildrand
+    const reingezoomt = 1 + 0.9 * Math.max(0, 1 - this.zoom);
+    this.szene.fog.near = nah * reingezoomt;
+    this.szene.fog.far = Math.max((1500 + hell * 1500) * abstand * (1 - 0.62 * dicht), nah + kamAbstand * (0.5 + 0.3 * hell)) * reingezoomt;
     return dunkel;
   }
 
@@ -1202,6 +1232,7 @@ export class Renderer {
     if (!this.egoHaken) {
       for (const g of gegenstaende) {
         if (Math.abs(g.x - fokus.x) > ITEM_NAMEN_RADIUS || Math.abs(g.y - fokus.y) > ITEM_NAMEN_RADIUS) continue;
+        if (Math.hypot(g.x - fokus.x, g.y - fokus.y) > ITEM_NAMEN_RADIUS) continue;
         if (itemDefinitionen[g.defId]?.name && this.karte.istEinsehbar(g.x, g.y)) beschriftet.push(g);
       }
     }
@@ -1244,6 +1275,7 @@ export class Renderer {
     this.grundAbstand = Math.min(1.35, Math.max(1, Math.sqrt(720 / Math.max(1, Math.min(breite, hoehe)))));
     this.#kameraAbstand();
     this.kamera3d.updateProjectionMatrix();
+    this.sichtkegel?.groesse(breite, hoehe);
     this.kamera.breite = breite;
     this.kamera.hoehe = hoehe;
   }

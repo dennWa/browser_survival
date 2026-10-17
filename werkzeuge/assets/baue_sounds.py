@@ -105,21 +105,6 @@ def wandle(eintrag, ziel):
     ffmpeg([*args, '-ac', '1', '-ar', '32000', '-af', filter_, '-c:a', 'libvorbis', '-q:a', '3', str(ziel)])
 
 
-def baue_baumfall(ziel):
-    """Baum fällt: Knarren, dann Aufschlag (passt zu renderer.baumFaellt: Knarren 0–1 s, Fall ab 1 s, Aufschlag ≈1,65 s)."""
-    creak = finde(lade('rpg'), 'creak2.ogg')
-    creak3 = finde(lade('rpg'), 'creak3.ogg')
-    schlag = finde(lade('impact'), 'impactWood_heavy_002.ogg')
-    dumpf = finde(lade('impact'), 'impactSoft_heavy_003.ogg')
-    ffmpeg([
-        '-i', str(creak), '-i', str(creak3), '-i', str(schlag), '-i', str(dumpf),
-        '-filter_complex',
-        '[0]adelay=0,volume=0.9[a];[1]adelay=550,volume=0.8[b];[2]adelay=1600,volume=1.6[c];[3]adelay=1650,volume=1.3[d];'
-        '[a][b][c][d]amix=inputs=4:normalize=0,alimiter=limit=0.9[m]',
-        '-map', '[m]', '-ac', '1', '-ar', '32000', '-c:a', 'libvorbis', '-q:a', '3', str(ziel),
-    ])
-
-
 def main():
     if not shutil.which('ffmpeg'):
         raise SystemExit('ffmpeg fehlt')
@@ -135,8 +120,7 @@ def main():
             wandle(eintrag, ZIEL / datei)
             dateien.append(datei)
         manifest[name] = dateien
-    baue_baumfall(ZIEL / 'baum_faellt_0.ogg')
-    manifest['baum_faellt'] = ['baum_faellt_0.ogg']
+    # Baum-Fällen: bewusst KEIN Sample – die synthetische Version (sound.js → baum_faellt) passt zur Animation
     (ZIEL / 'samples.json').write_text(json.dumps(manifest, indent=1), encoding='utf-8')
     zeilen = ['# Sound-Lizenzen', '', 'Alle Geräusche sind CC0 (gemeinfrei). Bearbeitet (gekürzt, normalisiert) mit werkzeuge/assets/baue_sounds.py.', '',
               '| Paket | Urheber | Lizenz | Verwendet für |', '|---|---|---|---|']

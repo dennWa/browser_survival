@@ -1,6 +1,6 @@
 import { AUFHEB_REICHWEITE, BETT_REICHWEITE, TICK_DAUER_MS, TICK_DAUER_S, WERKBANK_REICHWEITE } from '../../gemeinsam/konstanten.js';
 import { ABBAU_REICHWEITE, RESSOURCEN_OBJEKTE } from '../../gemeinsam/welt/ressourcen.js';
-import { BAUWERKE, BAUWERK_REICHWEITE, bauwerkAktion, feldKacheln, feuerText, kachelInReichweite, pruefePlatz, zielKachel } from '../../gemeinsam/welt/bauwerke.js';
+import { BAUWERKE, BAUWERK_REICHWEITE, bauwerkAktion, feuerText, kachelInReichweite, pruefePlatz, samenZiel, zielKachel } from '../../gemeinsam/welt/bauwerke.js';
 import { wurfZiel } from '../../gemeinsam/welt/wasser.js';
 import { findePfad } from '../../gemeinsam/physik/pfadfindung.js';
 import { tageszeit } from '../../gemeinsam/tageszeit.js';
@@ -186,6 +186,7 @@ export class ClientSpiel {
     if (this.werkbankOffen) this.werkbankUmschalten(false);
     this.autoLaufStoppen();
     this.hud.kiste.zeige(null);
+    this.hud.station.zeige(null);
     this.hud.zeigeAngeln(null);
     this.hud.zeigeAuto(null);
     this.sound?.stoppeAtmosphaere();
@@ -372,6 +373,7 @@ export class ClientSpiel {
     this.hud.adminMenuUmschalten(false);
     this.werkbankUmschalten(false);
     this.kisteSchliessen();
+    this.stationSchliessen();
     this.autoLaufStoppen();
     this.zielZombieId = null;
     this.platzierungAbbrechen();
@@ -388,6 +390,22 @@ export class ClientSpiel {
     this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.KISTE_NEHMEN, slot });
   }
 
+  stationAktion(art, slot) {
+    this.#senden({ typ: NACHRICHT.AKTION, art, slot });
+  }
+
+  stationSchliessen() {
+    if (!this.hud.station.offen) return;
+    this.hud.station.zeige(null);
+    this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.STATION_SCHLIESSEN });
+  }
+
+  /** Im Feuer-Menü: hinsetzen – das Menü geht dabei zu. */
+  stationSitzen() {
+    this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.STATION_SITZEN });
+    this.stationSchliessen();
+  }
+
   kisteSchliessen() {
     if (!this.hud.kiste.offen) return;
     this.hud.kiste.zeige(null);
@@ -402,6 +420,20 @@ export class ClientSpiel {
 
   herstellen(rezept) {
     this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.HERSTELLEN, rezept });
+  }
+
+  /** G: Kofferraum des nächsten Autos (oder des eigenen) öffnen. */
+  kofferraum() {
+    if (this.spielerDaten?.tot) return;
+    if (this.#naheFahrzeug() || this.lokal.fahrzeug) this.#aktion(AKTIONEN.KOFFERRAUM);
+  }
+
+  /** Auto (auch besetzt/Wrack) in Einstiegsreichweite aus dem letzten Schnappschuss – für Kofferraum-Knopf & -Taste. */
+  #naheFahrzeug() {
+    const letzter = this.schnappschuesse[this.schnappschuesse.length - 1];
+    if (!letzter) return null;
+    for (const e of letzter.entitaeten.values()) if (e.typ === 'fahrzeug' && abstandZumFahrzeug(e, this.lokal.x, this.lokal.y) <= EINSTIEG_ABSTAND) return e;
+    return null;
   }
 
   /** Was würde E gerade tun? → { art, text } oder null */
@@ -455,26 +487,40 @@ export class ClientSpiel {
   // --- Platzieren (Bauwerke, Beet mit der Hacke) ------------------------------
 
   /**
-   * Taste G / 🌱: Erdfeld anlegen – Vorschau (FELD_GROESSE² Kacheln) folgt der Maus, Klick/E legt es an.
-   * Die Hacke muss in der Hand sein (Inventar: Doppelklick/Hotbar) – sonst Hinweis.
+   * Hacke in der Hand (kein eigener Modus mehr): die Kachel unter der Maus zeigt eine 1×1-Vorschau (grün = geht, rot = geht nicht).
+   * Linksklick legt ein Ackerfeld an, Rechtsklick (bzw. 🌱 am Handy) macht ein Beet wieder zu Rasen.
+   * Samen in der Hand: das Beet, in das ein Linksklick pflanzt, wird markiert (gleiche Wahl wie der Server: samenZiel).
+   * @returns {{ art: 'hacke'|'samen', tx, ty, ok, beet?, grund? } | null}
    */
-  feldModus() {
-    if (this.spielerDaten?.tot || this.lokal.fahrzeug) return;
-    if (this.platzierung?.art === 'feld') return this.platzierungAbbrechen();
-    if (!this.#hackeInHand()) {
-      this.hud.meldung(this.spielerDaten?.inventar.some((e) => e?.defId === 'hacke') ? 'Nimm die Hacke in die Hand (Inventar), dann G' : 'Du brauchst eine Hacke für ein Erdfeld');
-      return;
+  #handZiel() {
+    const d = this.spielerDaten;
+    if (!d || d.tot || this.lokal.fahrzeug || this.bau.aktiv || this.platzierung || d.ausgeruestet == null) return null;
+    const defId = d.inventar[d.ausgeruestet]?.defId;
+    const kategorie = defId && this.itemDefinitionen[defId]?.kategorie;
+    const { x, y, blick } = this.lokal;
+    if (kategorie === 'samen') {
+      const beet = samenZiel(this.welt, x, y, blick);
+      return beet ? { art: 'samen', tx: beet.tx, ty: beet.ty, ok: true } : null;
     }
-    this.platzierungAbbrechen();
-    this.bau.umschalten(false);
-    this.platzierung = { art: 'feld', slot: -1, defId: 'hacke', typ: 'erdfeld', name: 'Erdfeld anlegen (Hacke)' };
-    this.hud.inventar.zeige(false);
-    this.hud.zeigePlatzierung(this.platzierung.name);
+    if (defId !== 'hacke') return null;
+    const maus = this.eingabe.mausBenutzt && this.eingabe.mausZeit >= this.eingabe.touch.letzteBenutzung;
+    const punkt = maus ? this.renderer.kamera.bildschirmZuBoden(this.eingabe.mausX, this.eingabe.mausY) : null;
+    const { tx, ty } = zielKachel(this.welt, x, y, blick, punkt);
+    const beet = this.welt.bauwerkBei(tx, ty, 'objekt')?.typ === 'beet';
+    if (!kachelInReichweite(this.welt, x, y, tx, ty)) return { art: 'hacke', tx, ty, ok: false, beet, grund: 'Zu weit weg' };
+    const platz = pruefePlatz(this.welt, 'beet', tx, ty);
+    return { art: 'hacke', tx, ty, ok: platz.ok, beet, grund: platz.grund };
   }
 
-  #hackeInHand() {
-    const d = this.spielerDaten;
-    return d?.ausgeruestet != null && d.inventar[d.ausgeruestet]?.defId === 'hacke';
+  /** Rechtsklick / 🌱 mit der Hacke: Beet unter der Vorschau wieder zu Rasen machen. @returns true, wenn gesendet */
+  feldEntfernen() {
+    const z = this.#handZiel();
+    if (z?.art !== 'hacke' || !z.beet) {
+      if (z?.art === 'hacke') this.hud.meldung('Hier ist kein Ackerfeld');
+      return false;
+    }
+    this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.FELD_ENTFERNEN, tx: z.tx, ty: z.ty });
+    return true;
   }
 
   /** Platzier-Modus an/aus. Vorschau folgt Maus bzw. Blickrichtung (#platzierungsZiel). */
@@ -502,8 +548,7 @@ export class ClientSpiel {
       this.hud.meldung(ziel.grund ?? 'Hier nicht');
       return;
     }
-    if (this.platzierung.art === 'feld') this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.FELD, tx: ziel.tx, ty: ziel.ty });
-    else this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.PLATZIEREN, slot: this.platzierung.slot, tx: ziel.tx, ty: ziel.ty });
+    this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.PLATZIEREN, slot: this.platzierung.slot, tx: ziel.tx, ty: ziel.ty });
     this.platzierungAbbrechen();
   }
 
@@ -511,7 +556,7 @@ export class ClientSpiel {
   #platzierungsZiel() {
     const p = this.platzierung;
     if (!p) return null;
-    const hatItem = p.art === 'feld' ? this.#hackeInHand() : this.spielerDaten?.inventar[p.slot]?.defId === p.defId;
+    const hatItem = this.spielerDaten?.inventar[p.slot]?.defId === p.defId;
     if (!hatItem || this.spielerDaten?.tot || this.lokal.fahrzeug) {
       this.platzierungAbbrechen();
       return null;
@@ -521,13 +566,6 @@ export class ClientSpiel {
     const punkt = maus ? this.renderer.kamera.bildschirmZuBoden(this.eingabe.mausX, this.eingabe.mausY) : null;
     const { tx, ty } = zielKachel(this.welt, x, y, blick, punkt);
     if (!kachelInReichweite(this.welt, x, y, tx, ty)) return { tx, ty, ok: false, grund: 'Zu weit weg' };
-    if (p.art === 'feld') {
-      for (const k of feldKacheln(tx, ty)) {
-        const feld = pruefePlatz(this.welt, 'beet', k.tx, k.ty);
-        if (!feld.ok) return { tx, ty, ok: false, grund: `Hier geht kein Feld: ${feld.grund}` };
-      }
-      return { tx, ty, ok: true };
-    }
     const platz = pruefePlatz(this.welt, p.typ, tx, ty);
     if (!platz.ok) return { tx, ty, ok: false, grund: platz.grund };
     // Nicht auf sich selbst bauen (blockierende Bauwerke)
@@ -558,6 +596,7 @@ export class ClientSpiel {
   rechtsklick() {
     if (this.bau.aktiv) this.bau.abbrechen();
     else if (this.platzierung) this.platzierungAbbrechen();
+    else if (this.#handZiel()?.art === 'hacke') this.feldEntfernen();
     else this.zielAntippen(this.eingabe.mausX, this.eingabe.mausY); // Zombie anvisieren
   }
 
@@ -580,7 +619,9 @@ export class ClientSpiel {
     const d = this.spielerDaten;
     if (!d || d.tot) return;
     const ziel = slot ?? d.ausgeruestet ?? (d.inventar[this.letzterSlot] ? this.letzterSlot : null);
-    if (ziel !== null && ziel !== undefined && d.inventar[ziel]) this.ablegen(ziel);
+    if (ziel === null || ziel === undefined || !d.inventar[ziel]) return;
+    // Aus der Hand (nicht aus dem Inventar-Fenster): bei Stapeln (Holz, Samen, Essen) nur 1 Stück
+    this.ablegen(ziel, slot === null && ziel === d.ausgeruestet && d.inventar[ziel].menge > 1);
   }
 
   tauschen(von, nach) {
@@ -591,8 +632,8 @@ export class ClientSpiel {
     this.#aktion(AKTIONEN.RUCKSACK_ABLEGEN);
   }
 
-  ablegen(slot) {
-    this.#aktion(AKTIONEN.ABLEGEN, slot);
+  ablegen(slot, einzeln = false) {
+    this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.ABLEGEN, slot, einzeln });
   }
 
   /** Taschenlampe an/aus – aus = Zombies bemerken einen erst aus der Nähe. */
@@ -661,8 +702,11 @@ export class ClientSpiel {
         this.tageszeitDauer = n.tageszeit ?? this.tageszeitDauer;
         this.itemDefinitionen = n.itemDefinitionen ?? this.itemDefinitionen;
         break;
+      case NACHRICHT.STATION:
+        this.hud.station.zeige(n.plaetze ? n : null);
+        break;
       case NACHRICHT.KISTE:
-        this.hud.kiste.zeige(n.inhalt);
+        this.hud.kiste.zeige(n.inhalt, n.titel);
         if (n.inhalt) this.hud.inventar.zeige(false);
         break;
       case NACHRICHT.RESSOURCEN:
@@ -797,6 +841,16 @@ export class ClientSpiel {
       angriff = true;
       if (this.angelBlick !== null && this.angelBlick !== undefined) autoBlick = this.angelBlick;
     }
+    const hand = this.#handZiel();
+    if (hand?.art === 'hacke') {
+      // Hacke: Linksklick (neue Flanke) legt ein Ackerfeld an – der Server schlägt damit nicht zu
+      if (angriff && !this.letzterKlick) {
+        if (hand.ok) this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.FELD, tx: hand.tx, ty: hand.ty });
+        else if (hand.beet) this.hud.meldung('Hier ist schon ein Ackerfeld (Rechtsklick = Rasen)');
+        else this.hud.meldung(hand.grund ?? 'Hier geht kein Feld');
+      }
+      this.letzterKlick = angriff;
+    }
     if (this.bau.aktiv) {
       this.bau.takt(angriff); // Klick = bauen/abreißen, kein Hammerschwung
       angriff = false;
@@ -860,7 +914,7 @@ export class ClientSpiel {
         this.sound.spiele(e.ziel === 'zombie' ? 'treffer_zombie' : 'treffer_spieler', { x: e.x, y: e.y });
         break;
       case 'tod':
-        this.sound.spiele(e.ziel === 'zombie' ? 'zombie_tod' : 'spieler_tod', { x: e.x, y: e.y });
+        if (e.ziel !== 'tier') this.sound.spiele(e.ziel === 'zombie' ? 'zombie_tod' : 'spieler_tod', { x: e.x, y: e.y }); // Hasen fallen lautlos um
         break;
       case 'nahkampf':
         this.sound.spiele('nahkampf', { x: e.x, y: e.y });
@@ -872,10 +926,11 @@ export class ClientSpiel {
         this.sound.spiele(e.aufgebrochen ? 'tuer_bricht' : e.offen ? 'tuer_auf' : 'tuer_zu', { x: e.x, y: e.y });
         break;
       case 'hack':
-        this.sound.spiele(e.art === 'holz' ? 'hack_holz' : 'hack_stein', { x: e.x, y: e.y, tonhoehe: 0.9 + Math.random() * 0.2 });
+        // Holz: Hacken · Eisenerz: heller Klang (Sample) · Stein: dumpfes Pochen (kein Metallklang)
+        this.sound.spiele(e.art === 'holz' ? 'hack_holz' : e.art === 'eisenerz' ? 'hack_stein' : 'hack_felsen', { x: e.x, y: e.y, tonhoehe: 0.9 + Math.random() * 0.2 });
         break;
       case 'abgebaut':
-        this.sound.spiele(e.art === 'holz' ? 'baum_faellt' : 'stein_bricht', { x: e.x, y: e.y });
+        this.sound.spiele(e.art === 'holz' ? 'baum_faellt' : e.art === 'eisenerz' ? 'stein_bricht' : 'felsen_bricht', { x: e.x, y: e.y });
         break;
       case 'hergestellt':
       case 'tuerVerstaerkt':
@@ -899,8 +954,23 @@ export class ClientSpiel {
       case 'spawnGesetzt':
         this.sound.spiele('aufheben', { x: e.x, y: e.y, tonhoehe: 0.8 });
         break;
-      case 'feuer':
+      case 'lagerfeuer':
         this.sound.spiele(e.an ? 'feuer_an' : 'feuer_aus', { x: e.x, y: e.y });
+        break;
+      case 'kochStart':
+        this.sound.spiele('brutzel', { x: e.x, y: e.y });
+        break;
+      case 'gekocht':
+        this.sound.spiele('fertig', { x: e.x, y: e.y });
+        break;
+      case 'verbrannt':
+        this.sound.spiele('verbrannt', { x: e.x, y: e.y });
+        break;
+      case 'holzNachgelegt':
+        this.sound.spiele('holz_nachlegen', { x: e.x, y: e.y });
+        break;
+      case 'werkzeugKaputt':
+        this.sound.spiele('tuer_bricht', { x: e.x, y: e.y, tonhoehe: 1.3, lautstaerke: 0.7 });
         break;
       case 'falle':
         this.sound.spiele(e.gespannt ? 'falle_auf' : 'falle_zu', { x: e.x, y: e.y });
@@ -910,9 +980,6 @@ export class ClientSpiel {
         break;
       case 'geerntet':
         this.sound.spiele('aufheben', { x: e.x, y: e.y });
-        break;
-      case 'gekocht':
-        this.sound.spiele('brutzeln', { x: e.x, y: e.y });
         break;
       case 'angelWurf':
         this.sound.spiele('angel_wurf', { x: e.x, y: e.y });
@@ -1020,6 +1087,11 @@ export class ClientSpiel {
     const uhr = tageszeit(this.serverZeit + (jetzt - this.zeitEmpfangen) / 1000, this.tageszeitDauer);
 
     if (this.platzierung) this.renderer.zeigeVorschau({ typ: this.platzierung.typ, ...this.#platzierungsZiel() });
+    else if (!this.bau.aktiv) {
+      const hand = this.#handZiel();
+      if (hand) this.renderer.zeigeVorschau({ typ: 'erdfeld', tx: hand.tx, ty: hand.ty, ok: hand.ok });
+      else this.renderer.zeigeVorschau(null);
+    }
     this.bau.aktualisiere();
     this.#oberflaecheAktualisieren(eigen, jetzt);
     this.renderer.zeichne({
@@ -1055,11 +1127,26 @@ export class ClientSpiel {
 
   /** Minikarte, Angel-Hinweis, Auto-Anzeige, Tab-Liste, Regenton – alles, was nicht jeden Frame neu muss. */
   #oberflaecheAktualisieren(eigen, jetzt) {
+    this.hud.zeigeKofferraumKnopf(!this.spielerDaten?.tot && (!!this.lokal.fahrzeug || !!this.#naheFahrzeug()));
     this.hud.zeigeAuto(this.lokal.fahrzeug && this.eigeneDaten?.fahrzeug ? this.eigeneDaten.fahrzeug : null);
     const angel = this.#angelZustand(jetzt);
     const touch = this.eingabe.touch.istTouchGeraet;
     this.hud.zeigeAngelKnopf(touch ? angel : null);
-    this.hud.zeigeAngeln(!touch && angel === 'auswerfen' ? '🎣 Linksklick: Angel auswerfen' : !touch && angel === 'einholen' ? '🎣 Warte auf den Biss … (Klick = einholen)' : null);
+    const hand = angel ? null : this.#handZiel();
+    this.hud.zeigeAngeln(
+      angel === 'biss'
+        ? 'Einholen!'
+        : angel === 'einholen'
+          ? '🎣 Warten auf den Biss …'
+          : !touch && angel === 'auswerfen'
+            ? '🎣 Linksklick: Angel auswerfen'
+            : !touch && hand?.art === 'hacke'
+              ? '🌱 Linksklick: Ackerfeld anlegen · Rechtsklick: zurück zu Rasen'
+              : !touch && hand?.art === 'samen'
+                ? '🌱 Linksklick: Samen pflanzen'
+                : null,
+      angel === 'biss',
+    );
     if (this.hud.minikarteAn && jetzt - this.letzteMiniKarte > 180) {
       this.letzteMiniKarte = jetzt;
       this.karte.zeichneMini(this.hud.el.minikarte, eigen, this.#minikartenPunkte());
