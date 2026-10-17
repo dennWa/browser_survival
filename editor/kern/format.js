@@ -2,6 +2,10 @@ import { KACHELN, MARKER, istKachel, istLootMarker } from '../../gemeinsam/welt/
 import { EditorKarte, markerSchluessel, ausSchluessel, kopie } from './karte.js';
 import { Verlauf } from './verlauf.js';
 import { steileKacheln } from './terrain.js';
+import { alsRechtecke } from './raster.js';
+
+/** Farbe im Format #rrggbb */
+export const FARBE = /^#[0-9a-fA-F]{6}$/;
 
 /**
  * Dateiformate des Editors (alle JSON, alle mit Versionsnummer → ältere Stände werden erkannt):
@@ -24,6 +28,7 @@ import { steileKacheln } from './terrain.js';
  *   terrain       { hoehen: ["0 0 1 …", …], steil: [[x,y],…] } Höhen je Kachel (nur Darstellung), steil = blockiert
  *   typen         { typId: { name, kategorie, b, h, blockiert, ebene, farbe?, bild?, modus? } }  eigene Objekttypen
  *   texturen      { typId: { farbe?, muster? } }              Bemalung pro Typ
+ *   bemalung      { '#rrggbb': [[x, y, b, h], …] }           Farbe auf dem Boden (Rechtecke je Farbe)
  */
 export const FORMAT_KARTE = 'browser-survival-karte';
 export const FORMAT_ENTWURF = 'browser-survival-entwurf';
@@ -36,7 +41,7 @@ export const LIESMICH_TEXT = [
   'raeume: { buchstabe: { name, lootTabelle, spawnChance?, respawnZeit? } } – lootTabelle aus server/spiel/konfiguration/lootTabellen.js.',
   'objekte: [{ typ, x, y, b, h, blockiert?, ebene?, drehung?, … }] – Rechteck in Kacheln (Brüche erlaubt). ebene: moebel (Standard) | boden (flach, Teppich) | oben (Baumkrone) | licht. drehung in Grad (0/90/180/270).',
   'uebergaenge: [{ x, y, b, h, ziel, ankunft, name }] – Rechteck am Rand; wer es betritt, wechselt in Zone ziel zum Ankunftspunkt ankunft. ankuenfte: { name: { x, y } } (nicht in einem Übergang, nicht in einer Wand).',
-  'Erweiterungen (optional): zombieSpawns [{x,y,anzahl,respawnZeit,horde}], bauwerke [{typ,tx,ty,drehung}], tierBereiche [{x,y,b,h,art,anzahl,respawnZeit}], raumFlaechen [{raum,x,y,b,h}], einstellungen {wetter,zombie,tiere,loot}, musik, terrain {hoehen,steil}, typen, texturen.',
+  'Erweiterungen (optional): zombieSpawns [{x,y,anzahl,respawnZeit,horde}], bauwerke [{typ,tx,ty,drehung}], tierBereiche [{x,y,b,h,art,anzahl,respawnZeit}], raumFlaechen [{raum,x,y,b,h}], einstellungen {wetter,zombie,tiere,loot}, musik, terrain {hoehen,steil}, typen, texturen, bemalung {"#farbe":[[x,y,b,h]]}.',
   'Änderungen zurückgeben: am besten als Aktionsliste (siehe editor/LIESMICH.md, Abschnitt "KI-Änderungen"), z. B. [{"aktion":"setze","typ":"baum","x":23,"y":14}].',
 ];
 
@@ -97,6 +102,10 @@ export function ausDefinition(def) {
   for (const r of def.raumFlaechen ?? []) karte.s('raumFlaechen').set(karte.neueId(), kopie(r));
   for (const [k, t] of Object.entries(def.typen ?? {})) karte.s('typen').set(k, kopie(t));
   for (const [k, t] of Object.entries(def.texturen ?? {})) karte.s('texturen').set(k, kopie(t));
+  for (const [farbe, rechtecke] of Object.entries(def.bemalung ?? {})) {
+    if (!FARBE.test(farbe) || !Array.isArray(rechtecke)) continue;
+    for (const [x0, y0, bb, hh] of rechtecke) for (let y = y0; y < y0 + hh; y++) for (let x = x0; x < x0 + bb; x++) if (karte.imFeld(x, y)) karte.s('bemalung').set(markerSchluessel(x, y), farbe.toLowerCase());
+  }
   if (def.einstellungen && typeof def.einstellungen === 'object') karte.werte.einstellungen = kopie(def.einstellungen);
   if (typeof def.musik === 'string') karte.werte.musik = def.musik;
   if (Array.isArray(def.terrain?.hoehen)) {
@@ -161,6 +170,15 @@ export function nachDefinition(karte) {
     };
   }
   if (karte.s('typen').size) def.typen = Object.fromEntries(sortiert(karte.s('typen')).map(([k, t]) => [k, kopie(t)]));
+  if (karte.s('bemalung').size) {
+    const jeFarbe = new Map();
+    for (const [k, f] of karte.s('bemalung')) {
+      const [x, y] = ausSchluessel(k);
+      if (!jeFarbe.has(f)) jeFarbe.set(f, []);
+      jeFarbe.get(f).push({ x, y });
+    }
+    def.bemalung = Object.fromEntries([...jeFarbe].sort(([a], [b]) => (a < b ? -1 : 1)).map(([f, punkte]) => [f, alsRechtecke(punkte).map((r) => [r.x, r.y, r.b, r.h])]));
+  }
   if (karte.s('texturen').size) def.texturen = Object.fromEntries(sortiert(karte.s('texturen')).map(([k, t]) => [k, kopie(t)]));
   return def;
 }

@@ -23,6 +23,7 @@ export class Panel {
     ]);
     this.aktiv = 'Eigenschaften';
     zustand.bei('auswahl', () => this.aktiv === 'Eigenschaften' && this.zeichne());
+    zustand.bei('werkzeug', () => this.aktiv === 'Eigenschaften' && this.zeichne());
     zustand.bei('zone', () => this.zeichne());
     zustand.bei('karte', () => this.#spaeter());
     zustand.bei('pruefung', () => this.aktiv === 'Prüfung' && this.zeichne());
@@ -95,17 +96,55 @@ export class Panel {
   }
 
   // --- Eigenschaften ------------------------------------------------------------
+  /** Optionen des aktiven Werkzeugs (Farbe: Palette; Terrain: Stärke) – oben im Reiter Eigenschaften */
+  #werkzeugOptionen() {
+    const z = this.zustand;
+    if (z.werkzeug !== 'farbe' && z.werkzeug !== 'terrain') return;
+    const box = document.createElement('div');
+    box.style.cssText = 'border-bottom:1px solid var(--rand);padding-bottom:6px;margin-bottom:6px';
+    box.insertAdjacentHTML('beforeend', `<h3>${z.werkzeug === 'farbe' ? '🎨 Farbe' : '⛰ Gelände'}: ${esc(z.eintrag?.name ?? '')}</h3>`);
+    if (z.werkzeug === 'farbe') {
+      const palette = document.createElement('div');
+      palette.className = 'knopfreihe';
+      for (const f of PALETTE) {
+        const b = document.createElement('button');
+        b.title = f;
+        b.style.cssText = `width:30px;padding:0;background:${f};${f === z.farbe ? 'outline:3px solid #fff;' : ''}`;
+        b.addEventListener('click', () => {
+          z.farbe = f;
+          this.zeichne();
+        });
+        palette.append(b);
+      }
+      box.append(palette);
+      this.#felder(box, [{ name: 'farbe', label: 'Eigene Farbe', typ: 'farbe', wert: z.farbe }], (_, v) => {
+        z.farbe = v;
+        this.zeichne();
+      });
+      box.insertAdjacentHTML('beforeend', '<p class="leise">Pinsel/Füllen färben den Boden (2D, 3D und im Spiel). Füllen färbt zusammenhängende gleiche Kacheln.</p>');
+    } else {
+      this.#felder(box, [{ name: 'staerke', label: 'Stärke', typ: 'zahl', wert: z.terrainStaerke, min: 0.1, max: 3, schritt: 0.1, hilfe: 'Meter je Pinseltupfer (Umschalt kehrt Heben/Senken um)' }], (_, v) => (z.terrainStaerke = Math.max(0.1, Math.min(3, v ?? 0.5))));
+      box.insertAdjacentHTML('beforeend', '<p class="leise">Höhen sind Darstellung (3D); steile Hänge (rot schraffiert) werden im Spiel blockiert.</p>');
+    }
+    this.#felder(box, [{ name: 'pinsel', label: 'Pinselgröße', typ: 'zahl', wert: z.pinselGroesse, min: 1, max: 15, schritt: 1 }], (_, v) => {
+      z.pinselGroesse = Math.max(1, Math.min(15, Math.round(v ?? 1)));
+      z.melde('werkzeug');
+    });
+    this.el.append(box);
+  }
+
   #eigenschaften() {
     const z = this.zustand;
     const k = z.karte;
     const gew = z.gewaehlte();
     this.el.innerHTML = '';
+    this.#werkzeugOptionen();
     if (gew.length === 0) {
       const h = this.hover;
       const kachel = h && k.imFeld(h.x, h.y) ? kachelInfo(k.kachelAn(h.x, h.y)) : null;
-      this.el.innerHTML = `<p class="leise">Nichts ausgewählt. Mit ⬚ (V) anklicken, Umschalt = mehrere, ins Leere ziehen = Bereich (wie in Excel).</p>${
-        kachel ? `<p>Kachel <b>${h.x}|${h.y}</b>: ${esc(kachel.name)} „${esc(kachel.zeichen)}“${kachel.blockiert ? ' (blockiert)' : ''}${kachel.innen ? ' (innen)' : ''}${k.hoeheAn(h.x, h.y) ? ` · Höhe ${k.hoeheAn(h.x, h.y)}` : ''}</p>` : ''
-      }`;
+      this.el.insertAdjacentHTML('beforeend', `<p class="leise">Nichts ausgewählt. Mit ⬚ (V) anklicken, Umschalt = mehrere, ins Leere ziehen = Bereich (wie in Excel).</p>${
+        kachel ? `<p>Kachel <b>${h.x}|${h.y}</b>: ${esc(kachel.name)} „${esc(kachel.zeichen)}“${kachel.blockiert ? ' (blockiert)' : ''}${kachel.innen ? ' (innen)' : ''}${k.hoeheAn(h.x, h.y) ? ` · Höhe ${k.hoeheAn(h.x, h.y)}` : ''}${k.farbeAn(h.x, h.y) ? ` · Farbe ${k.farbeAn(h.x, h.y)}` : ''}</p>` : ''
+      }`);
       if (z.auswahlRechteck) {
         const r = z.auswahlRechteck;
         this.el.insertAdjacentHTML('beforeend', `<h3>Bereich x ${r.x}–${r.x + r.b - 1}, y ${r.y}–${r.y + r.h - 1}</h3>`);
@@ -202,6 +241,7 @@ export class Panel {
       setze(name, neu);
     });
     if (o.farbe && o.typ !== 'licht') this.#knoepfe(this.el, [['Farbe entfernen', () => setze('farbe', setzeOptional(o, 'farbe', undefined))]]);
+    if (k.s('typen').has(o.typ)) this.#knoepfe(this.el, [[`✎ Typ „${o.typ}“ bearbeiten`, () => this.aktionen.aktion('typBearbeiten', o.typ)]]);
   }
 
   #markerFelder(schl, m, setze) {
@@ -346,6 +386,8 @@ export class Panel {
     this.el.append(ul);
   }
 }
+
+const PALETTE = ['#c0392b', '#e67e22', '#f1c40f', '#27ae60', '#16a085', '#2980b9', '#8e44ad', '#7f8c8d', '#2c3e50', '#ecf0f1', '#8b5a2b', '#d4a373', '#5d4037', '#3e6b35'];
 
 const TEXTUR_OPTIONEN = [['', '– keine –'], ['holz', 'Holz'], ['stein', 'Stein'], ['metall', 'Metall'], ['stoff', 'Stoff'], ['gras', 'Gras'], ['streifen', 'Streifen'], ['punkte', 'Punkte']];
 

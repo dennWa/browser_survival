@@ -4,6 +4,8 @@ import { raeumeUi } from './raeumeUi.js';
 import { zonenUi } from './zonenUi.js';
 import { kiUi } from './kiUi.js';
 import { testUi } from './testUi.js';
+import { eigeneUi } from './eigeneUi.js';
+import { Ansicht3D, webglVerfuegbar } from './ansicht3d.js';
 
 /**
  * Sammelpunkt der Funktionen späterer Phasen (Zonen-Übersicht, Prefabs, KI-Export/-Import, Testen, 3D, Texturen …).
@@ -25,5 +27,21 @@ export function erweiterungen({ zustand, zeichner, panel, aktionen, sonderAktion
   // Phase 9: Karte testen
   const test = testUi({ zustand, panel, aktionen, sonderAktionen, projektZonen });
   erw.nachStart = () => test.nachStart();
+  // Phase 10: 3D-Ansicht, eigene Objekte, Bild → 3D, Grafik-Antrag, Texturen
+  eigeneUi({ zustand, sonderAktionen, aktionen });
+  if (webglVerfuegbar()) {
+    try {
+      erw.ansicht3d = new Ansicht3D(document.getElementById('leinwand3d'), zustand, { zeichner2d: zeichner });
+      zustand.bei('ansicht', () => {
+        // 3D → 2D: Blickpunkt mitnehmen (Auswahl ist ohnehin gemeinsam)
+        if (zustand.ansicht === '2d') {
+          zeichner.kamera = { x: erw.ansicht3d.blick.x, y: erw.ansicht3d.blick.z };
+          zeichner.anfordern();
+        }
+      });
+    } catch (e) {
+      console.warn('[Editor] 3D nicht verfügbar:', e);
+    }
+  }
   return erw;
 }

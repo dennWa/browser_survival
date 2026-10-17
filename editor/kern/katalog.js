@@ -17,7 +17,7 @@ import { KACHEL_FARBEN } from '../../client/darstellung/farben.js';
  *   art 'bereich'  → sammlung (tierBereiche | raumFlaechen | uebergaenge)
  *   art 'werkzeug' → werkzeug (terrain-heben …, wetter-panel)
  */
-export const KATEGORIEN = Object.freeze(['Wege', 'Mauern', 'Böden', 'Umwelt', 'Gebäude', 'Ressourcen', 'Möbel', 'Fahrzeuge', 'Spawns', 'Loot', 'Tiere', 'Wetter', 'Terrain', 'Räume', 'Zonen', 'Eigene']);
+export const KATEGORIEN = Object.freeze(['Wege', 'Mauern', 'Böden', 'Umwelt', 'Gebäude', 'Ressourcen', 'Möbel', 'Fahrzeuge', 'Spawns', 'Loot', 'Tiere', 'Wetter', 'Terrain', 'Farbe', 'Räume', 'Zonen', 'Eigene']);
 
 /** Kacheln → Kategorie (+ Anzeigename) */
 const KACHEL_KATEGORIE = {
@@ -129,6 +129,9 @@ export function katalog() {
     { id: 'werkzeug:terrain-senken', art: 'werkzeug', werkzeug: 'terrainSenken', name: 'Gelände senken', kategorie: 'Terrain', symbol: '🕳', farbe: '#5a4a3a' },
     { id: 'werkzeug:terrain-glaetten', art: 'werkzeug', werkzeug: 'terrainGlaetten', name: 'Glätten', kategorie: 'Terrain', symbol: '〰', farbe: '#7a7a6a' },
     { id: 'werkzeug:terrain-ebnen', art: 'werkzeug', werkzeug: 'terrainEbnen', name: 'Einebnen (0)', kategorie: 'Terrain', symbol: '▬', farbe: '#6a6a6a' },
+    { id: 'werkzeug:farbe-pinsel', art: 'werkzeug', werkzeug: 'farbePinsel', name: 'Farbe malen (Pinsel)', kategorie: 'Farbe', symbol: '🖌', farbe: '#d06b3a' },
+    { id: 'werkzeug:farbe-fuellen', art: 'werkzeug', werkzeug: 'farbeFuellen', name: 'Farbe füllen', kategorie: 'Farbe', symbol: '🪣', farbe: '#d06b3a' },
+    { id: 'werkzeug:farbe-entfernen', art: 'werkzeug', werkzeug: 'farbeEntfernen', name: 'Farbe entfernen', kategorie: 'Farbe', symbol: '🧽', farbe: '#888' },
   );
   katalogCache = Object.freeze(liste);
   return katalogCache;

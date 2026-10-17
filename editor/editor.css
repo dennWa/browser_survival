@@ -178,6 +178,10 @@ input[type='checkbox'] {
   padding: 0;
   font-size: 16px;
 }
+#werkzeuge {
+  max-height: calc(100% - 40px);
+  overflow-y: auto;
+}
 #werkzeuge .trenner {
   height: 1px;
   background: var(--rand);
@@ -425,4 +429,18 @@ kbd {
   #kopf .logo b {
     display: none;
   }
+}
+
+#knoepfe-3d {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  background: rgba(20, 23, 28, 0.85);
+  padding: 4px 8px;
+  border-radius: 8px;
+  max-width: calc(100% - 150px);
 }

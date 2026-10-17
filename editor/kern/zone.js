@@ -71,6 +71,19 @@ export function groesseAendern(karte, { links = 0, oben = 0, rechts = 0, unten =
       if (nx >= 0 && ny >= 0 && nx < breite && ny < hoehe) ops.push({ s: 'marker', k: markerSchluessel(nx, ny), neu: m });
     }
   }
+  for (const [k, f] of karte.s('bemalung')) {
+    const [x, y] = ausSchluessel(k);
+    const nx = x + links;
+    const ny = y + oben;
+    const inZone = nx >= 0 && ny >= 0 && nx < breite && ny < hoehe;
+    if (!inZone || links || oben) ops.push({ s: 'bemalung', k, neu: null });
+  }
+  if (links || oben) {
+    for (const [k, f] of karte.s('bemalung')) {
+      const [x, y] = ausSchluessel(k);
+      if (x + links >= 0 && y + oben >= 0 && x + links < breite && y + oben < hoehe) ops.push({ s: 'bemalung', k: markerSchluessel(x + links, y + oben), neu: f });
+    }
+  }
   for (const [n, p] of karte.s('ankuenfte')) {
     const nx = p.x + links;
     const ny = p.y + oben;

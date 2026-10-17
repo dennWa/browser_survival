@@ -29,6 +29,7 @@ export class Zustand {
     this.ansicht = '2d';
     this.overlays = { raster: true, innen: false, steil: true, nachbarn: true, bereiche: true };
     this.terrainStaerke = 0.5;
+    this.farbe = '#c0392b'; // aktuelle Malfarbe (Kategorie Farbe)
     this.layout = {}; // Zonen-Weltposition (Phase 7): id → { x, y }
     this.validierung = [];
     this.#hoerer = new Map();

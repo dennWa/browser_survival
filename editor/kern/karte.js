@@ -15,6 +15,7 @@
  *     ankuenfte     Name    → { x, y }
  *     typen         Typ-ID  → eigener Objekttyp { name, kategorie, b, h, blockiert, ebene, farbe?, bild?, modus? }
  *     texturen      Typ-ID  → { farbe?, muster? }              (Bemalung pro Typ; pro Objekt: objekt.farbe/textur)
+ *     bemalung      "x,y"   → '#rrggbb'                          (Farbe auf dem Boden, Phase 10 – Spiel malt sie in die Bodentextur)
  *   werte       { id, name, musik?, einstellungen: { wetter, zombie, tiere, loot } } (freie JSON-Werte, Pfad-Zugriff)
  *
  * JEDE Änderung läuft über `anwenden(ops)` – eine Liste von Operationen mit altem und neuem Wert. Daraus entsteht
@@ -26,7 +27,7 @@
  *   { s: 'raster', neu: { breite, hoehe, zellen, hoehen } }   ganzes Raster tauschen (Größe ändern)
  * `anwenden` trägt `alt` selbst ein und lässt No-ops weg; `umkehren(ops)` liefert die Gegenoperationen.
  */
-export const SAMMLUNGEN = Object.freeze(['objekte', 'uebergaenge', 'bauwerke', 'tierBereiche', 'raumFlaechen', 'marker', 'raeume', 'ankuenfte', 'typen', 'texturen']);
+export const SAMMLUNGEN = Object.freeze(['objekte', 'uebergaenge', 'bauwerke', 'tierBereiche', 'raumFlaechen', 'marker', 'raeume', 'ankuenfte', 'typen', 'texturen', 'bemalung']);
 /** Sammlungen mit Zahl-IDs (neue Einträge bekommen naechsteId) */
 export const ID_SAMMLUNGEN = Object.freeze(['objekte', 'uebergaenge', 'bauwerke', 'tierBereiche', 'raumFlaechen']);
 
@@ -82,6 +83,10 @@ export class EditorKarte {
 
   hoeheAn(x, y) {
     return this.imFeld(x, y) ? this.hoehen[this.index(x, y)] : 0;
+  }
+
+  farbeAn(x, y) {
+    return this.sammlungen.bemalung.get(markerSchluessel(x, y)) ?? null;
   }
 
   markerAn(x, y) {

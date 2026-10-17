@@ -40,12 +40,17 @@ export function validiere(karte, { zonen = null, mitErreichbarkeit = true } = {}
   }
 
   // Objekte & Bauwerke
+  const eigeneGemeldet = new Set();
   for (const [, o] of karte.s('objekte')) {
     // Fehler = Position (linke obere Ecke) außerhalb; nur überstehend = Warnung (Baumkronen dürfen überstehen, wie in stadtrand)
     if (o.x < 0 || o.y < 0 || o.x >= karte.breite || o.y >= karte.hoehe) fehler('objekt-aussen', `Objekt „${o.typ}“ außerhalb der Zone`, Math.floor(o.x), Math.floor(o.y));
     else if (o.ebene !== 'oben' && (o.x < 0 || o.y < 0 || o.x + o.b > karte.breite + 1e-9 || o.y + o.h > karte.hoehe + 1e-9)) warnung('objekt-rand', `Objekt „${o.typ}“ ragt über den Rand`, Math.floor(o.x), Math.floor(o.y));
     if (!(o.b > 0 && o.h > 0)) fehler('objekt-groesse', `Objekt „${o.typ}“ ohne Größe`, Math.floor(o.x), Math.floor(o.y));
     if (!istBekannterTyp(o.typ, karte)) warnung('objekt-typ', `Unbekannter Objekttyp „${o.typ}“ (Spiel zeichnet einen Ersatz-Quader)`, Math.floor(o.x), Math.floor(o.y));
+    else if (karte.s('typen').has(o.typ) && !eigeneGemeldet.has(o.typ)) {
+      eigeneGemeldet.add(o.typ);
+      warnung('eigener-typ', `Eigener Typ „${o.typ}“: im Spiel ein Platzhalter-Quader, bis eine Grafik über baue_assets.py kommt`, Math.floor(o.x), Math.floor(o.y));
+    }
   }
   for (const [, b] of karte.s('bauwerke')) {
     if (!BAUWERKE[b.typ]) fehler('bauwerk-typ', `Unbekanntes Bauwerk „${b.typ}“`, b.tx, b.ty);

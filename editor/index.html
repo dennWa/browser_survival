@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Map-Editor – Browser Survival</title>
     <link rel="stylesheet" href="editor.css" />
+    <!-- Three.js aus dem Spiel (client/vendor, erzeugt von npm run assets:3d) – nur für die 3D-Ansicht -->
+    <script type="importmap">
+      { "imports": { "three": "../client/vendor/three/three.module.js" } }
+    </script>
   </head>
   <body>
     <!-- Kopfleiste: Karte öffnen/neu/speichern/exportieren/testen -->
@@ -38,6 +42,11 @@
         <div id="hinweis-leer" hidden>Keine Zone geöffnet – <b>➕ Neu</b> (Rechteck aufziehen) oder <b>📂 Öffnen</b>.</div>
         <!-- Werkzeugleiste -->
         <div id="werkzeuge" role="toolbar" aria-label="Werkzeuge"></div>
+        <div id="knoepfe-3d" hidden>
+          <button data-3d="spiel" title="Spielperspektive (Kamera wie im Spiel)">🎮 Spielperspektive</button>
+          <button data-3d="oben" title="Von oben">⬇ Von oben</button>
+          <span class="leise">Ziehen = schieben · Rechts/Alt-Ziehen = drehen · Rad/2 Finger = Zoom · Klick = wählen</span>
+        </div>
         <div id="zoom-knoepfe">
           <button data-zoom="1.25" title="Hineinzoomen (+)">＋</button>
           <button data-zoom="0.8" title="Herauszoomen (−)">－</button>

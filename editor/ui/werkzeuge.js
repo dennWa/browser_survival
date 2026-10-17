@@ -126,6 +126,20 @@ export class Werkzeuge {
       return;
     }
     if (w === 'raumFuellen') return this.#raumFuellen(p);
+    if (w === 'farbe') {
+      const modus = this.zustand.eintrag?.werkzeug;
+      if (modus === 'farbeFuellen') {
+        // gleiche Kachel + gleiche Farbe zusammenhängend → neue Farbe
+        const k = this.karte;
+        const punkte = fuellen(p.tx, p.ty, (x, y) => (k.imFeld(x, y) ? `${k.kachelAn(x, y)}|${k.farbeAn(x, y)}` : null), 40000);
+        this.zustand.ausfuehren('Farbe füllen', punkte.map(({ x, y }) => ({ s: 'bemalung', k: markerSchluessel(x, y), neu: this.zustand.farbe })));
+        return;
+      }
+      this.zustand.verlauf.beginne(modus === 'farbeEntfernen' ? 'Farbe entfernen' : 'Farbe malen');
+      this.ziehen = { art: 'farbe', letzte: p };
+      this.#male(p, p);
+      return;
+    }
     if (w === 'einfuegen') {
       const v = this.zustand.einfuegeVorlage;
       if (v) this.aktionen.einfuegenBei(v, p.tx - Math.floor(v.b / 2), p.ty - Math.floor(v.h / 2), e.shiftKey);
@@ -171,6 +185,10 @@ export class Werkzeuge {
       this.#radiere(d.letzte, p);
       d.letzte = p;
     } else if (d.art === 'terrain') this.#terrain(p, e.shiftKey);
+    else if (d.art === 'farbe') {
+      this.#male(d.letzte, p);
+      d.letzte = p;
+    }
     else if (d.art === 'bewegen') this.#bewege(d, p, e.altKey);
     else if (d.art === 'rahmen') {
       this.zustand.auswahlRechteck = rechteckAus(d.start.tx, d.start.ty, p.tx, p.ty);
@@ -199,7 +217,7 @@ export class Werkzeuge {
       this.z.anfordern();
       return;
     }
-    if (d.art === 'pinsel' || d.art === 'radieren' || d.art === 'terrain' || d.art === 'bewegen') this.zustand.verlauf.beende();
+    if (d.art === 'pinsel' || d.art === 'radieren' || d.art === 'terrain' || d.art === 'bewegen' || d.art === 'farbe') this.zustand.verlauf.beende();
     if (d.art === 'form') this.#formAnwenden(d, p, e.shiftKey);
     if (d.art === 'rahmen') this.#rahmenFertig(d, p, e.shiftKey);
     if (d.art === 'bereich') this.#bereichFertig(d, p);
@@ -210,7 +228,7 @@ export class Werkzeuge {
 
   #abbrechen(d = this.ziehen) {
     if (!d) return;
-    if (['pinsel', 'radieren', 'terrain', 'bewegen'].includes(d.art)) this.zustand.verlauf.beende();
+    if (['pinsel', 'radieren', 'terrain', 'bewegen', 'farbe'].includes(d.art)) this.zustand.verlauf.beende();
     this.z.vorschau = null;
     this.z.zonenVorschau = null;
     this.z.neuRechteck = null;
@@ -402,6 +420,8 @@ export class Werkzeuge {
       }
     } else if ((w === 'malen' && zustand.malModus === 'pinsel') || w === 'radierer') {
       v = { kacheln: nurImFeld(this.karte, pinsel(p.tx, p.ty, zustand.pinselGroesse)), farbe: w === 'radierer' ? 'rgba(255,80,80,0.5)' : e?.farbe };
+    } else if (w === 'farbe' && zustand.eintrag?.werkzeug !== 'farbeFuellen') {
+      v = { kacheln: nurImFeld(this.karte, pinsel(p.tx, p.ty, zustand.pinselGroesse)), farbe: zustand.eintrag?.werkzeug === 'farbeEntfernen' ? 'rgba(255,255,255,0.4)' : zustand.farbe };
     } else if (w === 'terrain') v = { kreis: { x: p.tx + 0.5, y: p.ty + 0.5, r: zustand.pinselGroesse / 2 + 0.5 } };
     else if (w === 'einfuegen' && zustand.einfuegeVorlage) {
       const vl = zustand.einfuegeVorlage;
@@ -526,6 +546,14 @@ export class Werkzeuge {
     const t = this.treffer(p);
     if (t?.s === 'objekte') this.aktionen.waehleEintrag?.({ typ: this.karte.s('objekte').get(t.k).typ });
     else this.aktionen.waehleEintrag?.({ zeichen: this.karte.kachelAn(p.tx, p.ty) });
+  }
+
+  /** Farbe entlang des Strichs malen bzw. entfernen */
+  #male(von, bis) {
+    const k = this.karte;
+    const entfernen = this.zustand.eintrag?.werkzeug === 'farbeEntfernen';
+    const punkte = nurImFeld(k, linie(von.tx, von.ty, bis.tx, bis.ty).flatMap(({ x, y }) => pinsel(x, y, this.zustand.pinselGroesse)));
+    this.zustand.verlauf.sammle(k.anwenden(punkte.map(({ x, y }) => ({ s: 'bemalung', k: markerSchluessel(x, y), neu: entfernen ? null : this.zustand.farbe }))));
   }
 
   // --- Terrain ---------------------------------------------------------------------

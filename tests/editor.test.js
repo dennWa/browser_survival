@@ -411,3 +411,71 @@ test('KI-Import: veränderter Ausschnitt zurück → Aktionen (Raster-Diff, Obje
   assert.equal(karte.markerAn(7, 5), null);
   assert.deepEqual([...karte.s('objekte').values()].map((o) => o.typ), ['stein']);
 });
+
+test('Phase 10: Bemalung (Format-Rundreise, Spiel bekommt sie), Terrain-Pinsel + steile Hänge, Bild → 3D (Extrusion)', async () => {
+  const { terrainHeben, terrainGlaetten, steileKacheln } = await import('../editor/kern/terrain.js');
+  const { extrusion, alphaMaske, verkleinerteGroesse } = await import('../editor/kern/bild3d.js');
+  const { karte } = ausDefinition(testZone());
+  karte.anwenden([0, 1, 2].map((x) => ({ s: 'bemalung', k: markerSchluessel(5 + x, 6), neu: '#c0392b' })).concat([{ s: 'bemalung', k: markerSchluessel(9, 7), neu: '#2980b9' }]));
+  const def = nachDefinition(karte);
+  assert.deepEqual(def.bemalung, { '#2980b9': [[9, 7, 1, 1]], '#c0392b': [[5, 6, 3, 1]] });
+  assert.equal(ausDefinition(def).karte.farbeAn(6, 6), '#c0392b');
+  assert.deepEqual(verarbeiteKarte({ ...def, bemalung: { ...def.bemalung, rot: [[0, 0, 1, 1]], '#000000': [[99, 0, 1, 1]] } }).daten.bemalung, def.bemalung, 'Spiel bekommt nur Gültiges');
+  // Kopieren nimmt Bemalung mit, Drehen dreht sie
+  const v = kopiere(karte, { x: 5, y: 6, b: 3, h: 1 });
+  assert.equal(v.bemalung.length, 3);
+  assert.deepEqual(dreheVorlage(v).bemalung.map(([x, y]) => [x, y]), [[0, 0], [0, 1], [0, 2]]);
+  // Terrain: heben, glätten, steile Kacheln → Export → unsichtbare Hindernisse im Spiel
+  karte.anwenden(terrainHeben(karte, 7, 6, 0.5, 3));
+  assert.equal(karte.hoeheAn(7, 6), 3);
+  assert.ok(steileKacheln(karte).some(([x, y]) => x === 7 && y === 6));
+  const geladen = verarbeiteKarte(nachDefinition(karte));
+  assert.ok(geladen.daten.objekte.some((o) => o.typ === 'hang' && o.x === 7 && o.y === 6));
+  karte.anwenden(terrainGlaetten(karte, 7, 6, 2, 1));
+  assert.ok(karte.hoeheAn(7, 6) < 3);
+  // Bild → 3D: 2×2-Bild, 3 deckende Pixel → 3 Quader à 36 Ecken
+  const rgba = new Uint8ClampedArray([255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 0, 255, 255, 255, 200]);
+  assert.equal(alphaMaske({ breite: 2, hoehe: 2, rgba }).length, 3);
+  const e = extrusion({ breite: 2, hoehe: 2, rgba }, { breite: 1, tiefe: 0.2 });
+  assert.equal(e.pixel, 3);
+  assert.equal(e.positionen.length, 3 * 36 * 3);
+  const ys = [...e.positionen].filter((_, i) => i % 3 === 1);
+  assert.equal(Math.min(...ys), 0, 'Fuß auf dem Boden');
+  assert.equal(Math.max(...ys), 1, 'Höhe = Breite × Seitenverhältnis');
+  assert.deepEqual(verkleinerteGroesse(128, 64), { breite: 32, hoehe: 16 });
+});
+
+test('Phase 10: eigene Objekttypen (Katalog, Platzierung, Validierung, Export), Grafik-Antrag in der Pipeline (Lizenz)', async () => {
+  const { eintraegeDerKategorie } = await import('../editor/kern/katalog.js');
+  const { karte } = ausDefinition(testZone());
+  karte.anwenden([{ s: 'typen', k: 'palme', neu: { name: 'Palme', kategorie: 'Umwelt', b: 2, h: 2, blockiert: true, hoehe3d: 3, farbe: '#2e8b57' } }]);
+  const eintrag = eintraegeDerKategorie('Umwelt', karte).find((e) => e.typ === 'palme');
+  assert.ok(eintrag?.eigen);
+  karte.anwenden([{ s: 'objekte', k: 77, neu: { typ: 'palme', x: 6, y: 6, b: 2, h: 2, blockiert: true } }]);
+  const liste = validiere(karte);
+  assert.ok(liste.some((e) => e.code === 'eigener-typ'));
+  assert.ok(!hatFehler(liste));
+  assert.deepEqual(nachDefinition(karte).typen.palme.name, 'Palme');
+  // Pipeline: baue_assets.py liest Grafik-Anträge und lehnt falsche Lizenzen ab (nur wenn Python + Pillow da sind)
+  const { spawnSync } = await import('node:child_process');
+  const probe = spawnSync('python3', ['-c', 'import PIL, numpy'], { encoding: 'utf8' });
+  if (probe.status !== 0) return;
+  const skript = `
+import sys, json, base64, io, tempfile, pathlib
+sys.path.insert(0, 'werkzeuge/assets')
+import baue_assets as b
+from PIL import Image
+t = pathlib.Path(tempfile.mkdtemp())
+buf = io.BytesIO(); Image.new('RGBA', (4, 4), (255, 0, 0, 255)).save(buf, 'PNG')
+d = {'format': 'browser-survival-grafik', 'id': 'palme', 'name': 'Palme', 'art': 'objekt', 'lizenz': 'CC-BY 4.0', 'urheber': 'X', 'quelle': 'https://x', 'bild': 'data:image/png;base64,' + base64.b64encode(buf.getvalue()).decode()}
+(t / 'palme.grafik.json').write_text(json.dumps(d))
+print(len(b.lies_editor_grafiken(t)))
+d['lizenz'] = 'CC-BY-NC 4.0'; (t / 'palme.grafik.json').write_text(json.dumps(d))
+try:
+    b.lies_editor_grafiken(t); print('falsch')
+except SystemExit as e:
+    print('abgelehnt')
+`;
+  const r = spawnSync('python3', ['-c', skript], { encoding: 'utf8', cwd: new URL('..', import.meta.url).pathname });
+  assert.equal(r.stdout.trim(), '1\nabgelehnt', r.stderr);
+});

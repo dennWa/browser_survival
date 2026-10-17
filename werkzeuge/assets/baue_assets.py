@@ -13,8 +13,10 @@ Ausführen:
 Downloads werden in werkzeuge/assets/.cache zwischengespeichert (gitignored).
 Danach IMMER:  npm run assets:3d  (Animationen der 3D-Figur extrahieren, Three.js bereitstellen)
 """
+import base64
 import io
 import json
+import re
 import math
 import shutil
 import urllib.request
@@ -57,6 +59,45 @@ LIZENZEN = [
     ('Glitch Food & Drink Items', 'Tiny Speck (Glitch)', 'CC0',
      'https://opengameart.org/content/glitch-food-drink-items-svg', 'Essen & Getränke, Holz'),
 ]
+
+# ---------------------------------------------------------------------------
+# Grafik-Anträge aus dem Map-Editor (editor/, „Eigene → Neue Grafik“): werkzeuge/assets/editor_grafiken/*.grafik.json
+# { format: 'browser-survival-grafik', id, name, art: 'objekt'|'item', lizenz, urheber, quelle (URL), zweck?, bild: 'data:image/png;base64,…',
+#   b?, h? (Kacheln, nur Objekte), weltGroesse? (px, nur Items) }  → Bild landet im Atlas, Lizenz in LIZENZEN/Credits.
+EDITOR_GRAFIKEN = WURZEL / 'werkzeuge' / 'assets' / 'editor_grafiken'
+
+
+def lizenz_erlaubt(lizenz):
+    """Nur CC0 und CC-BY (ohne SA/NC/ND) – Projektregel 6."""
+    l = str(lizenz or '').strip().upper()
+    return l == 'CC0' or (l.startswith('CC-BY') and not any(z in l for z in ('SA', 'NC', 'ND')))
+
+
+def lies_editor_grafiken(ordner=EDITOR_GRAFIKEN):
+    """Alle Grafik-Anträge prüfen und laden. Fehler (Lizenz, Pflichtfelder, Bild) brechen den Lauf mit klarer Meldung ab."""
+    ergebnis = []
+    if not ordner.exists():
+        return ergebnis
+    for datei in sorted(ordner.glob('*.grafik.json')):
+        j = json.loads(datei.read_text(encoding='utf-8'))
+        if j.get('format') != 'browser-survival-grafik':
+            raise SystemExit(f'{datei.name}: kein Grafik-Antrag (format fehlt)')
+        for feld in ('id', 'name', 'art', 'lizenz', 'urheber', 'quelle', 'bild'):
+            if not j.get(feld):
+                raise SystemExit(f'{datei.name}: Pflichtfeld "{feld}" fehlt')
+        if not re.fullmatch(r'[a-z0-9_]{1,40}', j['id']):
+            raise SystemExit(f'{datei.name}: id "{j["id"]}" ungültig (a–z, 0–9, _)')
+        if not lizenz_erlaubt(j['lizenz']):
+            raise SystemExit(f'{datei.name}: Lizenz "{j["lizenz"]}" nicht erlaubt – nur CC0 oder CC-BY')
+        if j['art'] not in ('objekt', 'item'):
+            raise SystemExit(f'{datei.name}: art muss "objekt" oder "item" sein')
+        kopf, _, daten = str(j['bild']).partition(',')
+        if not kopf.startswith('data:image/') or ';base64' not in kopf:
+            raise SystemExit(f'{datei.name}: bild muss eine data:image/…;base64-URL sein')
+        bild = Image.open(io.BytesIO(base64.b64decode(daten))).convert('RGBA')
+        ergebnis.append({**j, 'pil': bild})
+    return ergebnis
+
 
 # ---------------------------------------------------------------------------
 # Gegenstände (Item-Icons): defId → (Quelle, Pfad im Paket, Weltgröße in px)
@@ -349,6 +390,14 @@ def baue_items():
         bild = bild.crop(bild.getchannel('A').getbbox())
         bild.thumbnail((ITEM_ICON_GROESSE, ITEM_ICON_GROESSE), Image.LANCZOS)
         icons[def_id] = (bild, welt)
+    for g in lies_editor_grafiken():
+        if g['art'] != 'item':
+            continue
+        bild = g['pil'].copy()
+        if bild.getchannel('A').getbbox():
+            bild = bild.crop(bild.getchannel('A').getbbox())
+        bild.thumbnail((ITEM_ICON_GROESSE, ITEM_ICON_GROESSE), Image.LANCZOS)
+        icons[g['id']] = (bild, int(g.get('weltGroesse') or 22))
     spalten = 8
     zeilen = math.ceil(len(icons) / spalten)
     blatt = Image.new('RGBA', (spalten * ITEM_ICON_GROESSE, zeilen * ITEM_ICON_GROESSE), (0, 0, 0, 0))
@@ -385,6 +434,10 @@ def baue_umgebung():
         teile.append((name, bild))
     for name, (quelle, relativ) in EINZEL_OBJEKTE.items():
         teile.append((name, Image.open(finde(lade(quelle), relativ)).convert('RGBA')))
+    for g in lies_editor_grafiken():
+        if g['art'] == 'objekt':  # Draufsicht, auf b×h Kacheln skaliert
+            groesse = (max(1, round(float(g.get('b') or 1) * k)), max(1, round(float(g.get('h') or 1) * k)))
+            teile.append((g['id'], g['pil'].resize(groesse, Image.LANCZOS)))
 
     # Einfaches Zeilen-Packen (Regale), 2 px Abstand gegen Farbbluten
     breite_max, abstand = 1024, 2
@@ -526,10 +579,12 @@ def schreibe_lizenzen():
     zeilen = ['# Grafik-Lizenzen', '', 'Alle Grafiken stammen aus frei nutzbaren Paketen. '
               'Bei **CC-BY** ist die Namensnennung Pflicht (steht auch im Spiel unter "Credits").', '',
               '| Paket | Urheber | Lizenz | Verwendet für |', '|---|---|---|---|']
-    for paket, urheber, lizenz, url, zweck in LIZENZEN:
+    # Credits fortschreiben: Grafik-Anträge aus dem Map-Editor kommen dazu
+    alle = LIZENZEN + [(g['name'], g['urheber'], g['lizenz'], g['quelle'], g.get('zweck') or f'Map-Editor: {g["id"]}') for g in lies_editor_grafiken()]
+    for paket, urheber, lizenz, url, zweck in alle:
         zeilen.append(f'| [{paket}]({url}) | {urheber} | {lizenz} | {zweck} |')
     (ZIEL / 'LIZENZEN.md').write_text('\n'.join(zeilen) + '\n', encoding='utf-8')
-    return [{'paket': p, 'urheber': u, 'lizenz': l, 'url': url} for p, u, l, url, _ in LIZENZEN]
+    return [{'paket': p, 'urheber': u, 'lizenz': l, 'url': url} for p, u, l, url, _ in alle]
 
 
 def main():

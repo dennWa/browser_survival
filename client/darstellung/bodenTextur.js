@@ -13,6 +13,8 @@ export class BodenTextur {
     this.assets = assets;
     this.g = welt.kachelGroesse;
     this.bodenObjekte = welt.objekte.filter((o) => o.ebene === 'boden');
+    /** Bemalung aus dem Map-Editor: { '#rrggbb': [[x, y, b, h], …] } (Kacheln) – als halbtransparente Farbe über dem Boden */
+    this.bemalung = welt.bemalung ?? null;
   }
 
   /** @param massstab Pixel pro Weltpixel */
@@ -21,6 +23,14 @@ export class BodenTextur {
     const ctx = canvas.getContext('2d');
     ctx.setTransform(massstab, 0, 0, massstab, 0, 0);
     for (let ty = 0; ty < this.welt.hoehe; ty++) for (let tx = 0; tx < this.welt.breite; tx++) this.#zeichneBoden(ctx, tx, ty);
+    if (this.bemalung) {
+      ctx.globalAlpha = 0.55;
+      for (const [farbe, rechtecke] of Object.entries(this.bemalung)) {
+        ctx.fillStyle = farbe;
+        for (const [x, y, b, h] of rechtecke) ctx.fillRect(x * this.g, y * this.g, b * this.g, h * this.g);
+      }
+      ctx.globalAlpha = 1;
+    }
     for (const o of this.bodenObjekte) this.#zeichneObjekt(ctx, o);
     for (let ty = 0; ty < this.welt.hoehe; ty++) {
       for (let tx = 0; tx < this.welt.breite; tx++) {

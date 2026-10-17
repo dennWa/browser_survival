@@ -113,6 +113,26 @@ Loot-Tabellen bekannt …). Fehler erscheinen als Liste mit Koordinaten – ein 
 öffnet sich das Spiel im **Lokal-Modus mit deinem Entwurf** (alle Zonen des Projekts sind dabei, Übergänge funktionieren).
 Der echte Spielstand wird dabei nicht angefasst. Oben im Spiel: **⟵ Zurück zum Editor** – dein Entwurf ist unverändert da.
 
+## 2D/3D, Farben, Gelände, eigene Objekte
+
+- **3D** (Knopf oben oder Taste **3**): dieselbe Karte in der Spielperspektive. Ziehen = schieben, Rechts-/Alt-Ziehen =
+  drehen, Mausrad / zwei Finger = Zoom, Klick = auswählen. Die Auswahl ist in 2D und 3D dieselbe. „🎮 Spielperspektive“
+  stellt den Kamerawinkel des Spiels wieder her, „⬇ Von oben“ schaut senkrecht.
+- **Farbe** (Kategorie Farbe): Palette oder eigene Farbe (Panel), **Pinsel**, **Füllen** (zusammenhängende gleiche Kacheln),
+  **Entfernen**. Die Farbe liegt halbtransparent auf dem Boden – in 2D, in 3D **und im Spiel**.
+  Farbe/Textur **je Objekt**: Eigenschaften-Panel; **je Objekttyp**: Kategorie Farbe → „🎨 Farbe/Textur je Objekttyp“.
+- **Gelände** (Kategorie Terrain): heben, senken (Umschalt kehrt um), glätten, einebnen – Stärke und Pinselgröße im Panel.
+  **Entscheidung:** Höhen sind vorerst nur Darstellung (3D); das Spiel bleibt flach. **Steile Hänge** (über 1,5 m
+  Unterschied zur Nachbarkachel, rot schraffiert) sind im Spiel **blockiert**. Weitere Wirkung wird separat entschieden.
+- **Eigene Objekte** (Kategorie Eigene): „✚ Neues Objekt anlegen“ (Name, Größe, Kollision, Ebene, Kategorie, Farbe,
+  3D-Höhe) – erscheint danach in der Bauleiste seiner Kategorie. Im Spiel ist es ein Platzhalter-Quader, bis es eine Grafik gibt.
+- **🖼 Bild → 3D:** Bild hochladen (PNG mit Transparenz am besten) → **Extrusion** (jeder deckende Pixel wird ein kleiner
+  Quader) oder **Billboard** (Bild schaut immer zur Kamera). Danach bearbeitbar wie andere Objekte. Eine KI-Umwandlung
+  ist bewusst noch nicht eingebaut (im Dialog als „später“ gekennzeichnet).
+- **🎨 Neue Grafik (Antrag):** Für echte Spielgrafik erzeugt der Editor `<id>.grafik.json` (Bild, **Lizenz CC0/CC-BY –
+  Pflicht**, Urheber, Quelle). Datei nach `werkzeuge/assets/editor_grafiken/`, dann `python3 werkzeuge/assets/baue_assets.py`
+  und `npm run assets:3d`. Die Pipeline prüft die Lizenz nochmals und schreibt die Credits fort.
+
 ## Speichern
 
 - Automatisch: jede Änderung landet nach ~1 s im Browser (IndexedDB, sonst localStorage). Oben rechts steht der Status.

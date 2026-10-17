@@ -38,7 +38,7 @@ const zoneWahl = document.getElementById('zone-wahl');
 
 // --- Aktionen (von Bauleiste, Panel, Werkzeugen, Tasten) --------------------------------
 const aktionen = {
-  aktion: (name) => sonderAktionen[name]?.(),
+  aktion: (name, ...args) => sonderAktionen[name]?.(...args),
   befehl: (name) => befehle[name]?.(),
   werkzeug(id) {
     if (id === 'drehen') return werkzeuge.drehe();
@@ -377,6 +377,7 @@ function schalteAnsicht() {
   document.getElementById('ansicht-knopf').textContent = zustand.ansicht === '2d' ? '3D' : '2D';
   document.getElementById('leinwand3d').hidden = zustand.ansicht !== '3d';
   leinwand.hidden = zustand.ansicht === '3d';
+  document.getElementById('werkzeuge').hidden = zustand.ansicht === '3d'; // Malen/Bauen nur in 2D
   zustand.melde('ansicht');
 }
 

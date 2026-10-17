@@ -54,6 +54,11 @@ export function kopiere(karte, r, { nurKacheln = false, name = null } = {}) {
     const [x, y] = ausSchluessel(k);
     return [x - rr.x, y - rr.y, kopie(karte.s('marker').get(k))];
   });
+  v.bemalung = [];
+  for (const [k, f] of karte.s('bemalung')) {
+    const [x, y] = ausSchluessel(k);
+    if (x >= rr.x && y >= rr.y && x < rr.x + rr.b && y < rr.y + rr.h) v.bemalung.push([x - rr.x, y - rr.y, f]);
+  }
   v.raeume = {};
   for (const raum of [...v.marker.map(([, , m]) => m.raum), ...v.raumFlaechen.map((r) => r.raum)]) if (raum && karte.s('raeume').has(raum)) v.raeume[raum] = kopie(karte.s('raeume').get(raum));
   return v;
@@ -89,7 +94,12 @@ export function loescheOps(karte, r, { fuellung = ',', elemente = true } = {}) {
   const rr = beschneide(karte, r);
   if (!rr) return [];
   const ops = [];
-  if (fuellung) for (let y = rr.y; y < rr.y + rr.h; y++) for (let x = rr.x; x < rr.x + rr.b; x++) ops.push({ s: 'kachel', i: karte.index(x, y), neu: fuellung });
+  if (fuellung)
+    for (let y = rr.y; y < rr.y + rr.h; y++)
+      for (let x = rr.x; x < rr.x + rr.b; x++) {
+        ops.push({ s: 'kachel', i: karte.index(x, y), neu: fuellung });
+        if (karte.farbeAn(x, y)) ops.push({ s: 'bemalung', k: markerSchluessel(x, y), neu: null });
+      }
   if (elemente) {
     const e = elementeIn(karte, rr);
     for (const s of ['objekte', 'bauwerke', 'tierBereiche', 'raumFlaechen']) for (const id of e[s]) ops.push({ s, k: id, neu: null });
@@ -140,6 +150,7 @@ export function einfuegeOps(karte, v, x, y, { ersetzen = true } = {}) {
     neueIds.bauwerke.push(naechste);
     ops.push({ s: 'bauwerke', k: naechste++, neu });
   }
+  for (const [dx, dy, f] of v.bemalung ?? []) if (karte.imFeld(x + dx, y + dy)) ops.push({ s: 'bemalung', k: markerSchluessel(x + dx, y + dy), neu: f });
   for (const [dx, dy, m] of v.marker ?? []) {
     const neu = kopie(m);
     if (neu.art === 'loot') neu.raum = raumNeu(m.raum);
@@ -169,5 +180,6 @@ export function dreheVorlage(v) {
   n.raumFlaechen = (v.raumFlaechen ?? []).map(dreheRechteck);
   n.bauwerke = (v.bauwerke ?? []).map((bw) => ({ ...bw, tx: h - 1 - bw.ty, ty: bw.tx, ...(bw.drehung !== undefined ? { drehung: bw.drehung ? 0 : 1 } : {}) }));
   n.marker = (v.marker ?? []).map(([x, y, m]) => [h - 1 - y, x, m]);
+  n.bemalung = (v.bemalung ?? []).map(([x, y, f]) => [h - 1 - y, x, f]);
   return n;
 }

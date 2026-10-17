@@ -118,6 +118,7 @@ export class Zeichner2D {
         }
         if (op.s === 'kachel') this.#maleKachel(op.i);
         if (op.s === 'hoehe') this.cache.terrainAlt = true;
+        if (op.s === 'bemalung') this.cache.farbeAlt = true;
       }
     this.anfordern();
   }
@@ -125,7 +126,7 @@ export class Zeichner2D {
   #baueCache() {
     const k = this.zustand.karte;
     const bild = new OffscreenCanvas(k.breite, k.hoehe);
-    this.cache = { karte: k, breite: k.breite, hoehe: k.hoehe, bild, ctx: bild.getContext('2d'), terrain: null, terrainAlt: true };
+    this.cache = { karte: k, breite: k.breite, hoehe: k.hoehe, bild, ctx: bild.getContext('2d'), terrain: null, terrainAlt: true, farbe: null, farbeAlt: true };
     for (let i = 0; i < k.zellen.length; i++) this.#maleKachel(i);
   }
 
@@ -133,6 +134,24 @@ export class Zeichner2D {
     const k = this.cache.karte;
     this.cache.ctx.fillStyle = kachelInfo(k.zellen[i]).farbe;
     this.cache.ctx.fillRect(i % k.breite, Math.floor(i / k.breite), 1, 1);
+  }
+
+  /** Bemalung (Phase 10) als 1-px-pro-Kachel-Bild – dieselben Farben zeigt die 3D-Ansicht und das Spiel */
+  #baueFarbe() {
+    const k = this.cache.karte;
+    this.cache.farbeAlt = false;
+    if (!k.s('bemalung').size) {
+      this.cache.farbe = null;
+      return;
+    }
+    const bild = new OffscreenCanvas(k.breite, k.hoehe);
+    const c = bild.getContext('2d');
+    for (const [schl, f] of k.s('bemalung')) {
+      const [x, y] = ausSchluessel(schl);
+      c.fillStyle = f;
+      c.fillRect(x, y, 1, 1);
+    }
+    this.cache.farbe = bild;
   }
 
   #baueTerrain() {
@@ -175,10 +194,16 @@ export class Zeichner2D {
     if (k) {
       if (!this.cache || this.cache.karte !== k || this.cache.breite !== k.breite || this.cache.hoehe !== k.hoehe) this.#baueCache();
       if (this.cache.terrainAlt) this.#baueTerrain();
+      if (this.cache.farbeAlt) this.#baueFarbe();
       this.#zeichneNachbarn(ctx);
       const o = this.zuBild(0, 0);
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(this.cache.bild, o.x, o.y, k.breite * this.zoom, k.hoehe * this.zoom);
+      if (this.cache.farbe) {
+        ctx.globalAlpha = 0.6;
+        ctx.drawImage(this.cache.farbe, o.x, o.y, k.breite * this.zoom, k.hoehe * this.zoom);
+        ctx.globalAlpha = 1;
+      }
       if (this.cache.terrain) {
         ctx.imageSmoothingEnabled = true;
         ctx.drawImage(this.cache.terrain, o.x, o.y, k.breite * this.zoom, k.hoehe * this.zoom);

@@ -34,6 +34,7 @@ export const KARTEN = Object.freeze({
  *   bauwerke [{ typ, tx, ty, drehung? }] → kartenfeste Bauwerke ohne Besitzer (SpielWelt setzt sie)
  *   tierBereiche [{ x, y, b, h, art, anzahl, respawnZeit? }] → Hasen nur dort (tierSystem)
  *   einstellungen → Zonen-Werte (zonenEinstellungen.js), musik → daten.musik (Client: Musik-Ordner)
+ *   bemalung { '#rrggbb': [[x, y, b, h]] } → daten.bemalung (nur Optik: Client malt es in die Bodentextur)
  */
 export function ladeKarte(id) {
   const definition = KARTEN[id];
@@ -139,6 +140,8 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE, { au
     .map((t) => ({ x: t.x, y: t.y, b: t.b, h: t.h, art: 'hase', anzahl: Math.min(t.anzahl, 100), ...(t.respawnZeit > 0 ? { respawnZeit: t.respawnZeit } : {}) }));
   const daten = { id: definition.id, name: definition.name, breite, hoehe, kachelGroesse, kacheln, raeume, objekte, uebergaenge };
   if (typeof definition.musik === 'string' && /^[a-z0-9_-]{1,40}$/i.test(definition.musik)) daten.musik = definition.musik;
+  const bemalung = pruefeBemalung(definition.bemalung, breite, hoehe);
+  if (bemalung) daten.bemalung = bemalung;
 
   return {
     daten,
@@ -150,6 +153,18 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE, { au
     bauwerke,
     tierBereiche,
   };
+}
+
+/** Bemalung prüfen: nur #rrggbb-Farben, ganzzahlige Rechtecke in der Karte. @returns Objekt oder null */
+function pruefeBemalung(roh, breite, hoehe) {
+  if (!roh || typeof roh !== 'object') return null;
+  const ergebnis = {};
+  for (const [farbe, liste] of Object.entries(roh)) {
+    if (!/^#[0-9a-f]{6}$/i.test(farbe) || !Array.isArray(liste)) continue;
+    const ok = liste.filter((r) => Array.isArray(r) && r.length === 4 && r.every(Number.isInteger) && r[0] >= 0 && r[1] >= 0 && r[2] > 0 && r[3] > 0 && r[0] + r[2] <= breite && r[1] + r[3] <= hoehe);
+    if (ok.length) ergebnis[farbe.toLowerCase()] = ok.map((r) => [...r]);
+  }
+  return Object.keys(ergebnis).length ? ergebnis : null;
 }
 
 /**

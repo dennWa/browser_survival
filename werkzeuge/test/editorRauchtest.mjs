@@ -201,9 +201,27 @@ try {
     await seite.click('#panel-inhalt button:has-text("Übernehmen")');
     pruefe((await seite.evaluate(() => window.mapEditor.zustand.karte.s('objekte').size)) === vorherObj + 1, 'nach Bestätigung übernommen');
 
-    schritt('3D-Ansicht');
+    schritt('Phase 10: Boden bemalen, Gelände heben, 3D-Ansicht mit synchroner Auswahl');
+    await seite.evaluate(() => window.mapEditor.zeichner.springeZu(42, 26, 16));
+    await seite.click('#kategorien [data-kategorie="Farbe"]');
+    await seite.click('#bauleiste [data-id="werkzeug:farbe-pinsel"]');
+    await ziehe([36, 27], [44, 27]);
+    pruefe((await seite.evaluate(() => window.mapEditor.zustand.karte.s('bemalung').size)) >= 8, 'Boden bemalt');
+    await seite.click('#kategorien [data-kategorie="Terrain"]');
+    await seite.click('#bauleiste [data-id="werkzeug:terrain-heben"]');
+    for (let i = 0; i < 4; i++) await ziehe([40, 34], [41, 34]);
+    pruefe((await seite.evaluate(() => window.mapEditor.zustand.karte.hoeheAn(40, 34))) > 0.5, 'Gelände gehoben');
+    await seite.keyboard.press('Escape');
+    await seite.keyboard.press('v');
+    await seite.evaluate(() => {
+      const k = window.mapEditor.zustand.karte;
+      const [id] = [...k.s('objekte')].find(([, o]) => o.typ === 'werkbank') ?? [];
+      if (id) window.mapEditor.zustand.waehle([{ s: 'objekte', k: id }]);
+    });
     await seite.keyboard.press('3');
-    await seite.waitForTimeout(1500);
+    await seite.waitForTimeout(2500);
+    pruefe(await seite.isVisible('#leinwand3d'), '3D-Fläche sichtbar');
+    pruefe((await seite.evaluate(() => window.mapEditor.zustand.auswahl.size)) === 1, 'Auswahl bleibt beim Umschalten erhalten');
     await seite.screenshot({ path: path.join(AUSGABE, 'editor-3-3d.png') });
     await seite.keyboard.press('3');
   }
@@ -225,6 +243,28 @@ try {
     await seite.waitForFunction(() => window.mapEditor?.zustand.karte, null, { timeout: 20000 });
     const zurueck = await seite.evaluate(() => ({ id: window.mapEditor.zustand.aktivId, zonen: window.mapEditor.zustand.zonen.size }));
     pruefe(zurueck.id === 'testzone' && zurueck.zonen >= 3, `zurück im Editor, alles da (${JSON.stringify(zurueck)})`);
+  }
+
+  if (!nurBis) {
+    schritt('Touch (Handy): Ansehen + Schwenken mit dem Finger');
+    const handy = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+    const h = await handy.newPage();
+    h.on('pageerror', (e) => fehler.push(`Seitenfehler (Handy): ${e.message}`));
+    await h.goto(`${basis}/editor/`);
+    await h.waitForFunction(() => window.mapEditor, null, { timeout: 15000 });
+    await h.evaluate(() => window.mapEditor.oeffneSpielzone('waldweg'));
+    await h.evaluate(() => window.mapEditor.aktionen.werkzeug('hand'));
+    const vorher = await h.evaluate(() => ({ ...window.mapEditor.zeichner.kamera }));
+    const box = await h.locator('#leinwand2d').boundingBox();
+    const cdp = await handy.newCDPSession(h);
+    const punkt = (x, y) => [{ x, y }];
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: punkt(box.x + 200, box.y + 200) });
+    for (let i = 1; i <= 5; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: punkt(box.x + 200 - i * 20, box.y + 200 - i * 10) });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    const nachher = await h.evaluate(() => ({ ...window.mapEditor.zeichner.kamera }));
+    pruefe(nachher.x > vorher.x && nachher.y > vorher.y, `mit dem Finger geschwenkt (${vorher.x.toFixed(1)} → ${nachher.x.toFixed(1)})`);
+    await h.screenshot({ path: path.join(AUSGABE, 'editor-9-handy.png') });
+    await handy.close();
   }
 
   const pruefung = await seite.locator('#status-pruefung').textContent();

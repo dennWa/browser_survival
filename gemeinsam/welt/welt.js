@@ -30,6 +30,8 @@ export class Welt {
     this.objekte = kartenDaten.objekte ?? [];
     /** Übergänge in andere Zonen: [{ x, y, b, h, ziel, ankunft, name, px: { x0, y0, x1, y1 } }] (Kacheln + Pixel) */
     this.uebergaenge = kartenDaten.uebergaenge ?? [];
+    /** Bemalung des Bodens aus dem Map-Editor (nur Optik): { '#rrggbb': [[x, y, b, h], …] } oder null */
+    this.bemalung = kartenDaten.bemalung ?? null;
     /** Kachelindizes (ty * breite + tx), die durch Möbel blockiert sind */
     this.moebelBlockiert = berechneMoebelKollision(this.objekte, this.breite);
     /** [{ id, kacheln: [{ tx, ty }], senkrecht, x, y }]  senkrecht = Tür in einer Nord-Süd-Wand; x/y = Mitte (Weltpixel) */
