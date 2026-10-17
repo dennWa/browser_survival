@@ -1,0 +1,43 @@
+#!/usr/bin/env node
+/**
+ * Map-Editor → Spiel: veröffentlicht eine im Editor exportierte Karte (Karten-Export *.karte.json oder Entwurf *.entwurf.json)
+ * als server/spiel/karten/<id>.js und trägt sie in KARTEN ein – wie `npm run karte:import` für Tiled.
+ *
+ *   npm run karte:editor -- downloads/meinezone.karte.json [--id neue_id]
+ *
+ * Danach: npm test (prüft Spawns, Loot, Übergänge, Erreichbarkeit) und committen.
+ */
+import { readFileSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { ladeDatei, nachDefinition } from '../../editor/kern/format.js';
+import { alsJsModul } from '../../editor/kern/veroeffentlichen.js';
+import { validiere, hatFehler } from '../../editor/kern/validierung.js';
+import { verarbeiteKarte } from '../../server/spiel/karten/kartenLader.js';
+import { registriere } from './registrieren.mjs';
+
+const WURZEL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const KARTEN_ORDNER = path.join(WURZEL, 'server/spiel/karten');
+const [datei, ...rest] = process.argv.slice(2);
+const i = rest.indexOf('--id');
+const neueId = i >= 0 ? rest[i + 1] : null;
+
+try {
+  if (!datei) throw new Error('Benutzung: npm run karte:editor -- <datei.karte.json|datei.entwurf.json> [--id neue_id]');
+  const { karte, warnungen } = ladeDatei(readFileSync(datei, 'utf8'));
+  if (neueId) karte.anwenden([{ s: 'wert', pfad: 'id', neu: neueId }]);
+  for (const w of warnungen) console.log(`  ⚠ ${w}`);
+  const probleme = validiere(karte, { mitErreichbarkeit: true });
+  for (const p of probleme) console.log(`  ${p.schwere === 'fehler' ? '✗' : '⚠'} ${p.text}${p.x !== null ? ` (${p.x}|${p.y})` : ''}`);
+  if (hatFehler(probleme)) throw new Error('Karte hat Fehler (siehe oben) – im Editor beheben');
+  const definition = nachDefinition(karte);
+  verarbeiteKarte(definition); // wirft bei allem, was das Spiel nicht laden könnte
+  const ziel = path.join(KARTEN_ORDNER, `${definition.id}.js`);
+  writeFileSync(ziel, alsJsModul(definition));
+  console.log(`✓ ${path.relative(WURZEL, ziel)} geschrieben (${karte.breite} × ${karte.hoehe}, ${definition.objekte.length} Objekte)`);
+  registriere(path.join(KARTEN_ORDNER, 'kartenLader.js'), definition.id);
+  console.log('  Jetzt: npm test – Übergänge in Nachbarzonen nicht vergessen (Rückweg!)');
+} catch (fehler) {
+  console.error(`✗ ${fehler.message}`);
+  process.exitCode = 1;
+}

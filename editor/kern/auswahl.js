@@ -1,0 +1,139 @@
+import { ID_SAMMLUNGEN, markerSchluessel, ausSchluessel, kopie } from './karte.js';
+
+/**
+ * Auswahl-Rechteck: kopieren, ausschneiden, einfügen, löschen, verschieben, drehen – und Prefabs (Phase 6), die
+ * dieselbe "Vorlage" benutzen. Vorlage = alles relativ zur linken oberen Ecke:
+ *   { b, h, zellen: (Zeichen|null)[], hoehen: number[]|null, objekte: [...], bauwerke, tierBereiche, raumFlaechen,
+ *     marker: [[dx, dy, m]], name? }
+ * Ein Element gehört zur Auswahl, wenn sein MITTELPUNKT im Rechteck liegt.
+ */
+const MIT_RECHTECK = ['objekte', 'tierBereiche', 'raumFlaechen'];
+
+function mitte(s, o) {
+  if (s === 'bauwerke') return { x: o.tx + 0.5, y: o.ty + 0.5 };
+  return { x: o.x + (o.b ?? 1) / 2, y: o.y + (o.h ?? 1) / 2 };
+}
+const imRechteck = (p, r) => p.x >= r.x && p.x < r.x + r.b && p.y >= r.y && p.y < r.y + r.h;
+
+/** Rechteck auf die Karte beschneiden (null, wenn leer) */
+export function beschneide(karte, r) {
+  const x0 = Math.max(0, r.x);
+  const y0 = Math.max(0, r.y);
+  const x1 = Math.min(karte.breite, r.x + r.b);
+  const y1 = Math.min(karte.hoehe, r.y + r.h);
+  return x1 > x0 && y1 > y0 ? { x: x0, y: y0, b: x1 - x0, h: y1 - y0 } : null;
+}
+
+/** IDs/Schlüssel aller Elemente im Rechteck: { objekte: [id…], …, marker: [schluessel…] } */
+export function elementeIn(karte, r) {
+  const ergebnis = { marker: [] };
+  for (const s of ['objekte', 'bauwerke', 'tierBereiche', 'raumFlaechen']) ergebnis[s] = [...karte.s(s)].filter(([, o]) => imRechteck(mitte(s, o), r)).map(([id]) => id);
+  for (const k of karte.s('marker').keys()) {
+    const [x, y] = ausSchluessel(k);
+    if (imRechteck({ x: x + 0.5, y: y + 0.5 }, r)) ergebnis.marker.push(k);
+  }
+  return ergebnis;
+}
+
+export function kopiere(karte, r, { nurKacheln = false, name = null } = {}) {
+  const rr = beschneide(karte, r);
+  if (!rr) return null;
+  const v = { b: rr.b, h: rr.h, zellen: [], hoehen: [], objekte: [], bauwerke: [], tierBereiche: [], raumFlaechen: [], marker: [] };
+  if (name) v.name = name;
+  for (let y = 0; y < rr.h; y++)
+    for (let x = 0; x < rr.b; x++) {
+      v.zellen.push(karte.kachelAn(rr.x + x, rr.y + y));
+      v.hoehen.push(karte.hoeheAn(rr.x + x, rr.y + y));
+    }
+  if (!v.hoehen.some((h) => h !== 0)) v.hoehen = null;
+  if (nurKacheln) return v;
+  const e = elementeIn(karte, rr);
+  for (const s of ['objekte', 'tierBereiche', 'raumFlaechen']) v[s] = e[s].map((id) => ({ ...kopie(karte.s(s).get(id)), x: karte.s(s).get(id).x - rr.x, y: karte.s(s).get(id).y - rr.y }));
+  v.bauwerke = e.bauwerke.map((id) => ({ ...kopie(karte.s('bauwerke').get(id)), tx: karte.s('bauwerke').get(id).tx - rr.x, ty: karte.s('bauwerke').get(id).ty - rr.y }));
+  v.marker = e.marker.map((k) => {
+    const [x, y] = ausSchluessel(k);
+    return [x - rr.x, y - rr.y, kopie(karte.s('marker').get(k))];
+  });
+  return v;
+}
+
+/** Löschen: Kacheln → fuellung (null = Kacheln lassen), Elemente im Rechteck entfernen */
+export function loescheOps(karte, r, { fuellung = ',', elemente = true } = {}) {
+  const rr = beschneide(karte, r);
+  if (!rr) return [];
+  const ops = [];
+  if (fuellung) for (let y = rr.y; y < rr.y + rr.h; y++) for (let x = rr.x; x < rr.x + rr.b; x++) ops.push({ s: 'kachel', i: karte.index(x, y), neu: fuellung });
+  if (elemente) {
+    const e = elementeIn(karte, rr);
+    for (const s of ['objekte', 'bauwerke', 'tierBereiche', 'raumFlaechen']) for (const id of e[s]) ops.push({ s, k: id, neu: null });
+    for (const k of e.marker) ops.push({ s: 'marker', k, neu: null });
+  }
+  return ops;
+}
+
+/**
+ * Vorlage bei (x, y) einfügen. Teile außerhalb der Zone werden weggelassen und gemeldet.
+ * @returns {{ ops, weggelassen: number, neueIds: { objekte: [] … } }}
+ */
+export function einfuegeOps(karte, v, x, y) {
+  const ops = [];
+  let weggelassen = 0;
+  const neueIds = Object.fromEntries(ID_SAMMLUNGEN.map((s) => [s, []]));
+  for (let dy = 0; dy < v.h; dy++)
+    for (let dx = 0; dx < v.b; dx++) {
+      const z = v.zellen[dy * v.b + dx];
+      if (z === null || z === undefined || !karte.imFeld(x + dx, y + dy)) continue;
+      ops.push({ s: 'kachel', i: karte.index(x + dx, y + dy), neu: z });
+      if (v.hoehen) ops.push({ s: 'hoehe', i: karte.index(x + dx, y + dy), neu: v.hoehen[dy * v.b + dx] });
+    }
+  const drin = (r) => r.x >= 0 && r.y >= 0 && r.x + r.b <= karte.breite + 1e-9 && r.y + r.h <= karte.hoehe + 1e-9;
+  let naechste = karte.naechsteId;
+  for (const s of MIT_RECHTECK) {
+    for (const o of v[s] ?? []) {
+      const neu = { ...kopie(o), x: o.x + x, y: o.y + y };
+      if (!drin({ x: neu.x, y: neu.y, b: neu.b ?? 1, h: neu.h ?? 1 })) {
+        weggelassen++;
+        continue;
+      }
+      neueIds[s].push(naechste);
+      ops.push({ s, k: naechste++, neu });
+    }
+  }
+  for (const b of v.bauwerke ?? []) {
+    const neu = { ...kopie(b), tx: b.tx + x, ty: b.ty + y };
+    if (!karte.imFeld(neu.tx, neu.ty)) {
+      weggelassen++;
+      continue;
+    }
+    neueIds.bauwerke.push(naechste);
+    ops.push({ s: 'bauwerke', k: naechste++, neu });
+  }
+  for (const [dx, dy, m] of v.marker ?? []) {
+    if (!karte.imFeld(x + dx, y + dy)) {
+      weggelassen++;
+      continue;
+    }
+    ops.push({ s: 'marker', k: markerSchluessel(x + dx, y + dy), neu: kopie(m) });
+  }
+  return { ops, weggelassen, neueIds };
+}
+
+/** Vorlage um 90° im Uhrzeigersinn drehen (Kacheln, Objekte mit b/h-Tausch + drehung, Marker, Bauwerke) */
+export function dreheVorlage(v) {
+  const { b, h } = v;
+  const n = { ...v, b: h, h: b, zellen: new Array(b * h), hoehen: v.hoehen ? new Array(b * h) : null };
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < b; x++) {
+      // (x, y) → (h - 1 - y, x)
+      const ni = x * h + (h - 1 - y);
+      n.zellen[ni] = v.zellen[y * b + x];
+      if (v.hoehen) n.hoehen[ni] = v.hoehen[y * b + x];
+    }
+  const dreheRechteck = (o) => ({ ...o, x: h - (o.y + (o.h ?? 1)), y: o.x, b: o.h ?? 1, h: o.b ?? 1 });
+  n.objekte = (v.objekte ?? []).map((o) => ({ ...dreheRechteck(o), drehung: ((o.drehung ?? 0) + 90) % 360 }));
+  n.tierBereiche = (v.tierBereiche ?? []).map(dreheRechteck);
+  n.raumFlaechen = (v.raumFlaechen ?? []).map(dreheRechteck);
+  n.bauwerke = (v.bauwerke ?? []).map((bw) => ({ ...bw, tx: h - 1 - bw.ty, ty: bw.tx, ...(bw.drehung !== undefined ? { drehung: bw.drehung ? 0 : 1 } : {}) }));
+  n.marker = (v.marker ?? []).map(([x, y, m]) => [h - 1 - y, x, m]);
+  return n;
+}

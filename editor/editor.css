@@ -1,0 +1,428 @@
+/* Map-Editor – eigenes Styling (unabhängig von client/stil.css) */
+:root {
+  --bg: #15181d;
+  --bg2: #1d2128;
+  --bg3: #262b34;
+  --rand: #343a46;
+  --text: #e4e7ec;
+  --leise: #9aa3b2;
+  --akzent: #4caf50;
+  --blau: #2b8cff;
+  --rot: #e5484d;
+  --gelb: #f5b83d;
+  --knopf: 34px;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: dark;
+}
+* {
+  box-sizing: border-box;
+}
+[hidden] {
+  display: none !important;
+}
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  overflow: hidden;
+}
+body {
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  height: 100dvh;
+}
+button,
+select,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+button {
+  background: var(--bg3);
+  border: 1px solid var(--rand);
+  border-radius: 6px;
+  min-height: var(--knopf);
+  padding: 0 10px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+button:hover {
+  border-color: #56607a;
+}
+button.aktiv,
+button[aria-pressed='true'] {
+  background: #2f4f37;
+  border-color: var(--akzent);
+}
+button.akzent {
+  background: #2e6b31;
+  border-color: var(--akzent);
+}
+button.gefahr {
+  background: #6b2e2e;
+  border-color: var(--rot);
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+select,
+input,
+textarea {
+  background: var(--bg);
+  border: 1px solid var(--rand);
+  border-radius: 5px;
+  padding: 4px 6px;
+  min-height: 30px;
+}
+input[type='checkbox'] {
+  min-height: auto;
+}
+
+/* Kopfleiste */
+#kopf {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  align-items: center;
+  padding: 6px 10px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--rand);
+}
+#kopf .logo {
+  color: var(--text);
+  text-decoration: none;
+  white-space: nowrap;
+}
+#kopf .gruppe {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.zonenwahl select {
+  max-width: 160px;
+}
+#speicher-status {
+  margin-left: auto;
+  color: var(--leise);
+  font-size: 12px;
+}
+#speicher-status.warnung {
+  color: var(--gelb);
+}
+
+/* Hauptbereich */
+#haupt {
+  display: grid;
+  grid-template-columns: 116px 1fr 300px;
+  min-height: 0;
+}
+#kategorien {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  background: var(--bg2);
+  border-right: 1px solid var(--rand);
+  overflow-y: auto;
+}
+#kategorien button {
+  text-align: left;
+  font-size: 13px;
+  min-height: 30px;
+}
+#flaeche {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: #0d0f12;
+}
+#leinwand2d,
+#leinwand3d {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  outline: none;
+}
+#hinweis-leer {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.6);
+  padding: 14px 18px;
+  border-radius: 8px;
+  pointer-events: none;
+}
+#werkzeuge {
+  position: absolute;
+  left: 34px;
+  top: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: rgba(20, 23, 28, 0.85);
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid var(--rand);
+}
+#werkzeuge button {
+  width: var(--knopf);
+  padding: 0;
+  font-size: 16px;
+}
+#werkzeuge .trenner {
+  height: 1px;
+  background: var(--rand);
+  margin: 2px 0;
+}
+#werkzeuge .groesse {
+  font-size: 11px;
+  text-align: center;
+  color: var(--leise);
+}
+#zoom-knoepfe {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  gap: 4px;
+}
+#zoom-knoepfe button {
+  width: 38px;
+  font-size: 18px;
+}
+
+/* Panel */
+#panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg2);
+  border-left: 1px solid var(--rand);
+  min-height: 0;
+}
+#panel-reiter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 4px;
+  border-bottom: 1px solid var(--rand);
+}
+#panel-reiter button {
+  font-size: 12px;
+  min-height: 28px;
+  padding: 0 7px;
+}
+#panel-inhalt {
+  overflow-y: auto;
+  padding: 8px 10px 40px;
+  flex: 1;
+}
+#panel-inhalt h3 {
+  margin: 10px 0 6px;
+  font-size: 14px;
+}
+#panel-inhalt h4 {
+  margin: 10px 0 4px;
+  font-size: 13px;
+  color: var(--leise);
+}
+.feld {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  align-items: center;
+  gap: 4px 6px;
+  margin: 3px 0;
+}
+.feld > span {
+  color: var(--leise);
+  font-size: 12px;
+}
+.feld input:not([type='checkbox']),
+.feld select {
+  width: 100%;
+}
+.feld .standard {
+  grid-column: 2;
+  font-size: 11px;
+  color: var(--leise);
+  margin-top: -2px;
+}
+.feld.gesetzt > span {
+  color: var(--akzent);
+}
+.knopfreihe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 6px 0;
+}
+.liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.liste li {
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--rand);
+  cursor: pointer;
+  font-size: 13px;
+}
+.liste li:hover {
+  background: var(--bg3);
+}
+.liste li.fehler::before {
+  content: '⛔ ';
+}
+.liste li.warnung::before {
+  content: '⚠️ ';
+}
+.leise {
+  color: var(--leise);
+  font-size: 12px;
+}
+
+/* Bauleiste */
+#bauleiste {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 6px 8px;
+  background: var(--bg2);
+  border-top: 1px solid var(--rand);
+  min-height: 70px;
+}
+#bauleiste button {
+  flex: 0 0 auto;
+  width: 84px;
+  height: 58px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-size: 11px;
+  line-height: 1.1;
+  padding: 2px;
+}
+#bauleiste button .symbol {
+  font-size: 20px;
+}
+#bauleiste button .farbe {
+  width: 22px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid #0006;
+}
+#status {
+  display: flex;
+  gap: 16px;
+  padding: 3px 10px;
+  font-size: 12px;
+  background: #101318;
+  color: var(--leise);
+  white-space: nowrap;
+  overflow: hidden;
+}
+#status-koord {
+  color: var(--text);
+  min-width: 120px;
+  font-variant-numeric: tabular-nums;
+}
+#status-pruefung {
+  cursor: pointer;
+}
+#status-meldung.fehler {
+  color: var(--rot);
+}
+#status-meldung.ok {
+  color: var(--akzent);
+}
+
+/* Dialoge */
+#dialog-hintergrund {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: grid;
+  place-items: center;
+  z-index: 50;
+}
+#dialog {
+  background: var(--bg2);
+  border: 1px solid var(--rand);
+  border-radius: 10px;
+  padding: 14px 16px;
+  width: min(760px, 94vw);
+  max-height: 90dvh;
+  overflow: auto;
+}
+#dialog h2 {
+  margin: 0 0 10px;
+  font-size: 17px;
+}
+#dialog textarea {
+  width: 100%;
+  min-height: 220px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+}
+#dialog pre {
+  background: var(--bg);
+  padding: 8px;
+  border-radius: 6px;
+  overflow: auto;
+  max-height: 50dvh;
+  font-size: 12px;
+}
+.diff-neu {
+  color: #6fdc7b;
+}
+.diff-weg {
+  color: #ff7b7b;
+}
+.diff-aendern {
+  color: #ffd166;
+}
+.diff-ungueltig {
+  color: #ff9a3c;
+}
+kbd {
+  background: var(--bg3);
+  border: 1px solid var(--rand);
+  border-radius: 4px;
+  padding: 0 5px;
+  font-size: 12px;
+}
+.hilfe-raster {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 4px 16px;
+}
+
+/* Handy/Tablet: Panel unter die Fläche, Seitenleiste schmal (Ansehen & Schwenken per Touch, Bauen am Desktop) */
+@media (max-width: 900px) {
+  #haupt {
+    grid-template-columns: 82px 1fr;
+    grid-template-rows: 1fr 38%;
+  }
+  #panel {
+    grid-column: 1 / -1;
+    border-left: 0;
+    border-top: 1px solid var(--rand);
+  }
+  #kategorien button {
+    font-size: 11px;
+    padding: 0 4px;
+  }
+  #kopf .logo b {
+    display: none;
+  }
+}

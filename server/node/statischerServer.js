@@ -6,7 +6,7 @@ import path from 'node:path';
  * Minimaler HTTP-Server für die Spieldateien (kein Express nötig).
  * Ausgeliefert werden NUR die freigegebenen Ordner – server/node und server/daten (Accounts!) nie.
  */
-const FREIGEGEBEN = ['client', 'gemeinsam', 'server/spiel'];
+const FREIGEGEBEN = ['client', 'gemeinsam', 'server/spiel', 'editor']; // editor/ = Map-Editor (nur Browser-Dateien, schreibt nichts)
 
 const MIME_TYPEN = {
   '.html': 'text/html; charset=utf-8',

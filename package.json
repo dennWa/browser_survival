@@ -1,6 +1,6 @@
 {
   "name": "browser-survival",
-  "version": "0.13.1",
+  "version": "0.14.0",
   "description": "Top-Down-Survival im Browser – autoritativer Server, WebSocket-Mehrspieler",
   "private": true,
   "type": "module",
@@ -17,7 +17,9 @@
     "karte:export": "node werkzeuge/karten/tiled.mjs export",
     "karte:import": "node werkzeuge/karten/tiled.mjs import",
     "rauchtest": "node werkzeuge/test/rauchtest.mjs",
-    "test": "node --test \"tests/**/*.test.js\""
+    "test": "node --test \"tests/**/*.test.js\"",
+    "karte:editor": "node werkzeuge/karten/editorImport.mjs",
+    "rauchtest:editor": "node werkzeuge/test/editorRauchtest.mjs"
   },
   "dependencies": {
     "ws": "^8.22.0"

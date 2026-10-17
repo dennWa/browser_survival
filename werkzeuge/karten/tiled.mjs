@@ -17,6 +17,7 @@ import { deflateSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ausTiled, nachTiled, alsJsModul, TILESET_FARBEN } from './tiledKarte.mjs';
+import { registriere } from './registrieren.mjs';
 
 const WURZEL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const KARTEN_ORDNER = path.join(WURZEL, 'server/spiel/karten');
@@ -62,23 +63,8 @@ async function importieren(datei, optionen) {
   writeFileSync(ziel, alsJsModul(definition, { quelle: `Tiled (${path.basename(datei)})` }));
   console.log(`✓ ${path.relative(WURZEL, ziel)} geschrieben (${definition.kacheln[0].length} × ${definition.kacheln.length}, ${definition.objekte.length} Objekte)`);
   if (GENERIERT[definition.id]) console.log(`  Hinweis: diese Karte erzeugt sonst ${GENERIERT[definition.id]} – das Skript nicht mehr laufen lassen (würde überschreiben)`);
-  registriere(definition.id);
+  registriere(LADER, definition.id);
   console.log('  Jetzt: npm test');
-}
-
-/** Neue Karte in KARTEN (kartenLader.js) eintragen – Import + Eintrag. */
-function registriere(id) {
-  let text = readFileSync(LADER, 'utf8');
-  const name = id.toUpperCase();
-  if (new RegExp(`\\b${id}: ${name}\\b`).test(text)) return;
-  const importe = [...text.matchAll(/^import \{ \w+ \} from '\.\/\w+\.js';$/gm)];
-  const letzterImport = importe.at(-1);
-  if (!letzterImport) throw new Error('kartenLader.js: Import-Zeilen nicht gefunden – bitte von Hand eintragen');
-  const nachImport = letzterImport.index + letzterImport[0].length;
-  text = `${text.slice(0, nachImport)}\nimport { ${name} } from './${id}.js';${text.slice(nachImport)}`;
-  text = text.replace(/(export const KARTEN = Object\.freeze\(\{\n(?:  .*\n)*?)(\}\);)/, `$1  ${id}: ${name},\n$2`);
-  writeFileSync(LADER, text);
-  console.log(`  ${id} in KARTEN eingetragen (server/spiel/karten/kartenLader.js)`);
 }
 
 /** Tileset-Bild: eine Reihe 32×32-Farbkacheln (Reihenfolge wie TILESET_FARBEN), als PNG ohne Abhängigkeiten. */

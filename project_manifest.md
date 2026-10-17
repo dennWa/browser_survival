@@ -384,7 +384,8 @@ browser_survival/
 │   ├── werkzeuge/kontoAnlegen.js  CLI: npm run konto -- <name> <passwort>
 │   └── daten/                     konten.json, einstellungen.json, spielstaende/ (gitignored) + *.beispiel.json (Vorlagen)
 │
-├── werkzeuge/karten/              Kartengeneratoren (Python), Tiled-Export/-Import (`tiled.mjs`, `tiledKarte.mjs`), README
+├── editor/                        ★ Map-Editor (eigener Einstieg, Details §8, Anleitung editor/LIESMICH.md)
+├── werkzeuge/karten/              Kartengeneratoren (Python), Tiled-Export/-Import (`tiled.mjs`, `tiledKarte.mjs`), Editor-Import (`editorImport.mjs`), README
 ├── werkzeuge/test/rauchtest.mjs   Browser-Rauchtest (Playwright) → `npm run rauchtest`
 ├── werkzeuge/musik/indexieren.mjs (v0.10) schreibt client/musik/musik.json → `npm run musik:index`
 ├── werkzeuge/assets/              ── Grafik-Pipeline ──
@@ -502,6 +503,7 @@ browser_survival/
 | Neues Item | `server/spiel/konfiguration/gegenstaende.js` + Icon in `baue_assets.py` (`ITEMS`) + in `lootTabellen.js` eintragen |
 | Was wo spawnt | `server/spiel/konfiguration/lootTabellen.js`, Raumzuordnung in der Kartendatei |
 | Karte bearbeiten | `server/spiel/karten/stadtrand.js` (ASCII; Tests prüfen Erreichbarkeit & Möbel nicht in Türen) |
+| **Karte im Map-Editor bauen** | `…/editor/` (Login → 🗺 Map-Editor), veröffentlichen mit `npm run karte:editor -- <id>.karte.json`; Editor-Code: `editor/` (§8) |
 | Neue Karte / Zone | Tiled: `werkzeuge/karten/README.md` (`npm run karte:import`), oder Datei in `server/spiel/karten/` + in `KARTEN` (`kartenLader.js`) eintragen; Übergänge: `uebergaenge` + `ankuenfte` in der Kartendatei |
 | Skills / Fähigkeiten | `gemeinsam/spieler/skills.js` (Werte), Wirkung in `levelSystem.js`, `kampfSystem.js`, `arbeitSystem.js`, `gemeinsam/physik/bewegung.js` |
 | Bauwerke, Pflanzen, Kochen | `gemeinsam/welt/bauwerke.js`, `bauSystem.js`; Rezepte `rezepte.js` (`ort: 'inventar'`); Modelle `client/darstellung/bauwerkModelle.js` |
@@ -753,6 +755,35 @@ Stationen (Lagerfeuer-Kochen, Schmelzofen) mit eigenem Menü, Haltbarkeit, Hand-
 | Phase | Stand |
 |---|---|
 | 0 Bestandsaufnahme | ✅ `editor/BESTANDSAUFNAHME.md` (alle Kacheln, Objekte, Bauwerke, Spawn-/Loot-/Wetterwerte) |
+| 1 Einstieg & Hülle | ✅ Login → „🗺 Map-Editor“ (`client/index.html` `#login-editor`), Kopfleiste/Fläche/Bauleiste, Öffnen (Spielzone als Vorlage, Entwurf, Datei), Entwürfe in IndexedDB → localStorage → Arbeitsspeicher (Warnung) |
+| 2 Zonen als Rechteck | ✅ Neu = Rechteck aufziehen (Rasen), Griffe/Dialog zum Vergrößern/Verkleinern mit Abschneide-Warnung, Name/ID/Größe im Panel |
+| 3 Bauleiste & Kacheln | ✅ Kategorien → Bauleiste, Pinsel/Rechteck/Linie (Mauern rasten ein)/Füllen/Radierer, unbegrenztes Undo, Auswahl kopieren/ausschneiden/einfügen/löschen/verschieben |
+| 4 Objekte | ✅ Katalog aus Spiel-Registries, Platzieren mit grün/rot, verschieben/löschen/duplizieren/Mehrfachauswahl, drehen 90° + frei, Eigenschaften-Panel |
+
+**Aufbau:**
+```
+editor/
+├── index.html, editor.css, main.js   Einstieg + Verdrahtung (Kopfleiste, Tasten, Dialoge, Veröffentlichen)
+├── LIESMICH.md                       Anleitung für Menschen  ·  BESTANDSAUFNAHME.md  Phase 0 (für KIs)
+├── kern/   (umgebungsfrei, getestet in tests/editor*.test.js)
+│   ├── karte.js        EditorKarte: Raster + Sammlungen, ALLE Änderungen als Operationen (anwenden → alt/neu)
+│   ├── verlauf.js      Undo/Redo (JSON, im Entwurf gespeichert), Gruppen (Pinselstrich = 1 Schritt)
+│   ├── format.js       Spielformat ⇄ Editor (ausDefinition/nachDefinition), Entwurf, Export (+Version, LIESMICH-Text)
+│   ├── katalog.js      Bauleiste: Kacheln/Objekte/Bauwerke/Marker/Bereiche/Werkzeuge je Kategorie
+│   ├── raster.js       Linie, Einrasten, Rechteck, Pinsel, Füllen, Rechteck-Zerlegung
+│   ├── zone.js         neue Zone, Größe ändern (+ Abgeschnittenes)
+│   ├── auswahl.js      Kopieren/Einfügen/Löschen/Drehen von Bereichen (= Prefab-Vorlagen)
+│   ├── platzierung.js  grün/rot-Prüfung (Möbel-Kollision wie Spiel)
+│   ├── validierung.js  Live-Prüfung über echten Lader + Welt (blockiert, innen, Erreichbarkeit, Übergänge)
+│   ├── innen.js        innenRaster (Welt.istInnen), pruefWelt (lädt auch unfertige Karten)
+│   ├── terrain.js      Höhen-Pinsel, steile Kacheln
+│   └── veroeffentlichen.js  <id>.js im Kartenstil (alsJsModul) + KARTEN-Zeilen
+└── ui/     (Browser) zustand.js (Projekt, Auswahl, Autosave) · zeichner2d.js (Canvas, Lineale) · werkzeuge.js (Zeiger/Touch)
+            bauleiste.js · panel.js · dialoge.js · speicher.js (IndexedDB …) · erweiterungen.js (Phasen 5–10)
+```
+Spiel-Seite: `server/spiel/karten/zonenEinstellungen.js` (Zonen-Werte, Schnittstelle Editor ⇄ Spiel), `statischerServer.js` liefert `editor/` aus,
+`werkzeuge/karten/editorImport.mjs` (`npm run karte:editor -- x.karte.json`), `registrieren.mjs` (KARTEN-Eintrag, auch von tiled.mjs),
+`werkzeuge/test/editorRauchtest.mjs` (`npm run rauchtest:editor`).
 
 ---
 
@@ -775,4 +806,5 @@ Stationen (Lagerfeuer-Kochen, Schmelzofen) mit eigenem Menü, Haltbarkeit, Hand-
 | 0.12.0 | 2026-10-16 | **Handy & Komfort:** kompakte/einstellbare Statusbalken, feste Sticks (Fest/Frei), Pinch-Zoom, Zombie anvisieren (Auto-Aim), Angel-Knopf, Warn-„!“; Zombies schwächer (Sicht/Tempo), im Haus unsichtbar, Lagerfeuer-Sitzen; 2×2-Bauteile, Zaun & Zauntor, Baugebiet 8; Stadtrand 155×130 mit breiten Straßen + Laternen, fallende Blätter, weniger Hasen, Schlafen ohne Zeitsprung |
 | 0.12.1 | 2026-10-17 | Feedback-Runde: Raum-Dächer, höhere Wände, Silhouette statt Durchschauen, Item-Namen, Einschlagfarben, Nebel/Regen-Performance, Startausrüstung inkl. Hacke, Samen/Angel in der Hand, Schlafen festhaltend (6 h), Admin-Flug (Umschalt+B), Ego: Alt-Maus & Auto, seitliches Axt-Fällen, 4 Zombie-Gesichter, echte CC0-Sounds |
 | 0.13.0 | 2026-10-17 | **Feedback-Runde 13 (Protokoll v10):** Lagerfeuer-Menü (Koch-Slots 3, gar nach 20 s, verkohlt nach 30 s, Brutzeln/Fertig-Ton, Sitzen, 3 min Brenndauer, Holz in der Hand + Linksklick = +3 min, Regen löscht), **Schmelzofen** (Eisenerz → Eisenbarren, Holz als Brennstoff), Werkzeug-Haltbarkeit (Axt/Spitzhacke/Hacke), Hacke 1×1 ohne G-Modus (Linksklick anlegen, Rechtsklick Rasen), Samen-Indikator, Essen/Trinken erst in die Hand (Linksklick verbraucht), Q wirft 1 Stück, Tab = Inventar / I = Spielerinfo, Kofferraum (G, 10 Plätze), Hasen überfahren, Angel-Beute 50/40/10 + Klick-Symbol, klein/groß Bäume & Steine (1/2 Holz bzw. Stein), Wald ausgedünnt, Nahkampf-Reichweite ↑, Energydrink-Boost, Admin: ∞ Munition + ⏩ +12 h, **Sichtkegel**, dunklere Nächte, flachere Kamera, Tür-Schimmer hinter Wänden, Baum-/Stein-Chunks mit Frustum-Culling (FPS), Axt beidhändig mit seitlicher Schneide, Sounds (Feuer-Anzünden war ein Schuss-Event!, Auto-Motor neu, Stein/Fels, Baumfall wieder synthetisch, Hasen lautlos) |
+| 0.14.0 | 2026-10-17 | **Map-Editor** (`editor/`): Phase 0–4 – Bestandsaufnahme, Einstieg im Login, Entwürfe (IndexedDB), Zonen als Rechteck (neu/vergrößern/verkleinern), Bauleiste mit Kategorien, Malwerkzeuge, Objekte platzieren/drehen/bearbeiten, unbegrenztes Undo über Sitzungen, Live-Validierung, Veröffentlichen (`npm run karte:editor`), Editor-Rauchtest |
 | 0.13.1 | 2026-10-17 | **Eigene Sounds:** Ordner `client/audio/eigene/` (Dateiname = Ereignis, Zufallsvarianten per `_1/_2/…`, `lautstaerke.txt`), `npm run sounds` → `eigene.json` + README mit Ereignisliste, Tippfehler-Warnungen, Test `eigeneSounds.test.js` |

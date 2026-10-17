@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Map-Editor – Browser Survival</title>
+    <link rel="stylesheet" href="editor.css" />
+  </head>
+  <body>
+    <!-- Kopfleiste: Karte öffnen/neu/speichern/exportieren/testen -->
+    <header id="kopf">
+      <a class="logo" href="../client/" title="Zurück zum Spiel">🧟 <b>Map-Editor</b></a>
+      <label class="zonenwahl" title="Aktive Zone (Entwürfe dieses Projekts)">Zone <select id="zone-wahl"></select></label>
+      <div class="gruppe">
+        <button data-befehl="neu" title="Neue Zone (Rechteck aufziehen)">➕ Neu</button>
+        <button data-befehl="oeffnen" title="Zone aus dem Spiel als Vorlage oder Entwurf aus Datei öffnen">📂 Öffnen</button>
+        <button data-befehl="speichern" title="Entwurf als Datei speichern (Strg+S speichert lokal)">💾 Speichern</button>
+        <button data-befehl="exportieren" title="Export: ganze Karte (JSON + LIESMICH), Ausschnitt für KI, Veröffentlichen">📤 Export</button>
+        <button data-befehl="kiImport" title="KI-Änderungen importieren (mit Vorschau)">🤖 KI-Import</button>
+        <button data-befehl="testen" class="akzent" title="Karte im Spiel testen (lokal, ohne Repo-Änderung)">▶ Testen</button>
+      </div>
+      <div class="gruppe">
+        <button data-befehl="rueckgaengig" title="Rückgängig (Strg+Z)">↶</button>
+        <button data-befehl="wiederholen" title="Wiederholen (Strg+Y)">↷</button>
+        <button data-befehl="ansicht" id="ansicht-knopf" title="2D/3D umschalten (Taste 3)">3D</button>
+        <button data-befehl="hilfe" title="Tastenkürzel (?)">?</button>
+      </div>
+      <span id="speicher-status" title="Lokaler Speicher"></span>
+    </header>
+
+    <div id="haupt">
+      <!-- Seitenleiste: Kategorien -->
+      <nav id="kategorien" aria-label="Kategorien"></nav>
+
+      <main id="flaeche">
+        <canvas id="leinwand2d" tabindex="0"></canvas>
+        <canvas id="leinwand3d" hidden></canvas>
+        <div id="hinweis-leer" hidden>Keine Zone geöffnet – <b>➕ Neu</b> (Rechteck aufziehen) oder <b>📂 Öffnen</b>.</div>
+        <!-- Werkzeugleiste -->
+        <div id="werkzeuge" role="toolbar" aria-label="Werkzeuge"></div>
+        <div id="zoom-knoepfe">
+          <button data-zoom="1.25" title="Hineinzoomen (+)">＋</button>
+          <button data-zoom="0.8" title="Herauszoomen (−)">－</button>
+          <button data-zoom="0" title="Ganze Zone (F)">⤢</button>
+        </div>
+      </main>
+
+      <!-- Eigenschaften / Zone / Prüfung / Zonen / Prefabs -->
+      <aside id="panel">
+        <div id="panel-reiter" role="tablist"></div>
+        <div id="panel-inhalt"></div>
+      </aside>
+    </div>
+
+    <!-- Bauleiste: Einträge der gewählten Kategorie -->
+    <footer id="bauleiste" aria-label="Bauleiste"></footer>
+    <div id="status"><span id="status-koord">–</span><span id="status-info"></span><span id="status-pruefung"></span><span id="status-meldung"></span></div>
+
+    <div id="dialog-hintergrund" hidden><div id="dialog" role="dialog" aria-modal="true"></div></div>
+    <script type="module" src="main.js"></script>
+  </body>
+</html>
