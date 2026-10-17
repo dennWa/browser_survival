@@ -2,6 +2,7 @@ import { SpielServer } from '../../server/spiel/spielServer.js';
 import { GastAuthentifizierung } from '../../server/spiel/authentifizierung/gastAuthentifizierung.js';
 import { erstelleSpeicherKanalPaar } from '../../server/spiel/netz/speicherKanal.js';
 import { BrowserSpeicher } from './browserSpeicher.js';
+import { ArbeitsspeicherSpeicher } from '../../server/spiel/speicher/arbeitsspeicherSpeicher.js';
 import { LOKALE_LATENZ_MS } from '../konfiguration.js';
 
 /**
@@ -11,6 +12,16 @@ import { LOKALE_LATENZ_MS } from '../konfiguration.js';
  */
 let server = null;
 const EINSTELLUNGEN_SCHLUESSEL = 'browser-survival-einstellungen';
+/** Map-Editor-Test: { start, karten: { id: Kartendefinition } } – dann laufen genau diese Karten (zur Laufzeit registriert) */
+let testKarten = null;
+
+/**
+ * Testmodus des Map-Editors (client/?editorTest=1): Entwürfe als Zonen registrieren, OHNE Repo-Code zu ändern.
+ * Spielstände & Welt laufen dann nur im Arbeitsspeicher (der echte Lokal-Spielstand bleibt unberührt).
+ */
+export function setzeTestKarten(karten) {
+  testKarten = karten;
+}
 
 /** Developer-Änderungen im Lokal-Modus: im Browser gespeichert (wie einstellungen.json beim Node-Server). */
 function ladeLokaleEinstellungen() {
@@ -37,9 +48,10 @@ export function oeffneLokalenKanal() {
   if (!server) {
     server = new SpielServer({
       authentifizierung: new GastAuthentifizierung({ admin: true }), // lokal = eigenes Spiel → Admin-Menü frei
-      konfiguration: { ...ladeLokaleEinstellungen(), server: { name: 'Lokaler Server' } },
-      speicher: new BrowserSpeicher(),
+      konfiguration: { ...ladeLokaleEinstellungen(), server: { name: testKarten ? 'Editor-Test' : 'Lokaler Server' } },
+      speicher: testKarten ? new ArbeitsspeicherSpeicher() : new BrowserSpeicher(),
       einstellungsSpeicher: lokalerEinstellungsSpeicher,
+      ...(testKarten ? { kartenDefinition: testKarten.karten[testKarten.start], kartenDefinitionen: testKarten.karten } : {}),
     });
     server.starten();
     // Tab wird geschlossen/neu geladen → Spielstand sichern (localStorage schreibt sofort)

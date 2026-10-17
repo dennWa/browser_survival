@@ -208,6 +208,25 @@ try {
     await seite.keyboard.press('3');
   }
 
+  if (!nurBis) {
+    schritt('Karte testen (Phase 9): Entwurf im Spiel, zurück ohne Verlust');
+    await seite.evaluate(() => window.mapEditor.zustand.aktiviere('testzone'));
+    await seite.waitForTimeout(500);
+    await seite.click('[data-befehl="testen"]');
+    if (await seite.locator('#dialog button:has-text("Starten")').count()) await seite.click('#dialog button:has-text("Starten")');
+    await seite.waitForURL(/editorTest=1/, { timeout: 15000 });
+    await seite.waitForSelector('#editor-test-banner', { timeout: 30000 });
+    await seite.waitForFunction(() => window.browserSurvival?.spiel && window.browserSurvival.server, null, { timeout: 90000 });
+    const zone = await seite.evaluate(() => ({ id: window.browserSurvival.server.startZone.id, breite: window.browserSurvival.server.startZone.spielWelt.welt.breite }));
+    pruefe(zone.id === 'testzone', `Spiel läuft mit dem Entwurf (${JSON.stringify(zone)})`);
+    await seite.waitForTimeout(1500);
+    await seite.screenshot({ path: path.join(AUSGABE, 'editor-8-test-im-spiel.png') });
+    await seite.click('#editor-test-banner a');
+    await seite.waitForFunction(() => window.mapEditor?.zustand.karte, null, { timeout: 20000 });
+    const zurueck = await seite.evaluate(() => ({ id: window.mapEditor.zustand.aktivId, zonen: window.mapEditor.zustand.zonen.size }));
+    pruefe(zurueck.id === 'testzone' && zurueck.zonen >= 3, `zurück im Editor, alles da (${JSON.stringify(zurueck)})`);
+  }
+
   const pruefung = await seite.locator('#status-pruefung').textContent();
   console.log(`  Statusleiste: ${pruefung}`);
 } catch (e) {

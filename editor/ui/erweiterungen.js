@@ -3,6 +3,7 @@ import { prefabUi } from './prefabUi.js';
 import { raeumeUi } from './raeumeUi.js';
 import { zonenUi } from './zonenUi.js';
 import { kiUi } from './kiUi.js';
+import { testUi } from './testUi.js';
 
 /**
  * Sammelpunkt der Funktionen späterer Phasen (Zonen-Übersicht, Prefabs, KI-Export/-Import, Testen, 3D, Texturen …).
@@ -21,5 +22,8 @@ export function erweiterungen({ zustand, zeichner, panel, aktionen, sonderAktion
   zonenUi({ zustand, panel, aktionen, sonderAktionen, zeichner, projektZonen });
   // Phase 8: KI-Export/-Import
   kiUi({ zustand, panel, aktionen, sonderAktionen, zeichner, auswahlBereich });
+  // Phase 9: Karte testen
+  const test = testUi({ zustand, panel, aktionen, sonderAktionen, projektZonen });
+  erw.nachStart = () => test.nachStart();
   return erw;
 }

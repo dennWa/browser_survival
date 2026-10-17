@@ -106,6 +106,13 @@ Koordinaten sind **Kacheln** (1 Kachel = 1 m = 32 px im Spiel), x nach rechts, y
 5. **✔ Übernehmen** → ein einziger Verlaufsschritt (Strg+Z macht alles rückgängig). Hat sich die Karte seit dem Export
    geändert, warnt der Editor (Prüfsumme).
 
+## Karte testen
+
+**▶ Testen** prüft zuerst (Spieler-Start vorhanden, keine Zombies im Haus, Übergänge gültig, keine Objekte außerhalb,
+Loot-Tabellen bekannt …). Fehler erscheinen als Liste mit Koordinaten – ein Klick springt zur Stelle. Ist alles gut,
+öffnet sich das Spiel im **Lokal-Modus mit deinem Entwurf** (alle Zonen des Projekts sind dabei, Übergänge funktionieren).
+Der echte Spielstand wird dabei nicht angefasst. Oben im Spiel: **⟵ Zurück zum Editor** – dein Entwurf ist unverändert da.
+
 ## Speichern
 
 - Automatisch: jede Änderung landet nach ~1 s im Browser (IndexedDB, sonst localStorage). Oben rechts steht der Status.

@@ -11,7 +11,8 @@ import { Hud } from './ui/hud.js';
 import { zeigeCredits } from './ui/credits.js';
 import { Sound } from './audio/sound.js';
 import { ZonenMusik } from './audio/zonenMusik.js';
-import { lokalerServer } from './netzwerk/lokalerServer.js';
+import { lokalerServer, setzeTestKarten } from './netzwerk/lokalerServer.js';
+import { ladeEditorTest, zeigeTestBanner } from './ui/editorTest.js';
 import { AKTIONEN, NACHRICHT } from '../gemeinsam/protokoll.js';
 import { EgoModus } from './ego/egoModus.js'; // EGO-PROTOTYP (siehe EGO_PROTOTYP.md)
 
@@ -131,7 +132,13 @@ window.browserSurvival = {
 };
 document.getElementById('credits-knopf').addEventListener('click', () => zeigeCredits(document, assets));
 
-login.beiAnmeldung(async ({ server, adresse, benutzername, passwort, gast = false, aussehen = null }) => {
+/** Map-Editor-Test (client/?editorTest=1): Entwürfe als Zonen, Auto-Login lokal – siehe ui/editorTest.js */
+const editorTest = ladeEditorTest();
+if (editorTest) setzeTestKarten(editorTest);
+
+login.beiAnmeldung((daten) => anmeldungStarten(daten));
+
+async function anmeldungStarten({ server, adresse, benutzername, passwort, gast = false, aussehen = null }) {
   sound.entsperren(); // Klick auf "Login" = Nutzeraktion → Browser erlaubt ab jetzt Ton
   if (!renderer) {
     login.zeigeMeldung('Dein Browser kann keine 3D-Grafik (WebGL) – leider geht es ohne nicht.', true);
@@ -157,7 +164,7 @@ login.beiAnmeldung(async ({ server, adresse, benutzername, passwort, gast = fals
     if (verbindung && !verbindung.getrennt) verbindung.trennen('Login abgebrochen');
     login.anzeigen(fehler.message);
   }
-});
+}
 
 /**
  * Ins Spiel: Ladebildschirm zeigen, Welt aufbauen + Shader kompilieren, ein paar Frames aufwärmen lassen –
@@ -252,6 +259,12 @@ async function starten() {
     fehlerText = 'Dein Browser kann keine 3D-Grafik (WebGL) – leider geht es ohne nicht.';
   }
   ladeBildschirm.hidden = true;
+  if (editorTest && !fehlerText) {
+    // Editor-Test: direkt ins Spiel (lokal, Gast „Tester“), Banner mit Rückweg zum Editor
+    zeigeTestBanner(document, editorTest);
+    anmeldungStarten({ server: SERVER_LISTE.find((s) => s.typ === 'lokal'), benutzername: 'Gast-0001', gast: true });
+    return;
+  }
   login.anzeigen(fehlerText);
 }
 

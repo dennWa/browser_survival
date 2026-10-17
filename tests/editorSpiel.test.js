@@ -110,3 +110,48 @@ test('Terrain: steile Kacheln blockieren unsichtbar; feste Baumgröße; Musik-Or
   assert.equal(w.welt.istBlockiert(12, 2), true);
   assert.equal(verarbeiteKarte({ ...BASIS, musik: '../böse' }).daten.musik, undefined);
 });
+
+test('Karte testen: zwei Editor-Entwürfe laufen im echten SpielServer (wie im Testmodus), Zonenwechsel über vorgeschlagenen Übergang', async () => {
+  const { neueZone } = await import('../editor/kern/zone.js');
+  const { markerSchluessel } = await import('../editor/kern/karte.js');
+  const { nachbarn, vorschlaegeFuerPaar, vorschlagOps } = await import('../editor/kern/zonenVerbund.js');
+  const { testDaten } = await import('../editor/kern/testlauf.js');
+  const { SpielServer } = await import('../server/spiel/spielServer.js');
+  const { GastAuthentifizierung } = await import('../server/spiel/authentifizierung/gastAuthentifizierung.js');
+  const { ArbeitsspeicherSpeicher } = await import('../server/spiel/speicher/arbeitsspeicherSpeicher.js');
+  const { erstelleSpeicherKanalPaar } = await import('../server/spiel/netz/speicherKanal.js');
+  const { NACHRICHT, kodiere, dekodiere } = await import('../gemeinsam/protokoll.js');
+  const { PROTOKOLL_VERSION } = await import('../gemeinsam/konstanten.js');
+  const sued = neueZone({ id: 'editor_sued', name: 'Süd', breite: 20, hoehe: 12 });
+  const nord = neueZone({ id: 'editor_nord', name: 'Nord', breite: 20, hoehe: 12 });
+  sued.anwenden([{ s: 'marker', k: markerSchluessel(10, 8), neu: { art: 'start' } }]);
+  nord.anwenden([{ s: 'marker', k: markerSchluessel(10, 4), neu: { art: 'start' } }]);
+  const zonen = new Map([['editor_sued', sued], ['editor_nord', nord]]);
+  const layout = { editor_sued: { x: 0, y: 0 }, editor_nord: { x: 0, y: -12 } };
+  const paar = nachbarn(zonen, layout)[0];
+  const { opsA, opsB } = vorschlagOps(zonen, paar, vorschlaegeFuerPaar(zonen, layout, paar)[0]);
+  zonen.get(paar.a).anwenden(opsA);
+  zonen.get(paar.b).anwenden(opsB);
+  const { daten, probleme } = testDaten(zonen, 'editor_sued', 0);
+  assert.deepEqual(probleme, []);
+  const json = JSON.parse(JSON.stringify(daten)); // wie über localStorage
+  const server = new SpielServer({ authentifizierung: new GastAuthentifizierung({ admin: true }), protokoll: { info() {}, warn() {}, error() {} }, speicher: new ArbeitsspeicherSpeicher(), kartenDefinition: json.karten[json.start], kartenDefinitionen: json.karten });
+  await server.weltGeladen;
+  const { clientSeite, serverSeite } = erstelleSpeicherKanalPaar();
+  const empfangen = [];
+  clientSeite.beiNachricht((t) => empfangen.push(dekodiere(t)));
+  server.verbindungHinzufuegen(serverSeite);
+  clientSeite.senden(kodiere({ typ: NACHRICHT.ANMELDEN, benutzername: 'Gast-1234', gast: true, protokoll: PROTOKOLL_VERSION }));
+  for (let i = 0; i < 100 && !empfangen.some((n) => n.typ === NACHRICHT.ANMELDUNG_OK); i++) await new Promise((r) => setTimeout(r, 5));
+  assert.equal(empfangen.find((n) => n.typ === NACHRICHT.ANMELDUNG_OK).karte.id, 'editor_sued');
+  const welt = server.weltVon('Gast-1234');
+  const spieler = [...welt.alleVomTyp('spieler')][0];
+  const u = welt.karte.daten.uebergaenge[0];
+  spieler.x = (u.px.x0 + u.px.x1) / 2;
+  spieler.y = (u.px.y0 + u.px.y1) / 2;
+  server.tickAusfuehren();
+  for (let i = 0; i < 100 && !empfangen.some((n) => n.typ === NACHRICHT.ZONE_WECHSEL); i++) await new Promise((r) => setTimeout(r, 5));
+  const wechsel = empfangen.find((n) => n.typ === NACHRICHT.ZONE_WECHSEL);
+  assert.equal(wechsel?.karte.id, 'editor_nord', 'Zonenwechsel in den zweiten Entwurf');
+  server.stoppen?.();
+});
