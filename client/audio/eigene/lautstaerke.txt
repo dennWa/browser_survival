@@ -1,0 +1,6 @@
+# Lautstärke pro Ereignis: "ereignis zahl"  (100 = normal, 0 = stumm, über 100 = lauter, max. 300)
+# Zeilen mit # sind Kommentare. Nach Änderungen: npm run sounds
+#
+# Beispiele (entfernen die # davor zum Aktivieren):
+# baum_faellt 80
+# pistole 60

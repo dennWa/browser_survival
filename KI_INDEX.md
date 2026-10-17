@@ -91,6 +91,7 @@ AKTIONEN: aufheben benutzen ablegen tauschen rucksackAblegen platzieren **bauen{
 - **Admin-Flug:** ADMIN_BEFEHLE.FLIEGEN, Umschalt+B, `spieler.fliegen` → `wendeEingabeAn` (FLUG_TEMPO, keine Kollision; Landen → `landeAufFreiemBoden`). Client liest `eigene.fliegen`.
 - **Ego (C):** Alt halten = Maus frei; im Auto Kamera = Fahrtrichtung (`fokus.fahrzeugWinkel`), Rohsteuerung W/S/A/D. Axt-Fällen: `seitSchwung` (figurHaltung).
 - **Zombie-Gesichter:** 4 Skins `zombieGesicht0–3` (baue_assets.py `zeichne_zombie_gesicht`), Wahl `id%4` im `#figurMaterial`.
+- **Eigene Sounds:** `client/audio/eigene/` (Nutzer-Dateien; Name=Ereignis, `_N`=Variante, `lautstaerke.txt` %), `npm run sounds` (`werkzeuge/audio/indexieren.mjs`) → `eigene.json`+`README.md` (aus `README.vorlage.md`). Ereignisliste/Parser: `audio/eigeneSounds.js` (**neues `sound.spiele`-Ereignis dort in `EREIGNISSE` eintragen**). Vorrang in `sound.spiele`: eigene > Samples > REZEPTE; Pegel gilt für alle Quellen; eigene ohne Tonhöhen-Streuung. Test `tests/eigeneSounds.test.js`.
 - **Sounds:** echte CC0-Samples `client/audio/samples/` (Pipeline `werkzeuge/assets/baue_sounds.py`, braucht ffmpeg); `sound.js` spielt Sample, sonst Synthese-Rezept. Aufheben = leises Rascheln (kein Piepen).
 
 - **v0.13 (Feedback-Runde 13):**

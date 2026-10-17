@@ -268,7 +268,7 @@ Schadensblitz per CSS, ferne Figuren werden nicht animiert. F3 zeigt Draw-Calls 
 - 2D-Overlay (`#spielflaeche`): Eingaben, Namen (`beschriftung.js`), Lebensbalken, Vignette, Schadensblitz
 
 ### Sound
-`client/audio/sound.js`: komplett synthetisch (Web Audio, keine Dateien). Räumlich (Entfernung + Stereo).
+`client/audio/sound.js`: Vorrang eigene Dateien (`client/audio/eigene/`, Dateiname = Ereignis, `_1/_2/…` = Zufallsvarianten, `lautstaerke.txt` 0–100+, Index per `npm run sounds`) > Samples > Synthese (Web Audio). Räumlich (Entfernung + Stereo).
 Hüllkurven mit kurzem Anschlag + 12 ms Vorlauf (kein Klicken/Knistern), Schritte als leises "Tapp".
 Auslöser: Server-Ereignisse (`feuer`, `treffer`, `tod`, `nahkampf`, `leer`, `tuer`, `tuerSchlag`, `hack`, `abgebaut`,
 `hergestellt`, `tuerVerstaerkt`, `levelAuf`), Chat, Änderungen der
@@ -532,6 +532,7 @@ browser_survival/
 | Stapelgrößen | `STAPEL_MUNITION`/`STAPEL_STANDARD` in `konstanten.js` (angewendet in `gegenstaende.js → normalisiere`) |
 | XP fürs Abbauen | `spielKonfiguration.js` → `level.xpProAbbau` |
 | Minikarte / FPS-Anzeige / Auto-Lauf | `client/ui/karte.js` (`zeichneMini`, Klick), `hud.js`, `clientSpiel.js` (`autoLaufStarten`, `#oberflaecheAktualisieren`) |
+| Eigene Sounds / Lautstärke je Ereignis | Dateien + `lautstaerke.txt` in `client/audio/eigene/` (README dort), `npm run sounds`, committen (`audio/eigeneSounds.js` = Ereignisliste, `sound.js`) |
 | Zonen-Musik hinzufügen | Dateien in `client/musik/<zonenId>/` legen, `npm run musik:index`, committen (`audio/zonenMusik.js`) |
 | Kollision / Bewegungsphysik | `gemeinsam/physik/bewegung.js` (wirkt auf Server UND Client-Vorhersage) |
 | Kampf, Treffer, Schaden zufügen | `server/spiel/systeme/kampfSystem.js` (`fuegeSchadenZu` = einzige Schadensstelle) |
@@ -764,3 +765,4 @@ Stationen (Lagerfeuer-Kochen, Schmelzofen) mit eigenem Menü, Haltbarkeit, Hand-
 | 0.12.0 | 2026-10-16 | **Handy & Komfort:** kompakte/einstellbare Statusbalken, feste Sticks (Fest/Frei), Pinch-Zoom, Zombie anvisieren (Auto-Aim), Angel-Knopf, Warn-„!“; Zombies schwächer (Sicht/Tempo), im Haus unsichtbar, Lagerfeuer-Sitzen; 2×2-Bauteile, Zaun & Zauntor, Baugebiet 8; Stadtrand 155×130 mit breiten Straßen + Laternen, fallende Blätter, weniger Hasen, Schlafen ohne Zeitsprung |
 | 0.12.1 | 2026-10-17 | Feedback-Runde: Raum-Dächer, höhere Wände, Silhouette statt Durchschauen, Item-Namen, Einschlagfarben, Nebel/Regen-Performance, Startausrüstung inkl. Hacke, Samen/Angel in der Hand, Schlafen festhaltend (6 h), Admin-Flug (Umschalt+B), Ego: Alt-Maus & Auto, seitliches Axt-Fällen, 4 Zombie-Gesichter, echte CC0-Sounds |
 | 0.13.0 | 2026-10-17 | **Feedback-Runde 13 (Protokoll v10):** Lagerfeuer-Menü (Koch-Slots 3, gar nach 20 s, verkohlt nach 30 s, Brutzeln/Fertig-Ton, Sitzen, 3 min Brenndauer, Holz in der Hand + Linksklick = +3 min, Regen löscht), **Schmelzofen** (Eisenerz → Eisenbarren, Holz als Brennstoff), Werkzeug-Haltbarkeit (Axt/Spitzhacke/Hacke), Hacke 1×1 ohne G-Modus (Linksklick anlegen, Rechtsklick Rasen), Samen-Indikator, Essen/Trinken erst in die Hand (Linksklick verbraucht), Q wirft 1 Stück, Tab = Inventar / I = Spielerinfo, Kofferraum (G, 10 Plätze), Hasen überfahren, Angel-Beute 50/40/10 + Klick-Symbol, klein/groß Bäume & Steine (1/2 Holz bzw. Stein), Wald ausgedünnt, Nahkampf-Reichweite ↑, Energydrink-Boost, Admin: ∞ Munition + ⏩ +12 h, **Sichtkegel**, dunklere Nächte, flachere Kamera, Tür-Schimmer hinter Wänden, Baum-/Stein-Chunks mit Frustum-Culling (FPS), Axt beidhändig mit seitlicher Schneide, Sounds (Feuer-Anzünden war ein Schuss-Event!, Auto-Motor neu, Stein/Fels, Baumfall wieder synthetisch, Hasen lautlos) |
+| 0.13.1 | 2026-10-17 | **Eigene Sounds:** Ordner `client/audio/eigene/` (Dateiname = Ereignis, Zufallsvarianten per `_1/_2/…`, `lautstaerke.txt`), `npm run sounds` → `eigene.json` + README mit Ereignisliste, Tippfehler-Warnungen, Test `eigeneSounds.test.js` |

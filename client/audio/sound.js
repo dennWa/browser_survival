@@ -1,11 +1,10 @@
 /**
- * Sound-System: alle Geräusche werden live mit der Web Audio API erzeugt (Synthese) –
- * keine Audiodateien, keine Lizenzen, kein Download.
+ * Sound-System: Geräusche = eigene Dateien (audio/eigene, Vorrang) > echte Samples (audio/samples) > Web-Audio-Synthese (REZEPTE).
+ * Lautstärke je Ereignis: eigene/lautstaerke.txt (via npm run sounds → eigene.json). Ereignisliste: eigeneSounds.js.
  *
  * Räumlicher Klang: Lautstärke nimmt mit der Entfernung zum Hörer (eigener Spieler) ab,
  * links/rechts per Stereo-Panning.
  *
- * Später echte Aufnahmen? → in REZEPTE einen Eintrag durch das Abspielen eines AudioBuffers ersetzen.
  *
  * Browser erlauben Ton erst nach einer Nutzeraktion → entsperren() beim Login-Klick aufrufen.
  */
@@ -41,6 +40,9 @@ export class Sound {
   #motor = null;
   #hoerer = { x: 0, y: 0 };
   #proben = {}; // Name → [AudioBuffer] (echte Aufnahmen aus audio/samples, siehe werkzeuge/assets/baue_sounds.py)
+  #eigene = {}; // Name → [AudioBuffer] (eigene Dateien aus audio/eigene, haben Vorrang vor #proben und Synthese)
+  #eigenePegel = {}; // Name → Faktor aus eigene/lautstaerke.txt (gilt für alle Quellen)
+  #letzteEigene = {}; // Name → zuletzt gespielter Index (keine direkte Wiederholung)
 
   constructor() {
     this.stumm = false;
@@ -127,6 +129,24 @@ export class Sound {
         }
       })
       .catch(() => {});
+    // Eigene Sounds (npm run sounds → eigene.json): { ereignis: { dateien: [...], lautstaerke: 1 } }
+    const eigeneBasis = new URL('../eigene/', basis);
+    fetch(new URL('eigene.json', eigeneBasis))
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((index) => {
+        for (const [name, { dateien = [], lautstaerke = 1 }] of Object.entries(index)) {
+          this.#eigenePegel[name] = lautstaerke;
+          if (!REZEPTE[name] && !dateien.length) console.warn(`[Sound] Unbekanntes Ereignis "${name}" in eigene/lautstaerke.txt`);
+          for (const datei of dateien) {
+            fetch(new URL(datei, eigeneBasis))
+              .then((r) => r.arrayBuffer())
+              .then((daten) => this.#ctx.decodeAudioData(daten))
+              .then((puffer) => (this.#eigene[name] ??= []).push(puffer))
+              .catch(() => console.warn(`[Sound] eigene/${datei} nicht ladbar`));
+          }
+        }
+      })
+      .catch(() => {});
   }
   #probenGeladen = false;
 
@@ -151,9 +171,10 @@ export class Sound {
     const ctx = this.#ctx;
     const rezept = REZEPTE[name];
     const proben = this.#proben[name];
-    if (!ctx || (!rezept && !proben) || ctx.state !== 'running') return;
+    const eigene = this.#eigene[name];
+    if (!ctx || (!rezept && !proben && !eigene) || ctx.state !== 'running') return;
 
-    let gain = lautstaerke;
+    let gain = lautstaerke * (this.#eigenePegel[name] ?? 1);
     let pan = 0;
     if (x !== undefined) {
       const dx = x - this.#hoerer.x;
@@ -176,7 +197,17 @@ export class Sound {
     }
     ziel.connect(this.#effekte);
     let dauer;
-    if (proben?.length) {
+    if (eigene?.length) {
+      // Eigene Datei: unverändert (Tonhöhe 1), zufällige Variante, nie zweimal dieselbe hintereinander
+      let i = Math.floor(Math.random() * eigene.length);
+      if (eigene.length > 1 && i === this.#letzteEigene[name]) i = (i + 1 + Math.floor(Math.random() * (eigene.length - 1))) % eigene.length;
+      this.#letzteEigene[name] = i;
+      const quelle = ctx.createBufferSource();
+      quelle.buffer = eigene[i];
+      quelle.connect(lautstaerkeKnoten);
+      quelle.start(ctx.currentTime + VORLAUF);
+      dauer = quelle.buffer.duration;
+    } else if (proben?.length) {
       // Echte Aufnahme: zufällige Variante, Tonhöhe leicht gestreut (kein Maschinengewehr-Effekt bei Wiederholung)
       const quelle = ctx.createBufferSource();
       quelle.buffer = proben[Math.floor(Math.random() * proben.length)];
