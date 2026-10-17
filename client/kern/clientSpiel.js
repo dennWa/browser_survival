@@ -64,6 +64,7 @@ export class ClientSpiel {
     this.serverName = anmeldeDaten.serverName;
     this.eigeneId = anmeldeDaten.spielerId;
     this.welt = new Welt(anmeldeDaten.karte);
+    this.musikOrdner = anmeldeDaten.karte.musik ?? this.welt.id; // Musik-Ordner der Zone (Map-Editor: Feld musik)
     if (anmeldeDaten.tueren) this.welt.uebernimmOffeneTueren(anmeldeDaten.tueren);
     if (anmeldeDaten.abgebaut) this.welt.uebernimmAbgebaute(anmeldeDaten.abgebaut);
     if (anmeldeDaten.bauwerke) this.welt.uebernimmBauwerke(anmeldeDaten.bauwerke);
@@ -158,7 +159,7 @@ export class ClientSpiel {
     });
     this.schleife.starten();
     this.sound?.starteAtmosphaere();
-    this.musik?.setzeZone(this.welt.id);
+    this.musik?.setzeZone(this.musikOrdner);
   }
 
   /** Sitzung beenden (Logout, Kick, Verbindungsverlust). Idempotent. */

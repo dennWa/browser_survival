@@ -275,7 +275,8 @@ export class KartenModell {
     const seiten = [];
     const deckelProTyp = new Map();
     for (const o of this.welt.objekte) {
-      if (o.typ === 'licht' || o.typ === 'markierung' || o.ebene === 'boden' || o.ebene === 'oben' || RESSOURCEN_OBJEKTE[o.typ]) continue;
+      // ebene 'unsichtbar' = steile Hänge aus dem Map-Editor (nur Kollision, keine Grafik)
+      if (o.typ === 'licht' || o.typ === 'markierung' || o.ebene === 'boden' || o.ebene === 'oben' || o.ebene === 'unsichtbar' || RESSOURCEN_OBJEKTE[o.typ]) continue;
       const quer = (o.drehung ?? 0) % 180 !== 0;
       const breite = (quer ? o.h : o.b) * g;
       const tiefe = (quer ? o.b : o.h) * g;

@@ -146,6 +146,14 @@ try {
     await seite.waitForTimeout(600);
     await seite.screenshot({ path: path.join(AUSGABE, 'editor-2-waldweg.png') });
 
+    schritt('Zonen-Werte (Phase 5): Wetter setzen, Standard sichtbar');
+    await seite.click('#panel-reiter button:has-text("Zone")');
+    await seite.fill('#panel-inhalt [name="regenAnteil"]', '0.9');
+    await seite.press('#panel-inhalt [name="regenAnteil"]', 'Tab');
+    pruefe((await seite.evaluate(() => window.mapEditor.zustand.karte.wert('einstellungen.wetter.regenAnteil'))) === 0.9, 'Regen-Anteil 0.9 in der Zone gesetzt');
+    pruefe((await seite.locator('#panel-inhalt').textContent()).includes('Standard: 0.6'), 'globaler Standard wird angezeigt');
+    await seite.screenshot({ path: path.join(AUSGABE, 'editor-4-zone.png') });
+
     schritt('3D-Ansicht');
     await seite.keyboard.press('3');
     await seite.waitForTimeout(1500);

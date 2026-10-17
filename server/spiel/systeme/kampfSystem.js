@@ -177,7 +177,7 @@ export function toeten(spielWelt, ziel, quelle = null) {
   if (ziel.typ === 'tier') {
     // Hase: 1× Fleisch (klein, mehr ist nicht dran)
     spielWelt.entfernen(ziel.id);
-    planeTierRespawn(spielWelt);
+    planeTierRespawn(spielWelt, ziel);
     legeAufBoden(spielWelt, { defId: 'fleisch', menge: 1 }, ziel.x, ziel.y);
     return;
   }

@@ -26,10 +26,13 @@ export function aktualisiereTageszeit(spielWelt, dt) {
 }
 
 /** Zusätzliche Nacht-Zombies an Spawnpunkten, die gerade kein Spieler sieht. */
-function schickeHorde(spielWelt) {
+export function schickeHorde(spielWelt) {
   const k = spielWelt.konfiguration.zombie;
   const spieler = [...spielWelt.alleVomTyp('spieler')].filter((s) => !s.tot);
-  const frei = spielWelt.karte.zombieSpawns.filter((p) => spieler.every((s) => Math.hypot(s.x - p.x, s.y - p.y) >= k.respawnMindestAbstand));
+  // Horden-Spawnpunkte (Map-Editor: zombieSpawns[].horde) – gibt es welche, kommt die Horde nur dort
+  const alle = spielWelt.karte.zombieSpawns;
+  const kandidaten = alle.some((p) => p.horde) ? alle.filter((p) => p.horde) : alle;
+  const frei = kandidaten.filter((p) => spieler.every((s) => Math.hypot(s.x - p.x, s.y - p.y) >= k.respawnMindestAbstand));
   if (frei.length === 0) return 0;
   for (let i = 0; i < k.nachtHorde; i++) {
     const p = spielWelt.zufall.auswahl(frei);

@@ -20,9 +20,10 @@ export function aktualisiereLoot(spielWelt, dt) {
     g.verfallRest -= dt;
     if (g.verfallRest <= 0) spielWelt.entfernen(g.id);
   }
-  const respawnZeit = spielWelt.konfiguration.loot.respawnZeit;
+  const standardRespawn = spielWelt.konfiguration.loot.respawnZeit;
   spielWelt.karte.lootPunkte.forEach((punkt, i) => {
     const zustand = spielWelt.lootZustand[i];
+    const respawnZeit = punkt.respawnZeit ?? standardRespawn; // je Raum einstellbar (Map-Editor)
     if (zustand.gegenstandId !== null) {
       if (spielWelt.holen(zustand.gegenstandId)) return; // liegt noch da
       zustand.gegenstandId = null; // wurde aufgehoben → Timer starten
@@ -67,7 +68,7 @@ export function lasseBossLootFallen(spielWelt, x, y) {
 
 /** @returns true, wenn ein Gegenstand erzeugt wurde */
 function wuerfleLoot(spielWelt, punkt, index) {
-  if (spielWelt.zufall.zahl() >= spielWelt.konfiguration.loot.spawnChance) return false;
+  if (spielWelt.zufall.zahl() >= (punkt.spawnChance ?? spielWelt.konfiguration.loot.spawnChance)) return false;
   const gegenstand = erzeugeAusTabelle(spielWelt, punkt.lootTabelle, punkt.x, punkt.y);
   spielWelt.lootZustand[index].gegenstandId = gegenstand.id;
   return true;

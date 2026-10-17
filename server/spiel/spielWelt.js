@@ -14,7 +14,8 @@ import { aktualisiereUeberleben } from './systeme/ueberlebenSystem.js';
 import { verteileStartLoot, aktualisiereLoot } from './systeme/lootSystem.js';
 import { aktualisiereTageszeit } from './systeme/tageszeitSystem.js';
 import { aktualisiereArbeit } from './systeme/arbeitSystem.js';
-import { aktualisiereBauwerke } from './systeme/bauSystem.js';
+import { aktualisiereBauwerke, neuesBauwerk } from './systeme/bauSystem.js';
+import { zonenKonfiguration } from './karten/zonenEinstellungen.js';
 import { pruefePlaetze } from './systeme/stationSystem.js';
 import { aktualisiereFahrzeuge, aussteigen } from './systeme/fahrzeugSystem.js';
 import { aktualisiereTueren } from './systeme/tuerSystem.js';
@@ -50,9 +51,11 @@ const NETZWERK_SERIALISIERER = {
 export class SpielWelt {
   /** @param optionen.kartenDefinition  eigene Karte statt konfiguration.welt.karte (z. B. für Tests) */
   constructor(konfiguration, { kartenDefinition } = {}) {
-    this.konfiguration = konfiguration;
     this.zufall = new Zufall(konfiguration.server.zufallsStartwert ?? undefined);
     const karte = kartenDefinition ? verarbeiteKarte(kartenDefinition) : ladeKarte(konfiguration.welt.karte);
+    /** Zonen-Werte der Karte (einstellungen) liegen über der gemeinsamen Konfiguration (zonenEinstellungen.js) */
+    this.konfiguration = zonenKonfiguration(konfiguration, karte.einstellungen);
+    konfiguration = this.konfiguration;
     // Autos auf der Karte werden zu Fahrzeugen (Entitäten) – aus den Möbeln raus, auch für den Client (karte.daten)
     const autos = karte.daten.objekte.filter((o) => FAHRZEUG_MODELLE[o.typ]);
     this.karte = { ...karte, daten: { ...karte.daten, objekte: karte.daten.objekte.filter((o) => !FAHRZEUG_MODELLE[o.typ]) } };
@@ -71,7 +74,7 @@ export class SpielWelt {
     this.ereignisse = [];
     this.meldungen = [];
     this.zombieRespawns = []; // [{ spawnIndex, rest }]
-    this.tierRespawns = []; // Sekunden bis ein erlegter Hase nachkommt
+    this.tierRespawns = []; // [{ rest, bereich }] Sekunden bis ein erlegter Hase nachkommt (bereich = Index in karte.tierBereiche oder null)
     /** Wetter dieser Zone (systeme/wetterSystem.js): art 'klar' | 'regen' | 'nebel', rest = Sekunden bis zum Wechsel */
     this.wetter = { art: 'klar', rest: 30 + this.zufall.zahl() * 120 };
     /** Offene Kisten-Ansichten, die der Zone-Versand abholt: [{ spielerId, id, inhalt | null }] */
@@ -92,6 +95,9 @@ export class SpielWelt {
     /** Hook vom SpielServer: Spieler der übrigen Zonen (fürs zonenübergreifende Schlafen). Ohne Server: keine. */
     this.spielerAndererZonen = null;
 
+    // Kartenfeste Bauwerke (Map-Editor): ohne Besitzer → alle dürfen sie benutzen, niemand abreißen
+    for (const b of karte.bauwerke ?? []) if (pruefePlatz(this.welt, b.typ, b.tx, b.ty, false).ok) this.welt.setzeBauwerk(neuesBauwerk(this, b.typ, b.tx, b.ty, null, b.drehung ? { drehung: 1 } : {}));
+    this.bauwerkAenderungen.clear();
     for (const o of autos) this.hinzufuegen(erzeugeFahrzeug({ id: this.neueId(), ...fahrzeugAusObjekt(o, this.welt.kachelGroesse), haltbarkeit: konfiguration.fahrzeug.haltbarkeit }));
     this.karte.zombieSpawns.forEach((spawn, spawnIndex) => this.spawneZombie(spawnIndex));
     verteileStartLoot(this);
@@ -123,7 +129,11 @@ export class SpielWelt {
     territoriumLaden(this, stand.flaggen);
     for (const roh of Array.isArray(stand.bauwerke) ? stand.bauwerke : []) {
       const b = pruefeBauwerk(roh, this.konfiguration);
-      if (!b || !pruefePlatz(this.welt, b.typ, b.tx, b.ty, false).ok) continue;
+      if (!b) continue;
+      // Kartenfestes Bauwerk (ohne Besitzer) gibt es schon frisch von der Karte → gespeicherten Zustand übernehmen (z. B. Kisteninhalt)
+      const fest = b.besitzer ? null : this.welt.bauwerkeAn(b.tx, b.ty).find((x) => x.typ === b.typ && !x.besitzer);
+      if (fest) this.welt.entferneBauwerk(fest.id);
+      if (!pruefePlatz(this.welt, b.typ, b.tx, b.ty, false).ok) continue;
       b.id = this.neueBauwerkId();
       this.welt.setzeBauwerk(b);
     }
@@ -219,7 +229,7 @@ export class SpielWelt {
 
   planeZombieRespawn(spawnIndex) {
     if (spawnIndex === null || spawnIndex === undefined) return;
-    this.zombieRespawns.push({ spawnIndex, rest: this.konfiguration.zombie.respawnZeit });
+    this.zombieRespawns.push({ spawnIndex, rest: this.karte.zombieSpawns[spawnIndex]?.respawnZeit ?? this.konfiguration.zombie.respawnZeit });
   }
 
   /** Ein Simulationsschritt. Reihenfolge der Systeme ist bewusst festgelegt. */

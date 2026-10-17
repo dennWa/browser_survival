@@ -1,5 +1,7 @@
 import { KACHEL_GROESSE } from '../../../gemeinsam/konstanten.js';
 import { KACHELN, MARKER, istKachel, istLootMarker } from '../../../gemeinsam/welt/kacheln.js';
+import { BAUWERKE } from '../../../gemeinsam/welt/bauwerke.js';
+import { pruefeZonenEinstellungen } from './zonenEinstellungen.js';
 import { STADTRAND } from './stadtrand.js';
 import { WALDWEG } from './waldweg.js';
 
@@ -15,13 +17,23 @@ export const KARTEN = Object.freeze({
 
 /**
  * Wandelt eine Kartendefinition (ASCII) in nutzbare Daten um.
- * @returns {{ daten, spielerStarts, zombieSpawns, lootPunkte, ankuenfte }}
+ * @returns {{ daten, spielerStarts, zombieSpawns, lootPunkte, ankuenfte, einstellungen, bauwerke, tierBereiche }}
  *   daten        → geht an Client und Welt (Kacheln, Raumnamen, Objekte, Übergänge – keine Spawns/Loot-Infos)
  *   spielerStarts/zombieSpawns/lootPunkte → bleiben auf dem Server (Pixelkoordinaten, Kachelmitte)
  *   ankuenfte    → { name: {x, y} } (Pixel, Kachelmitte): wo man ankommt, wenn man aus einer anderen Zone kommt
  *
  * Übergänge (definition.uebergaenge): [{ x, y, b, h, ziel, ankunft, name }] in Kacheln – wer das Rechteck betritt,
  * wechselt in Zone `ziel` und landet dort bei `ankuenfte[ankunft]`. In daten.uebergaenge zusätzlich in Pixeln (px).
+ *
+ * Erweiterungen (Map-Editor, alle optional – alte Karten ohne sie verhalten sich wie immer; Format: editor/kern/format.js):
+ *   zombieSpawns  [{ x, y, anzahl?, respawnZeit?, horde? }] → Eigenschaften der Z-Marker; anzahl × einstellungen.zombie.dichte
+ *                 Zombies je Punkt (zombieSpawns-Einträge doppelt), horde = nachts nur an solchen Punkten
+ *   raeume.X.spawnChance / .respawnZeit → je Loot-Punkt dieses Raums (lootSystem)
+ *   objekte[].groesse 'klein'|'gross' → feste Größe statt Zufall nach Position
+ *   terrain.steil [[x, y]] → unsichtbare Hindernisse (Objekt typ 'hang', ebene 'unsichtbar'); Höhen sind nur Editor-Optik
+ *   bauwerke [{ typ, tx, ty, drehung? }] → kartenfeste Bauwerke ohne Besitzer (SpielWelt setzt sie)
+ *   tierBereiche [{ x, y, b, h, art, anzahl, respawnZeit? }] → Hasen nur dort (tierSystem)
+ *   einstellungen → Zonen-Werte (zonenEinstellungen.js), musik → daten.musik (Client: Musik-Ordner)
  */
 export function ladeKarte(id) {
   const definition = KARTEN[id];
@@ -59,11 +71,14 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE, { au
       if (zeichen === MARKER.SPIELER_START) {
         spielerStarts.push({ x: mitte(x), y: mitte(y) });
       } else if (zeichen === MARKER.ZOMBIE) {
-        zombieSpawns.push({ x: mitte(x), y: mitte(y) });
+        zombieSpawns.push(...zombiePunkte(definition, x, y, mitte));
       } else if (istLootMarker(zeichen)) {
         const raum = definition.raeume?.[zeichen];
         if (!raum) throw new Error(`Karte "${definition.id}": Loot-Marker "${zeichen}" (${x}|${y}) ohne Raumdefinition`);
-        lootPunkte.push({ x: mitte(x), y: mitte(y), raum: zeichen, lootTabelle: raum.lootTabelle });
+        const punkt = { x: mitte(x), y: mitte(y), raum: zeichen, lootTabelle: raum.lootTabelle };
+        if (raum.spawnChance >= 0 && raum.spawnChance <= 1) punkt.spawnChance = raum.spawnChance;
+        if (raum.respawnZeit > 0) punkt.respawnZeit = raum.respawnZeit;
+        lootPunkte.push(punkt);
         if (!raumMarker.has(zeichen)) raumMarker.set(zeichen, []);
         raumMarker.get(zeichen).push({ x: mitte(x), y: mitte(y) });
       } else {
@@ -89,12 +104,16 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE, { au
       throw new Error(`Karte "${definition.id}": Objekt #${i} unvollständig (typ, x, y, b, h nötig)`);
     }
     const objekt = { typ: o.typ, x: o.x, y: o.y, b: o.b, h: o.h, blockiert: !!o.blockiert, ebene: o.ebene ?? 'moebel', drehung: o.drehung ?? 0 };
-    // Bäume & Steine: klein (1 Holz/Stein) oder groß (2) – feste Zufallsverteilung nach Position, kein Eintrag in der Karte nötig
-    if (GROESSEN_TYPEN.includes(o.typ)) objekt.groesse = streuwert(o.x, o.y, 2) < ANTEIL_GROSS ? 'gross' : 'klein';
+    // Bäume & Steine: klein (1 Holz/Stein) oder groß (2) – feste Zufallsverteilung nach Position (oder fest aus der Karte)
+    if (GROESSEN_TYPEN.includes(o.typ)) objekt.groesse = o.groesse === 'klein' || o.groesse === 'gross' ? o.groesse : streuwert(o.x, o.y, 2) < ANTEIL_GROSS ? 'gross' : 'klein';
     // Lampen: Radius (Kacheln), Farbe, Stärke 0..1, Flackern
     if (o.typ === 'licht') Object.assign(objekt, { ebene: 'licht', radius: o.radius ?? 4, farbe: o.farbe ?? '#ffd9a0', staerke: o.staerke ?? 0.85, flackern: !!o.flackern, mast: !!o.mast });
     return objekt;
   });
+  // Steile Hänge (Terrain aus dem Map-Editor): unsichtbare Hindernisse
+  for (const [x, y] of Array.isArray(definition.terrain?.steil) ? definition.terrain.steil : []) {
+    if (Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0 && x < breite && y < hoehe) objekte.push({ typ: 'hang', x, y, b: 1, h: 1, blockiert: true, ebene: 'unsichtbar', drehung: 0 });
+  }
 
   const imFeld = (x, y) => Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0 && x < breite && y < hoehe;
   const ankuenfte = {};
@@ -112,13 +131,40 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE, { au
     return { x: u.x, y: u.y, b: u.b, h: u.h, ziel: u.ziel, ankunft: u.ankunft, name: u.name ?? u.ziel, px };
   });
 
+  const bauwerke = (Array.isArray(definition.bauwerke) ? definition.bauwerke : [])
+    .filter((b) => BAUWERKE[b?.typ] && imFeld(b.tx, b.ty))
+    .map((b) => ({ typ: b.typ, tx: b.tx, ty: b.ty, ...(b.drehung === 1 ? { drehung: 1 } : {}) }));
+  const tierBereiche = (Array.isArray(definition.tierBereiche) ? definition.tierBereiche : [])
+    .filter((t) => imFeld(t?.x, t?.y) && Number.isInteger(t.b) && Number.isInteger(t.h) && t.b > 0 && t.h > 0 && imFeld(t.x + t.b - 1, t.y + t.h - 1) && Number.isInteger(t.anzahl) && t.anzahl >= 0)
+    .map((t) => ({ x: t.x, y: t.y, b: t.b, h: t.h, art: 'hase', anzahl: Math.min(t.anzahl, 100), ...(t.respawnZeit > 0 ? { respawnZeit: t.respawnZeit } : {}) }));
+  const daten = { id: definition.id, name: definition.name, breite, hoehe, kachelGroesse, kacheln, raeume, objekte, uebergaenge };
+  if (typeof definition.musik === 'string' && /^[a-z0-9_-]{1,40}$/i.test(definition.musik)) daten.musik = definition.musik;
+
   return {
-    daten: { id: definition.id, name: definition.name, breite, hoehe, kachelGroesse, kacheln, raeume, objekte, uebergaenge },
+    daten,
     spielerStarts,
     zombieSpawns,
     lootPunkte,
     ankuenfte,
+    einstellungen: pruefeZonenEinstellungen(definition.einstellungen),
+    bauwerke,
+    tierBereiche,
   };
+}
+
+/**
+ * Zombie-Spawnpunkte eines Z-Markers: anzahl (zombieSpawns-Erweiterung, Standard 1) × Zonen-Dichte, Rest per festem Zufall.
+ * Jeder Eintrag ist ein eigener Spawnpunkt (eigener Respawn) an derselben Stelle.
+ */
+function zombiePunkte(definition, x, y, mitte) {
+  const extra = (Array.isArray(definition.zombieSpawns) ? definition.zombieSpawns : []).find((z) => z?.x === x && z?.y === y) ?? {};
+  const dichte = pruefeZonenEinstellungen(definition.einstellungen).zombie?.dichte ?? 1;
+  const anzahl = (Number.isInteger(extra.anzahl) && extra.anzahl > 0 ? Math.min(extra.anzahl, 20) : 1) * dichte;
+  const n = Math.floor(anzahl) + (streuwert(x, y, 3) < anzahl - Math.floor(anzahl) ? 1 : 0);
+  const punkt = { x: mitte(x), y: mitte(y) };
+  if (extra.respawnZeit > 0) punkt.respawnZeit = extra.respawnZeit;
+  if (extra.horde === true) punkt.horde = true;
+  return Array.from({ length: n }, () => ({ ...punkt }));
 }
 
 /**

@@ -758,6 +758,7 @@ Stationen (Lagerfeuer-Kochen, Schmelzofen) mit eigenem Menü, Haltbarkeit, Hand-
 | 1 Einstieg & Hülle | ✅ Login → „🗺 Map-Editor“ (`client/index.html` `#login-editor`), Kopfleiste/Fläche/Bauleiste, Öffnen (Spielzone als Vorlage, Entwurf, Datei), Entwürfe in IndexedDB → localStorage → Arbeitsspeicher (Warnung) |
 | 2 Zonen als Rechteck | ✅ Neu = Rechteck aufziehen (Rasen), Griffe/Dialog zum Vergrößern/Verkleinern mit Abschneide-Warnung, Name/ID/Größe im Panel |
 | 3 Bauleiste & Kacheln | ✅ Kategorien → Bauleiste, Pinsel/Rechteck/Linie (Mauern rasten ein)/Füllen/Radierer, unbegrenztes Undo, Auswahl kopieren/ausschneiden/einfügen/löschen/verschieben |
+| 5 Spawns/Loot/Tiere/Wetter | ✅ Start, Zombie-Spawns (nur draußen; Anzahl, Respawn, Horden-Punkt), Zonen-Dichte/Nacht-Tempo/Horde, Loot-Räume (Tabelle, Chance, Nachschub, Wahrscheinlichkeiten), Hasen-Bereiche, Wetter, Musik-Ordner – leer = globaler Standard (im Panel angezeigt). **Spiel wertet alles aus** (s. u.) |
 | 4 Objekte | ✅ Katalog aus Spiel-Registries, Platzieren mit grün/rot, verschieben/löschen/duplizieren/Mehrfachauswahl, drehen 90° + frei, Eigenschaften-Panel |
 
 **Aufbau:**
@@ -781,7 +782,10 @@ editor/
 └── ui/     (Browser) zustand.js (Projekt, Auswahl, Autosave) · zeichner2d.js (Canvas, Lineale) · werkzeuge.js (Zeiger/Touch)
             bauleiste.js · panel.js · dialoge.js · speicher.js (IndexedDB …) · erweiterungen.js (Phasen 5–10)
 ```
-Spiel-Seite: `server/spiel/karten/zonenEinstellungen.js` (Zonen-Werte, Schnittstelle Editor ⇄ Spiel), `statischerServer.js` liefert `editor/` aus,
+**Spiel-Seite (Phase 5, abwärtskompatibel – Karten ohne die Felder verhalten sich wie bisher):** `server/spiel/karten/zonenEinstellungen.js` (ZONEN_EINSTELLUNGEN = welche Werte eine Zone überschreiben darf, `zonenKonfiguration` legt sie per Prototyp über die gemeinsame Konfiguration → `spielWelt.konfiguration`),
+`kartenLader.verarbeiteKarte` liefert zusätzlich `einstellungen`, `bauwerke`, `tierBereiche`, Spawns mit `respawnZeit/horde` (× Anzahl × Dichte), Loot-Punkte mit `spawnChance/respawnZeit`, feste `groesse`, `terrain.steil` → Objekte `hang` (ebene `unsichtbar`, Renderer/Karte überspringen), `daten.musik`;
+SpielWelt setzt kartenfeste Bauwerke (Besitzer null; Weltstand übernimmt ihren Zustand), `planeZombieRespawn` je Spawn, `tageszeitSystem.schickeHorde` nur an Horden-Punkten, `lootSystem` je Punkt, `tierSystem` Hasen-Bereiche (`tierRespawns` = `[{rest, bereich}]`), Client-Musik `karte.musik`.
+Weiter: `statischerServer.js` liefert `editor/` aus,
 `werkzeuge/karten/editorImport.mjs` (`npm run karte:editor -- x.karte.json`), `registrieren.mjs` (KARTEN-Eintrag, auch von tiled.mjs),
 `werkzeuge/test/editorRauchtest.mjs` (`npm run rauchtest:editor`).
 

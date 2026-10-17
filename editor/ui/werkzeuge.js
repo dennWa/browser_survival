@@ -5,6 +5,7 @@ import { terrainHeben, terrainGlaetten, terrainEbnen } from '../kern/terrain.js'
 import { elementeIn } from '../kern/auswahl.js';
 import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
 import { LINEAL } from './zeichner2d.js';
+import { STANDARD_KONFIGURATION } from '../../server/spiel/konfiguration/spielKonfiguration.js';
 
 /**
  * Maus/Touch auf der 2D-Fläche → Werkzeuge. Werkzeuge:
@@ -482,7 +483,9 @@ export class Werkzeuge {
     if (e.sammlung === 'uebergaenge') return this.aktionen.uebergangAnlegen(r);
     if (e.sammlung === 'raumFlaechen') return this.aktionen.raumFlaecheAnlegen([r]);
     const id = this.karte.naechsteId;
-    this.zustand.ausfuehren('Hasen-Bereich', [{ s: 'tierBereiche', k: id, neu: { ...r, art: 'hase', anzahl: Math.max(1, Math.round((r.b * r.h) / 150)) } }]);
+    // Standard wie im Spiel: hasenProTausend je 1000 Kacheln (Zonen-Wert oder global), mindestens 1
+    const jeTausend = this.karte.wert('einstellungen.tiere.hasenProTausend') ?? STANDARD_KONFIGURATION.tiere.hasenProTausend;
+    this.zustand.ausfuehren('Hasen-Bereich', [{ s: 'tierBereiche', k: id, neu: { ...r, art: 'hase', anzahl: Math.max(1, Math.round((r.b * r.h * jeTausend) / 1000)) } }]);
     this.zustand.waehle([{ s: 'tierBereiche', k: id }]);
   }
 
