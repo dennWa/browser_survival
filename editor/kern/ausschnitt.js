@@ -28,6 +28,9 @@ export const AKTIONEN_ANLEITUNG = [
   '{"aktion":"entferne","marker":"zombie","x":25,"y":20}  – Marker entfernen',
   '{"aktion":"bauwerk","typ":"zaun","x":21,"y":11}  – kartenfestes Bauwerk (zaun, zauntor, kiste, bett, werkbank, lagerfeuer, beet …)',
   '{"aktion":"raum","buchstabe":"d","name":"Scheune","lootTabelle":"werkstatt"}  – Raum für Loot-Punkte anlegen/ändern',
+  '{"aktion":"aendere","id":17,"farbe":"#8b5a2b","textur":"holz"}  – Farbe/Muster EINES Objekts (muster: holz, stein, metall, stoff, gras, streifen, punkte)',
+  '{"aktion":"typtextur","typ":"baum","farbe":"#3a6b35","muster":"gras"}  – Farbe/Muster für ALLE Objekte dieses Typs in der Zone (null = Standard)',
+  '{"aktion":"bemale","x":20,"y":10,"b":6,"h":4,"farbe":"#7a6a4f"}  – Bodenfarbe (Bemalung) für ein Rechteck; "farbe":null entfernt sie',
   'Zombies nur draußen (nicht auf Innenböden . : +). Türen T nicht zustellen. Jede Aktion wird vor dem Übernehmen geprüft und als Vorschau gezeigt.',
 ];
 

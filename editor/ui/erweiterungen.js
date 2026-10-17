@@ -3,6 +3,7 @@ import { prefabUi } from './prefabUi.js';
 import { raeumeUi } from './raeumeUi.js';
 import { zonenUi } from './zonenUi.js';
 import { kiUi } from './kiUi.js';
+import { geminiUi } from './geminiUi.js';
 import { testUi } from './testUi.js';
 import { eigeneUi } from './eigeneUi.js';
 import { Ansicht3D, webglVerfuegbar } from './ansicht3d.js';
@@ -23,7 +24,9 @@ export function erweiterungen({ zustand, zeichner, panel, aktionen, sonderAktion
   // Phase 7: Zonen verbinden
   zonenUi({ zustand, panel, aktionen, sonderAktionen, zeichner, projektZonen });
   // Phase 8: KI-Export/-Import
-  kiUi({ zustand, panel, aktionen, sonderAktionen, zeichner, auswahlBereich });
+  const ki = kiUi({ zustand, panel, aktionen, sonderAktionen, zeichner, auswahlBereich });
+  // Phase 11: Gemini-Helfer (Chat im Panel, Vorschläge laufen durch dieselbe Vorschau)
+  geminiUi({ zustand, panel, aktionen, sonderAktionen, auswahlBereich, pruefeText: ki.pruefeText });
   // Phase 9: Karte testen
   const test = testUi({ zustand, panel, aktionen, sonderAktionen, projektZonen });
   erw.nachStart = () => test.nachStart();

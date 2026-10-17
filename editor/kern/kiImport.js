@@ -29,10 +29,14 @@ const SYNONYME = {
   bauwerk: 'bauwerk',
   raum: 'raum',
   hoehe: 'hoehe', höhe: 'hoehe',
+  typtextur: 'typtextur', textur: 'typtextur',
+  bemale: 'bemale', bemalung: 'bemale', farbe: 'bemale',
   bereich: 'bereich',
 };
 /** Felder, die eine KI an Objekten setzen darf */
 const OBJEKT_FELDER = new Set(['typ', 'x', 'y', 'b', 'h', 'blockiert', 'ebene', 'drehung', 'name', 'groesse', 'radius', 'farbe', 'staerke', 'flackern', 'mast', 'textur']);
+const FARBE_HEX = /^#[0-9a-fA-F]{6}$/;
+export const MUSTER_NAMEN = ['holz', 'stein', 'metall', 'stoff', 'gras', 'streifen', 'punkte'];
 const KACHEL_NAMEN = Object.fromEntries(Object.entries(KACHELN).map(([z, k]) => [k.name, z]));
 Object.assign(KACHEL_NAMEN, { rasen: ',', weg: '-', mauer: '#', see: '~' });
 
@@ -171,7 +175,7 @@ export function pruefeAenderungen(karte, { aktionen, meta = {}, warnungen = [] }
     };
     if (!a || typeof a !== 'object' || Array.isArray(a)) return ungueltig('keine Aktion (Objekt erwartet)');
     const art = SYNONYME[String(a.aktion ?? (a.typ ? 'setze' : '')).toLowerCase()];
-    if (!art) return ungueltig(`unbekannte Aktion „${a.aktion}“ (erlaubt: setze, entferne, aendere, kachel, linie, marker, bauwerk, raum, hoehe)`);
+    if (!art) return ungueltig(`unbekannte Aktion „${a.aktion}“ (erlaubt: setze, entferne, aendere, kachel, linie, marker, bauwerk, raum, hoehe, typtextur, bemale)`);
 
     if (art === 'setze') {
       if (typeof a.typ !== 'string') return ungueltig('Feld "typ" fehlt');
@@ -287,6 +291,39 @@ export function pruefeAenderungen(karte, { aktionen, meta = {}, warnungen = [] }
       const w = Math.max(-10, Math.min(10, a.wert ?? a.hoehe));
       return fertig('aendern', `⛰ Höhe ${a.x}|${a.y} → ${w}`, [{ s: 'hoehe', i: sim.index(a.x, a.y), neu: w }], a.x, a.y);
     }
+    if (art === 'typtextur') {
+      // Farbe/Muster für ALLE Objekte eines Typs (gilt zonenweit, nicht nur im Bereich)
+      if (typeof a.typ !== 'string' || !objektTypBekannt(a.typ, sim)) return ungueltig(`typtextur: unbekannter Objekttyp „${a.typ}“`);
+      const alt = sim.s('texturen').get(a.typ) ?? {};
+      const t = { ...alt };
+      if (a.farbe !== undefined) {
+        if (a.farbe === null || a.farbe === '') delete t.farbe;
+        else if (FARBE_HEX.test(a.farbe)) t.farbe = a.farbe.toLowerCase();
+        else return ungueltig(`typtextur: Farbe „${a.farbe}“ ist kein #rrggbb`);
+      }
+      if (a.muster !== undefined) {
+        if (a.muster === null || a.muster === '') delete t.muster;
+        else if (MUSTER_NAMEN.includes(a.muster)) t.muster = a.muster;
+        else return ungueltig(`typtextur: Muster „${a.muster}“ unbekannt (${MUSTER_NAMEN.join(', ')})`);
+      }
+      const leer = !Object.keys(t).length;
+      return fertig(sim.s('texturen').has(a.typ) ? 'aendern' : 'neu', `🎨 Typ ${objektInfo(a.typ, sim).name}: ${leer ? 'Standard' : `${t.farbe ?? '–'} · ${t.muster ?? 'kein Muster'}`}`, [{ s: 'texturen', k: a.typ, neu: leer ? null : t }], null, null);
+    }
+
+    if (art === 'bemale') {
+      // Bodenfarbe (Bemalung) für ein Rechteck; farbe null/"" entfernt sie
+      if (!Number.isInteger(a.x) || !Number.isInteger(a.y)) return ungueltig('bemale: x/y (ganze Zahlen) fehlen');
+      const bb = Number.isInteger(a.b) ? a.b : 1;
+      const hh = Number.isInteger(a.h) ? a.h : 1;
+      if (bb < 1 || hh < 1 || bb * hh > 40000) return ungueltig('bemale: b/h ungültig');
+      const weg = a.farbe === null || a.farbe === '' || a.farbe === undefined;
+      if (!weg && !FARBE_HEX.test(a.farbe)) return ungueltig(`bemale: Farbe „${a.farbe}“ ist kein #rrggbb`);
+      if (!drin(a.x, a.y) || !drin(a.x + bb - 1, a.y + hh - 1)) return ungueltig(`bemale: Rechteck ragt aus dem Bereich (${bereichText(b)})`, a.x, a.y);
+      const ops = [];
+      for (let y = a.y; y < a.y + hh; y++) for (let x = a.x; x < a.x + bb; x++) ops.push({ s: 'bemalung', k: markerSchluessel(x, y), neu: weg ? null : a.farbe.toLowerCase() });
+      return fertig('aendern', `🖌 ${bb}×${hh} Bodenfarbe ${weg ? 'entfernt' : a.farbe} ab ${a.x}|${a.y}`, ops, a.x, a.y, { kacheln: ops.map((o) => { const [x, y] = o.k.split(',').map(Number); return { x, y }; }) });
+    }
+
     return ungueltig('nicht unterstützt');
 
     function bauwerkSetzen(aw) {

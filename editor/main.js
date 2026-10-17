@@ -350,6 +350,7 @@ const befehle = {
     zustand.meldung('💾 Entwurf gespeichert (lokal + Datei, mit Verlauf)', 'ok');
   },
   exportieren: () => exportDialog(),
+  helfer: () => sonderAktionen.helfer?.() ?? zustand.meldung('Helfer fehlt', 'fehler'),
   kiImport: () => sonderAktionen.kiImport?.() ?? zustand.meldung('KI-Import fehlt', 'fehler'),
   testen: () => sonderAktionen.testen?.() ?? zustand.meldung('Testen fehlt', 'fehler'),
   rueckgaengig: () => zustand.rueckgaengig(),

@@ -201,6 +201,33 @@ try {
     await seite.click('#panel-inhalt button:has-text("Übernehmen")');
     pruefe((await seite.evaluate(() => window.mapEditor.zustand.karte.s('objekte').size)) === vorherObj + 1, 'nach Bestätigung übernommen');
 
+    schritt('Phase 11: Gemini-Helfer (Antwort gemockt, Schlüssel nur im Header, Vorschau → Übernehmen)');
+    let gemini = null;
+    await seite.route('https://generativelanguage.googleapis.com/**', async (route) => {
+      const req = route.request();
+      gemini = { url: req.url(), schluessel: req.headers()['x-goog-api-key'], body: JSON.parse(req.postData()) };
+      const antwort = 'Ein Busch passt super!\n```json\n[{"aktion":"setze","typ":"busch","x":31,"y":21},{"aktion":"typtextur","typ":"busch","farbe":"#2f6b2f","muster":"gras"}]\n```';
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ candidates: [{ content: { parts: [{ text: antwort }] }, finishReason: 'STOP' }] }) });
+    });
+    await seite.click('[data-befehl="helfer"]');
+    await seite.click('#panel-inhalt [data-a="einst"]');
+    await seite.fill('#dialog [name="schluessel"]', 'TESTKEY');
+    await seite.click('#dialog button:has-text("Speichern")');
+    await seite.evaluate(() => window.mapEditor.zeichner.springeZu(40, 16, 18));
+    await ziehe([30, 10], [50, 22]);
+    await seite.fill('#panel-inhalt textarea', 'Setz mir einen Busch und färbe ihn grün');
+    await seite.click('#panel-inhalt [data-a="senden"]');
+    await seite.waitForSelector('#panel-inhalt .helfer-nachricht button:has-text("Änderungen prüfen")', { timeout: 10000 });
+    pruefe(gemini?.schluessel === 'TESTKEY' && !gemini.url.includes('TESTKEY') && gemini.body.contents.at(-1).parts[0].text.includes('Setz mir einen Busch'), 'Anfrage: Schlüssel im Header, Frage + Kontext im Body');
+    pruefe(!(await seite.locator('#panel-inhalt .helfer-chat').textContent()).includes('```'), 'JSON-Block im Chat ausgeblendet');
+    await seite.screenshot({ path: path.join(AUSGABE, 'editor-11-helfer.png') });
+    const objVorher = await seite.evaluate(() => window.mapEditor.zustand.karte.s('objekte').size);
+    await seite.click('#panel-inhalt .helfer-nachricht button:has-text("Änderungen prüfen")');
+    await seite.waitForSelector('#panel-inhalt h3:has-text("KI-Änderungen")');
+    await seite.click('#panel-inhalt button:has-text("Übernehmen")');
+    pruefe((await seite.evaluate(() => window.mapEditor.zustand.karte.s('objekte').size)) === objVorher + 1 && (await seite.evaluate(() => window.mapEditor.zustand.karte.s('texturen').get('busch')?.muster)) === 'gras', 'Vorschlag übernommen (Busch + Typ-Textur)');
+    pruefe(await seite.isVisible('#panel-inhalt .helfer'), 'Nach dem Übernehmen zurück im Helfer-Reiter');
+
     schritt('Phase 10: Boden bemalen, Gelände heben, 3D-Ansicht mit synchroner Auswahl');
     await seite.evaluate(() => window.mapEditor.zeichner.springeZu(42, 26, 16));
     await seite.click('#kategorien [data-kategorie="Farbe"]');

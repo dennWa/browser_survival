@@ -54,15 +54,21 @@ export function kiUi({ zustand, panel, aktionen, sonderAktionen, zeichner, auswa
     let text = w?.text;
     if (w === 'datei') text = (await dateiWaehlen('.json,.txt,.md'))?.text;
     if (!text?.trim()) return;
+    pruefeText(text, r ? bereichAus(k, r) : null);
+  };
+
+  /** Antworttext prüfen und als Vorschau zeigen (auch vom Gemini-Helfer genutzt). bereich = {x0,x1,y0,y1}|null */
+  function pruefeText(text, bereich, zurueck = 'Eigenschaften') {
+    const k = zustand.karte;
     try {
       const gelesen = leseKiAntwort(text, k);
-      const ergebnis = pruefeAenderungen(k, gelesen, { bereich: r ? bereichAus(k, r) : null });
-      offen = { ergebnis, karte: k, gelesen, bereich: r ? bereichAus(k, r) : null };
+      const ergebnis = pruefeAenderungen(k, gelesen, { bereich });
+      offen = { ergebnis, karte: k, gelesen, bereich, zurueck };
       zeigeVorschau();
     } catch (e) {
       dialog({ titel: 'KI-Antwort nicht verwendbar', html: `<p>${esc(e.message)}</p>` });
     }
-  };
+  }
 
   function zeigeVorschau() {
     const { ergebnis } = offen;
@@ -78,11 +84,12 @@ export function kiUi({ zustand, panel, aktionen, sonderAktionen, zeichner, auswa
   }
 
   function verwerfen(meldung = 'KI-Änderungen verworfen') {
+    const zurueck = offen?.zurueck ?? 'Eigenschaften';
     offen = null;
     zeichner.ueberlagerungen = [];
     zeichner.anfordern();
     panel.reiter.delete('KI-Import');
-    panel.zeige('Eigenschaften');
+    panel.zeige(zurueck);
     zustand.meldung(meldung);
   }
 
@@ -137,5 +144,5 @@ export function kiUi({ zustand, panel, aktionen, sonderAktionen, zeichner, auswa
     el.append(ul);
   }
 
-  return { verwerfen };
+  return { verwerfen, pruefeText };
 }

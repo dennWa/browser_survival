@@ -160,3 +160,14 @@ Danach `npm test`. Neue Zone mit Übergang? Die Nachbarzone braucht einen Überg
 
 `?` zeigt alle. Wichtigste: V Auswahl · H Schwenken · B Pinsel · U Rechteck · L Linie · G Füllen · E Radierer · I Pipette ·
 Z Zonengröße · R drehen · Strg+Z/Y · Strg+C/X/V · Strg+D · Entf · F ganze Zone · 3 = 2D/3D · Esc.
+
+## 🤖 KI-Helfer (Gemini)
+
+Ein Chat an deiner Seite: Zone markieren (⬚), Wunsch schreiben, die KI schlägt Änderungen vor – **übernommen wird erst nach deiner Vorschau**.
+
+1. **Schlüssel:** kostenlos auf <https://aistudio.google.com/apikey>. Im Editor **🤖 Helfer** → ⚙ → Schlüssel einfügen (Modell Standard `gemini-2.5-flash`, `gemini-2.5-pro` ist schlauer, aber langsamer/teurer).
+   Der Schlüssel bleibt **nur in diesem Browser** (localStorage), steht in keinem Entwurf/Export und geht nur an Google. Auf fremden Rechnern danach „Schlüssel löschen“.
+2. **Kontext:** Die KI sieht immer, was oben im Reiter steht – den **markierten Bereich** (sonst die Umgebung der **Auswahl**, sonst die ganze Zone, wenn sie klein genug ist ≤ 2500 Kacheln), dazu die ausgewählten Objekte und alle erlaubten Objekttypen. Mit den Haken kannst du das abschalten.
+3. **Fragen:** z. B. „Mach hier einen verlassenen Campingplatz“, „Welche Farben passen zum Holzhaus?“, „Ist die Zombie-Verteilung zu dicht?“. Objekt auswählen + „🎨 Texturen vorschlagen“ hilft bei Farben/Mustern.
+4. **Vorschläge:** Antwortet die KI mit Änderungen, erscheint **„🔍 N Änderungen prüfen“** → Vorschau (grün neu, rot weg, gelb geändert, orange ungültig mit Grund) → **Übernehmen** (ein Schritt, Strg+Z macht alles rückgängig).
+   Neben Objekten/Kacheln/Marker kann die KI auch Farbe/Muster **je Objekttyp** (`typtextur`) und **Bodenfarbe** (`bemale`) setzen.
