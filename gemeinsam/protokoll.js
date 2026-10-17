@@ -76,13 +76,13 @@ export const NACHRICHT = Object.freeze({
 /** Erlaubte Aktionen (Nachricht AKTION). slot/ziel = Inventarplatz 0..(Inventargröße-1), Schnellleiste = 0..7 */
 export const AKTIONEN = Object.freeze({
   AUFHEBEN: 'aufheben', // nächsten Gegenstand in Reichweite aufheben
-  BENUTZEN: 'benutzen', // Essen/Trinken/Medizin verbrauchen, Waffe aus-/abrüsten
-  ABLEGEN: 'ablegen', // ganzen Stapel auf den Boden legen
+  BENUTZEN: 'benutzen', // Item in die Hand nehmen/wegstecken (Waffe, Essen, Holz, Samen, Hacke …); Linksklick verbraucht bzw. nutzt es
+  ABLEGEN: 'ablegen', // { slot, einzeln? } ganzen Stapel (einzeln: nur 1 Stück) auf den Boden legen
   TAUSCHEN: 'tauschen', // { slot, ziel } Inventarplätze tauschen bzw. gleiche Stapel zusammenlegen (Drag & Drop)
   RUCKSACK_ABLEGEN: 'rucksackAblegen', // Rucksack auf den Boden legen (Inhalt wandert ins Inventar oder fällt mit)
   PLATZIEREN: 'platzieren', // { slot, tx, ty } Bauwerk-Item (oder Hacke → Beet) auf Kachel tx/ty aufstellen
   FEUER: 'feuer', // F: nächstes Lagerfeuer anzünden (Feuerzeug nötig) / löschen – sonst wie 'tuer'
-  BAUWERK: 'bauwerk', // E am nächsten Bauwerk: Falle aufnehmen/spannen, kochen, pflanzen, ernten
+  BAUWERK: 'bauwerk', // E am nächsten Bauwerk: Falle aufnehmen/spannen, Feuer-/Ofen-Menü öffnen, pflanzen, ernten
   BAUEN: 'bauen', // { teil, tx, ty, drehung? } Basisbau: Bauteil (gemeinsam/basisbau/teile.js) setzen, auch die Basis-Flagge; Hammer in der Hand nötig
   ABREISSEN: 'abreissen', // { tx, ty, ebene? } mit dem Hammer ein eigenes Bauteil abreißen (75 % der Kosten zurück)
   FELD: 'feld', // { tx, ty } mit der Hacke in der Hand (Taste G) ein quadratisches Erdfeld um die Kachel anlegen

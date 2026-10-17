@@ -8,7 +8,7 @@ import { sammelFaktor } from '../../../gemeinsam/spieler/skills.js';
 import { aktualisiereBauwerke } from './bauSystem.js';
 
 /**
- * Arbeiten, die Zeit brauchen: Bäume fällen / Steine abbauen (Werkzeug nötig) und Schlafen im Bett.
+ * Arbeiten, die Zeit brauchen: Bäume fällen / Steine abbauen (Werkzeug nötig, nutzt sich ab) und Schlafen im Bett; Sitzen am Feuer (start: stationSystem).
  *
  *   spieler.arbeit = { art: 'holz' | 'stein' | 'schlafen', dauer, rest, x, y, ressourceId?, ort?, naechsterSchlag }
  *

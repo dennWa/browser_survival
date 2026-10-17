@@ -19,7 +19,7 @@ import { WACHSTUM_REGEN_FAKTOR } from './wetterSystem.js';
  *   AKTION feld { tx, ty }              mit der Hacke (in der Hand) ein Ackerfeld (FELD_GROESSE², jetzt 1×1) anlegen
  *   AKTION feldEntfernen { tx, ty }     mit der Hacke (in der Hand) ein Beet wieder zu Rasen machen
  *   AKTION feuer                        nächstes Lagerfeuer an (braucht Feuerzeug) / aus
- *   AKTION bauwerk                      E am nächsten Bauwerk: Falle aufnehmen/spannen, kochen, pflanzen, ernten
+ *   AKTION bauwerk                      E am nächsten Bauwerk: Falle aufnehmen/spannen, Feuer-/Ofen-Menü (→ stationSystem.js), pflanzen, ernten
  *
  * Pro Tick: Feuer brennen herunter, gespannte Fallen schnappen zu, Pflanzen wachsen (Regen: doppelt so schnell = halbe Zeit).
  * Werte: konfiguration.bauen (Brenndauer, Kochdauer, Fallen-Radius, Wachstum, Ertrag).
