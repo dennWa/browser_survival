@@ -11,3 +11,4 @@ werkzeuge/assets/.cache/
 
 # Rauchtest-Screenshots & Tiled-Exporte (Arbeitsdateien)
 werkzeuge/test/ausgabe/
+__pycache__/
