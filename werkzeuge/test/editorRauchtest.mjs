@@ -154,6 +154,19 @@ try {
     pruefe((await seite.locator('#panel-inhalt').textContent()).includes('Standard: 0.6'), 'globaler Standard wird angezeigt');
     await seite.screenshot({ path: path.join(AUSGABE, 'editor-4-zone.png') });
 
+    schritt('Prefab „Wohnhaus“ einfügen (Phase 6), Innen/Außen anzeigen');
+    await seite.click('#panel-reiter button:has-text("Prefabs")');
+    const raeumeVorher = await seite.evaluate(() => window.mapEditor.zustand.karte.s('raeume').size);
+    await seite.click('#panel-inhalt button:has-text("Wohnhaus")');
+    await seite.evaluate(() => window.mapEditor.zeichner.springeZu(60, 40, 14));
+    await seite.waitForTimeout(300);
+    await klick(60, 40);
+    pruefe((await seite.evaluate(() => window.mapEditor.zustand.karte.s('raeume').size)) === raeumeVorher + 1, 'Wohnhaus eingefügt, Raum angelegt');
+    await seite.click('#panel-reiter button:has-text("Zone")');
+    await seite.check('#panel-inhalt [name="innen"]');
+    await seite.waitForTimeout(400);
+    await seite.screenshot({ path: path.join(AUSGABE, 'editor-5-prefab.png') });
+
     schritt('3D-Ansicht');
     await seite.keyboard.press('3');
     await seite.waitForTimeout(1500);

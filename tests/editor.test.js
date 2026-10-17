@@ -244,3 +244,36 @@ test('Veröffentlichen: erzeugtes Kartenmodul ist gültiges JS und lädt identis
   assert.deepEqual(modul.TEST.einstellungen, { zombie: { dichte: 2 } });
   assert.deepEqual(modul.TEST.zombieSpawns, [{ x: 7, y: 5, anzahl: 2 }]);
 });
+
+test('Prefabs: eingebaute Vorlagen sind spielgültig; Räume reisen mit und werden bei Konflikt umbenannt', async () => {
+  const { eingebautePrefabs, prefabDatei, ladePrefabDatei } = await import('../editor/kern/prefabs.js');
+  const prefabs = eingebautePrefabs();
+  assert.ok(prefabs.length >= 5);
+  for (const { name, vorlage } of prefabs) {
+    const k = neueZone({ id: 'p', breite: 30, hoehe: 20 });
+    k.anwenden([{ s: 'marker', k: markerSchluessel(1, 1), neu: { art: 'start' } }]);
+    const { ops, weggelassen } = einfuegeOps(k, vorlage, 5, 5);
+    k.anwenden(ops);
+    assert.equal(weggelassen, 0, name);
+    for (const [, o] of k.s('objekte')) assert.ok(pruefeObjekt(k, o, { ignoriere: new Set([...k.s('objekte').keys()].filter((id) => k.s('objekte').get(id) === o)) }).ok, `${name}: ${o.typ} bei ${o.x}|${o.y}`);
+    const fehler = validiere(k).filter((e) => e.schwere === 'fehler');
+    assert.deepEqual(fehler, [], name);
+  }
+  // Raum-Konflikt: Zielkarte hat schon "a" mit anderem Inhalt → Prefab-Raum bekommt einen freien Buchstaben
+  const { karte } = ausDefinition(testZone());
+  const wohnhaus = prefabs.find((p) => p.name === 'Wohnhaus').vorlage;
+  const groesser = groesseAendern(karte, { rechts: 15, unten: 6 });
+  karte.anwenden(groesser.ops);
+  const { ops } = einfuegeOps(karte, wohnhaus, 12, 1);
+  karte.anwenden(ops);
+  assert.deepEqual(karte.s('raeume').get('a'), { name: 'Hütte', lootTabelle: 'huette' });
+  assert.deepEqual(karte.s('raeume').get('b'), { name: 'Wohnhaus', lootTabelle: 'wohnung' });
+  assert.ok([...karte.s('marker').values()].filter((m) => m.raum === 'b').length >= 4);
+  // nochmal einfügen → Raum "Wohnhaus" wird wiederverwendet, kein dritter Raum
+  karte.anwenden(einfuegeOps(karte, wohnhaus, 0, 6).ops);
+  assert.equal(karte.s('raeume').size, 2);
+  // Prefab-Datei
+  const datei = JSON.parse(JSON.stringify(prefabDatei('X', wohnhaus)));
+  assert.equal(ladePrefabDatei(datei).vorlage.b, wohnhaus.b);
+  assert.throws(() => ladePrefabDatei({ format: 'nein' }), /Keine Prefab/);
+});

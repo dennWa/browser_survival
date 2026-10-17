@@ -43,6 +43,30 @@ Koordinaten sind **Kacheln** (1 Kachel = 1 m = 32 px im Spiel), x nach rechts, y
   (Möbel/Boden/Krone/Licht), Größe (Bäume/Steine), Licht (Radius, Farbe, Stärke, Flackern, Mast), Farbe/Textur.
 - **Rückgängig/Wiederholen** (Strg+Z / Strg+Y) ist unbegrenzt und bleibt über Sitzungen erhalten (steht im Entwurf).
 
+## Spawns, Loot, Tiere, Wetter (pro Zone)
+
+- **Spawns:** Spieler-Start (mind. einer), Zombie-Spawn (nur draußen – die Vorschau wird im Haus rot), Horden-Spawnpunkt
+  (nachts kommt die Horde nur dort, wenn es welche gibt). Am gewählten Zombie-Spawn im Panel: **Anzahl**, **Respawn**, Horde.
+- **Loot:** Loot-Punkte gehören zu einem **Raum** (Buchstabe a–z) mit Loot-Tabelle aus `lootTabellen.js`. Im Panel: Tabelle,
+  **Loot-Chance** (liegt dort etwas?) und **Nachschub** (Sekunden) je Raum; die Wahrscheinlichkeiten der Tabelle stehen darunter.
+- **Tiere:** Hasen-Bereich aufziehen (Kategorie Tiere) – dann spawnen Hasen nur in diesen Bereichen, mit Anzahl und Respawn.
+  Ohne Bereiche verteilt das Spiel sie wie bisher auf allen Rasen.
+- **Zonen-Werte** (Panel „Zone“): Wetter (an/aus, Regen-Anteil, Dauer, Pausen), Zombies (Dichte, Respawn, Nacht-Horde,
+  Nacht-Tempo), Hasen, Loot, Musik-Ordner. **Leer = globaler Standard** – der steht unter jedem Feld; gesetzte Felder sind grün.
+- Das Spiel wertet all das aus (`server/spiel/karten/zonenEinstellungen.js`, `kartenLader.js`). Alte Karten ohne diese
+  Felder verhalten sich unverändert.
+
+## Räume und Gebäude
+
+- **Räume markieren:** Kategorie „Räume“ → Rechteck aufziehen oder 🪣 Füllen (füllt bis zu Wänden/Türen). Danach Raum wählen
+  oder neu anlegen (Name + Loot-Tabelle). Reiter **Räume** zeigt alle Räume mit Loot-Punkten und Flächen.
+- **Innen/Außen:** Panel „Zone → Anzeige → Innen/Außen“ färbt alles blau, was das Spiel als „drinnen“ wertet
+  (Innenboden oder Dach). Dort sehen Zombies nicht hinein, und dort dürfen keine Zombie-Spawns liegen.
+- **Prefabs:** Reiter **Prefabs** – eingebaute Vorlagen (Wohnhaus, Werkstatt, Hütte, Garten mit Zaun, Parkplatz) und eigene.
+  Eigene: Bereich markieren → „🏠 Als Prefab“. Einfügen hängt die Vorlage an die Maus (R dreht, Klick setzt, Umschalt =
+  mehrfach). Der Zielbereich wird überstempelt; Räume kommen mit (bei Buchstaben-Konflikt wird umbenannt).
+  Prefabs lassen sich als `*.prefab.json` speichern und laden.
+
 ## Speichern
 
 - Automatisch: jede Änderung landet nach ~1 s im Browser (IndexedDB, sonst localStorage). Oben rechts steht der Status.

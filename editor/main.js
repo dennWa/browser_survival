@@ -84,14 +84,23 @@ const aktionen = {
     if (r) zustand.ausfuehren('Bereich leeren', loescheOps(zustand.karte, r));
     zustand.leereAuswahl();
   },
+  /** Vorlage (Zwischenablage oder Prefab) an die Maus hängen – Klick setzt, R dreht, Esc bricht ab */
   einfuegen(vorlage = zustand.zwischenablage) {
     if (!vorlage || !zustand.karte) return zustand.meldung('Zwischenablage leer', 'fehler');
-    const h = zeichner.hover ?? { x: Math.floor(zeichner.kamera.x - vorlage.b / 2), y: Math.floor(zeichner.kamera.y - vorlage.h / 2) };
-    const { ops, weggelassen, neueIds } = einfuegeOps(zustand.karte, vorlage, h.x, h.y);
+    zustand.einfuegeVorlage = vorlage;
+    zustand.eintrag = null;
+    aktionen.werkzeug('einfuegen');
+    zustand.meldung(`${vorlage.name ?? 'Einfügen'}: Klick setzt (Umschalt = mehrfach), R dreht, Esc bricht ab`);
+  },
+  einfuegenBei(vorlage, x, y, mehrfach = false) {
+    const { ops, weggelassen, neueIds } = einfuegeOps(zustand.karte, vorlage, x, y);
     zustand.ausfuehren(vorlage.name ? `Prefab „${vorlage.name}“` : 'Einfügen', ops);
-    zustand.auswahlRechteck = { x: h.x, y: h.y, b: vorlage.b, h: vorlage.h };
-    zustand.waehle(Object.entries(neueIds).flatMap(([s, ids]) => ids.map((k) => ({ s, k }))));
-    if (weggelassen) zustand.meldung(`${weggelassen} Teile lagen außerhalb der Zone und wurden weggelassen`, 'fehler');
+    if (!mehrfach) {
+      aktionen.werkzeug('auswahl');
+      zustand.auswahlRechteck = { x, y, b: vorlage.b, h: vorlage.h };
+      zustand.waehle(Object.entries(neueIds).flatMap(([s, ids]) => ids.map((k) => ({ s, k }))));
+    }
+    if (weggelassen) zustand.meldung(`${weggelassen} Teile lagen außerhalb der Zone (oder kein Raum frei) und wurden weggelassen`, 'fehler');
   },
   duplizieren() {
     const gew = zustand.gewaehlte();
@@ -200,6 +209,13 @@ const aktionen = {
       zustand.meldung(`Loot-Punkte gehören jetzt zu Raum ${raum} – nochmal klicken`);
     }
   },
+  /** Katalog-Eintrag per ID wählen (mit Zusatzfeldern, z. B. Raum) */
+  waehleKatalog(id, extra = {}) {
+    const e = katalog().find((x) => x.id === id);
+    if (!e) return;
+    bauleiste.zeigeKategorie(e.kategorie);
+    bauleiste.waehle({ ...e, ...extra });
+  },
   waehleEintrag({ typ, zeichen }) {
     const e = katalog().find((x) => (typ ? x.art === 'objekt' && x.typ === typ : x.art === 'kachel' && x.zeichen === zeichen));
     if (e) {
@@ -226,7 +242,7 @@ const sonderAktionen = {
   neuerRaum: () => neuerRaum(),
   zonenEinstellungen: () => panel.zeige('Zone'),
 };
-const erw = erweiterungen({ zustand, zeichner, panel, aktionen, sonderAktionen, werkzeuge, bauleiste });
+const erw = erweiterungen({ zustand, zeichner, panel, aktionen, sonderAktionen, werkzeuge, bauleiste, auswahlBereich: () => auswahlBereich(), projektZonen: () => projektZonen(), schalteAnsicht: () => schalteAnsicht() });
 
 function auswahlBereich() {
   if (zustand.auswahlRechteck) return zustand.auswahlRechteck;
@@ -472,7 +488,7 @@ window.addEventListener('keydown', (e) => {
   else if (t === 'escape') {
     werkzeuge.abbrechen();
     zustand.leereAuswahl();
-    if (zustand.werkzeug === 'platzieren') aktionen.werkzeug('auswahl');
+    if (zustand.werkzeug === 'platzieren' || zustand.werkzeug === 'einfuegen') aktionen.werkzeug('auswahl');
   } else if (t === 'r') werkzeuge.drehe();
   else if (t === '[') aktionen.pinselGroesse(-1);
   else if (t === ']') aktionen.pinselGroesse(1);

@@ -758,8 +758,9 @@ Stationen (Lagerfeuer-Kochen, Schmelzofen) mit eigenem Menü, Haltbarkeit, Hand-
 | 1 Einstieg & Hülle | ✅ Login → „🗺 Map-Editor“ (`client/index.html` `#login-editor`), Kopfleiste/Fläche/Bauleiste, Öffnen (Spielzone als Vorlage, Entwurf, Datei), Entwürfe in IndexedDB → localStorage → Arbeitsspeicher (Warnung) |
 | 2 Zonen als Rechteck | ✅ Neu = Rechteck aufziehen (Rasen), Griffe/Dialog zum Vergrößern/Verkleinern mit Abschneide-Warnung, Name/ID/Größe im Panel |
 | 3 Bauleiste & Kacheln | ✅ Kategorien → Bauleiste, Pinsel/Rechteck/Linie (Mauern rasten ein)/Füllen/Radierer, unbegrenztes Undo, Auswahl kopieren/ausschneiden/einfügen/löschen/verschieben |
-| 5 Spawns/Loot/Tiere/Wetter | ✅ Start, Zombie-Spawns (nur draußen; Anzahl, Respawn, Horden-Punkt), Zonen-Dichte/Nacht-Tempo/Horde, Loot-Räume (Tabelle, Chance, Nachschub, Wahrscheinlichkeiten), Hasen-Bereiche, Wetter, Musik-Ordner – leer = globaler Standard (im Panel angezeigt). **Spiel wertet alles aus** (s. u.) |
 | 4 Objekte | ✅ Katalog aus Spiel-Registries, Platzieren mit grün/rot, verschieben/löschen/duplizieren/Mehrfachauswahl, drehen 90° + frei, Eigenschaften-Panel |
+| 5 Spawns/Loot/Tiere/Wetter | ✅ Start, Zombie-Spawns (nur draußen; Anzahl, Respawn, Horden-Punkt), Zonen-Dichte/Nacht-Tempo/Horde, Loot-Räume (Tabelle, Chance, Nachschub, Wahrscheinlichkeiten), Hasen-Bereiche, Wetter, Musik-Ordner – leer = globaler Standard (im Panel angezeigt). **Spiel wertet alles aus** (s. u.) |
+| 6 Räume & Gebäude | ✅ Räume markieren (Rechteck / Füllen bis zu Wänden) mit Name + Loot-Tabelle, Reiter „Räume“, Innen/Außen-Anzeige (Welt.istInnen), Prefabs: eingebaut (Wohnhaus, Werkstatt, Hütte, Garten mit Zaun, Parkplatz) + eigene (lokal, als Datei), Einfügen hängt an der Maus (R dreht, stempelt den Bereich), Räume reisen mit (Buchstaben-Konflikte werden umbenannt) |
 
 **Aufbau:**
 ```
@@ -773,7 +774,8 @@ editor/
 │   ├── katalog.js      Bauleiste: Kacheln/Objekte/Bauwerke/Marker/Bereiche/Werkzeuge je Kategorie
 │   ├── raster.js       Linie, Einrasten, Rechteck, Pinsel, Füllen, Rechteck-Zerlegung
 │   ├── zone.js         neue Zone, Größe ändern (+ Abgeschnittenes)
-│   ├── auswahl.js      Kopieren/Einfügen/Löschen/Drehen von Bereichen (= Prefab-Vorlagen)
+│   ├── auswahl.js      Kopieren/Einfügen (stempelt, Räume reisen mit: raumZuordnung)/Löschen/Drehen von Bereichen (= Prefab-Vorlagen)
+│   ├── prefabs.js      eingebaute Prefabs (als Mini-Karten im Spielformat), Prefab-Datei
 │   ├── platzierung.js  grün/rot-Prüfung (Möbel-Kollision wie Spiel)
 │   ├── validierung.js  Live-Prüfung über echten Lader + Welt (blockiert, innen, Erreichbarkeit, Übergänge)
 │   ├── innen.js        innenRaster (Welt.istInnen), pruefWelt (lädt auch unfertige Karten)
@@ -781,6 +783,7 @@ editor/
 │   └── veroeffentlichen.js  <id>.js im Kartenstil (alsJsModul) + KARTEN-Zeilen
 └── ui/     (Browser) zustand.js (Projekt, Auswahl, Autosave) · zeichner2d.js (Canvas, Lineale) · werkzeuge.js (Zeiger/Touch)
             bauleiste.js · panel.js · dialoge.js · speicher.js (IndexedDB …) · erweiterungen.js (Phasen 5–10)
+            prefabUi.js (Reiter Prefabs) · raeumeUi.js (Reiter Räume)
 ```
 **Spiel-Seite (Phase 5, abwärtskompatibel – Karten ohne die Felder verhalten sich wie bisher):** `server/spiel/karten/zonenEinstellungen.js` (ZONEN_EINSTELLUNGEN = welche Werte eine Zone überschreiben darf, `zonenKonfiguration` legt sie per Prototyp über die gemeinsame Konfiguration → `spielWelt.konfiguration`),
 `kartenLader.verarbeiteKarte` liefert zusätzlich `einstellungen`, `bauwerke`, `tierBereiche`, Spawns mit `respawnZeit/horde` (× Anzahl × Dichte), Loot-Punkte mit `spawnChance/respawnZeit`, feste `groesse`, `terrain.steil` → Objekte `hang` (ebene `unsichtbar`, Renderer/Karte überspringen), `daten.musik`;

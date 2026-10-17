@@ -2,7 +2,7 @@ import { linie, rasteEin, rechteck, rechteckAus, pinsel, fuellen, kachelOps, nur
 import { markerSchluessel, ausSchluessel, kopie } from '../kern/karte.js';
 import { pruefeObjekt, pruefeMarker, pruefeBauwerk, pruefeBereich } from '../kern/platzierung.js';
 import { terrainHeben, terrainGlaetten, terrainEbnen } from '../kern/terrain.js';
-import { elementeIn } from '../kern/auswahl.js';
+import { elementeIn, dreheVorlage } from '../kern/auswahl.js';
 import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
 import { LINEAL } from './zeichner2d.js';
 import { STANDARD_KONFIGURATION } from '../../server/spiel/konfiguration/spielKonfiguration.js';
@@ -126,6 +126,11 @@ export class Werkzeuge {
       return;
     }
     if (w === 'raumFuellen') return this.#raumFuellen(p);
+    if (w === 'einfuegen') {
+      const v = this.zustand.einfuegeVorlage;
+      if (v) this.aktionen.einfuegenBei(v, p.tx - Math.floor(v.b / 2), p.ty - Math.floor(v.h / 2), e.shiftKey);
+      return;
+    }
     if (w === 'pipette') return this.#pipette(p);
   }
 
@@ -398,6 +403,14 @@ export class Werkzeuge {
     } else if ((w === 'malen' && zustand.malModus === 'pinsel') || w === 'radierer') {
       v = { kacheln: nurImFeld(this.karte, pinsel(p.tx, p.ty, zustand.pinselGroesse)), farbe: w === 'radierer' ? 'rgba(255,80,80,0.5)' : e?.farbe };
     } else if (w === 'terrain') v = { kreis: { x: p.tx + 0.5, y: p.ty + 0.5, r: zustand.pinselGroesse / 2 + 0.5 } };
+    else if (w === 'einfuegen' && zustand.einfuegeVorlage) {
+      const vl = zustand.einfuegeVorlage;
+      const r = { x: p.tx - Math.floor(vl.b / 2), y: p.ty - Math.floor(vl.h / 2), b: vl.b, h: vl.h };
+      const drin = r.x >= 0 && r.y >= 0 && r.x + r.b <= this.karte.breite && r.y + r.h <= this.karte.hoehe;
+      const kacheln = [];
+      for (let y = 0; y < vl.h; y++) for (let x = 0; x < vl.b; x++) if (vl.zellen[y * vl.b + x] && vl.zellen[y * vl.b + x] !== ',') kacheln.push({ x: r.x + x, y: r.y + y });
+      v = { rechtecke: [r], kacheln, gueltig: drin, text: `${vl.name ?? 'Einfügen'} ${r.b} × ${r.h}${drin ? '' : ' – ragt hinaus (Teile fallen weg)'} · R dreht`, textX: r.x + r.b / 2, textY: r.y };
+    }
     else if (w === 'zone') {
       const g = this.#griffBei(p);
       this.leinwand.style.cursor = g ? (['l', 'r'].includes(g.id) ? 'ew-resize' : ['o', 'u'].includes(g.id) ? 'ns-resize' : g.id === 'lo' || g.id === 'ru' ? 'nwse-resize' : 'nesw-resize') : 'default';
@@ -446,6 +459,11 @@ export class Werkzeuge {
   /** R: Drehung für neue Objekte bzw. Auswahl um 90° drehen */
   drehe() {
     const zustand = this.zustand;
+    if (zustand.werkzeug === 'einfuegen' && zustand.einfuegeVorlage) {
+      zustand.einfuegeVorlage = dreheVorlage(zustand.einfuegeVorlage);
+      if (this.letzteHover) this.#hoverVorschau(this.letzteHover, false);
+      return;
+    }
     if (zustand.werkzeug === 'platzieren') {
       zustand.drehung = (zustand.drehung + 90) % 360;
       zustand.meldung(`Drehung ${zustand.drehung}°`);

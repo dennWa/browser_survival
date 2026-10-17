@@ -54,7 +54,34 @@ export function kopiere(karte, r, { nurKacheln = false, name = null } = {}) {
     const [x, y] = ausSchluessel(k);
     return [x - rr.x, y - rr.y, kopie(karte.s('marker').get(k))];
   });
+  v.raeume = {};
+  for (const raum of [...v.marker.map(([, , m]) => m.raum), ...v.raumFlaechen.map((r) => r.raum)]) if (raum && karte.s('raeume').has(raum)) v.raeume[raum] = kopie(karte.s('raeume').get(raum));
   return v;
+}
+
+/** Raum-Buchstaben der Vorlage → Buchstaben der Zielkarte (+ Operationen für neue Räume) */
+export function raumZuordnung(karte, raeume = {}) {
+  const zuordnung = {};
+  const ops = [];
+  const belegt = new Set(karte.s('raeume').keys());
+  const gleich = (a, b) => a && b && a.name === b.name && a.lootTabelle === b.lootTabelle;
+  for (const [alt, raum] of Object.entries(raeume)) {
+    if (gleich(karte.s('raeume').get(alt), raum)) {
+      zuordnung[alt] = alt;
+      continue;
+    }
+    const vorhanden = [...karte.s('raeume')].find(([, r]) => gleich(r, raum));
+    if (vorhanden) {
+      zuordnung[alt] = vorhanden[0];
+      continue;
+    }
+    const neu = belegt.has(alt) ? 'abcdefghijklmnopqrstuvwxyz'.split('').find((b) => !belegt.has(b)) : alt;
+    if (!neu) continue; // alle 26 vergeben → Loot-Punkte dieses Raums fallen weg (gemeldet über weggelassen)
+    belegt.add(neu);
+    zuordnung[alt] = neu;
+    ops.push({ s: 'raeume', k: neu, neu: kopie(raum) });
+  }
+  return { zuordnung, ops };
 }
 
 /** Löschen: Kacheln → fuellung (null = Kacheln lassen), Elemente im Rechteck entfernen */
@@ -72,11 +99,15 @@ export function loescheOps(karte, r, { fuellung = ',', elemente = true } = {}) {
 }
 
 /**
- * Vorlage bei (x, y) einfügen. Teile außerhalb der Zone werden weggelassen und gemeldet.
+ * Vorlage bei (x, y) einfügen (ersetzen = vorhandene Elemente im Zielbereich entfernen). Teile außerhalb der Zone werden
+ * weggelassen und gemeldet.
  * @returns {{ ops, weggelassen: number, neueIds: { objekte: [] … } }}
  */
-export function einfuegeOps(karte, v, x, y) {
-  const ops = [];
+export function einfuegeOps(karte, v, x, y, { ersetzen = true } = {}) {
+  const { zuordnung, ops } = raumZuordnung(karte, v.raeume);
+  // Stempeln: was im Zielbereich steht (Objekte, Marker, Bauwerke, Bereiche), weicht der Vorlage
+  if (ersetzen) ops.unshift(...loescheOps(karte, { x, y, b: v.b, h: v.h }, { fuellung: null }));
+  const raumNeu = (r) => (r && v.raeume && Object.hasOwn(v.raeume, r) ? (zuordnung[r] ?? null) : r);
   let weggelassen = 0;
   const neueIds = Object.fromEntries(ID_SAMMLUNGEN.map((s) => [s, []]));
   for (let dy = 0; dy < v.h; dy++)
@@ -91,7 +122,8 @@ export function einfuegeOps(karte, v, x, y) {
   for (const s of MIT_RECHTECK) {
     for (const o of v[s] ?? []) {
       const neu = { ...kopie(o), x: o.x + x, y: o.y + y };
-      if (!drin({ x: neu.x, y: neu.y, b: neu.b ?? 1, h: neu.h ?? 1 })) {
+      if (s === 'raumFlaechen') neu.raum = raumNeu(o.raum);
+      if (!drin({ x: neu.x, y: neu.y, b: neu.b ?? 1, h: neu.h ?? 1 }) || (s === 'raumFlaechen' && !neu.raum)) {
         weggelassen++;
         continue;
       }
@@ -109,11 +141,13 @@ export function einfuegeOps(karte, v, x, y) {
     ops.push({ s: 'bauwerke', k: naechste++, neu });
   }
   for (const [dx, dy, m] of v.marker ?? []) {
-    if (!karte.imFeld(x + dx, y + dy)) {
+    const neu = kopie(m);
+    if (neu.art === 'loot') neu.raum = raumNeu(m.raum);
+    if (!karte.imFeld(x + dx, y + dy) || (neu.art === 'loot' && !neu.raum)) {
       weggelassen++;
       continue;
     }
-    ops.push({ s: 'marker', k: markerSchluessel(x + dx, y + dy), neu: kopie(m) });
+    ops.push({ s: 'marker', k: markerSchluessel(x + dx, y + dy), neu });
   }
   return { ops, weggelassen, neueIds };
 }
