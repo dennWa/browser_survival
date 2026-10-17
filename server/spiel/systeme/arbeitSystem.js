@@ -1,11 +1,11 @@
 import { BETT_REICHWEITE } from '../../../gemeinsam/konstanten.js';
 import { ABBAU_REICHWEITE } from '../../../gemeinsam/welt/ressourcen.js';
 import { sekundenFuerStunden, tageszeit } from '../../../gemeinsam/tageszeit.js';
-import { fuegeZumInventarHinzu, legeAufBoden } from './inventarSystem.js';
+import { fuegeZumInventarHinzu, legeAufBoden, nutzeWerkzeug } from './inventarSystem.js';
 import { gibXp } from './levelSystem.js';
 import { GEGENSTAENDE } from '../konfiguration/gegenstaende.js';
 import { sammelFaktor } from '../../../gemeinsam/spieler/skills.js';
-import { aktualisiereBauwerke, kochenFertig } from './bauSystem.js';
+import { aktualisiereBauwerke } from './bauSystem.js';
 
 /**
  * Arbeiten, die Zeit brauchen: Bäume fällen / Steine abbauen (Werkzeug nötig) und Schlafen im Bett.
@@ -90,11 +90,6 @@ export function aktualisiereArbeit(spielWelt, dt) {
       spieler.leben = Math.min(spieler.maxLeben, spieler.leben + SITZ_HEILUNG * dt);
       continue;
     }
-    if (a.art === 'kochen') {
-      a.rest -= dt;
-      if (a.rest <= 0) kochenFertig(spielWelt, spieler);
-      continue;
-    }
     if (!spielWelt.welt.istRessourceDa(a.ressourceId)) {
       spieler.arbeit = null;
       continue;
@@ -114,9 +109,12 @@ export function aktualisiereArbeit(spielWelt, dt) {
 
 function schliesseAbbauAb(spielWelt, spieler, r) {
   const k = spielWelt.konfiguration.ressourcen[r.art];
-  const menge = k.menge + (spielWelt.zufall.zahl() < (k.chanceAufMehr ?? 0) ? 1 : 0);
+  // Große Bäume/Steine geben mehr (mengeGross), beide mit Glückschance auf +1
+  const grundMenge = r.groesse === 'gross' ? k.mengeGross ?? k.menge : k.menge;
+  const menge = grundMenge + (spielWelt.zufall.zahl() < (k.chanceAufMehr ?? 0) ? 1 : 0);
   const nachwachsen = k.nachwachsen;
   spieler.arbeit = null;
+  nutzeWerkzeug(spielWelt, spieler, r.werkzeug);
   const rest = fuegeZumInventarHinzu(spieler, r.art, menge);
   if (rest > 0) {
     legeAufBoden(spielWelt, { defId: r.art, menge: rest }, spieler.x, spieler.y);

@@ -26,10 +26,11 @@ export const KARTEN = Object.freeze({
 export function ladeKarte(id) {
   const definition = KARTEN[id];
   if (!definition) throw new Error(`Unbekannte Karte: "${id}"`);
-  return verarbeiteKarte(definition);
+  // Die großen Karten sind zu dicht bewaldet: beim Laden wird ein Teil der Bäume weggelassen (Testkarten nicht)
+  return verarbeiteKarte(definition, KACHEL_GROESSE, { ausduennen: true });
 }
 
-export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE) {
+export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE, { ausduennen = false } = {}) {
   const roh = definition.kacheln;
   const hoehe = roh.length;
   const breite = roh[0]?.length ?? 0;
@@ -83,11 +84,13 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE) {
     y: punkte.reduce((s, p) => s + p.y, 0) / punkte.length,
   }));
 
-  const objekte = (definition.objekte ?? []).map((o, i) => {
+  const objekte = (definition.objekte ?? []).filter((o) => !(ausduennen && (o.typ === 'baum' || o.typ === 'baum_herbst') && streuwert(o.x, o.y, 1) < BAUM_AUSDUENNUNG)).map((o, i) => {
     if (!o.typ || ![o.x, o.y, o.b, o.h].every(Number.isFinite)) {
       throw new Error(`Karte "${definition.id}": Objekt #${i} unvollständig (typ, x, y, b, h nötig)`);
     }
     const objekt = { typ: o.typ, x: o.x, y: o.y, b: o.b, h: o.h, blockiert: !!o.blockiert, ebene: o.ebene ?? 'moebel', drehung: o.drehung ?? 0 };
+    // Bäume & Steine: klein (1 Holz/Stein) oder groß (2) – feste Zufallsverteilung nach Position, kein Eintrag in der Karte nötig
+    if (GROESSEN_TYPEN.includes(o.typ)) objekt.groesse = streuwert(o.x, o.y, 2) < ANTEIL_GROSS ? 'gross' : 'klein';
     // Lampen: Radius (Kacheln), Farbe, Stärke 0..1, Flackern
     if (o.typ === 'licht') Object.assign(objekt, { ebene: 'licht', radius: o.radius ?? 4, farbe: o.farbe ?? '#ffd9a0', staerke: o.staerke ?? 0.85, flackern: !!o.flackern, mast: !!o.mast });
     return objekt;
@@ -125,4 +128,15 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE) {
 function ermittleUntergrund(zeilen, x, y) {
   const nachbarn = [zeilen[y][x - 1], zeilen[y][x + 1], zeilen[y - 1]?.[x], zeilen[y + 1]?.[x]];
   return nachbarn.find((z) => z !== undefined && istKachel(z) && !KACHELN[z].blockiert) ?? '.';
+}
+
+/** Anteil der Bäume, der beim Laden weggelassen wird (Karten sind sonst zu dicht bewaldet). */
+const BAUM_AUSDUENNUNG = 0.35;
+const ANTEIL_GROSS = 0.4;
+const GROESSEN_TYPEN = ['baum', 'baum_herbst', 'stein'];
+
+/** Fester Pseudo-Zufallswert 0..1 aus einer Position (gleiche Karte → gleiche Auswahl, auf Server und Client). */
+function streuwert(x, y, salz) {
+  const n = Math.sin(x * 127.1 + y * 311.7 + salz * 74.7) * 43758.5453;
+  return n - Math.floor(n);
 }

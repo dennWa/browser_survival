@@ -50,7 +50,7 @@ export function behandleAngelKlick(spielWelt, spieler) {
   spieler.nachladenRest = 0;
   spieler.angeln = { phase: 'wartet', rest: k.wartenMin + spielWelt.zufall.zahl() * (k.wartenMax - k.wartenMin), x: ziel.x, y: ziel.y, startX: spieler.x, startY: spieler.y };
   spielWelt.ereignis({ typ: 'angelWurf', von: spieler.id, x: ziel.x, y: ziel.y });
-  spielWelt.melde(spieler.id, '🎣 Pose ausgeworfen – warte auf den Biss …');
+  spielWelt.melde(spieler.id, '🎣 Warten auf den Biss …');
   return true;
 }
 
@@ -86,14 +86,25 @@ function faenge(spielWelt, spieler) {
   const k = spielWelt.konfiguration.angeln;
   const a = spieler.angeln;
   spieler.angeln = null;
-  const anzahl = spielWelt.zufall.zahl() < k.doppelChance ? 2 : 1;
-  const tabelle = Object.entries(k.fische).map(([id, gewicht]) => ({ id, gewicht }));
-  const namen = [];
-  for (let i = 0; i < anzahl; i++) {
-    const { id } = spielWelt.zufall.gewichteteAuswahl(tabelle);
-    namen.push(GEGENSTAENDE[id].name);
-    if (fuegeZumInventarHinzu(spieler, id, 1) > 0) legeAufBoden(spielWelt, { defId: id, menge: 1 }, spieler.x, spieler.y);
+  const waehle = (gewichte) => spielWelt.zufall.gewichteteAuswahl(Object.entries(gewichte).map(([id, gewicht]) => ({ id, gewicht }))).id;
+  // Beute-Kategorie: 50 % Fisch, 40 % Müll/Stoff/Schrott, 10 % Munition
+  const kategorie = waehle(k.beute);
+  const funde = []; // [{ defId, menge }]
+  if (kategorie === 'fisch') {
+    const anzahl = spielWelt.zufall.zahl() < k.doppelChance ? 2 : 1;
+    for (let i = 0; i < anzahl; i++) funde.push({ defId: waehle(k.fische), menge: 1 });
+  } else if (kategorie === 'muell') {
+    funde.push({ defId: waehle(k.muell), menge: 1 });
+  } else {
+    const [min, max] = k.munitionMenge;
+    funde.push({ defId: waehle(k.munition), menge: spielWelt.zufall.ganzzahl(min, max) });
   }
-  spielWelt.ereignis({ typ: 'gefangen', von: spieler.id, x: a.x, y: a.y, anzahl });
-  spielWelt.melde(spieler.id, anzahl > 1 ? `🎣 Doppelfang! ${namen.join(' + ')}` : `🎣 ${namen[0]} gefangen!`);
+  const namen = [];
+  for (const f of funde) {
+    namen.push(f.menge > 1 ? `${GEGENSTAENDE[f.defId].name} ×${f.menge}` : GEGENSTAENDE[f.defId].name);
+    if (fuegeZumInventarHinzu(spieler, f.defId, f.menge) > 0) legeAufBoden(spielWelt, f, spieler.x, spieler.y);
+  }
+  spielWelt.ereignis({ typ: 'gefangen', von: spieler.id, x: a.x, y: a.y, anzahl: funde.length, kategorie });
+  const emoji = kategorie === 'fisch' ? '🎣' : kategorie === 'muell' ? '🗑️' : '🔫';
+  spielWelt.melde(spieler.id, funde.length > 1 ? `${emoji} Doppelfang! ${namen.join(' + ')}` : `${emoji} ${namen[0]}${kategorie === 'fisch' ? ' gefangen!' : ' aus dem Wasser gezogen'}`);
 }

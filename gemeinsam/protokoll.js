@@ -60,6 +60,8 @@ export const NACHRICHT = Object.freeze({
   BAUWERKE_AENDERUNG: 'bauwerkeAenderung',
   /** { id, inhalt: [16 Plätze] | null } – Inhalt der geöffneten Lagerkiste (null = geschlossen). Nur an den, der sie geöffnet hat. */
   KISTE: 'kiste',
+  /** { id, art, plaetze:[{defId,menge,zeit,dauer,verbrennt}|null], brennt, brennRest, brennstoff? } – Ansicht der geöffneten Station (Lagerfeuer-Koch-UI, Schmelzofen); nur an den Öffner, ca. 2×/s; plaetze null = geschlossen */
+  STATION: 'station',
   /** { t } */
   PONG: 'pong',
   /** { von, text, admin, system } – Chatnachricht (system = Server-Hinweis wie "X ist beigetreten"); Typ wie CHAT */
@@ -87,6 +89,11 @@ export const AKTIONEN = Object.freeze({
   KISTE_LEGEN: 'kisteLegen', // { slot } Stapel aus dem Inventar in die geöffnete Lagerkiste legen
   KISTE_NEHMEN: 'kisteNehmen', // { slot } Stapel aus der geöffneten Kiste (Kistenplatz 0..15) ins Inventar nehmen
   KISTE_SCHLIESSEN: 'kisteSchliessen', // geöffnete Kiste schließen
+  STATION_LEGEN: 'stationLegen', // { slot } 1 Stück aus dem Inventar in die geöffnete Station (Koch-Slot, Ofen; Holz im Ofen = Brennstoff)
+  STATION_NEHMEN: 'stationNehmen', // { slot } Koch-/Ofenplatz leeren (Item ins Inventar); slot = -1… nicht erlaubt, Platz 0..
+  STATION_SCHLIESSEN: 'stationSchliessen', // geöffnete Station schließen
+  STATION_SITZEN: 'stationSitzen', // am geöffneten (brennenden) Lagerfeuer hinsetzen
+  FELD_ENTFERNEN: 'feldEntfernen', // { tx, ty } mit der Hacke in der Hand ein Ackerfeld (Beet) wieder zu Rasen machen (Rechtsklick)
   SKILL: 'skill', // { skill } einen Skillpunkt verteilen (gemeinsam/spieler/skills.js)
   FAHRZEUG: 'fahrzeug', // ins nächste freie Auto einsteigen bzw. aussteigen
   NACHLADEN: 'nachladen', // ausgerüstete Schusswaffe nachladen
@@ -110,6 +117,8 @@ export const ADMIN_BEFEHLE = Object.freeze({
   ZEIT_SPRINGEN: 'zeitSpringen', // tagsüber → gleich Abend, nachts → gleich Morgen
   WETTER: 'wetter', // klar → Regen → Nebel → klar (zum Testen)
   FLIEGEN: 'fliegen', // an/aus: Flugmodus – schnell und ohne Kollision über die Karte gleiten (Umschalt+B)
+  UNENDLICH_MUNITION: 'unendlichMunition', // an/aus: Schusswaffen verbrauchen keine Munition (kein Nachladen)
+  ZEIT_VORSTELLEN: 'zeitVor12', // Uhr um 12 Spielstunden vorstellen (Pflanzen wachsen mit) – zum Testen von Wachstum und Tag/Nacht
   FLAGGE_ENTFERNEN: 'flaggeEntfernen', // eigene Basis-Flagge zurücknehmen (Bauteile bleiben stehen, gehören aber niemandem mehr)
 });
 

@@ -35,6 +35,7 @@ const BASIS = { item: null, nurAuf: BAUBARER_UNTERGRUND };
 export const BAUWERKE = Object.freeze({
   werkbank: { name: 'Werkbank', item: 'werkbank', blockiert: true },
   lagerfeuer: { name: 'Lagerfeuer', item: 'lagerfeuer', blockiert: true, draussen: true },
+  schmelzofen: { name: 'Schmelzofen', item: 'schmelzofen', blockiert: true, draussen: true },
   falle: { name: 'Falle', item: 'falle', blockiert: false },
   beet: { name: 'Beet', item: null, blockiert: false, nurAuf: ['gras'] },
   // --- Basisbau (Teile mit Kosten: gemeinsam/basisbau/teile.js) ---
@@ -67,8 +68,8 @@ export function sichtBlockiertBauwerk(b) {
   return def?.sichtBlockiert === true && !(def.schaltbar && b.offen === true);
 }
 
-/** Erdfeld (Spitzhacke, Taste G): quadratisch, FELD_GROESSE × FELD_GROESSE Kacheln, jede Kachel ein Beet. */
-export const FELD_GROESSE = 3;
+/** Ackerfeld (Hacke in der Hand: Linksklick): FELD_GROESSE × FELD_GROESSE Kacheln, jede Kachel ein Beet (1 = eine Kachel). */
+export const FELD_GROESSE = 1;
 
 /** Kacheln eines Erdfelds um die Mittelkachel (tx, ty). */
 export function feldKacheln(tx, ty) {
@@ -76,6 +77,30 @@ export function feldKacheln(tx, ty) {
   const liste = [];
   for (let y = ty - r; y < ty - r + FELD_GROESSE; y++) for (let x = tx - r; x < tx - r + FELD_GROESSE; x++) liste.push({ tx: x, ty: y });
   return liste;
+}
+
+/**
+ * Beet, in das Samen aus der Hand gepflanzt würden (Server UND Client-Indikator): das freie Beet in Reichweite, das dem Punkt
+ * vor der Figur (in Blickrichtung) am nächsten liegt – oder null.
+ */
+export function samenZiel(welt, x, y, blick) {
+  const g = welt.kachelGroesse;
+  const px = x + Math.cos(blick) * 30;
+  const py = y + Math.sin(blick) * 30;
+  let bestes = null;
+  let bestAbstand = Infinity;
+  for (const b of welt.bauwerke.values()) {
+    if (b.typ !== 'beet' || b.pflanze) continue;
+    const bx = (b.tx + 0.5) * g;
+    const by = (b.ty + 0.5) * g;
+    if (Math.hypot(bx - x, by - y) > BAUWERK_REICHWEITE + 12) continue;
+    const abstand = Math.hypot(bx - px, by - py);
+    if (abstand < bestAbstand) {
+      bestAbstand = abstand;
+      bestes = b;
+    }
+  }
+  return bestes;
 }
 
 /** So weit (px, Spieler → Kachelmitte) darf man von sich weg bauen. */
@@ -164,11 +189,10 @@ export function bauwerkAktion(b, inventar, name = null, flaggeDort = null) {
     case 'falle':
       return b.gespannt ? { art: 'aufnehmen', text: 'Falle aufnehmen', symbol: '🪤' } : { art: 'spannen', text: 'Falle spannen', symbol: '🪤' };
     case 'lagerfeuer': {
-      const roh = b.brennt ? inventar.find((e) => e && KOCHBAR[e.defId]) : null;
-      if (roh) return { art: 'kochen', text: roh.defId === 'kartoffel' ? 'Kartoffel backen' : 'Braten', symbol: '🍳' };
-      if (b.brennt) return { art: 'sitzen', text: 'Ans Feuer setzen', symbol: '🔥' };
-      return null;
+      return { art: 'station', text: b.brennt ? 'Feuer: braten & hinsetzen' : 'Lagerfeuer-Menü', symbol: '🔥' };
     }
+    case 'schmelzofen':
+      return { art: 'station', text: 'Schmelzofen benutzen', symbol: '🏭' };
     case 'kiste':
       return { art: 'oeffnen', text: 'Kiste öffnen', symbol: '📦' };
     case 'holztuer':

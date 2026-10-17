@@ -460,13 +460,13 @@ export class KartenModell {
         const m = new THREE.Matrix4().compose(
           new THREE.Vector3(x, 6, z),
           new THREE.Quaternion().setFromEuler(erz ? new THREE.Euler(0, zufall * 7, 0) : new THREE.Euler(zufall * 3, zufall * 7, zufall * 2)),
-          new THREE.Vector3(1 + zufall * 0.4, 0.7 + zufall * 0.3, 1.1 - zufall * 0.3),
+          new THREE.Vector3(1 + zufall * 0.4, 0.7 + zufall * 0.3, 1.1 - zufall * 0.3).multiplyScalar(erz ? 1 : o.groesse === 'gross' ? 1.3 : 0.8),
         );
         eintrag.teile.push(erz ? { mesh: this.erze, index: erzIndex++, matrix: m } : { mesh: this.steine, index: steinIndex++, matrix: m });
       } else {
         const art = this.baumArten.get(o.typ);
         // Größe passend zur Grundfläche, dazu etwas Zufall in Größe und Drehung – kein Baum gleicht dem anderen
-        const groesse = ((Math.min(o.b, o.h) * g) / art.grundflaeche) * (0.9 + zufall * 0.22);
+        const groesse = ((Math.min(o.b, o.h) * g) / art.grundflaeche) * (0.9 + zufall * 0.22) * (o.groesse === 'gross' ? 1.25 : o.groesse === 'klein' ? 0.8 : 1);
         const matrix = matrixAus(x, 0, z, zufall * Math.PI * 2, groesse);
         const index = art.naechster++;
         eintrag.teile.push({ mesh: art.mesh, index, matrix }, { mesh: art.rand, index, matrix });

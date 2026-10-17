@@ -386,7 +386,8 @@ function findeRessourcen(welt) {
   for (const o of welt.objekte) {
     const def = RESSOURCEN_OBJEKTE[o.typ];
     if (!def) continue;
-    liste.push({ id: liste.length, typ: o.typ, art: def.art, werkzeug: def.werkzeug, x: (o.x + o.b / 2) * g, y: (o.y + o.h / 2) * g, radius: def.radius, objekt: o });
+    const gross = o.groesse === 'gross';
+    liste.push({ id: liste.length, typ: o.typ, art: def.art, werkzeug: def.werkzeug, groesse: o.groesse ?? 'klein', x: (o.x + o.b / 2) * g, y: (o.y + o.h / 2) * g, radius: gross ? def.radius * 1.2 : def.radius, objekt: o });
   }
   return liste;
 }

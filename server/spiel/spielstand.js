@@ -101,7 +101,7 @@ export function wendeSpielstandAn(spieler, stand, spielWelt) {
   const slot = stand.ausgeruestet;
   const waffe = Number.isInteger(slot) ? spieler.inventar[slot] : null;
   const kategorie = waffe && GEGENSTAENDE[waffe.defId].kategorie;
-  spieler.ausgeruestet = kategorie === 'nahkampf' || kategorie === 'fernkampf' ? slot : null;
+  spieler.ausgeruestet = kategorie === 'nahkampf' || kategorie === 'fernkampf' || (waffe && GEGENSTAENDE[waffe.defId].inHand) ? slot : null;
   aktualisiereAusruestung(spieler);
   return true;
 }
@@ -163,6 +163,7 @@ export function pruefeEintrag(e) {
     const magazin = Number.isInteger(e.magazin) ? begrenze(e.magazin, 0, def.magazin) : 0;
     return { defId: e.defId, menge: 1, magazin };
   }
+  if (def.haltbarkeit && Number.isFinite(e.haltbarkeit)) return { defId: e.defId, menge, haltbarkeit: begrenze(Math.round(e.haltbarkeit), 1, def.haltbarkeit) };
   return { defId: e.defId, menge };
 }
 

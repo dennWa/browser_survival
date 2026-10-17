@@ -67,8 +67,13 @@ export function aktualisiereAusdauer(koerper, willSprinten, p, dt) {
     koerper.ausdauer = p.ausdauerMax;
     koerper.erschoepft = false;
   }
-  const sprintet = willSprinten && !koerper.erschoepft && koerper.ausdauer > 0;
-  if (sprintet) {
+  // Boost (Energydrink): läuft in Echtzeit ab, Sprinten kostet währenddessen keine Ausdauer
+  const boost = koerper.boostRest > 0;
+  if (boost) koerper.boostRest = Math.max(0, koerper.boostRest - dt);
+  const sprintet = willSprinten && (boost || (!koerper.erschoepft && koerper.ausdauer > 0));
+  if (sprintet && boost) {
+    // kostenlos
+  } else if (sprintet) {
     koerper.ausdauer -= p.ausdauerVerbrauch * dt;
     if (koerper.ausdauer <= 0) {
       koerper.ausdauer = 0;

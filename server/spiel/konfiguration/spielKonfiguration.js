@@ -107,7 +107,12 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     bissMin: 2, // Zeitfenster, in dem die Pose wackelt (Sekunden)
     bissMax: 3,
     doppelChance: 0.1, // 10 %: gleich 2 Fische
-    fische: { fisch_barsch: 5, fisch_forelle: 3, fisch_hecht: 1.5 }, // Gewichte
+    fische: { fisch_barsch: 5, fisch_forelle: 3, fisch_hecht: 1.5 }, // Gewichte innerhalb der Kategorie 'fisch'
+    /** Beute-Kategorien (Gewichte 50/40/10): Fisch, Müll/Stoff/Schrott, Munition */
+    beute: { fisch: 50, muell: 40, munition: 10 },
+    muell: { muell: 3, stoff: 2, schrott: 2 }, // Gewichte innerhalb der Kategorie 'muell'
+    munition: { munition_9mm: 3, munition_12: 1 }, // Gewichte; Stückzahl siehe munitionMenge
+    munitionMenge: [3, 8],
   },
   /** Wetter: wechselt zufällig zwischen klar, Regen und Nebel (Dauer 1–5 Minuten). Regen halbiert die Wachstumszeit. */
   wetter: {
@@ -135,8 +140,8 @@ export const STANDARD_KONFIGURATION = Object.freeze({
    * nachwachsen in Sekunden. Welche Objekte abbaubar sind: gemeinsam/welt/ressourcen.js
    */
   ressourcen: {
-    holz: { menge: 1, chanceAufMehr: 0.2, dauer: 6, nachwachsen: 300 },
-    stein: { menge: 1, chanceAufMehr: 0.2, dauer: 8, nachwachsen: 240 },
+    holz: { menge: 1, mengeGross: 2, chanceAufMehr: 0.2, dauer: 6, nachwachsen: 300 },
+    stein: { menge: 1, mengeGross: 2, chanceAufMehr: 0.2, dauer: 8, nachwachsen: 240 },
     eisenerz: { menge: 1, chanceAufMehr: 0.2, dauer: 10, nachwachsen: 420 },
   },
 
@@ -155,8 +160,12 @@ export const STANDARD_KONFIGURATION = Object.freeze({
   },
   /** Bauwerke (gemeinsam/welt/bauwerke.js): Lagerfeuer, Kochen, Beete */
   bauen: {
-    brennDauer: 300, // Sekunden, die ein angezündetes Lagerfeuer brennt
-    kochDauer: 4, // Sekunden pro gebratenem Lebensmittel
+    brennDauer: 180, // Sekunden, die ein angezündetes Lagerfeuer brennt (3 Minuten); jedes Holz in der Hand (Linksklick) verlängert um so viel
+    brennMax: 1800, // so lange kann ein Feuer höchstens am Stück brennen (durch Nachlegen)
+    kochDauer: 20, // Sekunden, bis Fleisch/Fisch/Gemüse am Feuer fertig gebraten ist
+    verbrennDauer: 30, // Sekunden insgesamt: bleibt es länger im Feuer, verbrennt es zu 'verkohlt'
+    schmelzDauer: 15, // Sekunden pro Eisenerz im Schmelzofen (solange er heiß ist)
+    ofenBrennDauer: 40, // Sekunden Hitze pro Holz im Schmelzofen
     wachstumsTage: 1, // Pflanzen brauchen so viele Spieltage (1 = 24 Spielstunden; Schlafen spult mit vor)
     ernteMenge: 2, // Früchte pro Ernte
   },

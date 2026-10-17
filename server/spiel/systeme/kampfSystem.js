@@ -2,12 +2,13 @@ import { brecheArbeitAb } from './arbeitSystem.js';
 import { strahlGegenWaende, strahlTrifftKreis } from '../../../gemeinsam/physik/strahl.js';
 import { bewegeKoerper } from '../../../gemeinsam/physik/bewegung.js';
 import { NAHKAMPF_KEGEL, STANDARD_AUSRUESTUNG } from '../konfiguration/gegenstaende.js';
-import { aktuelleWaffe, legeAufBoden, pflanzeSamenAusHand, legeRucksackAb, starteNachladen, zaehleMunition } from './inventarSystem.js';
+import { aktuelleWaffe, konsumiere, legeAufBoden, pflanzeSamenAusHand, legeRucksackAb, starteNachladen, zaehleMunition } from './inventarSystem.js';
 import { gibXp, setzeLevelZurueck } from './levelSystem.js';
 import { staerkeFaktor } from '../../../gemeinsam/spieler/skills.js';
 import { aussteigen, schlageFahrzeug } from './fahrzeugSystem.js';
 import { behandleAngelKlick, brecheAngelnAb } from './angelSystem.js';
 import { planeTierRespawn } from './tierSystem.js';
+import { schuereFeuer } from './stationSystem.js';
 import { lasseBossLootFallen, lasseZombieLootFallen } from './lootSystem.js';
 
 /**
@@ -29,12 +30,22 @@ export function aktualisiereKampf(spielWelt, dt) {
     else if (def.kategorie === 'samen') {
       // Samen in der Hand: Linksklick pflanzt ins nächste freie Beet (kein Angriff)
       spieler.angriffsAbklingzeit = pflanzeSamenAusHand(spielWelt, spieler, def) ? 0.5 : 1.2;
+    } else if (def.kategorie === 'nahrung' || def.kategorie === 'getraenk' || def.kategorie === 'medizin') {
+      // Essen/Trinken/Medizin in der Hand: Linksklick verbraucht ein Stück
+      spieler.angriffsAbklingzeit = konsumiere(spielWelt, spieler, spieler.ausgeruestet) ? 0.8 : 0.4;
+    } else if (eintrag?.defId === 'holz') {
+      // Holz in der Hand: Linksklick aufs Lagerfeuer = nachlegen (+3 min)
+      spieler.angriffsAbklingzeit = schuereFeuer(spielWelt, spieler, spieler.ausgeruestet) ? 0.6 : 1.0;
+    } else if (def.ausruestung === 'hacke') {
+      // Hacke in der Hand: Linksklick legt ein Ackerfeld an (Client schickt AKTION feld), kein Nahkampf
+      spieler.angriffsAbklingzeit = 0.2;
     } else if (def.kategorie === 'nahkampf') nahkampf(spielWelt, spieler, def);
     // sonstiges in der Hand (Angel): Linksklick ist kein Angriff (Auswerfen läuft über behandleAngelKlick)
   }
 }
 
 function schiessen(spielWelt, spieler, eintrag, def) {
+  if (eintrag.magazin <= 0 && spieler.unendlichMunition) eintrag.magazin = def.magazin; // Admin: nie leer
   if (eintrag.magazin <= 0) {
     // Leer: automatisch nachladen, sonst "Klick"
     if (zaehleMunition(spieler, def.munition) > 0) {
@@ -45,7 +56,7 @@ function schiessen(spielWelt, spieler, eintrag, def) {
     }
     return;
   }
-  eintrag.magazin -= 1;
+  if (!spieler.unendlichMunition) eintrag.magazin -= 1;
   spieler.angriffsAbklingzeit = def.abklingzeit;
   spielWelt.setzeAktion(spieler, 'schiessen', SCHUSS_ANIMATION);
   // Ein "feuer" pro Abzug (Knall, Mündungsfeuer) – die Projektile kommen als einzelne "schuss"-Ereignisse

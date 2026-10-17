@@ -1,9 +1,10 @@
-import { BAUWERKE, BAUWERK_REICHWEITE, KOCHBAR, PFLANZEN, bauwerkAktion, feldKacheln, kachelInReichweite, pruefePlatz } from '../../../gemeinsam/welt/bauwerke.js';
+import { BAUWERKE, BAUWERK_REICHWEITE, PFLANZEN, bauwerkAktion, feldKacheln, kachelInReichweite, pruefePlatz } from '../../../gemeinsam/welt/bauwerke.js';
 import { flaggeFuerBauteil, gebietBei } from './territoriumSystem.js';
 import { RECHT, hatRecht } from '../../../gemeinsam/basisbau/rechte.js';
 import { setzeSpawn } from './spawnSystem.js';
 import { GEGENSTAENDE } from '../konfiguration/gegenstaende.js';
-import { fuegeZumInventarHinzu, legeAufBoden, verbrauche } from './inventarSystem.js';
+import { fuegeZumInventarHinzu, legeAufBoden, nutzeWerkzeug, verbrauche } from './inventarSystem.js';
+import { aktualisiereStation, aktualisiereStationen, leerePlaetze, oeffneStation } from './stationSystem.js';
 import { toeten } from './kampfSystem.js';
 import { aktualisiereKisten, leererKistenInhalt, oeffneKiste } from './kistenSystem.js';
 import { WACHSTUM_REGEN_FAKTOR } from './wetterSystem.js';
@@ -15,7 +16,8 @@ import { WACHSTUM_REGEN_FAKTOR } from './wetterSystem.js';
  * geschützte Teile (Kiste, Tür, Bett) nur für ihren Besitzer bzw. Berechtigte (gemeinsam/basisbau/rechte.js).
  *
  *   AKTION platzieren { slot, tx, ty }  Item aus dem Inventar aufstellen
- *   AKTION feld { tx, ty }              mit der Hacke (in der Hand) ein Erdfeld FELD_GROESSE² um (tx, ty) anlegen
+ *   AKTION feld { tx, ty }              mit der Hacke (in der Hand) ein Ackerfeld (FELD_GROESSE², jetzt 1×1) anlegen
+ *   AKTION feldEntfernen { tx, ty }     mit der Hacke (in der Hand) ein Beet wieder zu Rasen machen
  *   AKTION feuer                        nächstes Lagerfeuer an (braucht Feuerzeug) / aus
  *   AKTION bauwerk                      E am nächsten Bauwerk: Falle aufnehmen/spannen, kochen, pflanzen, ernten
  *
@@ -62,7 +64,8 @@ function fremdesGebiet(spielWelt, spieler, tx, ty) {
 /** Frisches Bauwerk mit den Startwerten seines Typs (id vergibt die Welt). Auch für den Basisbau. */
 export function neuesBauwerk(spielWelt, typ, tx, ty, besitzer, zusatz = {}) {
   const b = { id: spielWelt.neueBauwerkId(), typ, tx, ty, besitzer, ...zusatz };
-  if (typ === 'lagerfeuer') Object.assign(b, { brennt: false, brennRest: 0 });
+  if (typ === 'lagerfeuer') Object.assign(b, { brennt: false, brennRest: 0, plaetze: leerePlaetze(typ) });
+  if (typ === 'schmelzofen') Object.assign(b, { brennt: false, brennRest: 0, brennstoff: 0, plaetze: leerePlaetze(typ) });
   if (typ === 'falle') b.gespannt = true;
   if (typ === 'beet') Object.assign(b, { pflanze: null, wachstum: 0 });
   if (typ === 'kiste') b.inhalt = leererKistenInhalt();
@@ -95,9 +98,24 @@ export function legeFeldAn(spielWelt, spieler, tx, ty) {
     }
   }
   for (const k of kacheln) welt.setzeBauwerk({ id: spielWelt.neueBauwerkId(), typ: 'beet', tx: k.tx, ty: k.ty, besitzer: spieler.name, pflanze: null, wachstum: 0 });
+  nutzeWerkzeug(spielWelt, spieler, 'hacke');
   const g = welt.kachelGroesse;
   spielWelt.ereignis({ typ: 'gebaut', bauwerk: 'beet', x: (tx + 0.5) * g, y: (ty + 0.5) * g, von: spieler.id });
-  spielWelt.melde(spieler.id, 'Erdfeld angelegt – jetzt Samen pflanzen (E)');
+  spielWelt.melde(spieler.id, 'Ackerfeld angelegt – Samen in die Hand nehmen und Linksklick');
+}
+
+/** AKTION feldEntfernen { tx, ty }: Hacke in der Hand → Beet (auch mit Pflanze) wird wieder Rasen. */
+export function entferneFeld(spielWelt, spieler, tx, ty) {
+  if (!Number.isInteger(tx) || !Number.isInteger(ty)) return;
+  if (spieler.inventar[spieler.ausgeruestet ?? -1]?.defId !== 'hacke') return;
+  const welt = spielWelt.welt;
+  if (!kachelInReichweite(welt, spieler.x, spieler.y, tx, ty)) return;
+  const beet = welt.bauwerkBei(tx, ty, 'objekt');
+  if (beet?.typ !== 'beet') return;
+  if (fremdesGebiet(spielWelt, spieler, tx, ty)) return;
+  welt.entferneBauwerk(beet.id);
+  const g = welt.kachelGroesse;
+  spielWelt.ereignis({ typ: 'gebaut', bauwerk: 'beet', x: (tx + 0.5) * g, y: (ty + 0.5) * g, von: spieler.id });
 }
 
 /** F am Lagerfeuer: anzünden (nur mit Feuerzeug) bzw. löschen. @returns true, wenn ein Feuer in Reichweite war */
@@ -110,6 +128,10 @@ export function feuer(spielWelt, spieler) {
   } else {
     if (!spieler.inventar.some((e) => e?.defId === 'feuerzeug')) {
       spielWelt.melde(spieler.id, 'Du brauchst ein Feuerzeug');
+      return true;
+    }
+    if (spielWelt.wetter?.art === 'regen') {
+      spielWelt.melde(spieler.id, 'Bei Regen brennt nichts');
       return true;
     }
     Object.assign(b, { brennt: true, brennRest: spielWelt.konfiguration.bauen.brennDauer });
@@ -147,8 +169,8 @@ export function benutzeBauwerk(spielWelt, spieler, bauwerkId = null, wunschPflan
     case 'spawn':
       setzeSpawn(spielWelt, spieler, b);
       return;
-    case 'sitzen':
-      setzeDich(spielWelt, spieler, b);
+    case 'station':
+      oeffneStation(spielWelt, spieler, b);
       return;
     case 'aufnehmen': {
       const rest = fuegeZumInventarHinzu(spieler, 'falle', 1);
@@ -168,9 +190,6 @@ export function benutzeBauwerk(spielWelt, spieler, bauwerkId = null, wunschPflan
       return;
     case 'oeffnen':
       oeffneKiste(spielWelt, spieler, b);
-      return;
-    case 'kochen':
-      spieler.arbeit = { art: 'kochen', dauer: k.kochDauer, rest: k.kochDauer, x: spieler.x, y: spieler.y, bauwerkId: b.id, naechsterSchlag: 99 };
       return;
     case 'pflanzen': {
       const hatSamen = (x) => spieler.inventar.some((e) => e?.defId === x.samen);
@@ -196,16 +215,6 @@ export function benutzeBauwerk(spielWelt, spieler, bauwerkId = null, wunschPflan
 }
 
 /** Holztür (Basisbau) öffnen/schließen. Zu geht nicht, solange jemand im Durchgang steht. */
-/** Ans brennende Lagerfeuer setzen (arbeit 'sitzen'): Zombies übersehen einen, solange sie nicht schon hinter einem her sind. */
-function setzeDich(spielWelt, spieler, feuer) {
-  if (!feuer.brennt) return;
-  const g = spielWelt.welt.kachelGroesse;
-  spieler.arbeit = { art: 'sitzen', dauer: 1e6, rest: 1e6, x: spieler.x, y: spieler.y, bauwerkId: feuer.id };
-  spieler.blick = Math.atan2((feuer.ty + 0.5) * g - spieler.y, (feuer.tx + 0.5) * g - spieler.x);
-  spieler.nachladenRest = 0;
-  spielWelt.melde(spieler.id, '🔥 Du sitzt am Feuer – hier ist es ruhig');
-}
-
 function schalteTuer(spielWelt, spieler, tuer) {
   if (tuer.offen && kachelBesetzt(spielWelt, tuer.tx, tuer.ty)) {
     spielWelt.melde(spieler.id, 'Da steht jemand im Weg');
@@ -216,40 +225,27 @@ function schalteTuer(spielWelt, spieler, tuer) {
   spielWelt.ereignis({ typ: 'tuerBau', offen: tuer.offen, x: mitteX(spielWelt, tuer), y: mitteY(spielWelt, tuer) });
 }
 
-/** Kochen fertig (vom arbeitSystem aufgerufen): ein rohes Lebensmittel → gebratene Variante. */
-export function kochenFertig(spielWelt, spieler) {
-  const b = spielWelt.welt.bauwerke.get(spieler.arbeit?.bauwerkId);
-  spieler.arbeit = null;
-  if (!b?.brennt) {
-    spielWelt.melde(spieler.id, 'Das Feuer ist aus');
-    return;
-  }
-  const slot = spieler.inventar.findIndex((e) => e && KOCHBAR[e.defId]);
-  if (slot < 0) return;
-  const gekocht = KOCHBAR[spieler.inventar[slot].defId];
-  verbrauche(spieler, slot);
-  const rest = fuegeZumInventarHinzu(spieler, gekocht, 1);
-  if (rest > 0) legeAufBoden(spielWelt, { defId: gekocht, menge: rest }, spieler.x, spieler.y);
-  spielWelt.ereignis({ typ: 'gekocht', von: spieler.id, x: mitteX(spielWelt, b), y: mitteY(spielWelt, b) });
-  spielWelt.melde(spieler.id, `${GEGENSTAENDE[gekocht].name} fertig`);
-}
-
 /** Pro Tick: Feuer, Fallen, Pflanzen. @param spielSekunden vergangene Spielzeit (Schlafen spult vor) */
 export function aktualisiereBauwerke(spielWelt, dt, spielSekunden = dt) {
   const welt = spielWelt.welt;
   if (dt > 0) aktualisiereKisten(spielWelt);
+  if (dt > 0) aktualisiereStationen(spielWelt);
   if (welt.bauwerke.size === 0) return;
   const wachstumFaktor = spielWelt.wetter?.art === 'regen' ? WACHSTUM_REGEN_FAKTOR : 1;
   const k = spielWelt.konfiguration.bauen;
   const zyklus = spielWelt.konfiguration.welt.tagSekunden + spielWelt.konfiguration.welt.nachtSekunden;
   for (const b of welt.bauwerke.values()) {
-    if (b.typ === 'lagerfeuer' && b.brennt) {
-      b.brennRest -= dt;
-      if (b.brennRest <= 0) {
-        Object.assign(b, { brennt: false, brennRest: 0 });
-        welt.setzeBauwerk(b);
-        spielWelt.ereignis({ typ: 'feuer', an: false, x: mitteX(spielWelt, b), y: mitteY(spielWelt, b) });
+    if (b.typ === 'lagerfeuer' || b.typ === 'schmelzofen') {
+      if (b.typ === 'lagerfeuer' && b.brennt) {
+        b.brennRest -= dt;
+        const regen = spielWelt.wetter?.art === 'regen';
+        if (b.brennRest <= 0 || regen) {
+          Object.assign(b, { brennt: false, brennRest: 0 });
+          welt.setzeBauwerk(b);
+          spielWelt.ereignis({ typ: 'feuer', an: false, x: mitteX(spielWelt, b), y: mitteY(spielWelt, b), geloescht: regen });
+        }
       }
+      if (dt > 0) aktualisiereStation(spielWelt, b, dt);
     } else if (b.typ === 'falle' && b.gespannt) {
       pruefeFalle(spielWelt, b);
     } else if (b.typ === 'beet' && b.pflanze && b.wachstum < 1) {

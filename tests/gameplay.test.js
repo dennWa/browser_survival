@@ -131,8 +131,17 @@ test('Essen, Trinken und Medizin wirken und werden verbraucht', () => {
   spieler.inventar[0] = { defId: 'konservendose', menge: 2 };
   spieler.inventar[1] = { defId: 'wasserflasche', menge: 1 };
   spieler.inventar[2] = { defId: 'verband', menge: 1 };
-  for (const slot of [0, 1, 2]) spieler.aktionsPuffer.push({ art: AKTIONEN.BENUTZEN, slot });
-  ticks(welt, 1);
+  // Erst in die Hand nehmen (Zahlentaste), dann Linksklick verbraucht ein Stück
+  for (const slot of [0, 1, 2]) {
+    spieler.aktionsPuffer.push({ art: AKTIONEN.BENUTZEN, slot });
+    ticks(welt, 1);
+    assert.equal(spieler.ausgeruestet, slot, 'in der Hand');
+    assert.equal(spieler.inventar[slot] !== null, true, 'noch nicht verbraucht');
+    spieler.angriff = true;
+    ticks(welt, 1);
+    spieler.angriff = false;
+    spieler.angriffsAbklingzeit = 0;
+  }
   assert.ok(spieler.hunger > 74);
   assert.ok(spieler.durst > 79);
   assert.ok(spieler.leben >= 65);

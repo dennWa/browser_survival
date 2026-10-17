@@ -120,6 +120,11 @@ ITEMS = {
     'falle': ('prozedural', 'falle', 26),
     'lagerfeuer': ('prozedural', 'lagerfeuer', 28),
     'werkbank': ('prozedural', 'werkbank', 30),
+    'eisenbarren': ('prozedural', 'eisenbarren', 24),
+    'verkohlt': ('prozedural', 'verkohlt', 22),
+    'muell': ('prozedural', 'muell', 22),
+    'schrott': ('prozedural', 'schrott', 24),
+    'schmelzofen': ('prozedural', 'schmelzofen', 30),
     'bretter': ('kenney_items', 'PNG/Colored/genericItem_color_133.png', 26),
     'rucksack': ('props', 'PNG/256px/backpack.png', 28),
 }
@@ -287,6 +292,38 @@ def zeichne_prozedural(art, groesse):
         d.polygon([(12 * u, 30 * u), (52 * u, 16 * u), (64 * u, 30 * u), (24 * u, 44 * u)], fill=(232, 224, 200, 255), outline=rand)
         d.line([30 * u, 36 * u, 52 * u, 26 * u], fill=(190, 178, 150, 255), width=int(2 * u))
         d.line([22 * u, 32 * u, 44 * u, 24 * u], fill=(190, 178, 150, 255), width=int(2 * u))
+    elif art == 'eisenbarren':
+        # trapezförmiger Metallbarren mit Glanzkante
+        d.polygon([(10 * u, 56 * u), (62 * u, 56 * u), (54 * u, 30 * u), (20 * u, 30 * u)], fill=(150, 158, 170, 255), outline=rand)
+        d.polygon([(20 * u, 30 * u), (54 * u, 30 * u), (52 * u, 22 * u), (24 * u, 22 * u)], fill=(206, 214, 224, 255), outline=rand)
+        d.polygon([(10 * u, 56 * u), (62 * u, 56 * u), (60 * u, 62 * u), (12 * u, 62 * u)], fill=(100, 106, 116, 255), outline=rand)
+        d.line([26 * u, 34 * u, 46 * u, 34 * u], fill=(236, 240, 246, 200), width=int(2 * u))
+    elif art == 'verkohlt':
+        # schwarz verkohlter Klumpen mit Glutpunkten
+        d.ellipse(r(10, 22, 62, 58), fill=(34, 30, 28, 255), outline=rand, width=int(2.5 * u))
+        d.ellipse(r(22, 28, 44, 42), fill=(58, 52, 48, 255))
+        for x, y in ((26, 44), (40, 36), (48, 48)):
+            d.ellipse(r(x, y, x + 4, y + 4), fill=(210, 90, 30, 255))
+    elif art == 'muell':
+        # zerknüllte Dose und Tüte
+        d.polygon([(10 * u, 50 * u), (22 * u, 24 * u), (46 * u, 28 * u), (52 * u, 56 * u), (30 * u, 62 * u)], fill=(150, 150, 120, 255), outline=rand)
+        d.polygon([(30 * u, 30 * u), (60 * u, 24 * u), (64 * u, 48 * u), (40 * u, 52 * u)], fill=(120, 150, 120, 255), outline=rand)
+        d.line([16 * u, 46 * u, 26 * u, 32 * u], fill=(210, 210, 190, 220), width=int(2 * u))
+    elif art == 'schrott':
+        # verbogene rostige Metallteile
+        d.polygon([(8 * u, 54 * u), (40 * u, 20 * u), (50 * u, 30 * u), (20 * u, 62 * u)], fill=(140, 96, 64, 255), outline=rand)
+        d.polygon([(30 * u, 58 * u), (56 * u, 36 * u), (66 * u, 48 * u), (44 * u, 66 * u)], fill=(120, 124, 130, 255), outline=rand)
+        d.ellipse(r(16, 44, 24, 52), fill=(60, 40, 28, 255))
+        d.line([40 * u, 22 * u, 48 * u, 30 * u], fill=(190, 140, 100, 255), width=int(2 * u))
+    elif art == 'schmelzofen':
+        # Steinofen mit glühender Öffnung und Schornstein
+        d.rectangle(r(40, 4, 54, 24), fill=(110, 112, 118, 255), outline=rand, width=int(2.5 * u))
+        d.rounded_rectangle(r(8, 18, 64, 66), radius=8 * u, fill=(138, 140, 146, 255), outline=rand, width=int(3 * u))
+        d.rounded_rectangle(r(22, 36, 50, 62), radius=10 * u, fill=(40, 28, 24, 255), outline=rand, width=int(2.5 * u))
+        d.polygon([(28 * u, 60 * u), (36 * u, 40 * u), (44 * u, 60 * u)], fill=(240, 120, 40, 255))
+        d.polygon([(32 * u, 60 * u), (36 * u, 48 * u), (40 * u, 60 * u)], fill=(255, 214, 90, 255))
+        for x, y in ((14, 26), (30, 22), (50, 28), (16, 52)):
+            d.line([x * u, y * u, (x + 8) * u, y * u], fill=(100, 102, 108, 255), width=int(2 * u))
     else:
         raise ValueError(f'Unbekanntes prozedurales Icon: {art}')
     return bild.resize((groesse, groesse), Image.LANCZOS)

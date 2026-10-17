@@ -99,10 +99,22 @@ test('Lagerfeuer: F ohne Feuerzeug geht nicht, mit schon; brennt runter; Tomate 
   aktion(welt, spieler, { art: AKTIONEN.FEUER });
   assert.equal(feuer.brennt, true);
 
-  aktion(welt, spieler, { art: AKTIONEN.BAUWERK });
-  assert.equal(spieler.arbeit?.art, 'kochen');
-  for (let i = 0; i < (konfiguration.bauen.kochDauer + 0.5) / TICK_DAUER_S; i++) welt.aktualisiere(TICK_DAUER_S);
+  assert.ok(Math.abs(feuer.brennRest - konfiguration.bauen.brennDauer) < 1, 'Standard-Brenndauer 3 Minuten');
+  assert.equal(konfiguration.bauen.brennDauer, 180);
+  aktion(welt, spieler, { art: AKTIONEN.BAUWERK }); // E → Feuer-Menü
+  assert.equal(spieler.offeneStation, feuer.id);
+  aktion(welt, spieler, { art: AKTIONEN.STATION_LEGEN, slot: slotVon(spieler, 'tomate') });
   assert.equal(anzahl(spieler, 'tomate'), 1);
+  assert.equal(feuer.plaetze[0].defId, 'tomate');
+  for (let i = 0; i < (konfiguration.bauen.kochDauer + 0.5) / TICK_DAUER_S; i++) welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(feuer.plaetze[0].defId, 'tomate_gebraten', 'nach 20 s gar');
+  for (let i = 0; i < (konfiguration.bauen.verbrennDauer - konfiguration.bauen.kochDauer) / TICK_DAUER_S; i++) welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(feuer.plaetze[0].defId, 'verkohlt', 'nach 30 s verbrannt');
+  aktion(welt, spieler, { art: AKTIONEN.STATION_NEHMEN, slot: 0 });
+  assert.equal(anzahl(spieler, 'verkohlt'), 1);
+  aktion(welt, spieler, { art: AKTIONEN.STATION_LEGEN, slot: slotVon(spieler, 'tomate') });
+  for (let i = 0; i < (konfiguration.bauen.kochDauer + 0.5) / TICK_DAUER_S; i++) welt.aktualisiere(TICK_DAUER_S);
+  aktion(welt, spieler, { art: AKTIONEN.STATION_NEHMEN, slot: 0 });
   assert.equal(anzahl(spieler, 'tomate_gebraten'), 1);
 
   feuer.brennRest = 0.01;
@@ -131,14 +143,15 @@ test('Falle: Zombie tritt rein → sofort tot, Besitzer bekommt XP; neu spannen,
   assert.equal(anzahl(spieler, 'falle'), 1);
 });
 
-test('Erdfeld: Hacke in der Hand legt 3×3 Beete an, Samen pflanzen, nach 24 h zwei Tomaten ernten', () => {
+test('Ackerfeld: Hacke in der Hand legt 1×1 Beet an (Rechtsklick: zurück zu Rasen), Samen pflanzen, nach 24 h zwei Tomaten ernten', () => {
   const { welt, spieler, konfiguration } = gartenWelt();
   fuegeZumInventarHinzu(spieler, 'hacke', 1);
   aktion(welt, spieler, { art: AKTIONEN.BENUTZEN, slot: slotVon(spieler, 'hacke') }); // in die Hand
   fuegeZumInventarHinzu(spieler, 'samen_gurke', 1);
   fuegeZumInventarHinzu(spieler, 'samen_tomate', 2);
   aktion(welt, spieler, { art: AKTIONEN.FELD, tx: 4, ty: 2 });
-  assert.equal(welt.welt.bauwerke.size, FELD_GROESSE * FELD_GROESSE, 'ganzes Feld');
+  assert.equal(FELD_GROESSE, 1);
+  assert.equal(welt.welt.bauwerke.size, 1, 'ein Beet');
   const beet = welt.welt.bauwerkBei(4, 2);
   assert.equal(beet?.typ, 'beet');
   assert.equal(anzahl(spieler, 'hacke'), 1, 'Hacke bleibt');
@@ -261,6 +274,7 @@ test('Am Lagerfeuer sitzen: Zombies übersehen einen, Verfolger bleiben dran, Be
   feuer.brennt = true;
   feuer.brennRest = 300;
   aktion(welt, spieler, { art: AKTIONEN.BAUWERK });
+  aktion(welt, spieler, { art: AKTIONEN.STATION_SITZEN });
   assert.equal(spieler.arbeit?.art, 'sitzen');
   const zombie = welt.hinzufuegen(erzeugeZombie({ id: welt.neueId(), x: mitte(8), y: mitte(2), konfiguration: welt.konfiguration, blick: Math.PI }));
   for (let i = 0; i < 20; i++) welt.aktualisiere(TICK_DAUER_S);
@@ -271,4 +285,49 @@ test('Am Lagerfeuer sitzen: Zombies übersehen einen, Verfolger bleiben dran, Be
   spieler.x += 20; // wegbewegen
   welt.aktualisiere(TICK_DAUER_S);
   assert.equal(spieler.arbeit, null, 'steht auf');
+});
+
+test('Lagerfeuer: Holz in der Hand + Linksklick verlängert um 3 min (stapelt), Regen löscht', () => {
+  const { welt, spieler, konfiguration } = gartenWelt();
+  fuegeZumInventarHinzu(spieler, 'lagerfeuer', 1);
+  aktion(welt, spieler, { art: AKTIONEN.PLATZIEREN, slot: slotVon(spieler, 'lagerfeuer'), tx: 4, ty: 2 });
+  const feuer = welt.welt.bauwerkBei(4, 2);
+  feuer.brennt = true;
+  feuer.brennRest = 100;
+  fuegeZumInventarHinzu(spieler, 'holz', 3);
+  aktion(welt, spieler, { art: AKTIONEN.BENUTZEN, slot: slotVon(spieler, 'holz') });
+  pflanzeMitKlick(welt, spieler);
+  assert.ok(feuer.brennRest > 100 + konfiguration.bauen.brennDauer - 2, '+3 min');
+  welt.aktualisiere(TICK_DAUER_S * 30);
+  const nach1 = feuer.brennRest;
+  welt.aktualisiere(TICK_DAUER_S);
+  spieler.angriffsAbklingzeit = 0;
+  pflanzeMitKlick(welt, spieler);
+  assert.ok(feuer.brennRest > nach1 + konfiguration.bauen.brennDauer - 5, 'stapelt');
+  assert.equal(anzahl(spieler, 'holz'), 1);
+  welt.wetter = { art: 'regen', rest: 100 };
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(feuer.brennt, false, 'Regen löscht');
+});
+
+test('Schmelzofen: Holz als Brennstoff, Eisenerz wird nach 15 s zum Barren', () => {
+  const { welt, spieler, konfiguration } = gartenWelt();
+  fuegeZumInventarHinzu(spieler, 'schmelzofen', 1);
+  aktion(welt, spieler, { art: AKTIONEN.PLATZIEREN, slot: slotVon(spieler, 'schmelzofen'), tx: 4, ty: 2 });
+  const ofen = welt.welt.bauwerkBei(4, 2);
+  assert.equal(ofen.typ, 'schmelzofen');
+  fuegeZumInventarHinzu(spieler, 'eisenerz', 2);
+  fuegeZumInventarHinzu(spieler, 'holz', 2);
+  aktion(welt, spieler, { art: AKTIONEN.BAUWERK });
+  aktion(welt, spieler, { art: AKTIONEN.STATION_LEGEN, slot: slotVon(spieler, 'eisenerz') });
+  for (let i = 0; i < 5 / TICK_DAUER_S; i++) welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(ofen.plaetze[0].defId, 'eisenerz', 'ohne Brennstoff passiert nichts');
+  aktion(welt, spieler, { art: AKTIONEN.STATION_LEGEN, slot: slotVon(spieler, 'holz') });
+  assert.ok(ofen.brennRest > 0, 'Holz brennt (Brennstoff verbraucht)');
+  for (let i = 0; i < (konfiguration.bauen.schmelzDauer + 1) / TICK_DAUER_S; i++) welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(ofen.plaetze[0].defId, 'eisenbarren');
+  aktion(welt, spieler, { art: AKTIONEN.STATION_NEHMEN, slot: 0 });
+  assert.equal(anzahl(spieler, 'eisenbarren'), 1);
+  // Station-Inhalt geht nie ins öffentliche Netz
+  assert.ok(welt.bauwerkeOeffentlich().every((b) => b.plaetze === undefined));
 });

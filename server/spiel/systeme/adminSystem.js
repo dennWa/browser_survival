@@ -6,6 +6,7 @@ import { fuegeZumInventarHinzu } from './inventarSystem.js';
 import { toeten } from './kampfSystem.js';
 import { setzeWetter } from './wetterSystem.js';
 import { entferneFlagge } from './territoriumSystem.js';
+import { spuleZeitVor } from './arbeitSystem.js';
 
 /**
  * Admin-Befehle (Gottmodus & Co.). Läuft nur für Spieler mit `admin = true` –
@@ -17,6 +18,7 @@ const AUSRUESTUNG = [
   ['munition_9mm', 60],
   ['munition_12', 24],
 ];
+const ZEIT_VORSTELLEN_STUNDEN = 12;
 const SPAWN_ABSTAND = 90; // px vor dem Admin
 
 /** Landen in einer Wand/einem Möbel/Baum? → zur nächsten freien Kachel (Spiralsuche), sonst steckt man fest. */
@@ -59,6 +61,15 @@ export function fuehreAdminBefehlAus(spielWelt, spieler, befehl) {
       spieler.fliegen = !spieler.fliegen;
       if (!spieler.fliegen) landeAufFreiemBoden(spielWelt, spieler);
       spielWelt.melde(spieler.id, spieler.fliegen ? 'Flugmodus AN – Umschalt = schneller, Umschalt+B = landen' : 'Flugmodus aus');
+      break;
+    case ADMIN_BEFEHLE.UNENDLICH_MUNITION:
+      spieler.unendlichMunition = !spieler.unendlichMunition;
+      spielWelt.melde(spieler.id, spieler.unendlichMunition ? 'Unendlich Munition AN' : 'Unendlich Munition aus');
+      break;
+    case ADMIN_BEFEHLE.ZEIT_VORSTELLEN:
+      spuleZeitVor(spielWelt, ZEIT_VORSTELLEN_STUNDEN);
+      spielWelt.zeitSprung = ZEIT_VORSTELLEN_STUNDEN; // SpielServer zieht die übrigen aktiven Zonen mit
+      spielWelt.melde(spieler.id, `+${ZEIT_VORSTELLEN_STUNDEN} Stunden – Pflanzen wachsen, Uhr läuft weiter`);
       break;
     case ADMIN_BEFEHLE.UNSICHTBAR:
       spieler.unsichtbar = !spieler.unsichtbar;

@@ -15,6 +15,7 @@ import { verteileStartLoot, aktualisiereLoot } from './systeme/lootSystem.js';
 import { aktualisiereTageszeit } from './systeme/tageszeitSystem.js';
 import { aktualisiereArbeit } from './systeme/arbeitSystem.js';
 import { aktualisiereBauwerke } from './systeme/bauSystem.js';
+import { pruefePlaetze } from './systeme/stationSystem.js';
 import { aktualisiereFahrzeuge, aussteigen } from './systeme/fahrzeugSystem.js';
 import { aktualisiereTueren } from './systeme/tuerSystem.js';
 import { aktualisiereTiere, spawneStartTiere } from './systeme/tierSystem.js';
@@ -121,7 +122,7 @@ export class SpielWelt {
     if (Number.isInteger(stand.tag) && stand.tag >= 1) this.tag = stand.tag;
     territoriumLaden(this, stand.flaggen);
     for (const roh of Array.isArray(stand.bauwerke) ? stand.bauwerke : []) {
-      const b = pruefeBauwerk(roh);
+      const b = pruefeBauwerk(roh, this.konfiguration);
       if (!b || !pruefePlatz(this.welt, b.typ, b.tx, b.ty, false).ok) continue;
       b.id = this.neueBauwerkId();
       this.welt.setzeBauwerk(b);
@@ -266,7 +267,7 @@ export class SpielWelt {
 
   /** Bauwerke fürs Netz: ohne privaten Kisten-Inhalt (der geht nur per KISTE an den, der die Kiste offen hat). */
   bauwerkeOeffentlich() {
-    return [...this.welt.bauwerke.values()].map(({ inhalt, ...rest }) => rest);
+    return [...this.welt.bauwerke.values()].map(({ inhalt, plaetze, ...rest }) => rest);
   }
 
   /**
@@ -283,7 +284,7 @@ export class SpielWelt {
       const b = this.welt.bauwerke.get(id);
       if (!b) entfernt.push(id);
       else {
-        const { inhalt, ...rest } = b;
+        const { inhalt, plaetze, ...rest } = b;
         gesetzt.push(rest);
       }
     }
@@ -296,10 +297,11 @@ export class SpielWelt {
 }
 
 /** Ein Bauwerk aus einem (evtl. manipulierten) Spielstand: nur bekannte Felder, gültige Werte. */
-function pruefeBauwerk(roh) {
+function pruefeBauwerk(roh, konfiguration) {
   if (!roh || !BAUWERKE[roh.typ] || !Number.isInteger(roh.tx) || !Number.isInteger(roh.ty)) return null;
   const b = { typ: roh.typ, tx: roh.tx, ty: roh.ty, besitzer: typeof roh.besitzer === 'string' ? roh.besitzer.slice(0, 20) : '' };
-  if (b.typ === 'lagerfeuer') Object.assign(b, { brennt: roh.brennt === true, brennRest: Number.isFinite(roh.brennRest) ? Math.max(0, roh.brennRest) : 0 });
+  if (b.typ === 'lagerfeuer') Object.assign(b, { brennt: roh.brennt === true, brennRest: Number.isFinite(roh.brennRest) ? Math.max(0, roh.brennRest) : 0, plaetze: pruefePlaetze(b.typ, roh.plaetze, konfiguration.bauen) });
+  if (b.typ === 'schmelzofen') Object.assign(b, { brennt: roh.brennt === true, brennRest: Number.isFinite(roh.brennRest) ? Math.max(0, roh.brennRest) : 0, brennstoff: Number.isInteger(roh.brennstoff) ? Math.min(10, Math.max(0, roh.brennstoff)) : 0, plaetze: pruefePlaetze(b.typ, roh.plaetze, konfiguration.bauen) });
   if (b.typ === 'falle') b.gespannt = roh.gespannt !== false;
   if (b.typ === 'beet') {
     b.pflanze = PFLANZEN[roh.pflanze] ? roh.pflanze : null;

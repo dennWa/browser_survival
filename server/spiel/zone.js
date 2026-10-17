@@ -93,7 +93,12 @@ export class Zone {
       if (sichtbar.length === schnappschuss.entitaeten.length) sitzung.kanal.senden((alle ??= kodiere({ typ: NACHRICHT.ZUSTAND, ...schnappschuss })));
       else sitzung.kanal.senden(kodiere({ typ: NACHRICHT.ZUSTAND, ...schnappschuss, entitaeten: sichtbar }));
       privat(sitzung);
-      for (const k of kisten.get(sitzung.spielerId) ?? []) sitzung.kanal.senden(kodiere({ typ: NACHRICHT.KISTE, id: k.id, inhalt: k.inhalt }));
+      for (const k of kisten.get(sitzung.spielerId) ?? []) {
+        if (k.station) {
+          const { spielerId, station, ...daten } = k;
+          sitzung.kanal.senden(kodiere({ typ: NACHRICHT.STATION, ...daten }));
+        } else sitzung.kanal.senden(kodiere({ typ: NACHRICHT.KISTE, id: k.id, inhalt: k.inhalt, titel: k.titel }));
+      }
       for (const text of meldungen.get(sitzung.spielerId) ?? []) sitzung.kanal.senden(kodiere({ typ: NACHRICHT.MELDUNG, text }));
     }
   }

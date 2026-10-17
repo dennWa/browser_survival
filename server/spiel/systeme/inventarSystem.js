@@ -1,5 +1,5 @@
 import { AUFHEB_REICHWEITE, INVENTAR_PLAETZE } from '../../../gemeinsam/konstanten.js';
-import { BAUWERK_REICHWEITE } from '../../../gemeinsam/welt/bauwerke.js';
+import { samenZiel } from '../../../gemeinsam/welt/bauwerke.js';
 import { AKTIONEN } from '../../../gemeinsam/protokoll.js';
 import { GEGENSTAENDE, STANDARD_AUSRUESTUNG, UNBEWAFFNET } from '../konfiguration/gegenstaende.js';
 import { erzeugeGegenstand } from '../entitaeten/gegenstand.js';
@@ -12,7 +12,8 @@ import { benutzeBauwerk, feuer, platziere } from './bauSystem.js';
 import { setzeSkillpunkt } from './levelSystem.js';
 import { fahrzeugAktion } from './fahrzeugSystem.js';
 import { legeInKiste, nimmAusKiste, schliesseKiste } from './kistenSystem.js';
-import { legeFeldAn } from './bauSystem.js';
+import { entferneFeld, legeFeldAn } from './bauSystem.js';
+import { legeInStation, nimmAusStation, schliesseStation, setzeAmFeuer } from './stationSystem.js';
 import { baue, reisseAb } from './basisbauSystem.js';
 
 /**
@@ -67,7 +68,7 @@ export function verarbeiteAktionen(spielWelt) {
           benutzen(spielWelt, spieler, aktion.slot);
           break;
         case AKTIONEN.ABLEGEN:
-          ablegen(spielWelt, spieler, aktion.slot);
+          ablegen(spielWelt, spieler, aktion.slot, aktion.einzeln === true);
           break;
         case AKTIONEN.TAUSCHEN:
           tausche(spieler, aktion.slot, aktion.ziel);
@@ -80,6 +81,21 @@ export function verarbeiteAktionen(spielWelt) {
           break;
         case AKTIONEN.FELD:
           legeFeldAn(spielWelt, spieler, aktion.tx, aktion.ty);
+          break;
+        case AKTIONEN.FELD_ENTFERNEN:
+          entferneFeld(spielWelt, spieler, aktion.tx, aktion.ty);
+          break;
+        case AKTIONEN.STATION_LEGEN:
+          legeInStation(spielWelt, spieler, aktion.slot);
+          break;
+        case AKTIONEN.STATION_NEHMEN:
+          nimmAusStation(spielWelt, spieler, aktion.slot);
+          break;
+        case AKTIONEN.STATION_SCHLIESSEN:
+          schliesseStation(spielWelt, spieler);
+          break;
+        case AKTIONEN.STATION_SITZEN:
+          setzeAmFeuer(spielWelt, spieler);
           break;
         case AKTIONEN.BAUEN:
           baue(spielWelt, spieler, aktion);
@@ -227,20 +243,12 @@ function benutzen(spielWelt, spieler, slot) {
   const def = GEGENSTAENDE[eintrag.defId];
   switch (def.kategorie) {
     case 'nahrung':
-      spieler.hunger = Math.min(100, spieler.hunger + def.naehrwert);
-      verbrauche(spieler, slot);
-      break;
     case 'getraenk':
-      spieler.durst = Math.min(100, spieler.durst + def.durstwert);
-      verbrauche(spieler, slot);
-      break;
     case 'medizin':
-      if (spieler.leben >= spieler.maxLeben) {
-        spielWelt.melde(spieler.id, 'Du bist nicht verletzt');
-        return;
-      }
-      spieler.leben = Math.min(spieler.maxLeben, spieler.leben + def.heilung);
-      verbrauche(spieler, slot);
+      // Erst in die Hand nehmen (nochmal = wegstecken); Linksklick verbraucht (kampfSystem → konsumiere)
+      spieler.ausgeruestet = spieler.ausgeruestet === slot ? null : slot;
+      spieler.nachladenRest = 0;
+      aktualisiereAusruestung(spieler);
       break;
     case 'nahkampf':
     case 'fernkampf':
@@ -278,6 +286,13 @@ function benutzen(spielWelt, spieler, slot) {
       aktualisiereAusruestung(spieler);
       break;
     case 'material':
+      if (def.inHand) {
+        // Holz: in die Hand nehmen (Linksklick aufs Lagerfeuer legt nach, Q wirft weg)
+        spieler.ausgeruestet = spieler.ausgeruestet === slot ? null : slot;
+        spieler.nachladenRest = 0;
+        aktualisiereAusruestung(spieler);
+        break;
+      }
       if (eintrag.defId === 'bretter') verstaerkeTuer(spielWelt, spieler, slot);
       else spielWelt.melde(spieler.id, `${def.name}: zum Bauen an der Werkbank`);
       break;
@@ -289,9 +304,53 @@ function verstaerkeTuer(spielWelt, spieler, slot) {
   if (verstaerkeNaechsteTuer(spielWelt, spieler)) verbrauche(spieler, slot);
 }
 
+/**
+ * Essen, Trinken, Medizin aus der Hand verbrauchen (Linksklick). @returns true, wenn etwas verbraucht wurde
+ * Gurke & Co. mit `durstwert` stillen beides; `boost` (Energydrink) = Sekunden Sprinten ohne Ausdauerverbrauch.
+ */
+export function konsumiere(spielWelt, spieler, slot) {
+  const eintrag = spieler.inventar[slot];
+  const def = eintrag && GEGENSTAENDE[eintrag.defId];
+  if (!def) return false;
+  if (def.kategorie === 'medizin') {
+    if (spieler.leben >= spieler.maxLeben) {
+      spielWelt.melde(spieler.id, 'Du bist nicht verletzt');
+      return false;
+    }
+    spieler.leben = Math.min(spieler.maxLeben, spieler.leben + def.heilung);
+  } else if (def.kategorie === 'nahrung' || def.kategorie === 'getraenk') {
+    if (def.naehrwert) spieler.hunger = Math.min(100, spieler.hunger + def.naehrwert);
+    if (def.durstwert) spieler.durst = Math.min(100, spieler.durst + def.durstwert);
+    if (def.boost) spieler.boostRest = def.boost;
+  } else {
+    return false;
+  }
+  spielWelt.ereignis({ typ: def.kategorie === 'getraenk' ? 'getrunken' : def.kategorie === 'medizin' ? 'geheilt' : 'gegessen', von: spieler.id, x: spieler.x, y: spieler.y });
+  verbrauche(spieler, slot);
+  return true;
+}
+
+/**
+ * Werkzeug nutzt sich ab (Axt, Spitzhacke, Hacke: `haltbarkeit` in gegenstaende.js). Der Wert steht am Inventareintrag
+ * (`haltbarkeit`, fehlt = voll). Bei 0 ist es kaputt und verschwindet.
+ */
+export function nutzeWerkzeug(spielWelt, spieler, defId) {
+  const def = GEGENSTAENDE[defId];
+  if (!def?.haltbarkeit) return;
+  const slot = spieler.inventar.findIndex((e, i) => e?.defId === defId && i === spieler.ausgeruestet);
+  const platz = slot >= 0 ? slot : spieler.inventar.findIndex((e) => e?.defId === defId);
+  const eintrag = spieler.inventar[platz];
+  if (!eintrag) return;
+  eintrag.haltbarkeit = (eintrag.haltbarkeit ?? def.haltbarkeit) - 1;
+  if (eintrag.haltbarkeit > 0) return;
+  entferneSlot(spieler, platz);
+  spielWelt.ereignis({ typ: 'werkzeugKaputt', von: spieler.id, x: spieler.x, y: spieler.y });
+  spielWelt.melde(spieler.id, `💥 ${def.name} ist kaputt!`);
+}
+
 /** Samen in der Hand: ins nächste freie Beet in Reichweite pflanzen (Linksklick). @returns true, wenn gepflanzt */
 export function pflanzeSamenAusHand(spielWelt, spieler, def) {
-  const beet = spielWelt.welt.naechstesBauwerk(spieler.x, spieler.y, BAUWERK_REICHWEITE, (b) => b.typ === 'beet' && !b.pflanze);
+  const beet = samenZiel(spielWelt.welt, spieler.x, spieler.y, spieler.blick);
   if (!beet) {
     spielWelt.melde(spieler.id, 'Kein freies Beet in der Nähe – erst mit der Hacke ein Erdfeld anlegen');
     return false;
@@ -315,9 +374,15 @@ export function entferneSlot(spieler, slot) {
   }
 }
 
-function ablegen(spielWelt, spieler, slot) {
+function ablegen(spielWelt, spieler, slot, einzeln = false) {
   const eintrag = spieler.inventar[slot];
   if (!eintrag) return;
+  // Einzeln wegwerfen (Q bei Holz/Samen in der Hand): nur 1 Stück vom Stapel
+  if (einzeln && eintrag.menge > 1) {
+    eintrag.menge -= 1;
+    legeAufBoden(spielWelt, { defId: eintrag.defId, menge: 1 }, spieler.x + Math.cos(spieler.blick) * 18, spieler.y + Math.sin(spieler.blick) * 18);
+    return;
+  }
   legeAufBoden(spielWelt, eintrag, spieler.x + Math.cos(spieler.blick) * 18, spieler.y + Math.sin(spieler.blick) * 18);
   entferneSlot(spieler, slot);
 }
