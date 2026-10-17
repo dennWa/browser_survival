@@ -277,3 +277,45 @@ test('Prefabs: eingebaute Vorlagen sind spielgültig; Räume reisen mit und werd
   assert.equal(ladePrefabDatei(datei).vorlage.b, wohnhaus.b);
   assert.throws(() => ladePrefabDatei({ format: 'nein' }), /Keine Prefab/);
 });
+
+test('Zonen verbinden: Nachbarn erkennen, Übergänge auf Wegen vorschlagen (mit Rückweg + Ankunft), Prüfung wie zonen.test', async () => {
+  const { nachbarn, vorschlaegeFuerPaar, vorschlagOps, layoutAusUebergaengen, gemeinsameKante } = await import('../editor/kern/zonenVerbund.js');
+  // Süd-Zone a: Straße x 8–10 läuft zum Nordrand; Nord-Zone b: Straße x 3–5 zum Südrand
+  const a = neueZone({ id: 'a', breite: 20, hoehe: 10 });
+  const b = neueZone({ id: 'b', breite: 30, hoehe: 10 });
+  for (let y = 0; y < 10; y++) for (const x of [8, 9, 10]) a.anwenden([{ s: 'kachel', i: a.index(x, y), neu: '=' }]);
+  for (let y = 0; y < 10; y++) for (const x of [3, 4, 5]) b.anwenden([{ s: 'kachel', i: b.index(x, y), neu: '=' }]);
+  a.anwenden([{ s: 'marker', k: markerSchluessel(2, 8), neu: { art: 'start' } }]);
+  b.anwenden([{ s: 'marker', k: markerSchluessel(20, 2), neu: { art: 'start' } }]);
+  const zonen = new Map([['a', a], ['b', b]]);
+  const layout = { a: { x: 0, y: 0 }, b: { x: 5, y: -10 } }; // b liegt genau nördlich, um 5 verschoben → Straßen fluchten
+  assert.deepEqual(gemeinsameKante(a, layout.a, b, layout.b), { seite: 'nord', von: 5, bis: 20 });
+  const paare = nachbarn(zonen, layout);
+  assert.equal(paare.length, 1);
+  const v = vorschlaegeFuerPaar(zonen, layout, paare[0]);
+  assert.equal(v.length, 1, 'genau die Straße');
+  assert.deepEqual(v[0].a.rechteck, { x: 8, y: 0, b: 3, h: 1 });
+  assert.deepEqual(v[0].b.rechteck, { x: 3, y: 9, b: 3, h: 1 });
+  const { opsA, opsB } = vorschlagOps(zonen, paare[0], v[0]);
+  a.anwenden(opsA);
+  b.anwenden(opsB);
+  for (const k of [a, b]) {
+    const fehler = validiere(k, { zonen }).filter((e) => e.schwere === 'fehler' && (e.code.startsWith('uebergang') || e.code.startsWith('ankunft')));
+    assert.deepEqual(fehler, [], k.id);
+  }
+  assert.equal(vorschlaegeFuerPaar(zonen, layout, paare[0]).length, 0, 'keine Doppel');
+  // Anordnung aus Übergängen: b wieder genau nördlich, Straßen fluchtend
+  assert.deepEqual(layoutAusUebergaengen(zonen, 'a').b, { x: 5, y: -10 });
+  const echte = new Map(Object.entries(KARTEN).map(([id, d]) => [id, ausDefinition(d).karte]));
+  const l = layoutAusUebergaengen(echte, 'stadtrand');
+  assert.equal(l.waldweg.y, -echte.get('waldweg').hoehe, 'Waldweg liegt nördlich vom Stadtrand');
+  // Ohne Wege: genau eine Stelle in der Mitte
+  const c = neueZone({ id: 'c', breite: 10, hoehe: 10 });
+  const d = neueZone({ id: 'd', breite: 10, hoehe: 10 });
+  const z2 = new Map([['c', c], ['d', d]]);
+  const p2 = nachbarn(z2, { c: { x: 0, y: 0 }, d: { x: 10, y: 0 } });
+  const v2 = vorschlaegeFuerPaar(z2, { c: { x: 0, y: 0 }, d: { x: 10, y: 0 } }, p2[0]);
+  assert.equal(v2.length, 1);
+  assert.equal(v2[0].a.rechteck.x, 9);
+  assert.ok(v2[0].laenge <= 5);
+});

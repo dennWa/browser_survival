@@ -38,6 +38,7 @@ const zoneWahl = document.getElementById('zone-wahl');
 // --- Aktionen (von Bauleiste, Panel, Werkzeugen, Tasten) --------------------------------
 const aktionen = {
   aktion: (name) => sonderAktionen[name]?.(),
+  befehl: (name) => befehle[name]?.(),
   werkzeug(id) {
     if (id === 'drehen') return werkzeuge.drehe();
     if (id.startsWith('malen:')) {

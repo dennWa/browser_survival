@@ -67,6 +67,17 @@ Koordinaten sind **Kacheln** (1 Kachel = 1 m = 32 px im Spiel), x nach rechts, y
   mehrfach). Der Zielbereich wird überstempelt; Räume kommen mit (bei Buchstaben-Konflikt wird umbenannt).
   Prefabs lassen sich als `*.prefab.json` speichern und laden.
 
+## Zonen verbinden
+
+- Mehrere Zonen = ein Projekt. Zone wechseln: Auswahlfeld oben. Reiter **Zonen** zeigt die **Weltkarte**: Zonen ziehen
+  (rasten an Kanten ein), Klick öffnet sie. Liegen zwei Zonen **Kante an Kante**, sind sie Nachbarn – die Nachbarzone
+  erscheint dann blass am Rand der Fläche (Anzeige abschaltbar unter Zone → Anzeige).
+- **🔗 Aus Übergängen anordnen** legt Zonen anhand vorhandener Übergänge passend aneinander (z. B. Waldweg nördlich vom Stadtrand).
+- **💡 Übergänge vorschlagen** sucht an gemeinsamen Kanten Stellen, die auf beiden Seiten begehbar sind (Straßen und Wege
+  zuerst) und legt Übergang + Rückweg + Ankunftspunkte (3 Kacheln landeinwärts) in beiden Zonen an.
+- Von Hand: Kategorie **Zonen** → „Übergang (am Rand)“ aufziehen, Zielzone und Ankunft wählen; im Panel „📍 Ankunft in
+  der Zielzone setzen“. Die Prüfung meldet: Ziel fehlt, Ankunft fehlt/liegt im Übergang (Ping-Pong), kein Rückweg.
+
 ## Speichern
 
 - Automatisch: jede Änderung landet nach ~1 s im Browser (IndexedDB, sonst localStorage). Oben rechts steht der Status.

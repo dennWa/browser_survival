@@ -167,6 +167,17 @@ try {
     await seite.waitForTimeout(400);
     await seite.screenshot({ path: path.join(AUSGABE, 'editor-5-prefab.png') });
 
+    schritt('Zonen verbinden (Phase 7): Stadtrand dazu, aus Übergängen anordnen, Nachbar am Rand');
+    await seite.evaluate(() => window.mapEditor.oeffneSpielzone('stadtrand'));
+    await seite.click('#panel-reiter button:has-text("Zonen")');
+    await seite.click('#panel-inhalt button:has-text("Aus Übergängen anordnen")');
+    const layout = await seite.evaluate(() => window.mapEditor.zustand.layout);
+    pruefe(layout.waldweg && layout.stadtrand && layout.waldweg.y === layout.stadtrand.y - 120 && layout.waldweg.x === layout.stadtrand.x + 89, `Waldweg nördlich angeordnet (${JSON.stringify(layout)})`);
+    pruefe((await seite.evaluate(() => window.mapEditor.zeichner.nachbarn.length)) === 1, 'Nachbarzone wird am Rand gezeigt');
+    await seite.evaluate(() => window.mapEditor.zeichner.springeZu(120, 2, 6));
+    await seite.waitForTimeout(400);
+    await seite.screenshot({ path: path.join(AUSGABE, 'editor-6-zonen.png') });
+
     schritt('3D-Ansicht');
     await seite.keyboard.press('3');
     await seite.waitForTimeout(1500);

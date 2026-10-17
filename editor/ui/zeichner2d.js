@@ -529,12 +529,7 @@ export class Zeichner2D {
     if (!this.zustand.overlays.nachbarn) return;
     for (const n of this.nachbarn) {
       const k = n.karte;
-      const bild = new OffscreenCanvas(k.breite, k.hoehe);
-      const c = bild.getContext('2d');
-      for (let i = 0; i < k.zellen.length; i++) {
-        c.fillStyle = kachelInfo(k.zellen[i]).farbe;
-        c.fillRect(i % k.breite, Math.floor(i / k.breite), 1, 1);
-      }
+      const bild = kachelBild(k);
       const o = this.zuBild(n.dx, n.dy);
       ctx.save();
       ctx.globalAlpha = 0.4;
@@ -678,4 +673,19 @@ export class Zeichner2D {
       // ohne Atlas: Farbflächen
     }
   }
+}
+
+/** Kachelbild (1 px je Kachel) einer Karte – gepuffert je Kartenversion (Nachbarzonen, Weltkarte) */
+const bildPuffer = new WeakMap();
+export function kachelBild(k) {
+  const alt = bildPuffer.get(k);
+  if (alt && alt.version === k.version && alt.bild.width === k.breite && alt.bild.height === k.hoehe) return alt.bild;
+  const bild = new OffscreenCanvas(k.breite, k.hoehe);
+  const c = bild.getContext('2d');
+  for (let i = 0; i < k.zellen.length; i++) {
+    c.fillStyle = kachelInfo(k.zellen[i]).farbe;
+    c.fillRect(i % k.breite, Math.floor(i / k.breite), 1, 1);
+  }
+  bildPuffer.set(k, { version: k.version, bild });
+  return bild;
 }
