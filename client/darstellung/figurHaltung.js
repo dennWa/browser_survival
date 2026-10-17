@@ -21,6 +21,8 @@ const HALTUNGEN = {
   pistole: { rechts: [v(0.22, -0.04, 1), v(0.18, 0, 1)], links: [v(-0.5, -0.08, 1), v(-0.36, 0, 1)], hand: 'rechts', zielen: true },
   gewehr: { rechts: [v(0.05, -0.8, 0.5), v(0.35, 0.12, 1)], links: [v(-0.3, -0.35, 1), v(-0.12, 0.05, 1)], hand: 'rechts', zielen: true },
   nahkampf: { rechts: [v(-0.25, -0.85, 0.45), v(-0.05, -0.2, 1)], links: null, hand: 'rechts' },
+  // Etwas in der Hand halten (Essen, Trinken, Holz, Samen): Unterarm vor dem Bauch
+  halten: { rechts: [v(-0.12, -0.55, 0.8), v(0.12, 0.05, 1)], links: null, hand: 'rechts' },
   lampe: { rechts: null, links: [v(-0.12, -0.35, 1), v(-0.08, -0.04, 1)], hand: 'links' },
   zombie: { rechts: [v(0.12, 0.05, 1), v(0.05, 0.02, 1)], links: [v(-0.12, 0.05, 1), v(-0.05, 0.02, 1)], hand: null },
   // Am Lagerfeuer sitzen: Hände locker auf den Knien

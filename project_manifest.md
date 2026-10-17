@@ -119,11 +119,14 @@ Spieler aller Zonen schlafen; der Zeitsprung gilt dann für alle aktiven Zonen. 
   Angriff/Schaden bricht ab. Nachwachsen 300/240/420 s. Gefällter Baum kippt um (Animation + Knack-Geräusch `baum_faellt`).
 - **Bauen** (`gemeinsam/welt/bauwerke.js`, `bauSystem.js`): Im Inventar (Abschnitt „Bauen“, Rezepte mit `ort: 'inventar'`)
   Werkbank (4 Holz), Lagerfeuer (3 Holz), Bärenfalle herstellen → Item benutzen → Platzier-Modus mit grün/roter Vorschau
-  (Maus/Tippen setzt, Rechtsklick/✕ bricht ab). Lagerfeuer nur draußen, mit **F + Feuerzeug** anzünden, brennt 5 min,
-  daran mit E **kochen** (gebraten = +30 % Sättigung). Falle: tötet Zombies sofort, mit E aufnehmen/spannen.
-- **Farmen** (v0.10): **Spitzhacke** (im Inventar genügt, „auto-ausgerüstet“) + **G / 🌱** → Vorschau eines quadratischen
-  **Erdfelds** (`FELD_GROESSE`² = 3×3 Beete, grün/rot) → Klick/E legt es an (AKTION `feld`, `bauSystem.legeFeldAn`). Samen
-  (Tomate, Gurke, Kartoffel, **Paprika**; Loot) mit E bzw. Benutzen pflanzen; wächst in 1 Spieltag (24 h, Schlafen spult mit),
+  (Maus/Tippen setzt, Rechtsklick/✕ bricht ab). Lagerfeuer nur draußen, mit **F + Feuerzeug** anzünden (bei Regen geht es nicht, Regen löscht es), brennt 3 min; **Holz in der Hand + Linksklick** = +3 min
+  (stapelt). **E** öffnet das Feuer-Menü (`stationFenster.js`): 3 Koch-Slots – rohes Fleisch/Fisch/Gemüse ist nach 20 s gar, nach 30 s
+  **verkohlt** (unbrauchbar); Brutzeln beim Garen, Glöckchen wenn fertig; dort auch **Hinsetzen** (Zombies übersehen einen). Der **Schmelzofen**
+  (Werkbank-Rezept, draußen) schmilzt Eisenerz zu Eisenbarren (Holz = Brennstoff, 15 s je Erz). Falle: tötet Zombies sofort, mit E aufnehmen/spannen.
+- **Farmen** (v0.13): **Hacke in die Hand** (Zahlentaste) → 1×1-Vorschau (grün/rot) unter der Maus, **Linksklick** legt ein Ackerfeld an
+  (AKTION `feld`, `bauSystem.legeFeldAn`; `FELD_GROESSE` = 1), **Rechtsklick** (Handy 🌱) macht es wieder zu Rasen (`feldEntfernen`). Werkzeuge nutzen sich
+  ab (`haltbarkeit`: Axt/Spitzhacke 40, Hacke 30 Einsätze, Balken am Platz) und gehen kaputt. Samen (Tomate, Gurke, Kartoffel, **Paprika**; Loot)
+  in die Hand nehmen: das Ziel-Beet leuchtet, Linksklick pflanzt; wächst in 1 Spieltag (24 h, Schlafen spult mit),
   **bei Regen doppelt so schnell** (= halbe Zeit, `WACHSTUM_REGEN_FAKTOR`), Ernte 2 Früchte (`konfiguration.bauen`).
 - **Lagerkiste** (v0.10, ab v0.11 übers Bau-Menü): 8 Holz, **E** öffnet (Fenster `kisteFenster.js`, 16 Plätze, Antippen
   schiebt Stapel; Inhalt privat, nur per `KISTE`-Nachricht an den Öffner; schließt sich beim Weggehen; wird mit der Zone gespeichert).
@@ -190,7 +193,7 @@ Spieler aller Zonen schlafen; der Zeitsprung gilt dann für alle aktiven Zonen. 
   leeres Magazin → automatisch nachladen (falls Munition da), sonst "Klick". Nahkampf = Trefferkegel ±66°
   (`NAHKAMPF_KEGEL`) vor der Figur, Reichweite bis zum Rand des Ziels (Faust 44, Messer ~50, Hammer/Axt 54,
   Machete/Beil 62 – Zombies beißen ab 42); ohne Waffe **Faustschlag** (`UNBEWAFFNET`). PvP standardmäßig aus (`kampf.pvp`).
-- **Inventar** (`inventarSystem.js`, Fenster `inventarFenster.js`, Taste I / 🎒): Plätze 0–7 = Schnellleiste
+- **Inventar** (`inventarSystem.js`, Fenster `inventarFenster.js`, Taste Tab / 🎒): Plätze 0–7 = Schnellleiste
   (Tasten 1–8), 8–15 = Tasche, mit **Rucksack** (Item `rucksack`, `plaetze: 8`) +8 (Plätze 16–23). Rucksack wird
   beim Aufheben angelegt (sichtbar am Rücken), "ablegen" schiebt den Inhalt ins Grund-Inventar (Rest fällt).
   Drag & Drop = AKTION `tauschen` (gleiche Stapel werden zusammengelegt, Waffe in der Hand wandert mit), aus dem
@@ -435,7 +438,7 @@ browser_survival/
 │       ├── loginBildschirm.js     Login-Formular, Serverauswahl, "Als Gast spielen" (gastName())
 │       ├── hud.js                 Uhr, Balken, Schnellleiste, Aktions-/Tür-Knopf, Fortschritt, Chat, Spielerliste, Tod, Admin, Debug
 │       ├── werkbankMenue.js       Crafting-Menü (Kategorien, Zutaten, Herstellen)
-│       ├── inventarFenster.js     Inventar (I): Schnellleiste/Tasche/Rucksack, Drag & Drop, Rauswerfen
+│       ├── inventarFenster.js     Inventar (Tab): Schnellleiste/Tasche/Rucksack, Drag & Drop, Rauswerfen
 │       ├── bauMenue.js            (v0.11) Bau-Menü (Reiter, Karten aus der Registry, Werkzeuge)
 │       ├── kisteFenster.js        (v0.10) Lagerkiste: 16 Plätze + Inventar, Antippen = verschieben
 │       ├── karte.js               Karte mit Nebel (erkundete Bereiche, localStorage), Minikarte (zeichneMini), Klick → Auto-Lauf
@@ -511,7 +514,13 @@ browser_survival/
 | Hasen / Tiere (Anzahl, Tempo, Scheu) | `spielKonfiguration.js` → `tiere`; `tierSystem.js`, `entitaeten/tier.js`; Modell `client/darstellung/tierModelle.js` |
 | Angeln (Zeiten, Fische, Doppelfang) | `spielKonfiguration.js` → `angeln`; `angelSystem.js`, `gemeinsam/welt/wasser.js`; Darstellung `angelModell.js`; Hinweis `clientSpiel.js → #angelHinweis` |
 | Wetter (Dauer, Häufigkeit) | `spielKonfiguration.js` → `wetter`; `wetterSystem.js`; Darstellung `wetterEffekt.js` + `renderer.js → #tageslicht`; Ton `sound.js → regen()` |
-| Erdfeld-Größe, Samen/Pflanzen | `gemeinsam/welt/bauwerke.js` (`FELD_GROESSE`, `PFLANZEN`), `bauSystem.legeFeldAn`, Taste `G` (`eingabe.js`) |
+| Erdfeld-Größe, Samen/Pflanzen | `gemeinsam/welt/bauwerke.js` (`FELD_GROESSE`, `PFLANZEN`), `bauSystem.legeFeldAn`/`entferneFeld` (Hacke in der Hand: Links = anlegen, Rechts = Rasen; `clientSpiel.#handZiel`) |
+| Lagerfeuer-/Ofen-Menü (Garzeiten, Plätze), Rezepte Braten/Schmelzen | `server/spiel/systeme/stationSystem.js` (`rezept()`, `PLAETZE`), Zeiten `konfiguration.bauen` (`kochDauer` 20, `verbrennDauer` 30, `schmelzDauer`, `brennDauer` 180), Client `ui/stationFenster.js` |
+| Werkzeug-Haltbarkeit | `haltbarkeit` in `gegenstaende.js`, `inventarSystem.nutzeWerkzeug`, Balken `ui/haltbarkeit.js` |
+| Kofferraum | `fahrzeug.kofferraum` (`KOFFERRAUM_PLAETZE`), `kistenSystem.oeffneKofferraum`, Taste G |
+| Angel-Beute | `konfiguration.angeln.beute/muell/munition`, `angelSystem.faenge` |
+| Sichtkegel / Nacht-Helligkeit / Kamerawinkel | `darstellung/sichtkegel.js`; `renderer.js` (`NACHT`, `mond.intensity`, `KAMERA_VERSATZ`) |
+| Admin-Befehle (∞ Munition, +12 h) | `ADMIN_BEFEHLE` (`protokoll.js`), `adminSystem.js`, Buttons in `index.html` |
 | Lagerkiste (Plätze) | `KISTE_PLAETZE` in `konstanten.js`, `kistenSystem.js`, `kisteFenster.js` |
 | **Basisbau: neues Bauteil (Möbel, Ofen …)** | 1) Eintrag in `gemeinsam/basisbau/teile.js` (Menü, Kosten) · 2) Eintrag in `BAUWERKE` (`gemeinsam/welt/bauwerke.js`: Ebene, Kollision, `anschluss`) · 3) Geometrie in `client/darstellung/basisbauModelle.js` (`GEO_BAUPLAN`) + Fall in `bauwerkModelle.erzeugeBauwerk` · 4) bei E-Aktion: `bauwerkAktion` + `bauSystem.benutzeBauwerk`; Zustand speichern: `spielWelt.pruefeBauwerk` |
 | Basisbau: Kosten, Rückgabe, Radius, Reichweite | Kosten `teile.js` (`kosten`); Rückgabe/Radius/Flaggen-Freiraum `spielKonfiguration.js` → `basisbau` (auch im Developer-Fenster); Reichweite `BAU_REICHWEITE_BASIS` |
@@ -683,6 +692,9 @@ browser_survival/
 - **Welt:** Stadtrand 155×130 mit 5 Kacheln breiten Straßen, Straßenlaternen (Mast, kleines warmes Licht, jede dritte flackert), fallende Blätter, weniger Hasen, Schlafen ohne Zeitsprung (`schlafen.stunden` = 0)
 - Admin-Menü hat ✕ und schließt bei Tipp daneben
 
+### ✅ Phase 11 – Feedback-Runde 13 (fertig, v0.13.0, Protokoll 10)
+Stationen (Lagerfeuer-Kochen, Schmelzofen) mit eigenem Menü, Haltbarkeit, Hand-Items (Essen, Holz, Samen, Hacke), Kofferraum, Angel-Beute, klein/groß, Sichtkegel, Performance-Culling, Audio-Korrekturen, Admin-Werkzeuge. Details: KI_INDEX.md §6 „v0.13“.
+
 ### 💡 Ideen-Sammlung (für später, grob nach Aufwand)
 **Schnell umsetzbar**
 - Eisen (in der Werkstatt/Autos ausschlachten) → bessere Rezepte (Machete, Nägel, Munition)
@@ -751,3 +763,4 @@ browser_survival/
 | 0.11.0 | 2026-10-16 | **Basisbau:** BUILD-Modus (B) mit Hammer + Bau-Menü, Basis-Flagge/Baugebiet (roter Ring nur für den Besitzer), Bauteile Holz (Boden, Dach, Wand, Fenster, Türöffnung, Tür, Kiste, Bett + Item Stoff), Hologramm grün/rot + Snapping/Magnet, Abriss mit 75 % Rückgabe, Rechte (Gruppen vorbereitet), Bett = Spawn Point, Ebenen-System, instanzierte Darstellung, Delta-Pakete für Bauwerke, Admin „Flagge entfernen“ (Protokoll v9) |
 | 0.12.0 | 2026-10-16 | **Handy & Komfort:** kompakte/einstellbare Statusbalken, feste Sticks (Fest/Frei), Pinch-Zoom, Zombie anvisieren (Auto-Aim), Angel-Knopf, Warn-„!“; Zombies schwächer (Sicht/Tempo), im Haus unsichtbar, Lagerfeuer-Sitzen; 2×2-Bauteile, Zaun & Zauntor, Baugebiet 8; Stadtrand 155×130 mit breiten Straßen + Laternen, fallende Blätter, weniger Hasen, Schlafen ohne Zeitsprung |
 | 0.12.1 | 2026-10-17 | Feedback-Runde: Raum-Dächer, höhere Wände, Silhouette statt Durchschauen, Item-Namen, Einschlagfarben, Nebel/Regen-Performance, Startausrüstung inkl. Hacke, Samen/Angel in der Hand, Schlafen festhaltend (6 h), Admin-Flug (Umschalt+B), Ego: Alt-Maus & Auto, seitliches Axt-Fällen, 4 Zombie-Gesichter, echte CC0-Sounds |
+| 0.13.0 | 2026-10-17 | **Feedback-Runde 13 (Protokoll v10):** Lagerfeuer-Menü (Koch-Slots 3, gar nach 20 s, verkohlt nach 30 s, Brutzeln/Fertig-Ton, Sitzen, 3 min Brenndauer, Holz in der Hand + Linksklick = +3 min, Regen löscht), **Schmelzofen** (Eisenerz → Eisenbarren, Holz als Brennstoff), Werkzeug-Haltbarkeit (Axt/Spitzhacke/Hacke), Hacke 1×1 ohne G-Modus (Linksklick anlegen, Rechtsklick Rasen), Samen-Indikator, Essen/Trinken erst in die Hand (Linksklick verbraucht), Q wirft 1 Stück, Tab = Inventar / I = Spielerinfo, Kofferraum (G, 10 Plätze), Hasen überfahren, Angel-Beute 50/40/10 + Klick-Symbol, klein/groß Bäume & Steine (1/2 Holz bzw. Stein), Wald ausgedünnt, Nahkampf-Reichweite ↑, Energydrink-Boost, Admin: ∞ Munition + ⏩ +12 h, **Sichtkegel**, dunklere Nächte, flachere Kamera, Tür-Schimmer hinter Wänden, Baum-/Stein-Chunks mit Frustum-Culling (FPS), Axt beidhändig mit seitlicher Schneide, Sounds (Feuer-Anzünden war ein Schuss-Event!, Auto-Motor neu, Stein/Fels, Baumfall wieder synthetisch, Hasen lautlos) |

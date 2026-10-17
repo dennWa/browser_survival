@@ -6,7 +6,7 @@
  *   npm run rauchtest -- --online      über den Node-Server (WebSocket, Gast-Login)
  *   npm run rauchtest -- --port 8099   anderer Port (Standard 8093)
  *
- * Ablauf: Login → Ladebildschirm weg → laufen → Inventar (I) → Karte (K) → Bau-Modus (B) → Zonenwechsel Waldweg und zurück
+ * Ablauf: Login → Ladebildschirm weg → laufen → Inventar (Tab) → Karte (K) → Bau-Modus (B) → Zonenwechsel Waldweg und zurück
  * (nur lokal, über browserSurvival.zone) → Screenshots nach werkzeuge/test/ausgabe/ → Fehlerliste.
  * Exit-Code 1 bei Seiten-/Konsolenfehlern. Braucht Playwright + Chromium (lokal installiert oder global:
  * `npm i -g playwright`); in Cloud-Sandboxen ist es meist schon da.
@@ -75,10 +75,10 @@ try {
   await seite.waitForTimeout(400);
   await bild('2_spiel');
   schritt('gelaufen');
-  await seite.keyboard.press('KeyI');
+  await seite.keyboard.press('Tab');
   await seite.waitForTimeout(400);
   await bild('3_inventar');
-  await seite.keyboard.press('KeyI');
+  await seite.keyboard.press('Tab');
   await seite.keyboard.press('KeyK');
   await seite.waitForTimeout(400);
   await bild('4_karte');

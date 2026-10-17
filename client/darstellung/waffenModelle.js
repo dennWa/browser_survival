@@ -123,6 +123,26 @@ const BAUPLAENE = {
     g.add(quader(3.2, 2.6, 1, new THREE.MeshStandardMaterial({ color: 0x5aa83a, roughness: 0.8 }), 0, 0.4, 1.1));
     return g;
   },
+  // Essen/Trinken/Holz in der Hand (Zahlentaste, Linksklick = verbrauchen bzw. Holz nachlegen)
+  essen() {
+    const g = new THREE.Group();
+    g.add(rohr(2.1, 4.4, new THREE.MeshStandardMaterial({ color: 0xc9ccd1, roughness: 0.4, metalness: 0.5 }), 0, 0, 2.2));
+    g.add(rohr(2.15, 2, rot, 0, 0, 2.2));
+    return g;
+  },
+  trinken() {
+    const g = new THREE.Group();
+    g.add(rohr(1.7, 7, new THREE.MeshStandardMaterial({ color: 0x9fd3f0, roughness: 0.2 }), 0, 0, 3.5));
+    g.add(rohr(1.75, 2.4, new THREE.MeshStandardMaterial({ color: 0x2d7dd2, roughness: 0.5 }), 0, 0, 3.4));
+    g.add(rohr(0.8, 1.6, gummi, 0, 0, 7.6));
+    return g;
+  },
+  holz() {
+    const g = new THREE.Group();
+    g.add(rohr(1.5, 10, new THREE.MeshStandardMaterial({ color: 0x8a5a2b, roughness: 0.9 }), 0, 0, 4));
+    g.add(rohr(0.9, 0.5, new THREE.MeshStandardMaterial({ color: 0xd9b27a, roughness: 0.9 }), 0, 0, 9.2));
+    return g;
+  },
   taschenlampe() {
     const g = new THREE.Group();
     g.add(rohr(1.2, 7, gummi, 0, 0, 1.5));
@@ -162,5 +182,6 @@ export function haltungFuer(name) {
   if (name === 'pistole') return 'pistole';
   if (name === 'schrotflinte') return 'gewehr';
   if (name === 'taschenlampe') return 'lampe';
+  if (name === 'essen' || name === 'trinken' || name === 'holz' || name === 'samen') return 'halten'; // etwas vor sich halten, kein Schwung
   return 'nahkampf';
 }

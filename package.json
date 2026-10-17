@@ -1,6 +1,6 @@
 {
   "name": "browser-survival",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "description": "Top-Down-Survival im Browser – autoritativer Server, WebSocket-Mehrspieler",
   "private": true,
   "type": "module",

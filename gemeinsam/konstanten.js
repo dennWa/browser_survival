@@ -4,10 +4,10 @@
  */
 
 export const SPIEL_NAME = 'Browser Survival';
-export const SPIEL_VERSION = '0.12.0';
+export const SPIEL_VERSION = '0.13.0';
 
 /** Wird beim Login verglichen. Erhöhen, sobald sich das Nachrichtenformat inkompatibel ändert. */
-export const PROTOKOLL_VERSION = 9;
+export const PROTOKOLL_VERSION = 10;
 
 /** Simulationstakt (Ticks pro Sekunde). Server-Simulation und Client-Vorhersage laufen im selben Takt. */
 export const TICK_RATE = 30;

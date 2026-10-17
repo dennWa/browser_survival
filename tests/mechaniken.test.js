@@ -253,7 +253,7 @@ test('See: Wasser blockiert Laufen, aber nicht Sicht und Schüsse', () => {
 });
 
 test('Angeln: auswerfen, Pose wackelt (Biss), erneut klicken = Fang; zu früh/zu spät = nichts', () => {
-  const { welt, spieler } = neueWelt({ angeln: { doppelChance: 0, wartenMin: 1, wartenMax: 1, bissMin: 2.5, bissMax: 2.5 } });
+  const { welt, spieler } = neueWelt({ angeln: { doppelChance: 0, wartenMin: 1, wartenMax: 1, bissMin: 2.5, bissMax: 2.5, beute: { fisch: 1, muell: 0, munition: 0 } } });
   fuegeZumInventarHinzu(spieler, 'angel', 1);
   spieler.x = mitte(9);
   spieler.y = mitte(4);
@@ -294,7 +294,7 @@ test('Angeln: auswerfen, Pose wackelt (Biss), erneut klicken = Fang; zu früh/zu
 });
 
 test('Angeln: 10 % Doppelfang; Bewegung bricht ab; ohne Angel / ohne Wasser wird normal angegriffen', () => {
-  const { welt, spieler } = neueWelt({ angeln: { doppelChance: 1, wartenMin: 0.1, wartenMax: 0.1, bissMin: 3, bissMax: 3 } });
+  const { welt, spieler } = neueWelt({ angeln: { doppelChance: 1, wartenMin: 0.1, wartenMax: 0.1, bissMin: 3, bissMax: 3, beute: { fisch: 1, muell: 0, munition: 0 } } });
   assert.equal(erstelleKonfiguration().angeln.doppelChance, 0.1);
   spieler.x = mitte(9);
   spieler.y = mitte(4);

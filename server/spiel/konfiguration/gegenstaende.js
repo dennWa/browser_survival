@@ -54,7 +54,7 @@ const ROH_GEGENSTAENDE = {
   munition_9mm: { name: 'Munition 9 mm', kategorie: 'munition', stapelbar: 60, mengeBeimFund: [5, 15] },
   munition_12: { name: 'Schrotpatronen Kal. 12', kategorie: 'munition', stapelbar: 30, mengeBeimFund: [2, 6] },
   // --- Material (Abbau & Crafting) ---
-  holz: { name: 'Holz', kategorie: 'material', stapelbar: 50, inHand: true, ausruestung: 'samen', beschreibung: 'In die Hand nehmen, Linksklick aufs Lagerfeuer: +3 Minuten Brenndauer' },
+  holz: { name: 'Holz', kategorie: 'material', stapelbar: 50, inHand: true, ausruestung: 'holz', beschreibung: 'In die Hand nehmen, Linksklick aufs Lagerfeuer: +3 Minuten Brenndauer' },
   stein: { name: 'Stein', kategorie: 'material', stapelbar: 50 },
   eisenerz: { name: 'Eisenerz', kategorie: 'material', stapelbar: 50, beschreibung: 'Mit der Spitzhacke abgebaut – für Fallen und Werkzeug' },
   eisenbarren: { name: 'Eisenbarren', kategorie: 'material', stapelbar: 50, beschreibung: 'Im Schmelzofen aus Eisenerz geschmolzen' },
@@ -106,7 +106,7 @@ function normalisiere(roh) {
     // Samen kann man in die Hand nehmen (Linksklick am Beet pflanzt)
     if (def.kategorie === 'samen') def = { ...def, inHand: true, ausruestung: 'samen' };
     // Essen, Trinken, Medizin: erst in die Hand nehmen (Zahlentaste), Linksklick verbraucht
-    if (['nahrung', 'getraenk', 'medizin'].includes(def.kategorie)) def = { ...def, inHand: true, ausruestung: 'samen' };
+    if (['nahrung', 'getraenk', 'medizin'].includes(def.kategorie)) def = { ...def, inHand: true, ausruestung: def.kategorie === 'getraenk' ? 'trinken' : 'essen' };
     ergebnis[id] = { ...def, stapelbar: def.kategorie === 'munition' ? STAPEL_MUNITION : einzeln ? 1 : STAPEL_STANDARD }; // nicht eingefroren: der Developer-Modus ändert Werte
   }
   return ergebnis;
