@@ -1,0 +1,110 @@
+{
+ "pistole": [
+  "pistole_0.ogg"
+ ],
+ "schrotflinte": [
+  "schrotflinte_0.ogg"
+ ],
+ "aufheben": [
+  "aufheben_0.ogg",
+  "aufheben_1.ogg",
+  "aufheben_2.ogg"
+ ],
+ "hack_holz": [
+  "hack_holz_0.ogg",
+  "hack_holz_1.ogg",
+  "hack_holz_2.ogg",
+  "hack_holz_3.ogg"
+ ],
+ "hack_stein": [
+  "hack_stein_0.ogg",
+  "hack_stein_1.ogg",
+  "hack_stein_2.ogg",
+  "hack_stein_3.ogg",
+  "hack_stein_4.ogg"
+ ],
+ "treffer_zombie": [
+  "treffer_zombie_0.ogg",
+  "treffer_zombie_1.ogg",
+  "treffer_zombie_2.ogg"
+ ],
+ "treffer_spieler": [
+  "treffer_spieler_0.ogg",
+  "treffer_spieler_1.ogg"
+ ],
+ "tuer_auf": [
+  "tuer_auf_0.ogg",
+  "tuer_auf_1.ogg"
+ ],
+ "tuer_zu": [
+  "tuer_zu_0.ogg",
+  "tuer_zu_1.ogg",
+  "tuer_zu_2.ogg",
+  "tuer_zu_3.ogg"
+ ],
+ "tuer_schlag": [
+  "tuer_schlag_0.ogg",
+  "tuer_schlag_1.ogg",
+  "tuer_schlag_2.ogg"
+ ],
+ "tuer_bricht": [
+  "tuer_bricht_0.ogg",
+  "tuer_bricht_1.ogg"
+ ],
+ "aufprall": [
+  "aufprall_0.ogg",
+  "aufprall_1.ogg"
+ ],
+ "fahrzeug_schaden": [
+  "fahrzeug_schaden_0.ogg",
+  "fahrzeug_schaden_1.ogg",
+  "fahrzeug_schaden_2.ogg"
+ ],
+ "fahrzeug_kaputt": [
+  "fahrzeug_kaputt_0.ogg"
+ ],
+ "autotuer": [
+  "autotuer_0.ogg",
+  "autotuer_1.ogg"
+ ],
+ "gebaut": [
+  "gebaut_0.ogg",
+  "gebaut_1.ogg",
+  "gebaut_2.ogg"
+ ],
+ "werkeln": [
+  "werkeln_0.ogg",
+  "werkeln_1.ogg",
+  "werkeln_2.ogg"
+ ],
+ "graben": [
+  "graben_0.ogg",
+  "graben_1.ogg"
+ ],
+ "stein_bricht": [
+  "stein_bricht_0.ogg"
+ ],
+ "zombie_stoehnen": [
+  "zombie_stoehnen_0.ogg",
+  "zombie_stoehnen_1.ogg",
+  "zombie_stoehnen_2.ogg",
+  "zombie_stoehnen_3.ogg",
+  "zombie_stoehnen_4.ogg",
+  "zombie_stoehnen_5.ogg"
+ ],
+ "zombie_angriff": [
+  "zombie_angriff_0.ogg",
+  "zombie_angriff_1.ogg",
+  "zombie_angriff_2.ogg",
+  "zombie_angriff_3.ogg",
+  "zombie_angriff_4.ogg"
+ ],
+ "zombie_tod": [
+  "zombie_tod_0.ogg",
+  "zombie_tod_1.ogg",
+  "zombie_tod_2.ogg"
+ ],
+ "baum_faellt": [
+  "baum_faellt_0.ogg"
+ ]
+}

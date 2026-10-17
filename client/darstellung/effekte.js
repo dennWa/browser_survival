@@ -8,6 +8,7 @@
 const MAX_PARTIKEL = 400;
 const MAX_FLECKEN = 60;
 const FLECK_LEBENSDAUER = 120; // Sekunden (2 min), dann verblasst das Blut
+const STOFF_FARBEN = { holz: '#8a6038', stein: '#8d8d88', metall: '#b9bec4', glas: '#cfe6ee', beton: '#b3aea2' };
 const MUENDUNG_ABSTAND = 20; // px vor der Figur
 const LEUCHTSPUR_DAUER = 0.14;
 const FEUER_DAUER = 0.09;
@@ -89,11 +90,12 @@ export class Effekte {
         const sx = e.x + Math.cos(winkel) * MUENDUNG_ABSTAND;
         const sy = e.y + Math.sin(winkel) * MUENDUNG_ABSTAND;
         this.#leuchtspuren.push({ x: sx, y: sy, zx: e.zx, zy: e.zy, alter: 0, dauer: LEUCHTSPUR_DAUER });
-        this.#spritzer(e.zx, e.zy, winkel + Math.PI, 3, '#c9c2b0', 40, 1.2); // Staub/Funken am Einschlag
+        // Einschlag: Staub/Splitter in der Farbe des Materials – Blut gibt es nur bei 'treffer' (Zombie/Spieler/Tier)
+        if (e.stoff && e.stoff !== 'fleisch') this.#spritzer(e.zx, e.zy, winkel + Math.PI, 5, STOFF_FARBEN[e.stoff] ?? STOFF_FARBEN.beton, 45, 1.3);
         break;
       }
       case 'treffer':
-        this.#spritzer(e.x, e.y, e.winkel, 10, e.ziel === 'zombie' ? '#6e1a12' : '#8e1010', 140, 2.2);
+        this.#spritzer(e.x, e.y, e.winkel, 10, e.ziel === 'zombie' ? '#6e1a12' : e.ziel === 'tier' ? '#7a1a14' : '#8e1010', 140, 2.2);
         if (Math.random() < 0.35) this.#fleck(e.x + Math.cos(e.winkel) * 10, e.y + Math.sin(e.winkel) * 10, 'blutfleck', 14);
         break;
       case 'tod':

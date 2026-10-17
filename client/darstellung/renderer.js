@@ -10,7 +10,7 @@ import { FAHRZEUG_MODELLE } from '../../gemeinsam/physik/fahrzeug.js';
 import { erzeugeFrisur } from './haarModell.js';
 import { AUSSEHEN, skinFuer } from '../../gemeinsam/spieler/aussehen.js';
 import { itemGeometrie, ITEM_MATERIAL, rucksackTeile } from './itemModelle.js';
-import { zeichneBeschriftung } from './beschriftung.js';
+import { zeichneBeschriftung, zeichneItemName } from './beschriftung.js';
 import { richteFigurEin, aktualisiereHaltung } from './figurHaltung.js';
 import { erzeugeWaffe, WAFFEN_NAMEN } from './waffenModelle.js';
 import { erzeugeTier } from './tierModelle.js';
@@ -42,10 +42,10 @@ import { BlaetterEffekt } from './blaetterEffekt.js';
  */
 const ASSETS = new URL('../assets/', import.meta.url);
 const FIGUR_HOEHE = 64;
-const SCHNITT_RADIUS = 115; // px um die eigene Figur, in denen kameraseitige Wände aufgeschnitten werden
+const SCHNITT_RADIUS = 0; // 0 = aus: kein Durchschauen durch Wände mehr (verdeckte Figur zeigt stattdessen die Silhouette)
 const SCHNITT_HOEHE = 10; // bis zu dieser Höhe bleiben aufgeschnittene Wände als Sockel stehen
 const ZIELHOEHE = 36; // Mausstrahl trifft diese Höhe (Brust) → Zielen fühlt sich richtig an
-const KAMERA_VERSATZ = new THREE.Vector3(0, 560, 380);
+const KAMERA_VERSATZ = new THREE.Vector3(0, 600, 320);
 const SKINS = { normal: 'zombieMaleA', laeufer: 'zombieFemaleA', brocken: 'zombieMaleA' }; // Zombies; Spieler: aussehen.js
 const KOPF = { hoehe: 1.22, breite: 0.9, tiefe: 1.07 }; // Schädelmaße im Verhältnis zum Abstand Kopfknochen → Head_end (gemessen)
 const _wetterGrau = new THREE.Color();
@@ -91,6 +91,21 @@ const DAEMMERUNG = { sonne: new THREE.Color(0xff9a4d), hintergrund: new THREE.Co
 const _ziel = new THREE.Vector3();
 const _kameraZiel = new THREE.Vector3();
 
+const ITEM_NAMEN_RADIUS = 320; // px: so nah müssen Bodenitems sein, damit ihr Name erscheint
+const PARTIKEL_FARBE = new THREE.Color();
+
+// Silhouette: Ist die eigene Figur hinter einer Wand verschwunden, bleibt ein grauer Umriss sichtbar.
+// Schritt 1 markiert per Stencil, wo die Figur sichtbar ist; Schritt 2 malt sie nur dort grau, wo sie verdeckt ist.
+const SILHOUETTE_EBENE = 1;
+const SILHOUETTE_MARKE = new THREE.MeshBasicMaterial({
+  colorWrite: false, depthWrite: false, depthFunc: THREE.LessEqualDepth,
+  stencilWrite: true, stencilFunc: THREE.AlwaysStencilFunc, stencilRef: 1, stencilZPass: THREE.ReplaceStencilOp,
+});
+const SILHOUETTE_GRAU = new THREE.MeshBasicMaterial({
+  color: 0x9aa3b0, transparent: true, opacity: 0.55, depthWrite: false, depthFunc: THREE.GreaterDepth, fog: false,
+  stencilWrite: true, stencilFunc: THREE.NotEqualStencilFunc, stencilRef: 1, stencilZPass: THREE.ReplaceStencilOp,
+});
+
 export class Renderer {
   /** Lädt Figuren & Animationen, baut den Renderer. Wirft, wenn WebGL fehlt. */
   static async erstelle(leinwand2d, assets) {
@@ -109,7 +124,7 @@ export class Renderer {
     this.schadenEbene = document.getElementById('schadensblitz');
     this.istHandy = matchMedia('(pointer: coarse)').matches;
 
-    this.gl = new THREE.WebGLRenderer({ canvas: this.leinwand, antialias: !this.istHandy, powerPreference: 'high-performance' });
+    this.gl = new THREE.WebGLRenderer({ canvas: this.leinwand, antialias: !this.istHandy, stencil: true, powerPreference: 'high-performance' });
     this.gl.shadowMap.enabled = true;
     this.gl.shadowMap.type = THREE.PCFShadowMap;
     this.gl.toneMapping = THREE.ACESFilmicToneMapping;
@@ -301,7 +316,7 @@ export class Renderer {
   /**
    * @param tageszeit  { helligkeit 0..1, istNacht, anteil } (gemeinsam/tageszeit.js)
    */
-  zeichne({ fokus, entitaeten, gegenstaende, jetzt, effekte = null, markiertId = null, zielId = null, tageszeit = null, wetter = 'klar' }) {
+  zeichne({ fokus, entitaeten, gegenstaende, itemDefinitionen = {}, jetzt, effekte = null, markiertId = null, zielId = null, tageszeit = null, wetter = 'klar' }) {
     const dt = this.letzteZeit ? Math.min(0.1, (jetzt - this.letzteZeit) / 1000) : 0;
     this.letzteZeit = jetzt;
     this.#passeAufloesungAn(dt, jetzt);
@@ -318,6 +333,7 @@ export class Renderer {
     const dunkel = this.#tageslicht(tageszeit, _ziel);
 
     this.karte.aktualisiere(dt, dunkel);
+    this.karte.aktualisiereDaecher(fokus.x, fokus.y);
     this.blaetter?.aktualisiere(dt, fokus, jetzt, dunkel);
     this.#aktualisiereFahrzeuge(entitaeten, fokus);
     this.#aktualisiereFiguren(entitaeten, fokus, dt, jetzt);
@@ -339,8 +355,33 @@ export class Renderer {
     }
 
     this.gl.render(this.szene, this.kamera3d);
-    this.#zeichneOverlay(entitaeten, fokus);
+    this.#zeichneSilhouette(fokus);
+    this.#zeichneOverlay(entitaeten, fokus, gegenstaende, itemDefinitionen);
     if (this.ruhigWarter) this.#pruefeRuhig(dt, jetzt);
+  }
+
+  /** Grauer Umriss der eigenen Figur, wo Wände/Dächer/Bäume sie verdecken (zweiter Durchgang, nur Figur-Ebene). */
+  #zeichneSilhouette(fokus) {
+    const figur = this.figuren.get(fokus.id);
+    if (!figur || !figur.gruppe.visible || fokus.fahrzeugId) return;
+    figur.gruppe.traverse((o) => o.layers.enable(SILHOUETTE_EBENE)); // Waffe/Haare wechseln → jedes Mal (≈50 Objekte)
+    const { gl, szene, kamera3d } = this;
+    const schatten = gl.shadowMap.autoUpdate;
+    const ebenen = kamera3d.layers.mask;
+    gl.shadowMap.autoUpdate = false;
+    gl.autoClear = false;
+    const hintergrund = szene.background;
+    szene.background = null; // eine Farb-Hintergrund würde den Bildpuffer sonst bei jedem render() löschen
+    kamera3d.layers.set(SILHOUETTE_EBENE);
+    szene.overrideMaterial = SILHOUETTE_MARKE;
+    gl.render(szene, kamera3d);
+    szene.overrideMaterial = SILHOUETTE_GRAU;
+    gl.render(szene, kamera3d);
+    szene.overrideMaterial = null;
+    szene.background = hintergrund;
+    kamera3d.layers.mask = ebenen;
+    gl.autoClear = true;
+    gl.shadowMap.autoUpdate = schatten;
   }
 
   /**
@@ -685,7 +726,9 @@ export class Renderer {
     this.partikelGeometrie = new THREE.BufferGeometry();
     this.partikelPunkte = new THREE.BufferAttribute(new Float32Array(3 * 400), 3);
     this.partikelGeometrie.setAttribute('position', this.partikelPunkte);
-    this.partikel = new THREE.Points(this.partikelGeometrie, new THREE.PointsMaterial({ color: 0x7a1510, size: 3 }));
+    this.partikelFarben = new THREE.BufferAttribute(new Float32Array(3 * 400), 3);
+    this.partikelGeometrie.setAttribute('color', this.partikelFarben);
+    this.partikel = new THREE.Points(this.partikelGeometrie, new THREE.PointsMaterial({ vertexColors: true, size: 3 }));
     this.partikel.frustumCulled = false;
     this.blutFlecken = new Map(); // Effekt-Objekt → Mesh
     this.szene.add(this.spuren, this.partikel, this.markierRing, this.zielRing);
@@ -802,7 +845,7 @@ export class Renderer {
         f.gruppe.position.set(e.arbeitOrt.x - (laengs ? 0 : 30), 20, e.arbeitOrt.y + (laengs ? 30 : 0));
         f.gruppe.rotation.set(-Math.PI / 2, laengs ? 0 : -Math.PI / 2, 0, 'YXZ');
       } else {
-        f.gruppe.position.set(e.x, e.arbeit === 'sitzen' ? -SITZ_TIEFE : 0, e.y);
+        f.gruppe.position.set(e.x, e.arbeit === 'sitzen' ? -SITZ_TIEFE : e.fliegen ? 34 + Math.sin(jetzt / 260) * 3 : 0, e.y); // Flugmodus (Admin): schwebt
         f.gruppe.rotation.set(0, Math.PI / 2 - e.blick, 0, 'YXZ');
       }
 
@@ -831,11 +874,17 @@ export class Renderer {
 
   #figurMaterial(e) {
     // Spieler: Skin aus dem gewählten Aussehen (gemeinsam/spieler/aussehen.js), Zombies: nach Variante
-    const schluessel = e.typ === 'spieler' ? skinFuer(e.aussehen) : (e.variante ?? 'normal');
+    // Zombies: 4 Gesichter (zombieGesicht0–3: gerade = männlicher, ungerade = weiblicher Körper) – Läufer weiblich, Brocken männlich
+    let gesicht = null;
+    if (e.typ === 'zombie') {
+      const nr = (e.id ?? 0) % 4;
+      gesicht = e.variante === 'laeufer' ? (nr % 2) * 2 + 1 : e.variante === 'brocken' ? (nr % 2) * 2 : nr;
+    }
+    const schluessel = e.typ === 'spieler' ? skinFuer(e.aussehen) : `${e.variante ?? 'normal'}:${gesicht}`;
     if (!this.figurMaterialien.has(schluessel)) {
-      const skin = e.typ === 'spieler' ? schluessel : SKINS[schluessel];
+      const skin = e.typ === 'spieler' ? schluessel : `zombieGesicht${gesicht}`;
       const material = new THREE.MeshStandardMaterial({ map: this.skins[skin] ?? this.skins[SKINS.normal], roughness: 0.75 });
-      if (schluessel === 'brocken') material.color.setRGB(0.75, 0.6, 0.55);
+      if (e.variante === 'brocken') material.color.setRGB(0.75, 0.6, 0.55);
       this.figurMaterialien.set(schluessel, material);
     }
     return this.figurMaterialien.get(schluessel);
@@ -1069,8 +1118,11 @@ export class Renderer {
       this.szene.fog.color.copy(this.szene.background);
     }
     const dicht = Math.min(1, nebel + 0.35 * regen);
-    this.szene.fog.near = (650 + hell * 600) * abstand * (1 - 0.82 * dicht);
-    this.szene.fog.far = (1500 + hell * 1500) * abstand * (1 - 0.62 * dicht);
+    // Dichter Nebel darf kräftig sein, aber nie die Figur selbst verschlucken (Top-Down: Kamera ~677 px × Zoom entfernt)
+    const kamAbstand = KAMERA_VERSATZ.length() * abstand;
+    const nah = Math.max((650 + hell * 600) * abstand * (1 - 0.82 * dicht), kamAbstand * 0.92);
+    this.szene.fog.near = nah;
+    this.szene.fog.far = Math.max((1500 + hell * 1500) * abstand * (1 - 0.62 * dicht), nah + kamAbstand * (0.5 + 0.3 * hell));
     return dunkel;
   }
 
@@ -1104,7 +1156,10 @@ export class Renderer {
     for (let i = 0; i < anzahl; i++) {
       const t = partikel[i];
       this.partikelPunkte.array.set([t.x, 12 + (1 - t.alter / t.dauer) * 20, t.y], i * 3);
+      PARTIKEL_FARBE.set(t.farbe);
+      this.partikelFarben.array.set([PARTIKEL_FARBE.r, PARTIKEL_FARBE.g, PARTIKEL_FARBE.b], i * 3);
     }
+    this.partikelFarben.needsUpdate = anzahl > 0;
     this.partikelGeometrie.setDrawRange(0, anzahl);
     this.partikelPunkte.needsUpdate = anzahl > 0;
     // Blutlachen am Boden
@@ -1133,8 +1188,8 @@ export class Renderer {
     }
   }
 
-  /** 2D-Ebene über der 3D-Szene: nur Namen und Lebensbalken (Vignette & Schaden sind CSS). */
-  #zeichneOverlay(entitaeten, fokus) {
+  /** 2D-Ebene über der 3D-Szene: Namen, Lebensbalken und kleine Item-Namen am Boden (Vignette & Schaden sind CSS). */
+  #zeichneOverlay(entitaeten, fokus, gegenstaende = [], itemDefinitionen = {}) {
     const ctx = this.octx;
     const zuZeichnen = [];
     for (const e of entitaeten) {
@@ -1143,8 +1198,15 @@ export class Renderer {
       const braucht = e.typ === 'spieler' ? !e.istEigener : e.leben < e.maxLeben;
       if (braucht) zuZeichnen.push(e);
     }
-    if (zuZeichnen.length === 0 && !this.overlayBenutzt) return;
-    this.overlayBenutzt = zuZeichnen.length > 0;
+    const beschriftet = [];
+    if (!this.egoHaken) {
+      for (const g of gegenstaende) {
+        if (Math.abs(g.x - fokus.x) > ITEM_NAMEN_RADIUS || Math.abs(g.y - fokus.y) > ITEM_NAMEN_RADIUS) continue;
+        if (itemDefinitionen[g.defId]?.name && this.karte.istEinsehbar(g.x, g.y)) beschriftet.push(g);
+      }
+    }
+    if (zuZeichnen.length === 0 && beschriftet.length === 0 && !this.overlayBenutzt) return;
+    this.overlayBenutzt = zuZeichnen.length > 0 || beschriftet.length > 0;
     const dpr = this.overlay.width / Math.max(1, this.kamera.breite);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, this.overlay.width, this.overlay.height);
@@ -1152,6 +1214,10 @@ export class Renderer {
     for (const e of zuZeichnen) {
       const kopf = this.kamera.weltZuBildschirm(e.x, e.y, FIGUR_HOEHE * (e.groesse ?? 1) + 8);
       zeichneBeschriftung(ctx, { ...e, x: kopf.x, y: kopf.y + 30 });
+    }
+    for (const g of beschriftet) {
+      const p = this.kamera.weltZuBildschirm(g.x, g.y, 12);
+      zeichneItemName(ctx, g.menge > 1 ? `${itemDefinitionen[g.defId].name} ×${g.menge}` : itemDefinitionen[g.defId].name, p.x, p.y - 4);
     }
   }
 

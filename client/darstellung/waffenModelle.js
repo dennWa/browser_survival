@@ -104,6 +104,25 @@ const BAUPLAENE = {
     g.add(quader(1, 2.2, 2.2, metallHell, 0, -6.4, 12.1));
     return g;
   },
+  hacke() {
+    const g = new THREE.Group();
+    g.add(rohr(0.9, 17, holz, 0, 0, 6.5));
+    g.add(quader(0.9, 2.4, 6.5, metall, 0, -0.4, 14.5)); // Blatt (quer zum Stiel nach vorn-unten)
+    return g;
+  },
+  angel() {
+    const g = new THREE.Group();
+    g.add(rohr(0.5, 26, holz, 0, 1.5, 11)); // Rute, leicht nach oben geneigt durch die Haltung
+    g.add(rohr(1.1, 3, gummi, 0, 0, 0)); // Griff
+    g.add(quader(1.6, 1.6, 1.6, metall, 0, -1.2, 3)); // Rolle
+    return g;
+  },
+  samen() {
+    const g = new THREE.Group();
+    g.add(quader(4.5, 6.5, 0.9, new THREE.MeshStandardMaterial({ color: 0xe6d9b4, roughness: 0.8 }), 0, 0, 1));
+    g.add(quader(3.2, 2.6, 1, new THREE.MeshStandardMaterial({ color: 0x5aa83a, roughness: 0.8 }), 0, 0.4, 1.1));
+    return g;
+  },
   taschenlampe() {
     const g = new THREE.Group();
     g.add(rohr(1.2, 7, gummi, 0, 0, 1.5));

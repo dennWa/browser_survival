@@ -262,11 +262,20 @@ function benutzen(spielWelt, spieler, slot) {
       break;
     case 'bauwerk':
     case 'werkzeug':
+      if (def.inHand) {
+        // Angel & Co.: in die Hand nehmen bzw. wegstecken (auch fernab vom Wasser)
+        spieler.ausgeruestet = spieler.ausgeruestet === slot ? null : slot;
+        spieler.nachladenRest = 0;
+        aktualisiereAusruestung(spieler);
+        break;
+      }
       // Aufstellen läuft über AKTION 'platzieren' (Vorschau im Client); Feuerzeug wirkt über F am Lagerfeuer
       spielWelt.melde(spieler.id, def.baut || def.bauwerk ? 'Platz wählen und bestätigen' : def.beschreibung ?? def.name);
       break;
     case 'samen':
-      pflanzeInsBeet(spielWelt, spieler, slot, def);
+      // Samen in die Hand nehmen; Linksklick/E neben einem freien Beet pflanzt (kampfSystem → pflanzeSamenAusHand)
+      spieler.ausgeruestet = spieler.ausgeruestet === slot ? null : slot;
+      aktualisiereAusruestung(spieler);
       break;
     case 'material':
       if (eintrag.defId === 'bretter') verstaerkeTuer(spielWelt, spieler, slot);
@@ -280,14 +289,15 @@ function verstaerkeTuer(spielWelt, spieler, slot) {
   if (verstaerkeNaechsteTuer(spielWelt, spieler)) verbrauche(spieler, slot);
 }
 
-/** Samen benutzen = ins nächste leere Beet in Reichweite pflanzen (wie E am Beet). */
-function pflanzeInsBeet(spielWelt, spieler, slot, def) {
+/** Samen in der Hand: ins nächste freie Beet in Reichweite pflanzen (Linksklick). @returns true, wenn gepflanzt */
+export function pflanzeSamenAusHand(spielWelt, spieler, def) {
   const beet = spielWelt.welt.naechstesBauwerk(spieler.x, spieler.y, BAUWERK_REICHWEITE, (b) => b.typ === 'beet' && !b.pflanze);
   if (!beet) {
-    spielWelt.melde(spieler.id, 'Kein freies Beet in der Nähe – erst mit der Hacke eins anlegen');
-    return;
+    spielWelt.melde(spieler.id, 'Kein freies Beet in der Nähe – erst mit der Hacke ein Erdfeld anlegen');
+    return false;
   }
   benutzeBauwerk(spielWelt, spieler, beet.id, def.pflanze);
+  return true;
 }
 
 export function verbrauche(spieler, slot) {

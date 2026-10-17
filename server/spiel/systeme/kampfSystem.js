@@ -2,7 +2,7 @@ import { brecheArbeitAb } from './arbeitSystem.js';
 import { strahlGegenWaende, strahlTrifftKreis } from '../../../gemeinsam/physik/strahl.js';
 import { bewegeKoerper } from '../../../gemeinsam/physik/bewegung.js';
 import { NAHKAMPF_KEGEL, STANDARD_AUSRUESTUNG } from '../konfiguration/gegenstaende.js';
-import { aktuelleWaffe, legeAufBoden, legeRucksackAb, starteNachladen, zaehleMunition } from './inventarSystem.js';
+import { aktuelleWaffe, legeAufBoden, pflanzeSamenAusHand, legeRucksackAb, starteNachladen, zaehleMunition } from './inventarSystem.js';
 import { gibXp, setzeLevelZurueck } from './levelSystem.js';
 import { staerkeFaktor } from '../../../gemeinsam/spieler/skills.js';
 import { aussteigen, schlageFahrzeug } from './fahrzeugSystem.js';
@@ -26,7 +26,11 @@ export function aktualisiereKampf(spielWelt, dt) {
     if (spieler.tot || !spieler.angriff || spieler.angriffsAbklingzeit > 0 || spieler.nachladenRest > 0) continue;
     const { eintrag, def } = aktuelleWaffe(spieler);
     if (def.kategorie === 'fernkampf') schiessen(spielWelt, spieler, eintrag, def);
-    else nahkampf(spielWelt, spieler, def);
+    else if (def.kategorie === 'samen') {
+      // Samen in der Hand: Linksklick pflanzt ins nächste freie Beet (kein Angriff)
+      spieler.angriffsAbklingzeit = pflanzeSamenAusHand(spielWelt, spieler, def) ? 0.5 : 1.2;
+    } else if (def.kategorie === 'nahkampf') nahkampf(spielWelt, spieler, def);
+    // sonstiges in der Hand (Angel): Linksklick ist kein Angriff (Auswerfen läuft über behandleAngelKlick)
   }
 }
 
@@ -68,8 +72,25 @@ function feuereStrahl(spielWelt, schuetze, winkel, def) {
       ziel = kandidat;
     }
   }
-  spielWelt.ereignis({ typ: 'schuss', von: schuetze.id, x: schuetze.x, y: schuetze.y, zx: schuetze.x + dx * bestT, zy: schuetze.y + dy * bestT });
+  // stoff = Material am Einschlag (Client färbt Staub/Splitter passend; Blut gibt es nur bei 'treffer')
+  const stoff = ziel ? 'fleisch' : wand.getroffen ? stoffAm(spielWelt.welt, schuetze.x + dx * (bestT + 2), schuetze.y + dy * (bestT + 2)) : null;
+  spielWelt.ereignis({ typ: 'schuss', von: schuetze.id, x: schuetze.x, y: schuetze.y, zx: schuetze.x + dx * bestT, zy: schuetze.y + dy * bestT, stoff });
   if (ziel) fuegeSchadenZu(spielWelt, ziel, def.schaden, schuetze, winkel);
+}
+
+/** Material der getroffenen Kachel: Bauwerk-Typ oder Kartenzeichen → 'holz' | 'stein' | 'metall' | 'glas' | 'beton'. */
+function stoffAm(welt, x, y) {
+  const tx = Math.floor(x / welt.kachelGroesse);
+  const ty = Math.floor(y / welt.kachelGroesse);
+  for (const b of welt.bauwerkeAn(tx, ty)) {
+    if (/zaun|eisen|metall/.test(b.typ)) return 'metall';
+    if (/stein/.test(b.typ)) return 'stein';
+    return 'holz';
+  }
+  const zeichen = welt.kachelAn(tx, ty);
+  if (zeichen === 'F') return 'glas';
+  if (zeichen === 'T') return 'holz';
+  return 'beton';
 }
 
 function nahkampf(spielWelt, spieler, def) {
@@ -94,7 +115,7 @@ function* moeglicheZiele(spielWelt, angreifer) {
 }
 
 function radiusVon(spielWelt, entitaet) {
-  return entitaet.radius ?? spielWelt.konfiguration.spieler.radius;
+  return entitaet.trefferRadius ?? entitaet.radius ?? spielWelt.konfiguration.spieler.radius;
 }
 
 /**

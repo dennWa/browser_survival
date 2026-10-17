@@ -16,7 +16,7 @@ import { einfrieren, matrixAus, vereineGeometrien } from './geometrie.js';
  *
  * Alles außer Türen und Ressourcen wird "eingefroren" (Matrizen nicht jeden Frame neu berechnen).
  */
-export const WANDHOEHE = 72;
+export const WANDHOEHE = 84;
 export const TUER_HOEHE = WANDHOEHE - 14;
 const TUER_DREHTEMPO = 9;
 /** Höhe (Weltpixel) der Möbel-Quader */
@@ -47,6 +47,7 @@ export class KartenModell {
     this.#baueBoden(bodenMassstab);
     this.#baueWasser();
     this.#baueWaende();
+    this.#baueDaecher();
     this.#baueMoebel();
     this.#baueLampen();
     this.#baueTueren();
@@ -77,6 +78,82 @@ export class KartenModell {
     }
     this.lampenGluehen.visible = dunkel > 0.08;
     this.lampenGluehen.material.opacity = Math.min(1, dunkel * 1.4);
+  }
+
+  /**
+   * Dach-Ausblendung: Steht man in einem Raum (zusammenhängender Innenboden), ist nur dessen Dach offen –
+   * von draußen bleibt alles zu, man schaut nicht mehr in fremde Räume. @param x,y Weltpixel der eigenen Figur
+   */
+  aktualisiereDaecher(x, y) {
+    if (!this.dachMesh) return;
+    const tx = Math.floor(x / this.g);
+    const ty = Math.floor(y / this.g);
+    const raum = this.dachRaumAn.get(ty * this.welt.breite + tx) ?? -1;
+    if (raum === this.offenerRaum) return;
+    for (const raumNr of [this.offenerRaum, raum]) {
+      if (raumNr < 0) continue;
+      for (const i of this.dachRaeume[raumNr]) {
+        if (raumNr === raum) this.dachMesh.setMatrixAt(i, NULL_MATRIX);
+        else this.dachMesh.setMatrixAt(i, this.dachMatrizen[i]);
+      }
+    }
+    this.offenerRaum = raum;
+    this.dachMesh.instanceMatrix.needsUpdate = true;
+  }
+
+  /** Liegt der Punkt draußen oder im gerade geöffneten Raum? (Beschriftungen in geschlossenen Räumen bleiben aus.) */
+  istEinsehbar(x, y) {
+    const raum = this.dachRaumAn?.get(Math.floor(y / this.g) * this.welt.breite + Math.floor(x / this.g));
+    return raum === undefined || raum === this.offenerRaum;
+  }
+
+  /** Dach über jeder Innenkachel (eine dünne Platte pro Kachel), gruppiert nach Raum (Flood-Fill, Türen trennen). */
+  #baueDaecher() {
+    const welt = this.welt;
+    const g = this.g;
+    this.dachRaumAn = new Map(); // Kachelindex → Raum-Nr.
+    this.dachRaeume = []; // Raum-Nr. → [Instanz-Nr.]
+    this.dachMatrizen = [];
+    this.offenerRaum = -1;
+    const innen = (tx, ty) => KACHELN[welt.kachelAn(tx, ty)]?.innen === true;
+    const kacheln = [];
+    for (let ty = 0; ty < welt.hoehe; ty++) {
+      for (let tx = 0; tx < welt.breite; tx++) {
+        if (!innen(tx, ty) || this.dachRaumAn.has(ty * welt.breite + tx)) continue;
+        const raumNr = this.dachRaeume.length;
+        const instanzen = [];
+        const stapel = [[tx, ty]];
+        this.dachRaumAn.set(ty * welt.breite + tx, raumNr);
+        while (stapel.length > 0) {
+          const [x, y] = stapel.pop();
+          instanzen.push(kacheln.length);
+          kacheln.push({ x: x * g + g / 2, y: WANDHOEHE + 0.4, z: y * g + g / 2 });
+          for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]]) {
+            const nx = x + dx;
+            const ny = y + dy;
+            if (!innen(nx, ny) || this.dachRaumAn.has(ny * welt.breite + nx)) continue;
+            this.dachRaumAn.set(ny * welt.breite + nx, raumNr);
+            stapel.push([nx, ny]);
+          }
+        }
+        this.dachRaeume.push(instanzen);
+      }
+    }
+    if (kacheln.length === 0) {
+      this.dachMesh = null;
+      return;
+    }
+    const material = this.mitSchnitt(new THREE.MeshStandardMaterial({ color: 0x3a3f48, roughness: 1 }));
+    const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(g, 0.8, g), material, kacheln.length);
+    kacheln.forEach((k, i) => {
+      this.dachMatrizen.push(new THREE.Matrix4().makeTranslation(k.x, k.y, k.z));
+      mesh.setMatrixAt(i, this.dachMatrizen[i]);
+    });
+    mesh.receiveShadow = true;
+    mesh.castShadow = true;
+    mesh.frustumCulled = false;
+    this.dachMesh = mesh;
+    this.statisch.add(mesh);
   }
 
   // ---------------------------------------------------------------------------

@@ -45,11 +45,13 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     sprintHoerRadius: 120, // Rennen ist laut: Zombies in diesem Umkreis hören es
     /** Bekommt jeder neue Spieler (und nach dem Tod wieder). magazin = Schuss in der Waffe; ausgeruestet = in der Hand */
     startInventar: [
-      { defId: 'pistole', menge: 1, magazin: 15, ausgeruestet: true },
+      { defId: 'pistole', menge: 1, magazin: 15, ausgeruestet: true }, // 15 im Magazin + 15 Reserve = 30 Schuss
       { defId: 'axt', menge: 1 },
       { defId: 'spitzhacke', menge: 1 },
       { defId: 'angel', menge: 1 },
       { defId: 'hammer', menge: 1 }, // Baumodus (BUILD): rüstet den Hammer aus
+      { defId: 'hacke', menge: 1 }, // Erdfeld anlegen (in der Hand, dann G)
+      { defId: 'munition_9mm', menge: 15 },
     ],
   },
   zombie: {
@@ -141,12 +143,12 @@ export const STANDARD_KONFIGURATION = Object.freeze({
   /**
    * Schlafen im Bett (in jedem Bett, jederzeit): dauert `dauer` echte Sekunden, heilt, kostet etwas Hunger/Durst
    * und spult die Uhr um `stunden` Spielstunden vor – im Mehrspieler nur, wenn ALLE lebenden Spieler schlafen.
-   * Bricht ab bei Bewegung oder Schaden.
+   * Im Bett ist man festgehalten (keine Bewegung) – nur Schaden (Angriff) weckt auf.
    */
   schlafen: {
     dauer: 6,
     heilung: 60,
-    stunden: 0, // 0 = Zeit läuft normal weiter (nur heilen); >0 = Uhr vorspulen
+    stunden: 6, // 0 = Zeit läuft normal weiter (nur heilen); >0 = Uhr vorspulen
     hungerKosten: 8,
     durstKosten: 10,
     zombieAbstand: 300, // so nah darf beim Hinlegen kein jagender Zombie sein

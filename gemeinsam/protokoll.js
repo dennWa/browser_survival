@@ -83,7 +83,7 @@ export const AKTIONEN = Object.freeze({
   BAUWERK: 'bauwerk', // E am nächsten Bauwerk: Falle aufnehmen/spannen, kochen, pflanzen, ernten
   BAUEN: 'bauen', // { teil, tx, ty, drehung? } Basisbau: Bauteil (gemeinsam/basisbau/teile.js) setzen, auch die Basis-Flagge; Hammer in der Hand nötig
   ABREISSEN: 'abreissen', // { tx, ty, ebene? } mit dem Hammer ein eigenes Bauteil abreißen (75 % der Kosten zurück)
-  FELD: 'feld', // { tx, ty } mit der Spitzhacke (Taste G) ein quadratisches Erdfeld um die Kachel anlegen
+  FELD: 'feld', // { tx, ty } mit der Hacke in der Hand (Taste G) ein quadratisches Erdfeld um die Kachel anlegen
   KISTE_LEGEN: 'kisteLegen', // { slot } Stapel aus dem Inventar in die geöffnete Lagerkiste legen
   KISTE_NEHMEN: 'kisteNehmen', // { slot } Stapel aus der geöffneten Kiste (Kistenplatz 0..15) ins Inventar nehmen
   KISTE_SCHLIESSEN: 'kisteSchliessen', // geöffnete Kiste schließen
@@ -109,6 +109,7 @@ export const ADMIN_BEFEHLE = Object.freeze({
   ZOMBIES_TOETEN: 'zombiesToeten', // alle Zombies umfallen lassen (sie respawnen normal)
   ZEIT_SPRINGEN: 'zeitSpringen', // tagsüber → gleich Abend, nachts → gleich Morgen
   WETTER: 'wetter', // klar → Regen → Nebel → klar (zum Testen)
+  FLIEGEN: 'fliegen', // an/aus: Flugmodus – schnell und ohne Kollision über die Karte gleiten (Umschalt+B)
   FLAGGE_ENTFERNEN: 'flaggeEntfernen', // eigene Basis-Flagge zurücknehmen (Bauteile bleiben stehen, gehören aber niemandem mehr)
 });
 

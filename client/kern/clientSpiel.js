@@ -67,7 +67,7 @@ export class ClientSpiel {
     if (anmeldeDaten.tueren) this.welt.uebernimmOffeneTueren(anmeldeDaten.tueren);
     if (anmeldeDaten.abgebaut) this.welt.uebernimmAbgebaute(anmeldeDaten.abgebaut);
     if (anmeldeDaten.bauwerke) this.welt.uebernimmBauwerke(anmeldeDaten.bauwerke);
-    /** Platzier-Modus (Bauwerk-Item bzw. Erdfeld mit der Spitzhacke): { slot, defId, typ, name, art?: 'feld' } oder null */
+    /** Platzier-Modus (Bauwerk-Item bzw. Erdfeld mit der Hacke): { slot, defId, typ, name, art?: 'feld' } oder null */
     this.platzierung = null;
     /** Basisbau: Bau-Modus mit Menü, Hologramm, Baugebiet-Ring (kern/bauModus.js) */
     this.bau = new BauModus({
@@ -87,6 +87,7 @@ export class ClientSpiel {
     this.zielZombieId = null;
     this.letzteMiniKarte = 0;
     this.letzterRegenTon = -1;
+    this.schlaeft = false;
     this.letzteListe = 0;
     this.letzterKlick = false;
     this.rezepte = anmeldeDaten.rezepte ?? {};
@@ -422,7 +423,7 @@ export class ClientSpiel {
       this.welt.naechstesBauwerk(x, y, BAUWERK_REICHWEITE, (b) => aktionFuer(b) !== null);
     if (bauwerk) return { ...aktionFuer(bauwerk), art: 'bauwerk' };
     if (this.#naheWerkbank()) return { art: 'werkbank', text: 'Werkbank benutzen', symbol: '🔨' };
-    if (this.welt.naechstesObjekt(x, y, BETT_REICHWEITE, (o) => o.typ.startsWith('bett'))) return { art: 'schlafen', text: 'Schlafen (heilt)', symbol: '🛏' };
+    if (this.welt.naechstesObjekt(x, y, BETT_REICHWEITE, (o) => o.typ.startsWith('bett'))) return { art: 'schlafen', text: 'Schlafen', symbol: '🛏' };
     return null;
   }
 
@@ -455,20 +456,25 @@ export class ClientSpiel {
 
   /**
    * Taste G / 🌱: Erdfeld anlegen – Vorschau (FELD_GROESSE² Kacheln) folgt der Maus, Klick/E legt es an.
-   * Die Spitzhacke muss nur im Inventar liegen ("auto-ausgerüstet").
+   * Die Hacke muss in der Hand sein (Inventar: Doppelklick/Hotbar) – sonst Hinweis.
    */
   feldModus() {
     if (this.spielerDaten?.tot || this.lokal.fahrzeug) return;
     if (this.platzierung?.art === 'feld') return this.platzierungAbbrechen();
-    if (!this.spielerDaten?.inventar.some((e) => e?.defId === 'spitzhacke')) {
-      this.hud.meldung('Du brauchst eine Spitzhacke für ein Erdfeld');
+    if (!this.#hackeInHand()) {
+      this.hud.meldung(this.spielerDaten?.inventar.some((e) => e?.defId === 'hacke') ? 'Nimm die Hacke in die Hand (Inventar), dann G' : 'Du brauchst eine Hacke für ein Erdfeld');
       return;
     }
     this.platzierungAbbrechen();
     this.bau.umschalten(false);
-    this.platzierung = { art: 'feld', slot: -1, defId: 'spitzhacke', typ: 'erdfeld', name: 'Erdfeld anlegen (Spitzhacke)' };
+    this.platzierung = { art: 'feld', slot: -1, defId: 'hacke', typ: 'erdfeld', name: 'Erdfeld anlegen (Hacke)' };
     this.hud.inventar.zeige(false);
     this.hud.zeigePlatzierung(this.platzierung.name);
+  }
+
+  #hackeInHand() {
+    const d = this.spielerDaten;
+    return d?.ausgeruestet != null && d.inventar[d.ausgeruestet]?.defId === 'hacke';
   }
 
   /** Platzier-Modus an/aus. Vorschau folgt Maus bzw. Blickrichtung (#platzierungsZiel). */
@@ -505,7 +511,7 @@ export class ClientSpiel {
   #platzierungsZiel() {
     const p = this.platzierung;
     if (!p) return null;
-    const hatItem = p.art === 'feld' ? this.spielerDaten?.inventar.some((e) => e?.defId === 'spitzhacke') : this.spielerDaten?.inventar[p.slot]?.defId === p.defId;
+    const hatItem = p.art === 'feld' ? this.#hackeInHand() : this.spielerDaten?.inventar[p.slot]?.defId === p.defId;
     if (!hatItem || this.spielerDaten?.tot || this.lokal.fahrzeug) {
       this.platzierungAbbrechen();
       return null;
@@ -534,7 +540,9 @@ export class ClientSpiel {
 
   // --- Basisbau (BUILD) ---------------------------------------------------------
 
-  bauUmschalten() {
+  /** Taste B: Bau-Modus; Admins halten Umschalt dazu für den Flugmodus. */
+  bauUmschalten(flug = false) {
+    if (flug && this.spielerDaten?.admin) return this.admin('fliegen');
     this.bau.umschalten();
   }
 
@@ -643,7 +651,6 @@ export class ClientSpiel {
         break;
       case NACHRICHT.CHAT:
         this.hud.chatNachricht(n);
-        if (!n.system && n.von) this.sound?.spiele('aufheben', { lautstaerke: 0.4 });
         break;
       case NACHRICHT.DEV_WERTE:
         this.hud.entwickler.setzeWerte(n.felder, n.ueberschreibungen);
@@ -748,7 +755,9 @@ export class ClientSpiel {
     this.lokal.fahrzeug = eigene.fahrzeug ? { ...eigene.fahrzeug, x: eigene.x, y: eigene.y } : null;
     this.lokal.ausdauer = eigene.ausdauer;
     this.lokal.erschoepft = eigene.erschoepft;
-    if (eigene.tot) {
+    this.lokal.fliegen = eigene.fliegen === true; // Admin-Flugmodus (gleiche Physik wie der Server)
+    this.schlaeft = eigene.arbeit === 'schlafen'; // im Bett festgehalten: Server wendet keine Eingaben an
+    if (eigene.tot || this.schlaeft) {
       this.lokalVorher.x = eigene.x;
       this.lokalVorher.y = eigene.y;
       return;
@@ -808,7 +817,7 @@ export class ClientSpiel {
     this.lokalVorher.x = this.lokal.x;
     this.lokalVorher.y = this.lokal.y;
     this.lokalVorher.winkel = this.lokal.fahrzeug?.winkel;
-    if (!tot) wendeEingabeAn(this.lokal, eingabe, this.welt, this.physik, TICK_DAUER_S);
+    if (!tot && !this.schlaeft) wendeEingabeAn(this.lokal, eingabe, this.welt, this.physik, TICK_DAUER_S);
     this.#zombieStoehnen();
     this.#feuerKnistern();
     this.sound?.motor(this.lokal.fahrzeug ? this.lokal.fahrzeug.tempo : null);
@@ -1002,6 +1011,8 @@ export class ClientSpiel {
       if (i >= 0) andere[i] = eigenesAuto;
       else andere.push(eigenesAuto);
       eigen.fahrzeugId = fz.id;
+      eigen.fahrzeugWinkel = winkel; // für die Ich-Perspektive (Kamera schaut mit der Fahrtrichtung)
+      eigen.fahrzeugTempo = fz.tempo;
     }
     const interaktion = this.#interaktion();
     const aufhebbar = interaktion?.gegenstand ?? null;
@@ -1015,6 +1026,7 @@ export class ClientSpiel {
       fokus: eigen,
       entitaeten: [...andere, eigen],
       gegenstaende: this.gegenstaende,
+      itemDefinitionen: this.itemDefinitionen,
       jetzt,
       effekte: this.effekte,
       markiertId: aufhebbar?.id ?? null,

@@ -16,7 +16,9 @@ export function verarbeiteSpielerEingaben(spielWelt) {
   for (const spieler of spielWelt.alleVomTyp('spieler')) {
     while (spieler.eingabePuffer.length > 0) {
       const eingabe = spieler.eingabePuffer.shift();
-      if (!spieler.tot) {
+      if (spieler.arbeit?.art === 'schlafen') {
+        spieler.angriff = false; // im Bett: festgehalten, bis man ausgeschlafen hat (oder angegriffen wird)
+      } else if (!spieler.tot) {
         const sprintet = wendeEingabeAn(spieler, eingabe, spielWelt.welt, parameter, TICK_DAUER_S);
         spieler.angriff = eingabe.angriff && !spieler.fahrzeug; // im Auto wird nicht geschossen
         if (sprintet) alarmiereZombies(spielWelt, spieler.x, spieler.y, hoerRadius, spieler.id);

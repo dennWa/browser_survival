@@ -14,7 +14,7 @@ const f = (hex) => new THREE.Color(hex);
 const teil = (geometrie, matrix, farbe) => ({ geometrie, matrix, farbe: f(farbe) });
 const kasten = (b, h, t, x, y, z, farbe) => teil(new THREE.BoxGeometry(b, h, t), matrixAus(x, y, z), farbe);
 
-export const WAND_HOEHE = 64;
+export const WAND_HOEHE = 76;
 const DACH_HOEHE = 5;
 
 /** Material für alle Basisbau-Teile (Vertexfarben). Der Renderer hängt den Wand-Schnitt an (initialisiereBasisbauModelle). */

@@ -166,244 +166,251 @@
    },
    "axt": {
     "x": 504,
-    "y": 148,
+    "y": 144,
     "b": 72,
-    "h": 63,
+    "h": 72,
+    "weltGroesse": 28
+   },
+   "hacke": {
+    "x": 0,
+    "y": 216,
+    "b": 72,
+    "h": 72,
     "weltGroesse": 28
    },
    "spitzhacke": {
-    "x": 7,
+    "x": 79,
     "y": 216,
     "b": 58,
     "h": 72,
     "weltGroesse": 30
    },
    "holz": {
-    "x": 72,
+    "x": 144,
     "y": 219,
     "b": 72,
     "h": 65,
     "weltGroesse": 26
    },
    "stein": {
-    "x": 144,
+    "x": 216,
     "y": 223,
     "b": 72,
     "h": 58,
     "weltGroesse": 22
    },
    "eisenerz": {
-    "x": 216,
+    "x": 288,
     "y": 218,
     "b": 72,
     "h": 67,
     "weltGroesse": 22
    },
    "rucksack_klein": {
-    "x": 288,
+    "x": 360,
     "y": 218,
     "b": 72,
     "h": 67,
     "weltGroesse": 24
    },
    "rucksack_gross": {
-    "x": 360,
+    "x": 432,
     "y": 218,
     "b": 72,
     "h": 67,
     "weltGroesse": 32
    },
    "feuerzeug": {
-    "x": 443,
+    "x": 515,
     "y": 216,
     "b": 50,
     "h": 72,
     "weltGroesse": 18
    },
    "tomate": {
-    "x": 504,
-    "y": 218,
+    "x": 0,
+    "y": 290,
     "b": 72,
     "h": 68,
     "weltGroesse": 18
    },
    "gurke": {
-    "x": 0,
+    "x": 72,
     "y": 312,
     "b": 72,
     "h": 24,
     "weltGroesse": 20
    },
    "kartoffel": {
-    "x": 72,
+    "x": 144,
     "y": 301,
     "b": 72,
     "h": 45,
     "weltGroesse": 18
    },
    "tomate_gebraten": {
-    "x": 144,
+    "x": 216,
     "y": 290,
     "b": 72,
     "h": 68,
     "weltGroesse": 18
    },
    "gurke_gebraten": {
-    "x": 216,
+    "x": 288,
     "y": 312,
     "b": 72,
     "h": 24,
     "weltGroesse": 20
    },
    "ofenkartoffel": {
-    "x": 288,
+    "x": 360,
     "y": 302,
     "b": 72,
     "h": 43,
     "weltGroesse": 22
    },
    "samen_tomate": {
-    "x": 360,
+    "x": 432,
     "y": 288,
     "b": 72,
     "h": 72,
     "weltGroesse": 16
    },
    "samen_gurke": {
-    "x": 432,
+    "x": 504,
     "y": 288,
     "b": 72,
     "h": 72,
     "weltGroesse": 16
    },
    "samen_kartoffel": {
-    "x": 504,
-    "y": 288,
+    "x": 0,
+    "y": 360,
     "b": 72,
     "h": 72,
     "weltGroesse": 16
    },
    "samen_paprika": {
-    "x": 0,
+    "x": 72,
     "y": 360,
     "b": 72,
     "h": 72,
     "weltGroesse": 16
    },
    "paprika": {
-    "x": 72,
+    "x": 144,
     "y": 360,
     "b": 72,
     "h": 72,
     "weltGroesse": 20
    },
    "paprika_gebraten": {
-    "x": 144,
+    "x": 216,
     "y": 360,
     "b": 72,
     "h": 72,
     "weltGroesse": 20
    },
    "fleisch": {
-    "x": 216,
+    "x": 288,
     "y": 374,
     "b": 72,
     "h": 43,
     "weltGroesse": 22
    },
    "fleisch_gebraten": {
-    "x": 291,
+    "x": 363,
     "y": 360,
     "b": 66,
     "h": 72,
     "weltGroesse": 22
    },
    "fisch_barsch": {
-    "x": 360,
+    "x": 432,
     "y": 360,
     "b": 72,
     "h": 72,
     "weltGroesse": 26
    },
    "fisch_forelle": {
-    "x": 432,
+    "x": 504,
     "y": 360,
     "b": 72,
     "h": 72,
     "weltGroesse": 28
    },
    "fisch_hecht": {
-    "x": 504,
-    "y": 360,
+    "x": 0,
+    "y": 432,
     "b": 72,
     "h": 72,
     "weltGroesse": 34
    },
    "fisch_barsch_gebraten": {
-    "x": 0,
+    "x": 72,
     "y": 432,
     "b": 72,
     "h": 72,
     "weltGroesse": 26
    },
    "fisch_forelle_gebraten": {
-    "x": 72,
+    "x": 144,
     "y": 432,
     "b": 72,
     "h": 72,
     "weltGroesse": 28
    },
    "fisch_hecht_gebraten": {
-    "x": 144,
+    "x": 216,
     "y": 432,
     "b": 72,
     "h": 72,
     "weltGroesse": 34
    },
    "angel": {
-    "x": 216,
+    "x": 288,
     "y": 432,
     "b": 72,
     "h": 72,
     "weltGroesse": 30
    },
    "stoff": {
-    "x": 288,
+    "x": 360,
     "y": 432,
     "b": 72,
     "h": 72,
     "weltGroesse": 22
    },
    "falle": {
-    "x": 360,
+    "x": 432,
     "y": 432,
     "b": 72,
     "h": 72,
     "weltGroesse": 26
    },
    "lagerfeuer": {
-    "x": 432,
+    "x": 504,
     "y": 432,
     "b": 72,
     "h": 72,
     "weltGroesse": 28
    },
    "werkbank": {
-    "x": 504,
-    "y": 432,
+    "x": 0,
+    "y": 504,
     "b": 72,
     "h": 72,
     "weltGroesse": 30
    },
    "bretter": {
-    "x": 0,
+    "x": 72,
     "y": 504,
     "b": 71,
     "h": 72,
     "weltGroesse": 26
    },
    "rucksack": {
-    "x": 72,
+    "x": 144,
     "y": 506,
     "b": 72,
     "h": 67,
@@ -673,7 +680,11 @@
    "humanMaleA": "3d/skins/humanMaleA.webp",
    "humanFemaleA": "3d/skins/humanFemaleA.webp",
    "zombieMaleA": "3d/skins/zombieMaleA.webp",
-   "zombieFemaleA": "3d/skins/zombieFemaleA.webp"
+   "zombieFemaleA": "3d/skins/zombieFemaleA.webp",
+   "zombieGesicht0": "3d/skins/zombieGesicht0.webp",
+   "zombieGesicht1": "3d/skins/zombieGesicht1.webp",
+   "zombieGesicht2": "3d/skins/zombieGesicht2.webp",
+   "zombieGesicht3": "3d/skins/zombieGesicht3.webp"
   },
   "animationen": "3d/animationen.json"
  },
@@ -713,6 +724,18 @@
    "urheber": "opengameart.org/content/2d-guns",
    "lizenz": "CC0",
    "url": "https://opengameart.org/content/2d-guns"
+  },
+  {
+   "paket": "Impact Sounds / RPG Audio",
+   "urheber": "Kenney (kenney.nl)",
+   "lizenz": "CC0",
+   "url": "https://kenney.nl/assets/impact-sounds"
+  },
+  {
+   "paket": "Zombie-Sounds & Gunshot Sounds",
+   "urheber": "artisticdude, ianzazz, Tabasco (opengameart.org)",
+   "lizenz": "CC0",
+   "url": "https://opengameart.org/content/zombies-sound-pack"
   },
   {
    "paket": "Glitch Food & Drink Items",

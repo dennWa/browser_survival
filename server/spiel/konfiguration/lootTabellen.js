@@ -198,6 +198,7 @@ export const LOOT_TABELLEN = Object.freeze({
     { id: 'wasserflasche', gewicht: 3 },
     { id: 'feuerzeug', gewicht: 2 },
     { id: 'spitzhacke', gewicht: 1 },
+    { id: 'hacke', gewicht: 1 },
     { id: 'axt', gewicht: 1 },
     { id: 'samen_gurke', gewicht: 1 },
     { id: 'samen_kartoffel', gewicht: 1 },

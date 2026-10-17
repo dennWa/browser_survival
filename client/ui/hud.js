@@ -429,7 +429,7 @@ export class Hud {
     const lichtAn = spieler.lichtAn !== false;
     this.el.licht.classList.toggle('aus', !lichtAn);
     this.el.licht.title = `Taschenlampe ${lichtAn ? 'an' : 'aus'} (L) – aus = Zombies sehen dich schlechter`;
-    const an = { gottmodus: !!spieler.gottmodus, unsichtbar: !!spieler.unsichtbar };
+    const an = { gottmodus: !!spieler.gottmodus, unsichtbar: !!spieler.unsichtbar, fliegen: !!spieler.fliegen };
     for (const knopf of this.el.adminPanel.querySelectorAll('button[data-befehl]')) {
       if (knopf.dataset.befehl in an) knopf.classList.toggle('an', an[knopf.dataset.befehl]);
     }
@@ -612,8 +612,8 @@ export class Hud {
     this.el.arbeit.hidden = !arbeit;
     if (!arbeit) return;
     const text = arbeit.wartet
-      ? '💤 Warte, bis alle schlafen … (bewegen = aufstehen)'
-      : ({ angeln: '🎣 …', holz: '🪓 Baum fällen …', stein: '⛏ Stein abbauen …', eisenerz: '⛏ Eisenerz abbauen …', kochen: '🍳 Braten …', schlafen: '💤 Schlafen … (bewegen = aufwachen)', sitzen: '🔥 Am Feuer … (bewegen = aufstehen)' }[arbeit.art] ?? '…');
+      ? '💤 Warte, bis alle schlafen …'
+      : ({ angeln: '🎣 …', holz: '🪓 Baum fällen …', stein: '⛏ Stein abbauen …', eisenerz: '⛏ Eisenerz abbauen …', kochen: '🍳 Braten …', schlafen: '💤 Schlafen …', sitzen: '🔥 Am Feuer … (bewegen = aufstehen)' }[arbeit.art] ?? '…');
     this.el.arbeitText.textContent = text;
     this.el.arbeit.classList.toggle('ohne-balken', arbeit.art === 'sitzen');
     this.el.arbeit.querySelector('.fuellung').style.width = `${Math.round(arbeit.fortschritt * 100)}%`;

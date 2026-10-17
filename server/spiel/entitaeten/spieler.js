@@ -36,6 +36,7 @@ export function erzeugeSpieler({ id, benutzername, x, y, konfiguration, admin = 
     /** Admin-Schalter (nur mit Admin-Recht setzbar) – öffentlich, damit alle sehen, wer schummelt */
     gottmodus: false,
     unsichtbar: false,
+    fliegen: false, // Admin-Flugmodus (Umschalt+B): keine Kollision, schnell – Physik in gemeinsam/physik/bewegung.js
     /** Laufende Arbeit (Abbauen, Schlafen) – siehe systeme/arbeitSystem.js; öffentlich ist nur die Art */
     arbeit: null,
     /** Level (öffentlich, steht in der Spielerliste) und XP im aktuellen Level – siehe systeme/levelSystem.js */
@@ -105,6 +106,7 @@ export function spielerZuNetzwerk(s) {
     lichtAn: s.lichtAn,
     gottmodus: s.gottmodus,
     unsichtbar: s.unsichtbar,
+    fliegen: s.fliegen,
     arbeit: s.arbeit?.art ?? null, // 'holz' | 'stein' | 'schlafen' → Animation/Werkzeug
     arbeitOrt: s.arbeit?.ort ?? null, // Bett beim Schlafen
     level: s.level,
@@ -141,6 +143,7 @@ export function spielerDatenPrivat(s, konfiguration, spielWelt = null) {
     tot: s.tot,
     respawnIn: Math.ceil(s.respawnRest),
     admin: s.admin,
+    fliegen: s.fliegen,
     flagge: spielWelt ? flaggeFuerClient(spielWelt, s) : null, // eigenes Baugebiet { tx, ty, radius } – nur der Besitzer erfährt es
     bauRadius: spielWelt ? radiusFuer(s, konfiguration) : konfiguration.basisbau.radiusKacheln, // Radius einer neuen Flagge (fürs Hologramm)
     bauBlock: konfiguration.basisbau.blockGroesse ?? 1, // Block-Kantenlänge für Boden/Wand/Dach (1 = einzeln)

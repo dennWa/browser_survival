@@ -70,7 +70,9 @@ export function aktualisiereArbeit(spielWelt, dt) {
   for (const spieler of spielWelt.alleVomTyp('spieler')) {
     const a = spieler.arbeit;
     if (!a) continue;
-    if (spieler.tot || spieler.angriff || Math.hypot(spieler.x - a.x, spieler.y - a.y) > ABBRUCH_WEG) {
+    // Wer im Bett liegt, bleibt liegen, bis er ausgeschlafen hat – nur Schaden weckt (fuegeSchadenZu → brecheArbeitAb)
+    const schlaeft = a.art === 'schlafen';
+    if (spieler.tot || (!schlaeft && (spieler.angriff || Math.hypot(spieler.x - a.x, spieler.y - a.y) > ABBRUCH_WEG))) {
       spieler.arbeit = null;
       continue;
     }

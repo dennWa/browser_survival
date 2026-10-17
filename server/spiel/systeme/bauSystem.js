@@ -15,7 +15,7 @@ import { WACHSTUM_REGEN_FAKTOR } from './wetterSystem.js';
  * geschützte Teile (Kiste, Tür, Bett) nur für ihren Besitzer bzw. Berechtigte (gemeinsam/basisbau/rechte.js).
  *
  *   AKTION platzieren { slot, tx, ty }  Item aus dem Inventar aufstellen
- *   AKTION feld { tx, ty }              mit der Spitzhacke (im Inventar genügt) ein Erdfeld FELD_GROESSE² um (tx, ty) anlegen
+ *   AKTION feld { tx, ty }              mit der Hacke (in der Hand) ein Erdfeld FELD_GROESSE² um (tx, ty) anlegen
  *   AKTION feuer                        nächstes Lagerfeuer an (braucht Feuerzeug) / aus
  *   AKTION bauwerk                      E am nächsten Bauwerk: Falle aufnehmen/spannen, kochen, pflanzen, ernten
  *
@@ -71,13 +71,13 @@ export function neuesBauwerk(spielWelt, typ, tx, ty, besitzer, zusatz = {}) {
 }
 
 /**
- * AKTION feld { tx, ty }: Spitzhacke im Inventar → um (tx, ty) entsteht ein quadratisches Erdfeld aus FELD_GROESSE² Beeten.
+ * AKTION feld { tx, ty }: Hacke in der Hand → um (tx, ty) entsteht ein quadratisches Erdfeld aus FELD_GROESSE² Beeten.
  * Nur auf Rasen, nur wenn alle Kacheln frei sind (Client zeigt die Vorschau grün/rot – der Server prüft nochmal).
  */
 export function legeFeldAn(spielWelt, spieler, tx, ty) {
   if (!Number.isInteger(tx) || !Number.isInteger(ty)) return;
-  if (!spieler.inventar.some((e) => e?.defId === 'spitzhacke')) {
-    spielWelt.melde(spieler.id, 'Du brauchst eine Spitzhacke');
+  if (spieler.inventar[spieler.ausgeruestet ?? -1]?.defId !== 'hacke') {
+    spielWelt.melde(spieler.id, 'Nimm die Hacke in die Hand, um ein Erdfeld anzulegen');
     return;
   }
   const welt = spielWelt.welt;

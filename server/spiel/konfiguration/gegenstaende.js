@@ -6,6 +6,7 @@ import { STAPEL_MUNITION, STAPEL_STANDARD } from '../../../gemeinsam/konstanten.
  * Kategorien: nahrung, getraenk, medizin, nahkampf, fernkampf, munition, material, rucksack, bauwerk, werkzeug, samen.
  *
  * ausruestung = Haltung/Waffenart (taschenlampe | messer | pistole | schrotflinte)
+ * (inHand: true = lässt sich ausrüsten, ohne Waffe zu sein – Angel, Samen)
  * werkzeug    = Werkzeug zum Abbauen (Axt → Bäume, Spitzhacke → Steine; siehe gemeinsam/welt/ressourcen.js)
  *
  * Werte lassen sich ingame im Developer-Modus ändern (Admin-Menü → Developer).
@@ -44,7 +45,8 @@ const ROH_GEGENSTAENDE = {
   feuerwehrbeil: { name: 'Feuerwehrbeil', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 50, reichweite: 62, abklingzeit: 1.0 },
   // --- Werkzeuge (auch als schwache Waffen nutzbar) ---
   axt: { name: 'Axt', kategorie: 'nahkampf', ausruestung: 'messer', werkzeug: true, schaden: 18, reichweite: 54, abklingzeit: 0.7 },
-  spitzhacke: { name: 'Spitzhacke', kategorie: 'nahkampf', ausruestung: 'messer', werkzeug: true, beschreibung: 'Steine abbauen und mit G ein Erdfeld anlegen', schaden: 16, reichweite: 54, abklingzeit: 0.75 },
+  spitzhacke: { name: 'Spitzhacke', kategorie: 'nahkampf', ausruestung: 'messer', werkzeug: true, beschreibung: 'Steine und Eisenerz abbauen', schaden: 16, reichweite: 54, abklingzeit: 0.75 },
+  hacke: { name: 'Hacke', kategorie: 'nahkampf', ausruestung: 'hacke', werkzeug: true, beschreibung: 'In die Hand nehmen, dann G: Erdfeld anlegen', schaden: 10, reichweite: 52, abklingzeit: 0.7 },
   // --- Fernkampf ---
   pistole: { name: 'Pistole (9 mm)', kategorie: 'fernkampf', ausruestung: 'pistole', schaden: 25, munition: 'munition_9mm', magazin: 15, abklingzeit: 0.28, reichweite: 520, streuung: 0.03, nachladezeit: 1.1 },
   schrotflinte: { name: 'Schrotflinte (Kal. 12)', kategorie: 'fernkampf', ausruestung: 'schrotflinte', schaden: 16, projektile: 7, munition: 'munition_12', magazin: 5, abklingzeit: 0.85, reichweite: 280, streuung: 0.2, nachladezeit: 1.8 },
@@ -82,7 +84,7 @@ const ROH_GEGENSTAENDE = {
   fisch_barsch_gebraten: { name: 'Gebratener Barsch', kategorie: 'nahrung', naehrwert: 24 },
   fisch_forelle_gebraten: { name: 'Gebratene Forelle', kategorie: 'nahrung', naehrwert: 30 },
   fisch_hecht_gebraten: { name: 'Gebratener Hecht', kategorie: 'nahrung', naehrwert: 40 },
-  angel: { name: 'Angel', kategorie: 'werkzeug', beschreibung: 'Am Ufer Linksklick: auswerfen – wackelt die Pose, nochmal klicken' },
+  angel: { name: 'Angel', kategorie: 'werkzeug', inHand: true, ausruestung: 'angel', beschreibung: 'Am Ufer Linksklick: auswerfen – wackelt die Pose, nochmal klicken' },
   // Basisbau-Material (Teile & Kosten: gemeinsam/basisbau/teile.js)
   stoff: { name: 'Stoff', kategorie: 'material', mengeBeimFund: [1, 3], beschreibung: 'Für Betten – findest du in Wohnungen und Läden' },
 };
@@ -93,8 +95,11 @@ const ROH_GEGENSTAENDE = {
  */
 function normalisiere(roh) {
   const ergebnis = {};
-  for (const [id, def] of Object.entries(roh)) {
+  for (const [id, original] of Object.entries(roh)) {
+    let def = original;
     const einzeln = ['nahkampf', 'fernkampf', 'rucksack', 'werkzeug'].includes(def.kategorie) || def.werkzeug === true || id === 'erste_hilfe_kasten';
+    // Samen kann man in die Hand nehmen (Linksklick am Beet pflanzt)
+    if (def.kategorie === 'samen') def = { ...def, inHand: true, ausruestung: 'samen' };
     ergebnis[id] = { ...def, stapelbar: def.kategorie === 'munition' ? STAPEL_MUNITION : einzeln ? 1 : STAPEL_STANDARD }; // nicht eingefroren: der Developer-Modus ändert Werte
   }
   return ergebnis;

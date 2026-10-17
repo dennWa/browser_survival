@@ -71,14 +71,15 @@ export function aktualisiereHaltung(figur, e, jetzt) {
     waffenName = ARBEIT_WERKZEUG[e.arbeit];
     haltungsName = 'hacken';
   } else {
-    waffenName = waffenModellName(e.waffe, e.ausruestung);
+    // Angelnd hält die Figur die Rute des Angel-Modells (angelModell.js) – nicht zusätzlich die Hand-Rute
+    waffenName = e.angeln ? null : waffenModellName(e.waffe, e.ausruestung);
     haltungsName = haltungFuer(waffenName);
   }
   setzeWaffe(figur, waffenName);
 
   const basis = HALTUNGEN[haltungsName];
   const pose = { rechts: basis.rechts?.map((r) => r.clone()) ?? null, links: basis.links?.map((r) => r.clone()) ?? null };
-  if (haltungsName === 'hacken') hackSchwung(pose, (jetzt % HACK_TAKT_MS) / HACK_TAKT_MS);
+  if (haltungsName === 'hacken') (e.arbeit === 'holz' ? seitSchwung : hackSchwung)(pose, (jetzt % HACK_TAKT_MS) / HACK_TAKT_MS);
   else veraendereFuerAktion(pose, haltungsName, e.aktion, fortschritt);
 
   const gruppe = figur.gruppe;
@@ -120,7 +121,7 @@ export function aktualisiereHaltung(figur, e, jetzt) {
       const ellbogen = gruppe.worldToLocal(unterarm.getWorldPosition(_c));
       richtung = _d.copy(gruppe.worldToLocal(hand.getWorldPosition(_e))).sub(ellbogen).normalize();
       if (haltungsName === 'nahkampf') richtung.y += 0.35; // Klinge leicht nach oben
-      if (haltungsName === 'hacken') richtung.y += 0.6; // Kopf des Werkzeugs vorne-oben
+      if (haltungsName === 'hacken') richtung.y += e.arbeit === 'holz' ? 0.15 : 0.6; // Kopf des Werkzeugs vorne-oben (Axt seitlich: fast waagerecht)
       richtung.normalize();
     }
     figur.waffe.quaternion.setFromUnitVectors(VORNE, richtung);
@@ -184,6 +185,18 @@ function hackSchwung(pose, p) {
     pose[seite][0].y = hoehe * 0.8;
     pose[seite][1].y = hoehe;
     pose[seite][0].z = 1 - ausholen * 0.5;
+    for (const r of pose[seite]) r.normalize();
+  }
+}
+
+/** Holzfällen: die Axt schwingt seitlich – von rechts hinten ausholen, quer vor dem Körper nach links durchziehen. */
+function seitSchwung(pose, p) {
+  const ausholen = p < 0.55 ? p / 0.55 : 1 - (p - 0.55) / 0.45; // 1 = ganz rechts ausgeholt, 0 = Treffer
+  const quer = 0.55 - ausholen * 1.5; // -x ist rechts: von rechts außen (-0.95) nach links (+0.55)
+  const tiefe = 0.95 - ausholen * 0.6;
+  for (const seite of ['rechts', 'links']) {
+    pose[seite][0].set(quer, 0.12 + ausholen * 0.1, tiefe);
+    pose[seite][1].set(quer * 0.9, 0.1 + ausholen * 0.05, tiefe + 0.15);
     for (const r of pose[seite]) r.normalize();
   }
 }

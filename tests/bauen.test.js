@@ -38,6 +38,12 @@ function gartenWelt() {
   spieler.y = mitte(2);
   return { welt, spieler, konfiguration };
 }
+/** Samen in der Hand: ein Tick Linksklick neben dem Beet pflanzt. */
+function pflanzeMitKlick(welt, spieler) {
+  spieler.angriff = true;
+  welt.aktualisiere(TICK_DAUER_S);
+  spieler.angriff = false;
+}
 const aktion = (welt, spieler, a) => {
   spieler.aktionsPuffer.push({ slot: null, ...a });
   welt.aktualisiere(TICK_DAUER_S);
@@ -125,18 +131,21 @@ test('Falle: Zombie tritt rein → sofort tot, Besitzer bekommt XP; neu spannen,
   assert.equal(anzahl(spieler, 'falle'), 1);
 });
 
-test('Erdfeld: Spitzhacke legt 3×3 Beete an, Samen pflanzen, nach 24 h zwei Tomaten ernten', () => {
+test('Erdfeld: Hacke in der Hand legt 3×3 Beete an, Samen pflanzen, nach 24 h zwei Tomaten ernten', () => {
   const { welt, spieler, konfiguration } = gartenWelt();
-  fuegeZumInventarHinzu(spieler, 'spitzhacke', 1);
+  fuegeZumInventarHinzu(spieler, 'hacke', 1);
+  aktion(welt, spieler, { art: AKTIONEN.BENUTZEN, slot: slotVon(spieler, 'hacke') }); // in die Hand
   fuegeZumInventarHinzu(spieler, 'samen_gurke', 1);
   fuegeZumInventarHinzu(spieler, 'samen_tomate', 2);
   aktion(welt, spieler, { art: AKTIONEN.FELD, tx: 4, ty: 2 });
   assert.equal(welt.welt.bauwerke.size, FELD_GROESSE * FELD_GROESSE, 'ganzes Feld');
   const beet = welt.welt.bauwerkBei(4, 2);
   assert.equal(beet?.typ, 'beet');
-  assert.equal(anzahl(spieler, 'spitzhacke'), 1, 'Spitzhacke bleibt');
-  // Tomatensamen gezielt benutzen (nicht die Gurke, die vorne liegt)
+  assert.equal(anzahl(spieler, 'hacke'), 1, 'Hacke bleibt');
+  // Tomatensamen in die Hand nehmen (nicht die Gurke, die vorne liegt) und per Linksklick pflanzen
   aktion(welt, spieler, { art: AKTIONEN.BENUTZEN, slot: slotVon(spieler, 'samen_tomate') });
+  assert.equal(welt.welt.bauwerke.size, FELD_GROESSE * FELD_GROESSE);
+  pflanzeMitKlick(welt, spieler);
   const bepflanzt = [...welt.welt.bauwerke.values()].filter((b) => b.pflanze === 'tomate');
   assert.equal(bepflanzt.length, 1);
   const feld = bepflanzt[0];
@@ -155,21 +164,26 @@ test('Erdfeld: Spitzhacke legt 3×3 Beete an, Samen pflanzen, nach 24 h zwei Tom
   assert.equal(pruefePlatz(welt.welt, 'beet', 10, 5).ok, false, 'drinnen kein Beet');
 });
 
-test('Erdfeld: ohne Spitzhacke, nicht auf Wänden/Bauwerken', () => {
+test('Erdfeld: nur mit Hacke in der Hand, nicht auf Wänden/Bauwerken', () => {
   const { welt, spieler } = gartenWelt();
   aktion(welt, spieler, { art: AKTIONEN.FELD, tx: 4, ty: 2 });
-  assert.equal(welt.welt.bauwerke.size, 0, 'ohne Spitzhacke nichts');
-  fuegeZumInventarHinzu(spieler, 'spitzhacke', 1);
+  assert.equal(welt.welt.bauwerke.size, 0, 'ohne Hacke nichts');
+  fuegeZumInventarHinzu(spieler, 'hacke', 1);
+  aktion(welt, spieler, { art: AKTIONEN.FELD, tx: 4, ty: 2 });
+  assert.equal(welt.welt.bauwerke.size, 0, 'Hacke im Rucksack reicht nicht');
+  aktion(welt, spieler, { art: AKTIONEN.BENUTZEN, slot: slotVon(spieler, 'hacke') });
   aktion(welt, spieler, { art: AKTIONEN.FELD, tx: 7, ty: 4 }); // Gebäude
   assert.equal(welt.welt.bauwerke.size, 0, 'nicht auf Wand/Boden drinnen');
 });
 
 test('Regen halbiert die Wachstumszeit', () => {
   const { welt, spieler } = gartenWelt();
-  fuegeZumInventarHinzu(spieler, 'spitzhacke', 1);
+  fuegeZumInventarHinzu(spieler, 'hacke', 1);
   fuegeZumInventarHinzu(spieler, 'samen_tomate', 2);
+  aktion(welt, spieler, { art: AKTIONEN.BENUTZEN, slot: slotVon(spieler, 'hacke') });
   aktion(welt, spieler, { art: AKTIONEN.FELD, tx: 4, ty: 2 });
   aktion(welt, spieler, { art: AKTIONEN.BENUTZEN, slot: slotVon(spieler, 'samen_tomate') });
+  pflanzeMitKlick(welt, spieler);
   const feld = [...welt.welt.bauwerke.values()].find((b) => b.pflanze);
   welt.wetter.art = 'klar';
   welt.wetter.rest = 1e6;
@@ -224,8 +238,9 @@ test('Rucksack tauschen: Inhalt wandert in den neuen, alter landet im Inventar',
 
 test('Weltzustand: Bauwerke, Uhrzeit und Tag überleben einen Neustart', () => {
   const { welt, spieler } = gartenWelt();
-  fuegeZumInventarHinzu(spieler, 'spitzhacke', 1);
+  fuegeZumInventarHinzu(spieler, 'hacke', 1);
   fuegeZumInventarHinzu(spieler, 'samen_kartoffel', 1);
+  aktion(welt, spieler, { art: AKTIONEN.BENUTZEN, slot: slotVon(spieler, 'hacke') });
   aktion(welt, spieler, { art: AKTIONEN.FELD, tx: 4, ty: 2 });
   aktion(welt, spieler, { art: AKTIONEN.BAUWERK });
   welt.tag = 5;

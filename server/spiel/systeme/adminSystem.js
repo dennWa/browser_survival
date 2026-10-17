@@ -19,6 +19,27 @@ const AUSRUESTUNG = [
 ];
 const SPAWN_ABSTAND = 90; // px vor dem Admin
 
+/** Landen in einer Wand/einem Möbel/Baum? → zur nächsten freien Kachel (Spiralsuche), sonst steckt man fest. */
+function landeAufFreiemBoden(spielWelt, spieler) {
+  const welt = spielWelt.welt;
+  const g = welt.kachelGroesse;
+  const tx0 = Math.floor(spieler.x / g);
+  const ty0 = Math.floor(spieler.y / g);
+  for (let r = 0; r <= 12; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        if (welt.istBlockiert(tx0 + dx, ty0 + dy)) continue;
+        if (r > 0) {
+          spieler.x = (tx0 + dx + 0.5) * g;
+          spieler.y = (ty0 + dy + 0.5) * g;
+        }
+        return;
+      }
+    }
+  }
+}
+
 export function fuehreAdminBefehlAus(spielWelt, spieler, befehl) {
   if (!spieler.admin) {
     spielWelt.melde(spieler.id, 'Keine Admin-Rechte');
@@ -29,6 +50,15 @@ export function fuehreAdminBefehlAus(spielWelt, spieler, befehl) {
     case ADMIN_BEFEHLE.GOTTMODUS:
       spieler.gottmodus = !spieler.gottmodus;
       spielWelt.melde(spieler.id, spieler.gottmodus ? 'Gottmodus AN' : 'Gottmodus aus');
+      break;
+    case ADMIN_BEFEHLE.FLIEGEN:
+      if (spieler.fahrzeug) {
+        spielWelt.melde(spieler.id, 'Erst aus dem Auto aussteigen');
+        break;
+      }
+      spieler.fliegen = !spieler.fliegen;
+      if (!spieler.fliegen) landeAufFreiemBoden(spielWelt, spieler);
+      spielWelt.melde(spieler.id, spieler.fliegen ? 'Flugmodus AN – Umschalt = schneller, Umschalt+B = landen' : 'Flugmodus aus');
       break;
     case ADMIN_BEFEHLE.UNSICHTBAR:
       spieler.unsichtbar = !spieler.unsichtbar;

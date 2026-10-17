@@ -18,14 +18,14 @@ export const TASTEN = Object.freeze({
   menue: ['Escape'], // offene Menüs schließen
   karte: ['KeyK'], // Karte auf/zu
   inventar: ['KeyI'], // Inventar-Fenster auf/zu
-  bauen: ['KeyB'], // Bau-Modus (BUILD) an/aus – R dreht dort das Bauteil
+  bauen: ['KeyB'], // Bau-Modus (BUILD) an/aus – R dreht dort das Bauteil; Admin: Umschalt+B = Flugmodus
   abriss: ['KeyX'], // im Bau-Modus: Abriss-Werkzeug
   gebiet: ['KeyV'], // roten Baugebiet-Ring ein-/ausblenden (Hammer in der Hand)
   skills: ['KeyU'], // Fähigkeiten (Skillpunkte verteilen)
   fallenlassen: ['KeyQ'], // Item fallen lassen (unter der Maus im Inventar, sonst das in der Hand)
   chat: ['KeyT'], // Chat-Eingabe öffnen
   spielerliste: ['Tab'], // Wer ist online?
-  feld: ['KeyG'], // Erdfeld anlegen (Spitzhacke im Inventar)
+  feld: ['KeyG'], // Erdfeld anlegen (Hacke in der Hand)
   tuer: ['KeyF'], // Lagerfeuer an/aus (Name historisch)
   nachladen: ['KeyR'],
   licht: ['KeyL'], // Taschenlampe an/aus

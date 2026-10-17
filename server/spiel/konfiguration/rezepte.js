@@ -64,6 +64,14 @@ export const REZEPTE = {
     ergebnis: 'spitzhacke',
   },
 
+  hacke: {
+    name: 'Hacke',
+    kategorie: 'Werkzeuge',
+    beschreibung: 'Zum Anlegen von Erdfeldern (in die Hand nehmen, dann G).',
+    zutaten: { holz: 3, stein: 2 },
+    ergebnis: 'hacke',
+  },
+
   // --- Waffen ---
   hammer: {
     name: 'Hammer',

@@ -33,3 +33,15 @@ function lebensbalken(ctx, e, y) {
   ctx.fillStyle = anteil > 0.35 ? FARBEN.lebenVoll : FARBEN.lebenNiedrig;
   ctx.fillRect(e.x - breite / 2, y, breite * anteil, 4);
 }
+
+/** Kleiner Name über einem Item am Boden. */
+export function zeichneItemName(ctx, text, x, y) {
+  ctx.font = '500 9px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.75)';
+  ctx.strokeText(text, x, y);
+  ctx.fillStyle = 'rgba(240, 236, 224, 0.92)';
+  ctx.fillText(text, x, y);
+}

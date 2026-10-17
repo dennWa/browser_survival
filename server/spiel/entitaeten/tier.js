@@ -14,6 +14,7 @@ export function erzeugeTier({ id, art = 'hase', x, y, konfiguration }) {
     leben: k.hasenLeben,
     maxLeben: k.hasenLeben,
     radius: 8,
+    trefferRadius: 17, // Schüsse/Schläge treffen großzügiger als der Körper breit ist (Top-Down: Mausziel liegt wegen der Höhe knapp daneben)
     zustand: 'ruhend',
     // [intern]
     wanderZiel: null,

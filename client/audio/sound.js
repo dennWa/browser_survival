@@ -21,6 +21,14 @@ const ANSCHLAG = 0.004;
 /** Geräusche minimal in die Zukunft planen: kommt der Haupt-Thread zu spät, beginnt sonst die Hülle mittendrin. */
 const VORLAUF = 0.012;
 
+/** Relative Lautstärke je Aufnahme (alle Proben sind auf etwa gleiche Lautheit normalisiert). */
+const PROBEN_PEGEL = {
+  pistole: 1.0, schrotflinte: 1.15, hack_holz: 1.0, hack_stein: 0.9, treffer_zombie: 0.8, treffer_spieler: 0.9,
+  tuer_auf: 0.7, tuer_zu: 0.8, tuer_schlag: 1.0, tuer_bricht: 1.1, aufprall: 1.0, fahrzeug_schaden: 0.8, fahrzeug_kaputt: 1.0,
+  autotuer: 0.7, gebaut: 0.8, werkeln: 0.7, graben: 0.7, stein_bricht: 1.0, baum_faellt: 1.1,
+  zombie_stoehnen: 0.8, zombie_angriff: 0.9, zombie_tod: 0.9, aufheben: 0.25,
+};
+
 export class Sound {
   #ctx = null;
   #ausgang = null; // Gesamtlautstärke → Lautsprecher
@@ -32,6 +40,7 @@ export class Sound {
   #wind = null;
   #motor = null;
   #hoerer = { x: 0, y: 0 };
+  #proben = {}; // Name → [AudioBuffer] (echte Aufnahmen aus audio/samples, siehe werkzeuge/assets/baue_sounds.py)
 
   constructor() {
     this.stumm = false;
@@ -96,7 +105,30 @@ export class Sound {
       for (const ereignis of ['pointerdown', 'keydown']) window.addEventListener(ereignis, aufwecken, { passive: true });
     }
     this.#ctx.resume?.();
+    this.#ladeProben();
   }
+
+  /** Lädt die echten Aufnahmen im Hintergrund; bis sie da sind (oder fehlen), spielt die Synthese. */
+  #ladeProben() {
+    if (this.#probenGeladen) return;
+    this.#probenGeladen = true;
+    const basis = new URL('./samples/', import.meta.url);
+    fetch(new URL('samples.json', basis))
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((manifest) => {
+        for (const [name, dateien] of Object.entries(manifest)) {
+          for (const datei of dateien) {
+            fetch(new URL(datei, basis))
+              .then((r) => r.arrayBuffer())
+              .then((daten) => this.#ctx.decodeAudioData(daten))
+              .then((puffer) => (this.#proben[name] ??= []).push(puffer))
+              .catch(() => {});
+          }
+        }
+      })
+      .catch(() => {});
+  }
+  #probenGeladen = false;
 
   /** @returns neuer Zustand (true = stumm) */
   umschalten() {
@@ -118,7 +150,8 @@ export class Sound {
   spiele(name, { x, y, lautstaerke = 1, tonhoehe = 1 } = {}) {
     const ctx = this.#ctx;
     const rezept = REZEPTE[name];
-    if (!ctx || !rezept || ctx.state !== 'running') return;
+    const proben = this.#proben[name];
+    if (!ctx || (!rezept && !proben) || ctx.state !== 'running') return;
 
     let gain = lautstaerke;
     let pan = 0;
@@ -142,7 +175,20 @@ export class Sound {
       ziel = panner;
     }
     ziel.connect(this.#effekte);
-    const dauer = rezept({ ctx, ausgang: lautstaerkeKnoten, t: ctx.currentTime + VORLAUF, rauschen: this.#rauschen, tonhoehe });
+    let dauer;
+    if (proben?.length) {
+      // Echte Aufnahme: zufällige Variante, Tonhöhe leicht gestreut (kein Maschinengewehr-Effekt bei Wiederholung)
+      const quelle = ctx.createBufferSource();
+      quelle.buffer = proben[Math.floor(Math.random() * proben.length)];
+      quelle.playbackRate.value = tonhoehe * (0.94 + Math.random() * 0.12);
+      const pegel = ctx.createGain();
+      pegel.gain.value = PROBEN_PEGEL[name] ?? 1;
+      quelle.connect(pegel).connect(lautstaerkeKnoten);
+      quelle.start(ctx.currentTime + VORLAUF);
+      dauer = quelle.buffer.duration / quelle.playbackRate.value;
+    } else {
+      dauer = rezept({ ctx, ausgang: lautstaerkeKnoten, t: ctx.currentTime + VORLAUF, rauschen: this.#rauschen, tonhoehe });
+    }
     setTimeout(() => ziel.disconnect(), (dauer + 0.5) * 1000);
   }
 
@@ -342,10 +388,10 @@ const REZEPTE = {
     ton(ctx, ausgang, t + 0.3, { typ: 'sine', von: 55, bis: 30, dauer: 2.5, lautstaerke: 0.4 });
     return 2.8;
   },
-  aufheben: ({ ctx, ausgang, t }) => {
-    ton(ctx, ausgang, t, { typ: 'triangle', von: 520, bis: 520, dauer: 0.07, lautstaerke: 0.25 });
-    ton(ctx, ausgang, t + 0.07, { typ: 'triangle', von: 780, bis: 780, dauer: 0.1, lautstaerke: 0.25 });
-    return 0.2;
+  aufheben: ({ ctx, ausgang, t, rauschen }) => {
+    // Nur ein leises Stoffrascheln (Ersatz, falls die Sample-Datei fehlt) – kein Piepton
+    rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.12, typ: 'bandpass', frequenz: 1800, lautstaerke: 0.05 });
+    return 0.15;
   },
   essen: ({ ctx, ausgang, t, rauschen }) => {
     for (let i = 0; i < 3; i++) rauschStoss(ctx, ausgang, rauschen, t + i * 0.16, { dauer: 0.07, typ: 'bandpass', frequenz: 1800 + i * 300, lautstaerke: 0.4 });

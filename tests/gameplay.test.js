@@ -588,12 +588,14 @@ test('Nachts kommt eine Horde, morgens zieht sie ab', () => {
 // ---------------------------------------------------------------------------
 // Start, Todes-Loot
 
-test('Startausrüstung: Pistole (15 Schuss, in der Hand), Axt, Spitzhacke – nach dem Tod wieder', () => {
+test('Startausrüstung: Pistole (30 Schuss, in der Hand), Axt, Spitzhacke, Angel, Hammer, Hacke – nach dem Tod wieder', () => {
   const konfiguration = erstelleKonfiguration({ server: { zufallsStartwert: 2 } });
   const welt = new SpielWelt(konfiguration, { kartenDefinition: TESTKARTE });
   const spieler = welt.spielerBetrittWelt('Neu');
   assert.deepEqual(spieler.inventar.slice(0, 3).map((e) => e?.defId), ['pistole', 'axt', 'spitzhacke']);
   assert.equal(spieler.inventar[0].magazin, 15);
+  assert.deepEqual(spieler.inventar.slice(3, 7).map((e) => e?.defId), ['angel', 'hammer', 'hacke', 'munition_9mm']);
+  assert.equal(spieler.inventar[6].menge, 15, '15 im Magazin + 15 Reserve = 30 Schuss');
   assert.equal(spieler.ausgeruestet, 0);
   assert.equal(spieler.ausruestung, 'pistole');
   spieler.leben = 0.5;

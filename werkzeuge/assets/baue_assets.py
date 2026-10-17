@@ -52,6 +52,8 @@ LIZENZEN = [
     ('Free Survival Props Pack', 'Olga Bikmullina (http://ahninniah.graphics)', 'CC-BY 3.0',
      'https://opengameart.org/content/free-survival-props-pack', 'Verband, Pillen, Hammer, Machete, Schrotpatronen, Rucksack'),
     ('2D Guns', 'opengameart.org/content/2d-guns', 'CC0', 'https://opengameart.org/content/2d-guns', 'Pistole, Schrotflinte, Munitionsbox'),
+    ('Impact Sounds / RPG Audio', 'Kenney (kenney.nl)', 'CC0', 'https://kenney.nl/assets/impact-sounds', 'Geräusche: Hacken, Treffer, Türen (client/audio/samples)'),
+    ('Zombie-Sounds & Gunshot Sounds', 'artisticdude, ianzazz, Tabasco (opengameart.org)', 'CC0', 'https://opengameart.org/content/zombies-sound-pack', 'Geräusche: Zombies, Pistole, Schrotflinte'),
     ('Glitch Food & Drink Items', 'Tiny Speck (Glitch)', 'CC0',
      'https://opengameart.org/content/glitch-food-drink-items-svg', 'Essen & Getränke, Holz'),
 ]
@@ -83,7 +85,8 @@ ITEMS = {
     'schrotflinte': ('guns', 'PNG/shotgun2.png', 40),
     'munition_9mm': ('guns', 'PNG/ammobox.png', 22),
     'munition_12': ('props', 'PNG/256px/ammo_3.png', 24),
-    'axt': ('kenney_items', 'PNG/Colored/genericItem_color_006.png', 28),
+    'axt': ('prozedural', 'axt', 28),  # selbst gezeichnet: Holzstiel + Stahlblatt (das Kenney-Icon sah nicht nach Axt aus)
+    'hacke': ('prozedural', 'hacke', 28),  # Gartenhacke fürs Feld
     'spitzhacke': ('kenney_items', 'PNG/Colored/genericItem_color_021.png', 30),
     'holz': ('glitch_food', 'food/plank.svg', 26),
     'stein': ('kenney_racing', 'PNG/Objects/rock1.png', 22),
@@ -232,6 +235,19 @@ def zeichne_prozedural(art, groesse):
             x = 12 + i * 8
             d.polygon([(x * u, 22 * u), ((x + 4) * u, 12 * u), ((x + 8) * u, 22 * u)], fill=(200, 205, 210, 255), outline=rand)
             d.polygon([(x * u, 54 * u), ((x + 4) * u, 64 * u), ((x + 8) * u, 54 * u)], fill=(200, 205, 210, 255), outline=rand)
+    elif art == 'axt':
+        # schräger Holzstiel, Stahlblatt mit Schneide oben rechts
+        d.line([14 * u, 64 * u, 48 * u, 18 * u], fill=(122, 82, 42, 255), width=int(7 * u))
+        d.line([16 * u, 62 * u, 48 * u, 20 * u], fill=(160, 112, 62, 255), width=int(2.5 * u))
+        d.polygon([(38 * u, 12 * u), (62 * u, 8 * u), (66 * u, 34 * u), (50 * u, 30 * u), (44 * u, 24 * u)], fill=(176, 184, 194, 255), outline=rand)
+        d.polygon([(62 * u, 8 * u), (66 * u, 34 * u), (60 * u, 30 * u), (58 * u, 12 * u)], fill=(226, 232, 240, 255))
+        d.rectangle(r(40, 14, 46, 28), fill=(96, 100, 108, 255), outline=rand)
+    elif art == 'hacke':
+        # langer Stiel mit abgewinkeltem Hackenblatt
+        d.line([12 * u, 66 * u, 52 * u, 14 * u], fill=(122, 82, 42, 255), width=int(6 * u))
+        d.line([14 * u, 64 * u, 52 * u, 16 * u], fill=(160, 112, 62, 255), width=int(2 * u))
+        d.polygon([(44 * u, 10 * u), (68 * u, 18 * u), (66 * u, 28 * u), (52 * u, 24 * u), (46 * u, 22 * u)], fill=(150, 156, 164, 255), outline=rand)
+        d.line([52 * u, 24 * u, 66 * u, 27 * u], fill=(226, 232, 240, 255), width=int(2 * u))
     elif art == 'lagerfeuer':
         for a, b in (((10, 52), (58, 62)), ((14, 62), (62, 50))):
             d.line([a[0] * u, a[1] * u, b[0] * u, b[1] * u], fill=(110, 70, 36, 255), width=int(9 * u))
@@ -358,6 +374,100 @@ def baue_umgebung():
     return {'bild': 'umgebung.webp', 'kachelGroesse': k, **atlas}
 
 
+GESICHT_URSPRUNG = (30, 20)  # linke obere Ecke des Gesichtsbereichs im 256er-Skin
+GESICHT_GROESSE = (100, 60)
+
+
+def zeichne_zombie_gesicht(basis, nr):
+    """Legt auf einen Zombie-Skin eines von 4 abstoßenden Gesichtern (selbst gezeichnet, 8-fach überzeichnet)."""
+    from PIL import ImageDraw, ImageFilter
+    k = 8
+    ox, oy = GESICHT_URSPRUNG
+    ebene = Image.new('RGBA', (GESICHT_GROESSE[0] * k, GESICHT_GROESSE[1] * k), (0, 0, 0, 0))
+    d = ImageDraw.Draw(ebene)
+
+    def p(x, y):
+        return ((x - ox) * k, (y - oy) * k)
+
+    def ellipse(x, y, rx, ry, fill, outline=None):
+        d.ellipse([*p(x - rx, y - ry), *p(x + rx, y + ry)], fill=fill, outline=outline, width=int(0.6 * k) if outline else 0)
+
+    def linie(punkte, fill, breite):
+        d.line([p(*q) for q in punkte], fill=fill, width=int(breite * k), joint='curve')
+
+    def polygon(punkte, fill):
+        d.polygon([p(*q) for q in punkte], fill=fill)
+
+    dunkel = (14, 8, 8, 255)
+    blut = (120, 8, 10, 235)
+    blut_hell = (176, 20, 20, 240)
+    zahn = (226, 214, 160, 255)
+    eiter = (190, 200, 70, 230)
+    fleisch = (150, 58, 66, 255)
+    if nr == 0:  # Hohle Augen, fehlende Nase, schiefes Zahngrinsen
+        for ex in (71, 87):
+            ellipse(ex, 55, 5.2, 4.2, dunkel)
+            ellipse(ex + 0.4, 55.4, 1.2, 1.2, (210, 40, 30, 255))
+        ellipse(79, 62.5, 2.2, 2.8, dunkel)
+        polygon([(69, 66), (73, 65), (79, 66.5), (85, 65), (90, 67), (88, 71), (79, 70), (71, 71)], dunkel)
+        for i in range(8):
+            x = 70.5 + i * 2.5
+            polygon([(x, 66.6), (x + 1.1, 66.4), (x + 0.6, 69.2 + (i % 2) * 1.2)], zahn)
+        for x, y, r in ((64, 50, 2.2), (95, 60, 2.6), (66, 64, 1.8), (92, 47, 1.6)):
+            ellipse(x, y, r, r, eiter)
+        linie([(75, 41), (76.5, 47)], blut, 0.9)
+    elif nr == 1:  # Milchauge, leere Höhle, klaffende Wunde
+        ellipse(71, 55, 5, 4.2, (226, 228, 214, 255), dunkel)
+        linie([(68, 54), (71, 56), (74, 55)], (150, 130, 130, 200), 0.35)
+        ellipse(87, 55, 5.4, 4.6, dunkel)
+        linie([(87, 59), (87.6, 66), (87, 72)], blut, 1.1)
+        polygon([(61, 46), (64, 45), (80, 62), (78, 65)], fleisch)
+        linie([(62, 46), (79, 64)], blut, 1.5)
+        for t in range(6):
+            x = 63.5 + t * 2.9
+            linie([(x - 1.2, 47.5 + t * 3.1), (x + 1.4, 45.8 + t * 3.1)], dunkel, 0.45)
+        polygon([(72, 66), (76, 65.5), (86, 66), (84, 69), (74, 69)], dunkel)
+        polygon([(70, 61), (74, 62), (73, 64)], zahn)  # Kiefer blitzt durch die Wunde
+    elif nr == 2:  # Blutunterlaufene Augen, weit aufgerissenes Maul voll Blut
+        for ex in (71, 87):
+            ellipse(ex, 55, 5, 4, (232, 222, 214, 255), dunkel)
+            for a in range(8):
+                w = a * 0.785
+                linie([(ex + 1.6 * math.cos(w), 55 + 1.4 * math.sin(w)), (ex + 4.6 * math.cos(w), 55 + 3.7 * math.sin(w))], (170, 20, 20, 230), 0.3)
+            ellipse(ex, 55, 1.3, 1.3, dunkel)
+        ellipse(79.5, 67.5, 8.2, 5.6, dunkel)
+        for i in range(5):
+            x = 73.5 + i * 3
+            polygon([(x, 62.6), (x + 1.4, 62.8), (x + 0.7, 65.8)], zahn)
+            polygon([(x + 0.4, 72.4), (x + 1.8, 72.4), (x + 1.1, 69.8)], zahn)
+        ellipse(79.5, 69, 5, 2.6, blut)
+        for x, w in ((74, 1.3), (79, 1.9), (84.5, 1.2)):
+            linie([(x, 70), (x + 0.3, 74.5), (x, 78)], blut_hell, w)
+        for x, y, r in ((68, 44, 1.5), (74, 42, 1.0), (92, 45, 1.8), (96, 52, 0.9)):
+            ellipse(x, y, r, r, blut_hell)
+    else:  # Zugenähter Mund, Maden in der Augenhöhle, verfaulte Wange mit Knochen
+        ellipse(71, 55, 5.6, 4.6, dunkel)
+        for x, y in ((69.5, 54.5), (71.5, 56), (72.5, 54), (70.2, 57)):
+            ellipse(x, y, 0.9, 0.55, (236, 232, 200, 255))
+        ellipse(87, 55, 4.4, 4.8, (230, 226, 210, 255), dunkel)
+        ellipse(87.4, 55.4, 1.0, 1.0, dunkel)
+        polygon([(92, 58), (98, 58), (98, 66), (93, 67), (90, 63)], (92, 40, 76, 230))  # verfaulte Wange
+        polygon([(93, 60), (97, 60), (97, 65), (94, 65)], (214, 204, 176, 255))  # Wangenknochen
+        for i in range(4):
+            polygon([(93.2 + i * 1.0, 64.8), (93.9 + i * 1.0, 64.8), (93.5 + i * 1.0, 66.2)], zahn)
+        linie([(69, 67), (90, 67)], dunkel, 0.9)
+        for i in range(8):
+            x = 70.5 + i * 2.6
+            linie([(x, 64.6), (x + 0.4, 69.6)], dunkel, 0.45)
+        ellipse(66, 47, 4, 2.4, (70, 40, 66, 200))
+        ellipse(80, 43, 3.4, 1.8, (64, 44, 40, 190))
+        linie([(60, 56), (66, 62)], blut, 0.8)
+    ebene = ebene.resize(GESICHT_GROESSE, Image.LANCZOS)
+    ergebnis = basis.convert('RGBA')
+    ergebnis.alpha_composite(ebene, GESICHT_URSPRUNG)
+    return ergebnis.convert('RGB')
+
+
 def baue_3d_figuren():
     """3D-Figurenmodell (FBX) + Hauttexturen kopieren. Die Animationen extrahiert baue_3d.mjs."""
     basis = lade('kenney_ac3')
@@ -366,8 +476,12 @@ def baue_3d_figuren():
     shutil.copy(finde(basis, 'Model/characterMedium.fbx'), ziel / 'figur.fbx')
     for skin in ['humanMaleA', 'humanFemaleA', 'zombieMaleA', 'zombieFemaleA']:
         Image.open(finde(basis, f'Skins/{skin}.png')).convert('RGB').save(ziel / 'skins' / f'{skin}.webp', 'WEBP', quality=90)
-    print('    3D-Figur + 4 Skins')
-    return {'modell': '3d/figur.fbx', 'skins': {n: f'3d/skins/{n}.webp' for n in ['humanMaleA', 'humanFemaleA', 'zombieMaleA', 'zombieFemaleA']},
+    # Zombie-Gesichter: 4 abstoßende Varianten (je zwei auf dem männlichen und weiblichen Körper)
+    basen = {n: Image.open(finde(basis, f'Skins/{n}.png')).convert('RGB') for n in ('zombieMaleA', 'zombieFemaleA')}
+    for nr in range(4):
+        zeichne_zombie_gesicht(basen['zombieMaleA' if nr % 2 == 0 else 'zombieFemaleA'], nr).save(ziel / 'skins' / f'zombieGesicht{nr}.webp', 'WEBP', quality=92)
+    print('    3D-Figur + 4 Skins + 4 Zombie-Gesichter')
+    return {'modell': '3d/figur.fbx', 'skins': {n: f'3d/skins/{n}.webp' for n in ['humanMaleA', 'humanFemaleA', 'zombieMaleA', 'zombieFemaleA', 'zombieGesicht0', 'zombieGesicht1', 'zombieGesicht2', 'zombieGesicht3']},
             'animationen': '3d/animationen.json'}
 
 

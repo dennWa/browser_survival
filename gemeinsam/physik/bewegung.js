@@ -8,6 +8,8 @@ import { normalisiere, begrenze } from '../mathe.js';
  */
 
 const EPSILON = 0.001;
+export const FLUG_TEMPO = 480; // px/s im Admin-Flugmodus (Laufen: 150)
+const FLUG_SPRINT = 3;
 
 /** Macht aus einer (evtl. manipulierten) Eingabe einen gültigen Richtungsvektor mit Länge ≤ 1. */
 export function richtungAusEingabe(eingabe) {
@@ -35,6 +37,15 @@ export function wendeEingabeAn(koerper, eingabe, welt, parameter, dt) {
     return false;
   }
   const richtung = richtungAusEingabe(eingabe);
+  if (koerper.fliegen) {
+    // Admin-Flugmodus: kein Hindernis, kein Ausdauerverbrauch – nur der Kartenrand hält einen auf
+    const weg = FLUG_TEMPO * (eingabe.sprint === true ? FLUG_SPRINT : 1) * dt;
+    koerper.x = begrenze(koerper.x + richtung.x * weg, parameter.radius, welt.breite * welt.kachelGroesse - parameter.radius);
+    koerper.y = begrenze(koerper.y + richtung.y * weg, parameter.radius, welt.hoehe * welt.kachelGroesse - parameter.radius);
+    if (Number.isFinite(eingabe.blick)) koerper.blick = eingabe.blick;
+    koerper.sprintet = false;
+    return false;
+  }
   const willSprinten = eingabe.sprint === true && Math.hypot(richtung.x, richtung.y) > 0.1;
   const sprintet = aktualisiereAusdauer(koerper, willSprinten, parameter, dt);
   // tempoFaktor: Skill "Schnelligkeit" (Server setzt ihn am Spieler, der Client übernimmt ihn für die Vorhersage)
