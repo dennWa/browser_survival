@@ -28,6 +28,8 @@ export class Welt {
     this.zeilen = kartenDaten.kacheln;
     this.raeume = kartenDaten.raeume ?? [];
     this.objekte = kartenDaten.objekte ?? [];
+    /** Eigene Objekttypen mit 3D-Modell: { typId: { glbDatei | glb, hoehe3d? } } (nur Anzeige) */
+    this.typen = kartenDaten.typen ?? {};
     /** Übergänge in andere Zonen: [{ x, y, b, h, ziel, ankunft, name, px: { x0, y0, x1, y1 } }] (Kacheln + Pixel) */
     this.uebergaenge = kartenDaten.uebergaenge ?? [];
     /** Bemalung des Bodens aus dem Map-Editor (nur Optik): { '#rrggbb': [[x, y, b, h], …] } oder null */

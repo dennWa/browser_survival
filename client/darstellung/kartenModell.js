@@ -4,6 +4,7 @@ import { RESSOURCEN_OBJEKTE } from '../../gemeinsam/welt/ressourcen.js';
 import { baueBaum, baueStumpf, toonMaterial } from './baumModell.js';
 import { BodenTextur } from './bodenTextur.js';
 import { einfrieren, matrixAus, vereineGeometrien } from './geometrie.js';
+import { eigenesModellUrl, ladeEigenesModell, eigenesModellInhalt } from './eigeneModelle.js';
 
 /**
  * Die Karte als 3D-Modell – auf wenige Draw-Calls optimiert (Performance!):
@@ -53,6 +54,7 @@ export class KartenModell {
     this.#baueWaende();
     this.#baueDaecher();
     this.#baueMoebel();
+    this.#baueEigeneModelle();
     this.#baueLampen();
     this.#baueTueren();
     this.#baueRessourcen();
@@ -269,6 +271,23 @@ export class KartenModell {
     this.statisch.add(wand, instanzen(new THREE.BoxGeometry(g, 1, g * 0.3), glasMaterial, glas));
   }
 
+  /** Eigene Objekte mit 3D-Modell (Map-Editor): Gruppe sofort da, Modell kommt nach dem Laden. Ohne Modell → Ersatz-Quader wie gehabt. */
+  #baueEigeneModelle() {
+    const g = this.g;
+    for (const o of this.welt.objekte) {
+      const typ = this.welt.typen[o.typ];
+      const url = eigenesModellUrl(typ);
+      if (!url) continue;
+      const gruppe = new THREE.Group();
+      gruppe.position.set((o.x + o.b / 2) * g, 0, (o.y + o.h / 2) * g);
+      gruppe.rotation.y = (-(o.drehung ?? 0) * Math.PI) / 180;
+      this.statisch.add(gruppe);
+      ladeEigenesModell(url)
+        .then((szene) => gruppe.parent && gruppe.add(eigenesModellInhalt(szene, { b: o.b, h: o.h, hoehe: typ.hoehe3d ?? 1, einheit: g })))
+        .catch((fehler) => console.warn(`3D-Modell „${o.typ}“ nicht geladen:`, fehler));
+    }
+  }
+
   /** Alle Möbel: Seiten in EIN Mesh (Farbe je Möbel), Deckel (Sprite von oben) je Typ in ein Mesh. */
   #baueMoebel() {
     const g = this.g;
@@ -277,6 +296,7 @@ export class KartenModell {
     for (const o of this.welt.objekte) {
       // ebene 'unsichtbar' = steile Hänge aus dem Map-Editor (nur Kollision, keine Grafik)
       if (o.typ === 'licht' || o.typ === 'markierung' || o.ebene === 'boden' || o.ebene === 'oben' || o.ebene === 'unsichtbar' || RESSOURCEN_OBJEKTE[o.typ]) continue;
+      if (eigenesModellUrl(this.welt.typen[o.typ])) continue; // eigenes 3D-Modell → #baueEigeneModelle
       const quer = (o.drehung ?? 0) % 180 !== 0;
       const breite = (quer ? o.h : o.b) * g;
       const tiefe = (quer ? o.b : o.h) * g;

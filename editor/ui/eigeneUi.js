@@ -89,12 +89,17 @@ export function eigeneUi({ zustand, sonderAktionen, aktionen }) {
     if (!datei.name.toLowerCase().endsWith('.glb')) return zustand.meldung('Nur .glb-Dateien (binäres glTF) werden unterstützt', 'fehler');
     if (datei.text.length > MODELL_MAX_ZEICHEN) return zustand.meldung(`Modell zu groß (max. ${MODELL_MAX_MB} MB, sonst wird die Karte unhandlich)`, 'fehler');
     const vorschlag = datei.name.replace(/\.glb$/i, '').replace(/[^a-z0-9_]+/gi, '_').toLowerCase().slice(0, 40) || 'modell';
-    const w = await formular('🧊 3D-Modell anlegen', typFelder({ name: datei.name.replace(/\.glb$/i, ''), kategorie: 'Eigene' }, vorschlag), {
+    const felder = [
+      ...typFelder({ name: datei.name.replace(/\.glb$/i, ''), kategorie: 'Eigene' }, vorschlag),
+      { name: 'urheber', label: 'Urheber (optional)', typ: 'text', wert: '', hilfe: 'Nur angeben, wenn eine Lizenz existiert (wird mit dem Modell abgelegt)' },
+      { name: 'lizenz', label: 'Lizenz (optional)', typ: 'text', wert: '', hilfe: 'z. B. CC0 oder CC-BY 4.0' },
+    ];
+    const w = await formular('🧊 3D-Modell anlegen', felder, {
       okText: 'Anlegen',
       pruefe: pruefeId(true),
-      text: 'Das Modell wird in der 3D-Ansicht des Editors gezeigt und auf Fußabdruck × 3D-Höhe eingepasst. Im Spiel erscheint vorerst ein Platzhalter.',
+      text: 'Keine Lizenzprüfung – die Rechte am Modell liegen bei dir. Beim Veröffentlichen landet die Datei unter client/assets/eigene/ und erscheint im Spiel auf Fußabdruck × 3D-Höhe.',
     });
-    if (w) speichereTyp(w, { glb: datei.text });
+    if (w) speichereTyp(w, { glb: datei.text, ...(w.urheber ? { urheber: w.urheber } : {}), ...(w.lizenz ? { lizenz: w.lizenz } : {}) });
   };
 
   sonderAktionen.grafik = async () => {

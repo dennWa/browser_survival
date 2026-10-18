@@ -139,6 +139,8 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE, { au
     .filter((t) => imFeld(t?.x, t?.y) && Number.isInteger(t.b) && Number.isInteger(t.h) && t.b > 0 && t.h > 0 && imFeld(t.x + t.b - 1, t.y + t.h - 1) && Number.isInteger(t.anzahl) && t.anzahl >= 0)
     .map((t) => ({ x: t.x, y: t.y, b: t.b, h: t.h, art: 'hase', anzahl: Math.min(t.anzahl, 100), ...(t.respawnZeit > 0 ? { respawnZeit: t.respawnZeit } : {}) }));
   const daten = { id: definition.id, name: definition.name, breite, hoehe, kachelGroesse, kacheln, raeume, objekte, uebergaenge };
+  const typen = pruefeTypen(definition.typen);
+  if (typen) daten.typen = typen;
   if (typeof definition.musik === 'string' && /^[a-z0-9_-]{1,40}$/i.test(definition.musik)) daten.musik = definition.musik;
   const bemalung = pruefeBemalung(definition.bemalung, breite, hoehe);
   if (bemalung) daten.bemalung = bemalung;
@@ -153,6 +155,25 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE, { au
     bauwerke,
     tierBereiche,
   };
+}
+
+/**
+ * Eigene Objekttypen mit 3D-Modell (Map-Editor). Nur Anzeige: glbDatei = Pfad unter client/assets/eigene/ (karte:editor legt
+ * die Datei an), glb = eingebettet (Testlauf im Editor). Typen ohne Modell brauchen den Client nicht → fallen weg.
+ */
+function pruefeTypen(roh) {
+  if (!roh || typeof roh !== 'object') return null;
+  const ergebnis = {};
+  for (const [id, t] of Object.entries(roh)) {
+    if (!/^[a-z0-9_]{1,40}$/.test(id) || !t || typeof t !== 'object') continue;
+    const e = {};
+    if (typeof t.glbDatei === 'string' && /^assets\/eigene\/[a-z0-9_/-]{1,120}\.glb$/.test(t.glbDatei)) e.glbDatei = t.glbDatei;
+    else if (typeof t.glb === 'string' && t.glb.startsWith('data:model/gltf-binary;base64,')) e.glb = t.glb;
+    if (!e.glbDatei && !e.glb) continue;
+    if (t.hoehe3d > 0 && t.hoehe3d <= 20) e.hoehe3d = t.hoehe3d;
+    ergebnis[id] = e;
+  }
+  return Object.keys(ergebnis).length ? ergebnis : null;
 }
 
 /** Bemalung prüfen: nur #rrggbb-Farben, ganzzahlige Rechtecke in der Karte. @returns Objekt oder null */

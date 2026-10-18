@@ -6,6 +6,7 @@
 4. Code-Sprache: Deutsch (Bezeichner ohne Umlaute, Kommentare mit Umlauten erlaubt). Vanilla JS, ES-Module, kein Build-Schritt.
 5. Spiellogik nur in `server/spiel/` (autoritativ, umgebungsfrei – keine `node:`-Importe, kein DOM).
 6. Grafiken nur über `werkzeuge/assets/baue_assets.py` + `npm run assets:3d` ändern (nie direkt in `client/assets/` oder `client/vendor/`). Nur CC0/CC-BY-Quellen, Credits-Dialog nicht entfernen.
+   **Ausnahme (Nutzer-Entscheidung):** Eigene 3D-Modelle (`.glb`) aus dem Map-Editor landen über `npm run karte:editor` unverändert unter `client/assets/eigene/` – ohne Lizenzprüfung. Die Rechte liegen bei der hochladenden Person; Urheber/Lizenz sind optionale Felder am Typ.
    Darstellung ist **nur 3D** (Three.js, `client/darstellung/renderer.js`) – kein 2D-Renderer mehr.
 7. Touch-Bedienung (Handy/Tablet) bei jeder neuen Aktion mitdenken.
 8. Vor jedem Commit: `npm test`.

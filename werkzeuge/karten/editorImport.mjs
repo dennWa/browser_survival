@@ -15,6 +15,7 @@ import { alsJsModul } from '../../editor/kern/veroeffentlichen.js';
 import { validiere, hatFehler } from '../../editor/kern/validierung.js';
 import { verarbeiteKarte } from '../../server/spiel/karten/kartenLader.js';
 import { registriere } from './registrieren.mjs';
+import { schreibeEigeneModelle } from './eigeneModelle.mjs';
 
 const WURZEL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const KARTEN_ORDNER = path.join(WURZEL, 'server/spiel/karten');
@@ -31,6 +32,7 @@ try {
   for (const p of probleme) console.log(`  ${p.schwere === 'fehler' ? '✗' : '⚠'} ${p.text}${p.x !== null ? ` (${p.x}|${p.y})` : ''}`);
   if (hatFehler(probleme)) throw new Error('Karte hat Fehler (siehe oben) – im Editor beheben');
   const definition = nachDefinition(karte);
+  for (const d of schreibeEigeneModelle(definition, path.join(WURZEL, 'client'))) console.log(`  ✓ ${d} (eigenes 3D-Modell)`);
   verarbeiteKarte(definition); // wirft bei allem, was das Spiel nicht laden könnte
   const ziel = path.join(KARTEN_ORDNER, `${definition.id}.js`);
   writeFileSync(ziel, alsJsModul(definition));

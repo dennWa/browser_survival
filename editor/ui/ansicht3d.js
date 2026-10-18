@@ -3,7 +3,7 @@ import { BAUWERKE } from '../../gemeinsam/welt/bauwerke.js';
 import { RESSOURCEN_OBJEKTE } from '../../gemeinsam/welt/ressourcen.js';
 import { ausSchluessel } from '../kern/karte.js';
 import { kachelInfo, objektInfo } from '../kern/katalog.js';
-import { GLTFLoader } from '../../client/vendor/three/addons.js';
+import { eigenesModellUrl, ladeEigenesModell, eigenesModellInhalt } from '../../client/darstellung/eigeneModelle.js';
 import { musterTextur, extrusionsGeometrie } from './bild3d.js';
 
 /**
@@ -70,8 +70,6 @@ export class Ansicht3D {
   #angefragt;
   #zeiger;
   #bauTimer = null;
-  #gltfLader = new GLTFLoader();
-  #glbCache = new Map(); // glb-Data-URL → Promise<Szene>; jede Ansicht klont daraus
 
   get sichtbar() {
     return this.zustand.ansicht === '3d';
@@ -256,7 +254,7 @@ export class Ansicht3D {
       }
       const eigen = k.s('typen').get(o.typ);
       let mesh;
-      if (eigen?.glb) {
+      if (eigenesModellUrl(eigen)) {
         mesh = this.#glbGruppe(id, o, eigen, typTextur, cx, boden, cz);
       } else if (eigen?.bild && eigen.modus === 'billboard') {
         const textur = new THREE.TextureLoader().load(eigen.bild, () => this.anfordern());
@@ -322,43 +320,14 @@ export class Ansicht3D {
     const gruppe = new THREE.Group();
     gruppe.position.set(cx, boden, cz);
     gruppe.rotation.y = (-(o.drehung ?? 0) * Math.PI) / 180;
-    this.#ladeGlb(eigen.glb)
+    ladeEigenesModell(eigenesModellUrl(eigen))
       .then((szene) => {
         if (!gruppe.parent) return;
-        const modell = szene.clone(true);
-        // Eigene Materialien je Objekt – sonst färbt die Typ-Farbe alle Kopien und den Cache um
-        modell.traverse((t) => {
-          if (!t.isMesh) return;
-          const kopie = (m) => {
-            const c = m.clone();
-            if (typTextur?.farbe && c.color) c.color.set(typTextur.farbe);
-            return c;
-          };
-          t.material = Array.isArray(t.material) ? t.material.map(kopie) : kopie(t.material);
-        });
-        // Einpassen: Mitte auf den Fußabdruck, Unterkante auf den Boden, Größe in den Kasten b × h × hoehe3d
-        const box = new THREE.Box3().setFromObject(modell);
-        const groesse = box.getSize(new THREE.Vector3());
-        const mitte = box.getCenter(new THREE.Vector3());
-        const s = Math.min((o.b * 0.96) / (groesse.x || 1), (o.h * 0.96) / (groesse.z || 1), (eigen.hoehe3d ?? 1) / (groesse.y || 1));
-        modell.scale.setScalar(s);
-        modell.position.set(-mitte.x * s, -box.min.y * s, -mitte.z * s);
-        modell.traverse((t) => (t.userData = { s: 'objekte', k: id }));
-        gruppe.add(modell);
+        gruppe.add(eigenesModellInhalt(szene, { b: o.b, h: o.h, hoehe: eigen.hoehe3d ?? 1, farbe: typTextur?.farbe, id }));
         this.anfordern();
       })
       .catch(() => this.zustand.meldung(`3D-Modell „${o.typ}“ konnte nicht gelesen werden`, 'fehler'));
     return gruppe;
-  }
-
-  #ladeGlb(glb) {
-    if (!this.#glbCache.has(glb)) {
-      const versprechen = new Promise((ok, fehler) => this.#gltfLader.load(glb, (gltf) => ok(gltf.scene), undefined, fehler));
-      // Fehlschlag nicht dauerhaft merken, sonst hilft ein erneuter Aufbau nicht
-      versprechen.catch(() => this.#glbCache.delete(glb));
-      this.#glbCache.set(glb, versprechen);
-    }
-    return this.#glbCache.get(glb);
   }
 
   #baueBauwerke(k) {
