@@ -66,11 +66,12 @@ for (const datei of ['three.module.js', 'three.core.js']) {
   writeFileSync(path.join(ZIEL_VENDOR, datei), klein);
   console.log(`  vendor/three/${datei}: ${(klein.length / 1024).toFixed(0)} KB`);
 }
-// Addons (FBX-Lader, SkeletonUtils) als ein Bündel; 'three' bleibt extern (kommt über die Import-Map)
+// Addons (FBX-/GLTF-Lader, SkeletonUtils) als ein Bündel; 'three' bleibt extern (kommt über die Import-Map)
 await esbuild.build({
   // Direkte Dateipfade: 'three/addons/…' würde esbuild sonst wie 'three' als extern behandeln
   stdin: {
     contents: `export { FBXLoader } from ${JSON.stringify(path.join(threeOrdner, 'examples/jsm/loaders/FBXLoader.js'))};
+               export { GLTFLoader } from ${JSON.stringify(path.join(threeOrdner, 'examples/jsm/loaders/GLTFLoader.js'))};
                export * as SkeletonUtils from ${JSON.stringify(path.join(threeOrdner, 'examples/jsm/utils/SkeletonUtils.js'))};`,
     resolveDir: WURZEL,
   },

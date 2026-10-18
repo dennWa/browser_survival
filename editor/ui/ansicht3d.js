@@ -3,13 +3,15 @@ import { BAUWERKE } from '../../gemeinsam/welt/bauwerke.js';
 import { RESSOURCEN_OBJEKTE } from '../../gemeinsam/welt/ressourcen.js';
 import { ausSchluessel } from '../kern/karte.js';
 import { kachelInfo, objektInfo } from '../kern/katalog.js';
+import { GLTFLoader } from '../../client/vendor/three/addons.js';
 import { musterTextur, extrusionsGeometrie } from './bild3d.js';
 
 /**
  * 3D-Ansicht des Editors (Phase 10): dieselbe Karte in Spielperspektive (Kamera-Winkel wie client/darstellung/renderer.js).
  * 1 Kachel = 1 Einheit, Höhe in Metern (Terrain-Höhen sind echte Höhen der Bodenfläche). Boden = Canvas aus Kachelfarben +
  * Bemalung (dieselbe Farbe wie 2D und Spiel). Objekte als einfache Körper (Möbel = Quader in Typ-/Objektfarbe mit Muster,
- * Bäume instanziert, eigene Bild-Objekte als Billboard oder Extrusion). Auswahl ist synchron mit 2D (Klick wählt).
+ * Bäume instanziert, eigene Bild-Objekte als Billboard oder Extrusion, eigene .glb-Modelle eingepasst auf Fußabdruck × 3D-Höhe).
+ * Auswahl ist synchron mit 2D (Klick wählt).
  * Steuerung: Ziehen = schieben, Rechts-/Alt-Ziehen = drehen, Rad/Pinch = Zoom, Tippen = wählen (Touch: Ansehen + Schwenken).
  * Gezeichnet wird nur bei Bedarf (anfordern), neu gebaut nur, wenn sich die Karte geändert hat und die Ansicht sichtbar ist.
  */
@@ -68,6 +70,8 @@ export class Ansicht3D {
   #angefragt;
   #zeiger;
   #bauTimer = null;
+  #gltfLader = new GLTFLoader();
+  #glbCache = new Map(); // glb-Data-URL → Promise<Szene>; jede Ansicht klont daraus
 
   get sichtbar() {
     return this.zustand.ansicht === '3d';
@@ -252,7 +256,9 @@ export class Ansicht3D {
       }
       const eigen = k.s('typen').get(o.typ);
       let mesh;
-      if (eigen?.bild && eigen.modus === 'billboard') {
+      if (eigen?.glb) {
+        mesh = this.#glbGruppe(id, o, eigen, typTextur, cx, boden, cz);
+      } else if (eigen?.bild && eigen.modus === 'billboard') {
         const textur = new THREE.TextureLoader().load(eigen.bild, () => this.anfordern());
         textur.colorSpace = THREE.SRGBColorSpace;
         mesh = new THREE.Sprite(new THREE.SpriteMaterial({ map: textur, alphaTest: 0.4 }));
@@ -306,6 +312,53 @@ export class Ansicht3D {
       this.welt.add(stamm, krone);
       this.waehlbar.push(krone);
     }
+  }
+
+  /**
+   * Eigenes .glb-Modell: die Gruppe hängt sofort in der Welt (und ist wählbar), das Modell kommt, sobald es geladen ist.
+   * Ist die Gruppe beim Laden schon aus der Welt (Neuaufbau), passiert nichts mehr.
+   */
+  #glbGruppe(id, o, eigen, typTextur, cx, boden, cz) {
+    const gruppe = new THREE.Group();
+    gruppe.position.set(cx, boden, cz);
+    gruppe.rotation.y = (-(o.drehung ?? 0) * Math.PI) / 180;
+    this.#ladeGlb(eigen.glb)
+      .then((szene) => {
+        if (!gruppe.parent) return;
+        const modell = szene.clone(true);
+        // Eigene Materialien je Objekt – sonst färbt die Typ-Farbe alle Kopien und den Cache um
+        modell.traverse((t) => {
+          if (!t.isMesh) return;
+          const kopie = (m) => {
+            const c = m.clone();
+            if (typTextur?.farbe && c.color) c.color.set(typTextur.farbe);
+            return c;
+          };
+          t.material = Array.isArray(t.material) ? t.material.map(kopie) : kopie(t.material);
+        });
+        // Einpassen: Mitte auf den Fußabdruck, Unterkante auf den Boden, Größe in den Kasten b × h × hoehe3d
+        const box = new THREE.Box3().setFromObject(modell);
+        const groesse = box.getSize(new THREE.Vector3());
+        const mitte = box.getCenter(new THREE.Vector3());
+        const s = Math.min((o.b * 0.96) / (groesse.x || 1), (o.h * 0.96) / (groesse.z || 1), (eigen.hoehe3d ?? 1) / (groesse.y || 1));
+        modell.scale.setScalar(s);
+        modell.position.set(-mitte.x * s, -box.min.y * s, -mitte.z * s);
+        modell.traverse((t) => (t.userData = { s: 'objekte', k: id }));
+        gruppe.add(modell);
+        this.anfordern();
+      })
+      .catch(() => this.zustand.meldung(`3D-Modell „${o.typ}“ konnte nicht gelesen werden`, 'fehler'));
+    return gruppe;
+  }
+
+  #ladeGlb(glb) {
+    if (!this.#glbCache.has(glb)) {
+      const versprechen = new Promise((ok, fehler) => this.#gltfLader.load(glb, (gltf) => ok(gltf.scene), undefined, fehler));
+      // Fehlschlag nicht dauerhaft merken, sonst hilft ein erneuter Aufbau nicht
+      versprechen.catch(() => this.#glbCache.delete(glb));
+      this.#glbCache.set(glb, versprechen);
+    }
+    return this.#glbCache.get(glb);
   }
 
   #baueBauwerke(k) {

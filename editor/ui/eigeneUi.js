@@ -8,6 +8,7 @@ import { verkleinereBild } from './bild3d.js';
  *   • Neues Objekt anlegen (Name, Größe, Kollision, Ebene, Kategorie, Farbe, 3D-Höhe) → Sammlung `typen` der Karte,
  *     erscheint in der Bauleiste seiner Kategorie. Im Spiel: Platzhalter-Quader, bis eine Grafik per Pipeline kommt.
  *   • Bild → 3D: Bild hochladen → Billboard oder Extrusion (Alpha-Maske); KI-Umwandlung nur als gekennzeichneter Platzhalter.
+ *   • 3D-Modell (.glb): Datei als Data-URL in den Typ (`glb`); 3D-Ansicht lädt und skaliert es auf den Fußabdruck.
  *   • Neue Grafik (Antrag): erzeugt <id>.grafik.json (Bild + Lizenz CC0/CC-BY Pflicht + Urheber + Quelle) für
  *     werkzeuge/assets/editor_grafiken/ → baue_assets.py packt es in den Atlas und schreibt die Credits fort (Projektregel 6).
  *   • Farbe/Textur je Objekttyp (Sammlung `texturen`) – pro Objekt geht es im Eigenschaften-Panel.
@@ -15,6 +16,9 @@ import { verkleinereBild } from './bild3d.js';
 const ID_MUSTER = /^[a-z0-9_]{1,40}$/;
 const LIZENZEN = [['', '– bitte wählen (Pflicht) –'], ['CC0', 'CC0 (gemeinfrei)'], ['CC-BY 4.0', 'CC-BY 4.0 (Namensnennung)'], ['CC-BY 3.0', 'CC-BY 3.0 (Namensnennung)']];
 const MUSTER = [['', '– keins –'], ['holz', 'Holz'], ['stein', 'Stein'], ['metall', 'Metall'], ['stoff', 'Stoff'], ['gras', 'Gras'], ['streifen', 'Streifen'], ['punkte', 'Punkte']];
+// .glb wird als Base64 (Data-URL, ~4/3 der Dateigröße) in der Karte gespeichert → Obergrenze in Zeichen
+const MODELL_MAX_MB = 8;
+const MODELL_MAX_ZEICHEN = Math.ceil(MODELL_MAX_MB * 1024 * 1024 * 1.4);
 
 export function eigeneUi({ zustand, sonderAktionen, aktionen }) {
   const typFelder = (t = {}, id = '') => [
@@ -75,6 +79,22 @@ export function eigeneUi({ zustand, sonderAktionen, aktionen }) {
     });
     if (!w) return;
     speichereTyp(w, { bild, modus: w.modus, tiefe: w.tiefe ?? 0.3 });
+  };
+
+  // 3D-Modell (.glb) als Objekttyp: Datei wird als Data-URL in den Typ geschrieben (`glb`), die Karte bleibt damit eine Datei.
+  sonderAktionen.modell3d = async () => {
+    if (!zustand.karte) return;
+    const datei = await dateiWaehlen('.glb,model/gltf-binary', true);
+    if (!datei) return;
+    if (!datei.name.toLowerCase().endsWith('.glb')) return zustand.meldung('Nur .glb-Dateien (binäres glTF) werden unterstützt', 'fehler');
+    if (datei.text.length > MODELL_MAX_ZEICHEN) return zustand.meldung(`Modell zu groß (max. ${MODELL_MAX_MB} MB, sonst wird die Karte unhandlich)`, 'fehler');
+    const vorschlag = datei.name.replace(/\.glb$/i, '').replace(/[^a-z0-9_]+/gi, '_').toLowerCase().slice(0, 40) || 'modell';
+    const w = await formular('🧊 3D-Modell anlegen', typFelder({ name: datei.name.replace(/\.glb$/i, ''), kategorie: 'Eigene' }, vorschlag), {
+      okText: 'Anlegen',
+      pruefe: pruefeId(true),
+      text: 'Das Modell wird in der 3D-Ansicht des Editors gezeigt und auf Fußabdruck × 3D-Höhe eingepasst. Im Spiel erscheint vorerst ein Platzhalter.',
+    });
+    if (w) speichereTyp(w, { glb: datei.text });
   };
 
   sonderAktionen.grafik = async () => {

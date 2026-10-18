@@ -59,7 +59,7 @@ export class Bauleiste {
     }
     if (kategorie === 'Räume') eintraege.push({ id: 'aktion:prefab', art: 'aktion', aktion: 'prefabs', name: 'Prefabs (Vorlagen)', kategorie, symbol: '🏠' });
     if (kategorie === 'Zonen') eintraege.push({ id: 'aktion:zonen', art: 'aktion', aktion: 'zonen', name: 'Zonen-Übersicht', kategorie, symbol: '🗺' }, { id: 'aktion:vorschlaege', art: 'aktion', aktion: 'vorschlaege', name: 'Übergänge vorschlagen', kategorie, symbol: '💡' });
-    if (kategorie === 'Eigene') eintraege.push({ id: 'aktion:neuerTyp', art: 'aktion', aktion: 'neuerTyp', name: 'Neues Objekt anlegen', kategorie, symbol: '✚' }, { id: 'aktion:bild3d', art: 'aktion', aktion: 'bild3d', name: 'Bild → 3D-Objekt', kategorie, symbol: '🖼' }, { id: 'aktion:grafik', art: 'aktion', aktion: 'grafik', name: 'Neue Grafik (Antrag)', kategorie, symbol: '🎨' });
+    if (kategorie === 'Eigene') eintraege.push({ id: 'aktion:neuerTyp', art: 'aktion', aktion: 'neuerTyp', name: 'Neues Objekt anlegen', kategorie, symbol: '✚' }, { id: 'aktion:bild3d', art: 'aktion', aktion: 'bild3d', name: 'Bild → 3D-Objekt', kategorie, symbol: '🖼' }, { id: 'aktion:modell3d', art: 'aktion', aktion: 'modell3d', name: '3D-Modell (.glb) laden', kategorie, symbol: '🧊' }, { id: 'aktion:grafik', art: 'aktion', aktion: 'grafik', name: 'Neue Grafik (Antrag)', kategorie, symbol: '🎨' });
     if (kategorie === 'Farbe') eintraege.push({ id: 'aktion:texturen', art: 'aktion', aktion: 'texturen', name: 'Farbe/Textur je Objekttyp', kategorie, symbol: '🎨' });
     this.eintraege = eintraege;
     this.elLeiste.innerHTML = eintraege.length ? '' : '<span class="leise" style="align-self:center">Keine Einträge</span>';
