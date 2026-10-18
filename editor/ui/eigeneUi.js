@@ -99,7 +99,9 @@ export function eigeneUi({ zustand, sonderAktionen, aktionen }) {
       pruefe: pruefeId(true),
       text: 'Keine Lizenzprüfung – die Rechte am Modell liegen bei dir. Beim Veröffentlichen landet die Datei unter client/assets/eigene/ und erscheint im Spiel auf Fußabdruck × 3D-Höhe.',
     });
-    if (w) speichereTyp(w, { glb: datei.text, ...(w.urheber ? { urheber: w.urheber } : {}), ...(w.lizenz ? { lizenz: w.lizenz } : {}) });
+    // Browser liefern für .glb oft keinen MIME-Typ (→ octet-stream); der Server nimmt nur model/gltf-binary an
+    const glb = datei.text.replace(/^data:[^,]*,/, 'data:model/gltf-binary;base64,');
+    if (w) speichereTyp(w, { glb, ...(w.urheber ? { urheber: w.urheber } : {}), ...(w.lizenz ? { lizenz: w.lizenz } : {}) });
   };
 
   sonderAktionen.grafik = async () => {
