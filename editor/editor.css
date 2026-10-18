@@ -453,7 +453,7 @@ kbd {
 .helfer-vorschlaege { display: flex; flex-wrap: wrap; gap: 4px; }
 .helfer-vorschlaege button { font-size: 12px; min-height: 26px; padding: 0 7px; }
 .helfer-chat { display: flex; flex-direction: column; gap: 6px; max-height: 45vh; overflow-y: auto; }
-.helfer-nachricht { padding: 6px 8px; border-radius: 8px; background: var(--bg3); font-size: 13px; line-height: 1.35; }
+.helfer-nachricht { padding: 6px 8px; border-radius: 8px; background: var(--bg3); font-size: 13px; line-height: 1.35; flex-shrink: 0; }
 .helfer-nachricht.nutzer { background: #1f3a5c; align-self: flex-end; max-width: 92%; }
 .helfer-nachricht.fehler { background: #4a2326; }
 .helfer-nachricht button { margin-top: 6px; }
