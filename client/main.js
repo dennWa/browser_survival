@@ -133,7 +133,7 @@ window.browserSurvival = {
 document.getElementById('credits-knopf').addEventListener('click', () => zeigeCredits(document, assets));
 
 /** Map-Editor-Test (client/?editorTest=1): Entwürfe als Zonen, Auto-Login lokal – siehe ui/editorTest.js */
-const editorTest = ladeEditorTest();
+const editorTest = await ladeEditorTest();
 if (editorTest) setzeTestKarten(editorTest);
 
 login.beiAnmeldung((daten) => anmeldungStarten(daten));

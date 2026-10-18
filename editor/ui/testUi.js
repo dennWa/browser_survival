@@ -1,10 +1,11 @@
 import { validiere, hatFehler } from '../kern/validierung.js';
-import { testDaten, TEST_SCHLUESSEL } from '../kern/testlauf.js';
+import { testDaten } from '../kern/testlauf.js';
+import { speichereEditorTest } from '../../client/ui/editorTestSpeicher.js';
 import { dialog, schliesse, esc } from './dialoge.js';
 
 /**
  * Karte testen (Phase 9): prüfen (Start, Zombies im Haus, Übergänge, Objekte außerhalb …) → Fehler als Liste mit
- * Koordinaten (Klick springt hin) → sonst alle Entwürfe des Projekts in localStorage `browserSurvival.editorTest` und das
+ * Koordinaten (Klick springt hin) → sonst alle Entwürfe des Projekts in IndexedDB (client/ui/editorTestSpeicher.js) und das
  * Spiel mit `client/?editorTest=1` öffnen. Das Spiel registriert die Entwürfe zur Laufzeit als Zonen (wie der Lokal-Modus),
  * ohne Repo-Code zu ändern. Zurück: Banner-Knopf → `editor/?vonTest=<id>` (Entwürfe liegen im Editor-Speicher).
  */
@@ -41,7 +42,7 @@ export function testUi({ zustand, panel, aktionen, sonderAktionen, projektZonen 
       return dialog({ titel: 'Spiel-Lader lehnt die Karte ab', html: `<p>${esc(e.message)}</p>` });
     }
     try {
-      localStorage.setItem(TEST_SCHLUESSEL, JSON.stringify(daten));
+      await speichereEditorTest(daten);
     } catch (e) {
       return dialog({ titel: 'Test nicht möglich', html: `<p>Der Browser-Speicher ist voll oder gesperrt (${esc(e.message)}). Tipp: nicht benötigte Zonen aus dem Projekt entfernen.</p>` });
     }

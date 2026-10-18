@@ -1,15 +1,15 @@
+import { leseEditorTest } from './editorTestSpeicher.js';
+
 /**
  * Testmodus des Map-Editors: `client/?editorTest=1` startet das Spiel lokal mit den Entwürfen, die der Editor in
- * localStorage (`browserSurvival.editorTest`) abgelegt hat – ohne Login-Bildschirm, ohne Repo-Änderung.
+ * IndexedDB (editorTestSpeicher.js) abgelegt hat – ohne Login-Bildschirm, ohne Repo-Änderung.
  * Banner oben: welche Zone getestet wird + „⟵ Zurück zum Editor“ (Entwürfe liegen im Editor-Speicher, nichts geht verloren).
  */
-export const TEST_SCHLUESSEL = 'browserSurvival.editorTest';
-
 /** @returns { start, karten } oder null (kein Test / Daten kaputt) */
-export function ladeEditorTest(suche = location.search) {
+export async function ladeEditorTest(suche = location.search) {
   if (!new URLSearchParams(suche).has('editorTest')) return null;
   try {
-    const t = JSON.parse(localStorage.getItem(TEST_SCHLUESSEL) ?? 'null');
+    const t = await leseEditorTest();
     if (!t || typeof t.start !== 'string' || !t.karten?.[t.start]?.kacheln) return null;
     return t;
   } catch {

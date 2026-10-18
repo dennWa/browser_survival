@@ -3,9 +3,8 @@ import { verarbeiteKarte } from '../../server/spiel/karten/kartenLader.js';
 
 /**
  * Karte testen (Phase 9): Daten, die das Spiel im Testmodus (client/?editorTest=1, client/ui/editorTest.js) liest.
- * Schlüssel in localStorage – gleicher Wert wie TEST_SCHLUESSEL in client/ui/editorTest.js.
+ * Ablage: IndexedDB (client/ui/editorTestSpeicher.js).
  */
-export const TEST_SCHLUESSEL = 'browserSurvival.editorTest';
 
 /**
  * Alle Zonen des Projekts als Spiel-Definitionen: { start, karten: { id: Definition }, zeit }. Zonen, die der Spiel-Lader
