@@ -188,6 +188,15 @@ Flackern, Lichtform (Punkt/Kegel). Die 2D-Ansicht zeigt Radius bzw. Kegel. Die P
   nicht bemalen. **🏷 Aufkleber** (Taste K): Bild wählen (PNG mit Transparenz für Logos, Schilder, Schmutz), Breite und Drehung
   einstellen, aufs Modell klicken/tippen – der Aufkleber wird ein eigenes Teil („Aufkleber 1“, in der Teile-Liste ausblendbar).
   Alles landet beim Speichern in der neuen Version (Texturen eingebettet; zu große Versionen > 8 MB werden abgelehnt).
+- **Animationen (Werkstatt, Bereich „Animation & Gelenke“):** vorhandene Clips mit ▶ ansehen (■ stoppt, die Pose kommt zurück),
+  ✎ umbenennen, 🗑 löschen, **⭐ = Leerlauf**: diese Animation läuft im Spiel als Schleife. **➕ Animation…** erzeugt Drehen,
+  Wippen, Pendeln, Pulsieren oder Flackern für das ganze Modell, ein Teil oder ein Gelenk (Achse, Dauer, Stärke) – als neuer Clip
+  oder in einen vorhandenen gemischt. **⊕ Gelenk…** setzt einen Drehpunkt an die Mitte oder eine Kante des gewählten Teils (Tür:
+  linke Kante) und hängt das Teil daran; dann „Pendeln“ fürs Gelenk erzeugen. **Hängt an** hängt das gewählte Teil an das Modell,
+  ein Gelenk, einen Knochen oder ein anderes Teil. **🦴 Skelett zeigen** bei Figuren mit Knochen. **⇄ Übernehmen…** holt Clips
+  eines anderen Modells mit gleichen Knochennamen. Welche Animation ein platziertes Objekt im Spiel spielt, steht auch im
+  Typ-Dialog (Inspektor → ✎ Typ, „Animation im Spiel“) und als Standard im ✎-Dialog des Modells („Leerlauf-Animation“).
+  Nicht möglich: automatisches Rigging/Gewichte malen und Knochenketten, die ein Netz biegen (dafür Blender).
 - **Ausgeblendet:** „Bild → 3D“ und „Neue Grafik (Antrag)“ (nur noch 3D-Formate). Vorhandene Bild-Objekte werden weiter angezeigt.
 
 ## 🔊 Klänge (Reiter 🔊 Audio)

@@ -39,14 +39,19 @@
   Undo-Stand mit Materialien, Rauchtest „Phase 5.2“ + Handy-Malen. Offen/bekannt: kein Pinsel-Radierer/Füllen; Aufkleber auf
   animierten (Skinned) Teilen folgen der Animation nicht; UV-Ansicht zeigt max. 20 000 Dreiecke.
 
-**Nächster Schritt: Phase 5 – 5.3 Animationen & Rigging** (noch nicht begonnen, XL). Reihenfolge-Vorschlag: (a) vorhandene
-Clips in der Werkstatt abspielen/umbenennen/als Leerlauf wählen (`AnimationMixer`, Meta `leerlauf`), (b) Spiel spielt die
-Leerlauf-Animation eigener Modelle (`client/darstellung/eigeneModelle.js` + `kartenModell.#baueEigeneModelle`, Mixer je Objekt,
-nur in Sichtweite), (c) einfache Keyframe-Animationen (Drehen/Wippen/Pendeln/Pulsieren/Flackern) als glTF-Clip erzeugen
-(`AnimationClip` + GLTFExporter), (d) Skelett anzeigen (`SkeletonHelper`), Teile an Knochen hängen, (e) Retargeting über
-`SkeletonUtils.retargetClip` (schon im Vendor).
-⚠ Offene Frage an den Nutzer: (b) ändert Spieldateien in `client/darstellung/` – laut `KI_INDEX.md` („Aufteilung Mensch+2 KIs“)
-gehört `client/`/`server/` der Hauptspiel-Linie. Vor (b) klären, ob diese Linie das übernehmen darf (a, c–e sind reiner Editor).
+- 5.3 Animationen & Rigging fertig (2026-10-19): `editor/ui/werkstattAnimation.js`, `editor/kern/animation.js`, Meta `leerlauf` →
+  Typ `animation`, Spiel spielt Leerlauf-Animationen (`client/darstellung/eigeneModelle.js` `leerlaufMischer`, `kartenModell.mischer`,
+  `renderer.js` reicht `fokus` durch, `kartenLader` prüft `animation`). ✅ Spieldateien mit Nutzer-Freigabe (2026-10-19: „ja, sofern
+  vermerkt“) geändert – Liste „Fremde Dateien (Editor-Linie)“ in `KI_INDEX.md` §10. Rauchtest „Phase 5.3“ (Gelenk, Pendeln,
+  Vorschau, Undo, Leerlauf, Mixer im Editor-Testlauf). Bewusst weggelassen (Browser-Umfang): automatisches Rigging, Gewichte malen,
+  Knochenketten, die ein Netz biegen; Übernehmen nur bei gleichen Knochennamen (`SkeletonUtils.retargetClip` für andere Namen =
+  späterer Ausbau). Die Editor-3D-Ansicht zeigt die Leerlauf-Animation nicht.
+
+**Nächster Schritt: Phase 5 – 5.4 KI im Modul** (noch nicht begonnen). Idee: in der Werkstatt Knopf „🤖 KI“ mit drei Aufgaben –
+Farbschema (Materialliste + Vorschaubild → Palette als JSON `{material: farbe}`), Textur aus Text (Gemini-Bildmodell, falls
+verfügbar → `Texturwerk`), Animation vorschlagen (JSON `{art, ziel, achse, dauer, staerke}` → `baueAnimation`). Immer
+Vorschau → „Übernehmen“ als 1 Werkstatt-Undo-Schritt. Schlüssel/Modell wie `ui/geminiUi.js` (`browserSurvival.editorGemini`,
+`kern/gemini.js frageGemini`, fetch injizierbar → Test mit Mock). Danach 5.5 Free-Modus (🎮).
 
 **Danach:** Phasen 5–9 laut Tabellen unten (5 3D-Modul, 6 Zonen/Loot, 7 UX, 8 Testlauf, 9 KI).
 
@@ -114,7 +119,7 @@ gehört `client/`/`server/` der Hauptspiel-Linie. Vor (b) klären, ob diese Lini
 |---|---|---|
 | ☑ 5.1 | **Modell-Werkstatt** (großes eigenes Fenster): Orbit-Kamera, Raster, Licht, Drahtgitter, Gizmo zum freien Drehen/Skalieren/Verschieben, Bodenausrichtung + Drehpunkt, Fußabdruck/Kollisionsbox sichtbar, Teile-/Material-Liste; Speichern als neue Asset-Version (Original bleibt), Undo im Modul | L |
 | ☑ 5.2 | **Texturen & Grafiken:** Materialfarbe/Rauheit/Metall, Textur ersetzen (Bild hochladen), einfaches Malen auf der Textur (UV-Ansicht + Pinsel), **Aufkleber/Decals** projizieren (Logos, Schilder, Schmutz) | L |
-| ☐ 5.3 | 🎮 **Animationen & Rigging:** vorhandene Clips abspielen/benennen/als Leerlauf-Animation fürs Spiel wählen; einfache Keyframe-Animationen (Drehen, Wippen, Pendeln, Pulsieren, Flackern + Zeitleiste) für Modell oder Teile; Skelett anzeigen, Teile an Knochen hängen, einfache Knochenketten für Requisiten (Tür, Fahne), Animationen auf kompatible Skelette übertragen (Retargeting). Spiel spielt Modell-Animationen ab. ⚠ Automatisches Rigging + Gewichte malen wie in Blender ist **nicht** realistisch im Browser-Umfang | XL |
+| ☑ 5.3 | 🎮 **Animationen & Rigging:** vorhandene Clips abspielen/benennen/als Leerlauf-Animation fürs Spiel wählen; einfache Keyframe-Animationen (Drehen, Wippen, Pendeln, Pulsieren, Flackern + Zeitleiste) für Modell oder Teile; Skelett anzeigen, Teile an Knochen hängen, einfache Knochenketten für Requisiten (Tür, Fahne), Animationen auf kompatible Skelette übertragen (Retargeting). Spiel spielt Modell-Animationen ab. ⚠ Automatisches Rigging + Gewichte malen wie in Blender ist **nicht** realistisch im Browser-Umfang | XL |
 | ☐ 5.4 | **KI im Modul (Knopfdruck):** Farbschema vorschlagen (Materialliste + Vorschaubild → Palette), Textur aus Text erzeugen (Gemini-Bildmodell, falls der Schlüssel es erlaubt), Animation vorschlagen (Keyframe-JSON) – immer Vorschau → Übernehmen als 1 Undo-Schritt | M |
 | ☐ 5.5 | 🎮 **Free-Modus:** Umschalter Raster ⇄ Frei in der Optionsleiste: stufenlose Position, freie Drehung mit Drehgriff/Mausrad/Zahlenfeld (Umschalt = 15°-Raster); Kollision gedrehter Objekte im Spiel korrekt (gedrehtes Rechteck statt achsparallel, `gemeinsam/welt`) und in der grün/rot-Prüfung | M |
 

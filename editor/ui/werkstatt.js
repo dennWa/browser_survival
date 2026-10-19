@@ -4,6 +4,7 @@ import { glbInfo, verwendungen, dataUrlZuBytes, MODELL_MAX_MB } from '../kern/bi
 import { WerkstattVerlauf, neueVersionMeta, bodenVersatz, drehpunktVersatz, versionOps } from '../kern/werkstatt.js';
 import { vorschauBild } from './modellImport.js';
 import { Texturwerk } from './werkstattMalen.js';
+import { Animationswerk } from './werkstattAnimation.js';
 import { dialog, bestaetigen, esc, feldHtml, istDialogOffen } from './dialoge.js';
 
 /**
@@ -16,8 +17,11 @@ import { dialog, bestaetigen, esc, feldHtml, istDialogOffen } from './dialoge.js
  *     Teile fehlen in der neuen Version), Material-Liste.
  *   • Schritt 5.2 (ui/werkstattMalen.js, Texturwerk): Material bearbeiten (Farbe, Rauheit, Metall), Textur ersetzen/entfernen,
  *     🖌 Malen (B) direkt aufs Modell oder in der UV-Ansicht, 🏷 Aufkleber (K) projizieren (DecalGeometry, wird ein Teil).
+ *   • Schritt 5.3 (ui/werkstattAnimation.js, Animationswerk): Clips abspielen/umbenennen/löschen, ⭐ Leerlauf fürs Spiel,
+ *     einfache Animationen erzeugen (Drehen, Wippen, Pendeln, Pulsieren, Flackern – kern/animation.js), ⊕ Gelenke (Drehpunkt
+ *     für Türen/Klappen), Teile an Knochen/Gelenke hängen, 🦴 Skelett anzeigen, Clips von anderem Modell übernehmen.
  *   • Eigenes Undo (Strg+Z / Strg+Y, kern/werkstatt.WerkstattVerlauf, 60 Schritte), unabhängig vom Karten-Verlauf.
- *     Stand = alle Knoten (Lage, sichtbar) + alle Materialien (Farbe, Rauheit, Metall, Textur-Nr.).
+ *     Stand = alle Knoten (Lage, sichtbar, Eltern-Nr.) + alle Materialien (Farbe, Rauheit, Metall, Textur-Nr.) + Clips/Leerlauf.
  *   • 💾 Speichern = NEUE Bibliotheks-Version (GLTFExporter, Animationen bleiben; `basis` = Original, Name „… v2“).
  *     Das Original bleibt. Benutzen Zonen das Original, fragt die Werkstatt, ob deren Typen umgestellt werden (je Zone
  *     1 Undo-Schritt, optional mit neuer Größe).
@@ -71,6 +75,7 @@ class Werkstatt {
     this.#baueDom();
     this.#baueSzene();
     this.texturwerk = new Texturwerk(this);
+    this.animwerk = new Animationswerk(this);
     this.#tasten = (e) => this.#taste(e);
     window.addEventListener('keydown', this.#tasten, true);
     window.addEventListener('keyup', this.#tasten, true);
@@ -114,6 +119,7 @@ class Werkstatt {
           <h4>Maße</h4><p class="werkstatt-info"></p>
           <h4>Auswahl: <span data-auswahl></span></h4><div class="werkstatt-werte"></div>
           <h4>Teile</h4><div class="werkstatt-teile"></div>
+          <h4>Animation & Gelenke</h4><div class="werkstatt-animation"></div>
           <h4>Materialien</h4><div class="werkstatt-materialien"></div><div class="werkstatt-material"></div>
         </aside>
       </div>`;
@@ -277,35 +283,53 @@ class Werkstatt {
    * dazukamen (Aufkleber), fehlen in älteren Ständen → beim Wiederherstellen ausgeblendet (= nicht exportiert).
    */
   stand() {
-    return { knoten: this.objekte.map((o) => [...o.position.toArray(), ...o.quaternion.toArray(), ...o.scale.toArray(), o.visible ? 1 : 0]), material: this.texturwerk.stand() };
+    return { knoten: this.knotenStand(), material: this.texturwerk.stand(), animation: this.animwerk.stand() };
   }
 
-  #setzeStand(s) {
+  /** [x,y,z, qx,qy,qz,qw, sx,sy,sz, sichtbar, Eltern-Nr. (-1 = Wurzel)] je Knoten */
+  knotenStand() {
+    return this.objekte.map((o) => [...o.position.toArray(), ...o.quaternion.toArray(), ...o.scale.toArray(), o.visible ? 1 : 0, this.objekte.indexOf(o.parent)]);
+  }
+
+  /** Knoten zurücksetzen: erst Eltern (Gelenke/Knochen), dann Lage – Knoten ohne Eintrag gab es damals nicht → ausblenden */
+  setzeKnoten(knoten) {
     this.objekte.forEach((o, i) => {
-      const w = s.knoten[i];
+      const e = knoten[i]?.[11];
+      if (e >= 0 && o.parent !== this.objekte[e]) this.objekte[e].add(o);
+    });
+    this.objekte.forEach((o, i) => {
+      const w = knoten[i];
       if (!w) return void (o.visible = false);
       o.position.fromArray(w, 0);
       o.quaternion.fromArray(w, 3);
       o.scale.fromArray(w, 7);
       o.visible = w[10] === 1;
     });
+  }
+
+  #setzeStand(s) {
+    this.setzeKnoten(s.knoten);
     this.texturwerk.setzeStand(s.material);
+    this.animwerk.setzeStand(s.animation);
     this.aktualisiere();
     this.zeigeListen();
   }
 
   merke() {
+    this.animwerk?.stoppe(); // Vorschau aus, sonst landet eine Zwischenpose im Stand
     this.verlauf.merke(this.stand());
     this.#knoepfe();
   }
 
   rueckgaengig() {
+    this.animwerk.stoppe();
     const s = this.verlauf.rueckgaengig(this.stand());
     if (s) this.#setzeStand(s);
     this.#knoepfe();
   }
 
   wiederholen() {
+    this.animwerk.stoppe();
     const s = this.verlauf.wiederholen(this.stand());
     if (s) this.#setzeStand(s);
     this.#knoepfe();
@@ -422,6 +446,7 @@ class Werkstatt {
         .map((m) => `<div class="werkstatt-zeile${this.texturwerk.material === m ? ' aktiv' : ''}" data-material="${m.uuid}"><span class="farbe" style="background:${m.color ? `#${m.color.getHexString()}` : 'transparent'}"></span><button type="button" class="name">${esc(m.name || 'Material')}</button><span class="leise klein">${nutzung.get(m.uuid)}× · ${m.map ? 'Textur' : 'Farbe'}</span></div>`)
         .join('');
     this.texturwerk.zeichneMaterial();
+    this.animwerk?.zeichne();
     this.#zeigeWerte();
     this.#knoepfe();
   }
@@ -456,6 +481,7 @@ class Werkstatt {
 
   // ------------------------------------------------------------------ Speichern / Schließen
   async speichere() {
+    this.animwerk.stoppe();
     if (!this.verlauf.geaendert) return this.zustand.meldung('Noch nichts geändert – das Original bleibt wie es ist');
     const draht = this.el.querySelector('[data-schalter=draht]');
     if (draht.checked) (draht.checked = false, draht.dispatchEvent(new Event('change', { bubbles: true })));
@@ -470,7 +496,7 @@ class Werkstatt {
     const info = glbInfo(bytes);
     if (info.fehler.length) return this.zustand.meldung(`Speichern fehlgeschlagen: ${info.fehler.join('; ')}`, 'fehler');
     const g = this.huelle().getSize(new THREE.Vector3());
-    const meta = neueVersionMeta(this.alt, { groesse: g, dreiecke: info.dreiecke, animationen: info.animationen, vorschau: vorschauBild(this.modell) }, this.bibliothek.liste.map((m) => m.name));
+    const meta = neueVersionMeta(this.alt, { groesse: g, dreiecke: info.dreiecke, animationen: info.animationen, leerlauf: this.animwerk.leerlauf, vorschau: vorschauBild(this.modell) }, this.bibliothek.liste.map((m) => m.name));
     const { meta: neu, neu: istNeu } = await this.bibliothek.fuegeHinzu(bytes, meta);
     if (!istNeu) this.zustand.meldung(`Diese Fassung gibt es schon („${neu.name}“)`);
     // Zonen, die das Original benutzen: Typen umstellen?
@@ -503,6 +529,7 @@ class Werkstatt {
     this.beobachter.disconnect();
     cancelAnimationFrame(this.#bild);
     this.texturwerk.ende();
+    this.animwerk.ende();
     this.gizmo.detach();
     this.gizmo.dispose();
     this.orbit.dispose();

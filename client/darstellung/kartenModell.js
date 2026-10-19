@@ -4,7 +4,7 @@ import { RESSOURCEN_OBJEKTE } from '../../gemeinsam/welt/ressourcen.js';
 import { baueBaum, baueStumpf, toonMaterial, baumMaterial, BAUM_LAUB_TOENE } from './baumModell.js';
 import { BodenTextur } from './bodenTextur.js';
 import { einfrieren, matrixAus, vereineGeometrien } from './geometrie.js';
-import { eigenesModellUrl, ladeEigenesModell, eigenesModellInhalt } from './eigeneModelle.js';
+import { eigenesModellUrl, ladeEigenesModell, eigenesModellInhalt, leerlaufMischer } from './eigeneModelle.js';
 
 /**
  * Die Karte als 3D-Modell – auf wenige Draw-Calls optimiert (Performance!):
@@ -55,6 +55,9 @@ const CHUNK_KACHELN = 12;
 /** Three.js-Layer, auf dem alle Türblätter zusätzlich liegen: der Renderer zeichnet sie nochmal als Schimmer, wo Wände sie verdecken. */
 export const TUER_EBENE = 2;
 
+/** Modell-Animationen laufen nur bis zu dieser Entfernung (Kacheln) von der Kamera – spart Rechenzeit auf großen Karten */
+const ANIMATION_WEITE = 40;
+
 export class KartenModell {
   /**
    * @param mitSchnitt  Funktion, die einem Material den Wand-Schnitt (siehe Renderer) verpasst
@@ -72,6 +75,8 @@ export class KartenModell {
 
     this.statisch = new THREE.Group();
     this.beweglich = new THREE.Group(); // Türen, Ressourcen
+    /** Leerlauf-Animationen eigener Modelle (Map-Editor 5.3): [{ mischer, x, z }] – nur in der Nähe der Kamera abgespielt */
+    this.mischer = [];
     this.#baueBoden(bodenMassstab);
     this.#baueWasser();
     this.#baueWaende();
@@ -89,8 +94,10 @@ export class KartenModell {
     return this.lampenListe;
   }
 
-  /** Pro Frame: Türen schwingen lassen, Ressourcen ein-/ausblenden, Lampen-Glühen. */
-  aktualisiere(dt, dunkel) {
+  /** Pro Frame: Türen schwingen lassen, Ressourcen ein-/ausblenden, Lampen-Glühen, Modell-Animationen (fokus = Weltpixel). */
+  aktualisiere(dt, dunkel, fokus = null) {
+    const weit = (ANIMATION_WEITE * this.g) ** 2;
+    for (const m of this.mischer) if (!fokus || (m.x - fokus.x) ** 2 + (m.z - fokus.y) ** 2 < weit) m.mischer.update(dt);
     for (const t of this.tuerFluegel) {
       const soll = this.welt.istTuerOffen(t.tuerId) ? (t.richtung * Math.PI) / 2 : 0;
       if (t.winkel === soll) continue;
@@ -326,7 +333,14 @@ export class KartenModell {
       gruppe.rotation.y = (-(o.drehung ?? 0) * Math.PI) / 180;
       this.statisch.add(gruppe);
       ladeEigenesModell(url)
-        .then((szene) => gruppe.parent && gruppe.add(eigenesModellInhalt(szene, { b: o.b, h: o.h, hoehe: typ.hoehe3d ?? 1, einheit: g })))
+        .then((szene) => {
+          if (!gruppe.parent) return;
+          const inhalt = eigenesModellInhalt(szene, { b: o.b, h: o.h, hoehe: typ.hoehe3d ?? 1, einheit: g });
+          gruppe.add(inhalt);
+          // Leerlauf-Animation (Map-Editor 5.3): Kinder der eingefrorenen Gruppe aktualisieren ihre Matrizen weiter selbst
+          const mischer = leerlaufMischer(inhalt, typ.animation);
+          if (mischer) this.mischer.push({ mischer, x: gruppe.position.x, z: gruppe.position.z });
+        })
         .catch((fehler) => console.warn(`3D-Modell „${o.typ}“ nicht geladen:`, fehler));
     }
   }

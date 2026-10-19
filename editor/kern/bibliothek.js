@@ -182,6 +182,8 @@ export function metaNormal(m = {}, id = m.id) {
     vorschau: typeof m.vorschau === 'string' && /^data:image\/(png|webp|jpeg);base64,/.test(m.vorschau) && m.vorschau.length <= VORSCHAU_MAX ? m.vorschau : null,
     groesse: Number.isFinite(m.groesse) ? m.groesse : 0,
     erstellt: text(m.erstellt, 40) || null,
+    // Leerlauf-Animation (5.3): Name eines Clips des Modells, Standard für neu angelegte Typen (Feld `animation`)
+    ...(typeof m.leerlauf === 'string' && Array.isArray(m.animationen) && m.animationen.includes(m.leerlauf) ? { leerlauf: m.leerlauf } : {}),
     // Werkstatt-Versionen (5.1): basis = ID des Originals, version = laufende Nummer (Original: ohne)
     ...(typeof m.basis === 'string' && /^m_[0-9a-z_]+$/.test(m.basis) && m.basis !== id ? { basis: m.basis, version: Number.isInteger(m.version) && m.version > 1 ? Math.min(m.version, 999) : 2 } : {}),
   };
@@ -214,6 +216,7 @@ export function typAusModell(meta) {
   if (meta.urheber) t.urheber = meta.urheber;
   if (meta.lizenz) t.lizenz = meta.lizenz;
   if (meta.quelle) t.quelle = meta.quelle;
+  if (meta.leerlauf) t.animation = meta.leerlauf;
   return t;
 }
 
@@ -267,6 +270,12 @@ export function ersetzOps(karte, altId, neuMeta) {
     for (const f of ['urheber', 'lizenz', 'quelle']) {
       if (neuMeta[f]) neu[f] = neuMeta[f];
       else delete neu[f];
+    }
+    // Leerlauf-Animation: die des neuen Modells, sonst die bisherige, falls es den Clip dort auch gibt
+    if (Array.isArray(neuMeta.animationen)) {
+      const anim = neuMeta.leerlauf || (neuMeta.animationen.includes(t.animation) ? t.animation : '');
+      if (anim) neu.animation = anim;
+      else delete neu.animation;
     }
     return { s: 'typen', k, neu };
   });

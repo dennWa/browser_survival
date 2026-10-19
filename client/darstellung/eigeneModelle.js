@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GLTFLoader } from '../vendor/three/addons.js';
+import { GLTFLoader, SkeletonUtils } from '../vendor/three/addons.js';
 
 /**
  * Eigene 3D-Modelle (.glb) aus dem Map-Editor. Ein Objekttyp hat entweder
@@ -7,6 +7,9 @@ import { GLTFLoader } from '../vendor/three/addons.js';
  *   • `glbDatei`  – Pfad unter client/ (z. B. assets/eigene/<karte>_<typ>.glb, angelegt von karte:editor).
  * Die Einpassung ist identisch für Editor und Spiel: Mitte auf den Fußabdruck, Unterkante auf den Boden,
  * Größe in den Kasten b × h × hoehe (Kacheln bzw. Einheiten × `einheit`).
+ * Animationen (Map-Editor 5.3): die Clips hängen an `szene.animations` (Kopien behalten sie); `leerlaufMischer` spielt den
+ * Leerlauf-Clip eines Typs (`typ.animation`) als Schleife. Modelle mit Skelett werden per SkeletonUtils.clone kopiert.
+ * (Änderung durch die Editor-Linie mit Nutzer-Freigabe, vermerkt in KI_INDEX.md §10.)
  */
 const lader = new GLTFLoader();
 const cache = new Map(); // URL → Promise<Szene>; jede Ansicht klont daraus
@@ -21,7 +24,17 @@ export function eigenesModellUrl(typ) {
 /** Lädt das Modell (einmal je URL). Liefert die Szene – vor Gebrauch mit `eigenesModellInhalt` klonen. */
 export function ladeEigenesModell(url) {
   if (!cache.has(url)) {
-    const versprechen = new Promise((ok, fehler) => lader.load(url, (gltf) => ok(gltf.scene), undefined, fehler));
+    const versprechen = new Promise((ok, fehler) =>
+      lader.load(
+        url,
+        (gltf) => {
+          gltf.scene.animations = gltf.animations ?? [];
+          ok(gltf.scene);
+        },
+        undefined,
+        fehler,
+      ),
+    );
     // Fehlschlag nicht dauerhaft merken, sonst hilft ein erneuter Aufbau nicht
     versprechen.catch(() => cache.delete(url));
     cache.set(url, versprechen);
@@ -34,7 +47,10 @@ export function ladeEigenesModell(url) {
  * @param {object} o { b, h, hoehe, einheit = 1, drehung?, farbe?, id? } – id setzt userData für die Auswahl im Editor
  */
 export function eigenesModellInhalt(szene, { b, h, hoehe, einheit = 1, farbe = null, id = null }) {
-  const modell = szene.clone(true);
+  let skelett = false;
+  szene.traverse((t) => (skelett ||= !!t.isSkinnedMesh));
+  const modell = skelett ? SkeletonUtils.clone(szene) : szene.clone(true);
+  modell.animations = szene.animations ?? [];
   modell.traverse((t) => {
     if (!t.isMesh) return;
     const kopie = (m) => {
@@ -52,4 +68,18 @@ export function eigenesModellInhalt(szene, { b, h, hoehe, einheit = 1, farbe = n
   modell.scale.setScalar(s);
   modell.position.set(-mitte.x * s, -box.min.y * s, -mitte.z * s);
   return modell;
+}
+
+/**
+ * Leerlauf-Animation eines eingepassten Modells starten (Clip `name`, Schleife, zufälliger Startpunkt – nicht alle im Gleichtakt).
+ * @returns THREE.AnimationMixer (jedes Bild `update(dt)`) oder null, wenn es den Clip nicht gibt
+ */
+export function leerlaufMischer(modell, name) {
+  const clip = name && modell.animations?.find((c) => c.name === name);
+  if (!clip) return null;
+  const mischer = new THREE.AnimationMixer(modell);
+  const aktion = mischer.clipAction(clip);
+  aktion.play();
+  mischer.setTime(Math.random() * clip.duration);
+  return mischer;
 }

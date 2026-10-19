@@ -110,3 +110,61 @@ test('Malen (5.2): Leinwandgröße, Pinsel-Zwischenpunkte ohne Naht-Sprung, Aufk
   assert.deepEqual(aufkleberGroesse(0.5, 200, 100), { x: 0.5, y: 0.25, z: 0.5 });
   assert.deepEqual(aufkleberGroesse(0.2, 100, 300), { x: 0.2, y: 0.6, z: 0.6 });
 });
+
+test('Animationen (5.3): Keyframes je Art, Schleife geschlossen, Basis bleibt, Quaternion-Rechnung', async () => {
+  const { baueAnimation, achsenDrehung, quatMal, leerlaufName, ANIMATIONS_ARTEN } = await import('../editor/kern/animation.js');
+  const nahe = (a, b) => a.every((x, i) => Math.abs(x - b[i]) < 1e-5);
+  // 90° um y zweimal = 180° um y
+  assert.ok(nahe(quatMal(achsenDrehung('y', Math.PI / 2), achsenDrehung('y', Math.PI / 2)), achsenDrehung('y', Math.PI)));
+  const basis = { position: [1, 2, 3], quaternion: [0, 0, 0, 1], scale: [2, 2, 2] };
+  for (const art of Object.keys(ANIMATIONS_ARTEN)) {
+    const c = baueAnimation(art, { knoten: 'Tuer', dauer: 3, basis });
+    const s = c.spuren[0];
+    const breite = s.name.endsWith('quaternion') ? 4 : 3;
+    assert.equal(s.werte.length, s.zeiten.length * breite, art);
+    assert.equal(s.zeiten.at(-1), 3, art);
+    // Schleife: erster = letzter Schlüssel (Drehen: 0° ≙ 360° als Drehung, Vorzeichen egal)
+    const erst = s.werte.slice(0, breite);
+    const letzt = s.werte.slice(-breite);
+    assert.ok(nahe(erst, letzt) || nahe(erst, letzt.map((x) => -x)), art);
+    assert.ok(s.name.startsWith('Tuer.'), art);
+  }
+  const w = baueAnimation('wippen', { knoten: 'K', staerke: 0.5, achse: 'y', basis, dauer: 2 }).spuren[0];
+  assert.equal(Math.max(...w.werte.filter((_, i) => i % 3 === 1)), 2.5);
+  assert.ok(w.werte.filter((_, i) => i % 3 === 0).every((x) => x === 1));
+  const p = baueAnimation('pendeln', { knoten: 'K', staerke: 90, achse: 'z' }).spuren[0];
+  assert.ok(nahe(p.werte.slice(16, 20), achsenDrehung('z', Math.PI / 2)), 'Viertel der Zeit = voller Ausschlag');
+  assert.deepEqual(baueAnimation('flackern', { knoten: 'K', startwert: 3 }), baueAnimation('flackern', { knoten: 'K', startwert: 3 }));
+  assert.throws(() => baueAnimation('tanzen', { knoten: 'K' }));
+  assert.equal(leerlaufName(['Laufen', 'Stehen'], 'Stehen'), 'Stehen');
+  assert.equal(leerlaufName(['Laufen'], 'Stehen'), '');
+});
+
+test('Leerlauf-Animation (5.3): Meta → Typ → Export → Spiel-Lader, Ersetzen behält passende Clips', async () => {
+  const B = await import('../editor/kern/bibliothek.js');
+  const { nachDefinition } = await import('../editor/kern/format.js');
+  const { verarbeiteKarte } = await import('../server/spiel/karten/kartenLader.js');
+  const { markerSchluessel } = await import('../editor/kern/karte.js');
+  const meta = metaNormal({ name: 'Mühle', animationen: ['Drehen', 'Stehen'], leerlauf: 'Drehen' }, 'm_aaaaaaaa_1');
+  assert.equal(meta.leerlauf, 'Drehen');
+  assert.equal('leerlauf' in metaNormal({ name: 'X', animationen: ['A'], leerlauf: 'B' }, 'm_1'), false, 'nur vorhandene Clips');
+  const typ = B.typAusModell(meta);
+  assert.equal(typ.animation, 'Drehen');
+  const k = neueZone({ id: 'anim', breite: 10, hoehe: 10 });
+  k.anwenden([
+    { s: 'typen', k: 'm_muehle', neu: { ...typ, glb: 'data:model/gltf-binary;base64,AAAA' } },
+    { s: 'typen', k: 'm_boese', neu: { ...typ, glb: 'data:model/gltf-binary;base64,AAAA', animation: '<script>' } },
+    { s: 'objekte', k: 1, neu: { typ: 'm_muehle', x: 2, y: 2, b: 1, h: 1 } },
+    { s: 'marker', k: markerSchluessel(6, 6), neu: { art: 'start' } },
+  ]);
+  const daten = verarbeiteKarte(nachDefinition(k)).daten;
+  assert.equal(daten.typen.m_muehle.animation, 'Drehen');
+  assert.equal(daten.typen.m_boese.animation, undefined);
+  // Ersetzen: neuer Leerlauf gewinnt; ohne Leerlauf bleibt der alte, wenn es den Clip gibt; sonst fällt er weg
+  const z = neueZone({ id: 'ers', breite: 5, hoehe: 5 });
+  z.anwenden([{ s: 'typen', k: 't', neu: { name: 'T', b: 1, h: 1, asset: 'm_aaaaaaaa_1', animation: 'Stehen' } }]);
+  assert.equal(B.ersetzOps(z, 'm_aaaaaaaa_1', { id: 'm_b', animationen: ['Stehen'] })[0].neu.animation, 'Stehen');
+  assert.equal(B.ersetzOps(z, 'm_aaaaaaaa_1', { id: 'm_b', animationen: ['Laufen'], leerlauf: 'Laufen' })[0].neu.animation, 'Laufen');
+  assert.equal('animation' in B.ersetzOps(z, 'm_aaaaaaaa_1', { id: 'm_b', animationen: [] })[0].neu, false);
+  assert.equal(B.ersetzOps(z, 'm_aaaaaaaa_1', { id: 'm_b' })[0].neu.animation, 'Stehen', 'ohne Angaben unverändert');
+});

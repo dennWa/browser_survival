@@ -139,6 +139,7 @@ export function modelleUi({ zustand, panel, aktionen, layout, bibliothek }) {
       { name: 'lizenz', label: 'Lizenz', typ: 'text', wert: m.lizenz, hilfe: 'z. B. CC0 oder CC-BY 4.0 (landet in LIZENZEN.md)' },
       { name: 'urheber', label: 'Urheber', typ: 'text', wert: m.urheber },
       { name: 'quelle', label: 'Quelle (URL)', typ: 'text', wert: m.quelle },
+      ...(m.animationen.length ? [{ name: 'leerlauf', label: 'Leerlauf-Animation', typ: 'auswahl', wert: m.leerlauf ?? '', optionen: [['', '– keine (still) –'], ...m.animationen.map((a) => [a, a])], hilfe: 'Standard für neu platzierte Objekte (im Spiel als Schleife); je Typ änderbar' }] : []),
     ];
     const kopf = `<div class="modell-kopf">${m.vorschau ? `<img src="${esc(m.vorschau)}" alt="">` : '<span class="symbol">🧊</span>'}<p class="leise">${m.dreiecke.toLocaleString('de-DE')} Dreiecke · ${groesseText(m.groesse)}${m.animationen.length ? ` · Animationen: ${esc(m.animationen.join(', '))}` : ''}${m.basis ? `<br>Version ${m.version} von „${esc(bibliothek.meta(m.basis)?.name ?? m.basis)}“` : ''}<br>${v.objekte ? `Benutzt: ${v.zonen.map((z) => `${esc(z.name)} (${z.objekte})`).join(', ')}` : 'In keiner Zone benutzt'}</p></div>`;
     const w = await dialog({
@@ -149,7 +150,7 @@ export function modelleUi({ zustand, panel, aktionen, layout, bibliothek }) {
     if (w === 'loeschen') return loeschen(id);
     if (w === 'werkstatt') return aktionen.werkstatt(id);
     if (!w) return;
-    const neu = await bibliothek.aendere(id, { name: w.name, kategorie: w.kategorie, ordner: w.ordner ?? '', tags: w.tags ?? '', lizenz: w.lizenz ?? '', urheber: w.urheber ?? '', quelle: w.quelle ?? '', masse: { b: w.b, h: w.h, hoehe: w.hoehe } });
+    const neu = await bibliothek.aendere(id, { name: w.name, kategorie: w.kategorie, ordner: w.ordner ?? '', tags: w.tags ?? '', lizenz: w.lizenz ?? '', urheber: w.urheber ?? '', quelle: w.quelle ?? '', masse: { b: w.b, h: w.h, hoehe: w.hoehe }, ...(m.animationen.length ? { leerlauf: w.leerlauf ?? '' } : {}) });
     // Urheber/Lizenz/Quelle auch in den Typen der Zonen nachziehen (sonst fehlen sie in LIZENZEN.md)
     if (neu && (neu.lizenz !== m.lizenz || neu.urheber !== m.urheber || neu.quelle !== m.quelle))
       for (const [, e] of zustand.zonen) {
@@ -206,6 +207,7 @@ export function modelleUi({ zustand, panel, aktionen, layout, bibliothek }) {
     waehleDateien();
   };
   aktionen.modellBearbeiten = bearbeiten;
+  aktionen.modellMeta = (id) => bibliothek.meta(id);
   aktionen.werkstatt = (id) => oeffneWerkstatt({ id, bibliothek, zustand });
   aktionen.polyPizza = () => polyPizza();
 

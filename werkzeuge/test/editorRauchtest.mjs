@@ -9,7 +9,7 @@
  * Objekt platzieren + drehen + verschieben → Rückgängig/Wiederholen → Spielzone Waldweg als Vorlage öffnen → Auswahl +
  * Ausschnitt-Export → Zone vergrößern → 3D-Ansicht → Validierung → Neu laden (Entwurf + Verlauf bleiben) → Karte testen.
  * Editor 2.0: Menüleiste, Asset-Browser (Suche), Kontextmenü, Ebenen sperren, Hilfe mit Suche, Modell-Bibliothek (Phase 3),
- * Audio-Bibliothek + Klänge (Phase 4), Modell-Werkstatt (5.1) mit Material/Malen/Aufklebern (5.2).
+ * Audio-Bibliothek + Klänge (Phase 4), Modell-Werkstatt (5.1) mit Material/Malen/Aufklebern (5.2) und Animationen/Gelenken (5.3, auch im Spiel).
  */
 import { spawn, execSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -464,6 +464,48 @@ try {
     return { da: !!m, bilder: j?.images?.length ?? 0, netze: j?.meshes?.length ?? 0, original: window.mapEditor.bibliothek.liste.some((x) => x.name === 'rauchtest schild') };
   });
   pruefe(schild.da && schild.bilder >= 2 && schild.netze === 2 && schild.original, `Neue Version mit gemalter Textur + Aufkleber (${JSON.stringify(schild)})`);
+
+  schritt('Phase 5.3: Werkstatt – Gelenk an der Kante, Pendeln erzeugen, Vorschau, Undo, Leerlauf, im Spiel animiert');
+  await seite.click('#links .modell:has-text("rauchtest schild"):not(:has-text("v2")) [data-werkstatt]');
+  await seite.waitForSelector('.werkstatt canvas');
+  await seite.click('.werkstatt-teile [data-teil="0"] button.name');
+  await seite.click('.werkstatt-animation [data-c="gelenk"]');
+  await seite.selectOption('#dialog [name="ort"]', 'links');
+  await seite.click('#dialog button:has-text("Einfügen")');
+  const gelenk = await ws((w) => ({ gewaehlt: w.gewaehlt.userData.gelenk === true, x: Math.round(w.gewaehlt.position.x * 100) / 100, kind: w.gewaehlt.children[0]?.name }));
+  pruefe(gelenk.gewaehlt && gelenk.x === -0.5 && gelenk.kind === 'Schild', `Gelenk an der linken Kante, Teil hängt daran (${JSON.stringify(gelenk)})`);
+  await seite.click('.werkstatt-animation [data-c="neu"]');
+  await seite.selectOption('#dialog [name="art"]', 'pendeln');
+  await seite.click('#dialog button:has-text("Erzeugen")');
+  await seite.waitForTimeout(400);
+  const laeuft = await ws((w) => ({ clips: w.clips.map((c) => c.name), leerlauf: w.animwerk.leerlauf, dreht: Math.abs(w.gewaehlt.quaternion.y) > 0.01 }));
+  pruefe(laeuft.clips.length === 1 && laeuft.leerlauf === laeuft.clips[0] && laeuft.dreht, `Pendeln erzeugt, Vorschau läuft, Leerlauf gesetzt (${JSON.stringify(laeuft)})`);
+  await seite.click('.werkstatt-animation [data-c="spielen"]');
+  pruefe(await ws((w) => Math.abs(w.gewaehlt.quaternion.y) < 1e-6 && !w.animwerk.vorschau), 'Stopp stellt die Pose wieder her');
+  await seite.keyboard.press('Control+z');
+  pruefe((await ws((w) => w.clips.length)) === 0, 'Undo entfernt die Animation');
+  await seite.keyboard.press('Control+y');
+  await seite.screenshot({ path: path.join(AUSGABE, 'editor-18-werkstatt-animation.png') });
+  await seite.keyboard.press('Control+s');
+  await seite.waitForSelector('.werkstatt', { state: 'detached', timeout: 15000 });
+  const animiert = await seite.evaluate(async () => {
+    const B = await import('/editor/kern/bibliothek.js');
+    const m = window.mapEditor.bibliothek.liste.find((x) => x.name === 'rauchtest schild v3');
+    const j = m && B.glbJson(B.dataUrlZuBytes(window.mapEditor.bibliothek.url(m.id)));
+    return { id: m?.id, leerlauf: m?.leerlauf, animationen: j?.animations?.length ?? 0, gelenk: !!j?.nodes?.some((n) => n.name?.startsWith('Gelenk')) };
+  });
+  pruefe(animiert.leerlauf && animiert.animationen === 1 && animiert.gelenk, `Version mit Animation + Gelenk + Leerlauf (${JSON.stringify(animiert)})`);
+  // ins Spiel: Typ (Feld animation) + ein Objekt in der Testzone
+  const animTyp = await seite.evaluate((id) => {
+    window.mapEditor.aktionen.verwendeModell(id);
+    const z = window.mapEditor.zustand;
+    const [typId, typ] = [...z.karte.s('typen')].find(([, t]) => t.asset === id);
+    const nr = z.karte.naechsteId;
+    z.ausfuehren('Rauchtest: animiertes Schild', [{ s: 'objekte', k: nr, neu: { typ: typId, x: 1, y: 1, b: typ.b, h: typ.h } }]);
+    return { typId, animation: typ.animation, da: z.karte.s('objekte').has(nr) };
+  }, animiert.id);
+  pruefe(animTyp.animation === animiert.leerlauf && animTyp.da, `Typ übernimmt die Leerlauf-Animation (${JSON.stringify(animTyp)})`);
+  await seite.keyboard.press('Escape');
   await seite.click('#links [data-reiter="🧱 Assets"]');
 
   if (!nurBis) {
@@ -596,6 +638,8 @@ try {
     pruefe(zone.id === 'testzone', `Spiel läuft mit dem Entwurf (${JSON.stringify(zone)})`);
     const klaengeImSpiel = await seite.evaluate(() => ({ spiel: window.browserSurvival.spiel.klaenge?.eintraege.length, daten: window.browserSurvival.server.startZone.spielWelt.karte.daten.klaenge?.[0]?.daten?.slice(0, 14) }));
     pruefe(klaengeImSpiel.spiel === 1 && klaengeImSpiel.daten === 'data:audio/wav', `Klang im Testlauf eingebettet und geladen (${JSON.stringify(klaengeImSpiel)})`);
+    const mischer = await seite.waitForFunction(() => window.browserSurvival.spiel?.renderer?.karte?.mischer?.length, null, { timeout: 15000 }).then((h) => h.jsonValue()).catch(() => 0);
+    pruefe(mischer >= 1, `Eigenes Modell spielt im Spiel seine Leerlauf-Animation (${mischer} Mixer)`);
     await seite.waitForTimeout(1500);
     await seite.screenshot({ path: path.join(AUSGABE, 'editor-8-test-im-spiel.png') });
     await seite.click('#editor-test-banner a');

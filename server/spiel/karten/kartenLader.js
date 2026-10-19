@@ -171,7 +171,8 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE, { au
 
 /**
  * Eigene Objekttypen mit 3D-Modell (Map-Editor). Nur Anzeige: glbDatei = Pfad unter client/assets/eigene/ (karte:editor legt
- * die Datei an), glb = eingebettet (Testlauf im Editor). Typen ohne Modell brauchen den Client nicht → fallen weg.
+ * die Datei an), glb = eingebettet (Testlauf im Editor), animation = Leerlauf-Clip (5.3). Typen ohne Modell brauchen den Client
+ * nicht → fallen weg.
  */
 function pruefeTypen(roh) {
   if (!roh || typeof roh !== 'object') return null;
@@ -183,6 +184,8 @@ function pruefeTypen(roh) {
     else if (typeof t.glb === 'string' && t.glb.startsWith('data:model/gltf-binary;base64,')) e.glb = t.glb;
     if (!e.glbDatei && !e.glb) continue;
     if (t.hoehe3d > 0 && t.hoehe3d <= 20) e.hoehe3d = t.hoehe3d;
+    // Leerlauf-Animation (Map-Editor 5.3): Name eines Clips im Modell, spielt im Spiel als Schleife
+    if (typeof t.animation === 'string' && /^[^<>"\\]{1,60}$/.test(t.animation)) e.animation = t.animation;
     ergebnis[id] = e;
   }
   return Object.keys(ergebnis).length ? ergebnis : null;

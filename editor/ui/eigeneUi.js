@@ -53,8 +53,17 @@ export function eigeneUi({ zustand, aktionen }) {
     const t = zustand.karte.s('typen').get(id);
     if (!t) return;
     const felder = typFelder(t, id).map((f) => (f.name === 'id' ? { ...f, hilfe: 'kann nicht geändert werden' } : f));
+    // Leerlauf-Animation (5.3) – nur für Bibliotheks-Modelle mit Clips
+    const clips = (t.asset && aktionen.modellMeta?.(t.asset)?.animationen) || [];
+    if (clips.length) felder.push({ name: 'animation', label: 'Animation im Spiel', typ: 'auswahl', wert: t.animation ?? '', optionen: [['', '– keine (still) –'], ...clips.map((c) => [c, c])], hilfe: 'läuft als Schleife; neue Clips: 🛠 Werkstatt' });
     const w = await formular(`✎ Objekttyp „${id}“`, felder, { okText: 'Speichern' });
-    if (w) speichereTyp({ ...w, id }, t);
+    if (!w) return;
+    const neu = { ...t };
+    if (clips.length) {
+      if (w.animation) neu.animation = w.animation;
+      else delete neu.animation;
+    }
+    speichereTyp({ ...w, id }, neu);
   };
 
   aktionen.bild3d = async () => {

@@ -1177,3 +1177,25 @@ canvas.uv-ansicht {
   cursor: crosshair;
   background: repeating-conic-gradient(#2a2f37 0 25%, #20242b 0 50%) 0 0 / 16px 16px;
 }
+.werkstatt-gelenke {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 4px 0;
+}
+.werkstatt-haengt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0;
+  font-size: 12px;
+}
+.werkstatt-haengt select {
+  flex: 1;
+  min-height: 30px;
+}
+.werkstatt-animation .werkstatt-zeile button:not(.name) {
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0 4px;
+}

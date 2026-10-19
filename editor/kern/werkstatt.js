@@ -89,6 +89,7 @@ export function neueVersionMeta(alt, neu, vorhandeneNamen = []) {
     masse: neu.masse ?? (neu.groesse ? masseAusGroesse(neu.groesse) : alt.masse),
     dreiecke: neu.dreiecke ?? alt.dreiecke,
     animationen: neu.animationen ?? alt.animationen,
+    leerlauf: neu.leerlauf !== undefined ? neu.leerlauf : alt.leerlauf,
     vorschau: neu.vorschau ?? alt.vorschau,
   };
 }

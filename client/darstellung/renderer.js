@@ -350,7 +350,7 @@ export class Renderer {
     BAUM_WIND.uWindZeit.value = this.wetterEffekt.windZeit % 600;
     const dunkel = this.#tageslicht(tageszeit, _ziel);
 
-    this.karte.aktualisiere(dt, dunkel);
+    this.karte.aktualisiere(dt, dunkel, fokus);
     this.karte.aktualisiereDaecher(fokus.x, fokus.y);
     this.blaetter?.aktualisiere(dt, fokus, jetzt, dunkel);
     this.#aktualisiereFahrzeuge(entitaeten, fokus);
