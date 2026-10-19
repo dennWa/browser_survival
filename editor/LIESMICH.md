@@ -143,9 +143,13 @@ Flackern, Lichtform (Punkt/Kegel). Die 2D-Ansicht zeigt Radius bzw. Kegel. Die P
 - **Farbe** (Werkzeug 🎨, Taste K): Palette oder eigene Farbe (Optionsleiste), **Pinsel**, **Füllen** (zusammenhängende gleiche Kacheln),
   **Entfernen**. Die Farbe liegt halbtransparent auf dem Boden – in 2D, in 3D **und im Spiel**.
   Farbe/Textur **je Objekt**: Inspektor; **je Objekttyp**: Assets → Gelände → Farbe → „🎨 Farbe/Textur je Objekttyp“.
-- **Gelände** (Werkzeug ⛰, Taste T): heben, senken (Umschalt kehrt um), glätten, einebnen – Stärke und Pinselgröße in der Optionsleiste.
-  **Entscheidung:** Höhen sind vorerst nur Darstellung (3D); das Spiel bleibt flach. **Steile Hänge** (über 1,5 m
-  Unterschied zur Nachbarkachel, rot schraffiert) sind im Spiel **blockiert**. Weitere Wirkung wird separat entschieden.
+- **Gelände** (Werkzeug ⛰, Taste T): heben, senken (Umschalt kehrt um), glätten, einebnen, **Plateau** (Fläche ziehen →
+  auf Zielhöhe), **Rampe** (von A nach B ziehen, Breite in der Optionsleiste) und **Treppe** (Rampe in Stufen). **Alt+Klick**
+  übernimmt die Höhe einer Kachel als Zielhöhe. Eine gewählte Raum-/Bereichsfläche bekommt im Inspektor „Geländehöhe (m)“.
+  Ab Zoom ~26 zeigt die 2D-Ansicht Höhenlinien und Zahlen. 1 m = 1 Kachel.
+  **Im Spiel:** Gelände ist sichtbar und **begehbar** – Plateau-Oberseiten, Hänge und Rampen auch. Ist eine Nachbarkachel
+  **mehr als 1 m höher**, ist die untere Kachel der **Fuß einer Klippe** und gesperrt (rot schraffiert). Die Prüfung warnt
+  bei einem „Plateau ohne Zugang“ (Rampe vergessen). Treffer von oben bleiben 2D; in der Ego-Ansicht muss man nach oben/unten zielen.
 - **Eigene Objekte** (Assets → Eigene): „✚ Neues Objekt anlegen“ (Name, Größe, Kollision, Ebene, Kategorie, Farbe,
   3D-Höhe) – erscheint danach im Asset-Browser in seiner Kategorie. Im Spiel ist es ein Platzhalter-Quader, bis es eine Grafik gibt.
 - **🖼 Bild → 3D:** Bild hochladen (PNG mit Transparenz am besten) → **Extrusion** (jeder deckende Pixel wird ein kleiner

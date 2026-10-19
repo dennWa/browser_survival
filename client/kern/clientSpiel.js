@@ -868,6 +868,9 @@ export class ClientSpiel {
       angriff,
       sprint: !tot && this.eingabe.sprint(),
     };
+    // Ego-Ansicht: Blickneigung mitschicken (Server prüft damit Treffer auf Gelände in der Höhe)
+    const neigung = this.eingabe.neigung?.();
+    if (Number.isFinite(neigung)) eingabe.neigung = neigung;
 
     this.lokalVorher.x = this.lokal.x;
     this.lokalVorher.y = this.lokal.y;

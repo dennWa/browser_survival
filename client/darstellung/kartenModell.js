@@ -67,6 +67,8 @@ export class KartenModell {
     this.mitSchnitt = mitSchnitt;
     this.g = welt.kachelGroesse;
     this.spriteCache = new Map();
+    /** Geländehöhe (Weltpixel) an x/z – 0 ohne Gelände. Alles Statische wird beim Bau darauf gestellt (Editor 2.0, 2.5). */
+    this.hy = (x, z) => welt.hoeheBei(x, z);
 
     this.statisch = new THREE.Group();
     this.beweglich = new THREE.Group(); // Türen, Ressourcen
@@ -157,7 +159,7 @@ export class KartenModell {
         while (stapel.length > 0) {
           const [x, y] = stapel.pop();
           instanzen.push(kacheln.length);
-          kacheln.push({ x: x * g + g / 2, y: WANDHOEHE + 0.4, z: y * g + g / 2 });
+          kacheln.push({ x: x * g + g / 2, y: WANDHOEHE + 0.4 + this.hy(x * g + g / 2, y * g + g / 2), z: y * g + g / 2 });
           for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]]) {
             const nx = x + dx;
             const ny = y + dy;
@@ -220,7 +222,14 @@ export class KartenModell {
     textur.colorSpace = THREE.SRGBColorSpace;
     textur.anisotropy = Math.min(8, this.gl.capabilities.getMaxAnisotropy());
     this.bodenTextur = textur;
-    const boden = new THREE.Mesh(new THREE.PlaneGeometry(welt.pixelBreite, welt.pixelHoehe), new THREE.MeshStandardMaterial({ map: textur, roughness: 1 }));
+    // Mit Gelände: ein Gitterpunkt je Kachelecke, Höhe aus welt.hoeheBei (Ebene liegt vor der Drehung in X/Y, lokales Z = Höhe)
+    const geometrie = welt.hoehen ? new THREE.PlaneGeometry(welt.pixelBreite, welt.pixelHoehe, welt.breite, welt.hoehe) : new THREE.PlaneGeometry(welt.pixelBreite, welt.pixelHoehe);
+    if (welt.hoehen) {
+      const pos = geometrie.attributes.position;
+      for (let i = 0; i < pos.count; i++) pos.setZ(i, this.hy(pos.getX(i) + welt.pixelBreite / 2, welt.pixelHoehe / 2 - pos.getY(i)));
+      geometrie.computeVertexNormals();
+    }
+    const boden = new THREE.Mesh(geometrie, new THREE.MeshStandardMaterial({ map: textur, roughness: 1 }));
     boden.rotation.x = -Math.PI / 2;
     boden.position.set(welt.pixelBreite / 2, 0, welt.pixelHoehe / 2);
     boden.receiveShadow = true;
@@ -260,11 +269,20 @@ export class KartenModell {
     textur.colorSpace = THREE.SRGBColorSpace;
     const material = new THREE.MeshBasicMaterial({ map: textur, transparent: true, opacity: 0.5, depthWrite: false });
     const mesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(g, g).rotateX(-Math.PI / 2), material, felder.length);
-    felder.forEach(([tx, ty], i) => mesh.setMatrixAt(i, _matrix.makeTranslation((tx + 0.5) * g, 0.45, (ty + 0.5) * g)));
+    felder.forEach(([tx, ty], i) => mesh.setMatrixAt(i, _matrix.makeTranslation((tx + 0.5) * g, 0.45 + this.hy((tx + 0.5) * g, (ty + 0.5) * g), (ty + 0.5) * g)));
     mesh.frustumCulled = false;
     mesh.renderOrder = 1;
     this.statisch.add(mesh);
     this.wasser = { material, textur };
+  }
+
+  /** Zusammengefasste Geometrie (Weltkoordinaten) aufs Gelände stellen: jede Ecke um die Höhe an ihrer Stelle anheben */
+  #anGelaende(geometrie) {
+    if (!this.welt.hoehen) return geometrie;
+    const pos = geometrie.attributes.position;
+    for (let i = 0; i < pos.count; i++) pos.setY(i, pos.getY(i) + this.hy(pos.getX(i), pos.getZ(i)));
+    geometrie.computeBoundingSphere();
+    return geometrie;
   }
 
   #baueWaende() {
@@ -277,13 +295,14 @@ export class KartenModell {
         const name = KACHELN[welt.kachelAn(tx, ty)]?.name;
         const x = tx * g + g / 2;
         const z = ty * g + g / 2;
-        if (name === 'wand') teile.push({ x, z, unten: 0, hoehe: WANDHOEHE });
+        const b = this.hy(x, z); // Wände stehen auf dem Gelände
+        if (name === 'wand') teile.push({ x, z, unten: b, hoehe: WANDHOEHE });
         if (name === 'fenster') {
-          teile.push({ x, z, unten: 0, hoehe: 24 }, { x, z, unten: WANDHOEHE - 12, hoehe: 12 });
+          teile.push({ x, z, unten: b, hoehe: 24 }, { x, z, unten: b + WANDHOEHE - 12, hoehe: 12 });
           const senkrecht = !istWandig(welt, tx - 1, ty) && !istWandig(welt, tx + 1, ty);
-          glas.push({ x, z, unten: 24, hoehe: WANDHOEHE - 36, drehung: senkrecht ? Math.PI / 2 : 0 });
+          glas.push({ x, z, unten: b + 24, hoehe: WANDHOEHE - 36, drehung: senkrecht ? Math.PI / 2 : 0 });
         }
-        if (name === 'tuer') teile.push({ x, z, unten: TUER_HOEHE, hoehe: WANDHOEHE - TUER_HOEHE }); // Sturz
+        if (name === 'tuer') teile.push({ x, z, unten: b + TUER_HOEHE, hoehe: WANDHOEHE - TUER_HOEHE }); // Sturz
       }
     }
     const seite = this.mitSchnitt(new THREE.MeshStandardMaterial({ color: 0x5a616c, roughness: 0.92 }));
@@ -303,7 +322,7 @@ export class KartenModell {
       const url = eigenesModellUrl(typ);
       if (!url) continue;
       const gruppe = new THREE.Group();
-      gruppe.position.set((o.x + o.b / 2) * g, 0, (o.y + o.h / 2) * g);
+      gruppe.position.set((o.x + o.b / 2) * g, this.hy((o.x + o.b / 2) * g, (o.y + o.h / 2) * g), (o.y + o.h / 2) * g);
       gruppe.rotation.y = (-(o.drehung ?? 0) * Math.PI) / 180;
       this.statisch.add(gruppe);
       ladeEigenesModell(url)
@@ -340,13 +359,13 @@ export class KartenModell {
     }
     this.#baueWegweiser(seiten);
     if (seiten.length) {
-      const mesh = new THREE.Mesh(vereineGeometrien(seiten, { mitFarbe: true }), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }));
+      const mesh = new THREE.Mesh(this.#anGelaende(vereineGeometrien(seiten, { mitFarbe: true })), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }));
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       this.statisch.add(mesh);
     }
     for (const [typ, teile] of deckelProTyp) {
-      const mesh = new THREE.Mesh(vereineGeometrien(teile), new THREE.MeshStandardMaterial({ map: this.#spriteTextur(typ).textur, roughness: 0.8 }));
+      const mesh = new THREE.Mesh(this.#anGelaende(vereineGeometrien(teile)), new THREE.MeshStandardMaterial({ map: this.#spriteTextur(typ).textur, roughness: 0.8 }));
       mesh.receiveShadow = true;
       this.statisch.add(mesh);
     }
@@ -380,7 +399,7 @@ export class KartenModell {
       textur.colorSpace = THREE.SRGBColorSpace;
       textur.anisotropy = 4;
       const schild = new THREE.Mesh(new THREE.PlaneGeometry(98, 27.5), new THREE.MeshStandardMaterial({ map: textur, roughness: 0.9 }));
-      schild.position.set(x, 56, z + 1.6);
+      schild.position.set(x, 56 + this.hy(x, z), z + 1.6);
       this.statisch.add(schild);
     }
   }
@@ -390,7 +409,7 @@ export class KartenModell {
     const g = this.g;
     this.lampenListe = this.welt.objekte
       .filter((o) => o.typ === 'licht')
-      .map((o) => ({ x: (o.x + 0.5) * g, y: o.mast ? 58 : 60, z: (o.y + 0.5) * g, farbe: new THREE.Color(o.farbe), reichweite: o.radius * g * 1.8, staerke: (o.staerke ?? 0.8) * 260, objekt: o }));
+      .map((o) => ({ x: (o.x + 0.5) * g, y: (o.mast ? 58 : 60) + this.hy((o.x + 0.5) * g, (o.y + 0.5) * g), z: (o.y + 0.5) * g, farbe: new THREE.Color(o.farbe), reichweite: o.radius * g * 1.8, staerke: (o.staerke ?? 0.8) * 260, objekt: o }));
     const material = new THREE.MeshBasicMaterial({ transparent: true, opacity: 1, depthWrite: false });
     this.lampenGluehen = new THREE.InstancedMesh(new THREE.SphereGeometry(3.5, 8, 6), material, Math.max(1, this.lampenListe.length));
     this.lampenListe.forEach((l, i) => {
@@ -408,8 +427,10 @@ export class KartenModell {
         const w = ((l.objekt.richtung ?? 90) * Math.PI) / 180;
         const lang = l.reichweite * 1.2;
         const breit = Math.max(r * 0.5, lang * Math.tan((((l.objekt.oeffnung ?? 60) / 2) * Math.PI) / 180) * 1.4);
-        _matrix.compose(_vektor.set(l.x + Math.cos(w) * lang * 0.45, 1.2, l.z + Math.sin(w) * lang * 0.45), _quat.setFromAxisAngle(_achseY, -w), _skala.set(lang, 1, breit));
-      } else _matrix.compose(_vektor.set(l.x, 1.2, l.z), _quat.identity(), _skala.set(r * 2, 1, r * 2));
+        const sx = l.x + Math.cos(w) * lang * 0.45;
+        const sz = l.z + Math.sin(w) * lang * 0.45;
+        _matrix.compose(_vektor.set(sx, 1.2 + this.hy(sx, sz), sz), _quat.setFromAxisAngle(_achseY, -w), _skala.set(lang, 1, breit));
+      } else _matrix.compose(_vektor.set(l.x, 1.2 + this.hy(l.x, l.z), l.z), _quat.identity(), _skala.set(r * 2, 1, r * 2));
       this.lampenSchein.setMatrixAt(i, _matrix);
       this.lampenSchein.setColorAt(i, l.farbe.clone().multiplyScalar(l.objekt.staerke ?? 0.8));
     });
@@ -423,11 +444,12 @@ export class KartenModell {
       const eisen = new THREE.Color(0x2b2f35).convertSRGBToLinear();
       const teile = [];
       for (const l of masten) {
-        teile.push({ geometrie: new THREE.CylinderGeometry(1.5, 2.2, 54, 6), matrix: matrixAus(l.x, 27, l.z, 0), farbe: eisen });
-        teile.push({ geometrie: new THREE.CylinderGeometry(4.5, 3, 5, 6), matrix: matrixAus(l.x, 57, l.z, 0), farbe: eisen });
-        teile.push({ geometrie: new THREE.CylinderGeometry(5, 5, 1.2, 6), matrix: matrixAus(l.x, 63, l.z, 0), farbe: eisen });
+        const b = this.hy(l.x, l.z);
+        teile.push({ geometrie: new THREE.CylinderGeometry(1.5, 2.2, 54, 6), matrix: matrixAus(l.x, 27 + b, l.z, 0), farbe: eisen });
+        teile.push({ geometrie: new THREE.CylinderGeometry(4.5, 3, 5, 6), matrix: matrixAus(l.x, 57 + b, l.z, 0), farbe: eisen });
+        teile.push({ geometrie: new THREE.CylinderGeometry(5, 5, 1.2, 6), matrix: matrixAus(l.x, 63 + b, l.z, 0), farbe: eisen });
       }
-      const mesh = new THREE.Mesh(vereineGeometrien(teile, { mitFarbe: true }), this.mitSchnitt(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.4 })));
+      const mesh = new THREE.Mesh(vereineGeometrien(teile, { mitFarbe: true }), this.mitSchnitt(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.4 }))); // Masten: Höhe steckt schon in den Matrizen
       mesh.castShadow = true;
       einfrieren(mesh);
       this.statisch.add(mesh);
@@ -458,10 +480,10 @@ export class KartenModell {
         fluegel.add(blatt, griff);
         scharnier.add(fluegel);
         if (tuer.senkrecht) {
-          scharnier.position.set(tx * g + g / 2, 0, ersteHaelfte ? ty * g + 1 : (ty + 1) * g - 1);
+          scharnier.position.set(tx * g + g / 2, this.hy(tx * g + g / 2, ty * g + g / 2), ersteHaelfte ? ty * g + 1 : (ty + 1) * g - 1);
           scharnier.rotation.y = -Math.PI / 2;
         } else {
-          scharnier.position.set(ersteHaelfte ? tx * g + 1 : (tx + 1) * g - 1, 0, ty * g + g / 2);
+          scharnier.position.set(ersteHaelfte ? tx * g + 1 : (tx + 1) * g - 1, this.hy(tx * g + g / 2, ty * g + g / 2), ty * g + g / 2);
         }
         this.beweglich.add(scharnier);
         this.tuerFluegel.push({ tuerId: tuer.id, fluegel, richtung, winkel: null });
@@ -485,7 +507,9 @@ export class KartenModell {
     const blockVon = (o) => `${Math.floor(((o.x + o.b / 2) * g) / BLOCK)},${Math.floor(((o.y + o.h / 2) * g) / BLOCK)}`;
     const kugelFuer = (schluessel) => {
       const [bx, bz] = schluessel.split(',').map(Number);
-      return new THREE.Sphere(new THREE.Vector3((bx + 0.5) * BLOCK, 40, (bz + 0.5) * BLOCK), BLOCK * 0.72 + 90);
+      // Gelände: Kugel auf die Blockhöhe stellen und um den größten möglichen Höhenunterschied (± 10 m) vergrößern
+      const hoch = this.welt.hoehen ? 10 * this.g : 0;
+      return new THREE.Sphere(new THREE.Vector3((bx + 0.5) * BLOCK, 40 + this.hy((bx + 0.5) * BLOCK, (bz + 0.5) * BLOCK), (bz + 0.5) * BLOCK), BLOCK * 0.72 + 90 + hoch);
     };
     const neuesMesh = (geometrie, material, anzahl, schluessel, { schatten = true } = {}) => {
       const mesh = new THREE.InstancedMesh(geometrie, material, anzahl);
@@ -553,7 +577,7 @@ export class KartenModell {
       if (o.typ === 'stein' || o.typ === 'eisenerz') {
         const erz = o.typ === 'eisenerz';
         const m = new THREE.Matrix4().compose(
-          new THREE.Vector3(x, 6, z),
+          new THREE.Vector3(x, 6 + this.hy(x, z), z),
           new THREE.Quaternion().setFromEuler(erz ? new THREE.Euler(0, zufall * 7, 0) : new THREE.Euler(zufall * 3, zufall * 7, zufall * 2)),
           new THREE.Vector3(1 + zufall * 0.4, 0.7 + zufall * 0.3, 1.1 - zufall * 0.3).multiplyScalar(erz ? 1 : o.groesse === 'gross' ? 1.3 : 0.8),
         );
@@ -563,13 +587,13 @@ export class KartenModell {
         const art = this.baumArten.get(o.typ);
         // Größe passend zur Grundfläche, dazu etwas Zufall in Größe und Drehung – kein Baum gleicht dem anderen
         const groesse = ((Math.min(o.b, o.h) * g) / art.grundflaeche) * (0.9 + zufall * 0.22) * (o.groesse === 'gross' ? 1.25 : o.groesse === 'klein' ? 0.8 : 1);
-        const matrix = matrixAus(x, 0, z, zufall * Math.PI * 2, groesse);
+        const matrix = matrixAus(x, this.hy(x, z), z, zufall * Math.PI * 2, groesse);
         const teil = art.teile.get(block);
         const index = teil.naechster++;
         eintrag.teile.push({ mesh: teil.mesh, index, matrix }, { mesh: teil.rand, index, matrix });
         if (o.typ !== 'busch') {
           const st = stuempfe.get(block);
-          eintrag.stumpf = { mesh: st.mesh, index: st.naechster++, matrix: matrixAus(x, 0, z, zufall * 5, groesse * 1.3) };
+          eintrag.stumpf = { mesh: st.mesh, index: st.naechster++, matrix: matrixAus(x, this.hy(x, z), z, zufall * 5, groesse * 1.3) };
         }
       }
       for (const t of eintrag.teile) t.mesh.setMatrixAt(t.index, t.matrix);

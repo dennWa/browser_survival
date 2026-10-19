@@ -202,7 +202,7 @@ export class BasisbauSchicht {
       const { mesh } = eintrag;
       mesh.count = liste.length;
       liste.forEach((b, i) => {
-        HILFS_P.set((b.tx + 0.5) * g, 0, (b.ty + 0.5) * g);
+        HILFS_P.set((b.tx + 0.5) * g, welt.hoeheBei((b.tx + 0.5) * g, (b.ty + 0.5) * g), (b.ty + 0.5) * g); // auf dem Gelände
         HILFS_Q.setFromAxisAngle(ACHSE_Y, INSTANZ_TYPEN[typ].ausrichtung ? (b.drehung ?? 0) * (Math.PI / 2) : 0);
         mesh.setMatrixAt(i, HILFS.compose(HILFS_P, HILFS_Q, HILFS_S));
       });
@@ -237,7 +237,7 @@ export class BasisbauSchicht {
       if (this.versteckteDaecher.has(i) === soll.has(i)) continue;
       const d = this.dachListe[i];
       if (soll.has(i)) eintrag.mesh.setMatrixAt(i, NULL_MATRIX);
-      else eintrag.mesh.setMatrixAt(i, HILFS.makeTranslation((d.tx + 0.5) * g, 0, (d.ty + 0.5) * g));
+      else eintrag.mesh.setMatrixAt(i, HILFS.makeTranslation((d.tx + 0.5) * g, welt.hoeheBei((d.tx + 0.5) * g, (d.ty + 0.5) * g), (d.ty + 0.5) * g));
       geaendert = true;
     }
     this.versteckteDaecher = soll;

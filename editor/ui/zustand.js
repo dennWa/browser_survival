@@ -34,6 +34,7 @@ export class Zustand {
     this.ansicht = '2d';
     this.ebenen = ebenenAus(liesLokal(EBENEN_SPEICHER));
     this.terrainStaerke = 0.5;
+    this.terrainZiel = 2; // Plateau-Höhe (m), Alt+Klick im Gelände-Werkzeug übernimmt die Höhe unter der Maus
     this.farbe = '#c0392b'; // aktuelle Malfarbe (Kategorie Farbe)
     this.layout = {}; // Zonen-Weltposition (Phase 7): id → { x, y }
     this.validierung = [];

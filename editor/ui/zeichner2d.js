@@ -218,6 +218,7 @@ export class Zeichner2D {
         this.#ebene(ctx, 'terrain', () => {
           ctx.imageSmoothingEnabled = true;
           ctx.drawImage(this.cache.terrain, o.x, o.y, b, hh);
+          this.#zeichneHoehen(ctx, k);
         });
       if (this.zustand.sichtbar('boden')) this.#ebene(ctx, 'boden', () => this.#zeichneKachelDetails(ctx, k));
       if (this.zustand.sichtbar('innen')) this.#zeichneInnen(ctx, k);
@@ -304,6 +305,46 @@ export class Zeichner2D {
           ctx.strokeRect(p.x + 0.5, p.y + 0.5, z - 1, z - 1);
         }
       }
+    ctx.restore();
+  }
+
+  /** Höhenlinien (je volle 1 m) und – nah herangezoomt – die Höhe je Kachel */
+  #zeichneHoehen(ctx, k) {
+    const z = this.zoom;
+    if (z < 6) return;
+    const f = this.#sichtFenster(k);
+    const stufe = (x, y) => Math.floor(k.hoeheAn(x, y) + 1e-6);
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let y = f.y0; y <= f.y1; y++)
+      for (let x = f.x0; x <= f.x1; x++) {
+        const s = stufe(x, y);
+        const p = this.zuBild(x, y);
+        if (x + 1 < k.breite && stufe(x + 1, y) !== s) {
+          ctx.moveTo(p.x + z, p.y);
+          ctx.lineTo(p.x + z, p.y + z);
+        }
+        if (y + 1 < k.hoehe && stufe(x, y + 1) !== s) {
+          ctx.moveTo(p.x, p.y + z);
+          ctx.lineTo(p.x + z, p.y + z);
+        }
+      }
+    ctx.stroke();
+    if (z >= 26) {
+      ctx.font = '600 10px system-ui';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'bottom';
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      for (let y = f.y0; y <= f.y1; y++)
+        for (let x = f.x0; x <= f.x1; x++) {
+          const h = k.hoeheAn(x, y);
+          if (!h) continue;
+          const p = this.zuBild(x, y);
+          ctx.fillText(String(Math.round(h * 10) / 10).replace('.', ','), p.x + z - 2, p.y + z - 1);
+        }
+    }
     ctx.restore();
   }
 

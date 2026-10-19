@@ -1,7 +1,7 @@
 import { linie, rasteEin, rechteck, rechteckAus, pinsel, fuellen, kachelOps, nurImFeld, alsRechtecke } from '../kern/raster.js';
 import { markerSchluessel, ausSchluessel, kopie } from '../kern/karte.js';
 import { pruefeObjekt, pruefeMarker, pruefeBauwerk, pruefeBereich } from '../kern/platzierung.js';
-import { terrainHeben, terrainGlaetten, terrainEbnen } from '../kern/terrain.js';
+import { terrainHeben, terrainGlaetten, terrainEbnen, terrainPlateau, rampe } from '../kern/terrain.js';
 import { elementeIn, dreheVorlage } from '../kern/auswahl.js';
 import { verschiebeOps, dreheOps } from '../kern/bearbeiten.js';
 import { istWandEintrag, wandPunkte, begrenzeTueren, wandBauwerkOps } from '../kern/wand.js';
@@ -136,6 +136,13 @@ export class Werkzeuge {
       return;
     }
     if (w === 'terrain') {
+      const art = zustand.eintrag?.werkzeug;
+      if (art === 'terrainRampe' || art === 'terrainStufen') {
+        // Rampe/Treppe: von hier bis zum Loslassen, Breite = Pinselgröße
+        this.ziehen = { art: 'rampe', start: p };
+        this.#rampeVorschau(this.ziehen, p);
+        return;
+      }
       zustand.verlauf.beginne('Gelände');
       this.ziehen = { art: 'terrain' };
       this.#terrain(p, e.shiftKey);
@@ -209,6 +216,7 @@ export class Werkzeuge {
     }
     else if (d.art === 'bewegen') this.#bewege(d, p, e.altKey);
     else if (d.art === 'wand') this.#wandVorschau(d, p, e.shiftKey);
+    else if (d.art === 'rampe') this.#rampeVorschau(d, p);
     else if (d.art === 'rahmen') {
       this.zustand.auswahlRechteck = rechteckAus(d.start.tx, d.start.ty, p.tx, p.ty);
       this.zustand.melde('auswahl');
@@ -243,6 +251,7 @@ export class Werkzeuge {
     if (d.art === 'pinsel' || d.art === 'radieren' || d.art === 'terrain' || d.art === 'bewegen' || d.art === 'farbe') this.zustand.verlauf.beende();
     if (d.art === 'form') this.#formAnwenden(d, p, e.shiftKey);
     if (d.art === 'wand') this.#wandFertig(d, p, e.shiftKey);
+    if (d.art === 'rampe') this.#rampeFertig(d, p);
     if (d.art === 'rahmen') this.#rahmenFertig(d, p, e.shiftKey);
     if (d.art === 'bereich') this.#bereichFertig(d, p);
     if (d.art === 'zone') this.#zoneFertig();
@@ -622,6 +631,11 @@ export class Werkzeuge {
   }
 
   #pipette(p) {
+    if (this.zustand.werkzeug === 'terrain') {
+      this.zustand.terrainZiel = this.karte.hoeheAn(p.tx, p.ty);
+      this.zustand.melde('eintrag');
+      return this.zustand.meldung(`Zielhöhe ${this.zustand.terrainZiel} m übernommen (Plateau)`);
+    }
     if (this.zustand.werkzeug === 'farbe') {
       const f = this.karte.farbeAn(p.tx, p.ty);
       if (f) {
@@ -653,8 +667,38 @@ export class Werkzeuge {
     let ops;
     if (art === 'terrainGlaetten') ops = terrainGlaetten(k, p.tx, p.ty, r, staerke);
     else if (art === 'terrainEbnen') ops = terrainEbnen(k, p.tx, p.ty, r, 0);
+    else if (art === 'terrainPlateau') ops = terrainPlateau(k, p.tx, p.ty, r, zustand.terrainZiel);
     else ops = terrainHeben(k, p.tx, p.ty, r, (art === 'terrainSenken') !== umschalt ? -staerke : staerke);
     zustand.sammle(ops);
+  }
+
+  /** Rampe/Treppe: Ops von Start bis p (Höhe am Start → Höhe am Ende), Breite = Pinselgröße */
+  #rampeOps(d, p) {
+    const k = this.karte;
+    const stufe = this.zustand.eintrag?.werkzeug === 'terrainStufen' ? 0.5 : 0;
+    return rampe(k, { x: d.start.tx, y: d.start.ty }, { x: p.tx, y: p.ty }, { breite: Math.max(1, this.zustand.pinselGroesse), stufe });
+  }
+
+  #rampeVorschau(d, p) {
+    const k = this.karte;
+    const ops = this.#rampeOps(d, p);
+    const von = k.hoeheAn(d.start.tx, d.start.ty);
+    const bis = k.hoeheAn(p.tx, p.ty);
+    const laenge = Math.max(1, Math.hypot(p.tx - d.start.tx, p.ty - d.start.ty));
+    const steil = Math.abs(bis - von) / laenge > 1;
+    this.z.vorschau = {
+      kacheln: ops.map((o) => ({ x: o.i % k.breite, y: Math.floor(o.i / k.breite) })),
+      gueltig: !steil,
+      text: `${this.zustand.eintrag?.werkzeug === 'terrainStufen' ? 'Treppe' : 'Rampe'} ${von.toFixed(1)} → ${bis.toFixed(1)} m · ${laenge.toFixed(0)} Kacheln${steil ? ' – zu steil (> 1 m je Kachel), länger ziehen' : ''}`,
+      textX: p.tx + 0.5,
+      textY: p.ty,
+    };
+    this.z.anfordern();
+  }
+
+  #rampeFertig(d, p) {
+    const ops = this.#rampeOps(d, p);
+    if (ops.length) this.zustand.ausfuehren(this.zustand.eintrag?.werkzeug === 'terrainStufen' ? 'Treppe' : 'Rampe', ops);
   }
 
   // --- Zone ändern -----------------------------------------------------------------

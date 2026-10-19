@@ -1,6 +1,7 @@
 import { KACHEL_GROESSE } from '../../../gemeinsam/konstanten.js';
 import { KACHELN, MARKER, istKachel, istLootMarker } from '../../../gemeinsam/welt/kacheln.js';
 import { BAUWERKE } from '../../../gemeinsam/welt/bauwerke.js';
+import { liesHoehen, klippenFuesse } from '../../../gemeinsam/welt/gelaende.js';
 import { pruefeZonenEinstellungen } from './zonenEinstellungen.js';
 import { STADTRAND } from './stadtrand.js';
 import { WALDWEG } from './waldweg.js';
@@ -30,7 +31,8 @@ export const KARTEN = Object.freeze({
  *                 Zombies je Punkt (zombieSpawns-Einträge doppelt), horde = nachts nur an solchen Punkten
  *   raeume.X.spawnChance / .respawnZeit → je Loot-Punkt dieses Raums (lootSystem)
  *   objekte[].groesse 'klein'|'gross' → feste Größe statt Zufall nach Position
- *   terrain.steil [[x, y]] → unsichtbare Hindernisse (Objekt typ 'hang', ebene 'unsichtbar'); Höhen sind nur Editor-Optik
+ *   terrain.hoehen ["0 0 1.5 …"] → daten.hoehen (Meter je Kachel, Spiel zeigt sie in 3D); Fuß von Klippen (gemeinsam/welt/gelaende.js)
+ *   → unsichtbare Hindernisse (Objekt typ 'hang', ebene 'unsichtbar'). Alte Exporte nur mit terrain.steil [[x, y]] gelten weiter.
  *   bauwerke [{ typ, tx, ty, drehung? }] → kartenfeste Bauwerke ohne Besitzer (SpielWelt setzt sie)
  *   tierBereiche [{ x, y, b, h, art, anzahl, respawnZeit? }] → Hasen nur dort (tierSystem)
  *   einstellungen → Zonen-Werte (zonenEinstellungen.js), musik → daten.musik (Client: Musik-Ordner)
@@ -114,8 +116,10 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE, { au
     }
     return objekt;
   });
-  // Steile Hänge (Terrain aus dem Map-Editor): unsichtbare Hindernisse
-  for (const [x, y] of Array.isArray(definition.terrain?.steil) ? definition.terrain.steil : []) {
+  // Gelände (Map-Editor): Höhen sind maßgeblich – gesperrt ist der Fuß jeder Klippe; ohne Höhen (alter Export) gilt terrain.steil
+  const hoehen = liesHoehen(definition.terrain?.hoehen, breite, hoehe);
+  const steil = hoehen ? klippenFuesse(hoehen, breite, hoehe) : Array.isArray(definition.terrain?.steil) ? definition.terrain.steil : [];
+  for (const [x, y] of steil) {
     if (Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0 && x < breite && y < hoehe) objekte.push({ typ: 'hang', x, y, b: 1, h: 1, blockiert: true, ebene: 'unsichtbar', drehung: 0 });
   }
 
@@ -142,6 +146,7 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE, { au
     .filter((t) => imFeld(t?.x, t?.y) && Number.isInteger(t.b) && Number.isInteger(t.h) && t.b > 0 && t.h > 0 && imFeld(t.x + t.b - 1, t.y + t.h - 1) && Number.isInteger(t.anzahl) && t.anzahl >= 0)
     .map((t) => ({ x: t.x, y: t.y, b: t.b, h: t.h, art: 'hase', anzahl: Math.min(t.anzahl, 100), ...(t.respawnZeit > 0 ? { respawnZeit: t.respawnZeit } : {}) }));
   const daten = { id: definition.id, name: definition.name, breite, hoehe, kachelGroesse, kacheln, raeume, objekte, uebergaenge };
+  if (hoehen) daten.hoehen = hoehen;
   const typen = pruefeTypen(definition.typen);
   if (typen) daten.typen = typen;
   if (typeof definition.musik === 'string' && /^[a-z0-9_-]{1,40}$/i.test(definition.musik)) daten.musik = definition.musik;

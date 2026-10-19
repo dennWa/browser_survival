@@ -468,6 +468,8 @@ export class SpielServer {
       blick: Number.isFinite(n.blick) ? n.blick : spieler.blick,
       angriff: n.angriff === true,
       sprint: n.sprint === true,
+      // Ego-Ansicht: Blickneigung (Radiant, + = nach oben) – nur dann zählt die Höhe beim Schießen (Gelände, Editor 2.0)
+      neigung: Number.isFinite(n.neigung) ? Math.max(-1.5, Math.min(1.5, n.neigung)) : null,
     });
   }
 

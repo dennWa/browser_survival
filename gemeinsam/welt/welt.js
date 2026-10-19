@@ -1,6 +1,7 @@
 import { KACHELN } from './kacheln.js';
 import { RESSOURCEN_OBJEKTE } from './ressourcen.js';
 import { blockiertBauwerk, ebeneVon, sichtBlockiertBauwerk } from './bauwerke.js';
+import { hoeheAn } from './gelaende.js';
 
 /**
  * Laufzeit-Abbild einer Karte: Kachelabfragen und Kollision.
@@ -34,6 +35,8 @@ export class Welt {
     this.uebergaenge = kartenDaten.uebergaenge ?? [];
     /** Bemalung des Bodens aus dem Map-Editor (nur Optik): { '#rrggbb': [[x, y, b, h], …] } oder null */
     this.bemalung = kartenDaten.bemalung ?? null;
+    /** Gelände-Höhen (Meter je Kachel) aus dem Map-Editor oder null (flach) – Darstellung + Ego-Zielen; Klippen sind 'hang'-Objekte */
+    this.hoehen = Array.isArray(kartenDaten.hoehen) && kartenDaten.hoehen.length === this.breite * this.hoehe ? kartenDaten.hoehen : null;
     /** Kachelindizes (ty * breite + tx), die durch Möbel blockiert sind */
     this.moebelBlockiert = berechneMoebelKollision(this.objekte, this.breite);
     /** [{ id, kacheln: [{ tx, ty }], senkrecht, x, y }]  senkrecht = Tür in einer Nord-Süd-Wand; x/y = Mitte (Weltpixel) */
@@ -288,6 +291,12 @@ export class Welt {
    * Außerhalb der Karte gilt alles als blockiert (unsichtbare Grenze).
    * @param ignoriereFahrzeug  Fahrzeug-ID, deren eigene Kacheln nicht zählen (das Auto stößt nicht an sich selbst)
    */
+  /** Geländehöhe in Weltpixeln (1 m = 1 Kachel = kachelGroesse) an einer Pixelposition – 0 ohne Gelände */
+  hoeheBei(x, y) {
+    if (!this.hoehen) return 0;
+    return hoeheAn(this.hoehen, this.breite, this.hoehe, x / this.kachelGroesse, y / this.kachelGroesse) * this.kachelGroesse;
+  }
+
   istBlockiert(tx, ty, ignoriereFahrzeug = null) {
     const zeichen = this.kachelAn(tx, ty);
     if (zeichen === null) return true;

@@ -109,9 +109,11 @@ export class EgoModus {
       return l > 1 ? { x: x / l, y: y / l } : { x, y };
     };
     e.blickWinkel = () => this.#yaw;
+    e.neigung = () => this.#pitch; // Server: Treffer auf Gelände nur, wenn die Höhe passt (nach oben zielen)
     this.#wiederherstellen = () => {
       delete e.richtung;
       delete e.blickWinkel;
+      delete e.neigung;
       void richtungOriginal;
       void blickOriginal;
     };
@@ -168,6 +170,7 @@ export class EgoModus {
       kamera.updateProjectionMatrix();
     }
     const cp = Math.cos(this.#pitch);
+    hoehe += renderer.bodenHoehe?.(augenX, augenY) ?? 0; // Gelände: Augen über dem Boden darunter
     kamera.position.set(augenX, hoehe, augenY);
     kamera.lookAt(augenX + Math.cos(this.#yaw) * cp * 100, hoehe + Math.sin(this.#pitch) * 100, augenY + Math.sin(this.#yaw) * cp * 100);
     const figur = renderer.figuren.get(fokus.id);

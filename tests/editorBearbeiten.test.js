@@ -243,3 +243,65 @@ test('Wände ziehen: Einrasten, Raum-Umriss, Türen höchstens 4, Bauwerke mit A
   assert.ok(zaun.ops.every((o) => o.neu.drehung === undefined), 'Zaun hat keine Ausrichtung');
   assert.equal(new Set(zaun.ops.map((o) => o.k)).size, 5, 'eigene IDs');
 });
+
+// --- Editor 2.0, Schritt 2.3/2.4: Gelände begehbar --------------------------------------------
+import { Welt } from '../gemeinsam/welt/welt.js';
+import { findePfad } from '../gemeinsam/physik/pfadfindung.js';
+import { klippenFuesse, hoeheAn } from '../gemeinsam/welt/gelaende.js';
+import { rampe, bereichHoehe, steigung } from '../editor/kern/terrain.js';
+
+test('Gelände: Plateau oben begehbar, Klippe sperrt, Rampe verbindet – Pfadsuche wie im Spiel', () => {
+  const k = neueZone({ id: 'huegel', name: 'Hügel', breite: 14, hoehe: 9 });
+  k.anwenden([{ s: 'marker', k: '1,4', neu: { art: 'start' } }]);
+  k.anwenden(bereichHoehe(k, { x: 7, y: 0, b: 7, h: 9 }, 3)); // Plateau rechts, 3 m
+  const pfad = (karte) => {
+    const welt = new Welt(verarbeiteKarte(nachDefinition(karte)).daten);
+    const g = welt.kachelGroesse;
+    return { welt, weg: findePfad(welt, 1.5 * g, 4.5 * g, 10.5 * g, 4.5 * g) };
+  };
+  const ohne = pfad(k);
+  assert.equal(ohne.weg, null, 'Klippe ohne Rampe: kein Weg nach oben');
+  assert.ok(ohne.welt.istBlockiert(6, 4) && !ohne.welt.istBlockiert(7, 4), 'Fuß gesperrt, Plateau-Rand begehbar');
+  assert.equal(ohne.welt.hoeheBei(10.5 * 32, 4.5 * 32), 3 * 32, 'Höhe in Weltpixeln (1 m = 1 Kachel)');
+  // Rampe 3 Kacheln breit von x 2 (0 m) nach x 7 (3 m): je Kachel ≤ 1 m
+  k.anwenden(rampe(k, { x: 2, y: 4 }, { x: 7, y: 4 }, { breite: 3, von: 0, bis: 3 }));
+  for (let x = 2; x <= 7; x++) assert.ok(Math.abs(k.hoeheAn(x + 1, 4) - k.hoeheAn(x, 4)) <= 1, `Steigung bei x ${x}`);
+  const mit = pfad(k);
+  assert.ok(mit.weg, 'über die Rampe erreichbar');
+  assert.ok(mit.weg.some((p) => Math.floor(p.y / 32) === 4 && Math.floor(p.x / 32) === 5), 'Weg führt über die Rampe');
+  // Stufen: Vielfache von 0,5 m
+  const z2 = neueZone({ id: 'treppe', name: 'Treppe', breite: 8, hoehe: 3 });
+  z2.anwenden(rampe(z2, { x: 0, y: 1 }, { x: 7, y: 1 }, { breite: 1, von: 0, bis: 2, stufe: 0.5 }));
+  assert.ok([...Array(8).keys()].every((x) => (z2.hoeheAn(x, 1) * 2) % 1 === 0));
+  assert.ok(steigung(z2, 3, 1) <= 1);
+  // gemeinsame Helfer
+  assert.deepEqual(klippenFuesse([0, 2, 0, 0], 2, 2), [[0, 0], [1, 1]]);
+  assert.equal(hoeheAn([0, 2, 0, 2], 2, 2, 1, 1), 1, 'bilinear zwischen den Kachelmitten');
+});
+
+// --- Editor 2.0, Schritt 2.5: Ego-Zielen auf Gelände ----------------------------------------
+import { SpielWelt } from '../server/spiel/spielWelt.js';
+import { erstelleKonfiguration } from '../server/spiel/konfiguration/spielKonfiguration.js';
+import { erzeugeZombie } from '../server/spiel/entitaeten/zombie.js';
+import { TICK_DAUER_S } from '../gemeinsam/konstanten.js';
+
+test('Ego-Zielen: Draufsicht trifft 2D, in der Ich-Perspektive muss man zum Ziel auf der Klippe hoch zielen', () => {
+  const k = neueZone({ id: 'klippe', name: 'Klippe', breite: 16, hoehe: 5 });
+  k.anwenden([{ s: 'marker', k: '1,2', neu: { art: 'start' } }]);
+  k.anwenden(bereichHoehe(k, { x: 9, y: 0, b: 7, h: 5 }, 3)); // Plateau 3 m = 96 px
+  const definition = nachDefinition(k);
+  const schuss = (neigung) => {
+    const konfiguration = erstelleKonfiguration({ server: { zufallsStartwert: 7 }, spieler: { startInventar: [] }, zombie: { aggroRadius: 0 } });
+    const welt = new SpielWelt(konfiguration, { kartenDefinition: definition });
+    const spieler = welt.spielerBetrittWelt('Ego');
+    Object.assign(spieler, { x: 2.5 * 32, y: 2.5 * 32, blick: 0, angriff: true, ausgeruestet: 0, ausruestung: 'pistole', neigung });
+    spieler.inventar[0] = { defId: 'pistole', menge: 1, magazin: 15 };
+    const zombie = welt.hinzufuegen(erzeugeZombie({ id: welt.neueId(), x: 12.5 * 32, y: 2.5 * 32, konfiguration, blick: 0 }));
+    welt.aktualisiere(TICK_DAUER_S);
+    return zombie.leben < 60;
+  };
+  assert.ok(schuss(null), 'Draufsicht (keine Neigung): trifft wie bisher in 2D');
+  assert.ok(!schuss(0), 'Ego, waagerecht: geht unter der Klippe durch');
+  const d = 10 * 32; // Entfernung bis zum Ziel
+  assert.ok(schuss(Math.atan2(96 + 30 - 54, d)), 'Ego, nach oben gezielt: Treffer');
+});

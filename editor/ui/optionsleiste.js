@@ -61,10 +61,12 @@ export class Optionsleiste {
       gruppe('<span class="leise">Klick setzt (stempelt den Bereich) · Esc bricht ab</span>');
     } else if (w === 'terrain') {
       const art = e?.werkzeug ?? 'terrainHeben';
-      gruppe(['terrainHeben', 'terrainSenken', 'terrainGlaetten', 'terrainEbnen'].map((m) => knopf(`terrain:${m}`, { terrainHeben: '⛰ Heben', terrainSenken: '🕳 Senken', terrainGlaetten: '〰 Glätten', terrainEbnen: '▬ Ebnen' }[m], art === m)).join(''));
-      gruppe(`<span class="leise">Stärke</span><input type="range" min="0.1" max="3" step="0.1" value="${z.terrainStaerke}" data-o="staerke" aria-label="Stärke"><b class="zahl">${z.terrainStaerke.toFixed(1)} m</b>`);
+      gruppe(['terrainHeben', 'terrainSenken', 'terrainGlaetten', 'terrainEbnen', 'terrainPlateau', 'terrainRampe', 'terrainStufen'].map((m) => knopf(`terrain:${m}`, { terrainHeben: '⛰ Heben', terrainSenken: '🕳 Senken', terrainGlaetten: '〰 Glätten', terrainEbnen: '▬ Ebnen', terrainPlateau: '⏫ Plateau', terrainRampe: '◢ Rampe', terrainStufen: '𝌆 Treppe' }[m], art === m)).join(''));
+      if (art === 'terrainPlateau') gruppe(`<span class="leise">Zielhöhe</span><input type="number" min="-10" max="10" step="0.5" value="${z.terrainZiel}" data-o="ziel" style="width:70px" aria-label="Zielhöhe"><span class="leise">m · Alt+Klick übernimmt die Höhe</span>`);
+      else if (art === 'terrainRampe' || art === 'terrainStufen') gruppe('<span class="leise">vom Fuß bis auf die Kante ziehen · Breite = Pinselgröße · höchstens 1 m je Kachel bleibt begehbar</span>');
+      else gruppe(`<span class="leise">Stärke</span><input type="range" min="0.1" max="3" step="0.1" value="${z.terrainStaerke}" data-o="staerke" aria-label="Stärke"><b class="zahl">${z.terrainStaerke.toFixed(1)} m</b>`);
       groesse();
-      gruppe('<span class="leise">Umschalt kehrt Heben/Senken um</span>');
+      gruppe('<span class="leise">Klippen (> 1 m je Kachel) sperren ihren Fuß im Spiel · Umschalt kehrt Heben/Senken um</span>');
     } else if (w === 'farbe') {
       const art = e?.werkzeug ?? 'farbePinsel';
       gruppe(['farbePinsel', 'farbeFuellen', 'farbeEntfernen'].map((m) => knopf(`farbe:${m}`, { farbePinsel: '🖌 Malen', farbeFuellen: '🪣 Füllen', farbeEntfernen: '🧽 Entfernen' }[m], art === m)).join(''));
@@ -99,7 +101,7 @@ export class Optionsleiste {
           z.drehung = Number(wert);
           z.melde('werkzeug');
         } else if (art === 'drehen') this.aktionen.drehen();
-        else if (art === 'terrain' || art === 'farbe') this.aktionen.waehleKatalog(`werkzeug:${{ terrainHeben: 'terrain-heben', terrainSenken: 'terrain-senken', terrainGlaetten: 'terrain-glaetten', terrainEbnen: 'terrain-ebnen', farbePinsel: 'farbe-pinsel', farbeFuellen: 'farbe-fuellen', farbeEntfernen: 'farbe-entfernen' }[wert]}`);
+        else if (art === 'terrain' || art === 'farbe') this.aktionen.waehleKatalog(`werkzeug:${{ terrainHeben: 'terrain-heben', terrainSenken: 'terrain-senken', terrainGlaetten: 'terrain-glaetten', terrainEbnen: 'terrain-ebnen', terrainPlateau: 'terrain-plateau', terrainRampe: 'terrain-rampe', terrainStufen: 'terrain-stufen', farbePinsel: 'farbe-pinsel', farbeFuellen: 'farbe-fuellen', farbeEntfernen: 'farbe-entfernen' }[wert]}`);
         else if (art === 'farbwahl') {
           z.farbe = wert;
           this.zeichne();
@@ -116,6 +118,7 @@ export class Optionsleiste {
           z.terrainStaerke = Number(i.value);
           i.nextElementSibling.textContent = `${Number(i.value).toFixed(1)} m`;
         } else if (art === 'farbe') z.farbe = i.value;
+        else if (art === 'ziel') z.terrainZiel = Math.max(-10, Math.min(10, Number(i.value) || 0));
         else if (art === 'mehrfach') z.mehrfach = i.checked;
         else if (art === 'nurRand') z.nurRand = i.checked;
         else if (art === 'raumUmriss') z.raumUmriss = i.checked;

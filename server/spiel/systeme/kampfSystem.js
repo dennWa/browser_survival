@@ -69,6 +69,22 @@ function schiessen(spielWelt, spieler, eintrag, def) {
   alarmiereZombies(spielWelt, spieler.x, spieler.y, spielWelt.konfiguration.zombie.hoerRadius, spieler.id);
 }
 
+/** Ego-Ansicht auf Gelände: Augenhöhe des Schützen und Körperhöhe der Ziele (Weltpixel) */
+const AUGEN_HOEHE = 54;
+const KOERPER_HOEHE = 62;
+
+/**
+ * Höhen-Treffer (Editor 2.0, 2.5): In der Draufsicht zählt nur die Richtung (2D, Nutzer-Entscheidung F4). Schießt man in der
+ * Ego-Ansicht (spieler.neigung gesetzt) auf Gelände mit Höhen, muss die Schusslinie in Zielentfernung durch den Körper gehen –
+ * wer oben auf der Klippe steht, muss man also nach oben anvisieren.
+ */
+function trifftHoehe(welt, schuetze, kandidat, t) {
+  if (!welt.hoehen || !Number.isFinite(schuetze.neigung)) return true;
+  const linie = welt.hoeheBei(schuetze.x, schuetze.y) + AUGEN_HOEHE + t * Math.tan(schuetze.neigung);
+  const boden = welt.hoeheBei(kandidat.x, kandidat.y);
+  return linie >= boden - 4 && linie <= boden + KOERPER_HOEHE;
+}
+
 /** Ein Projektil: trifft das erste Ziel vor der nächsten Wand. */
 function feuereStrahl(spielWelt, schuetze, winkel, def) {
   const dx = Math.cos(winkel);
@@ -78,7 +94,7 @@ function feuereStrahl(spielWelt, schuetze, winkel, def) {
   let ziel = null;
   for (const kandidat of moeglicheZiele(spielWelt, schuetze)) {
     const t = strahlTrifftKreis(schuetze.x, schuetze.y, dx, dy, kandidat.x, kandidat.y, radiusVon(spielWelt, kandidat));
-    if (t !== null && t < bestT) {
+    if (t !== null && t < bestT && trifftHoehe(spielWelt.welt, schuetze, kandidat, t)) {
       bestT = t;
       ziel = kandidat;
     }

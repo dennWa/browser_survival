@@ -428,9 +428,13 @@ test('Phase 10: Bemalung (Format-Rundreise, Spiel bekommt sie), Terrain-Pinsel +
   // Terrain: heben, glätten, steile Kacheln → Export → unsichtbare Hindernisse im Spiel
   karte.anwenden(terrainHeben(karte, 7, 6, 0.5, 3));
   assert.equal(karte.hoeheAn(7, 6), 3);
-  assert.ok(steileKacheln(karte).some(([x, y]) => x === 7 && y === 6));
+  // Editor 2.0 (2.4): gesperrt ist der Fuß der Klippe (die 4 Nachbarn), die Säule oben bleibt begehbar
+  const fuesse = steileKacheln(karte).map(([x, y]) => `${x},${y}`).sort();
+  assert.deepEqual(fuesse, ['6,6', '7,5', '7,7', '8,6']);
   const geladen = verarbeiteKarte(nachDefinition(karte));
-  assert.ok(geladen.daten.objekte.some((o) => o.typ === 'hang' && o.x === 7 && o.y === 6));
+  assert.ok(geladen.daten.objekte.some((o) => o.typ === 'hang' && o.x === 6 && o.y === 6));
+  assert.ok(!geladen.daten.objekte.some((o) => o.typ === 'hang' && o.x === 7 && o.y === 6));
+  assert.equal(geladen.daten.hoehen[6 * karte.breite + 7], 3, 'Höhen gehen ans Spiel');
   karte.anwenden(terrainGlaetten(karte, 7, 6, 2, 1));
   assert.ok(karte.hoeheAn(7, 6) < 3);
   // Bild → 3D: 2×2-Bild, 3 deckende Pixel → 3 Quader à 36 Ecken

@@ -4,6 +4,7 @@ import { BAUWERKE } from '../../gemeinsam/welt/bauwerke.js';
 import { ausSchluessel, markerSchluessel } from '../kern/karte.js';
 import { objektInfo, OBJEKT_TYPEN } from '../kern/katalog.js';
 import { ueberstand } from '../kern/bearbeiten.js';
+import { bereichHoehe } from '../kern/terrain.js';
 import { ZONEN_EINSTELLUNGEN } from '../../server/spiel/karten/zonenEinstellungen.js';
 import { esc, feldHtml } from './dialoge.js';
 
@@ -277,6 +278,7 @@ export function inspektor({ zustand, leiste, aktionen, befehle }) {
       const r = z.auswahlRechteck;
       el.insertAdjacentHTML('beforeend', `<h3>Bereich x ${r.x}–${r.x + r.b - 1}, y ${r.y}–${r.y + r.h - 1}</h3><p class="leise">${r.b} × ${r.h} Kacheln</p>`);
       knoepfe(el, ['bearbeiten.kopieren', 'bearbeiten.ausschneiden', 'bearbeiten.bereichLeeren', 'ki.ausschnitt', 'bearbeiten.alsPrefab']);
+      felder(el, [{ name: 'bereichHoehe', label: 'Geländehöhe (m)', typ: 'zahl', wert: k.hoeheAn(r.x, r.y), min: -10, max: 10, schritt: 0.5, hilfe: 'setzt den ganzen Bereich auf diese Höhe (Plateau; Klippen > 1 m sperren ihren Fuß)' }], (_, v) => v !== null && z.ausfuehren(`Bereich auf ${v} m`, bereichHoehe(k, r, v)));
     } else el.insertAdjacentHTML('beforeend', '<p class="leise">Nichts ausgewählt. ⬚ (V): Klick wählt, Umschalt = mehrere, ins Leere ziehen = Bereich markieren. Rechtsklick = Kontextmenü.</p>');
     gruppe(el, 'Zone', (box) => {
       felder(box, [

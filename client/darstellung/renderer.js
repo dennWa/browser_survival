@@ -336,11 +336,13 @@ export class Renderer {
 
     // Kamera folgt weich dem eigenen Spieler (im Auto etwas weiter weg – man ist schneller)
     this.fahrZoom += ((fokus.fahrzeugId ? 1.3 : 1) - this.fahrZoom) * Math.min(1, dt * 2);
-    _ziel.set(fokus.x, 0, fokus.y);
+    // Gelände (Editor 2.0, 2.5): Kamera folgt auch der Höhe – weich, damit Rampen nicht ruckeln
+    this.kameraHoehe = (this.kameraHoehe ?? this.#hy(fokus.x, fokus.y)) + (this.#hy(fokus.x, fokus.y) - (this.kameraHoehe ?? 0)) * Math.min(1, dt * 6);
+    _ziel.set(fokus.x, this.kameraHoehe, fokus.y);
     _kameraZiel.copy(this.kameraVersatz).multiplyScalar(this.fahrZoom).add(_ziel);
     this.kamera3d.position.lerp(_kameraZiel, Math.min(1, dt * 8) || 1);
-    this.kamera3d.lookAt(_ziel.x, 0, _ziel.z - 20);
-    this.schnitt.uFokus.value.set(fokus.x, 0, fokus.y);
+    this.kamera3d.lookAt(_ziel.x, _ziel.y, _ziel.z - 20);
+    this.schnitt.uFokus.value.set(fokus.x, _ziel.y, fokus.y);
     this.wetterEffekt.setzeArt(wetter);
     this.wetterEffekt.aktualisiere(dt, fokus.x, fokus.y);
     const dunkel = this.#tageslicht(tageszeit, _ziel);
@@ -447,7 +449,7 @@ export class Renderer {
         this.szene.add(g);
       }
       g.visible = Math.abs(e.x - fokus.x) < SICHTWEITE && Math.abs(e.y - fokus.y) < SICHTWEITE;
-      g.position.set(e.x, 0, e.y);
+      g.position.set(e.x, this.#hy(e.x, e.y), e.y);
       g.rotation.y = Math.PI / 2 - e.winkel;
       if (e.kaputt && !g.userData.wrack) macheWrack(g);
       if (g.userData.wrack) animiereWrack(g, performance.now());
@@ -473,7 +475,7 @@ export class Renderer {
       }
       t.gruppe.visible = Math.abs(e.x - fokus.x) < SICHTWEITE && Math.abs(e.y - fokus.y) < SICHTWEITE;
       if (!t.gruppe.visible) continue;
-      t.gruppe.position.set(e.x, 0, e.y);
+      t.gruppe.position.set(e.x, this.#hy(e.x, e.y), e.y);
       t.gruppe.rotation.y = Math.PI / 2 - e.blick;
       t.aktualisiere(e, jetzt);
     }
@@ -530,7 +532,7 @@ export class Renderer {
         neu.typ = b.typ;
         neu.drehung = b.drehung ?? 0;
         neu.maske = maske;
-        neu.gruppe.position.set((b.tx + 0.5) * g, 0, (b.ty + 0.5) * g);
+        neu.gruppe.position.set((b.tx + 0.5) * g, this.#hy((b.tx + 0.5) * g, (b.ty + 0.5) * g), (b.ty + 0.5) * g);
         neu.gruppe.rotation.y = bauwerkDrehungY(b);
         this.szene.add(neu.gruppe);
         this.bauwerke.set(b.id, neu);
@@ -575,7 +577,7 @@ export class Renderer {
     }
     const g = this.welt.kachelGroesse;
     const n = daten.groesse ?? 1; // Blöcke (2×2): Hologramm über die ganze Fläche
-    this.vorschau.gruppe.position.set((daten.tx + n / 2) * g, 0.2, (daten.ty + n / 2) * g);
+    this.vorschau.gruppe.position.set((daten.tx + n / 2) * g, 0.2 + this.#hy((daten.tx + n / 2) * g, (daten.ty + n / 2) * g), (daten.ty + n / 2) * g);
     this.vorschau.gruppe.scale.set(n, 1, n);
     this.vorschau.gruppe.rotation.y = (daten.drehung ?? 0) * (Math.PI / 2); // nur Teile mit Richtung bekommen drehung != 0
     if (daten.typ === 'abriss') this.vorschau.gruppe.userData.kasten.scale.y = markierungsHoehe(daten.ziel);
@@ -598,7 +600,7 @@ export class Renderer {
       if (t > 2.4) {
         const rest = Math.max(0, 1 - (t - 2.4) / 1.2);
         b.gruppe.scale.setScalar(rest);
-        b.gruppe.position.y = -(1 - rest) * 10;
+        b.gruppe.position.y = this.#hy(b.gruppe.position.x, b.gruppe.position.z) - (1 - rest) * 10;
       }
       if (t > 3.6) {
         this.szene.remove(b.gruppe);
@@ -734,6 +736,16 @@ export class Renderer {
   }
 
   /** Kegel-Lampe der Karte (Scheinwerfer) – ohne Schatten, Ziel wird pro Frame gesetzt */
+  /** Geländehöhe (Weltpixel) unter x/y – 0 ohne Gelände (Editor 2.0, 2.5) */
+  #hy(x, y) {
+    return this.welt?.hoehen ? this.welt.hoeheBei(x, y) : 0;
+  }
+
+  /** Öffentlich für Kamera-Adapter/Overlay/Ego: Geländehöhe in Weltpixeln */
+  bodenHoehe(x, y) {
+    return this.#hy(x, y);
+  }
+
   #neuesKegellicht() {
     const spot = new THREE.SpotLight(0xffffff, 0, 300, 0.5, 0.5, 1);
     this.szene.add(spot, spot.target);
@@ -883,10 +895,10 @@ export class Renderer {
         // Im Bett liegen: auf die Matratze, Kopf zum Kopfende
         // Rücken nach unten (x-Drehung), Kopf nach Norden bzw. Osten; Ursprung der Figur = Füße
         const laengs = e.arbeitOrt.laengs;
-        f.gruppe.position.set(e.arbeitOrt.x - (laengs ? 0 : 30), 20, e.arbeitOrt.y + (laengs ? 30 : 0));
+        f.gruppe.position.set(e.arbeitOrt.x - (laengs ? 0 : 30), 20 + this.#hy(e.arbeitOrt.x, e.arbeitOrt.y), e.arbeitOrt.y + (laengs ? 30 : 0));
         f.gruppe.rotation.set(-Math.PI / 2, laengs ? 0 : -Math.PI / 2, 0, 'YXZ');
       } else {
-        f.gruppe.position.set(e.x, e.arbeit === 'sitzen' ? -SITZ_TIEFE : e.fliegen ? 34 + Math.sin(jetzt / 260) * 3 : 0, e.y); // Flugmodus (Admin): schwebt
+        f.gruppe.position.set(e.x, this.#hy(e.x, e.y) + (e.arbeit === 'sitzen' ? -SITZ_TIEFE : e.fliegen ? 34 + Math.sin(jetzt / 260) * 3 : 0), e.y); // Flugmodus (Admin): schwebt; Gelände-Höhe darunter
         f.gruppe.rotation.set(0, Math.PI / 2 - e.blick, 0, 'YXZ');
       }
 
@@ -1001,8 +1013,9 @@ export class Renderer {
       if (auto) {
         const ax = Math.cos(auto.winkel);
         const az = Math.sin(auto.winkel);
-        spot.position.set(auto.x + ax * (auto.laenge / 2 + 2), 22, auto.y + az * (auto.laenge / 2 + 2));
-        spot.target.position.set(auto.x + ax * 380, 0, auto.y + az * 380);
+        const ah = this.#hy(auto.x, auto.y);
+        spot.position.set(auto.x + ax * (auto.laenge / 2 + 2), 22 + ah, auto.y + az * (auto.laenge / 2 + 2));
+        spot.target.position.set(auto.x + ax * 380, this.#hy(auto.x + ax * 380, auto.y + az * 380), auto.y + az * 380);
         Object.assign(spot, { angle: SCHEINWERFER.winkel, penumbra: SCHEINWERFER.rand, distance: SCHEINWERFER.reichweite });
         spot.intensity = this.nachtsicht ? 600 : SCHEINWERFER.staerke + SCHEINWERFER.staerkeNacht * dunkel;
         return;
@@ -1012,8 +1025,8 @@ export class Renderer {
       // Aus der Lampe/Waffe in der Hand – mindestens etwas vor dem Körper, sonst verschluckt dessen Schatten den Kegel
       const f = this.figuren.get(s.id);
       if (f?.hatMuendung) spot.position.set(f.muendung.x + vx * 4, f.muendung.y, f.muendung.z + vz * 4);
-      else spot.position.set(s.x + vx * 20, 40, s.y + vz * 20);
-      spot.target.position.set(s.x + vx * 200, 0, s.y + vz * 200);
+      else spot.position.set(s.x + vx * 20, 40 + this.#hy(s.x, s.y), s.y + vz * 20);
+      spot.target.position.set(s.x + vx * 200, this.#hy(s.x + vx * 200, s.y + vz * 200), s.y + vz * 200);
       // Schmaler, schwacher Kegel (düster); tagsüber sieht man ihn kaum
       Object.assign(spot, { angle: TASCHENLAMPE.winkel, penumbra: TASCHENLAMPE.rand, distance: TASCHENLAMPE.reichweite });
       spot.intensity = this.nachtsicht ? 400 : TASCHENLAMPE.staerke + TASCHENLAMPE.staerkeNacht * dunkel;
@@ -1043,7 +1056,9 @@ export class Renderer {
       }
       const w = ((lampe.objekt.richtung ?? 90) * Math.PI) / 180;
       licht.position.set(lampe.x, lampe.y, lampe.z);
-      licht.target.position.set(lampe.x + Math.cos(w) * lampe.reichweite * 0.55, 0, lampe.z + Math.sin(w) * lampe.reichweite * 0.55);
+      const zx = lampe.x + Math.cos(w) * lampe.reichweite * 0.55;
+      const zz = lampe.z + Math.sin(w) * lampe.reichweite * 0.55;
+      licht.target.position.set(zx, this.#hy(zx, zz), zz);
       licht.color.copy(lampe.farbe);
       licht.distance = lampe.reichweite * 1.4;
       licht.angle = Math.min(1.3, (((lampe.objekt.oeffnung ?? 60) / 2) * Math.PI) / 180);
@@ -1092,12 +1107,12 @@ export class Renderer {
       mesh = new THREE.Mesh(geometrie, ITEM_MATERIAL);
       mesh.castShadow = true;
       mesh.rotation.y = ((g.id * 2.399) % (Math.PI * 2)); // jedes Item liegt anders da
-      mesh.position.set(g.x, 0, g.y);
+      mesh.position.set(g.x, this.#hy(g.x, g.y), g.y);
     } else {
       const m = this.#itemMaterial(g.defId);
       mesh = new THREE.Mesh(m.geometrie, m.normal);
       mesh.userData.icon = true;
-      mesh.position.set(g.x, 1.5, g.y);
+      mesh.position.set(g.x, 1.5 + this.#hy(g.x, g.y), g.y);
     }
     mesh.userData.defId = g.defId;
     return mesh;
@@ -1109,7 +1124,7 @@ export class Renderer {
     this.zielRing.visible = !!ziel;
     if (!ziel) return;
     const r = (ziel.groesse ?? 1) * (1 + Math.sin(jetzt / 180) * 0.07);
-    this.zielRing.position.set(ziel.x, 1, ziel.y);
+    this.zielRing.position.set(ziel.x, 1 + this.#hy(ziel.x, ziel.y), ziel.y);
     this.zielRing.scale.set(r, 1, r);
     this.zielRing.rotation.y = jetzt / 700;
   }
@@ -1129,8 +1144,8 @@ export class Renderer {
         mesh.material = g.id === markiertId ? m.markiert : m.normal;
       }
       // Markiertes Item (E hebt es auf): hüpft leicht, Ring darunter
-      mesh.position.y = (mesh.userData.icon ? 1.5 : 0) + (g.id === markiertId ? 2 + Math.sin(jetzt / 180) * 1.5 : 0);
-      if (g.id === markiertId) this.markierRing.position.set(g.x, 0.6, g.y);
+      mesh.position.y = this.#hy(g.x, g.y) + (mesh.userData.icon ? 1.5 : 0) + (g.id === markiertId ? 2 + Math.sin(jetzt / 180) * 1.5 : 0);
+      if (g.id === markiertId) this.markierRing.position.set(g.x, 0.6 + this.#hy(g.x, g.y), g.y);
     }
     this.markierRing.visible = markiertId !== null && this.items.has(markiertId);
     if (this.markierRing.visible) {
@@ -1195,7 +1210,7 @@ export class Renderer {
       new THREE.MeshStandardMaterial({ map: this.karte.sprite(fleck.sprite), transparent: true, depthWrite: false, roughness: 0.4 }),
     );
     mesh.rotation.set(-Math.PI / 2, 0, fleck.winkel);
-    mesh.position.set(fleck.x, 0.6, fleck.y);
+    mesh.position.set(fleck.x, 0.6 + this.#hy(fleck.x, fleck.y), fleck.y);
     return mesh;
   }
 
@@ -1212,7 +1227,7 @@ export class Renderer {
     this.muendungslichter.forEach((licht, i) => {
       const f = feuer[i];
       licht.intensity = f ? 1400 * (1 - f.alter / f.dauer) : 0;
-      if (f) licht.position.set(f.x, ZIELHOEHE + 6, f.y);
+      if (f) licht.position.set(f.x, ZIELHOEHE + 6 + this.#hy(f.x, f.y), f.y);
     });
     // Blutspritzer
     const anzahl = Math.min(partikel.length, 400);
@@ -1329,12 +1344,14 @@ class KameraAdapter {
   }
 
   weltZuBildschirm(x, y, hoehe = 0) {
-    const v = this.v.set(x, hoehe, y).project(this.renderer.kamera3d);
+    const v = this.v.set(x, hoehe + this.renderer.bodenHoehe(x, y), y).project(this.renderer.kamera3d);
     return { x: ((v.x + 1) / 2) * this.breite, y: ((1 - v.y) / 2) * this.hoehe };
   }
 
   /** Mausposition → Punkt in der Welt (Strahl auf eine Ebene in Brusthöhe). */
   bildschirmZuWelt(sx, sy) {
+    // Gelände: Zielebene in Brusthöhe ÜBER der eigenen Figur (Draufsicht trifft 2D – Nutzer-Entscheidung F4)
+    this.ebene.constant = -(ZIELHOEHE + (this.renderer.kameraHoehe ?? 0));
     this.ndc.set((sx / this.breite) * 2 - 1, -(sy / this.hoehe) * 2 + 1);
     this.strahl.setFromCamera(this.ndc, this.renderer.kamera3d);
     if (!this.strahl.ray.intersectPlane(this.ebene, this.punkt)) return null;
@@ -1343,6 +1360,7 @@ class KameraAdapter {
 
   /** Mausposition → Punkt auf dem Boden (y = 0) – zum Bauen/Platzieren. */
   bildschirmZuBoden(sx, sy) {
+    this.boden.constant = -(this.renderer.kameraHoehe ?? 0);
     this.ndc.set((sx / this.breite) * 2 - 1, -(sy / this.hoehe) * 2 + 1);
     this.strahl.setFromCamera(this.ndc, this.renderer.kamera3d);
     if (!this.strahl.ray.intersectPlane(this.boden, this.punkt)) return null;

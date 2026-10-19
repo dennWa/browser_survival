@@ -141,6 +141,34 @@ function erreichbarkeit(welt, karte, warnung) {
     const y = Math.floor(p.y / g);
     if (!besucht[y * welt.breite + x] && !welt.istBlockiert(x, y)) warnung('unerreichbar', `Nicht erreichbar vom Start${p.raum ? ` (Loot ${p.raum})` : ''}`, x, y);
   }
+  // Gelände (2.3): erhöhte Flächen, die man nicht erreicht (Klippe ohne Rampe) – je Fläche eine Warnung
+  if (welt.hoehen) {
+    const gesehen = new Uint8Array(welt.breite * welt.hoehe);
+    let gemeldet = 0;
+    for (let i = 0; i < gesehen.length && gemeldet < 5; i++) {
+      if (gesehen[i] || besucht[i] || welt.hoehen[i] < 0.5 || welt.istBlockiert(i % welt.breite, Math.floor(i / welt.breite))) continue;
+      // zusammenhängende, unerreichte, erhöhte Fläche einsammeln
+      const flaeche = [];
+      const offen = [i];
+      gesehen[i] = 1;
+      while (offen.length) {
+        const j = offen.pop();
+        flaeche.push(j);
+        const x = j % welt.breite;
+        const y = Math.floor(j / welt.breite);
+        for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
+          if (nx < 0 || ny < 0 || nx >= welt.breite || ny >= welt.hoehe) continue;
+          const n = ny * welt.breite + nx;
+          if (gesehen[n] || besucht[n] || welt.hoehen[n] < 0.5 || welt.istBlockiert(nx, ny)) continue;
+          gesehen[n] = 1;
+          offen.push(n);
+        }
+      }
+      if (flaeche.length < 4) continue;
+      gemeldet++;
+      warnung('plateau-ohne-zugang', `Erhöhte Fläche (${flaeche.length} Kacheln) ohne Zugang – Rampe oder Stufen anlegen (Gelände-Werkzeug)`, flaeche[0] % welt.breite, Math.floor(flaeche[0] / welt.breite));
+    }
+  }
   for (const u of welt.uebergaenge) {
     let ok = false;
     for (let y = u.y; y < u.y + u.h && !ok; y++) for (let x = u.x; x < u.x + u.b && !ok; x++) ok = besucht[y * welt.breite + x] === 1;
