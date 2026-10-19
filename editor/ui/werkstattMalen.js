@@ -156,12 +156,18 @@ export class Texturwerk {
     const gewaehlt = await this.#bildWaehlen();
     if (!gewaehlt) return;
     this.w.merke();
-    m.map = this.#neueTextur(this.#leinwand(gewaehlt.bild), m.map);
-    m.color?.set(0xffffff);
-    m.needsUpdate = true;
+    this.setzeTextur(m, gewaehlt.bild);
     this.w.zustand.meldung(`🖼 Textur „${gewaehlt.name}“ gesetzt${this.#hatUv(m) ? '' : ' – ⚠ Teile ohne UV-Koordinaten zeigen sie nicht'}`, 'ok');
     this.w.zeigeListen();
     this.w.anfordern();
+  }
+
+  /** Bild als Textur des Materials (ohne Undo-Schritt – Aufrufer merkt bzw. nutzt w.probiere) */
+  setzeTextur(m, bild) {
+    m.map = this.#neueTextur(this.#leinwand(bild), m.map);
+    m.color?.set(0xffffff);
+    m.needsUpdate = true;
+    this.material = m;
   }
 
   #teileMit(m) {

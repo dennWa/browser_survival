@@ -52,6 +52,11 @@ export class Animationswerk {
   }
 
   // ------------------------------------------------------------------ Anzeige
+  /** Knoten, die animiert werden können (Modell, Gelenke, sichtbare Teile, Knochen) */
+  get knoten() {
+    return [this.w.modell, ...this.#gelenke, ...this.w.teile.filter((t) => t.visible), ...this.#knochen()];
+  }
+
   get #gelenke() {
     return this.w.objekte.filter((o) => o.userData.gelenk && o.visible);
   }
@@ -202,14 +207,26 @@ export class Animationswerk {
     if (!e) return;
     const ziel = w.objekte[Number(e.ziel)];
     if (!ziel) return;
+    this.stoppe();
+    w.merke();
+    const clip = this.erzeuge({ art: e.art, ziel, achse: e.achse, dauer: e.dauer, staerke: e.staerke === null || e.staerke === '' ? undefined : e.staerke, inClip: e.clip !== '' && e.clip !== null ? w.clips[Number(e.clip)] : null });
+    w.aktualisiere();
+    this.spiele(clip);
+    w.zustand.meldung(`➕ „${clip.name}“ – ⭐ = läuft im Spiel`, 'ok');
+  }
+
+  /**
+   * Animation bauen und in w.clips eintragen (OHNE Undo-Schritt – Aufrufer merkt vorher bzw. nutzt w.probiere).
+   * inClip = vorhandener Clip → gemischt (neues Clip-Objekt, alte Spuren desselben Ziels/Merkmals ersetzt). @returns Clip
+   */
+  erzeuge({ art, ziel, achse = 'y', dauer = 2, staerke, inClip = null }) {
+    const w = this.w;
     // Spuren finden Knoten über den Namen → eindeutig machen, falls ein anderer Knoten vorher so heißt
     if (w.modell.getObjectByName(ziel.name) !== ziel) ziel.name = THREE.PropertyBinding.sanitizeNodeName(`${ziel.name}_${w.objekte.indexOf(ziel)}`);
-    this.stoppe();
-    const b = baueAnimation(e.art, { knoten: ziel.name, dauer: e.dauer, staerke: e.staerke === null || e.staerke === '' ? undefined : e.staerke, achse: e.achse, basis: { position: ziel.position.toArray(), quaternion: ziel.quaternion.toArray(), scale: ziel.scale.toArray() } });
+    const b = baueAnimation(art, { knoten: ziel.name, dauer, staerke, achse, basis: { position: ziel.position.toArray(), quaternion: ziel.quaternion.toArray(), scale: ziel.scale.toArray() } });
     const spuren = b.spuren.map((s) => (s.name.endsWith('.quaternion') ? new THREE.QuaternionKeyframeTrack(s.name, s.zeiten, s.werte) : new THREE.VectorKeyframeTrack(s.name, s.zeiten, s.werte)));
-    w.merke();
     let clip;
-    const alt = e.clip !== '' && e.clip !== null ? w.clips[Number(e.clip)] : null;
+    const alt = inClip;
     if (alt) {
       // gemischt: neuer Clip (alte Spuren desselben Ziels/Merkmals ersetzt) – das alte Objekt bleibt fürs Undo
       const namen = new Set(spuren.map((s) => s.name));
@@ -220,9 +237,7 @@ export class Animationswerk {
       w.clips = [...w.clips, clip];
       if (!this.leerlauf) this.leerlauf = clip.name; // erste eigene Animation läuft im Spiel
     }
-    w.aktualisiere();
-    this.spiele(clip);
-    w.zustand.meldung(`➕ „${clip.name}“ – ⭐ = läuft im Spiel`, 'ok');
+    return clip;
   }
 
   async #gelenk() {

@@ -5,6 +5,7 @@ import { WerkstattVerlauf, neueVersionMeta, bodenVersatz, drehpunktVersatz, vers
 import { vorschauBild } from './modellImport.js';
 import { Texturwerk } from './werkstattMalen.js';
 import { Animationswerk } from './werkstattAnimation.js';
+import { werkstattKi } from './werkstattKi.js';
 import { dialog, bestaetigen, esc, feldHtml, istDialogOffen } from './dialoge.js';
 
 /**
@@ -20,6 +21,7 @@ import { dialog, bestaetigen, esc, feldHtml, istDialogOffen } from './dialoge.js
  *   • Schritt 5.3 (ui/werkstattAnimation.js, Animationswerk): Clips abspielen/umbenennen/löschen, ⭐ Leerlauf fürs Spiel,
  *     einfache Animationen erzeugen (Drehen, Wippen, Pendeln, Pulsieren, Flackern – kern/animation.js), ⊕ Gelenke (Drehpunkt
  *     für Türen/Klappen), Teile an Knochen/Gelenke hängen, 🦴 Skelett anzeigen, Clips von anderem Modell übernehmen.
+ *   • Schritt 5.4 (ui/werkstattKi.js): 🤖 KI – Farbschema, Animation, Textur aus Text; immer Vorschau (`probiere`) → Übernehmen.
  *   • Eigenes Undo (Strg+Z / Strg+Y, kern/werkstatt.WerkstattVerlauf, 60 Schritte), unabhängig vom Karten-Verlauf.
  *     Stand = alle Knoten (Lage, sichtbar, Eltern-Nr.) + alle Materialien (Farbe, Rauheit, Metall, Textur-Nr.) + Clips/Leerlauf.
  *   • 💾 Speichern = NEUE Bibliotheks-Version (GLTFExporter, Animationen bleiben; `basis` = Original, Name „… v2“).
@@ -109,6 +111,7 @@ class Werkstatt {
         <label title="Drahtgitter"><input type="checkbox" data-schalter="draht"> Draht</label>
         <label title="Fußabdruck + Kollisionsbox"><input type="checkbox" data-schalter="box" checked> Box</label>
         <span class="fueller"></span>
+        <button type="button" data-a="ki" title="KI-Vorschläge: Farbschema, Animation, Textur aus Text (Gemini-Schlüssel aus dem 🤖 Helfer)">🤖 KI</button>
         <button type="button" data-a="abbrechen" title="Schließen (Esc)" aria-label="Schließen">✕</button>
         <button type="button" class="akzent" data-a="speichern" title="Als neue Version in die Bibliothek (Strg+S) – das Original bleibt">💾 Speichern</button>
       </header>
@@ -139,6 +142,7 @@ class Werkstatt {
       else if (a === 'rahmen') this.rahmen();
       else if (a === 'abbrechen') this.schliesse();
       else if (a === 'speichern') this.speichere();
+      else if (a === 'ki') werkstattKi(this);
     });
     w.addEventListener('change', (e) => {
       const s = e.target.dataset.schalter;
@@ -313,6 +317,30 @@ class Werkstatt {
     this.animwerk.setzeStand(s.animation);
     this.aktualisiere();
     this.zeigeListen();
+  }
+
+  /**
+   * Vorschau mit Rückfrage (KI, 5.4): anwenden() ändert die Werkstatt, dann Dialog – Übernehmen = 1 Undo-Schritt, Verwerfen = zurück.
+   * @returns true bei Übernehmen
+   */
+  async probiere(titel, html, anwenden) {
+    this.animwerk.stoppe();
+    const vorher = this.stand();
+    try {
+      anwenden();
+    } catch (e) {
+      this.#setzeStand(vorher);
+      throw e;
+    }
+    this.aktualisiere();
+    this.zeigeListen();
+    const ok = await dialog({ titel, html, knoepfe: [{ text: 'Verwerfen', wert: false }, { text: 'Übernehmen', art: 'akzent', wert: true }] });
+    this.animwerk.stoppe();
+    if (ok) {
+      this.verlauf.merke(vorher);
+      this.#knoepfe();
+    } else this.#setzeStand(vorher);
+    return !!ok;
   }
 
   merke() {

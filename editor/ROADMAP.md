@@ -47,11 +47,16 @@
   Knochenketten, die ein Netz biegen; Übernehmen nur bei gleichen Knochennamen (`SkeletonUtils.retargetClip` für andere Namen =
   späterer Ausbau). Die Editor-3D-Ansicht zeigt die Leerlauf-Animation nicht.
 
-**Nächster Schritt: Phase 5 – 5.4 KI im Modul** (noch nicht begonnen). Idee: in der Werkstatt Knopf „🤖 KI“ mit drei Aufgaben –
-Farbschema (Materialliste + Vorschaubild → Palette als JSON `{material: farbe}`), Textur aus Text (Gemini-Bildmodell, falls
-verfügbar → `Texturwerk`), Animation vorschlagen (JSON `{art, ziel, achse, dauer, staerke}` → `baueAnimation`). Immer
-Vorschau → „Übernehmen“ als 1 Werkstatt-Undo-Schritt. Schlüssel/Modell wie `ui/geminiUi.js` (`browserSurvival.editorGemini`,
-`kern/gemini.js frageGemini`, fetch injizierbar → Test mit Mock). Danach 5.5 Free-Modus (🎮).
+- 5.4 KI im Modul fertig (2026-10-19): `editor/ui/werkstattKi.js`, `editor/kern/werkstattKi.js`, `kern/gemini.js frageGeminiBild`,
+  `werkstatt.probiere` (Vorschau → Übernehmen = 1 Undo-Schritt). Tests (Mock-fetch) + Rauchtest „Phase 5.4“ (route-Mock).
+  Offen/bekannt: echte Gemini-API ungetestet (kein Schlüssel in der Testumgebung); Bildmodell-Name fest (`BILD_MODELL`).
+
+**Nächster Schritt: Phase 5 – 5.5 Free-Modus** (🎮, noch nicht begonnen). Vorgehen: (1) gemeinsame Regel für gedrehte Rechtecke
+in `gemeinsam/welt/` (z. B. `gedreht.js`: Ecken, SAT-Test Rechteck↔Kreis/Rechteck) + Tests; (2) Spiel-Kollision/Sicht für Objekte
+mit freier `drehung` (nicht Vielfaches von 90°) in `welt.js`/`bewegung.js`/A* (Kacheln, die das gedrehte Rechteck berührt,
+blockieren); (3) Editor: Optionsleiste „Raster ⇄ Frei“, stufenlose Position, Drehgriff/Mausrad/Zahlenfeld (Umschalt = 15°),
+grün/rot-Prüfung mit gedrehtem Rechteck (`kern/platzierung.js`), 2D/3D-Darstellung gedreht; (4) Renderer/kartenModell zeigen
+freie Drehung. Spieldateien nur mit Vermerk in KI_INDEX §10 (Freigabe Nutzer).
 
 **Danach:** Phasen 5–9 laut Tabellen unten (5 3D-Modul, 6 Zonen/Loot, 7 UX, 8 Testlauf, 9 KI).
 
@@ -120,7 +125,7 @@ Vorschau → „Übernehmen“ als 1 Werkstatt-Undo-Schritt. Schlüssel/Modell w
 | ☑ 5.1 | **Modell-Werkstatt** (großes eigenes Fenster): Orbit-Kamera, Raster, Licht, Drahtgitter, Gizmo zum freien Drehen/Skalieren/Verschieben, Bodenausrichtung + Drehpunkt, Fußabdruck/Kollisionsbox sichtbar, Teile-/Material-Liste; Speichern als neue Asset-Version (Original bleibt), Undo im Modul | L |
 | ☑ 5.2 | **Texturen & Grafiken:** Materialfarbe/Rauheit/Metall, Textur ersetzen (Bild hochladen), einfaches Malen auf der Textur (UV-Ansicht + Pinsel), **Aufkleber/Decals** projizieren (Logos, Schilder, Schmutz) | L |
 | ☑ 5.3 | 🎮 **Animationen & Rigging:** vorhandene Clips abspielen/benennen/als Leerlauf-Animation fürs Spiel wählen; einfache Keyframe-Animationen (Drehen, Wippen, Pendeln, Pulsieren, Flackern + Zeitleiste) für Modell oder Teile; Skelett anzeigen, Teile an Knochen hängen, einfache Knochenketten für Requisiten (Tür, Fahne), Animationen auf kompatible Skelette übertragen (Retargeting). Spiel spielt Modell-Animationen ab. ⚠ Automatisches Rigging + Gewichte malen wie in Blender ist **nicht** realistisch im Browser-Umfang | XL |
-| ☐ 5.4 | **KI im Modul (Knopfdruck):** Farbschema vorschlagen (Materialliste + Vorschaubild → Palette), Textur aus Text erzeugen (Gemini-Bildmodell, falls der Schlüssel es erlaubt), Animation vorschlagen (Keyframe-JSON) – immer Vorschau → Übernehmen als 1 Undo-Schritt | M |
+| ☑ 5.4 | **KI im Modul (Knopfdruck):** Farbschema vorschlagen (Materialliste + Vorschaubild → Palette), Textur aus Text erzeugen (Gemini-Bildmodell, falls der Schlüssel es erlaubt), Animation vorschlagen (Keyframe-JSON) – immer Vorschau → Übernehmen als 1 Undo-Schritt | M |
 | ☐ 5.5 | 🎮 **Free-Modus:** Umschalter Raster ⇄ Frei in der Optionsleiste: stufenlose Position, freie Drehung mit Drehgriff/Mausrad/Zahlenfeld (Umschalt = 15°-Raster); Kollision gedrehter Objekte im Spiel korrekt (gedrehtes Rechteck statt achsparallel, `gemeinsam/welt`) und in der grün/rot-Prüfung | M |
 
 ## Phase 6 – Zonen- & Loot-System

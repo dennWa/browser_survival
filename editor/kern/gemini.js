@@ -162,6 +162,40 @@ export async function frageGemini({ schluessel, modell = STANDARD_MODELL, anfrag
   return leseGeminiAntwort(json);
 }
 
+/** Bildmodell für „Textur aus Text“ (Werkstatt 5.4) – nicht jeder Schlüssel/Tarif darf es benutzen */
+export const BILD_MODELL = 'gemini-2.5-flash-image';
+
+/**
+ * Bild erzeugen (Werkstatt 5.4). Gleiche Fehlertexte wie frageGemini. @returns { daten: Data-URL, text } – wirft, wenn kein Bild kam
+ */
+export async function frageGeminiBild({ schluessel, modell = BILD_MODELL, prompt, signal = undefined, fetchFn = globalThis.fetch }) {
+  if (!schluessel?.trim()) throw new Error('Kein API-Schlüssel hinterlegt (⚙ im Helfer-Reiter).');
+  if (!/^[\w.\-]+$/.test(modell)) throw new Error('Ungültiger Modellname');
+  let antwort;
+  try {
+    antwort = await fetchFn(`${GEMINI_BASIS}/${modell}:generateContent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': schluessel.trim() },
+      body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { responseModalities: ['TEXT', 'IMAGE'] } }),
+      signal,
+    });
+  } catch (e) {
+    if (e?.name === 'AbortError') throw new Error('Abgebrochen.');
+    throw new Error('Keine Verbindung zu Gemini (Internet/Adblocker?).');
+  }
+  let json = null;
+  try {
+    json = await antwort.json();
+  } catch {
+    /* unten */
+  }
+  if (!antwort.ok) throw new Error(fehlerText(antwort.status, json));
+  const teile = json?.candidates?.[0]?.content?.parts ?? [];
+  const bild = teile.find((p) => p.inlineData?.data && /^image\/(png|jpeg|webp)$/.test(p.inlineData.mimeType ?? ''));
+  if (!bild) throw new Error(`Kein Bild in der Antwort – Modell „${modell}“ kann evtl. keine Bilder (unter ⚙ ein Bildmodell wählen).`);
+  return { daten: `data:${bild.inlineData.mimeType};base64,${bild.inlineData.data}`, text: teile.map((p) => p.text ?? '').join('').trim() };
+}
+
 /**
  * Aktionsliste aus der Antwort? → { aktionen: n } oder null.
  * Nimmt den ```json-Block; ohne verwertbare Aktionen (reiner Text) null.

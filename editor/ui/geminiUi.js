@@ -153,7 +153,8 @@ export function geminiUi({ zustand, panel, aktionen, pruefeText }) {
   }, { ereignisse: [], ohneKarte: true });
 }
 
-function ladeEinstellungen() {
+/** Schlüssel + Modell (auch für die Werkstatt-KI, ui/werkstattKi.js) */
+export function ladeEinstellungen() {
   const standard = { schluessel: '', modell: STANDARD_MODELL };
   try {
     return { ...standard, ...JSON.parse(localStorage.getItem(SPEICHER) ?? '{}') };

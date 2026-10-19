@@ -9,7 +9,7 @@
  * Objekt platzieren + drehen + verschieben → Rückgängig/Wiederholen → Spielzone Waldweg als Vorlage öffnen → Auswahl +
  * Ausschnitt-Export → Zone vergrößern → 3D-Ansicht → Validierung → Neu laden (Entwurf + Verlauf bleiben) → Karte testen.
  * Editor 2.0: Menüleiste, Asset-Browser (Suche), Kontextmenü, Ebenen sperren, Hilfe mit Suche, Modell-Bibliothek (Phase 3),
- * Audio-Bibliothek + Klänge (Phase 4), Modell-Werkstatt (5.1) mit Material/Malen/Aufklebern (5.2) und Animationen/Gelenken (5.3, auch im Spiel).
+ * Audio-Bibliothek + Klänge (Phase 4), Modell-Werkstatt (5.1) mit Material/Malen/Aufklebern (5.2) und Animationen/Gelenken (5.3, auch im Spiel), Werkstatt-KI gemockt (5.4).
  */
 import { spawn, execSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -506,6 +506,65 @@ try {
   }, animiert.id);
   pruefe(animTyp.animation === animiert.leerlauf && animTyp.da, `Typ übernimmt die Leerlauf-Animation (${JSON.stringify(animTyp)})`);
   await seite.keyboard.press('Escape');
+
+  schritt('Phase 5.4: Werkstatt-KI (Gemini gemockt) – Farbschema verwerfen/übernehmen, Animation, Textur aus Text');
+  const kiAnfragen = [];
+  await seite.route('https://generativelanguage.googleapis.com/**', async (route) => {
+    const req = route.request();
+    const body = JSON.parse(req.postData());
+    kiAnfragen.push({ url: req.url(), schluessel: req.headers()['x-goog-api-key'], body: req.postData() });
+    const system = body.systemInstruction?.parts?.[0]?.text ?? '';
+    const teile = req.url().includes('-image')
+      ? [{ text: 'Textur' }, { inlineData: { mimeType: 'image/png', data: png(8, 8, [40, 160, 60, 255]).toString('base64') } }]
+      : [{ text: system.includes('Farbschema') ? '{"materialien":[{"material":"Holz","farbe":"#a0522d","rauheit":0.9}],"erklaerung":"Rostbraun."}' : '{"animationen":[{"art":"wippen","ziel":"Schild","achse":"y","dauer":1.5,"staerke":0.05}],"erklaerung":"Wippt leicht."}' }];
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ candidates: [{ content: { parts: teile }, finishReason: 'STOP' }] }) });
+  });
+  const alterSchluessel = await seite.evaluate(() => {
+    const alt = localStorage.getItem('browserSurvival.editorGemini');
+    localStorage.setItem('browserSurvival.editorGemini', JSON.stringify({ schluessel: 'WERKSTATTKEY', modell: 'gemini-2.5-flash' }));
+    return alt;
+  });
+  await seite.click('#links [data-reiter="📦 Modelle"]');
+  await seite.click('#links .modell:has-text("rauchtest schild"):not(:has-text("v2")):not(:has-text("v3")) [data-werkstatt]');
+  await seite.waitForSelector('.werkstatt canvas');
+  const kiFrage = async (aufgabe) => {
+    await seite.click('.werkstatt [data-a="ki"]');
+    await seite.selectOption('#dialog [name="aufgabe"]', aufgabe);
+    await seite.fill('#dialog [name="wunsch"]', 'rostig');
+    await seite.click('#dialog button:has-text("Fragen")');
+  };
+  const holzFarbe = () => ws((w) => w.materialien()[0].color.getHexString());
+  const farbeVorher = await holzFarbe();
+  await kiFrage('farben');
+  await seite.waitForSelector('#dialog h2:has-text("Farbschema")', { timeout: 15000 });
+  pruefe((await holzFarbe()) === 'a0522d', 'Farbschema als Vorschau angewendet');
+  await seite.click('#dialog button:has-text("Verwerfen")');
+  pruefe((await holzFarbe()) === farbeVorher && !(await ws((w) => w.verlauf.kannZurueck)), 'Verwerfen stellt zurück (kein Undo-Schritt)');
+  await kiFrage('farben');
+  await seite.waitForSelector('#dialog h2:has-text("Farbschema")', { timeout: 15000 });
+  await seite.click('#dialog button:has-text("Übernehmen")');
+  await seite.keyboard.press('Control+z');
+  const nachKiUndo = await holzFarbe();
+  await seite.keyboard.press('Control+y');
+  pruefe(nachKiUndo === farbeVorher && (await holzFarbe()) === 'a0522d', 'Übernehmen = 1 Undo-Schritt');
+  await kiFrage('animation');
+  await seite.waitForSelector('#dialog h2:has-text("Animation")', { timeout: 15000 });
+  pruefe(await ws((w) => w.clips.length === 1 && !!w.animwerk.vorschau), 'KI-Animation läuft als Vorschau');
+  await seite.click('#dialog button:has-text("Übernehmen")');
+  await seite.click('.werkstatt-materialien [data-material] button.name');
+  await kiFrage('textur');
+  await seite.waitForSelector('#dialog h2:has-text("Textur aus Text")', { timeout: 15000 });
+  await seite.click('#dialog button:has-text("Übernehmen")');
+  const kiErgebnis = await ws((w) => ({ clips: w.clips.length, textur: !!w.materialien()[0].map?.image }));
+  const gesendet = kiAnfragen.map((a) => a.body).join(' ');
+  pruefe(kiErgebnis.clips === 1 && kiErgebnis.textur && kiAnfragen.length === 4 && kiAnfragen.every((a) => a.schluessel === 'WERKSTATTKEY' && !a.url.includes('WERKSTATTKEY')) && gesendet.includes('Holz') && !gesendet.includes('testzone') && !gesendet.includes('WERKSTATTKEY'), `KI: Animation + Textur übernommen, nur das Modell gesendet (${JSON.stringify({ ...kiErgebnis, anfragen: kiAnfragen.length })})`);
+  await seite.screenshot({ path: path.join(AUSGABE, 'editor-19-werkstatt-ki.png') });
+  await seite.click('.werkstatt [data-a="abbrechen"]');
+  await seite.click('#dialog button:has-text("Verwerfen")');
+  await seite.waitForSelector('.werkstatt', { state: 'detached' });
+  await seite.unroute('https://generativelanguage.googleapis.com/**');
+  await seite.evaluate((alt) => (alt === null ? localStorage.removeItem('browserSurvival.editorGemini') : localStorage.setItem('browserSurvival.editorGemini', alt)), alterSchluessel);
+  await seite.click('#links [data-reiter="🧱 Assets"]');
   await seite.click('#links [data-reiter="🧱 Assets"]');
 
   if (!nurBis) {

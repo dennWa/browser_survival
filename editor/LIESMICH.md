@@ -197,6 +197,11 @@ Flackern, Lichtform (Punkt/Kegel). Die 2D-Ansicht zeigt Radius bzw. Kegel. Die P
   eines anderen Modells mit gleichen Knochennamen. Welche Animation ein platziertes Objekt im Spiel spielt, steht auch im
   Typ-Dialog (Inspektor → ✎ Typ, „Animation im Spiel“) und als Standard im ✎-Dialog des Modells („Leerlauf-Animation“).
   Nicht möglich: automatisches Rigging/Gewichte malen und Knochenketten, die ein Netz biegen (dafür Blender).
+- **🤖 KI in der Werkstatt** (braucht den Gemini-Schlüssel aus dem 🤖 Helfer): **Farbschema vorschlagen** (Materialfarben,
+  Rauheit, Metall – schickt ein kleines Vorschaubild mit), **Animation vorschlagen** (z. B. „Windrad dreht sich langsam“),
+  **Textur aus Text** für das gewählte Material (Bildmodell; nicht jeder Schlüssel darf Bilder erzeugen). Der Dialog zeigt
+  vorher, was gesendet wird – nur dieses Modell, nie die Karte oder der Schlüssel. Das Ergebnis erscheint als **Vorschau**:
+  „Übernehmen“ ist ein Rückgängig-Schritt, „Verwerfen“ stellt alles zurück.
 - **Ausgeblendet:** „Bild → 3D“ und „Neue Grafik (Antrag)“ (nur noch 3D-Formate). Vorhandene Bild-Objekte werden weiter angezeigt.
 
 ## 🔊 Klänge (Reiter 🔊 Audio)

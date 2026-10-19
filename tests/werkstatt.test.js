@@ -168,3 +168,38 @@ test('Leerlauf-Animation (5.3): Meta → Typ → Export → Spiel-Lader, Ersetze
   assert.equal('animation' in B.ersetzOps(z, 'm_aaaaaaaa_1', { id: 'm_b', animationen: [] })[0].neu, false);
   assert.equal(B.ersetzOps(z, 'm_aaaaaaaa_1', { id: 'm_b' })[0].neu.animation, 'Stehen', 'ohne Angaben unverändert');
 });
+
+test('Werkstatt-KI (5.4): Kontext nur vom Modell, JSON-Antworten streng geprüft, Bildanfrage gemockt', async () => {
+  const K = await import('../editor/kern/werkstattKi.js');
+  const { frageGeminiBild } = await import('../editor/kern/gemini.js');
+  const info = { name: 'Kiste', masse: { b: 1, h: 1, hoehe: 0.8 }, materialien: [{ name: 'Holz', farbe: '#806040' }, { name: 'Metall', farbe: '#999999', textur: true }], teile: ['Korpus', 'Deckel'], knoten: ['Modell', 'Deckel'] };
+  const ctx = K.werkstattKontext(info);
+  assert.ok(ctx.includes('Holz = #806040') && ctx.includes('(mit Textur)') && ctx.includes('Deckel'));
+  const a = K.baueWerkstattAnfrage('farben', info, 'rostig', { vorschau: 'data:image/png;base64,QUJD' });
+  assert.equal(a.generationConfig.responseMimeType, 'application/json');
+  assert.deepEqual(a.contents[0].parts[1], { inlineData: { mimeType: 'image/png', data: 'QUJD' } });
+  assert.ok(!JSON.stringify(a).includes('schluessel'));
+  assert.equal(K.baueWerkstattAnfrage('animation', info, '', { vorschau: 'data:image/png;base64,QUJD' }).contents[0].parts.length, 1, 'Bild nur fürs Farbschema');
+  assert.throws(() => K.baueWerkstattAnfrage('textur', info));
+  // Farben: unbekanntes Material, kaputte Farbe, doppelt → verworfen; Werte begrenzt
+  const f = K.leseFarbVorschlag('```json\n{"materialien":[{"material":"Holz","farbe":"#A0522D","rauheit":2},{"material":"Glas","farbe":"#ffffff"},{"material":"Metall","farbe":"rot"},{"material":"Holz","farbe":"#000000"}],"erklaerung":"Rostig."}\n```', ['Holz', 'Metall']);
+  assert.deepEqual(f.vorschlaege, [{ material: 'Holz', farbe: '#a0522d', rauheit: 1 }]);
+  assert.equal(f.verworfen, 3);
+  assert.equal(f.erklaerung, 'Rostig.');
+  assert.throws(() => K.leseFarbVorschlag('{"materialien":[]}', ['Holz']));
+  assert.throws(() => K.leseFarbVorschlag('kein json', ['Holz']));
+  // Animation: Art/Knoten prüfen, Stärke begrenzen
+  const an = K.leseAnimationsVorschlag('{"animationen":[{"art":"pendeln","ziel":"Deckel","achse":"x","dauer":3,"staerke":500},{"art":"tanzen","ziel":"Deckel"},{"art":"drehen","ziel":"Nirgendwo"}]}', info.knoten);
+  assert.deepEqual(an.vorschlaege, [{ art: 'pendeln', ziel: 'Deckel', achse: 'x', dauer: 3, staerke: 120 }]);
+  assert.equal(an.verworfen, 2);
+  assert.ok(K.texturPrompt({ name: 'Kiste', material: 'Holz' }, 'moosig').includes('moosig'));
+  // Bildmodell: Schlüssel im Header, Bild als Data-URL, ohne Bild verständlicher Fehler
+  let anfrage = null;
+  const fetchFn = async (url, o) => ((anfrage = { url, o }), { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: 'hier' }, { inlineData: { mimeType: 'image/png', data: 'UE5H' } }] } }] }) });
+  const bild = await frageGeminiBild({ schluessel: 'SCHLUESSEL', prompt: 'holz', fetchFn });
+  assert.equal(bild.daten, 'data:image/png;base64,UE5H');
+  assert.equal(anfrage.o.headers['x-goog-api-key'], 'SCHLUESSEL');
+  assert.ok(!anfrage.url.includes('SCHLUESSEL') && anfrage.url.includes('gemini-2.5-flash-image'));
+  await assert.rejects(frageGeminiBild({ schluessel: 'S', prompt: 'x', fetchFn: async () => ({ ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: 'nur Text' }] } }] }) }) }), /Kein Bild/);
+  await assert.rejects(frageGeminiBild({ schluessel: '', prompt: 'x', fetchFn }), /Kein API-Schlüssel/);
+});

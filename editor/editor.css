@@ -1199,3 +1199,22 @@ canvas.uv-ansicht {
   min-height: 30px;
   padding: 0 4px;
 }
+pre.ki-gesendet {
+  max-height: 160px;
+  overflow: auto;
+  font-size: 11px;
+  white-space: pre-wrap;
+}
+.ki-liste .farbe-punkt {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  vertical-align: middle;
+  border: 1px solid var(--rand);
+}
+img.ki-bild {
+  max-width: 200px;
+  border-radius: 6px;
+  display: block;
+}
