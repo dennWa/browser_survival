@@ -9,7 +9,7 @@
  * Objekt platzieren + drehen + verschieben → Rückgängig/Wiederholen → Spielzone Waldweg als Vorlage öffnen → Auswahl +
  * Ausschnitt-Export → Zone vergrößern → 3D-Ansicht → Validierung → Neu laden (Entwurf + Verlauf bleiben) → Karte testen.
  * Editor 2.0: Menüleiste, Asset-Browser (Suche), Kontextmenü, Ebenen sperren, Hilfe mit Suche, Modell-Bibliothek (Phase 3),
- * Audio-Bibliothek + Klänge (Phase 4).
+ * Audio-Bibliothek + Klänge (Phase 4), Modell-Werkstatt (5.1).
  */
 import { spawn, execSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -336,6 +336,49 @@ try {
   await seite.screenshot({ path: path.join(AUSGABE, 'editor-14-audio-3d.png') });
   await seite.keyboard.press('3');
   await seite.keyboard.press('Escape');
+  await seite.click('#links [data-reiter="🧱 Assets"]');
+
+  schritt('Phase 5.1: Modell-Werkstatt – Zahlenfelder, Auf den Boden, Teil ausblenden, Undo/Redo, neue Version, Typen umstellen');
+  await seite.click('#links [data-reiter="📦 Modelle"]');
+  await seite.click('#links .modell:has-text("Blauer Pfeiler") [data-werkstatt]');
+  await seite.waitForSelector('.werkstatt canvas');
+  const info = () => seite.locator('.werkstatt-info').textContent();
+  const feld = async (name, wert) => {
+    await seite.fill(`.werkstatt [name="${name}"]`, String(wert));
+    await seite.locator(`.werkstatt [name="${name}"]`).dispatchEvent('change');
+    await seite.evaluate(() => document.activeElement?.blur());
+  };
+  await feld('sx', 2);
+  await feld('py', 1);
+  pruefe((await info()).includes('schwebt') && (await info()).includes('2 × 1'), `Größe + Höhe über Zahlenfelder (${await info()})`);
+  await seite.click('.werkstatt [data-a="boden"]');
+  pruefe(!(await info()).includes('schwebt'), 'Auf den Boden');
+  const kartenSchritte = () => seite.evaluate(() => window.mapEditor.zustand.verlauf.zurueck.length);
+  const vorher = await kartenSchritte();
+  await seite.keyboard.press('Control+z');
+  pruefe((await info()).includes('schwebt') && (await kartenSchritte()) === vorher, 'Strg+Z in der Werkstatt (Karten-Verlauf unberührt)');
+  await seite.keyboard.press('Control+y');
+  await seite.click('.werkstatt-teile [data-teil="0"] [data-auge]');
+  pruefe((await info()).includes('0 Dreiecke'), 'Teil ausgeblendet');
+  await seite.keyboard.press('Control+z');
+  pruefe((await info()).includes('12 Dreiecke') && !(await info()).includes('schwebt'), `Undo blendet wieder ein (${await info()})`);
+  const buehne = await seite.locator('.werkstatt-buehne').boundingBox();
+  await seite.mouse.move(buehne.x + 40, buehne.y + buehne.height - 60);
+  await seite.mouse.down();
+  await seite.mouse.move(buehne.x + 140, buehne.y + buehne.height - 90, { steps: 5 });
+  await seite.mouse.up();
+  await seite.screenshot({ path: path.join(AUSGABE, 'editor-15-werkstatt.png') });
+  await seite.click('.werkstatt [data-a="speichern"]');
+  await seite.waitForSelector('#dialog h2:has-text("gespeichert")', { timeout: 15000 });
+  await seite.check('#dialog [name="groesse"]');
+  await seite.click('#dialog button:has-text("Umstellen")');
+  await seite.waitForSelector('.werkstatt', { state: 'detached' });
+  const version = await seite.evaluate((altId) => {
+    const m = window.mapEditor.bibliothek.liste.find((x) => x.basis === altId);
+    const t = [...window.mapEditor.zustand.karte.s('typen').values()].find((x) => x.asset === m?.id);
+    return { name: m?.name, b: m?.masse.b, original: !!window.mapEditor.bibliothek.meta(altId), typB: t?.b };
+  }, pfeiler.id);
+  pruefe(version.name === 'Blauer Pfeiler v2' && version.b === 2 && version.original && version.typB === 2, `Neue Version, Original bleibt, Typ umgestellt (${JSON.stringify(version)})`);
   await seite.click('#links [data-reiter="🧱 Assets"]');
 
   if (!nurBis) {

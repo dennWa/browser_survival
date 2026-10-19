@@ -4,6 +4,7 @@ import { groesseText } from '../kern/backup.js';
 import { dialog, bestaetigen, esc, feldHtml, liesFelder } from './dialoge.js';
 import { leseModellDatei, DATEI_ANNAHME } from './modellImport.js';
 import { POLY_PIZZA } from '../kern/quellen.js';
+import { oeffneWerkstatt } from './werkstatt.js';
 
 /**
  * Reiter „📦 Modelle“ (linke Seitenleiste, Editor 2.0 Phase 3): Projekt-Bibliothek der 3D-Modelle.
@@ -15,7 +16,9 @@ import { POLY_PIZZA } from '../kern/quellen.js';
  *   • 🌐 Poly Pizza (Schritt 3.5, kern/quellen.js): Suche mit Vorschau + Lizenz, „Übernehmen“ lädt in die Bibliothek
  *     (Urheber/Lizenz/Quelle wandern mit). API-Schlüssel nur in localStorage `browserSurvival.editorPolyPizza` (nie in
  *     Backup/Entwurf). Blockiert der Browser den Zugriff (CORS): Link zur Seite + „Datei mit Lizenzangaben importieren“.
- * Aktionen: aktionen.verwendeModell(id), aktionen.modelle() (Reiter zeigen), aktionen.modellHochladen(), aktionen.polyPizza().
+ *   • 🛠 Werkstatt (Schritt 5.1, ui/werkstatt.js): Modell drehen/skalieren/ausrichten, Teile ausblenden → neue Version.
+ * Aktionen: aktionen.verwendeModell(id), aktionen.modelle() (Reiter zeigen), aktionen.modellHochladen(), aktionen.polyPizza(),
+ *   aktionen.werkstatt(id).
  */
 const REITER = '📦 Modelle';
 const QUELLEN_SPEICHER = 'browserSurvival.editorPolyPizza';
@@ -56,6 +59,7 @@ export function modelleUi({ zustand, panel, aktionen, layout, bibliothek }) {
     if (!karte) return;
     const id = karte.dataset.modell;
     if (e.target.closest('[data-bearbeiten]')) return bearbeiten(id);
+    if (e.target.closest('[data-werkstatt]')) return aktionen.werkstatt(id);
     aktionen.verwendeModell(id);
   });
 
@@ -80,7 +84,7 @@ export function modelleUi({ zustand, panel, aktionen, layout, bibliothek }) {
               ${m.vorschau ? `<img src="${esc(m.vorschau)}" alt="">` : '<span class="symbol">🧊</span>'}
               <span class="name">${esc(m.name)}</span>
               <span class="leise klein">${v.objekte ? `${v.objekte}× in ${v.zonen.length} Zone${v.zonen.length > 1 ? 'n' : ''}` : 'unbenutzt'}</span>
-              <button type="button" data-bearbeiten title="Details / Löschen">✎</button></div>`;
+              <button type="button" data-bearbeiten title="Details / Löschen">✎</button><button type="button" data-werkstatt title="In der Werkstatt bearbeiten (neue Version)">🛠</button></div>`;
           })
           .join('')}</div>`
       : '<p class="leise">Nichts gefunden.</p>';
@@ -136,13 +140,14 @@ export function modelleUi({ zustand, panel, aktionen, layout, bibliothek }) {
       { name: 'urheber', label: 'Urheber', typ: 'text', wert: m.urheber },
       { name: 'quelle', label: 'Quelle (URL)', typ: 'text', wert: m.quelle },
     ];
-    const kopf = `<div class="modell-kopf">${m.vorschau ? `<img src="${esc(m.vorschau)}" alt="">` : '<span class="symbol">🧊</span>'}<p class="leise">${m.dreiecke.toLocaleString('de-DE')} Dreiecke · ${groesseText(m.groesse)}${m.animationen.length ? ` · Animationen: ${esc(m.animationen.join(', '))}` : ''}<br>${v.objekte ? `Benutzt: ${v.zonen.map((z) => `${esc(z.name)} (${z.objekte})`).join(', ')}` : 'In keiner Zone benutzt'}</p></div>`;
+    const kopf = `<div class="modell-kopf">${m.vorschau ? `<img src="${esc(m.vorschau)}" alt="">` : '<span class="symbol">🧊</span>'}<p class="leise">${m.dreiecke.toLocaleString('de-DE')} Dreiecke · ${groesseText(m.groesse)}${m.animationen.length ? ` · Animationen: ${esc(m.animationen.join(', '))}` : ''}${m.basis ? `<br>Version ${m.version} von „${esc(bibliothek.meta(m.basis)?.name ?? m.basis)}“` : ''}<br>${v.objekte ? `Benutzt: ${v.zonen.map((z) => `${esc(z.name)} (${z.objekte})`).join(', ')}` : 'In keiner Zone benutzt'}</p></div>`;
     const w = await dialog({
       titel: `🧊 ${m.name}`,
       html: kopf + felder.map(feldHtml).join(''),
-      knoepfe: [{ text: '🗑 Löschen …', art: 'gefahr', wert: 'loeschen' }, { text: 'Abbrechen', wert: null }, { text: 'Speichern', art: 'akzent', wert: (b) => liesFelder(b, felder) }],
+      knoepfe: [{ text: '🗑 Löschen …', art: 'gefahr', wert: 'loeschen' }, { text: '🛠 Werkstatt', wert: 'werkstatt' }, { text: 'Abbrechen', wert: null }, { text: 'Speichern', art: 'akzent', wert: (b) => liesFelder(b, felder) }],
     });
     if (w === 'loeschen') return loeschen(id);
+    if (w === 'werkstatt') return aktionen.werkstatt(id);
     if (!w) return;
     const neu = await bibliothek.aendere(id, { name: w.name, kategorie: w.kategorie, ordner: w.ordner ?? '', tags: w.tags ?? '', lizenz: w.lizenz ?? '', urheber: w.urheber ?? '', quelle: w.quelle ?? '', masse: { b: w.b, h: w.h, hoehe: w.hoehe } });
     // Urheber/Lizenz/Quelle auch in den Typen der Zonen nachziehen (sonst fehlen sie in LIZENZEN.md)
@@ -201,6 +206,7 @@ export function modelleUi({ zustand, panel, aktionen, layout, bibliothek }) {
     waehleDateien();
   };
   aktionen.modellBearbeiten = bearbeiten;
+  aktionen.werkstatt = (id) => oeffneWerkstatt({ id, bibliothek, zustand });
   aktionen.polyPizza = () => polyPizza();
 
   // --- Externe Quelle: Poly Pizza ------------------------------------------------------------

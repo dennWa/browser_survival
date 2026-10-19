@@ -182,6 +182,8 @@ export function metaNormal(m = {}, id = m.id) {
     vorschau: typeof m.vorschau === 'string' && /^data:image\/(png|webp|jpeg);base64,/.test(m.vorschau) && m.vorschau.length <= VORSCHAU_MAX ? m.vorschau : null,
     groesse: Number.isFinite(m.groesse) ? m.groesse : 0,
     erstellt: text(m.erstellt, 40) || null,
+    // Werkstatt-Versionen (5.1): basis = ID des Originals, version = laufende Nummer (Original: ohne)
+    ...(typeof m.basis === 'string' && /^m_[0-9a-z_]+$/.test(m.basis) && m.basis !== id ? { basis: m.basis, version: Number.isInteger(m.version) && m.version > 1 ? Math.min(m.version, 999) : 2 } : {}),
   };
 }
 

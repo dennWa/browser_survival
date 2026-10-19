@@ -173,6 +173,14 @@ Flackern, Lichtform (Punkt/Kegel). Die 2D-Ansicht zeigt Radius bzw. Kegel. Die P
 - **Mitnehmen:** Entwurf-Download und Komplett-Backup enthalten die Modelle, Öffnen/Wiederherstellen übernimmt sie. Export,
   Testen und Veröffentlichen betten die Modelle ein. Alte Entwürfe mit eingebetteten Modellen wandern beim Laden automatisch in die
   Bibliothek.
+- **🛠 Werkstatt** (🛠 an der Modell-Karte, ✎-Dialog, Inspektor oder Rechtsklick auf ein Objekt mit Modell): großes Fenster mit
+  drehbarer Kamera (ziehen = drehen, rechts/2 Finger = schieben, Rad/Pinch = Zoom), Raster (1 m = 1 Kachel), Drahtgitter,
+  Fußabdruck und Kollisionsbox. Das Gizmo verschiebt (W), dreht (E) oder skaliert (R) das ganze Modell oder ein Teil –
+  Umschalt rastet ein (0,1 m / 15° / 0,1). Genaue Werte über die Zahlenfelder, „⤢ Größe gleichmäßig“ (z. B. 0.01 für cm-Modelle),
+  **⬇ Boden** (Unterkante auf y = 0), **⊙ Drehpunkt** (unten mittig). Teile lassen sich ein-/ausblenden (ausgeblendete fehlen
+  in der neuen Version). Eigenes Rückgängig (Strg+Z / Strg+Y), Esc schließt. **💾 Speichern** legt eine **neue Version** an
+  („Name v2“) – das Original bleibt. Benutzen Zonen das Original, fragt der Editor, ob sie die neue Version zeigen sollen
+  (optional mit neuer Größe; je Zone rückgängig machbar).
 - **Ausgeblendet:** „Bild → 3D“ und „Neue Grafik (Antrag)“ (nur noch 3D-Formate). Vorhandene Bild-Objekte werden weiter angezeigt.
 
 ## 🔊 Klänge (Reiter 🔊 Audio)

@@ -14,6 +14,11 @@ export function meldeBefehleAn(befehle, t) {
   const in2d = () => !!z.karte && z.ansicht === '2d';
   const gewaehlt = () => z.gewaehlte().length > 0;
   const bereichOderAuswahl = () => !!z.karte && (!!z.auswahlRechteck || gewaehlt());
+  // Genau ein Objekt gewählt, dessen Typ ein Bibliotheks-Modell zeigt → Asset-ID (für die Werkstatt, 5.1)
+  const gewaehltesModell = () => {
+    const g = z.gewaehlte();
+    return g.length === 1 && g[0].s === 'objekte' ? (z.karte?.s('typen').get(g[0].wert.typ)?.asset ?? null) : null;
+  };
   const werkzeug = (id, name, symbol, kuerzel, ziel, aktiv) => ({ id, name, symbol, kuerzel, gruppe: 'Werkzeuge', verfuegbar: in2d, grund: 'nur in 2D (Taste 3)', ausfuehren: () => a.werkzeug(ziel), aktiv });
 
   befehle.registriere(
@@ -44,6 +49,7 @@ export function meldeBefehleAn(befehle, t) {
     { id: 'bearbeiten.bereichLeeren', name: 'Bereich leeren (Rasen, Elemente weg)', kurz: 'Leeren', symbol: '🧹', gruppe: 'Bearbeiten', verfuegbar: () => !!z.auswahlRechteck, ausfuehren: () => a.loeschen() },
     { id: 'bearbeiten.alles', name: 'Ganze Zone markieren', symbol: '⬚', gruppe: 'Bearbeiten', kuerzel: ['Strg+A'], verfuegbar: karte, ausfuehren: () => a.alles() },
     { id: 'bearbeiten.abbrechen', name: 'Abbrechen / Auswahl aufheben', symbol: '✕', gruppe: 'Bearbeiten', kuerzel: ['Esc'], ausfuehren: () => a.abbrechen() },
+    { id: 'bearbeiten.werkstatt', name: 'Modell in der Werkstatt bearbeiten…', kurz: 'Werkstatt', symbol: '🛠', gruppe: 'Bearbeiten', verfuegbar: () => !!gewaehltesModell() && !!a.werkstatt, grund: 'ein Objekt mit eigenem 3D-Modell wählen', ausfuehren: () => a.werkstatt(gewaehltesModell()) },
     { id: 'bearbeiten.alsPrefab', name: 'Als Prefab speichern…', kurz: 'Als Prefab', symbol: '🏠', gruppe: 'Bearbeiten', verfuegbar: bereichOderAuswahl, ausfuehren: () => a.prefabSpeichern?.() },
     ...['Links', 'Rechts', 'Hoch', 'Runter'].map((richtung) => ({
       id: `bearbeiten.schiebe${richtung}`,
@@ -135,7 +141,7 @@ function einfuegenEintraege(t) {
 export function menues(t) {
   return [
     { titel: 'Datei', eintraege: ['datei.neu', 'datei.oeffnen', '-', 'datei.speichern', 'datei.herunterladen', 'datei.alleHerunterladen', '-', { ueberschrift: 'Export' }, 'datei.exportJson', 'datei.liesmich', 'ki.ausschnitt', '-', 'datei.veroeffentlichen', '-', { ueberschrift: 'Sicherung' }, 'datei.backup', 'datei.wiederherstellen', 'datei.speicherplatz', '-', 'datei.zoneEntfernen', 'datei.zumSpiel'] },
-    { titel: 'Bearbeiten', eintraege: ['bearbeiten.rueckgaengig', 'bearbeiten.wiederholen', '-', 'bearbeiten.kopieren', 'bearbeiten.ausschneiden', 'bearbeiten.einfuegen', 'bearbeiten.duplizieren', 'bearbeiten.drehen', 'bearbeiten.loeschen', '-', 'bearbeiten.alles', 'bearbeiten.bereichLeeren', 'bearbeiten.alsPrefab', 'bearbeiten.abbrechen'] },
+    { titel: 'Bearbeiten', eintraege: ['bearbeiten.rueckgaengig', 'bearbeiten.wiederholen', '-', 'bearbeiten.kopieren', 'bearbeiten.ausschneiden', 'bearbeiten.einfuegen', 'bearbeiten.duplizieren', 'bearbeiten.drehen', 'bearbeiten.loeschen', '-', 'bearbeiten.alles', 'bearbeiten.bereichLeeren', 'bearbeiten.alsPrefab', 'bearbeiten.werkstatt', 'bearbeiten.abbrechen'] },
     { titel: 'Ansicht', eintraege: ['ansicht.dreiD', 'ansicht.einpassen', 'ansicht.zoomRein', 'ansicht.zoomRaus', '-', 'ansicht.links', 'ansicht.rechts', 'ki.helfer', 'ansicht.fokus', '-', 'ansicht.ebenen', ...ANZEIGEN.map((a) => `ansicht.${a.id}`), '-', 'ansicht.suche'] },
     { titel: 'Einfügen', eintraege: () => einfuegenEintraege(t) },
     { titel: 'Werkzeuge', eintraege: WERKZEUGLEISTE.filter((x) => x !== '-').concat(['-', 'werkzeug.kleiner', 'werkzeug.groesser']) },
@@ -153,7 +159,7 @@ export const WERKZEUGLEISTE = ['werkzeug.auswahl', 'werkzeug.hand', '-', 'werkze
 export function kontextEintraege(t, ziel) {
   const z = t.zustand;
   if (z.gewaehlte().length || ziel?.treffer)
-    return ['bearbeiten.duplizieren', 'bearbeiten.drehen', '-', 'bearbeiten.kopieren', 'bearbeiten.ausschneiden', 'bearbeiten.alsPrefab', 'ki.ausschnitt', '-', 'bearbeiten.loeschen'];
+    return ['bearbeiten.duplizieren', 'bearbeiten.drehen', '-', 'bearbeiten.kopieren', 'bearbeiten.ausschneiden', 'bearbeiten.alsPrefab', 'ki.ausschnitt', ...(z.gewaehlte().length === 1 && z.gewaehlte()[0].s === 'objekte' ? ['bearbeiten.werkstatt'] : []), '-', 'bearbeiten.loeschen'];
   if (z.auswahlRechteck) return ['bearbeiten.kopieren', 'bearbeiten.ausschneiden', 'bearbeiten.bereichLeeren', '-', 'bearbeiten.alsPrefab', 'ki.ausschnitt'];
   return ['bearbeiten.einfuegen', 'bearbeiten.alles', '-', 'ansicht.einpassen', 'ansicht.ebenen', 'zone.einstellungen'];
 }

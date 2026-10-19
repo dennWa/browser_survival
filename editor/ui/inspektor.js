@@ -180,7 +180,7 @@ export function inspektor({ zustand, leiste, aktionen, befehle }) {
     if (o.farbe && o.typ !== 'licht') knoepfe(el, [['Farbe entfernen', () => setze('farbe', setzeOptional(o, 'farbe', undefined))]]);
     if (k.s('typen').has(o.typ)) {
       const asset = k.s('typen').get(o.typ).asset;
-      knoepfe(el, [[`✎ Typ „${o.typ}“ bearbeiten`, () => aktionen.typBearbeiten?.(o.typ)], ...(asset ? [['🧊 Modell (Bibliothek)', () => aktionen.modellBearbeiten?.(asset)]] : [])]);
+      knoepfe(el, [[`✎ Typ „${o.typ}“ bearbeiten`, () => aktionen.typBearbeiten?.(o.typ)], ...(asset ? [['🧊 Modell (Bibliothek)', () => aktionen.modellBearbeiten?.(asset)], ['🛠 Werkstatt', () => aktionen.werkstatt?.(asset)]] : [])]);
     }
   }
 

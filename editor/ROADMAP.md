@@ -29,10 +29,15 @@
   Doku: LIESMICH „🔊 Klänge“, KI_INDEX §10, Manifest. Prüfung: `npm test` 238/238, `rauchtest:editor` + `rauchtest` grün.
   Bekannt/offen: echte Musikdateien auf dem Handy nicht geprüft (nur WAV im Rauchtest); Klang-Vorschau in 3D ohne Ton.
 
-**Nächster Schritt: Phase 5 – 5.1 Modell-Werkstatt** (noch nicht begonnen). Vorgehen: großes Fenster (Dialog/Overlay) aus dem
-Reiter „📦 Modelle“ (✎ → „🛠 Werkstatt“), Three.js-Szene mit OrbitControls (Vendor-Addons prüfen: `client/vendor/three/addons.js`,
-ggf. über `werkzeuge/assets/baue_3d.mjs --nur-vendor` ergänzen – nie direkt in `client/vendor/`), TransformControls-Gizmo,
-Speichern über GLTFExporter als neue Bibliotheks-Version (neue ID, Original bleibt; Typen per `ersetzOps` umhängen fragen).
+- 5.1 Modell-Werkstatt fertig (2026-10-19): `editor/kern/werkstatt.js` + `editor/ui/werkstatt.js`, Vendor-Addons
+  OrbitControls/TransformControls (`baue_3d.mjs --nur-vendor`), `metaNormal` mit `basis`/`version`, Einstiege 🛠 (Modelle-Reiter,
+  ✎-Dialog, Inspektor, Befehl `bearbeiten.werkstatt` im Menü/Kontextmenü), `tests/werkstatt.test.js`, Rauchtest „Phase 5.1“.
+  Offen/bekannt: Gizmo-Ziehen selbst nicht im Rauchtest (nur Zahlenfelder/Knöpfe); Handy-Layout nur per CSS (≤ 900 px gestapelt).
+
+**Nächster Schritt: Phase 5 – 5.2 Texturen & Grafiken** (noch nicht begonnen). Idee: in der Werkstatt Material-Liste editierbar
+(Farbe/Rauheit/Metall → `MeshStandardMaterial`, Schnappschuss um Materialwerte erweitern), Textur ersetzen (Bild → `CanvasTexture`,
+`flipY=false` wie glTF), einfaches Malen (UV-Ansicht + Pinsel auf Canvas), Decals (`DecalGeometry` – Addon ins Vendor-Bündel).
+Speichern bleibt „neue Version“ (GLTFExporter bettet Texturen als PNG ein → Größe prüfen).
 
 **Danach:** Phasen 5–9 laut Tabellen unten (5 3D-Modul, 6 Zonen/Loot, 7 UX, 8 Testlauf, 9 KI).
 
@@ -98,7 +103,7 @@ Speichern über GLTFExporter als neue Bibliotheks-Version (neue ID, Original ble
 ## Phase 5 – 3D-Bearbeitungsmodul & Objekt-Handling
 | # | Schritt | Größe |
 |---|---|---|
-| ☐ 5.1 | **Modell-Werkstatt** (großes eigenes Fenster): Orbit-Kamera, Raster, Licht, Drahtgitter, Gizmo zum freien Drehen/Skalieren/Verschieben, Bodenausrichtung + Drehpunkt, Fußabdruck/Kollisionsbox sichtbar, Teile-/Material-Liste; Speichern als neue Asset-Version (Original bleibt), Undo im Modul | L |
+| ☑ 5.1 | **Modell-Werkstatt** (großes eigenes Fenster): Orbit-Kamera, Raster, Licht, Drahtgitter, Gizmo zum freien Drehen/Skalieren/Verschieben, Bodenausrichtung + Drehpunkt, Fußabdruck/Kollisionsbox sichtbar, Teile-/Material-Liste; Speichern als neue Asset-Version (Original bleibt), Undo im Modul | L |
 | ☐ 5.2 | **Texturen & Grafiken:** Materialfarbe/Rauheit/Metall, Textur ersetzen (Bild hochladen), einfaches Malen auf der Textur (UV-Ansicht + Pinsel), **Aufkleber/Decals** projizieren (Logos, Schilder, Schmutz) | L |
 | ☐ 5.3 | 🎮 **Animationen & Rigging:** vorhandene Clips abspielen/benennen/als Leerlauf-Animation fürs Spiel wählen; einfache Keyframe-Animationen (Drehen, Wippen, Pendeln, Pulsieren, Flackern + Zeitleiste) für Modell oder Teile; Skelett anzeigen, Teile an Knochen hängen, einfache Knochenketten für Requisiten (Tür, Fahne), Animationen auf kompatible Skelette übertragen (Retargeting). Spiel spielt Modell-Animationen ab. ⚠ Automatisches Rigging + Gewichte malen wie in Blender ist **nicht** realistisch im Browser-Umfang | XL |
 | ☐ 5.4 | **KI im Modul (Knopfdruck):** Farbschema vorschlagen (Materialliste + Vorschaubild → Palette), Textur aus Text erzeugen (Gemini-Bildmodell, falls der Schlüssel es erlaubt), Animation vorschlagen (Keyframe-JSON) – immer Vorschau → Übernehmen als 1 Undo-Schritt | M |
