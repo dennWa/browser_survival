@@ -11,6 +11,7 @@ export function prefabUi({ zustand, panel, aktionen, layout }) {
   const REITER = '🏠 Prefabs';
   const eigene = new Map(); // Name → Vorlage
   const laden = async () => {
+    eigene.clear();
     for (const name of await zustand.speicher.schluessel('prefabs')) {
       const v = await zustand.speicher.hole('prefabs', name);
       if (v?.zellen) eigene.set(name, v);
@@ -18,6 +19,7 @@ export function prefabUi({ zustand, panel, aktionen, layout }) {
     if (panel.aktiv === REITER) panel.zeichne();
   };
   laden();
+  aktionen.prefabsNeuLaden = laden; // nach „Backup wiederherstellen“
 
   aktionen.prefabSpeichern = async () => {
     const r = aktionen.auswahlBereich();

@@ -211,11 +211,17 @@ zustand.bei('meldung', ({ text, art }) => {
   clearTimeout(meldungTimer);
   meldungTimer = setTimeout(() => (statusMeldung.textContent = ''), 7000);
 });
+// Autosave-Anzeige (Schritt 1.6): ● ungespeichert · ⟳ speichert · ✓ gespeichert hh:mm · ⚠ Fehler (Klick = erneut) · ⚠ flüchtig
 zustand.bei('speicher', () => {
-  speicherStatus.textContent = zustand.speicherStatus;
-  speicherStatus.classList.toggle('warnung', speicher.art === 'fluechtig');
+  const art = zustand.speicherZustand.art;
+  speicherStatus.innerHTML = `<span class="punkt"></span><span class="text">${esc(zustand.speicherStatus)}</span>`;
+  speicherStatus.className = `speicher-${art}`;
+  speicherStatus.title = `Lokaler Speicher (${zustand.speicherOrt ?? speicher.art})${zustand.speicherZustand.fehler ? ` – ${zustand.speicherZustand.fehler}` : ''} · Klick: Speichern, Backup …`;
 });
-speicherStatus.addEventListener('click', () => befehle.fuehreAus('datei.speichern'));
+speicherStatus.addEventListener('click', () => {
+  if (zustand.speicherZustand.art === 'fehler' || zustand.hatUngespeichertes) befehle.fuehreAus('datei.speichern');
+  oeffneListe({ anker: speicherStatus }, ['datei.speichern', 'datei.herunterladen', '-', 'datei.backup', 'datei.wiederherstellen', 'datei.speicherplatz'], befehle);
+});
 
 let pruefTimer = null;
 function planePruefung() {
@@ -255,10 +261,9 @@ zoneWahl.addEventListener('change', () => {
 // --- Start -----------------------------------------------------------------------------------
 async function starten() {
   const art = await speicher.oeffnen();
-  if (art === 'fluechtig') {
-    zustand.speicherStatus = '⚠ Kein lokaler Speicher – bitte Datei → Entwurf herunterladen';
-    zustand.melde('speicher');
-  }
+  if (art === 'fluechtig') zustand.setzeSpeicher('fluechtig', speicher.fehler);
+  // Browser bitten, die Entwürfe nicht bei Speichermangel zu löschen (stillschweigend; Status unter Datei → Speicherplatz)
+  navigator.storage?.persist?.().catch(() => {});
   const n = await zustand.ladeAlle();
   zustand.melde('zone');
   for (const l of [links, rechts, kiLeiste]) l.zeichne();
@@ -269,7 +274,11 @@ async function starten() {
     zustand.meldung(`${n} Entwurf/Entwürfe geladen`, 'ok');
   } else zustand.meldung('Willkommen! Datei → Neue Zone (Rechteck aufziehen) oder Öffnen (Zone aus dem Spiel als Vorlage)');
   test.nachStart(); // Rückkehr aus dem Test im Spiel
-  window.addEventListener('beforeunload', () => zustand.speichereAlle());
+  window.addEventListener('beforeunload', (e) => {
+    zustand.speichereAlle();
+    // Noch nicht gespeichert (z. B. Fehler)? Browser fragt nach
+    if (zustand.hatUngespeichertes && zustand.speicherZustand.art === 'fehler') e.preventDefault();
+  });
 }
 starten();
 

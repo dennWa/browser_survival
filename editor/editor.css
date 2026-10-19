@@ -170,12 +170,28 @@ input[type='checkbox'] {
   white-space: nowrap;
   min-height: 28px;
 }
-#speicher-status.warnung,
-#speicher-status.fehler {
-  color: var(--gelb);
+#speicher-status .punkt {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 5px;
+  background: var(--leise);
 }
-#speicher-status.fehler {
+#speicher-status.speicher-gespeichert .punkt {
+  background: var(--akzent);
+}
+#speicher-status.speicher-ungespeichert .punkt,
+#speicher-status.speicher-speichert .punkt {
+  background: var(--gelb);
+}
+#speicher-status.speicher-fehler,
+#speicher-status.speicher-fluechtig {
   color: var(--rot);
+}
+#speicher-status.speicher-fehler .punkt,
+#speicher-status.speicher-fluechtig .punkt {
+  background: var(--rot);
 }
 
 /* Aufklapplisten: Menüs und Kontextmenü */

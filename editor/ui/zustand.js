@@ -40,6 +40,8 @@ export class Zustand {
     this.#hoerer = new Map();
     this.#speicherTimer = null;
     this.speicherStatus = '';
+    /** Autosave-Anzeige (Schritt 1.6): art leer|ungespeichert|speichert|gespeichert|fehler|fluechtig, zeit, fehler */
+    this.speicherZustand = { art: 'leer', zeit: null, fehler: null };
   }
 
   #hoerer;
@@ -263,8 +265,7 @@ export class Zustand {
   /** Geänderte Zonen merken (nicht nur die aktive: Übergangs-Vorschläge/Umbenennen ändern auch andere) und gesammelt speichern */
   #planeSpeichern(id = this.aktivId) {
     this.#ungespeichert.add(id);
-    this.speicherStatus = 'ungespeichert …';
-    this.melde('speicher');
+    this.setzeSpeicher('ungespeichert');
     clearTimeout(this.#speicherTimer);
     this.#speicherTimer = setTimeout(async () => {
       for (const z of [...this.#ungespeichert]) if (this.zonen.has(z)) await this.speichereJetzt(z);
@@ -276,9 +277,35 @@ export class Zustand {
     if (!e) return;
     this.#ungespeichert.delete(id);
     e.verlauf.beende?.();
+    this.setzeSpeicher('speichert');
     const ok = await this.speicher.setze('entwuerfe', id, entwurfJson(e.karte, e.verlauf));
     await this.speicher.setze('meta', 'layout', this.layout);
-    this.speicherStatus = ok && this.speicher.art !== 'fluechtig' ? `✓ lokal gespeichert (${this.speicher.art === 'indexeddb' ? 'IndexedDB' : 'localStorage'})` : '⚠ Nur im Arbeitsspeicher – bitte 💾 als Datei speichern';
+    if (!ok) {
+      this.#ungespeichert.add(id); // nochmal versuchen (Klick auf die Anzeige / nächste Änderung)
+      return this.setzeSpeicher('fehler', this.speicher.fehler);
+    }
+    if (this.#ungespeichert.size) return this.setzeSpeicher('ungespeichert');
+    this.setzeSpeicher(this.speicher.art === 'fluechtig' ? 'fluechtig' : 'gespeichert');
+  }
+
+  /** Gibt es noch ungespeicherte Zonen? */
+  get hatUngespeichertes() {
+    return this.#ungespeichert.size > 0;
+  }
+
+  setzeSpeicher(art, fehler = null) {
+    const ort = this.speicher.art === 'indexeddb' ? 'IndexedDB' : this.speicher.art === 'localstorage' ? 'localStorage' : 'Arbeitsspeicher';
+    this.speicherZustand = { art, zeit: art === 'gespeichert' ? new Date() : this.speicherZustand.zeit, fehler };
+    const uhr = this.speicherZustand.zeit?.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    this.speicherStatus = {
+      leer: '',
+      ungespeichert: '● ungespeichert',
+      speichert: '⟳ speichert …',
+      gespeichert: `✓ gespeichert ${uhr ?? ''}`.trim(),
+      fehler: '⚠ Speichern fehlgeschlagen – Klick versucht es erneut',
+      fluechtig: '⚠ nur im Arbeitsspeicher – Datei → Komplett-Backup',
+    }[art];
+    this.speicherOrt = ort;
     this.melde('speicher');
   }
 

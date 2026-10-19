@@ -4,12 +4,14 @@ import { kopie } from '../kern/karte.js';
 import { validiere, hatFehler } from '../kern/validierung.js';
 import { veroeffentlichung } from '../kern/veroeffentlichen.js';
 import { AKTIONEN_ANLEITUNG } from '../kern/ausschnitt.js';
+import { baueBackup, leseBackup, backupDateiname, groesseText, EINSTELLUNGEN_WHITELIST } from '../kern/backup.js';
 import { herunterladen, dateiWaehlen } from './speicher.js';
 import { dialog, schliesse, bestaetigen, esc } from './dialoge.js';
 
 /**
  * Menü „Datei“ (aus main.js herausgelöst, Editor 2.0 Schritt 1.2): neue Zone, öffnen (Spielzone als Vorlage, Entwurf, Datei),
- * lokal speichern, als Datei herunterladen, Export (JSON, LIESMICH, alle Entwürfe), Veröffentlichen.
+ * lokal speichern, als Datei herunterladen, Export (JSON, LIESMICH, alle Entwürfe), Veröffentlichen,
+ * Komplett-Backup + Wiederherstellen + Speicherplatz (Schritt 1.6, Format kern/backup.js – ohne Gemini-Schlüssel).
  * Der Editor schreibt NIE Repo-Dateien – Veröffentlichen = Download + `npm run karte:editor`.
  */
 export function dateiAktionen({ zustand, zeichner, werkzeuge, aktionen, rechts }) {
@@ -129,6 +131,88 @@ export function dateiAktionen({ zustand, zeichner, werkzeuge, aktionen, rechts }
       });
       if (w === 'js') herunterladen(v.dateiname, v.quelltext, 'text/javascript');
       if (w === 'json') herunterladen(`${k.id}.karte.json`, JSON.stringify(exportJson(k), null, 1));
+    },
+
+    /** Komplett-Backup: alle Entwürfe (mit Verlauf), eigene Prefabs, Weltanordnung, Editor-Einstellungen (Whitelist) */
+    async backup() {
+      await zustand.speichereAlle();
+      const prefabs = {};
+      for (const name of await zustand.speicher.schluessel('prefabs')) {
+        const v = await zustand.speicher.hole('prefabs', name);
+        if (v) prefabs[name] = v;
+      }
+      const einstellungen = {};
+      for (const k of EINSTELLUNGEN_WHITELIST) {
+        try {
+          const w = localStorage.getItem(k);
+          if (w !== null) einstellungen[k] = JSON.parse(w);
+        } catch {
+          /* gesperrt oder kaputt → weglassen */
+        }
+      }
+      const b = baueBackup({ entwuerfe: [...zustand.zonen].map(([id, e]) => ({ id, entwurf: entwurfJson(e.karte, e.verlauf) })), prefabs, meta: { layout: zustand.layout, aktiv: zustand.aktivId }, einstellungen });
+      const text = JSON.stringify(b);
+      herunterladen(backupDateiname(), text);
+      zustand.meldung(`🛟 Komplett-Backup: ${b.entwuerfe.length} Zonen, ${Object.keys(prefabs).length} Prefabs (${groesseText(text.length)})`, 'ok');
+    },
+
+    /** Backup-Datei laden → Auswahl, was zurückkommt → Entwürfe ersetzen/ergänzen, Prefabs + Anordnung übernehmen */
+    async wiederherstellen() {
+      const d = await dateiWaehlen('.json,application/json');
+      if (!d) return;
+      let b;
+      try {
+        b = leseBackup(d.text);
+      } catch (e) {
+        return dialog({ titel: 'Backup nicht lesbar', html: `<p>${esc(e.message)}</p>` });
+      }
+      const html = `<p class="leise">Backup vom ${esc(b.erstellt ? new Date(b.erstellt).toLocaleString('de-DE') : '?')} – Häkchen = wiederherstellen. Vorhandene Entwürfe gleicher ID werden <b>ersetzt</b> (Tipp: vorher selbst ein Backup ziehen).</p>
+        ${b.entwuerfe.map((e, i) => `<label class="feld" style="grid-template-columns:24px 1fr"><input type="checkbox" name="z${i}" checked><span>${esc(e.karte.name)} (${esc(e.id)}, ${e.karte.breite} × ${e.karte.hoehe}, ${e.verlauf.zurueck.length} Schritte) ${zustand.zonen.has(e.id) ? '<b style="color:var(--gelb)">ersetzt vorhandenen</b>' : 'neu'}</span></label>`).join('')}
+        ${b.fehlerhaft.length ? `<p style="color:var(--rot)">${b.fehlerhaft.length} beschädigt: ${b.fehlerhaft.map((f) => `${esc(f.id)} (${esc(f.grund)})`).join(', ')}</p>` : ''}
+        <label class="feld" style="grid-template-columns:24px 1fr"><input type="checkbox" name="prefabs" ${Object.keys(b.prefabs).length ? 'checked' : 'disabled'}><span>${Object.keys(b.prefabs).length} eigene Prefabs (gleiche Namen werden ersetzt)</span></label>
+        <label class="feld" style="grid-template-columns:24px 1fr"><input type="checkbox" name="einst" checked><span>Weltanordnung der Zonen + Editor-Einstellungen (Ebenen, Layout, Favoriten)</span></label>`;
+      const w = await dialog({
+        titel: '♻ Backup wiederherstellen',
+        html,
+        knoepfe: [{ text: 'Abbrechen', wert: null }, { text: 'Wiederherstellen', art: 'akzent', wert: (box) => Object.fromEntries([...box.querySelectorAll('input[type=checkbox]')].map((c) => [c.name, c.checked])) }],
+      });
+      if (!w) return;
+      let n = 0;
+      for (const [i, e] of b.entwuerfe.entries()) {
+        if (!w[`z${i}`]) continue;
+        zustand.fuegeZoneHinzu(e.karte, e.verlauf, { aktivieren: false });
+        n++;
+      }
+      if (w.prefabs) for (const [name, v] of Object.entries(b.prefabs)) await zustand.speicher.setze('prefabs', name, v);
+      if (w.einst) {
+        Object.assign(zustand.layout, b.meta.layout);
+        await zustand.speicher.setze('meta', 'layout', zustand.layout);
+        for (const [k, v] of Object.entries(b.einstellungen))
+          try {
+            localStorage.setItem(k, JSON.stringify(v));
+          } catch {
+            /* gesperrt */
+          }
+      }
+      await aktionen.prefabsNeuLaden?.();
+      const ziel = b.meta.aktiv && zustand.zonen.has(b.meta.aktiv) ? b.meta.aktiv : (zustand.aktivId ?? b.entwuerfe[0]?.id);
+      if (ziel) zustand.aktiviere(ziel);
+      zeichner.einpassen();
+      zustand.meldung(`♻ ${n} Zonen${w.prefabs ? ` + ${Object.keys(b.prefabs).length} Prefabs` : ''} wiederhergestellt${w.einst ? ' (Einstellungen gelten nach dem Neuladen)' : ''}`, 'ok');
+    },
+
+    /** Speicherplatz & Status */
+    async speicherplatz() {
+      const schaetzung = await navigator.storage?.estimate?.().catch(() => null);
+      const dauerhaft = await navigator.storage?.persisted?.().catch(() => null);
+      const sz = zustand.speicherZustand;
+      await dialog({
+        titel: '💽 Speicher',
+        html: `<p>Ort: <b>${esc(zustand.speicherOrt ?? zustand.speicher.art)}</b> · Status: <b>${esc(zustand.speicherStatus || '–')}</b>${sz.fehler ? `<br><span style="color:var(--rot)">${esc(sz.fehler)}</span>` : ''}</p>
+          <p>Belegt: <b>${schaetzung ? `${groesseText(schaetzung.usage)} von ${groesseText(schaetzung.quota)}` : 'unbekannt'}</b> · ${dauerhaft === true ? '✓ dauerhaft (der Browser löscht nichts von selbst)' : dauerhaft === false ? '⚠ nicht dauerhaft – bei Speichermangel darf der Browser löschen. Regelmäßig ein Komplett-Backup ziehen!' : ''}</p>
+          <p class="leise">${zustand.zonen.size} Zonen im Projekt. Entwürfe liegen nur in diesem Browser – auf einem anderen Gerät per Komplett-Backup übertragen.</p>`,
+        knoepfe: [{ text: 'Schließen', wert: null }, { text: '🛟 Komplett-Backup', art: 'akzent', wert: 'backup' }],
+      }).then((x) => x === 'backup' && datei.backup());
     },
 
     async zoneEntfernen() {

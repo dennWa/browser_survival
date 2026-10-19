@@ -11,7 +11,7 @@
  * Editor 2.0: Menüleiste, Asset-Browser (Suche), Kontextmenü, Ebenen sperren, Hilfe mit Suche.
  */
 import { spawn, execSync } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -173,6 +173,21 @@ try {
   pruefe(nachLaden.id === 'testzone' && nachLaden.obj === 1 && nachLaden.verlauf >= 5, `Entwurf wiederhergestellt (${JSON.stringify(nachLaden)})`);
   await seite.keyboard.press('Control+z');
   pruefe((await seite.evaluate(() => window.mapEditor.zustand.karte.s('objekte').size)) === 0, 'Rückgängig über Sitzungen hinweg');
+  await seite.keyboard.press('Control+y');
+
+  schritt('Datensicherheit (1.6): Autosave-Anzeige, Komplett-Backup, Wiederherstellen');
+  await seite.waitForTimeout(1200);
+  pruefe((await seite.locator('#speicher-status').textContent()).includes('gespeichert'), `Autosave-Anzeige (${(await seite.locator('#speicher-status').textContent()).trim()})`);
+  const [download] = await Promise.all([seite.waitForEvent('download'), menue('Datei', 'datei.backup')]);
+  const backupPfad = await download.path();
+  const backup = JSON.parse(readFileSync(backupPfad, 'utf8'));
+  pruefe(backup.format === 'browser-survival-editor-backup' && backup.entwuerfe.some((e) => e.id === 'testzone') && !JSON.stringify(backup).includes('editorGemini'), `Backup enthält die Zone (${download.suggestedFilename()})`);
+  await seite.evaluate(() => window.mapEditor.zustand.entferneZone('testzone'));
+  const [wahl] = await Promise.all([seite.waitForEvent('filechooser'), menue('Datei', 'datei.wiederherstellen')]);
+  await wahl.setFiles(backupPfad);
+  await seite.click('#dialog button:has-text("Wiederherstellen")');
+  const zurueckGeholt = await seite.evaluate(() => ({ da: window.mapEditor.zustand.zonen.has('testzone'), obj: window.mapEditor.zustand.zonen.get('testzone')?.karte.s('objekte').size }));
+  pruefe(zurueckGeholt.da && zurueckGeholt.obj === 1, `Backup wiederhergestellt (${JSON.stringify(zurueckGeholt)})`);
 
   if (!nurBis) {
     schritt('Spielzone Waldweg als Vorlage');

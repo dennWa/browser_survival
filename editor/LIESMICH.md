@@ -144,11 +144,17 @@ Der echte Spielstand wird dabei nicht angefasst. Oben im Spiel: **⟵ Zurück zu
   Pflicht**, Urheber, Quelle). Datei nach `werkzeuge/assets/editor_grafiken/`, dann `python3 werkzeuge/assets/baue_assets.py`
   und `npm run assets:3d`. Die Pipeline prüft die Lizenz nochmals und schreibt die Credits fort.
 
-## Speichern
+## Speichern und Sichern
 
-- Automatisch: jede Änderung landet nach ~1 s im Browser (IndexedDB, sonst localStorage). Oben rechts steht der Status.
-  Gibt es keinen Speicher (privates Fenster), warnt der Editor – dann **💾 Speichern** (lädt `<id>.entwurf.json` herunter).
-- **💾 Speichern** lädt immer zusätzlich die Entwurfsdatei herunter (inkl. Verlauf).
+- **Automatisch:** jede Änderung landet nach ~1 s im Browser (IndexedDB, sonst localStorage) – für **alle** geänderten Zonen.
+  Die Anzeige oben rechts zeigt den Zustand: ● ungespeichert · ⟳ speichert · ✓ gespeichert 14:32 · ⚠ Fehler (Klick = erneut versuchen)
+  · ⚠ nur Arbeitsspeicher (privates Fenster). Klick auf die Anzeige öffnet Speichern/Backup.
+- **Strg+S** speichert sofort lokal, **Strg+Umschalt+S** lädt den Entwurf der aktiven Zone als Datei herunter (inkl. Verlauf).
+- **🛟 Komplett-Backup** (Datei → Sicherung): **eine** Datei mit allen Entwürfen samt Verlauf, eigenen Prefabs, Weltanordnung und
+  Editor-Einstellungen (Ebenen, Layout, Favoriten). Der Gemini-Schlüssel kommt **nie** hinein. **♻ Backup wiederherstellen** zeigt,
+  was zurückkommt (Häkchen je Zone; gleiche IDs werden ersetzt). So zieht man auch auf ein anderes Gerät um.
+- **💽 Speicherplatz & Status:** belegt/frei, und ob der Browser die Daten dauerhaft hält (sonst darf er bei Speichermangel löschen –
+  dann regelmäßig ein Backup ziehen).
 
 ## Touch (Handy/Tablet) – bewusste Ausnahme
 

@@ -26,6 +26,9 @@ export function meldeBefehleAn(befehle, t) {
     { id: 'datei.exportJson', name: 'Karte als JSON (für KI/Menschen)', symbol: '📄', gruppe: 'Datei', verfuegbar: karte, ausfuehren: () => datei.exportJson() },
     { id: 'datei.liesmich', name: 'LIESMICH.txt (Feld-Erklärung für KIs)', symbol: '📝', gruppe: 'Datei', ausfuehren: () => datei.liesmich() },
     { id: 'datei.veroeffentlichen', name: 'Veröffentlichen…', kurz: 'Veröffentlichen', symbol: '🚀', gruppe: 'Datei', verfuegbar: karte, ausfuehren: () => datei.veroeffentlichen() },
+    { id: 'datei.backup', name: 'Komplett-Backup herunterladen (alle Entwürfe, Prefabs, Einstellungen)', kurz: 'Backup', symbol: '🛟', gruppe: 'Datei', ausfuehren: () => datei.backup() },
+    { id: 'datei.wiederherstellen', name: 'Backup wiederherstellen…', symbol: '♻', gruppe: 'Datei', ausfuehren: () => datei.wiederherstellen() },
+    { id: 'datei.speicherplatz', name: 'Speicherplatz & Status…', symbol: '💽', gruppe: 'Datei', ausfuehren: () => datei.speicherplatz() },
     { id: 'datei.zoneEntfernen', name: 'Zone aus dem Projekt entfernen…', symbol: '🗑', gruppe: 'Datei', verfuegbar: karte, ausfuehren: () => datei.zoneEntfernen() },
     { id: 'datei.zumSpiel', name: 'Zurück zum Spiel', symbol: '🧟', gruppe: 'Datei', ausfuehren: () => (location.href = new URL('../client/', location.href).href) },
 
@@ -131,7 +134,7 @@ function einfuegenEintraege(t) {
 
 export function menues(t) {
   return [
-    { titel: 'Datei', eintraege: ['datei.neu', 'datei.oeffnen', '-', 'datei.speichern', 'datei.herunterladen', 'datei.alleHerunterladen', '-', { ueberschrift: 'Export' }, 'datei.exportJson', 'datei.liesmich', 'ki.ausschnitt', '-', 'datei.veroeffentlichen', '-', 'datei.zoneEntfernen', 'datei.zumSpiel'] },
+    { titel: 'Datei', eintraege: ['datei.neu', 'datei.oeffnen', '-', 'datei.speichern', 'datei.herunterladen', 'datei.alleHerunterladen', '-', { ueberschrift: 'Export' }, 'datei.exportJson', 'datei.liesmich', 'ki.ausschnitt', '-', 'datei.veroeffentlichen', '-', { ueberschrift: 'Sicherung' }, 'datei.backup', 'datei.wiederherstellen', 'datei.speicherplatz', '-', 'datei.zoneEntfernen', 'datei.zumSpiel'] },
     { titel: 'Bearbeiten', eintraege: ['bearbeiten.rueckgaengig', 'bearbeiten.wiederholen', '-', 'bearbeiten.kopieren', 'bearbeiten.ausschneiden', 'bearbeiten.einfuegen', 'bearbeiten.duplizieren', 'bearbeiten.drehen', 'bearbeiten.loeschen', '-', 'bearbeiten.alles', 'bearbeiten.bereichLeeren', 'bearbeiten.alsPrefab', 'bearbeiten.abbrechen'] },
     { titel: 'Ansicht', eintraege: ['ansicht.dreiD', 'ansicht.einpassen', 'ansicht.zoomRein', 'ansicht.zoomRaus', '-', 'ansicht.links', 'ansicht.rechts', 'ki.helfer', 'ansicht.fokus', '-', 'ansicht.ebenen', ...ANZEIGEN.map((a) => `ansicht.${a.id}`), '-', 'ansicht.suche'] },
     { titel: 'Einfügen', eintraege: () => einfuegenEintraege(t) },

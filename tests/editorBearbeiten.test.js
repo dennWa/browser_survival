@@ -146,3 +146,46 @@ test('Tastenkürzel: Schreibweise, Umschalt nur bei Buchstaben, AltGr-Zeichen, B
   befehle.behandleTaste(ev('v'));
   assert.equal(n, 11);
 });
+
+// --- Editor 2.0, Schritt 1.6: Komplett-Backup ------------------------------------------------
+import { baueBackup, leseBackup, backupDateiname, groesseText, BACKUP_FORMAT } from '../editor/kern/backup.js';
+import { entwurfJson } from '../editor/kern/format.js';
+import { Verlauf } from '../editor/kern/verlauf.js';
+import { neueZone } from '../editor/kern/zone.js';
+
+test('Backup: Rundreise aller Entwürfe (mit Verlauf), Prefabs, Anordnung – Gemini-Schlüssel kommt nie hinein', () => {
+  const a = neueZone({ id: 'alpha', name: 'Alpha', breite: 10, hoehe: 8 });
+  const va = new Verlauf();
+  va.ausfuehren(a, 'Tisch', [{ s: 'objekte', k: 1, neu: { typ: 'tisch', x: 1, y: 1, b: 2, h: 1 } }]);
+  const b = neueZone({ id: 'beta', name: 'Beta', breite: 6, hoehe: 6 });
+  const prefab = { b: 1, h: 1, zellen: ['#'], objekte: [] };
+  const daten = baueBackup({
+    entwuerfe: [{ id: 'alpha', entwurf: entwurfJson(a, va) }, { id: 'beta', entwurf: entwurfJson(b, new Verlauf()) }],
+    prefabs: { Mauer: prefab },
+    meta: { layout: { alpha: { x: 0, y: 0 }, beta: { x: 10, y: 0 } }, aktiv: 'beta' },
+    einstellungen: { 'browserSurvival.editorEbenen': { raster: { sichtbar: false } }, 'browserSurvival.editorGemini': { schluessel: 'GEHEIM' } },
+  });
+  const text = JSON.stringify(daten);
+  assert.equal(daten.format, BACKUP_FORMAT);
+  assert.ok(!text.includes('GEHEIM') && !text.includes('editorGemini'), 'kein API-Schlüssel im Backup');
+  const g = leseBackup(text);
+  assert.deepEqual(g.entwuerfe.map((e) => e.id), ['alpha', 'beta']);
+  assert.equal(g.entwuerfe[0].karte.s('objekte').get(1).typ, 'tisch');
+  assert.equal(g.entwuerfe[0].verlauf.zurueck.length, 1, 'Verlauf kommt mit');
+  assert.deepEqual(g.prefabs.Mauer, prefab);
+  assert.equal(g.meta.aktiv, 'beta');
+  assert.deepEqual(Object.keys(g.einstellungen), ['browserSurvival.editorEbenen']);
+});
+
+test('Backup: kaputte Einträge werden gemeldet statt alles abzulehnen; fremde Dateien/zu neue Versionen abgelehnt', () => {
+  const ok = entwurfJson(neueZone({ id: 'gut', name: 'Gut', breite: 5, hoehe: 5 }), new Verlauf());
+  const g = leseBackup({ format: BACKUP_FORMAT, formatVersion: 1, entwuerfe: [{ id: 'gut', entwurf: ok }, { id: 'kaputt', entwurf: { format: 'browser-survival-entwurf', karte: { breite: 3, hoehe: 3, zellen: 'zu kurz' } } }], prefabs: { schlecht: { b: 0 } } });
+  assert.deepEqual(g.entwuerfe.map((e) => e.id), ['gut']);
+  assert.equal(g.fehlerhaft[0].id, 'kaputt');
+  assert.deepEqual(g.prefabs, {});
+  assert.throws(() => leseBackup('{"format":"browser-survival-entwurf"}'), /kein Editor-Backup/);
+  assert.throws(() => leseBackup({ format: BACKUP_FORMAT, formatVersion: 99 }), /neuer/);
+  assert.throws(() => leseBackup('kein json'), /JSON/);
+  assert.match(backupDateiname(new Date(2026, 9, 19, 14, 5)), /^editor-backup-2026-10-19-1405\.json$/);
+  assert.equal(groesseText(1536), '1,5 KB');
+});
