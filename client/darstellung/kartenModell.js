@@ -28,6 +28,27 @@ const MOEBEL_HOEHE = {
   werkbank: 26,
 };
 const _matrix = new THREE.Matrix4();
+const _vektor = new THREE.Vector3();
+const _quat = new THREE.Quaternion();
+const _skala = new THREE.Vector3();
+const _achseY = new THREE.Vector3(0, 1, 0);
+
+/** Weicher, runder Lichtschein (radialer Verlauf) für den Boden unter Lampen – einmal erzeugt, geteilt */
+let lichtscheinCache = null;
+function lichtscheinTextur() {
+  if (lichtscheinCache) return lichtscheinCache;
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const ctx = c.getContext('2d');
+  const verlauf = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  verlauf.addColorStop(0, 'rgba(255,255,255,0.9)');
+  verlauf.addColorStop(0.35, 'rgba(255,255,255,0.45)');
+  verlauf.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = verlauf;
+  ctx.fillRect(0, 0, 64, 64);
+  lichtscheinCache = new THREE.CanvasTexture(c);
+  return lichtscheinCache;
+}
 const NULL_MATRIX = new THREE.Matrix4().makeScale(0, 0, 0);
 /** Kantenlänge (Kacheln) der Blöcke, in die Bäume/Steine fürs Frustum-Culling aufgeteilt werden (Performance: sonst zeichnet jeder Frame ALLE Bäume der Karte). */
 const CHUNK_KACHELN = 12;
@@ -84,6 +105,9 @@ export class KartenModell {
     }
     this.lampenGluehen.visible = dunkel > 0.08;
     this.lampenGluehen.material.opacity = Math.min(1, dunkel * 1.4);
+    // Lichtschein am Boden: jede Lampe leuchtet nachts sichtbar, auch ohne echtes Licht aus dem Pool
+    this.lampenSchein.visible = dunkel > 0.08;
+    this.lampenSchein.material.opacity = Math.min(0.55, dunkel * 0.6);
   }
 
   /**
@@ -375,6 +399,24 @@ export class KartenModell {
     });
     this.lampenGluehen.count = this.lampenListe.length;
     this.statisch.add(this.lampenGluehen);
+    // Lichtschein am Boden (additiv, günstig): Kreis für Punkt-Lampen, gestreckter Fleck in Leuchtrichtung für Kegel-Lampen
+    const schein = new THREE.MeshBasicMaterial({ map: lichtscheinTextur(), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+    this.lampenSchein = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), schein, Math.max(1, this.lampenListe.length));
+    this.lampenListe.forEach((l, i) => {
+      const r = l.reichweite * 0.9;
+      if (l.objekt.art === 'kegel') {
+        const w = ((l.objekt.richtung ?? 90) * Math.PI) / 180;
+        const lang = l.reichweite * 1.2;
+        const breit = Math.max(r * 0.5, lang * Math.tan((((l.objekt.oeffnung ?? 60) / 2) * Math.PI) / 180) * 1.4);
+        _matrix.compose(_vektor.set(l.x + Math.cos(w) * lang * 0.45, 1.2, l.z + Math.sin(w) * lang * 0.45), _quat.setFromAxisAngle(_achseY, -w), _skala.set(lang, 1, breit));
+      } else _matrix.compose(_vektor.set(l.x, 1.2, l.z), _quat.identity(), _skala.set(r * 2, 1, r * 2));
+      this.lampenSchein.setMatrixAt(i, _matrix);
+      this.lampenSchein.setColorAt(i, l.farbe.clone().multiplyScalar(l.objekt.staerke ?? 0.8));
+    });
+    this.lampenSchein.count = this.lampenListe.length;
+    this.lampenSchein.visible = false;
+    this.lampenSchein.renderOrder = 1;
+    this.statisch.add(this.lampenSchein);
     // Straßenlaternen (mast): dünner dunkler Mast mit Kopf unter dem Glühen – ein zusammengefasstes Mesh
     const masten = this.lampenListe.filter((l) => l.objekt.mast);
     if (masten.length > 0) {

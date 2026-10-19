@@ -309,7 +309,9 @@ try {
     await seite.evaluate(() => window.mapEditor.zustand.aktiviere('testzone'));
     await seite.waitForTimeout(500);
     await seite.click('#schnell [data-befehl="zone.testen"]');
-    if (await seite.locator('#dialog button:has-text("Starten")').count()) await seite.click('#dialog button:has-text("Starten")');
+    // Bei Warnungen (z. B. „keine Lichtquelle“) fragt der Editor nach – sonst geht es direkt ins Spiel
+    const weiter = await Promise.race([seite.waitForURL(/editorTest=1/, { timeout: 20000 }).then(() => 'spiel'), seite.waitForSelector('#dialog button:has-text("Starten")', { timeout: 20000 }).then(() => 'dialog')]);
+    if (weiter === 'dialog') await seite.click('#dialog button:has-text("Starten")');
     await seite.waitForURL(/editorTest=1/, { timeout: 15000 });
     await seite.waitForSelector('#editor-test-banner', { timeout: 30000 });
     await seite.waitForFunction(() => window.browserSurvival?.spiel && window.browserSurvival.server, null, { timeout: 90000 });

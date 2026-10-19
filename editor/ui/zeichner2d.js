@@ -397,8 +397,23 @@ export class Zeichner2D {
       } else if (o.typ === 'licht') {
         ctx.fillStyle = 'rgba(255,217,160,0.12)';
         ctx.beginPath();
-        ctx.arc(r.x + r.b / 2, r.y + r.h / 2, (o.radius ?? 4) * z, 0, Math.PI * 2);
-        ctx.fill();
+        const mx = r.x + r.b / 2;
+        const my = r.y + r.h / 2;
+        if (o.art === 'kegel') {
+          // Kegel-Lampe: Lichtkegel in Leuchtrichtung (0° = Osten, 90° = Süden)
+          const w = ((o.richtung ?? 90) * Math.PI) / 180;
+          const halb = (((o.oeffnung ?? 60) / 2) * Math.PI) / 180;
+          ctx.moveTo(mx, my);
+          ctx.arc(mx, my, (o.radius ?? 6) * 1.6 * z, w - halb, w + halb);
+          ctx.closePath();
+          ctx.fillStyle = 'rgba(255,240,200,0.18)';
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(255,240,200,0.5)';
+          ctx.stroke();
+        } else {
+          ctx.arc(mx, my, (o.radius ?? 4) * z, 0, Math.PI * 2);
+          ctx.fill();
+        }
         ctx.fillStyle = o.farbe ?? '#ffd9a0';
         ctx.beginPath();
         ctx.arc(r.x + r.b / 2, r.y + r.h / 2, Math.max(2, z * 0.3), 0, Math.PI * 2);

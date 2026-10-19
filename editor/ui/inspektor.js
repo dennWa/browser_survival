@@ -129,7 +129,7 @@ export function inspektor({ zustand, leiste, aktionen, befehle }) {
   function objektFelder(el, o, setze) {
     const z = zustand;
     const k = z.karte;
-    const typen = [...new Set([...Object.keys(OBJEKT_TYPEN).filter((t) => t !== 'laterne'), ...k.s('typen').keys(), o.typ])];
+    const typen = [...new Set([...Object.keys(OBJEKT_TYPEN).filter((t) => t !== 'laterne' && t !== 'scheinwerfer'), ...k.s('typen').keys(), o.typ])];
     const liste = [
       { name: 'typ', label: 'Typ', typ: 'auswahl', wert: o.typ, optionen: typen.map((t) => [t, `${objektInfo(t, k).name}`]) },
       { name: 'name', label: 'Name', typ: 'text', wert: o.name ?? '', hilfe: 'optional, nur Editor/KI' },
@@ -146,6 +146,13 @@ export function inspektor({ zustand, leiste, aktionen, befehle }) {
         { name: 'staerke', label: 'Stärke 0–1', typ: 'zahl', wert: o.staerke ?? 0.85, min: 0, max: 1, schritt: 0.05 },
         { name: 'flackern', label: 'Flackern', typ: 'haken', wert: !!o.flackern },
         { name: 'mast', label: 'Laternenmast', typ: 'haken', wert: !!o.mast },
+        { name: 'art', label: 'Lichtform', typ: 'auswahl', wert: o.art === 'kegel' ? 'kegel' : 'punkt', optionen: [['punkt', 'Punkt (rundum)'], ['kegel', 'Kegel (Scheinwerfer)']] },
+        ...(o.art === 'kegel'
+          ? [
+              { name: 'richtung', label: 'Richtung °', typ: 'zahl', wert: o.richtung ?? 90, schritt: 15, hilfe: '0 = Osten, 90 = Süden, 180 = Westen, 270 = Norden (R dreht um 90°)' },
+              { name: 'oeffnung', label: 'Öffnung °', typ: 'zahl', wert: o.oeffnung ?? 60, min: 10, max: 170, schritt: 5 },
+            ]
+          : []),
       );
     else liste.push({ name: 'farbe', label: 'Farbe (Bemalung)', typ: 'farbe', wert: o.farbe ?? '#808080', hilfe: o.farbe ? 'gesetzt – „Farbe entfernen“ setzt zurück' : 'nicht gesetzt (Typfarbe)' }, { name: 'textur', label: 'Textur', typ: 'auswahl', wert: o.textur ?? '', optionen: TEXTUR_OPTIONEN });
     felder(el, liste, (name, v) => {
@@ -154,6 +161,12 @@ export function inspektor({ zustand, leiste, aktionen, befehle }) {
       else if (name === 'ebene') neu = setzeOptional(neu, 'ebene', v === 'moebel' ? undefined : v);
       else if (name === 'drehung') neu = setzeOptional(neu, 'drehung', v ? ((v % 360) + 360) % 360 : undefined);
       else if (name === 'name' || name === 'groesse' || name === 'textur') neu = setzeOptional(neu, name, v || undefined);
+      else if (name === 'art') {
+        neu = setzeOptional(neu, 'art', v === 'kegel' ? 'kegel' : undefined);
+        if (v === 'kegel') Object.assign(neu, { richtung: o.richtung ?? 90, oeffnung: o.oeffnung ?? 60 });
+        else for (const f of ['richtung', 'oeffnung']) delete neu[f];
+      } else if (name === 'richtung') neu.richtung = (((v ?? 90) % 360) + 360) % 360;
+      else if (name === 'oeffnung') neu.oeffnung = Math.max(10, Math.min(170, v ?? 60));
       else if (['x', 'y', 'b', 'h'].includes(name)) {
         if (v === null || ((name === 'b' || name === 'h') && v <= 0)) return z.meldung('Größe muss > 0 sein', 'fehler');
         neu[name] = Math.round(v * 1000) / 1000;

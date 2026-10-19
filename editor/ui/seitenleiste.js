@@ -51,7 +51,10 @@ export class Seitenleiste {
     // Während man im Reiter tippt, nicht neu bauen (Fokus bliebe sonst nicht erhalten)
     clearTimeout(this.#timer);
     this.#timer = setTimeout(() => {
-      if (!this.el.contains(document.activeElement)) this.zeichne();
+      // Nur beim Tippen (Text-/Zahlfeld) nicht neu bauen – nach Auswahllisten/Haken ruhig (neue Felder erscheinen sofort)
+      const a = document.activeElement;
+      const tippt = this.el.contains(a) && (a.tagName === 'TEXTAREA' || (a.tagName === 'INPUT' && !['checkbox', 'radio', 'range', 'color', 'button'].includes(a.type)));
+      if (!tippt) this.zeichne();
     }, 120);
   }
 

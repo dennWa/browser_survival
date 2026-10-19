@@ -107,8 +107,11 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE, { au
     const objekt = { typ: o.typ, x: o.x, y: o.y, b: o.b, h: o.h, blockiert: !!o.blockiert, ebene: o.ebene ?? 'moebel', drehung: o.drehung ?? 0 };
     // Bäume & Steine: klein (1 Holz/Stein) oder groß (2) – feste Zufallsverteilung nach Position (oder fest aus der Karte)
     if (GROESSEN_TYPEN.includes(o.typ)) objekt.groesse = o.groesse === 'klein' || o.groesse === 'gross' ? o.groesse : streuwert(o.x, o.y, 2) < ANTEIL_GROSS ? 'gross' : 'klein';
-    // Lampen: Radius (Kacheln), Farbe, Stärke 0..1, Flackern
-    if (o.typ === 'licht') Object.assign(objekt, { ebene: 'licht', radius: o.radius ?? 4, farbe: o.farbe ?? '#ffd9a0', staerke: o.staerke ?? 0.85, flackern: !!o.flackern, mast: !!o.mast });
+    // Lampen: Radius (Kacheln), Farbe, Stärke 0..1, Flackern; Kegel-Licht (Map-Editor): Richtung ° (0 = Osten, 90 = Süden), Öffnung 10–170°
+    if (o.typ === 'licht') {
+      Object.assign(objekt, { ebene: 'licht', radius: o.radius ?? 4, farbe: o.farbe ?? '#ffd9a0', staerke: o.staerke ?? 0.85, flackern: !!o.flackern, mast: !!o.mast });
+      if (o.art === 'kegel') Object.assign(objekt, { art: 'kegel', richtung: Number.isFinite(o.richtung) ? ((o.richtung % 360) + 360) % 360 : 90, oeffnung: Number.isFinite(o.oeffnung) ? Math.max(10, Math.min(170, o.oeffnung)) : 60 });
+    }
     return objekt;
   });
   // Steile Hänge (Terrain aus dem Map-Editor): unsichtbare Hindernisse

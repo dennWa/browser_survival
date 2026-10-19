@@ -83,6 +83,8 @@ export const OBJEKT_TYPEN = Object.freeze({
   // Gebäude
   licht: { name: 'Lampe', kategorie: 'Gebäude', b: 1, h: 1, ebene: 'licht', symbol: '💡', farbe: '#ffd9a0', extra: { radius: 4, farbe: '#ffd9a0', staerke: 0.85, flackern: false } },
   laterne: { typ: 'licht', name: 'Straßenlaterne', kategorie: 'Wege', b: 1, h: 1, ebene: 'licht', symbol: '🏮', farbe: '#ffcf87', extra: { radius: 3, farbe: '#ffcf87', staerke: 0.6, flackern: false, mast: true } },
+  // Kegel-Licht (Editor 2.0, 2.1): leuchtet in eine Richtung (0° = Osten, 90° = Süden); R dreht die Richtung
+  scheinwerfer: { typ: 'licht', name: 'Scheinwerfer (Kegel)', kategorie: 'Gebäude', b: 1, h: 1, ebene: 'licht', symbol: '🔦', farbe: '#fff2d0', extra: { radius: 6, farbe: '#fff2d0', staerke: 0.9, flackern: false, art: 'kegel', richtung: 90, oeffnung: 60 } },
   werkbank: { name: 'Werkbank (Crafting)', kategorie: 'Gebäude', b: 2, h: 1, ...M, symbol: '🔨', farbe: '#7a5532' },
   // Möbel
   bett: { name: 'Bett', kategorie: 'Möbel', b: 2, h: 4, ...M, symbol: '🛏', farbe: '#d9d9e8' },

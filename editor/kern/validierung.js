@@ -52,6 +52,9 @@ export function validiere(karte, { zonen = null, mitErreichbarkeit = true } = {}
       warnung('eigener-typ', `Eigener Typ „${o.typ}“: im Spiel ein Platzhalter-Quader (ohne 3D-Modell)`, Math.floor(o.x), Math.floor(o.y));
     }
   }
+  // Nächte sind dunkel (Editor 2.0, 2.1): Licht gibt es nur an Lampen, Laternen, Scheinwerfern und Lagerfeuern
+  const hatLicht = [...karte.s('objekte').values()].some((o) => o.typ === 'licht') || [...karte.s('bauwerke').values()].some((b) => b.typ === 'lagerfeuer');
+  if (!hatLicht && karte.breite * karte.hoehe > 0) warnung('kein-licht', 'Keine Lichtquelle: nachts ist die Zone stockdunkel (nur Taschenlampe) – Lampe, Laterne, Scheinwerfer oder Lagerfeuer setzen');
   for (const [, b] of karte.s('bauwerke')) {
     if (!BAUWERKE[b.typ]) fehler('bauwerk-typ', `Unbekanntes Bauwerk „${b.typ}“`, b.tx, b.ty);
     if (!karte.imFeld(b.tx, b.ty)) fehler('objekt-aussen', `Bauwerk „${b.typ}“ außerhalb der Zone`, b.tx, b.ty);

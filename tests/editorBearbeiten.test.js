@@ -189,3 +189,26 @@ test('Backup: kaputte Einträge werden gemeldet statt alles abzulehnen; fremde D
   assert.match(backupDateiname(new Date(2026, 9, 19, 14, 5)), /^editor-backup-2026-10-19-1405\.json$/);
   assert.equal(groesseText(1536), '1,5 KB');
 });
+
+// --- Editor 2.0, Schritt 2.1: Licht ------------------------------------------------------------
+import { validiere } from '../editor/kern/validierung.js';
+import { verarbeiteKarte } from '../server/spiel/karten/kartenLader.js';
+import { nachDefinition } from '../editor/kern/format.js';
+
+test('Licht: Warnung ohne Lichtquelle, Kegel-Lampe dreht mit R und kommt mit Richtung/Öffnung im Spiel an', () => {
+  const k = neueZone({ id: 'dunkel', name: 'Dunkel', breite: 12, hoehe: 10 });
+  k.anwenden([{ s: 'marker', k: '2,2', neu: { art: 'start' } }]);
+  assert.ok(validiere(k).some((e) => e.code === 'kein-licht' && e.schwere === 'warnung'));
+  const kegel = { typ: 'licht', x: 5, y: 5, b: 1, h: 1, ebene: 'licht', radius: 6, farbe: '#fff2d0', staerke: 0.9, art: 'kegel', richtung: 90, oeffnung: 60 };
+  k.anwenden([{ s: 'objekte', k: 1, neu: kegel }]);
+  assert.ok(!validiere(k).some((e) => e.code === 'kein-licht'));
+  assert.equal(dreheObjekt(k, kegel).richtung, 180, 'R dreht die Leuchtrichtung');
+  const daten = verarbeiteKarte(nachDefinition(k));
+  const licht = daten.daten.objekte.find((o) => o.typ === 'licht');
+  assert.deepEqual([licht.art, licht.richtung, licht.oeffnung], ['kegel', 90, 60]);
+  // ungültige Werte werden eingefangen, Punkt-Lampen bleiben ohne Kegel-Felder
+  k.anwenden([{ s: 'objekte', k: 1, neu: { ...kegel, richtung: -90, oeffnung: 500 } }, { s: 'objekte', k: 2, neu: { typ: 'licht', x: 1, y: 1, b: 1, h: 1, ebene: 'licht' } }]);
+  const d2 = verarbeiteKarte(nachDefinition(k)).daten.objekte.filter((o) => o.typ === 'licht');
+  assert.deepEqual([d2[0].richtung, d2[0].oeffnung], [270, 170]);
+  assert.equal(d2[1].art, undefined);
+});

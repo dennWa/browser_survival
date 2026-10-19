@@ -91,6 +91,8 @@ export function dreheObjekt(karte, o) {
     neu.y = r3(Math.max(0, Math.min(neu.y, karte.hoehe - neu.h)));
   }
   if (!neu.drehung) delete neu.drehung;
+  // Kegel-Lampe: Leuchtrichtung dreht mit
+  if (o.typ === 'licht' && o.art === 'kegel') neu.richtung = ((o.richtung ?? 90) + 90) % 360;
   return neu;
 }
 

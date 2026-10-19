@@ -34,7 +34,7 @@ const SYNONYME = {
   bereich: 'bereich',
 };
 /** Felder, die eine KI an Objekten setzen darf */
-const OBJEKT_FELDER = new Set(['typ', 'x', 'y', 'b', 'h', 'blockiert', 'ebene', 'drehung', 'name', 'groesse', 'radius', 'farbe', 'staerke', 'flackern', 'mast', 'textur']);
+const OBJEKT_FELDER = new Set(['typ', 'x', 'y', 'b', 'h', 'blockiert', 'ebene', 'drehung', 'name', 'groesse', 'radius', 'farbe', 'staerke', 'flackern', 'mast', 'textur', 'art', 'richtung', 'oeffnung']);
 const FARBE_HEX = /^#[0-9a-fA-F]{6}$/;
 export const MUSTER_NAMEN = ['holz', 'stein', 'metall', 'stoff', 'gras', 'streifen', 'punkte'];
 const KACHEL_NAMEN = Object.fromEntries(Object.entries(KACHELN).map(([z, k]) => [k.name, z]));

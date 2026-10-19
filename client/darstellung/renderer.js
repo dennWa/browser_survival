@@ -16,7 +16,6 @@ import { erzeugeWaffe, WAFFEN_NAMEN } from './waffenModelle.js';
 import { erzeugeTier } from './tierModelle.js';
 import { erzeugeAngel } from './angelModell.js';
 import { WetterEffekt } from './wetterEffekt.js';
-import { Sichtkegel } from './sichtkegel.js';
 import { BlaetterEffekt } from './blaetterEffekt.js';
 
 /**
@@ -34,7 +33,8 @@ import { BlaetterEffekt } from './blaetterEffekt.js';
  *
  * Performance (Ziel: 60 FPS auch auf Handys):
  *   - Karte in wenigen Draw-Calls (kartenModell.js: Instancing, zusammengefasste Möbel, eingefrorene Matrizen)
- *   - feste Lichteranzahl: Lampen-Pool (nur die nächsten LAMPEN_POOL Kartenlampen leuchten echt), 3 Taschenlampen,
+ *   - feste Lichteranzahl: Lampen-Pool (nur die nächsten LAMPEN_POOL Punkt- bzw. KEGEL_POOL Kegel-Lampen leuchten echt;
+ *     alle anderen zeigen nachts einen Lichtschein am Boden, kartenModell.js), 3 Taschenlampen,
  *     2 Mündungsblitze → Shader werden nie neu kompiliert
  *   - alle Shader beim Laden vorkompiliert (#vorkompilieren), Materialien geteilt
  *   - adaptive Qualität (QUALITAETS_STUFEN): fallen die FPS, werden erst Details gespart (Retina-Auflösung,
@@ -51,7 +51,13 @@ const SKINS = { normal: 'zombieMaleA', laeufer: 'zombieFemaleA', brocken: 'zombi
 const KOPF = { hoehe: 1.22, breite: 0.9, tiefe: 1.07 }; // Schädelmaße im Verhältnis zum Abstand Kopfknochen → Head_end (gemessen)
 const _wetterGrau = new THREE.Color();
 const MAX_TASCHENLAMPEN = 3;
-const LAMPEN_POOL = 6; // so viele Kartenlampen leuchten gleichzeitig echt (die nächsten)
+// So viele Kartenlampen leuchten gleichzeitig echt (die nächsten); jede echte Lichtquelle kostet in jedem Pixel → klein halten,
+// die übrigen Lampen zeigen nachts nur ihren Lichtschein am Boden (kartenModell.js)
+const LAMPEN_POOL = { handy: 5, desktop: 8 };
+const KEGEL_POOL = { handy: 1, desktop: 2 }; // Kegel-Lampen (Scheinwerfer, art 'kegel')
+/** Taschenlampe (Spieler): eher schmal und schwach – Nächte sollen düster bleiben (Nutzer-Wunsch, Editor 2.0 Schritt 2.1) */
+const TASCHENLAMPE = { winkel: 0.3, rand: 0.75, reichweite: 430, staerke: 220, staerkeNacht: 950 };
+const SCHEINWERFER = { winkel: 0.45, rand: 0.5, reichweite: 650, staerke: 500, staerkeNacht: 2600 };
 const MUENDUNGS_LICHTER = 2;
 const SITZ_TIEFE = 24; // so weit sinkt die Figur beim Sitzen am Feuer
 const SICHTWEITE = 1300; // weiter entfernte Figuren werden nicht animiert/gezeichnet
@@ -127,7 +133,6 @@ export class Renderer {
     this.leinwand = Object.assign(document.createElement('canvas'), { id: 'spielflaeche3d' });
     leinwand2d.before(this.leinwand);
     this.vignette = document.getElementById('vignette');
-    this.sichtkegel = new Sichtkegel(leinwand2d); // Sichtfeld-Schleier (Einstellungen ⚙ → Sichtkegel)
     this.schadenEbene = document.getElementById('schadensblitz');
     this.istHandy = matchMedia('(pointer: coarse)').matches;
 
@@ -174,7 +179,8 @@ export class Renderer {
     this.itemMaterialien = new Map(); // defId → { normal, markiert, breite, hoehe }
     this.figurMaterialien = new Map(); // Skin-Schlüssel → Material (geteilt)
     this.taschenlampen = Array.from({ length: MAX_TASCHENLAMPEN }, (_, i) => this.#neueTaschenlampe(i === 0));
-    this.lampenPool = Array.from({ length: LAMPEN_POOL }, () => this.#neuesPunktlicht(0xffffff, 300));
+    this.lampenPool = Array.from({ length: LAMPEN_POOL[this.istHandy ? 'handy' : 'desktop'] }, () => this.#neuesPunktlicht(0xffffff, 300));
+    this.kegelPool = Array.from({ length: KEGEL_POOL[this.istHandy ? 'handy' : 'desktop'] }, () => this.#neuesKegellicht());
     this.muendungslichter = Array.from({ length: MUENDUNGS_LICHTER }, () => this.#neuesPunktlicht(0xffc070, 380));
     this.#baueEffektObjekte();
     this.fussspuren = new Fussspuren(this.szene);
@@ -364,7 +370,6 @@ export class Renderer {
     this.gl.render(this.szene, this.kamera3d);
     this.#zeichneSilhouette(fokus);
     this.#zeichneTuerUmrisse();
-    this.sichtkegel.zeichne(this.kamera, fokus, dunkel, !fokus.tot && !this.egoHaken);
     this.#zeichneOverlay(entitaeten, fokus, gegenstaende, itemDefinitionen);
     if (this.ruhigWarter) this.#pruefeRuhig(dt, jetzt);
   }
@@ -684,6 +689,7 @@ export class Renderer {
     probe.add(icon, this.#itemMesh({ id: -2, defId: 'apfel', x: 0, y: 0 }), this.#blutMesh({ sprite: 'blutlache', groesse: 10, winkel: 0, x: 0, y: 0 }));
     this.szene.add(probe);
     this.lampenPool.forEach((l) => (l.intensity = 1));
+    this.kegelPool.forEach((l) => (l.intensity = 1));
     for (const ring of [this.gebietRing, this.gebietVorschau]) {
       const kopie = ring.mesh.clone();
       kopie.visible = true;
@@ -727,8 +733,15 @@ export class Renderer {
     return material;
   }
 
+  /** Kegel-Lampe der Karte (Scheinwerfer) – ohne Schatten, Ziel wird pro Frame gesetzt */
+  #neuesKegellicht() {
+    const spot = new THREE.SpotLight(0xffffff, 0, 300, 0.5, 0.5, 1);
+    this.szene.add(spot, spot.target);
+    return spot;
+  }
+
   #neueTaschenlampe(mitSchatten) {
-    const spot = new THREE.SpotLight(0xfff1d6, 0, 650, 0.45, 0.5, 1);
+    const spot = new THREE.SpotLight(0xffe4b8, 0, TASCHENLAMPE.reichweite, TASCHENLAMPE.winkel, TASCHENLAMPE.rand, 1);
     spot.castShadow = mitSchatten;
     spot.shadow.mapSize.set(this.istHandy ? 512 : 1024, this.istHandy ? 512 : 1024);
     spot.shadow.bias = -0.0008;
@@ -990,7 +1003,8 @@ export class Renderer {
         const az = Math.sin(auto.winkel);
         spot.position.set(auto.x + ax * (auto.laenge / 2 + 2), 22, auto.y + az * (auto.laenge / 2 + 2));
         spot.target.position.set(auto.x + ax * 380, 0, auto.y + az * 380);
-        spot.intensity = this.nachtsicht ? 600 : 500 + 2600 * dunkel;
+        Object.assign(spot, { angle: SCHEINWERFER.winkel, penumbra: SCHEINWERFER.rand, distance: SCHEINWERFER.reichweite });
+        spot.intensity = this.nachtsicht ? 600 : SCHEINWERFER.staerke + SCHEINWERFER.staerkeNacht * dunkel;
         return;
       }
       const vx = Math.cos(s.blick);
@@ -1000,8 +1014,9 @@ export class Renderer {
       if (f?.hatMuendung) spot.position.set(f.muendung.x + vx * 4, f.muendung.y, f.muendung.z + vz * 4);
       else spot.position.set(s.x + vx * 20, 40, s.y + vz * 20);
       spot.target.position.set(s.x + vx * 200, 0, s.y + vz * 200);
-      // Tagsüber sieht man den Kegel kaum
-      spot.intensity = this.nachtsicht ? 600 : 500 + 2300 * dunkel;
+      // Schmaler, schwacher Kegel (düster); tagsüber sieht man ihn kaum
+      Object.assign(spot, { angle: TASCHENLAMPE.winkel, penumbra: TASCHENLAMPE.rand, distance: TASCHENLAMPE.reichweite });
+      spot.intensity = this.nachtsicht ? 400 : TASCHENLAMPE.staerke + TASCHENLAMPE.staerkeNacht * dunkel;
     });
   }
 
@@ -1010,13 +1025,31 @@ export class Renderer {
     const lampen = this.feuerLampen.length > 0 ? [...this.karte.lampen, ...this.feuerLampen] : this.karte.lampen;
     if (dunkel < 0.03 || lampen.length === 0) {
       for (const l of this.lampenPool) l.intensity = 0;
+      for (const l of this.kegelPool) l.intensity = 0;
       return;
     }
-    // Alle paar Frames neu sortieren reicht
+    // Alle paar Frames neu sortieren reicht – Punkt- und Kegel-Lampen getrennt
     if (!this.naechsteLampen || jetzt - this.lampenSortiert > 250) {
       this.lampenSortiert = jetzt;
-      this.naechsteLampen = [...lampen].sort((a, b) => Math.hypot(a.x - fokus.x, a.z - fokus.y) - Math.hypot(b.x - fokus.x, b.z - fokus.y)).slice(0, LAMPEN_POOL);
+      const abstand = (a, b) => Math.hypot(a.x - fokus.x, a.z - fokus.y) - Math.hypot(b.x - fokus.x, b.z - fokus.y);
+      this.naechsteLampen = lampen.filter((l) => l.objekt.art !== 'kegel').sort(abstand).slice(0, this.lampenPool.length);
+      this.naechsteKegel = lampen.filter((l) => l.objekt.art === 'kegel').sort(abstand).slice(0, this.kegelPool.length);
     }
+    this.kegelPool.forEach((licht, i) => {
+      const lampe = this.naechsteKegel[i];
+      if (!lampe) {
+        licht.intensity = 0;
+        return;
+      }
+      const w = ((lampe.objekt.richtung ?? 90) * Math.PI) / 180;
+      licht.position.set(lampe.x, lampe.y, lampe.z);
+      licht.target.position.set(lampe.x + Math.cos(w) * lampe.reichweite * 0.55, 0, lampe.z + Math.sin(w) * lampe.reichweite * 0.55);
+      licht.color.copy(lampe.farbe);
+      licht.distance = lampe.reichweite * 1.4;
+      licht.angle = Math.min(1.3, (((lampe.objekt.oeffnung ?? 60) / 2) * Math.PI) / 180);
+      licht.penumbra = 0.45;
+      licht.intensity = lampe.staerke * 2.2 * flackern(lampe.objekt, jetzt) * dunkel;
+    });
     this.lampenPool.forEach((licht, i) => {
       const lampe = this.naechsteLampen[i];
       if (!lampe) {
@@ -1127,10 +1160,10 @@ export class Renderer {
     // Farben mischen: Nacht (blau) → Dämmerung (orange) → Tag (warm-weiß)
     const daemmerung = Math.max(0, 1 - Math.abs(hell - 0.35) / 0.35) * (tageszeit?.istNacht ? 0 : 1);
     this.mond.color.copy(NACHT.sonne).lerp(TAG.sonne, hell).lerp(DAEMMERUNG.sonne, daemmerung * 0.6);
-    this.mond.intensity = 0.22 + hell * 2.78; // Nächte sind richtig dunkel (früher 0,9 → ohne Lampe/Feuer kaum etwas zu sehen)
+    this.mond.intensity = 0.07 + hell * 2.93; // Nächte sind dunkel: Licht gibt es nur an Lampen, Feuern, Taschenlampe und Scheinwerfern (Editor 2.0, 2.1)
     this.umgebung.color.copy(NACHT.himmel).lerp(TAG.himmel, hell);
     this.umgebung.groundColor.copy(NACHT.boden).lerp(TAG.boden, hell);
-    this.umgebung.intensity = 0.16 + hell * 1.14;
+    this.umgebung.intensity = 0.06 + hell * 1.24;
     this.szene.background.copy(NACHT.hintergrund).lerp(TAG.hintergrund, hell).lerp(DAEMMERUNG.hintergrund, daemmerung * 0.5);
     this.szene.fog.color.copy(this.szene.background);
     // Nebel wandert mit der Kamera (Zoom, Auto-Fahrt): sonst liegt beim Rauszoomen/Fahren alles hinter dem Nebel
@@ -1275,7 +1308,6 @@ export class Renderer {
     this.grundAbstand = Math.min(1.35, Math.max(1, Math.sqrt(720 / Math.max(1, Math.min(breite, hoehe)))));
     this.#kameraAbstand();
     this.kamera3d.updateProjectionMatrix();
-    this.sichtkegel?.groesse(breite, hoehe);
     this.kamera.breite = breite;
     this.kamera.hoehe = hoehe;
   }

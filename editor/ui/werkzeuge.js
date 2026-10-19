@@ -425,6 +425,11 @@ export class Werkzeuge {
     const drehung = (this.zustand.drehung + (e.drehung ?? 0)) % 360;
     if (drehung) o.drehung = drehung;
     if (e.extra) Object.assign(o, kopie(e.extra));
+    // Kegel-Lampe: die Platzier-Drehung (R) dreht die Leuchtrichtung
+    if (o.art === 'kegel') {
+      o.richtung = ((o.richtung ?? 90) + this.zustand.drehung) % 360;
+      delete o.drehung;
+    }
     return o;
   }
 

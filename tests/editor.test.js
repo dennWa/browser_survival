@@ -189,7 +189,7 @@ test('Platzierung: grün/rot wie im Spiel (Wand, Tür, Möbel, außerhalb, Zombi
 
 test('Validierung: Start fehlt, Zombie im Haus, unbekannter Loot-Typ, Übergang ohne Ziel/Rückweg, Ankunft im Übergang, Objekt außerhalb', () => {
   const { karte } = ausDefinition(testZone());
-  assert.deepEqual(validiere(karte), []);
+  assert.deepEqual(validiere(karte).filter((e) => e.code !== 'kein-licht'), [], 'nur der Licht-Hinweis (Testzone ohne Lampe)');
   karte.anwenden([
     { s: 'marker', k: markerSchluessel(7, 3), neu: null },
     { s: 'marker', k: markerSchluessel(2, 2), neu: { art: 'zombie' } },

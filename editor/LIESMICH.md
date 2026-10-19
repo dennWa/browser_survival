@@ -124,6 +124,13 @@ Loot-Tabellen bekannt …). Fehler erscheinen als Liste mit Koordinaten – ein 
 öffnet sich das Spiel im **Lokal-Modus mit deinem Entwurf** (alle Zonen des Projekts sind dabei, Übergänge funktionieren).
 Der echte Spielstand wird dabei nicht angefasst. Oben im Spiel: **⟵ Zurück zum Editor** – dein Entwurf ist unverändert da.
 
+## Licht (Nächte sind dunkel)
+
+Nachts ist es im Spiel **dunkel** – Licht gibt es nur dort, wo Lichtquellen stehen: **Lampe** (rundum), **Straßenlaterne** (mit Mast),
+**Scheinwerfer (Kegel)** (leuchtet in eine Richtung: R dreht um 90°, im Inspektor Richtung 0° = Osten, 90° = Süden … und
+Öffnungswinkel), **Lagerfeuer** – sowie die Taschenlampe der Spieler und Autoscheinwerfer. Im Inspektor: Radius, Farbe, Stärke,
+Flackern, Lichtform (Punkt/Kegel). Die 2D-Ansicht zeigt Radius bzw. Kegel. Die Prüfung warnt, wenn eine Zone gar kein Licht hat.
+
 ## 2D/3D, Farben, Gelände, eigene Objekte
 
 - **3D** (Knopf oben oder Taste **3**): dieselbe Karte in der Spielperspektive. Ziehen = schieben, Rechts-/Alt-Ziehen =
