@@ -9,7 +9,7 @@
  * Objekt platzieren + drehen + verschieben → Rückgängig/Wiederholen → Spielzone Waldweg als Vorlage öffnen → Auswahl +
  * Ausschnitt-Export → Zone vergrößern → 3D-Ansicht → Validierung → Neu laden (Entwurf + Verlauf bleiben) → Karte testen.
  * Editor 2.0: Menüleiste, Asset-Browser (Suche), Kontextmenü, Ebenen sperren, Hilfe mit Suche, Modell-Bibliothek (Phase 3),
- * Audio-Bibliothek + Klänge (Phase 4), Modell-Werkstatt (5.1) mit Material/Malen/Aufklebern (5.2) und Animationen/Gelenken (5.3, auch im Spiel), Werkstatt-KI gemockt (5.4).
+ * Audio-Bibliothek + Klänge (Phase 4), Modell-Werkstatt (5.1) mit Material/Malen/Aufklebern (5.2) und Animationen/Gelenken (5.3, auch im Spiel), Werkstatt-KI gemockt (5.4), Free-Modus (5.5).
  */
 import { spawn, execSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -565,6 +565,76 @@ try {
   await seite.unroute('https://generativelanguage.googleapis.com/**');
   await seite.evaluate((alt) => (alt === null ? localStorage.removeItem('browserSurvival.editorGemini') : localStorage.setItem('browserSurvival.editorGemini', alt)), alterSchluessel);
   await seite.click('#links [data-reiter="🧱 Assets"]');
+
+  schritt('Phase 5.5: Free-Modus – frei platzieren mit Winkel, Alt+Rad, Drehgriff, Undo, gedrehte Kollision');
+  await asset('objekt:tisch');
+  await seite.check('#optionen [data-o="frei"]');
+  await seite.fill('#optionen [data-o="winkel"]', '30');
+  const freiStelle = await seite.evaluate(async () => {
+    const { pruefeObjekt } = await import('/editor/kern/platzierung.js');
+    const w = window.mapEditor.werkzeuge;
+    const k = window.mapEditor.zustand.karte;
+    // freie Stelle suchen: Vorschau-Objekt muss gültig sein
+    for (let y = 2; y < k.hoehe - 2; y++)
+      for (let x = 2; x < k.breite - 2; x++) {
+        const p = { wx: x + 0.37, wy: y + 0.61, tx: x, ty: y };
+        const o = w.neuesObjekt(p);
+        if (o.drehung === 30 && pruefeObjekt(k, o).ok) return { x: x + 0.37, y: y + 0.61, o };
+      }
+    return null;
+  });
+  pruefe(!!freiStelle && !Number.isInteger(freiStelle.o.x), `Freie Stelle, stufenlose Position (${JSON.stringify(freiStelle?.o)})`);
+  const bildPunkt = (x, y) => seite.evaluate(([x, y]) => {
+    const p = window.mapEditor.zeichner.zuBild(x, y);
+    const r = document.getElementById('leinwand2d').getBoundingClientRect();
+    return { x: r.left + p.x, y: r.top + p.y };
+  }, [x, y]);
+  const freiZiel = await bildPunkt(freiStelle.x, freiStelle.y);
+  await seite.mouse.click(freiZiel.x, freiZiel.y);
+  await seite.keyboard.press('Escape');
+  await seite.keyboard.press('v');
+  const tischId = await seite.evaluate(() => {
+    const k = window.mapEditor.zustand.karte;
+    const [id] = [...k.s('objekte')].find(([, o]) => o.typ === 'tisch' && o.drehung === 30) ?? [];
+    if (id) window.mapEditor.zustand.waehle([{ s: 'objekte', k: id }]);
+    return id;
+  });
+  pruefe(!!tischId, 'Tisch mit 30° gesetzt');
+  const freiTisch = () => seite.evaluate((id) => window.mapEditor.zustand.karte.s('objekte').get(id), tischId);
+  await seite.mouse.move(freiZiel.x, freiZiel.y);
+  await seite.keyboard.down('Alt');
+  await seite.mouse.wheel(0, 120);
+  await seite.keyboard.up('Alt');
+  pruefe((await freiTisch()).drehung === 35, `Alt+Rad dreht um 5° (${(await freiTisch()).drehung}°)`);
+  await seite.waitForTimeout(700); // Rad-Folge abschließen (1 Undo-Schritt)
+  const vorGriff = await freiTisch();
+  const dGriff = await seite.evaluate(async (o) => (await import('/editor/kern/bearbeiten.js')).drehGriff(o), vorGriff);
+  const gStart = await bildPunkt(dGriff.x, dGriff.y);
+  const gRadius = Math.hypot(dGriff.x - dGriff.cx, dGriff.y - dGriff.cy);
+  // Griff um die Mitte ziehen: von „oben“ nach „rechts“ (+90°), Umschalt = 15°-Raster
+  const winkelNeu = Math.atan2(dGriff.y - dGriff.cy, dGriff.x - dGriff.cx) + Math.PI / 2;
+  const gZiel = await bildPunkt(dGriff.cx + Math.cos(winkelNeu) * gRadius, dGriff.cy + Math.sin(winkelNeu) * gRadius);
+  await seite.mouse.move(gStart.x, gStart.y);
+  await seite.mouse.down();
+  await seite.keyboard.down('Shift');
+  await seite.mouse.move(gZiel.x, gZiel.y, { steps: 8 });
+  await seite.keyboard.up('Shift');
+  await seite.mouse.up();
+  const nachGriff = await freiTisch();
+  pruefe(nachGriff.drehung === 120 && nachGriff.b === vorGriff.h && nachGriff.h === vorGriff.b, `Drehgriff: 15°-Raster, längs → quer tauscht b/h (${JSON.stringify({ d: nachGriff.drehung, b: nachGriff.b, h: nachGriff.h })})`);
+  await seite.screenshot({ path: path.join(AUSGABE, 'editor-20-frei.png') });
+  await seite.keyboard.press('Control+z');
+  pruefe((await freiTisch()).drehung === 35, 'Undo: Griff-Zug = 1 Schritt');
+  const freiKollision = await seite.evaluate(async (o) => {
+    const { Welt } = await import('/gemeinsam/welt/welt.js');
+    const { bedeckteKacheln } = await import('/gemeinsam/welt/drehung.js');
+    const k = window.mapEditor.zustand.karte;
+    const welt = new Welt({ id: 'x', name: 'x', breite: k.breite, hoehe: k.hoehe, kacheln: Array.from({ length: k.hoehe }, () => '.'.repeat(k.breite)), objekte: [{ ...o, blockiert: true }], kachelGroesse: 32 });
+    return bedeckteKacheln(o, k.breite).every((i) => welt.istBlockiert(i % k.breite, Math.floor(i / k.breite)));
+  }, await freiTisch());
+  pruefe(freiKollision, 'Spiel-Welt blockiert die Kacheln des gedrehten Tischs');
+  await seite.uncheck('#optionen [data-o="frei"]');
+  await seite.keyboard.press('Escape');
   await seite.click('#links [data-reiter="🧱 Assets"]');
 
   if (!nurBis) {

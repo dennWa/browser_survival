@@ -1,4 +1,5 @@
 import { ausSchluessel, markerSchluessel, kopie } from './karte.js';
+import { drehLage, huelle } from '../../gemeinsam/welt/drehung.js';
 
 /**
  * Bearbeiten gewählter Elemente (umgebungsfrei, getestet in tests/editor.test.js): verschieben, drehen, duplizieren.
@@ -8,6 +9,7 @@ import { ausSchluessel, markerSchluessel, kopie } from './karte.js';
  *     (Baumkronen – ebene 'oben' – dürfen höchstens zur Hälfte überstehen, wie in den Spielzonen).
  *   - Drehen um 90° bleibt im Raster: ganzzahlige Objekte auf ganzzahliger Position drehen um die Mitte, wenn das wieder
  *     im Raster landet, sonst um die linke obere Ecke (kein „halbe Kachel“-Versatz, viermal drehen = Ausgangslage).
+ *   - Free-Modus (5.5): `setzeDrehung` dreht auf beliebige Winkel (b/h-Tausch beim Wechsel längs/quer), `dreheOps(…, schritt)`.
  *   - Klänge (Phase 4): Punkt frei verschiebbar, Ambiente-Bereich nur um ganze Kacheln, globale Klänge haben keinen Ort.
  */
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -111,13 +113,52 @@ export function dreheObjekt(karte, o) {
   return neu;
 }
 
-/** Gewähltes um 90° drehen. @returns { ops, uebersprungen } (Marker, Ankünfte, Bereiche haben keine Drehung) */
-export function dreheOps(karte, gewaehlte) {
+/**
+ * Objekt frei auf `grad` drehen (Free-Modus, 5.5). Wechselt es dabei zwischen längs und quer (Viertel gerade ↔ ungerade,
+ * gemeinsam/welt/drehung.js), werden b/h um die Mitte getauscht – wie beim 90°-Drehen; der Rest-Winkel dreht die Grundfläche.
+ * Kegel-Lampe: Leuchtrichtung dreht mit. Rand prüft der Aufrufer (pruefeObjekt).
+ */
+export function setzeDrehung(o, grad) {
+  const alt = drehLage(o.drehung);
+  const ziel = drehLage(Math.round(grad * 10) / 10);
+  const neu = { ...o, drehung: ziel.grad };
+  if (alt.quer !== ziel.quer) {
+    const cx = o.x + o.b / 2;
+    const cy = o.y + o.h / 2;
+    Object.assign(neu, { b: o.h, h: o.b, x: r3(cx - o.h / 2), y: r3(cy - o.b / 2) });
+  }
+  if (o.typ === 'licht' && o.art === 'kegel') neu.richtung = Math.round((((o.richtung ?? 90) + ziel.grad - alt.grad) % 360) + 360) % 360;
+  if (!neu.drehung) delete neu.drehung;
+  return neu;
+}
+
+/** Drehgriff eines Objekts (Free-Modus): über der Oberkante der gedrehten Grundfläche → { x, y, cx, cy } (Kacheln) */
+export function drehGriff(o, abstand = 0.8) {
+  const { rest } = drehLage(o.drehung);
+  const cx = o.x + o.b / 2;
+  const cy = o.y + o.h / 2;
+  const w = (rest * Math.PI) / 180;
+  const d = o.h / 2 + abstand;
+  return { x: cx + Math.sin(w) * d, y: cy - Math.cos(w) * d, cx, cy };
+}
+
+/** Liegt das (gedrehte) Objekt ganz in der Zone? (Kronen 'oben' dürfen überstehen) */
+export const inZone = (karte, o) => {
+  if (o.ebene === 'oben') return true;
+  const r = huelle(o);
+  return r.x0 >= -1e-9 && r.y0 >= -1e-9 && r.x1 <= karte.breite + 1e-9 && r.y1 <= karte.hoehe + 1e-9;
+};
+
+/**
+ * Gewähltes drehen: schritt 90 (Standard) = im Raster wie bisher, sonst frei um `schritt` Grad (Free-Modus).
+ * @returns { ops, uebersprungen } (Marker, Ankünfte, Bereiche haben keine Drehung; Bauwerke nur in 90°-Schritten)
+ */
+export function dreheOps(karte, gewaehlte, schritt = 90) {
   const ops = [];
   let uebersprungen = 0;
   for (const { s, k, wert } of gewaehlte) {
-    if (s === 'objekte') ops.push({ s, k, neu: dreheObjekt(karte, wert) });
-    else if (s === 'bauwerke') ops.push({ s, k, neu: { ...wert, drehung: wert.drehung ? 0 : 1 } });
+    if (s === 'objekte') ops.push({ s, k, neu: schritt === 90 ? dreheObjekt(karte, wert) : setzeDrehung(wert, (wert.drehung ?? 0) + schritt) });
+    else if (s === 'bauwerke' && schritt % 90 === 0) ops.push({ s, k, neu: { ...wert, drehung: wert.drehung ? 0 : 1 } });
     else uebersprungen++;
   }
   return { ops, uebersprungen };

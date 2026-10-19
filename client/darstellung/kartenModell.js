@@ -4,6 +4,7 @@ import { RESSOURCEN_OBJEKTE } from '../../gemeinsam/welt/ressourcen.js';
 import { baueBaum, baueStumpf, toonMaterial, baumMaterial, BAUM_LAUB_TOENE } from './baumModell.js';
 import { BodenTextur } from './bodenTextur.js';
 import { einfrieren, matrixAus, vereineGeometrien } from './geometrie.js';
+import { eigeneGroesse } from '../../gemeinsam/welt/drehung.js';
 import { eigenesModellUrl, ladeEigenesModell, eigenesModellInhalt, leerlaufMischer } from './eigeneModelle.js';
 
 /**
@@ -335,7 +336,9 @@ export class KartenModell {
       ladeEigenesModell(url)
         .then((szene) => {
           if (!gruppe.parent) return;
-          const inhalt = eigenesModellInhalt(szene, { b: o.b, h: o.h, hoehe: typ.hoehe3d ?? 1, einheit: g });
+          // eigene Maße vor dem Drehen, dann um den vollen Winkel (gruppe.rotation) – sonst sind bei 90° Breite/Tiefe vertauscht
+          const eigen = eigeneGroesse(o);
+          const inhalt = eigenesModellInhalt(szene, { b: eigen.b, h: eigen.h, hoehe: typ.hoehe3d ?? 1, einheit: g });
           gruppe.add(inhalt);
           // Leerlauf-Animation (Map-Editor 5.3): Kinder der eingefrorenen Gruppe aktualisieren ihre Matrizen weiter selbst
           const mischer = leerlaufMischer(inhalt, typ.animation);
@@ -354,9 +357,10 @@ export class KartenModell {
       // ebene 'unsichtbar' = steile Hänge aus dem Map-Editor (nur Kollision, keine Grafik)
       if (o.typ === 'licht' || o.typ === 'markierung' || o.ebene === 'boden' || o.ebene === 'oben' || o.ebene === 'unsichtbar' || RESSOURCEN_OBJEKTE[o.typ]) continue;
       if (eigenesModellUrl(this.welt.typen[o.typ])) continue; // eigenes 3D-Modell → #baueEigeneModelle
-      const quer = (o.drehung ?? 0) % 180 !== 0;
-      const breite = (quer ? o.h : o.b) * g;
-      const tiefe = (quer ? o.b : o.h) * g;
+      // eigene Maße vor dem Drehen (Viertel stecken schon in b/h) – um den vollen Winkel gedreht (gemeinsam/welt/drehung.js)
+      const eigen = eigeneGroesse(o);
+      const breite = eigen.b * g;
+      const tiefe = eigen.h * g;
       const hoehe = MOEBEL_HOEHE[o.typ] ?? 20;
       const x = (o.x + o.b / 2) * g;
       const z = (o.y + o.h / 2) * g;

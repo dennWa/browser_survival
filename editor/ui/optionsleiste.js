@@ -32,6 +32,9 @@ export class Optionsleiste {
     const teile = [];
     const gruppe = (html) => teile.push(`<div class="opt-gruppe">${html}</div>`);
     const knopf = (wert, text, aktiv, titel = '') => `<button type="button" data-o="${esc(wert)}" class="${aktiv ? 'aktiv' : ''}" title="${esc(titel)}">${text}</button>`;
+    // Free-Modus (5.5): Raster ⇄ Frei; beim Platzieren zusätzlich freier Winkel
+    const frei = (mitWinkel) =>
+      gruppe(`<label title="stufenlos platzieren/verschieben, freie Drehung (R = 15°, Alt+Rad = 5°, Drehgriff an gewählten Objekten)"><input type="checkbox" data-o="frei" ${z.frei ? 'checked' : ''}> Frei</label>${z.frei && mitWinkel ? `<label class="leise">Winkel <input type="number" data-o="winkel" value="${z.drehung}" step="5" style="width:64px">°</label>` : ''}${z.frei ? '<span class="leise">Alt+Rad dreht · Umschalt = 15°</span>' : ''}`);
     const groesse = () => gruppe(`<span class="leise">Größe</span>${knopf('pinsel:-1', '−', false, 'kleiner ([)')}<input type="range" min="1" max="15" value="${z.pinselGroesse}" data-o="pinsel" aria-label="Pinselgröße"><b class="zahl">${z.pinselGroesse}</b>${knopf('pinsel:1', '+', false, 'größer (])')}`);
     if (z.ansicht === '3d') {
       gruppe('<b>🧊 3D-Ansicht</b>');
@@ -49,6 +52,7 @@ export class Optionsleiste {
     } else if (w === 'platzieren' && e) {
       gruppe(`<span class="symbol">${esc(e.symbol ?? '')}</span><b>${esc(e.name)}</b>${e.b ? `<span class="leise">${e.b} × ${e.h}</span>` : ''}`);
       if (e.art === 'objekt' || e.art === 'bauwerk') gruppe(`<span class="leise">Drehung</span>${[0, 90, 180, 270].map((d) => knopf(`drehung:${d}`, `${d}°`, z.drehung === d, 'R dreht weiter')).join('')}`);
+      if (e.art === 'objekt' || e.art === 'bibliothek') frei(true);
       if (e.art === 'bauwerk' && ['wand', 'tuer'].includes(e.ebene)) gruppe(`<label title="auch: Strg beim Ziehen"><input type="checkbox" data-o="raumUmriss" ${z.raumUmriss ? 'checked' : ''}> Raum (Rechteck-Umriss)</label><span class="leise">Maustaste halten und ziehen · Umschalt = frei · Ausrichtung automatisch</span>`);
       else {
         gruppe(`<label title="sonst: Umschalt halten"><input type="checkbox" data-o="mehrfach" ${z.mehrfach ? 'checked' : ''}> mehrfach setzen</label>`);
@@ -82,6 +86,7 @@ export class Optionsleiste {
           return b ? `<button type="button" data-befehl="${id}" title="${esc(b.name)}${b.kuerzel[0] ? ` (${esc(b.kuerzel[0])})` : ''}">${esc(b.symbol ?? '')} ${esc(b.kurz ?? b.name)}</button>` : '';
         }).join(''));
       }
+      if (w === 'auswahl' && z.karte) frei(false);
       if (w === 'zone') gruppe(`<button type="button" data-befehl="zone.groesse">Größe eingeben…</button>`);
       if (HINWEIS[w]) gruppe(`<span class="leise">${esc(HINWEIS[w])}</span>`);
     }
@@ -122,6 +127,11 @@ export class Optionsleiste {
         else if (art === 'mehrfach') z.mehrfach = i.checked;
         else if (art === 'nurRand') z.nurRand = i.checked;
         else if (art === 'raumUmriss') z.raumUmriss = i.checked;
+        else if (art === 'frei') {
+          z.frei = i.checked;
+          z.meldung(z.frei ? 'Free-Modus: stufenlos, freie Drehung (Alt+Rad, R = 15°, Drehgriff)' : 'Raster-Modus');
+          z.melde('werkzeug');
+        } else if (art === 'winkel' && i.value !== '' && Number.isFinite(Number(i.value))) z.drehung = Math.round((((Number(i.value) % 360) + 360) % 360) * 10) / 10;
       }),
     );
     // Eingaben in der Leiste lösen keine Werkzeug-Kürzel aus

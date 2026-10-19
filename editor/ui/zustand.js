@@ -27,7 +27,8 @@ export class Zustand {
     this.eintrag = null; // Katalog-Eintrag der Bauleiste
     this.kategorie = 'Wege';
     this.pinselGroesse = 1;
-    this.drehung = 0; // für neue Objekte
+    this.drehung = 0; // für neue Objekte (Grad; im Free-Modus beliebig)
+    this.frei = false; // Free-Modus (5.5): stufenlos platzieren/verschieben, freie Drehung
     /** Auswahl: Map "s|k" → { s, k } */
     this.auswahl = new Map();
     this.auswahlRechteck = null; // { x, y, b, h } (Excel-artig, für Kopieren & Ausschnitt-Export)

@@ -3,7 +3,7 @@ import { LOOT_TABELLEN } from '../../server/spiel/konfiguration/lootTabellen.js'
 import { BAUWERKE } from '../../gemeinsam/welt/bauwerke.js';
 import { ausSchluessel, markerSchluessel } from '../kern/karte.js';
 import { objektInfo, OBJEKT_TYPEN } from '../kern/katalog.js';
-import { ueberstand } from '../kern/bearbeiten.js';
+import { ueberstand, setzeDrehung, inZone } from '../kern/bearbeiten.js';
 import { bereichHoehe } from '../kern/terrain.js';
 import { ZONEN_EINSTELLUNGEN } from '../../server/spiel/karten/zonenEinstellungen.js';
 import { esc, feldHtml } from './dialoge.js';
@@ -136,7 +136,7 @@ export function inspektor({ zustand, leiste, aktionen, befehle }) {
       { name: 'typ', label: 'Typ', typ: 'auswahl', wert: o.typ, optionen: typen.map((t) => [t, `${objektInfo(t, k).name}`]) },
       { name: 'name', label: 'Name', typ: 'text', wert: o.name ?? '', hilfe: 'optional, nur Editor/KI' },
       ...rechteckFelder(o, 0.1),
-      { name: 'drehung', label: 'Drehung °', typ: 'zahl', wert: o.drehung ?? 0, schritt: 1, hilfe: '90er-Schritte = Raster; frei (z. B. 95) nur Optik' },
+      { name: 'drehung', label: 'Drehung °', typ: 'zahl', wert: o.drehung ?? 0, schritt: 1, hilfe: 'frei, z. B. 30 – zählt auch für die Kollision im Spiel (Grundfläche dreht mit)' },
       { name: 'blockiert', label: 'Blockiert', typ: 'haken', wert: !!o.blockiert },
       { name: 'ebene', label: 'Ebene', typ: 'auswahl', wert: o.ebene ?? 'moebel', optionen: [['moebel', 'Möbel (Standard)'], ['boden', 'Boden (flach)'], ['oben', 'Oben (Krone)'], ['licht', 'Licht']] },
     ];
@@ -161,7 +161,11 @@ export function inspektor({ zustand, leiste, aktionen, befehle }) {
       let neu = { ...o };
       if (name === 'blockiert') neu = setzeOptional(neu, 'blockiert', v ? true : undefined);
       else if (name === 'ebene') neu = setzeOptional(neu, 'ebene', v === 'moebel' ? undefined : v);
-      else if (name === 'drehung') neu = setzeOptional(neu, 'drehung', v ? ((v % 360) + 360) % 360 : undefined);
+      else if (name === 'drehung') {
+        // Free-Modus-Regel (5.5): Wechsel längs/quer tauscht b/h um die Mitte, der Rest-Winkel dreht die Grundfläche
+        neu = setzeDrehung(o, v ?? 0);
+        if (!inZone(k, neu)) return z.meldung('So gedreht ragt das Objekt aus der Zone', 'fehler');
+      }
       else if (name === 'name' || name === 'groesse' || name === 'textur') neu = setzeOptional(neu, name, v || undefined);
       else if (name === 'art') {
         neu = setzeOptional(neu, 'art', v === 'kegel' ? 'kegel' : undefined);

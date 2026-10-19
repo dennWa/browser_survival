@@ -3,6 +3,8 @@ import { ausSchluessel } from '../kern/karte.js';
 import { kachelInfo, objektInfo } from '../kern/katalog.js';
 import { istSteil } from '../kern/terrain.js';
 import { BAUWERKE } from '../../gemeinsam/welt/bauwerke.js';
+import { drehLage, ecken } from '../../gemeinsam/welt/drehung.js';
+import { drehGriff } from '../kern/bearbeiten.js';
 
 /**
  * 2D-Draufsicht (Canvas). Kamera in Kachelkoordinaten (Mitte des Bilds) + Zoom (Pixel pro Kachel).
@@ -10,6 +12,8 @@ import { BAUWERKE } from '../../gemeinsam/welt/bauwerke.js';
  * Kacheln liegen in einem 1-Pixel-pro-Kachel-Bild (wird nur an geänderten Stellen nachgemalt) und werden ohne Glättung
  * hochskaliert → scharf und schnell, auch bei 160 × 120.
  * Ebenen (zustand.ebenen, kern/ebenen.js): ausgeblendete werden nicht gezeichnet, gesperrte ausgegraut (`this.dimm`).
+ * Frei gedrehte Objekte (5.5): Grundfläche als gedrehtes Polygon (gemeinsam/welt/drehung.js), im Free-Modus Drehgriff am
+ * einzeln gewählten Objekt (kern/bearbeiten.drehGriff); Vorschau ebenfalls gedreht.
  * Klänge (Phase 4, #zeichneKlaenge): Punkt mit Kreisen voll/Hörweite (+ Griffe), Ambiente-Rechteck mit Rand, Global als Hinweis.
  */
 export const LINEAL = 24;
@@ -526,15 +530,18 @@ export class Zeichner2D {
       } else {
         ctx.globalAlpha = (o.ebene === 'boden' ? 0.7 : 1) * this.dimm;
         const sprite = !o.farbe && this.#sprite(o.typ);
+        const gedreht = !!drehLage(o.drehung).rest;
         if (sprite && z >= 6) this.#zeichneSprite(ctx, sprite, r, o.drehung ?? 0);
         else {
           ctx.fillStyle = farbe;
-          ctx.fillRect(r.x, r.y, r.b, r.h);
+          if (gedreht) (this.#polygon(ctx, ecken(o)), ctx.fill());
+          else ctx.fillRect(r.x, r.y, r.b, r.h);
         }
         if (o.ebene !== 'boden') {
           ctx.strokeStyle = o.blockiert ? 'rgba(0,0,0,0.75)' : 'rgba(255,255,255,0.45)';
           ctx.lineWidth = 1;
-          ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.b - 1, r.h - 1);
+          if (gedreht) (this.#polygon(ctx, ecken(o)), ctx.stroke());
+          else ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.b - 1, r.h - 1);
         }
         if (info.bild && this.#bild(info.bild)) ctx.drawImage(this.#bild(info.bild), r.x, r.y, r.b, r.h);
         if (!sprite && z >= 14 && r.b >= 14 && r.h >= 14) {
@@ -557,8 +564,43 @@ export class Zeichner2D {
         }
       }
       ctx.restore();
-      if (this.zustand.istGewaehlt('objekte', id)) this.#markiere(ctx, r);
+      if (this.zustand.istGewaehlt('objekte', id)) {
+        if (drehLage(o.drehung).rest) this.#markiere(ctx, null, ecken(o));
+        else this.#markiere(ctx, r);
+        if (this.zustand.frei && this.zustand.auswahl.size === 1 && this.zustand.werkzeug === 'auswahl') this.#zeichneDrehGriff(ctx, o);
+      }
     }
+  }
+
+  /** Pfad durch Eckpunkte (Kacheln) */
+  #polygon(ctx, punkte) {
+    ctx.beginPath();
+    punkte.forEach(([x, y], i) => {
+      const q = this.zuBild(x, y);
+      if (i) ctx.lineTo(q.x, q.y);
+      else ctx.moveTo(q.x, q.y);
+    });
+    ctx.closePath();
+  }
+
+  /** Drehgriff (Free-Modus): Linie von der Mitte + runder Griff über der Oberkante */
+  #zeichneDrehGriff(ctx, o) {
+    const g = drehGriff(o);
+    const m = this.zuBild(g.cx, g.cy);
+    const p = this.zuBild(g.x, g.y);
+    ctx.save();
+    ctx.strokeStyle = '#4fc3ff';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(m.x, m.y);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
   }
 
   #zeichneBauwerke(ctx, k) {
@@ -649,9 +691,15 @@ export class Zeichner2D {
     for (const r of v.rechtecke ?? []) {
       const rb = this.#rechteckBild(r.x, r.y, r.b, r.h);
       ctx.fillStyle = `${farbe}0.35)`;
-      ctx.fillRect(rb.x, rb.y, rb.b, rb.h);
       ctx.strokeStyle = `${farbe}0.95)`;
       ctx.lineWidth = 2;
+      if (drehLage(r.drehung).rest) {
+        this.#polygon(ctx, ecken(r));
+        ctx.fill();
+        ctx.stroke();
+        continue;
+      }
+      ctx.fillRect(rb.x, rb.y, rb.b, rb.h);
       ctx.strokeRect(rb.x + 1, rb.y + 1, rb.b - 2, rb.h - 2);
     }
     if (v.kacheln?.length) {
@@ -756,12 +804,14 @@ export class Zeichner2D {
     if (text) this.#text(ctx, text, rb.x + rb.b / 2, rb.y - 10, farbe);
   }
 
-  #markiere(ctx, r) {
+  /** Auswahl-Rahmen; punkte = Ecken einer gedrehten Grundfläche (Kacheln) statt Rechteck */
+  #markiere(ctx, r, punkte = null) {
     ctx.save();
     ctx.strokeStyle = '#4fc3ff';
     ctx.lineWidth = 2;
     ctx.setLineDash([4, 3]);
-    ctx.strokeRect(r.x - 2, r.y - 2, r.b + 4, r.h + 4);
+    if (punkte) (this.#polygon(ctx, punkte), ctx.stroke());
+    else ctx.strokeRect(r.x - 2, r.y - 2, r.b + 4, r.h + 4);
     ctx.restore();
   }
 
@@ -833,7 +883,7 @@ export class Zeichner2D {
   }
 
   #zeichneSprite(ctx, s, r, drehung) {
-    const quer = drehung % 180 !== 0;
+    const quer = drehLage(drehung).quer; // eigene Maße vor dem Drehen (Viertel stecken in b/h)
     const bb = quer ? r.h : r.b;
     const hh = quer ? r.b : r.h;
     ctx.translate(r.x + r.b / 2, r.y + r.h / 2);

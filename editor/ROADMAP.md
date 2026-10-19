@@ -51,14 +51,17 @@
   `werkstatt.probiere` (Vorschau → Übernehmen = 1 Undo-Schritt). Tests (Mock-fetch) + Rauchtest „Phase 5.4“ (route-Mock).
   Offen/bekannt: echte Gemini-API ungetestet (kein Schlüssel in der Testumgebung); Bildmodell-Name fest (`BILD_MODELL`).
 
-**Nächster Schritt: Phase 5 – 5.5 Free-Modus** (🎮, noch nicht begonnen). Vorgehen: (1) gemeinsame Regel für gedrehte Rechtecke
-in `gemeinsam/welt/` (z. B. `gedreht.js`: Ecken, SAT-Test Rechteck↔Kreis/Rechteck) + Tests; (2) Spiel-Kollision/Sicht für Objekte
-mit freier `drehung` (nicht Vielfaches von 90°) in `welt.js`/`bewegung.js`/A* (Kacheln, die das gedrehte Rechteck berührt,
-blockieren); (3) Editor: Optionsleiste „Raster ⇄ Frei“, stufenlose Position, Drehgriff/Mausrad/Zahlenfeld (Umschalt = 15°),
-grün/rot-Prüfung mit gedrehtem Rechteck (`kern/platzierung.js`), 2D/3D-Darstellung gedreht; (4) Renderer/kartenModell zeigen
-freie Drehung. Spieldateien nur mit Vermerk in KI_INDEX §10 (Freigabe Nutzer).
+- 5.5 Free-Modus fertig (2026-10-19): Regel `gemeinsam/welt/drehung.js` (b×h = Grundfläche, Rest-Winkel −45…45° dreht um die
+  Mitte, 0/90/180/270° exakt wie vorher), Spiel-Kollision `welt.js`, Darstellung `kartenModell`/`bodenTextur`/eigene Modelle
+  (Altfehler: eigene Modelle bei 90° hatten vertauschte Maße – behoben), Editor: Optionsleiste „Frei“ + Winkel, R = 15°, Alt+Rad 5°
+  (Umschalt 15°), Drehgriff, Inspektor `setzeDrehung`, Platzierungsprüfung gedreht, 2D-Polygon, 3D Rest-Winkel.
+  Tests `tests/drehung.test.js`, Rauchtest „Phase 5.5“. Alles grün (npm test 253, rauchtest:editor, rauchtest).
+  ⚠ Doku-Rest offen: LIESMICH-Abschnitt „Free-Modus“ und Manifest-Changelog-Zeile für 5.5 fehlen noch (KI_INDEX ist nachgezogen).
 
-**Danach:** Phasen 5–9 laut Tabellen unten (5 3D-Modul, 6 Zonen/Loot, 7 UX, 8 Testlauf, 9 KI).
+**Nächster Schritt: Phase 6 – 6.1 Zonen-Manager** (noch nicht begonnen). Vorher: LIESMICH + Manifest für 5.5 nachtragen.
+Arbeit pausiert auf Nutzerwunsch (Limit) – hier weitermachen.
+
+**Danach:** Phasen 6–9 laut Tabellen unten (6 Zonen/Loot, 7 UX, 8 Testlauf, 9 KI).
 
 ## Ausgangslage (Analyse 2026-10-19)
 - Editor v0.14: Phasen 0–11 fertig, ~10 000 Zeilen in `editor/`, 210 Tests grün, Rauchtest grün.
@@ -126,7 +129,7 @@ freie Drehung. Spieldateien nur mit Vermerk in KI_INDEX §10 (Freigabe Nutzer).
 | ☑ 5.2 | **Texturen & Grafiken:** Materialfarbe/Rauheit/Metall, Textur ersetzen (Bild hochladen), einfaches Malen auf der Textur (UV-Ansicht + Pinsel), **Aufkleber/Decals** projizieren (Logos, Schilder, Schmutz) | L |
 | ☑ 5.3 | 🎮 **Animationen & Rigging:** vorhandene Clips abspielen/benennen/als Leerlauf-Animation fürs Spiel wählen; einfache Keyframe-Animationen (Drehen, Wippen, Pendeln, Pulsieren, Flackern + Zeitleiste) für Modell oder Teile; Skelett anzeigen, Teile an Knochen hängen, einfache Knochenketten für Requisiten (Tür, Fahne), Animationen auf kompatible Skelette übertragen (Retargeting). Spiel spielt Modell-Animationen ab. ⚠ Automatisches Rigging + Gewichte malen wie in Blender ist **nicht** realistisch im Browser-Umfang | XL |
 | ☑ 5.4 | **KI im Modul (Knopfdruck):** Farbschema vorschlagen (Materialliste + Vorschaubild → Palette), Textur aus Text erzeugen (Gemini-Bildmodell, falls der Schlüssel es erlaubt), Animation vorschlagen (Keyframe-JSON) – immer Vorschau → Übernehmen als 1 Undo-Schritt | M |
-| ☐ 5.5 | 🎮 **Free-Modus:** Umschalter Raster ⇄ Frei in der Optionsleiste: stufenlose Position, freie Drehung mit Drehgriff/Mausrad/Zahlenfeld (Umschalt = 15°-Raster); Kollision gedrehter Objekte im Spiel korrekt (gedrehtes Rechteck statt achsparallel, `gemeinsam/welt`) und in der grün/rot-Prüfung | M |
+| ☑ 5.5 | 🎮 **Free-Modus:** Umschalter Raster ⇄ Frei in der Optionsleiste: stufenlose Position, freie Drehung mit Drehgriff/Mausrad/Zahlenfeld (Umschalt = 15°-Raster); Kollision gedrehter Objekte im Spiel korrekt (gedrehtes Rechteck statt achsparallel, `gemeinsam/welt`) und in der grün/rot-Prüfung | M |
 
 ## Phase 6 – Zonen- & Loot-System
 | # | Schritt | Größe |

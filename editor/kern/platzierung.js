@@ -2,24 +2,24 @@ import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
 import { BAUWERKE } from '../../gemeinsam/welt/bauwerke.js';
 import { RESSOURCEN_OBJEKTE } from '../../gemeinsam/welt/ressourcen.js';
 import { markerSchluessel } from './karte.js';
+import { bedeckteKacheln as gedrehteKacheln, huelle } from '../../gemeinsam/welt/drehung.js';
 
 /**
  * Platzierungsvorschau (Phase 4/5): grün = gültig, rot = blockiert oder außerhalb der Zone.
- * Regeln wie im Spiel: Möbel-Kollision über Kachelmittelpunkte (welt.berechneMoebelKollision), Wände/Fenster/Wasser blockieren,
+ * Regeln wie im Spiel: Möbel-Kollision über Kachelmittelpunkte (welt.berechneMoebelKollision; frei gedrehte Objekte mit ihrem
+ * gedrehten Rechteck, gemeinsam/welt/drehung.js – Editor 2.0, 5.5), Wände/Fenster/Wasser blockieren,
  * Türen dürfen nicht zugestellt werden, Zombies nur draußen (Innenboden = KACHELN.innen).
  * @returns {{ ok: boolean, grund?: string }}
  */
 
-/** Kacheln, deren Mittelpunkt im Rechteck liegt (wie das Spiel Möbel-Kollision rechnet) */
+/** Kacheln, deren Mittelpunkt im (ggf. gedrehten) Rechteck liegt – dieselbe Regel wie die Möbel-Kollision im Spiel */
 export function bedeckteKacheln(r) {
-  const liste = [];
-  for (let ty = Math.floor(r.y); ty < Math.ceil(r.y + r.h); ty++)
-    for (let tx = Math.floor(r.x); tx < Math.ceil(r.x + r.b); tx++) {
-      const mx = tx + 0.5;
-      const my = ty + 0.5;
-      if (mx > r.x && mx < r.x + r.b && my > r.y && my < r.y + r.h) liste.push({ x: tx, y: ty });
-    }
-  return liste;
+  // Index-Rechnung braucht nichtnegative Kacheln → bei Objekten über dem linken/oberen Rand vorübergehend verschieben
+  const h = huelle(r);
+  const ox = Math.min(0, Math.floor(h.x0));
+  const oy = Math.min(0, Math.floor(h.y0));
+  const breite = Math.ceil(h.x1 - ox) + 2;
+  return gedrehteKacheln({ ...r, x: r.x - ox, y: r.y - oy }, breite).map((i) => ({ x: (i % breite) + ox, y: Math.floor(i / breite) + oy }));
 }
 
 const istHart = (z) => z === '#' || z === 'F' || z === '~' || z === 'T';
@@ -27,7 +27,10 @@ const istHart = (z) => z === '#' || z === 'F' || z === '~' || z === 'T';
 export function pruefeObjekt(karte, o, { ignoriere = new Set() } = {}) {
   if (o.ebene === 'oben') {
     if (o.x < 0 || o.y < 0 || o.x >= karte.breite || o.y >= karte.hoehe) return { ok: false, grund: 'Außerhalb der Zone' };
-  } else if (o.x < 0 || o.y < 0 || o.x + o.b > karte.breite + 1e-9 || o.y + o.h > karte.hoehe + 1e-9) return { ok: false, grund: 'Außerhalb der Zone' };
+  } else {
+    const r = huelle(o); // frei gedreht: die Ecken müssen in der Zone liegen
+    if (r.x0 < -1e-9 || r.y0 < -1e-9 || r.x1 > karte.breite + 1e-9 || r.y1 > karte.hoehe + 1e-9) return { ok: false, grund: 'Außerhalb der Zone' };
+  }
   const blockiert = o.blockiert || RESSOURCEN_OBJEKTE[o.typ]?.blockiert;
   if (!blockiert) return { ok: true };
   const kacheln = bedeckteKacheln(o);
@@ -40,7 +43,9 @@ export function pruefeObjekt(karte, o, { ignoriere = new Set() } = {}) {
   const belegt = new Set(kacheln.map(({ x, y }) => `${x},${y}`));
   for (const [id, a] of karte.s('objekte')) {
     if (ignoriere.has(id) || !(a.blockiert || RESSOURCEN_OBJEKTE[a.typ]?.blockiert)) continue;
-    if (a.x >= o.x + o.b || a.x + a.b <= o.x || a.y >= o.y + o.h || a.y + a.h <= o.y) continue;
+    const ra = huelle(a);
+    const ro = huelle(o);
+    if (ra.x0 >= ro.x1 || ra.x1 <= ro.x0 || ra.y0 >= ro.y1 || ra.y1 <= ro.y0) continue;
     if (bedeckteKacheln(a).some(({ x, y }) => belegt.has(`${x},${y}`))) return { ok: false, grund: `Überschneidet ${a.typ}` };
   }
   return { ok: true };

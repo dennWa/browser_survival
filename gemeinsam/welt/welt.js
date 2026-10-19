@@ -2,6 +2,7 @@ import { KACHELN } from './kacheln.js';
 import { RESSOURCEN_OBJEKTE } from './ressourcen.js';
 import { blockiertBauwerk, ebeneVon, sichtBlockiertBauwerk } from './bauwerke.js';
 import { hoeheAn } from './gelaende.js';
+import { bedeckteKacheln, huelle } from './drehung.js';
 
 /**
  * Laufzeit-Abbild einer Karte: Kachelabfragen und Kollision.
@@ -235,8 +236,9 @@ export class Welt {
     let bestAbstand = reichweite;
     for (const o of this.objekte) {
       if (!passt(o)) continue;
-      const nx = Math.max(o.x * g, Math.min(x, (o.x + o.b) * g));
-      const ny = Math.max(o.y * g, Math.min(y, (o.y + o.h) * g));
+      const r = huelle(o); // frei gedreht: achsparallele Hülle (welt/drehung.js)
+      const nx = Math.max(r.x0 * g, Math.min(x, r.x1 * g));
+      const ny = Math.max(r.y0 * g, Math.min(y, r.y1 * g));
       const abstand = Math.hypot(x - nx, y - ny);
       if (abstand > bestAbstand) continue;
       bestAbstand = abstand;
@@ -370,7 +372,10 @@ export class Welt {
   }
 }
 
-/** Ein Möbelstück blockiert jede Kachel, deren Mittelpunkt innerhalb seines Rechtecks liegt. Ressourcen zählen extra. */
+/**
+ * Ein Möbelstück blockiert jede Kachel, deren Mittelpunkt innerhalb seines Rechtecks liegt – frei gedreht (Rest-Winkel ≠ 0,
+ * Map-Editor 5.5) innerhalb des gedrehten Rechtecks (welt/drehung.js). Ressourcen zählen extra.
+ */
 export function berechneMoebelKollision(objekte, breite) {
   const blockiert = new Set();
   for (const o of objekte) {
@@ -380,18 +385,6 @@ export function berechneMoebelKollision(objekte, breite) {
   return blockiert;
 }
 
-/** Kachelindizes, deren Mittelpunkt im Rechteck des Objekts liegt. */
-function bedeckteKacheln(o, breite) {
-  const ergebnis = [];
-  for (let ty = Math.floor(o.y); ty < Math.ceil(o.y + o.h); ty++) {
-    for (let tx = Math.floor(o.x); tx < Math.ceil(o.x + o.b); tx++) {
-      const mx = tx + 0.5;
-      const my = ty + 0.5;
-      if (mx > o.x && mx < o.x + o.b && my > o.y && my < o.y + o.h) ergebnis.push(ty * breite + tx);
-    }
-  }
-  return ergebnis;
-}
 
 function findeRessourcen(welt) {
   const g = welt.kachelGroesse;

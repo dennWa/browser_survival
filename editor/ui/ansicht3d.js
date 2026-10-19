@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { drehLage, eigeneGroesse } from '../../gemeinsam/welt/drehung.js';
 import { BAUWERKE } from '../../gemeinsam/welt/bauwerke.js';
 import { RESSOURCEN_OBJEKTE } from '../../gemeinsam/welt/ressourcen.js';
 import { ausSchluessel } from '../kern/karte.js';
@@ -289,7 +290,7 @@ export class Ansicht3D {
         const hoehe = (eigen?.hoehe3d ?? (MOEBEL_HOEHE[o.typ] ?? 20) / PX) * (RESSOURCEN_OBJEKTE[o.typ] && o.groesse === 'gross' ? 1.25 : 1);
         mesh = new THREE.Mesh(new THREE.BoxGeometry(o.b * 0.96, hoehe, o.h * 0.96), this.#material(farbe, muster));
         mesh.position.set(cx, boden + hoehe / 2, cz);
-        mesh.rotation.y = ((o.drehung ?? 0) % 90) * (-Math.PI / 180); // freie Drehung sichtbar (90er-Raster = Fußabdruck)
+        mesh.rotation.y = drehLage(o.drehung).rest * (-Math.PI / 180); // Grundfläche b×h, Rest-Winkel dreht (gemeinsam/welt/drehung.js)
       }
       mesh.userData = { s: 'objekte', k: id };
       mesh.traverse((t) => (t.userData = { s: 'objekte', k: id }));
@@ -328,7 +329,8 @@ export class Ansicht3D {
     ladeEigenesModell(eigenesModellUrl(eigen))
       .then((szene) => {
         if (!gruppe.parent) return;
-        gruppe.add(eigenesModellInhalt(szene, { b: o.b, h: o.h, hoehe: eigen.hoehe3d ?? 1, farbe: typTextur?.farbe, id }));
+        // eigene Maße vor dem Drehen (die Gruppe dreht um den vollen Winkel) – wie im Spiel (kartenModell)
+        gruppe.add(eigenesModellInhalt(szene, { ...eigeneGroesse(o), hoehe: eigen.hoehe3d ?? 1, farbe: typTextur?.farbe, id }));
         this.anfordern();
       })
       .catch(() => this.zustand.meldung(`3D-Modell „${o.typ}“ konnte nicht gelesen werden`, 'fehler'));

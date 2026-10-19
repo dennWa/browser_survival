@@ -1,4 +1,5 @@
 import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
+import { eigeneGroesse } from '../../gemeinsam/welt/drehung.js';
 import { FARBEN, KACHEL_FARBEN } from './farben.js';
 
 /**
@@ -183,9 +184,10 @@ export class BodenTextur {
     ctx.save();
     ctx.translate(mx, my);
     ctx.rotate(((o.drehung ?? 0) * Math.PI) / 180);
-    const quer = (o.drehung ?? 0) % 180 !== 0;
-    const zb = quer ? h : b;
-    const zh = quer ? b : h;
+    // eigene Maße vor dem Drehen (gemeinsam/welt/drehung.js) – frei gedrehte Objekte (Map-Editor 5.5) passen so zur Kollision
+    const eigen = eigeneGroesse(o);
+    const zb = eigen.b * g;
+    const zh = eigen.h * g;
     if (rahmen && bild) {
       ctx.drawImage(bild, rahmen.x, rahmen.y, rahmen.b, rahmen.h, -zb / 2, -zh / 2, zb, zh);
     } else {

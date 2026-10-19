@@ -1,9 +1,10 @@
+import { drehLage, enthaelt } from '../../gemeinsam/welt/drehung.js';
 import { linie, rasteEin, rechteck, rechteckAus, pinsel, fuellen, kachelOps, nurImFeld, alsRechtecke } from '../kern/raster.js';
 import { markerSchluessel, ausSchluessel, kopie } from '../kern/karte.js';
 import { pruefeObjekt, pruefeMarker, pruefeBauwerk, pruefeBereich } from '../kern/platzierung.js';
 import { terrainHeben, terrainGlaetten, terrainEbnen, terrainPlateau, rampe } from '../kern/terrain.js';
 import { elementeIn, dreheVorlage } from '../kern/auswahl.js';
-import { verschiebeOps, dreheOps } from '../kern/bearbeiten.js';
+import { verschiebeOps, dreheOps, setzeDrehung, drehGriff, inZone } from '../kern/bearbeiten.js';
 import { istWandEintrag, wandPunkte, begrenzeTueren, wandBauwerkOps } from '../kern/wand.js';
 import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
 import { ebeneVon } from '../kern/ebenen.js';
@@ -25,6 +26,8 @@ import { STANDARD_KONFIGURATION } from '../../server/spiel/konfiguration/spielKo
  *   terrain  Pinsel heben/senken/glätten/ebnen
  *   raumFuellen  Klick füllt den Raum (bis zu Wänden) als Raumfläche
  *   pipette  Kachel/Objekt unter der Maus in die Bauleiste übernehmen
+ * Free-Modus (zustand.frei, Optionsleiste „Frei“, 5.5): Platzieren/Ziehen stufenlos (0,01), R dreht 15°, Alt+Rad dreht 5° (Umschalt
+ *   15°; eine Rad-Folge = 1 Undo-Schritt), Drehgriff über einem einzeln gewählten Objekt (Umschalt = 15°-Raster).
  * Touch: Ansehen & Schwenken überall (1 Finger mit Hand-Werkzeug, 2 Finger immer = schwenken + zoomen). Malen/Bauen geht
  * per Tippen, Ziel ist aber der Desktop (bewusste Ausnahme, siehe editor/LIESMICH.md).
  * Maus: Rechts-Ziehen schwenkt, Rechtsklick ohne Ziehen = Kontextmenü (beim Platzieren/Einfügen: drehen),
@@ -57,6 +60,7 @@ export class Werkzeuge {
     });
     leinwand.addEventListener('wheel', (e) => {
       e.preventDefault();
+      if (e.altKey && this.zustand.frei && this.#radDrehen(e)) return; // Free-Modus: Alt+Rad dreht (Umschalt = 15°)
       const r = leinwand.getBoundingClientRect();
       const px = e.clientX - r.left;
       const py = e.clientY - r.top;
@@ -123,7 +127,7 @@ export class Werkzeuge {
     const w = zustand.werkzeug;
     if (e.altKey && ['malen', 'platzieren', 'farbe', 'radierer', 'terrain'].includes(w)) return this.#pipette(p);
     if (w === 'zone') return this.#zoneRunter(p);
-    if (w === 'auswahl' && this.#klangGriffRunter(p)) return;
+    if (w === 'auswahl' && (this.#klangGriffRunter(p) || this.#drehGriffRunter(p))) return;
     if (w === 'auswahl') return this.#auswahlRunter(p, e.shiftKey);
     if (w === 'malen') return this.#malenRunter(p, e.shiftKey);
     if (w === 'radierer') {
@@ -219,6 +223,7 @@ export class Werkzeuge {
     }
     else if (d.art === 'bewegen') this.#bewege(d, p, e.altKey);
     else if (d.art === 'klangRadius') this.#klangRadius(d, p);
+    else if (d.art === 'drehgriff') this.#drehGriffZiehen(d, p, e.shiftKey);
     else if (d.art === 'wand') this.#wandVorschau(d, p, e.shiftKey);
     else if (d.art === 'rampe') this.#rampeVorschau(d, p);
     else if (d.art === 'rahmen') {
@@ -252,7 +257,7 @@ export class Werkzeuge {
       this.z.anfordern();
       return;
     }
-    if (d.art === 'pinsel' || d.art === 'radieren' || d.art === 'terrain' || d.art === 'bewegen' || d.art === 'farbe' || d.art === 'klangRadius') this.zustand.verlauf.beende();
+    if (d.art === 'pinsel' || d.art === 'radieren' || d.art === 'terrain' || d.art === 'bewegen' || d.art === 'farbe' || d.art === 'klangRadius' || d.art === 'drehgriff') this.zustand.verlauf.beende();
     if (d.art === 'form') this.#formAnwenden(d, p, e.shiftKey);
     if (d.art === 'wand') this.#wandFertig(d, p, e.shiftKey);
     if (d.art === 'rampe') this.#rampeFertig(d, p);
@@ -272,7 +277,7 @@ export class Werkzeuge {
 
   #abbrechen(d = this.ziehen) {
     if (!d) return;
-    if (['pinsel', 'radieren', 'terrain', 'bewegen', 'farbe', 'klangRadius'].includes(d.art)) this.zustand.verlauf.beende();
+    if (['pinsel', 'radieren', 'terrain', 'bewegen', 'farbe', 'klangRadius', 'drehgriff'].includes(d.art)) this.zustand.verlauf.beende();
     this.z.vorschau = null;
     this.z.zonenVorschau = null;
     this.z.neuRechteck = null;
@@ -314,7 +319,7 @@ export class Werkzeuge {
     let treffer = null;
     let krone = null;
     if (frei('objekte')) for (const [id, o] of k.s('objekte')) {
-      if (p.wx < o.x || p.wx >= o.x + o.b || p.wy < o.y || p.wy >= o.y + o.h) continue;
+      if (drehLage(o.drehung).rest ? !enthaelt(o, p.wx, p.wy) : p.wx < o.x || p.wx >= o.x + o.b || p.wy < o.y || p.wy >= o.y + o.h) continue;
       if (o.ebene === 'oben') krone = { s: 'objekte', k: id };
       else treffer = { s: 'objekte', k: id };
     }
@@ -353,9 +358,9 @@ export class Werkzeuge {
     this.zustand.meldung(`Bereich x ${r.x}–${r.x + r.b - 1}, y ${r.y}–${r.y + r.h - 1} (${r.b} × ${r.h}) · ${liste.length} Elemente – Strg+C kopiert, Export → Ausschnitt`);
   }
 
-  /** Gewähltes um ganze Kacheln verschieben (Alt = 0,1-Schritte für Objekte) */
+  /** Gewähltes um ganze Kacheln verschieben (Alt = 0,1-Schritte für Objekte, Free-Modus = stufenlos 0,01) */
   #bewege(d, p, fein) {
-    const raster = fein ? 0.1 : 1;
+    const raster = this.zustand.frei ? 0.01 : fein ? 0.1 : 1;
     const dx = Math.round((p.wx - d.start.wx) / raster) * raster;
     const dy = Math.round((p.wy - d.start.wy) / raster) * raster;
     const sx = dx - d.dx;
@@ -475,13 +480,14 @@ export class Werkzeuge {
   /** Objekt, das bei p entstehen würde (Mitte unter dem Zeiger, Raster 1 bzw. 0,5 bei kleinen Teilen) */
   neuesObjekt(p) {
     const e = this.zustand.eintrag;
-    const quer = this.zustand.drehung % 180 !== 0;
+    const quer = drehLage(this.zustand.drehung).quer; // Viertel stecken in b/h, der Rest-Winkel dreht nur (gemeinsam/welt/drehung.js)
     const b = quer ? e.h : e.b;
     const h = quer ? e.b : e.h;
-    const raster = b < 1 || h < 1 ? 0.1 : 1;
+    const frei = this.zustand.frei;
+    const raster = frei ? 0.01 : b < 1 || h < 1 ? 0.1 : 1;
     const runde = (v) => Math.round(v / raster) * raster;
     const o = { typ: e.typ, x: runde(p.wx - b / 2), y: runde(p.wy - h / 2), b, h };
-    if (b >= 1 && h >= 1 && Number.isInteger(b) && Number.isInteger(h)) {
+    if (!frei && b >= 1 && h >= 1 && Number.isInteger(b) && Number.isInteger(h)) {
       o.x = Math.round(p.wx - b / 2);
       o.y = Math.round(p.wy - h / 2);
     }
@@ -489,7 +495,7 @@ export class Werkzeuge {
     o.y = Math.round(o.y * 1000) / 1000;
     if (e.blockiert) o.blockiert = true;
     if (e.ebene) o.ebene = e.ebene;
-    const drehung = (this.zustand.drehung + (e.drehung ?? 0)) % 360;
+    const drehung = Math.round(((((this.zustand.drehung + (e.drehung ?? 0)) % 360) + 360) % 360) * 10) / 10;
     if (drehung) o.drehung = drehung;
     if (e.extra) Object.assign(o, kopie(e.extra));
     // Kegel-Lampe: die Platzier-Drehung (R) dreht die Leuchtrichtung
@@ -622,8 +628,10 @@ export class Werkzeuge {
       if (this.letzteHover) this.#hoverVorschau(this.letzteHover, false);
       return;
     }
+    const schritt = zustand.frei ? 15 : 90; // Free-Modus: R dreht in 15°-Schritten
     if (zustand.werkzeug === 'platzieren') {
-      zustand.drehung = (zustand.drehung + 90) % 360;
+      zustand.drehung = (Math.round(zustand.drehung / schritt) * schritt + schritt) % 360;
+      zustand.melde('werkzeug');
       zustand.meldung(`Drehung ${zustand.drehung}°`);
       this.z.vorschau = null;
       if (this.letzteHover) this.#hoverVorschau(this.letzteHover, false);
@@ -631,9 +639,63 @@ export class Werkzeuge {
     }
     const gew = zustand.gewaehlte();
     if (!gew.length) return zustand.meldung('Nichts zum Drehen ausgewählt (R dreht beim Platzieren die Vorschau)');
-    const { ops, uebersprungen } = dreheOps(this.karte, gew);
-    if (ops.length) zustand.ausfuehren('Drehen 90°', ops);
+    const { ops, uebersprungen } = dreheOps(this.karte, gew, schritt);
+    const inDerZone = ops.filter((o) => o.s !== 'objekte' || schritt === 90 || inZone(this.karte, o.neu));
+    if (inDerZone.length < ops.length) zustand.meldung('Gedreht ragte etwas aus der Zone – übersprungen', 'fehler');
+    if (inDerZone.length) zustand.ausfuehren(`Drehen ${schritt}°`, inDerZone);
     if (uebersprungen) zustand.meldung(`${uebersprungen} Element(e) ohne Drehung (Marker, Bereiche) übersprungen`);
+  }
+
+  // --- Free-Modus (5.5): Alt+Rad und Drehgriff ---------------------------------------
+  /** Alt+Mausrad: Platzier-Drehung bzw. gewählte Objekte um 5° (Umschalt 15°) drehen; Rad-Folge = 1 Undo-Schritt */
+  #radDrehen(e) {
+    const z = this.zustand;
+    const schritt = (e.shiftKey ? 15 : 5) * (e.deltaY > 0 || e.deltaX > 0 ? 1 : -1);
+    if (z.werkzeug === 'platzieren' && (z.eintrag?.art === 'objekt' || z.eintrag?.art === 'bibliothek')) {
+      z.drehung = Math.round(((((z.drehung + schritt) % 360) + 360) % 360) * 10) / 10;
+      z.melde('werkzeug');
+      if (this.letzteHover) this.#hoverVorschau(this.letzteHover, false);
+      z.meldung(`Drehung ${z.drehung}°`);
+      return true;
+    }
+    const gew = z.gewaehlte().filter((g) => g.s === 'objekte');
+    if (!gew.length || !this.karte) return false;
+    const ops = dreheOps(this.karte, gew, schritt).ops.filter((o) => inZone(this.karte, o.neu));
+    if (!ops.length) return true;
+    if (!this.#radGruppe) z.verlauf.beginne('Drehen (frei)');
+    z.sammle(ops);
+    clearTimeout(this.#radGruppe);
+    this.#radGruppe = setTimeout(() => {
+      z.verlauf.beende();
+      this.#radGruppe = null;
+    }, 600);
+    z.meldung(`Drehung ${ops[0].neu.drehung ?? 0}°`);
+    return true;
+  }
+
+  #radGruppe = null;
+
+  /** Drehgriff eines einzeln gewählten Objekts (nur Free-Modus) */
+  #drehGriffRunter(p) {
+    const z = this.zustand;
+    const gew = z.gewaehlte();
+    if (!z.frei || gew.length !== 1 || gew[0].s !== 'objekte' || !z.ebeneFrei('objekte')) return false;
+    const g = drehGriff(gew[0].wert);
+    if (Math.hypot(p.wx - g.x, p.wy - g.y) > Math.max(0.3, 10 / this.z.zoom)) return false;
+    z.verlauf.beginne('Drehen (frei)');
+    this.ziehen = { art: 'drehgriff', k: gew[0].k, start: gew[0].wert, winkel: Math.atan2(p.wy - g.cy, p.wx - g.cx) };
+    return true;
+  }
+
+  #drehGriffZiehen(d, p, raster) {
+    const g = drehGriff(d.start);
+    const delta = ((Math.atan2(p.wy - g.cy, p.wx - g.cx) - d.winkel) * 180) / Math.PI;
+    let grad = (d.start.drehung ?? 0) + delta;
+    grad = raster ? Math.round(grad / 15) * 15 : Math.round(grad);
+    const neu = setzeDrehung(d.start, grad);
+    if (!inZone(this.karte, neu)) return this.zustand.meldung('So gedreht ragt es aus der Zone', 'fehler');
+    this.zustand.sammle([{ s: 'objekte', k: d.k, neu }]);
+    this.zustand.meldung(`Drehung ${neu.drehung ?? 0}°${raster ? ' (15°-Raster)' : ' · Umschalt = 15°-Raster'}`);
   }
 
   // --- Bereiche --------------------------------------------------------------------
