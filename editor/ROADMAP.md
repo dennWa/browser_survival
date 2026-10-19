@@ -45,6 +45,8 @@ Leerlauf-Animation eigener Modelle (`client/darstellung/eigeneModelle.js` + `kar
 nur in Sichtweite), (c) einfache Keyframe-Animationen (Drehen/Wippen/Pendeln/Pulsieren/Flackern) als glTF-Clip erzeugen
 (`AnimationClip` + GLTFExporter), (d) Skelett anzeigen (`SkeletonHelper`), Teile an Knochen hängen, (e) Retargeting über
 `SkeletonUtils.retargetClip` (schon im Vendor).
+⚠ Offene Frage an den Nutzer: (b) ändert Spieldateien in `client/darstellung/` – laut `KI_INDEX.md` („Aufteilung Mensch+2 KIs“)
+gehört `client/`/`server/` der Hauptspiel-Linie. Vor (b) klären, ob diese Linie das übernehmen darf (a, c–e sind reiner Editor).
 
 **Danach:** Phasen 5–9 laut Tabellen unten (5 3D-Modul, 6 Zonen/Loot, 7 UX, 8 Testlauf, 9 KI).
 
