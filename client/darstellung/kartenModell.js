@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
 import { RESSOURCEN_OBJEKTE } from '../../gemeinsam/welt/ressourcen.js';
-import { baueBaum, baueStumpf, toonMaterial } from './baumModell.js';
+import { baueBaum, baueStumpf, toonMaterial, baumMaterial, BAUM_LAUB_TOENE } from './baumModell.js';
 import { BodenTextur } from './bodenTextur.js';
 import { einfrieren, matrixAus, vereineGeometrien } from './geometrie.js';
 import { eigenesModellUrl, ladeEigenesModell, eigenesModellInhalt } from './eigeneModelle.js';
@@ -522,6 +522,7 @@ export class KartenModell {
 
     // Pro Baumtyp: Körper (Toon, Vertexfarben) + schwarzer Umriss – je Block ein InstancedMesh
     const umrissMaterial = this.mitSchnitt(new THREE.MeshBasicMaterial({ color: 0x14100c, side: THREE.BackSide }));
+    const baumUmrissMaterial = baumMaterial(this.mitSchnitt(new THREE.MeshBasicMaterial({ color: 0x14100c, side: THREE.BackSide })), { laub: false });
     this.baumArten = new Map();
     const stumpfGeo = baueStumpf();
     const stumpfMaterial = toonMaterial({ vertexColors: true });
@@ -530,17 +531,19 @@ export class KartenModell {
     for (const typ of typen) {
       const { koerper, umriss, grundflaeche } = baueBaum(typ);
       const material = this.mitSchnitt(toonMaterial({ vertexColors: true }));
+      const istModellBaum = typ in BAUM_LAUB_TOENE;
+      if (istModellBaum) baumMaterial(material);
       const bloecke = new Map();
       for (const o of baeume) if (o.typ === typ) bloecke.set(blockVon(o), (bloecke.get(blockVon(o)) ?? 0) + 1);
       const teile = new Map();
       for (const [schluessel, anzahl] of bloecke) {
         const mesh = neuesMesh(koerper, material, anzahl, schluessel);
-        const rand = neuesMesh(umriss, umrissMaterial, anzahl, schluessel, { schatten: false });
+        const rand = neuesMesh(umriss, istModellBaum ? baumUmrissMaterial : umrissMaterial, anzahl, schluessel, { schatten: false });
         rand.castShadow = false;
         rand.receiveShadow = false;
         teile.set(schluessel, { mesh, rand, naechster: 0 });
       }
-      this.baumArten.set(typ, { teile, grundflaeche });
+      this.baumArten.set(typ, { teile, grundflaeche, toene: BAUM_LAUB_TOENE[typ] });
     }
     const stammBloecke = new Map();
     for (const o of baeume) if (o.typ !== 'busch') stammBloecke.set(blockVon(o), (stammBloecke.get(blockVon(o)) ?? 0) + 1);
@@ -586,11 +589,17 @@ export class KartenModell {
       } else {
         const art = this.baumArten.get(o.typ);
         // Größe passend zur Grundfläche, dazu etwas Zufall in Größe und Drehung – kein Baum gleicht dem anderen
-        const groesse = ((Math.min(o.b, o.h) * g) / art.grundflaeche) * (0.9 + zufall * 0.22) * (o.groesse === 'gross' ? 1.25 : o.groesse === 'klein' ? 0.8 : 1);
+        const groesse = ((Math.min(o.b, o.h) * g) / art.grundflaeche) * (art.toene ? 0.78 + zufall * 0.5 : 0.9 + zufall * 0.22) * (o.groesse === 'gross' ? 1.25 : o.groesse === 'klein' ? 0.8 : 1);
         const matrix = matrixAus(x, this.hy(x, z), z, zufall * Math.PI * 2, groesse);
         const teil = art.teile.get(block);
         const index = teil.naechster++;
         eintrag.teile.push({ mesh: teil.mesh, index, matrix }, { mesh: teil.rand, index, matrix });
+        if (art.toene) {
+          // Laubfarbe je Baum leicht anders (Ton aus der Liste × kleine Helligkeitsschwankung)
+          const ton = art.toene[Math.floor(streuung(o.y, o.x) * art.toene.length)];
+          const hell = 0.9 + streuung(o.x + 3, o.y + 7) * 0.2;
+          teil.mesh.setColorAt(index, new THREE.Color().setRGB(ton[0] * hell, ton[1] * hell, ton[2] * hell, THREE.LinearSRGBColorSpace));
+        }
         if (o.typ !== 'busch') {
           const st = stuempfe.get(block);
           eintrag.stumpf = { mesh: st.mesh, index: st.naechster++, matrix: matrixAus(x, this.hy(x, z), z, zufall * 5, groesse * 1.3) };
@@ -604,6 +613,7 @@ export class KartenModell {
     for (const art of this.baumArten.values()) for (const t of art.teile.values()) meshes.push(t.mesh, t.rand);
     for (const m of meshes) {
       m.instanceMatrix.needsUpdate = true;
+      if (m.instanceColor) m.instanceColor.needsUpdate = true;
       this.beweglich.add(m);
     }
     this.abgebautStand = -1;

@@ -16,6 +16,7 @@ import { erzeugeWaffe, WAFFEN_NAMEN } from './waffenModelle.js';
 import { erzeugeTier } from './tierModelle.js';
 import { erzeugeAngel } from './angelModell.js';
 import { WetterEffekt } from './wetterEffekt.js';
+import { BAUM_WIND } from './baumModell.js';
 import { BlaetterEffekt } from './blaetterEffekt.js';
 
 /**
@@ -345,6 +346,8 @@ export class Renderer {
     this.schnitt.uFokus.value.set(fokus.x, _ziel.y, fokus.y);
     this.wetterEffekt.setzeArt(wetter);
     this.wetterEffekt.aktualisiere(dt, fokus.x, fokus.y);
+    BAUM_WIND.uWindStufe.value = this.wetterEffekt.windStufe;
+    BAUM_WIND.uWindZeit.value = this.wetterEffekt.windZeit % 600;
     const dunkel = this.#tageslicht(tageszeit, _ziel);
 
     this.karte.aktualisiere(dt, dunkel);
