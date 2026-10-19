@@ -4,6 +4,7 @@ import { pruefeObjekt, pruefeMarker, pruefeBauwerk, pruefeBereich } from '../ker
 import { terrainHeben, terrainGlaetten, terrainEbnen } from '../kern/terrain.js';
 import { elementeIn, dreheVorlage } from '../kern/auswahl.js';
 import { verschiebeOps, dreheOps } from '../kern/bearbeiten.js';
+import { istWandEintrag, wandPunkte, begrenzeTueren, wandBauwerkOps } from '../kern/wand.js';
 import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
 import { ebeneVon } from '../kern/ebenen.js';
 import { LINEAL } from './zeichner2d.js';
@@ -13,7 +14,8 @@ import { STANDARD_KONFIGURATION } from '../../server/spiel/konfiguration/spielKo
  * Maus/Touch auf der 2D-Fläche → Werkzeuge. Werkzeuge:
  *   auswahl  Klick wählt (Umschalt = dazu), Ziehen verschiebt Gewähltes, Ziehen ins Leere = Auswahl-Rechteck (wie Excel)
  *   hand     schwenken (auch: mittlere Maustaste, Leertaste halten, zwei Finger)
- *   malen    Kacheln: Modus pinsel | rechteck (Umschalt = nur Rand) | linie (Mauern rasten ein) | fuellen
+ *   malen    Kacheln: Modus pinsel | rechteck (Umschalt = nur Rand) | linie (Mauern rasten ein, Strg = Raum-Umriss) | fuellen
+ *   platzieren  … Wand-Bauwerke (Zaun, Holzwand, Tor …) werden mit gedrückter Maustaste am Stück gezogen (kern/wand.js)
  *   radierer Kacheln → Rasen, Objekte/Marker/Bauwerke unter dem Pinsel weg
  *   platzieren  Objekt/Bauwerk/Marker aus der Bauleiste (Vorschau grün/rot, R dreht)
  *   bereich  Rechteck aufziehen (Hasen-Bereich, Raumfläche, Übergang)
@@ -37,6 +39,8 @@ export class Werkzeuge {
     this.leertaste = false;
     this.neuModus = false; // Zone neu aufziehen
     this.letzteHover = null;
+    /** Zusatztasten beim Ziehen (Strg = Raum-Umriss bei Wänden) */
+    this.strg = false;
 
     leinwand.addEventListener('pointerdown', (e) => this.#runter(e));
     leinwand.addEventListener('pointermove', (e) => this.#bewegen(e));
@@ -162,6 +166,7 @@ export class Werkzeuge {
 
   #bewegen(e) {
     const p = this.#pos(e);
+    this.strg = e.ctrlKey || e.metaKey;
     const vorher = this.zeiger.get(e.pointerId);
     if (vorher) this.zeiger.set(e.pointerId, { x: p.px, y: p.py });
     // Hover-Koordinate (Statusleiste + Lineal)
@@ -203,6 +208,7 @@ export class Werkzeuge {
       d.letzte = p;
     }
     else if (d.art === 'bewegen') this.#bewege(d, p, e.altKey);
+    else if (d.art === 'wand') this.#wandVorschau(d, p, e.shiftKey);
     else if (d.art === 'rahmen') {
       this.zustand.auswahlRechteck = rechteckAus(d.start.tx, d.start.ty, p.tx, p.ty);
       this.zustand.melde('auswahl');
@@ -236,6 +242,7 @@ export class Werkzeuge {
     }
     if (d.art === 'pinsel' || d.art === 'radieren' || d.art === 'terrain' || d.art === 'bewegen' || d.art === 'farbe') this.zustand.verlauf.beende();
     if (d.art === 'form') this.#formAnwenden(d, p, e.shiftKey);
+    if (d.art === 'wand') this.#wandFertig(d, p, e.shiftKey);
     if (d.art === 'rahmen') this.#rahmenFertig(d, p, e.shiftKey);
     if (d.art === 'bereich') this.#bereichFertig(d, p);
     if (d.art === 'zone') this.#zoneFertig();
@@ -368,22 +375,65 @@ export class Werkzeuge {
 
   #formPunkte(d, p, umschalt) {
     if (this.zustand.malModus === 'rechteck') return rechteck(d.start.tx, d.start.ty, p.tx, p.ty, umschalt || !!this.zustand.nurRand);
-    // Linie: Mauern rasten waagerecht/senkrecht/45° ein (Umschalt = frei)
-    const mauer = this.zustand.eintrag?.kategorie === 'Mauern';
-    const ende = mauer !== umschalt ? rasteEin(d.start.tx, d.start.ty, p.tx, p.ty) : { x: p.tx, y: p.ty };
+    const e = this.zustand.eintrag;
+    if (istWandEintrag(e)) {
+      // Mauern: rasten waagerecht/senkrecht/45° ein (Umschalt = frei), Strg = Raum-Umriss; Türen höchstens 4 nebeneinander
+      let punkte = wandPunkte(this.karte, { x: d.start.tx, y: d.start.ty }, { x: p.tx, y: p.ty }, { frei: umschalt, raum: this.strg || !!this.zustand.raumUmriss });
+      if (this.zustand.pinselGroesse > 1) punkte = punkte.flatMap(({ x, y }) => pinsel(x, y, this.zustand.pinselGroesse));
+      if (e.zeichen === 'T') {
+        const b = begrenzeTueren(punkte);
+        d.tuerGekuerzt = b.gekuerzt;
+        punkte = b.punkte;
+      }
+      return punkte;
+    }
+    // Linie (frei, Umschalt = einrasten)
+    const ende = umschalt ? rasteEin(d.start.tx, d.start.ty, p.tx, p.ty) : { x: p.tx, y: p.ty };
     return linie(d.start.tx, d.start.ty, ende.x, ende.y).flatMap(({ x, y }) => pinsel(x, y, this.zustand.pinselGroesse));
   }
 
   #formVorschau(d, p, umschalt) {
     const punkte = nurImFeld(this.karte, this.#formPunkte(d, p, umschalt));
     const r = rechteckAus(d.start.tx, d.start.ty, p.tx, p.ty);
-    this.z.vorschau = { kacheln: punkte, farbe: this.zustand.eintrag.farbe, text: this.zustand.malModus === 'rechteck' ? `${r.b} × ${r.h}` : `${punkte.length} Kacheln`, textX: p.tx + 0.5, textY: p.ty };
+    const wand = istWandEintrag(this.zustand.eintrag) && this.zustand.malModus === 'linie';
+    const text = this.zustand.malModus === 'rechteck' ? `${r.b} × ${r.h}` : `${punkte.length} Kacheln${wand ? ` · Strg = Raum, Umschalt = frei${d.tuerGekuerzt ? ` · Tür max. 4 (${d.tuerGekuerzt} weg)` : ''}` : ''}`;
+    this.z.vorschau = { kacheln: punkte, farbe: this.zustand.eintrag.farbe, text, textX: p.tx + 0.5, textY: p.ty };
     this.z.anfordern();
   }
 
   #formAnwenden(d, p, umschalt) {
     const e = this.zustand.eintrag;
-    this.zustand.ausfuehren(`${this.zustand.malModus === 'rechteck' ? 'Rechteck' : 'Linie'}: ${e.name}`, kachelOps(this.karte, this.#formPunkte(d, p, umschalt), e.zeichen));
+    const wand = istWandEintrag(e) && this.zustand.malModus === 'linie';
+    this.zustand.ausfuehren(`${this.zustand.malModus === 'rechteck' ? 'Rechteck' : wand ? 'Wand' : 'Linie'}: ${e.name}`, kachelOps(this.karte, this.#formPunkte(d, p, umschalt), e.zeichen));
+    if (d.tuerGekuerzt) this.zustand.meldung(`Türen: höchstens ${4} nebeneinander – ${d.tuerGekuerzt} Kacheln weggelassen`, 'fehler');
+  }
+
+  // --- Wand-Bauwerke ziehen (Zaun, Holzwand, Tor …) ----------------------------------------
+  #wandBauwerk(d, p, umschalt) {
+    const e = this.zustand.eintrag;
+    const punkte = wandPunkte(this.karte, { x: d.start.tx, y: d.start.ty }, { x: p.tx, y: p.ty }, { frei: umschalt, raum: this.strg || !!this.zustand.raumUmriss });
+    const dx = Math.abs(p.tx - d.start.tx);
+    const dy = Math.abs(p.ty - d.start.ty);
+    return wandBauwerkOps(this.karte, e.typ, punkte, { standardDrehung: dy > dx ? 1 : this.zustand.drehung % 180 ? 1 : 0 });
+  }
+
+  #wandVorschau(d, p, umschalt) {
+    const { ops, ungueltig } = this.#wandBauwerk(d, p, umschalt);
+    this.z.vorschau = {
+      kacheln: ops.map((o) => ({ x: o.neu.tx, y: o.neu.ty })),
+      rot: ungueltig,
+      gueltig: true,
+      text: `${ops.length} ${this.zustand.eintrag.name}${ungueltig.length ? ` · ${ungueltig.length} rot (${ungueltig[0].grund})` : ''} · Strg = Raum, Umschalt = frei`,
+      textX: p.tx + 0.5,
+      textY: p.ty,
+    };
+    this.z.anfordern();
+  }
+
+  #wandFertig(d, p, umschalt) {
+    const { ops, ungueltig } = this.#wandBauwerk(d, p, umschalt);
+    if (ops.length) this.zustand.ausfuehren(`${this.zustand.eintrag.name}: ${ops.length} gezogen`, ops);
+    if (ungueltig.length) this.zustand.meldung(`${ops.length} gesetzt, ${ungueltig.length} übersprungen (${ungueltig[0].grund})`, 'fehler');
   }
 
   #radiere(von, bis) {
@@ -485,6 +535,10 @@ export class Werkzeuge {
       const id = k.naechsteId;
       zustand.ausfuehren(`${e.name} setzen`, [{ s: 'objekte', k: id, neu: o }]);
       if (!umschalt) zustand.waehle([{ s: 'objekte', k: id }]);
+    } else if (e.art === 'bauwerk' && istWandEintrag(e)) {
+      // Wände am Stück: Maustaste gedrückt halten und ziehen (ein Klick = eine Kachel)
+      this.ziehen = { art: 'wand', start: p };
+      this.#wandVorschau(this.ziehen, p, false);
     } else if (e.art === 'bauwerk') {
       const pr = pruefeBauwerk(k, e.typ, p.tx, p.ty);
       if (!pr.ok) return zustand.meldung(`Nicht platzierbar: ${pr.grund}`, 'fehler');

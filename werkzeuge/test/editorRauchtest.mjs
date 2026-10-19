@@ -121,6 +121,21 @@ try {
   });
   pruefe(gemalt.strasse === '=' && gemalt.rechteck === '=' && gemalt.wand === '#', `Pinsel/Rechteck/Linie malen (${JSON.stringify(gemalt)})`);
 
+  schritt('Wände ziehen (2.2): Zaun am Stück, Raum-Umriss mit Strg');
+  await asset('bauwerk:zaun');
+  await ziehe([1, 11], [6, 11]);
+  const zaeune = await seite.evaluate(() => [...window.mapEditor.zustand.karte.s('bauwerke').values()].filter((b) => b.typ === 'zaun').length);
+  pruefe(zaeune === 6, `Zaun am Stück gezogen (${zaeune} Teile)`);
+  await asset('kachel:#');
+  await seite.keyboard.down('Control');
+  await ziehe([12, 2], [16, 6]);
+  await seite.keyboard.up('Control');
+  const raum = await seite.evaluate(() => {
+    const k = window.mapEditor.zustand.karte;
+    return [k.kachelAn(12, 2), k.kachelAn(16, 6), k.kachelAn(14, 4)].join('');
+  });
+  pruefe(raum === '##,', `Raum-Umriss mit Strg (${raum})`);
+
   schritt('Spieler-Start + Objekt setzen, drehen, rückgängig');
   await asset('marker:start');
   await klick(3, 9);

@@ -134,7 +134,7 @@ export function katalog() {
   for (const [typ, f] of Object.entries(FAHRZEUG_MODELLE)) {
     liste.push(objektEintrag(typ, { name: `${f.name} (${typ.replace('auto_', '')})`, kategorie: 'Fahrzeuge', b: 5.5, h: 3, blockiert: true, drehung: 90, symbol: f.transporter ? '🚐' : '🚗', farbe: FAHRZEUG_FARBE(f.farbe) }, `objekt:${typ}`));
   }
-  const BAUWERK_KATEGORIE = { werkbank: 'Gebäude', lagerfeuer: 'Gebäude', schmelzofen: 'Gebäude', falle: 'Gebäude', beet: 'Umwelt', kiste: 'Möbel', bett: 'Möbel', zaun: 'Mauern', zauntor: 'Mauern' };
+  const BAUWERK_KATEGORIE = { werkbank: 'Gebäude', lagerfeuer: 'Gebäude', schmelzofen: 'Gebäude', falle: 'Gebäude', beet: 'Umwelt', kiste: 'Möbel', bett: 'Möbel', zaun: 'Mauern', zauntor: 'Mauern', holzwand: 'Mauern', holzwand_fenster: 'Mauern', holzwand_tuer: 'Mauern', holztuer: 'Mauern', holzboden: 'Böden' };
   const BAUWERK_SYMBOL = { werkbank: '🔨', lagerfeuer: '🔥', schmelzofen: '🏭', falle: '🪤', beet: '🌱', holzboden: '🟫', holzwand: '🧱', holzwand_fenster: '🪟', holzwand_tuer: '🚪', holztuer: '🚪', holzdach: '🛖', zaun: '🚧', zauntor: '⛩', kiste: '📦', bett: '🛏' };
   for (const [typ, b] of Object.entries(BAUWERKE)) {
     liste.push({

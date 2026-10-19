@@ -558,6 +558,14 @@ export class Zeichner2D {
       }
       ctx.globalAlpha = 1;
     }
+    // Wand-Vorschau: ungültige Kacheln rot
+    if (v.rot?.length) {
+      ctx.fillStyle = 'rgba(229,72,77,0.55)';
+      for (const { x, y } of v.rot) {
+        const p = this.zuBild(x, y);
+        ctx.fillRect(p.x, p.y, this.zoom, this.zoom);
+      }
+    }
     if (v.kreis) {
       const p = this.zuBild(v.kreis.x, v.kreis.y);
       ctx.strokeStyle = '#fff';

@@ -1,4 +1,5 @@
 import { GRUPPEN, KATEGORIEN, eintraegeDerKategorie, katalog, katalogEintrag, eigeneEintraege, passtZurSuche } from '../kern/katalog.js';
+import { istWandEintrag } from '../kern/wand.js';
 import { esc } from './dialoge.js';
 
 /**
@@ -151,7 +152,17 @@ export class AssetBrowser {
     if (e.art === 'werkzeug' && (e.werkzeug === 'wetter' || e.werkzeug === 'musik')) return this.aktionen.zonenEinstellungen?.(e.werkzeug === 'wetter' ? 'wetter' : null);
     if (z.ansicht === '3d') return z.meldung('Malen und Bauen gehen nur in 2D – Taste 3 schaltet um', 'fehler');
     z.setzeEintrag(e);
-    if (e.art === 'kachel') this.aktionen.werkzeug(`malen:${z.malModus}`);
+    if (e.art === 'kachel') {
+      // Mauern werden gezogen (Linie) – danach kehrt der vorige Mal-Modus für Böden zurück
+      if (istWandEintrag(e)) {
+        if (z.malModus !== 'linie') z.malModusVorWand = z.malModus;
+        this.aktionen.werkzeug('malen:linie');
+      } else {
+        if (z.malModusVorWand) z.malModus = z.malModusVorWand;
+        z.malModusVorWand = null;
+        this.aktionen.werkzeug(`malen:${z.malModus}`);
+      }
+    }
     else if (e.art === 'objekt' || e.art === 'bauwerk' || e.art === 'marker') {
       if (e.marker === 'loot' && e.raum) z.lootRaum = e.raum;
       this.aktionen.werkzeug('platzieren');
@@ -163,7 +174,7 @@ export class AssetBrowser {
     }
     this.zuletzt = [e.id, ...this.zuletzt.filter((id) => id !== e.id)].slice(0, ZULETZT_MAX);
     this.#speichere();
-    z.meldung(`${e.name} gewählt${e.art === 'objekt' ? ' – Klick setzt, R dreht, Umschalt = mehrere' : ''}`);
+    z.meldung(`${e.name} gewählt${istWandEintrag(e) ? ' – Maustaste halten und ziehen (Strg = Raum-Umriss, Umschalt = frei)' : e.art === 'objekt' ? ' – Klick setzt, R dreht, Umschalt = mehrere' : ''}`);
     if (this.leiste.aktiv === '🧱 Assets') this.zeichneListe();
   }
 

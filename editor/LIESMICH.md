@@ -42,6 +42,10 @@ Koordinaten sind **Kacheln** (1 Kachel = 1 m = 32 px im Spiel), x nach rechts, y
 
 ## Malen und Bauen
 
+- **Wände am Stück:** Mauer-Einträge (Wand, Fenster, Tür, Zaun, Zauntor, Holzwand …) wählen und mit **gedrückter linker
+  Maustaste ziehen** – die Wand rastet waagerecht/senkrecht/45° ein (Umschalt = frei), **Strg = Raum-Umriss** (Rechteck) oder
+  Haken „Raum“ in der Optionsleiste. Bauwerke werden je Kachel geprüft (rote Kacheln werden übersprungen), Fenster/Türöffnungen/
+  Tore richten sich automatisch nach dem Wandverlauf aus. Türen: höchstens 4 nebeneinander. Ein Zug = ein Rückgängig-Schritt.
 - **Kacheln:** im Asset-Browser einen Eintrag anklicken (oder suchen), dann Pinsel (**B**, Größe mit `[` `]`), Rechteck (**U**,
   Umschalt = nur Rand), Linie (**L**), Füllen (**G**). **Mauern** (Wand, Fenster, Tür, Zaun) rasten beim Linienziehen
   waagerecht/senkrecht/45° ein (Umschalt = frei). Radierer (**E**) macht Rasen und entfernt Objekte.

@@ -41,6 +41,7 @@ export class Optionsleiste {
       gruppe(['pinsel', 'rechteck', 'linie', 'fuellen'].map((m) => knopf(`malen:${m}`, { pinsel: '🖌 Pinsel', rechteck: '▭ Rechteck', linie: '╱ Linie', fuellen: '🪣 Füllen' }[m], z.malModus === m, { pinsel: 'B', rechteck: 'U (Umschalt: nur Rand)', linie: 'L (Mauern rasten ein, Umschalt: frei)', fuellen: 'G' }[m])).join(''));
       if (z.malModus !== 'fuellen') groesse();
       if (z.malModus === 'rechteck') gruppe(`<label><input type="checkbox" data-o="nurRand" ${z.nurRand ? 'checked' : ''}> nur Rand</label>`);
+      if (z.malModus === 'linie' && e?.kategorie === 'Mauern') gruppe(`<label title="auch: Strg beim Ziehen"><input type="checkbox" data-o="raumUmriss" ${z.raumUmriss ? 'checked' : ''}> Raum (Rechteck-Umriss)</label><span class="leise">Maustaste halten und ziehen · Umschalt = frei</span>`);
     } else if (w === 'radierer') {
       gruppe('<b>⌫ Radierer</b>');
       groesse();
@@ -48,8 +49,11 @@ export class Optionsleiste {
     } else if (w === 'platzieren' && e) {
       gruppe(`<span class="symbol">${esc(e.symbol ?? '')}</span><b>${esc(e.name)}</b>${e.b ? `<span class="leise">${e.b} × ${e.h}</span>` : ''}`);
       if (e.art === 'objekt' || e.art === 'bauwerk') gruppe(`<span class="leise">Drehung</span>${[0, 90, 180, 270].map((d) => knopf(`drehung:${d}`, `${d}°`, z.drehung === d, 'R dreht weiter')).join('')}`);
-      gruppe(`<label title="sonst: Umschalt halten"><input type="checkbox" data-o="mehrfach" ${z.mehrfach ? 'checked' : ''}> mehrfach setzen</label>`);
-      gruppe('<span class="leise">Klick setzt · R/Rechtsklick dreht · Esc beendet</span>');
+      if (e.art === 'bauwerk' && ['wand', 'tuer'].includes(e.ebene)) gruppe(`<label title="auch: Strg beim Ziehen"><input type="checkbox" data-o="raumUmriss" ${z.raumUmriss ? 'checked' : ''}> Raum (Rechteck-Umriss)</label><span class="leise">Maustaste halten und ziehen · Umschalt = frei · Ausrichtung automatisch</span>`);
+      else {
+        gruppe(`<label title="sonst: Umschalt halten"><input type="checkbox" data-o="mehrfach" ${z.mehrfach ? 'checked' : ''}> mehrfach setzen</label>`);
+        gruppe('<span class="leise">Klick setzt · R/Rechtsklick dreht · Esc beendet</span>');
+      }
     } else if (w === 'einfuegen' && z.einfuegeVorlage) {
       const v = z.einfuegeVorlage;
       gruppe(`<b>📋 ${esc(v.name ?? 'Einfügen')}</b><span class="leise">${v.b} × ${v.h}</span>`);
@@ -114,6 +118,7 @@ export class Optionsleiste {
         } else if (art === 'farbe') z.farbe = i.value;
         else if (art === 'mehrfach') z.mehrfach = i.checked;
         else if (art === 'nurRand') z.nurRand = i.checked;
+        else if (art === 'raumUmriss') z.raumUmriss = i.checked;
       }),
     );
     // Eingaben in der Leiste lösen keine Werkzeug-Kürzel aus

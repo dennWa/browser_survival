@@ -212,3 +212,34 @@ test('Licht: Warnung ohne Lichtquelle, Kegel-Lampe dreht mit R und kommt mit Ric
   assert.deepEqual([d2[0].richtung, d2[0].oeffnung], [270, 170]);
   assert.equal(d2[1].art, undefined);
 });
+
+// --- Editor 2.0, Schritt 2.2: Wände ziehen -----------------------------------------------------
+import { istWandEintrag, wandPunkte, begrenzeTueren, wandBauwerkOps, TUER_MAX } from '../editor/kern/wand.js';
+
+test('Wände ziehen: Einrasten, Raum-Umriss, Türen höchstens 4, Bauwerke mit Ausrichtung und Prüfung je Kachel', () => {
+  const kat = (id) => katalog().find((e) => e.id === id);
+  assert.ok(istWandEintrag(kat('kachel:#')) && istWandEintrag(kat('kachel:T')) && istWandEintrag(kat('bauwerk:zaun')) && istWandEintrag(kat('bauwerk:holzwand_fenster')));
+  assert.ok(!istWandEintrag(kat('kachel:,')) && !istWandEintrag(kat('bauwerk:werkbank')) && !istWandEintrag(kat('objekt:tisch')));
+  const k = neueZone({ id: 'wand', name: 'Wand', breite: 20, hoehe: 15 });
+  // fast waagerecht → rastet waagerecht ein; Umschalt = frei
+  const w = wandPunkte(k, { x: 2, y: 2 }, { x: 9, y: 3 });
+  assert.ok(w.every((p) => p.y === 2) && w.length === 8);
+  assert.ok(wandPunkte(k, { x: 2, y: 2 }, { x: 9, y: 3 }, { frei: true }).some((p) => p.y === 3));
+  // Raum-Umriss 5 × 4 = 14 Randkacheln, über den Rand hinaus wird abgeschnitten
+  assert.equal(wandPunkte(k, { x: 1, y: 1 }, { x: 5, y: 4 }, { raum: true }).length, 14);
+  assert.ok(wandPunkte(k, { x: 15, y: 5 }, { x: 30, y: 5 }).every((p) => p.x < 20));
+  // Türen
+  const tuer = begrenzeTueren(wandPunkte(k, { x: 0, y: 7 }, { x: 9, y: 7 }));
+  assert.equal(tuer.punkte.length, TUER_MAX);
+  assert.equal(tuer.gekuerzt, 6);
+  // Bauwerke: Fenster in senkrechter Wand → Nord-Süd; belegte Kachel wird übersprungen
+  k.anwenden([{ s: 'bauwerke', k: 1, neu: { typ: 'holzwand', tx: 4, ty: 6 } }]);
+  const senkrecht = wandPunkte(k, { x: 4, y: 3 }, { x: 4, y: 8 });
+  const { ops, ungueltig } = wandBauwerkOps(k, 'holzwand_fenster', senkrecht);
+  assert.equal(ops.length, 5);
+  assert.deepEqual(ungueltig.map((u) => [u.x, u.y]), [[4, 6]]);
+  assert.ok(ops.every((o) => o.neu.drehung === 1), 'Ausrichtung folgt der Wand (Nord-Süd)');
+  const zaun = wandBauwerkOps(k, 'zaun', wandPunkte(k, { x: 8, y: 1 }, { x: 12, y: 1 }));
+  assert.ok(zaun.ops.every((o) => o.neu.drehung === undefined), 'Zaun hat keine Ausrichtung');
+  assert.equal(new Set(zaun.ops.map((o) => o.k)).size, 5, 'eigene IDs');
+});
