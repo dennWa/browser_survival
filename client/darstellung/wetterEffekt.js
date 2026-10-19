@@ -35,6 +35,8 @@ export class WetterEffekt {
     this.regen = 0;
     this.nebel = 0;
     this.zeit = 0;
+    this.windZeit = 0;
+    this.windStufe = 1; // 0 windstill … 3 stark (fließend), steuert das Baum-Schwanken
     const tropfen = new Float32Array(TROPFEN * 2 * 4);
     const ende = new Float32Array(TROPFEN * 2);
     const position = new Float32Array(TROPFEN * 2 * 3); // wird nie genutzt, three.js braucht das Attribut für die Zählung
@@ -77,6 +79,11 @@ export class WetterEffekt {
     const schritt = BLENDE_PRO_SEKUNDE * dt;
     this.regen += Math.max(-schritt, Math.min(schritt, zielRegen - this.regen));
     this.nebel += Math.max(-schritt, Math.min(schritt, zielNebel - this.nebel));
+    // Wind passt sich dem Wetter an: Nebel = fast windstill, klar = leicht (mit Böen), Regen = mittel bis stark
+    this.windZeit += dt;
+    const boe = 0.5 + 0.5 * Math.sin(this.windZeit * 0.21) * Math.sin(this.windZeit * 0.067 + 1);
+    const zielWind = this.art === 'nebel' ? 0.15 : this.art === 'regen' ? 2 + boe : 0.6 + 0.9 * boe;
+    this.windStufe += (zielWind - this.windStufe) * Math.min(1, dt * 0.4);
     const sichtbar = this.regen > 0.01;
     this.linien.visible = sichtbar;
     if (!sichtbar) return;
