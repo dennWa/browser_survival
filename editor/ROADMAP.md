@@ -6,6 +6,31 @@
 > LIESMICH/KI_INDEX/Manifest + Datei-Kopfkommentare nachgezogen · Commit + Push · kurze Rückmeldung mit Spiel-Link.
 > 🎮 = Schritt ändert auch das Spiel (Server/Client), nicht nur den Editor.
 
+## 🔁 Übergabe – aktueller Stand (wird nach jeder Phase/jedem Schritt aktualisiert)
+> Falls die Arbeit abbricht: hier weitermachen. Regeln: `CLAUDE.md` (direkt auf `main`, `npm test` vor jedem Commit,
+> KI_INDEX/Manifest/LIESMICH nachziehen). Prüfen: `npm test`, `npm run rauchtest:editor`, `npm run rauchtest`.
+
+**Erledigt (auf `main`):**
+- Phase 1 komplett (1.1–1.6): Bugs B1–B12, Befehlsregister/Menüs/Kontextmenü/Hilfe, neues Layout, Ebenen, Backup.
+- Phase 2 komplett (2.1–2.5): Licht (kein Sichtkegel, dunkle Nächte, Kegel-Lampen), Wände ziehen, Gelände-Werkzeuge,
+  Gelände im Spiel begehbar/sichtbar (`gemeinsam/welt/gelaende.js`), Ego-Zielen mit Neigung.
+
+**In Arbeit: Phase 3 (Asset-Management).** Bisher: `werkzeuge/assets/baue_3d.mjs --nur-vendor` + OBJLoader/GLTFExporter
+im Addon-Bündel (`client/vendor/three/addons.js`). Geplanter Entwurf:
+- `editor/kern/bibliothek.js` (umgebungsfrei, getestet): `assetId(bytes)` (FNV → `m_…`, gleiche Datei = gleiche ID),
+  `istGlb`, `glbInfo` (Dreiecke, Animationen, nicht unterstützte Kompression), `gltfZuGlb` (eingebettetes .gltf → .glb),
+  Base64-Helfer, `setzeModellQuelle(fn)`/`mitModell(typ)` (löst `typ.asset` → `typ.glb` auf), `verwendungen(zonen, id)`.
+- Karten-Typen verweisen per `asset: '<id>'` (statt `glb` Data-URL im Entwurf). `format.nachDefinition` bettet `glb`
+  ein (Test/Export/Veröffentlichen bleiben selbständig). Alte Typen mit `glb` wandern beim Laden in die Bibliothek.
+- `editor/ui/speicher.js`: Bereich `assets` (DB-Version 2, Blob). `editor/ui/bibliothek.js`: Cache id → Data-URL + Meta.
+- Entwurf-Download und Komplett-Backup nehmen benutzte Modelle mit (`bibliothek: [...]`), Öffnen/Wiederherstellen übernimmt sie.
+- UI: Reiter „📦 Modelle“ links (Drag & Drop mehrerer Dateien, Ordner, Tags, Suche, Vorschaubild per WebGL, Maße
+  automatisch), Einträge auch im Asset-Browser; Löschen mit Abhängigkeitsprüfung (mitlöschen/ersetzen).
+- 3.2: Bild → 3D und Grafik-Antrag ausblenden (Code bleibt). 3.3: `eigeneModelle.mjs` räumt verwaiste `<karte>_*.glb` auf.
+- 3.5: Poly Pizza (API-Schlüssel nur localStorage, wie Gemini).
+
+**Danach:** Phasen 4–9 laut Tabellen unten (4 Audio, 5 3D-Modul, 6 Zonen/Loot, 7 UX, 8 Testlauf, 9 KI).
+
 ## Ausgangslage (Analyse 2026-10-19)
 - Editor v0.14: Phasen 0–11 fertig, ~10 000 Zeilen in `editor/`, 210 Tests grün, Rauchtest grün.
 - Gute Basis: jede Änderung läuft über Operationen (`karte.anwenden`) → Undo, Autosave und KI-Vorschau hängen daran.

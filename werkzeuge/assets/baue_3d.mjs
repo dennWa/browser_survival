@@ -7,6 +7,7 @@
  *      (kein CDN nötig – das Spiel läuft auch offline / im LAN)
  *
  * Braucht die Entwicklungsabhängigkeiten aus package.json (npm install).
+ * `npm run assets:3d -- --nur-vendor` überspringt Schritt 1 (ohne heruntergeladene Quellpakete, z. B. nur neue Addons).
  */
 import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
@@ -26,34 +27,37 @@ const ZIEL_3D = path.join(WURZEL, 'client/assets/3d');
 const ZIEL_VENDOR = path.join(WURZEL, 'client/vendor/three');
 const ANIMATIONEN = { stehen: 'idle', rennen: 'run' };
 
-if (!existsSync(QUELLE)) {
-  console.error('Quelle fehlt – zuerst werkzeuge/assets/baue_assets.py ausführen.');
+const NUR_VENDOR = process.argv.includes('--nur-vendor');
+if (!NUR_VENDOR && !existsSync(QUELLE)) {
+  console.error('Quelle fehlt – zuerst werkzeuge/assets/baue_assets.py ausführen (oder --nur-vendor).');
   process.exit(1);
 }
 
 // --- 1. Animationen ---------------------------------------------------------
-const lader = new FBXLoader();
-const clips = {};
-for (const [name, datei] of Object.entries(ANIMATIONEN)) {
-  const roh = readFileSync(findeDatei(QUELLE, `${datei}.fbx`));
-  const gruppe = lader.parse(roh.buffer.slice(roh.byteOffset, roh.byteOffset + roh.byteLength), '');
-  // Manche Dateien enthalten zusätzlich eine 1-Frame-"Pose" → den längsten Clip nehmen
-  const clip = gruppe.animations.reduce((a, b) => (b.duration > a.duration ? b : a));
-  clip.name = name;
-  // Skalierungs-Spuren sind bei diesem Modell konstant → weglassen; Werte runden spart viel Platz
-  clip.tracks = clip.tracks.filter((t) => !t.name.endsWith('.scale'));
-  clip.optimize();
-  const json = THREE.AnimationClip.toJSON(clip);
-  for (const spur of json.tracks) {
-    spur.times = spur.times.map((v) => Math.round(v * 1000) / 1000);
-    spur.values = spur.values.map((v) => Math.round(v * 10000) / 10000);
-  }
-  clips[name] = json;
-  console.log(`  Animation ${name}: ${clip.duration.toFixed(2)} s, ${json.tracks.length} Spuren`);
+if (!NUR_VENDOR) {
+  const lader = new FBXLoader();
+  const clips = {};
+  for (const [name, datei] of Object.entries(ANIMATIONEN)) {
+    const roh = readFileSync(findeDatei(QUELLE, `${datei}.fbx`));
+    const gruppe = lader.parse(roh.buffer.slice(roh.byteOffset, roh.byteOffset + roh.byteLength), '');
+    // Manche Dateien enthalten zusätzlich eine 1-Frame-"Pose" → den längsten Clip nehmen
+    const clip = gruppe.animations.reduce((a, b) => (b.duration > a.duration ? b : a));
+    clip.name = name;
+    // Skalierungs-Spuren sind bei diesem Modell konstant → weglassen; Werte runden spart viel Platz
+    clip.tracks = clip.tracks.filter((t) => !t.name.endsWith('.scale'));
+    clip.optimize();
+    const json = THREE.AnimationClip.toJSON(clip);
+    for (const spur of json.tracks) {
+      spur.times = spur.times.map((v) => Math.round(v * 1000) / 1000);
+      spur.values = spur.values.map((v) => Math.round(v * 10000) / 10000);
+    }
+    clips[name] = json;
+    console.log(`  Animation ${name}: ${clip.duration.toFixed(2)} s, ${json.tracks.length} Spuren`);
 }
 mkdirSync(ZIEL_3D, { recursive: true });
 writeFileSync(path.join(ZIEL_3D, 'animationen.json'), JSON.stringify(clips));
 console.log(`  → client/assets/3d/animationen.json (${(JSON.stringify(clips).length / 1024).toFixed(0)} KB)`);
+}
 
 // --- 2. Three.js bereitstellen ----------------------------------------------
 const require = createRequire(import.meta.url);
@@ -66,12 +70,14 @@ for (const datei of ['three.module.js', 'three.core.js']) {
   writeFileSync(path.join(ZIEL_VENDOR, datei), klein);
   console.log(`  vendor/three/${datei}: ${(klein.length / 1024).toFixed(0)} KB`);
 }
-// Addons (FBX-/GLTF-Lader, SkeletonUtils) als ein Bündel; 'three' bleibt extern (kommt über die Import-Map)
+// Addons (FBX-/GLTF-/OBJ-Lader, GLTF-Exporter für den Map-Editor-Import, SkeletonUtils) als ein Bündel; 'three' bleibt extern (kommt über die Import-Map)
 await esbuild.build({
   // Direkte Dateipfade: 'three/addons/…' würde esbuild sonst wie 'three' als extern behandeln
   stdin: {
     contents: `export { FBXLoader } from ${JSON.stringify(path.join(threeOrdner, 'examples/jsm/loaders/FBXLoader.js'))};
                export { GLTFLoader } from ${JSON.stringify(path.join(threeOrdner, 'examples/jsm/loaders/GLTFLoader.js'))};
+               export { OBJLoader } from ${JSON.stringify(path.join(threeOrdner, 'examples/jsm/loaders/OBJLoader.js'))};
+               export { GLTFExporter } from ${JSON.stringify(path.join(threeOrdner, 'examples/jsm/exporters/GLTFExporter.js'))};
                export * as SkeletonUtils from ${JSON.stringify(path.join(threeOrdner, 'examples/jsm/utils/SkeletonUtils.js'))};`,
     resolveDir: WURZEL,
   },
