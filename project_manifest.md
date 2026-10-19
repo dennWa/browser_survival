@@ -795,6 +795,7 @@ editor/
 │   └── veroeffentlichen.js  <id>.js im Kartenstil (alsJsModul) + KARTEN-Zeilen
 │   ├── bearbeiten.js   verschieben/drehen/duplizieren der Auswahl (Rand- und Rasterregeln)          (Editor 2.0)
 │   ├── ebenen.js       Ebenen (sichtbar/gesperrt), Zuordnung Operation → Ebene, Filter                 (Editor 2.0)
+│   ├── wand.js         Wände am Stück ziehen (Einrasten, Raum-Umriss, Tür-Grenze, Ausrichtung)       (Editor 2.0)
 │   └── backup.js       Komplett-Backup (alle Entwürfe, Prefabs, Einstellungen-Whitelist, ohne API-Schlüssel) (Editor 2.0)
 ├── ROADMAP.md          Plan Editor 2.0 (Phasen 1–9, Fehlerliste, Entscheidungen)
 └── ui/     (Browser) zustand.js (Projekt, Auswahl, Ebenen, Autosave) · zeichner2d.js (Canvas, Lineale) · werkzeuge.js (Zeiger/Touch/Trackpad)
