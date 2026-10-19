@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { GLTFLoader, GLTFExporter, OrbitControls, TransformControls } from '../../client/vendor/three/addons.js';
-import { glbInfo, verwendungen, dataUrlZuBytes } from '../kern/bibliothek.js';
+import { glbInfo, verwendungen, dataUrlZuBytes, MODELL_MAX_MB } from '../kern/bibliothek.js';
 import { WerkstattVerlauf, neueVersionMeta, bodenVersatz, drehpunktVersatz, versionOps } from '../kern/werkstatt.js';
 import { vorschauBild } from './modellImport.js';
+import { Texturwerk } from './werkstattMalen.js';
 import { dialog, bestaetigen, esc, feldHtml, istDialogOffen } from './dialoge.js';
 
 /**
@@ -12,8 +13,11 @@ import { dialog, bestaetigen, esc, feldHtml, istDialogOffen } from './dialoge.js
  *   • Gizmo (TransformControls) für das ganze Modell oder ein Teil: ✥ verschieben (W) · ⟳ drehen (E) · ⤢ skalieren (R);
  *     Umschalt = Raster (0,1 m / 15° / 0,1). Zahlenfelder für Position/Drehung/Größe (genau + Touch).
  *   • ⬇ Auf den Boden (Unterkante y = 0) · ⊙ Drehpunkt unten mittig. Teile-Liste (wählen, 👁 aus-/einblenden – ausgeblendete
- *     Teile fehlen in der neuen Version), Material-Liste (nur Anzeige; Farben/Texturen = Schritt 5.2).
- *   • Eigenes Undo (Strg+Z / Strg+Y, kern/werkstatt.WerkstattVerlauf), unabhängig vom Karten-Verlauf.
+ *     Teile fehlen in der neuen Version), Material-Liste.
+ *   • Schritt 5.2 (ui/werkstattMalen.js, Texturwerk): Material bearbeiten (Farbe, Rauheit, Metall), Textur ersetzen/entfernen,
+ *     🖌 Malen (B) direkt aufs Modell oder in der UV-Ansicht, 🏷 Aufkleber (K) projizieren (DecalGeometry, wird ein Teil).
+ *   • Eigenes Undo (Strg+Z / Strg+Y, kern/werkstatt.WerkstattVerlauf, 60 Schritte), unabhängig vom Karten-Verlauf.
+ *     Stand = alle Knoten (Lage, sichtbar) + alle Materialien (Farbe, Rauheit, Metall, Textur-Nr.).
  *   • 💾 Speichern = NEUE Bibliotheks-Version (GLTFExporter, Animationen bleiben; `basis` = Original, Name „… v2“).
  *     Das Original bleibt. Benutzen Zonen das Original, fragt die Werkstatt, ob deren Typen umgestellt werden (je Zone
  *     1 Undo-Schritt, optional mit neuer Größe).
@@ -22,13 +26,15 @@ import { dialog, bestaetigen, esc, feldHtml, istDialogOffen } from './dialoge.js
  */
 const RASTER = { verschieben: 0.1, drehen: THREE.MathUtils.degToRad(15), skalieren: 0.1 };
 const MODI = [
-  ['translate', '✥ Verschieben', 'W'],
+  ['translate', '✥ Schieben', 'W'],
   ['rotate', '⟳ Drehen', 'E'],
   ['scale', '⤢ Größe', 'R'],
 ];
 
 let offen = null;
 export const werkstattOffen = () => offen !== null;
+/** Offene Werkstatt (für Rauchtest/Konsole) */
+export const aktiveWerkstatt = () => offen;
 
 export async function oeffneWerkstatt({ id, bibliothek, zustand }) {
   const alt = bibliothek.meta(id);
@@ -56,18 +62,20 @@ class Werkstatt {
     this.fertig = fertig;
     this.modell = gltf.scene;
     this.clips = gltf.animations ?? [];
-    this.verlauf = new WerkstattVerlauf();
+    this.verlauf = new WerkstattVerlauf(60);
     this.gewaehlt = this.modell;
     this.objekte = [];
     this.modell.traverse((o) => this.objekte.push(o));
     this.teile = this.objekte.filter((o) => o.isMesh);
+    this.werkzeug = 'gizmo';
     this.#baueDom();
     this.#baueSzene();
+    this.texturwerk = new Texturwerk(this);
     this.#tasten = (e) => this.#taste(e);
     window.addEventListener('keydown', this.#tasten, true);
     window.addEventListener('keyup', this.#tasten, true);
-    this.#zeigeListen();
-    this.#aktualisiere();
+    this.zeigeListen();
+    this.aktualisiere();
     this.rahmen();
   }
 
@@ -80,30 +88,33 @@ class Werkstatt {
     w.setAttribute('role', 'dialog');
     w.setAttribute('aria-label', 'Modell-Werkstatt');
     w.innerHTML = `<header class="werkstatt-kopf">
-        <b>🛠 Werkstatt</b><span class="leise werkstatt-name">${esc(this.alt.name)}</span>
+        <b>🛠 Werkstatt</b><span class="leise werkstatt-name" title="${esc(this.alt.name)}">${esc(this.alt.name)}</span>
         <span class="trenner"></span>
         <button type="button" data-a="zurueck" title="Rückgängig (Strg+Z)">↶</button><button type="button" data-a="vor" title="Wiederholen (Strg+Y)">↷</button>
         <span class="trenner"></span>
         ${MODI.map(([m, t, k]) => `<button type="button" data-modus="${m}" title="${t} (${k}) – Umschalt = Raster">${t}</button>`).join('')}
+        <button type="button" data-modus="malen" title="Auf das Modell malen (B)">🖌 Malen</button>
+        <button type="button" data-modus="aufkleber" title="Aufkleber/Decal aufs Modell projizieren (K)">🏷 Aufkleber</button>
         <span class="trenner"></span>
         <button type="button" data-a="boden" title="Unterkante auf den Boden (y = 0)">⬇ Boden</button>
         <button type="button" data-a="drehpunkt" title="Drehpunkt unten in die Mitte">⊙ Drehpunkt</button>
         <button type="button" data-a="rahmen" title="Kamera aufs Modell (F)">⌖</button>
         <span class="trenner"></span>
         <label><input type="checkbox" data-schalter="raster" checked> Raster</label>
-        <label><input type="checkbox" data-schalter="draht"> Drahtgitter</label>
-        <label><input type="checkbox" data-schalter="box" checked> Box</label>
+        <label title="Drahtgitter"><input type="checkbox" data-schalter="draht"> Draht</label>
+        <label title="Fußabdruck + Kollisionsbox"><input type="checkbox" data-schalter="box" checked> Box</label>
         <span class="fueller"></span>
-        <button type="button" data-a="abbrechen">Schließen</button>
+        <button type="button" data-a="abbrechen" title="Schließen (Esc)" aria-label="Schließen">✕</button>
         <button type="button" class="akzent" data-a="speichern" title="Als neue Version in die Bibliothek (Strg+S) – das Original bleibt">💾 Speichern</button>
       </header>
+      <div class="werkstatt-optionen" hidden></div>
       <div class="werkstatt-koerper">
         <div class="werkstatt-buehne"><canvas></canvas><p class="werkstatt-hilfe leise">Ziehen = Kamera drehen · Rechts/2 Finger = schieben · Rad/Pinch = Zoom · Gizmo ziehen = bearbeiten · Umschalt = Raster</p></div>
         <aside class="werkstatt-seite">
           <h4>Maße</h4><p class="werkstatt-info"></p>
           <h4>Auswahl: <span data-auswahl></span></h4><div class="werkstatt-werte"></div>
           <h4>Teile</h4><div class="werkstatt-teile"></div>
-          <h4>Materialien</h4><div class="werkstatt-materialien"></div>
+          <h4>Materialien</h4><div class="werkstatt-materialien"></div><div class="werkstatt-material"></div>
         </aside>
       </div>`;
     document.body.append(w);
@@ -127,8 +138,12 @@ class Werkstatt {
       const s = e.target.dataset.schalter;
       if (s === 'raster') this.raster.visible = e.target.checked;
       else if (s === 'box') this.boxHilfe.visible = this.fuss.visible = e.target.checked;
-      else if (s === 'draht') for (const m of this.#materialien()) m.wireframe = e.target.checked;
+      else if (s === 'draht') for (const m of this.materialien()) m.wireframe = e.target.checked;
       this.anfordern();
+    });
+    w.querySelector('.werkstatt-materialien').addEventListener('click', (e) => {
+      const uuid = e.target.closest('[data-material]')?.dataset.material;
+      if (uuid) this.texturwerk.waehleMaterial(this.materialien().find((m) => m.uuid === uuid));
     });
     // Teile: Name = wählen, 👁 = ein/aus
     w.querySelector('.werkstatt-teile').addEventListener('click', (e) => {
@@ -137,10 +152,10 @@ class Werkstatt {
       const nr = Number(z.dataset.teil);
       const teil = nr < 0 ? this.modell : this.teile[nr];
       if (e.target.closest('[data-auge]')) {
-        this.#merke();
+        this.merke();
         teil.visible = !teil.visible;
-        this.#aktualisiere();
-        this.#zeigeListen();
+        this.aktualisiere();
+        this.zeigeListen();
       } else this.waehle(teil);
     });
   }
@@ -171,8 +186,8 @@ class Werkstatt {
     this.gizmo = new TransformControls(this.kamera, this.leinwand);
     if (globalThis.matchMedia?.('(pointer: coarse)').matches) this.gizmo.size = 1.4;
     this.gizmo.addEventListener('dragging-changed', (e) => (this.orbit.enabled = !e.value));
-    this.gizmo.addEventListener('mouseDown', () => this.#merke());
-    this.gizmo.addEventListener('objectChange', () => this.#aktualisiere());
+    this.gizmo.addEventListener('mouseDown', () => this.merke());
+    this.gizmo.addEventListener('objectChange', () => this.aktualisiere());
     this.gizmo.addEventListener('mouseUp', () => this.#zeigeWerte());
     this.gizmo.addEventListener('change', () => this.anfordern());
     this.szene.add(this.gizmo.getHelper());
@@ -222,53 +237,64 @@ class Werkstatt {
     return Math.round(n);
   }
 
-  #materialien() {
+  materialien() {
     const m = new Map();
     for (const t of this.teile) for (const x of [t.material].flat()) if (x) m.set(x.uuid, x);
     return [...m.values()];
   }
 
   // ------------------------------------------------------------------ Bearbeiten
+  /** translate | rotate | scale (Gizmo) oder malen | aufkleber (Texturwerk) */
   setzeModus(modus) {
-    this.gizmo.setMode(modus);
+    this.werkzeug = modus === 'malen' || modus === 'aufkleber' ? modus : 'gizmo';
+    if (this.werkzeug === 'gizmo') {
+      this.gizmo.setMode(modus);
+      this.gizmo.attach(this.gewaehlt);
+    } else this.gizmo.detach();
     for (const b of this.el.querySelectorAll('[data-modus]')) b.classList.toggle('aktiv', b.dataset.modus === modus);
+    this.texturwerk?.zeigeOptionen();
     this.anfordern();
   }
 
   waehle(obj) {
     this.gewaehlt = obj;
-    this.gizmo.attach(obj);
-    this.#zeigeListen();
-    this.#aktualisiere();
+    if (this.werkzeug === 'gizmo') this.gizmo.attach(obj);
+    this.zeigeListen();
+    this.aktualisiere();
   }
 
   /** Ganzes Modell um v = {x,y,z} verschieben (1 Undo-Schritt) */
   versetze(v, grund) {
     if (!v.x && !v.y && !v.z) return this.zustand.meldung(grund === 'boden' ? 'Steht schon auf dem Boden' : 'Drehpunkt ist schon mittig');
-    this.#merke();
+    this.merke();
     this.modell.position.add(new THREE.Vector3(v.x, v.y, v.z));
-    this.#aktualisiere();
+    this.aktualisiere();
     this.#zeigeWerte();
   }
 
-  /** Stand aller Knoten (Position, Drehung, Größe, sichtbar) – reihenfolgestabil */
+  /**
+   * Stand aller Knoten (Position, Drehung, Größe, sichtbar – reihenfolgestabil) + Materialien. Knoten, die erst später
+   * dazukamen (Aufkleber), fehlen in älteren Ständen → beim Wiederherstellen ausgeblendet (= nicht exportiert).
+   */
   stand() {
-    return this.objekte.map((o) => [...o.position.toArray(), ...o.quaternion.toArray(), ...o.scale.toArray(), o.visible ? 1 : 0]);
+    return { knoten: this.objekte.map((o) => [...o.position.toArray(), ...o.quaternion.toArray(), ...o.scale.toArray(), o.visible ? 1 : 0]), material: this.texturwerk.stand() };
   }
 
   #setzeStand(s) {
-    s.forEach((w, i) => {
-      const o = this.objekte[i];
+    this.objekte.forEach((o, i) => {
+      const w = s.knoten[i];
+      if (!w) return void (o.visible = false);
       o.position.fromArray(w, 0);
       o.quaternion.fromArray(w, 3);
       o.scale.fromArray(w, 7);
       o.visible = w[10] === 1;
     });
-    this.#aktualisiere();
-    this.#zeigeListen();
+    this.texturwerk.setzeStand(s.material);
+    this.aktualisiere();
+    this.zeigeListen();
   }
 
-  #merke() {
+  merke() {
     this.verlauf.merke(this.stand());
     this.#knoepfe();
   }
@@ -307,7 +333,7 @@ class Werkstatt {
   }
 
   /** Hilfslinien + Maße neu */
-  #aktualisiere() {
+  aktualisiere() {
     const box = this.huelle();
     const leer = box.isEmpty();
     this.boxHilfe.box.copy(leer ? new THREE.Box3() : box);
@@ -357,33 +383,33 @@ class Werkstatt {
         const v = Number(i.value);
         if (!Number.isFinite(v)) return;
         if (i.name[0] === 's' && v === 0) return this.zustand.meldung('Größe 0 geht nicht', 'fehler');
-        this.#merke();
+        this.merke();
         const achse = i.name[1];
         if (i.name[0] === 'p') o.position[achse] = v;
         else if (i.name[0] === 'r') o.rotation[achse] = THREE.MathUtils.degToRad(v);
         else o.scale[achse] = v;
-        this.#aktualisiere();
+        this.aktualisiere();
       }),
     );
     box.querySelector('[data-gleich]').addEventListener('click', async () => {
       const w = await dialog({ titel: '⤢ Größe gleichmäßig', html: feldHtml({ name: 'f', label: 'Faktor', typ: 'zahl', wert: 1, min: 0.01, schritt: 0.1, hilfe: 'z. B. 0.01 für Modelle in cm, 2 = doppelt so groß' }), knoepfe: [{ text: 'Abbrechen', wert: null }, { text: 'Anwenden', art: 'akzent', wert: (b) => Number(b.querySelector('[name=f]').value) }] });
       if (!(w > 0) || w === 1) return;
-      this.#merke();
+      this.merke();
       o.scale.multiplyScalar(w);
-      this.#aktualisiere();
+      this.aktualisiere();
       this.#zeigeWerte();
     });
     box.querySelector('[data-null]').addEventListener('click', () => {
-      this.#merke();
+      this.merke();
       o.position.set(0, 0, 0);
       o.rotation.set(0, 0, 0);
       o.scale.set(1, 1, 1);
-      this.#aktualisiere();
+      this.aktualisiere();
       this.#zeigeWerte();
     });
   }
 
-  #zeigeListen() {
+  zeigeListen() {
     const zeile = (nr, name, sichtbar, aktiv, extra = '') =>
       `<div class="werkstatt-zeile${aktiv ? ' aktiv' : ''}" data-teil="${nr}"><button type="button" class="name">${esc(name)}</button>${extra}${nr >= 0 ? `<button type="button" data-auge title="ein-/ausblenden">${sichtbar ? '👁' : '🚫'}</button>` : ''}</div>`;
     this.el.querySelector('.werkstatt-teile').innerHTML =
@@ -392,9 +418,10 @@ class Werkstatt {
     const nutzung = new Map();
     for (const t of this.teile) for (const m of [t.material].flat()) if (m) nutzung.set(m.uuid, (nutzung.get(m.uuid) ?? 0) + 1);
     this.el.querySelector('.werkstatt-materialien').innerHTML =
-      this.#materialien()
-        .map((m) => `<div class="werkstatt-zeile"><span class="farbe" style="background:${m.color ? `#${m.color.getHexString()}` : 'transparent'}"></span><span class="name">${esc(m.name || 'Material')}</span><span class="leise klein">${nutzung.get(m.uuid)}× · ${m.map ? 'Textur' : 'Farbe'}</span></div>`)
-        .join('') + '<p class="leise klein">Farben und Texturen ändern: kommt in Schritt 5.2.</p>';
+      this.materialien()
+        .map((m) => `<div class="werkstatt-zeile${this.texturwerk.material === m ? ' aktiv' : ''}" data-material="${m.uuid}"><span class="farbe" style="background:${m.color ? `#${m.color.getHexString()}` : 'transparent'}"></span><button type="button" class="name">${esc(m.name || 'Material')}</button><span class="leise klein">${nutzung.get(m.uuid)}× · ${m.map ? 'Textur' : 'Farbe'}</span></div>`)
+        .join('');
+    this.texturwerk.zeichneMaterial();
     this.#zeigeWerte();
     this.#knoepfe();
   }
@@ -421,6 +448,8 @@ class Werkstatt {
     else if (t === 'w') this.setzeModus('translate');
     else if (t === 'e') this.setzeModus('rotate');
     else if (t === 'r') this.setzeModus('scale');
+    else if (t === 'b') this.setzeModus('malen');
+    else if (t === 'k') this.setzeModus('aufkleber');
     else if (t === 'f') this.rahmen();
     else if (e.key === 'Escape') this.schliesse();
   }
@@ -433,10 +462,11 @@ class Werkstatt {
     let bytes;
     try {
       this.zustand.meldung('⟳ neue Version wird gebaut …');
-      bytes = new Uint8Array(await new GLTFExporter().parseAsync(this.modell, { binary: true, animations: this.clips, onlyVisible: true }));
+      bytes = new Uint8Array(await new GLTFExporter().parseAsync(this.modell, { binary: true, animations: this.clips, onlyVisible: true, maxTextureSize: 1024 }));
     } catch (e) {
       return this.zustand.meldung(`Speichern fehlgeschlagen: ${e.message ?? e}`, 'fehler');
     }
+    if (bytes.length > MODELL_MAX_MB * 1024 * 1024) return this.zustand.meldung(`Neue Version zu groß (${(bytes.length / 1048576).toFixed(1)} MB, max. ${MODELL_MAX_MB}) – Texturen verkleinern oder Teile ausblenden`, 'fehler');
     const info = glbInfo(bytes);
     if (info.fehler.length) return this.zustand.meldung(`Speichern fehlgeschlagen: ${info.fehler.join('; ')}`, 'fehler');
     const g = this.huelle().getSize(new THREE.Vector3());
@@ -472,6 +502,7 @@ class Werkstatt {
     window.removeEventListener('keyup', this.#tasten, true);
     this.beobachter.disconnect();
     cancelAnimationFrame(this.#bild);
+    this.texturwerk.ende();
     this.gizmo.detach();
     this.gizmo.dispose();
     this.orbit.dispose();

@@ -70,8 +70,8 @@ for (const datei of ['three.module.js', 'three.core.js']) {
   writeFileSync(path.join(ZIEL_VENDOR, datei), klein);
   console.log(`  vendor/three/${datei}: ${(klein.length / 1024).toFixed(0)} KB`);
 }
-// Addons (FBX-/GLTF-/OBJ-Lader, GLTF-Exporter für den Map-Editor-Import, SkeletonUtils, Orbit-/Transform-Steuerung für die
-// Modell-Werkstatt des Editors) als ein Bündel; 'three' bleibt extern (kommt über die Import-Map)
+// Addons (FBX-/GLTF-/OBJ-Lader, GLTF-Exporter für den Map-Editor-Import, SkeletonUtils, Orbit-/Transform-Steuerung und Aufkleber
+// (DecalGeometry) für die Modell-Werkstatt des Editors) als ein Bündel; 'three' bleibt extern (kommt über die Import-Map)
 await esbuild.build({
   // Direkte Dateipfade: 'three/addons/…' würde esbuild sonst wie 'three' als extern behandeln
   stdin: {
@@ -80,6 +80,7 @@ await esbuild.build({
                export { OBJLoader } from ${JSON.stringify(path.join(threeOrdner, 'examples/jsm/loaders/OBJLoader.js'))};
                export { GLTFExporter } from ${JSON.stringify(path.join(threeOrdner, 'examples/jsm/exporters/GLTFExporter.js'))};
                export { OrbitControls } from ${JSON.stringify(path.join(threeOrdner, 'examples/jsm/controls/OrbitControls.js'))};
+               export { DecalGeometry } from ${JSON.stringify(path.join(threeOrdner, 'examples/jsm/geometries/DecalGeometry.js'))};
                export { TransformControls } from ${JSON.stringify(path.join(threeOrdner, 'examples/jsm/controls/TransformControls.js'))};
                export * as SkeletonUtils from ${JSON.stringify(path.join(threeOrdner, 'examples/jsm/utils/SkeletonUtils.js'))};`,
     resolveDir: WURZEL,

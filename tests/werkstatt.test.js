@@ -94,3 +94,19 @@ test('Typen auf neue Version umstellen: Objekte bleiben, Größe optional', () =
   assert.equal(k.s('typen').get('m_anders').asset, 'm_cccccccc_3');
   assert.equal(k.s('objekte').size, 1);
 });
+
+test('Malen (5.2): Leinwandgröße, Pinsel-Zwischenpunkte ohne Naht-Sprung, Aufkleber-Quader', async () => {
+  const { malGroesse, pinselSchritte, aufkleberGroesse, MAL_STANDARD } = await import('../editor/kern/malen.js');
+  assert.deepEqual(malGroesse(0, 0), { b: MAL_STANDARD, h: MAL_STANDARD });
+  assert.deepEqual(malGroesse(4096, 2048), { b: 1024, h: 512 });
+  assert.deepEqual(malGroesse(300, 200), { b: 300, h: 200 });
+  assert.deepEqual(pinselSchritte(null, { u: 0.5, v: 0.5 }, 0.01), [{ u: 0.5, v: 0.5 }]);
+  const s = pinselSchritte({ u: 0, v: 0 }, { u: 0.1, v: 0 }, 0.025);
+  assert.equal(s.length, 4);
+  assert.deepEqual(s.at(-1), { u: 0.1, v: 0 });
+  assert.ok(Math.abs(s[0].u - 0.025) < 1e-9);
+  // Naht: großer Sprung → nicht verbinden
+  assert.deepEqual(pinselSchritte({ u: 0.05, v: 0.5 }, { u: 0.9, v: 0.5 }, 0.01), [{ u: 0.9, v: 0.5 }]);
+  assert.deepEqual(aufkleberGroesse(0.5, 200, 100), { x: 0.5, y: 0.25, z: 0.5 });
+  assert.deepEqual(aufkleberGroesse(0.2, 100, 300), { x: 0.2, y: 0.6, z: 0.6 });
+});

@@ -9,10 +9,11 @@
  * Objekt platzieren + drehen + verschieben → Rückgängig/Wiederholen → Spielzone Waldweg als Vorlage öffnen → Auswahl +
  * Ausschnitt-Export → Zone vergrößern → 3D-Ansicht → Validierung → Neu laden (Entwurf + Verlauf bleiben) → Karte testen.
  * Editor 2.0: Menüleiste, Asset-Browser (Suche), Kontextmenü, Ebenen sperren, Hilfe mit Suche, Modell-Bibliothek (Phase 3),
- * Audio-Bibliothek + Klänge (Phase 4), Modell-Werkstatt (5.1).
+ * Audio-Bibliothek + Klänge (Phase 4), Modell-Werkstatt (5.1) mit Material/Malen/Aufklebern (5.2).
  */
 import { spawn, execSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { deflateSync, crc32 } from 'node:zlib';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -379,6 +380,90 @@ try {
     return { name: m?.name, b: m?.masse.b, original: !!window.mapEditor.bibliothek.meta(altId), typB: t?.b };
   }, pfeiler.id);
   pruefe(version.name === 'Blauer Pfeiler v2' && version.b === 2 && version.original && version.typB === 2, `Neue Version, Original bleibt, Typ umgestellt (${JSON.stringify(version)})`);
+
+  schritt('Phase 5.2: Werkstatt – Material, Malen (3D), Undo, Aufkleber, Speichern mit Texturen');
+  // senkrechte Platte 1 × 1 m mit UVs + Normalen (Vorderseite +z)
+  const platte = () => {
+    const pos = new Float32Array([-0.5, 0, 0, 0.5, 0, 0, 0.5, 1, 0, -0.5, 1, 0]);
+    const nor = new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1]);
+    const uv = new Float32Array([0, 1, 1, 1, 1, 0, 0, 0]);
+    const ind = new Uint16Array([0, 1, 2, 0, 2, 3]);
+    const teile = [pos, nor, uv, ind].map((a) => Buffer.from(a.buffer));
+    const puffer = Buffer.concat(teile);
+    let ab = 0;
+    const sichten = teile.map((t) => ({ buffer: 0, byteOffset: (ab += t.length) - t.length, byteLength: t.length }));
+    return gltfZuGlb({ asset: { version: '2.0' }, scenes: [{ nodes: [0] }], nodes: [{ mesh: 0, name: 'Schild' }], materials: [{ name: 'Holz', doubleSided: true, pbrMetallicRoughness: { baseColorFactor: [0.6, 0.6, 0.6, 1] } }],
+      meshes: [{ primitives: [{ attributes: { POSITION: 0, NORMAL: 1, TEXCOORD_0: 2 }, indices: 3, material: 0 }] }],
+      accessors: [{ bufferView: 0, componentType: 5126, count: 4, type: 'VEC3', min: [-0.5, 0, 0], max: [0.5, 1, 0] }, { bufferView: 1, componentType: 5126, count: 4, type: 'VEC3' }, { bufferView: 2, componentType: 5126, count: 4, type: 'VEC2' }, { bufferView: 3, componentType: 5123, count: 6, type: 'SCALAR' }],
+      bufferViews: sichten, buffers: [{ byteLength: puffer.length, uri: `data:application/octet-stream;base64,${bytesZuBase64(new Uint8Array(puffer))}` }] });
+  };
+  // kleines PNG (RGBA, einfarbig) für den Aufkleber
+  const png = (b, h, rgba) => {
+    const block = (typ, daten) => {
+      const laenge = Buffer.alloc(4);
+      laenge.writeUInt32BE(daten.length);
+      const inhalt = Buffer.concat([Buffer.from(typ), daten]);
+      const pruef = Buffer.alloc(4);
+      pruef.writeUInt32BE(crc32(inhalt));
+      return Buffer.concat([laenge, inhalt, pruef]);
+    };
+    const kopf = Buffer.alloc(13);
+    kopf.writeUInt32BE(b, 0);
+    kopf.writeUInt32BE(h, 4);
+    kopf.set([8, 6, 0, 0, 0], 8);
+    const zeile = Buffer.concat([Buffer.from([0]), Buffer.alloc(b * 4).fill(Buffer.from(rgba))]);
+    return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), block('IHDR', kopf), block('IDAT', deflateSync(Buffer.concat(Array(h).fill(zeile)))), block('IEND', Buffer.alloc(0))]);
+  };
+  const plattePfad = path.join(AUSGABE, 'rauchtest_schild.glb');
+  writeFileSync(plattePfad, platte());
+  const pngPfad = path.join(AUSGABE, 'rauchtest_logo.png');
+  writeFileSync(pngPfad, png(16, 8, [30, 90, 230, 255]));
+  const [schildWahl] = await Promise.all([seite.waitForEvent('filechooser'), seite.click('#links [data-waehlen]')]);
+  await schildWahl.setFiles([plattePfad]);
+  await seite.waitForSelector('#dialog h2:has-text("rauchtest schild")', { timeout: 20000 });
+  await seite.click('#dialog button:has-text("Werkstatt")');
+  await seite.waitForSelector('.werkstatt canvas');
+  const ws = (f) => seite.evaluate(async (quelle) => new Function('w', `return (${quelle})(w)`)((await import('/editor/ui/werkstatt.js')).aktiveWerkstatt()), f.toString());
+  await seite.click('.werkstatt-materialien [data-material] button.name');
+  await seite.fill('.werkstatt-matfeld [data-f="farbe"]', '#ffcc00');
+  pruefe((await ws((w) => w.materialien()[0].color.getHexString())) === 'ffcc00', 'Materialfarbe geändert');
+  await seite.keyboard.press('b');
+  const wsBuehne = await seite.locator('.werkstatt-buehne').boundingBox();
+  const mx = wsBuehne.x + wsBuehne.width / 2;
+  const my = wsBuehne.y + wsBuehne.height / 2;
+  await seite.mouse.move(mx - 40, my);
+  await seite.mouse.down();
+  await seite.mouse.move(mx + 40, my, { steps: 8 });
+  await seite.mouse.up();
+  const bemalt = await ws((w) => {
+    const m = w.materialien()[0];
+    const c = m.map?.image;
+    const d = c?.getContext?.('2d').getImageData(c.width / 2, c.height / 2, 1, 1).data;
+    return { leinwand: !!d, farbe: d ? [...d.slice(0, 3)] : null, kamera: w.orbit.enabled };
+  });
+  pruefe(bemalt.leinwand && bemalt.farbe[0] > 150 && bemalt.farbe[1] < 100 && bemalt.kamera, `Auf das Modell gemalt (${JSON.stringify(bemalt)})`);
+  await seite.keyboard.press('Control+z');
+  const nachUndo = await ws((w) => ({ map: !!w.materialien()[0].map, farbe: w.materialien()[0].color.getHexString() }));
+  pruefe(!nachUndo.map && nachUndo.farbe === 'ffcc00', `Undo nimmt den Strich zurück (${JSON.stringify(nachUndo)})`);
+  await seite.keyboard.press('Control+y');
+  pruefe(await ws((w) => !!w.materialien()[0].map), 'Redo malt wieder');
+  await seite.keyboard.press('k');
+  const [logoWahl] = await Promise.all([seite.waitForEvent('filechooser'), seite.click('.werkstatt-optionen [data-bild]')]);
+  await logoWahl.setFiles([pngPfad]);
+  await seite.waitForSelector('.werkstatt-optionen:has-text("rauchtest_logo.png")');
+  await seite.mouse.click(mx, my - 20);
+  const aufkleber = await ws((w) => w.teile.filter((t) => t.userData.aufkleber && t.visible).map((t) => t.geometry.attributes.position.count));
+  pruefe(aufkleber.length === 1 && aufkleber[0] > 0, `Aufkleber projiziert (${JSON.stringify(aufkleber)})`);
+  await seite.screenshot({ path: path.join(AUSGABE, 'editor-16-werkstatt-malen.png') });
+  await seite.keyboard.press('Control+s');
+  await seite.waitForSelector('.werkstatt', { state: 'detached', timeout: 15000 });
+  const schild = await seite.evaluate(async () => {
+    const B = await import('/editor/kern/bibliothek.js');
+    const m = window.mapEditor.bibliothek.liste.find((x) => x.name === 'rauchtest schild v2');
+    const j = m && B.glbJson(B.dataUrlZuBytes(window.mapEditor.bibliothek.url(m.id)));
+    return { da: !!m, bilder: j?.images?.length ?? 0, netze: j?.meshes?.length ?? 0, original: window.mapEditor.bibliothek.liste.some((x) => x.name === 'rauchtest schild') };
+  });
+  pruefe(schild.da && schild.bilder >= 2 && schild.netze === 2 && schild.original, `Neue Version mit gemalter Textur + Aufkleber (${JSON.stringify(schild)})`);
   await seite.click('#links [data-reiter="🧱 Assets"]');
 
   if (!nurBis) {
@@ -538,6 +623,22 @@ try {
     const nachher = await h.evaluate(() => ({ ...window.mapEditor.zeichner.kamera }));
     pruefe(nachher.x > vorher.x && nachher.y > vorher.y, `mit dem Finger geschwenkt (${vorher.x.toFixed(1)} → ${nachher.x.toFixed(1)})`);
     await h.screenshot({ path: path.join(AUSGABE, 'editor-9-handy.png') });
+    // Werkstatt am Handy: Bühne + Seite gestapelt, mit dem Finger malen
+    const schildId = await h.evaluate(async (bytes) => (await window.mapEditor.bibliothek.fuegeHinzu(new Uint8Array(bytes), { name: 'Handy-Schild' })).meta.id, [...platte()]);
+    await h.evaluate((id) => void window.mapEditor.aktionen.werkstatt(id), schildId);
+    await h.waitForSelector('.werkstatt canvas');
+    await h.tap('.werkstatt [data-modus="malen"]');
+    const hb = await h.locator('.werkstatt-buehne').boundingBox();
+    const mitte = [hb.x + hb.width / 2, hb.y + hb.height / 2];
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: punkt(mitte[0] - 20, mitte[1]) });
+    for (let i = 1; i <= 4; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: punkt(mitte[0] - 20 + i * 10, mitte[1]) });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    const handyMalen = await h.evaluate(async () => {
+      const w = (await import('/editor/ui/werkstatt.js')).aktiveWerkstatt();
+      return { map: !!w?.materialien()[0].map, speichern: !!document.querySelector('.werkstatt [data-a="speichern"]')?.getBoundingClientRect().width };
+    });
+    pruefe(handyMalen.map && handyMalen.speichern, `Werkstatt am Handy: mit dem Finger gemalt (${JSON.stringify(handyMalen)})`);
+    await h.screenshot({ path: path.join(AUSGABE, 'editor-17-werkstatt-handy.png') });
     await handy.close();
   }
 

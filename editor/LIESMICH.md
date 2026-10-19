@@ -181,6 +181,13 @@ Flackern, Lichtform (Punkt/Kegel). Die 2D-Ansicht zeigt Radius bzw. Kegel. Die P
   in der neuen Version). Eigenes Rückgängig (Strg+Z / Strg+Y), Esc schließt. **💾 Speichern** legt eine **neue Version** an
   („Name v2“) – das Original bleibt. Benutzen Zonen das Original, fragt der Editor, ob sie die neue Version zeigen sollen
   (optional mit neuer Größe; je Zone rückgängig machbar).
+- **Texturen & Malen (Werkstatt):** Material in der Liste anklicken → **Farbe**, **Rauheit**, **Metall** (Regler), **🖼 Textur
+  ersetzen** (PNG/JPG/WebP, höchstens 1024 px) oder **✖ Textur weg**. **🖌 Malen** (Taste B): Farbe, Größe, Deckkraft oben wählen
+  und direkt auf dem Modell ziehen (daneben ziehen dreht weiter die Kamera; Alt+Klick nimmt eine Farbe auf) – oder in der
+  **UV-Ansicht** unter dem Material malen. Jeder Strich ist ein Rückgängig-Schritt. Teile ohne UV-Koordinaten lassen sich
+  nicht bemalen. **🏷 Aufkleber** (Taste K): Bild wählen (PNG mit Transparenz für Logos, Schilder, Schmutz), Breite und Drehung
+  einstellen, aufs Modell klicken/tippen – der Aufkleber wird ein eigenes Teil („Aufkleber 1“, in der Teile-Liste ausblendbar).
+  Alles landet beim Speichern in der neuen Version (Texturen eingebettet; zu große Versionen > 8 MB werden abgelehnt).
 - **Ausgeblendet:** „Bild → 3D“ und „Neue Grafik (Antrag)“ (nur noch 3D-Formate). Vorhandene Bild-Objekte werden weiter angezeigt.
 
 ## 🔊 Klänge (Reiter 🔊 Audio)

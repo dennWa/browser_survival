@@ -1027,6 +1027,12 @@ canvas.wellen-editor {
 .werkstatt-kopf .fueller {
   flex: 1;
 }
+.werkstatt-name {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .werkstatt-koerper {
   flex: 1;
   min-height: 0;
@@ -1126,4 +1132,48 @@ canvas.wellen-editor {
     border-left: 0;
     border-top: 1px solid var(--rand);
   }
+}
+.werkstatt-optionen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--rand);
+  background: var(--bg3);
+  font-size: 12px;
+}
+.werkstatt-optionen label,
+.werkstatt-matfeld label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.werkstatt-optionen input[type='number'] {
+  width: 70px;
+}
+.werkstatt-matfeld {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 6px;
+  border: 1px solid var(--rand);
+  border-radius: 6px;
+  font-size: 12px;
+}
+.werkstatt-matfeld label {
+  justify-content: space-between;
+}
+.werkstatt-matfeld input[type='range'] {
+  flex: 1;
+  max-width: 160px;
+}
+canvas.uv-ansicht {
+  width: 100%;
+  border: 1px solid var(--rand);
+  border-radius: 4px;
+  touch-action: none;
+  cursor: crosshair;
+  background: repeating-conic-gradient(#2a2f37 0 25%, #20242b 0 50%) 0 0 / 16px 16px;
 }
