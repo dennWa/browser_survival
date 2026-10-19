@@ -20,7 +20,7 @@ const MUSTER = [['', '– keins –'], ['holz', 'Holz'], ['stein', 'Stein'], ['m
 const MODELL_MAX_MB = 8;
 const MODELL_MAX_ZEICHEN = Math.ceil(MODELL_MAX_MB * 1024 * 1024 * 1.4);
 
-export function eigeneUi({ zustand, sonderAktionen, aktionen }) {
+export function eigeneUi({ zustand, aktionen }) {
   const typFelder = (t = {}, id = '') => [
     { name: 'id', label: 'Typ-ID', typ: 'text', wert: id, pflicht: true, hilfe: 'a–z, 0–9, _ (so heißt der Typ in der Karte)' },
     { name: 'name', label: 'Name', typ: 'text', wert: t.name ?? '', pflicht: true },
@@ -37,18 +37,18 @@ export function eigeneUi({ zustand, sonderAktionen, aktionen }) {
     if (w.ebene) typ.ebene = w.ebene;
     else delete typ.ebene;
     zustand.ausfuehren(`Objekttyp „${w.id}“`, [{ s: 'typen', k: w.id, neu: typ }]);
-    aktionen.waehleKatalog?.(`eigen:${w.id}`);
+    aktionen.waehleKatalog(`eigen:${w.id}`);
     zustand.meldung(`Objekt „${w.name}“ angelegt – steht in der Bauleiste (${w.kategorie}). Im Spiel: Platzhalter, bis eine Grafik per Pipeline kommt.`, 'ok');
   };
   const pruefeId = (neu) => (v) => (!ID_MUSTER.test(v.id) ? 'Typ-ID: nur a–z, 0–9, _' : neu && (zustand.karte.s('typen').has(v.id) || katalog().some((e) => e.typ === v.id)) ? 'Typ-ID gibt es schon' : !(v.b > 0 && v.h > 0) ? 'Größe muss > 0 sein' : null);
 
-  sonderAktionen.neuerTyp = async () => {
+  aktionen.neuerTyp = async () => {
     if (!zustand.karte) return;
     const w = await formular('✚ Neues Objekt anlegen', typFelder(), { okText: 'Anlegen', pruefe: pruefeId(true), text: 'Ein neuer Objekttyp für diese Karte. Grafik später über „🎨 Neue Grafik“ oder „🖼 Bild → 3D“.' });
     if (w) speichereTyp(w);
   };
 
-  sonderAktionen.typBearbeiten = async (id) => {
+  aktionen.typBearbeiten = async (id) => {
     const t = zustand.karte.s('typen').get(id);
     if (!t) return;
     const felder = typFelder(t, id).map((f) => (f.name === 'id' ? { ...f, hilfe: 'kann nicht geändert werden' } : f));
@@ -56,7 +56,7 @@ export function eigeneUi({ zustand, sonderAktionen, aktionen }) {
     if (w) speichereTyp({ ...w, id }, t);
   };
 
-  sonderAktionen.bild3d = async () => {
+  aktionen.bild3d = async () => {
     if (!zustand.karte) return;
     const datei = await dateiWaehlen('image/png,image/webp,image/gif,image/jpeg', true);
     if (!datei) return;
@@ -82,7 +82,7 @@ export function eigeneUi({ zustand, sonderAktionen, aktionen }) {
   };
 
   // 3D-Modell (.glb) als Objekttyp: Datei wird als Data-URL in den Typ geschrieben (`glb`), die Karte bleibt damit eine Datei.
-  sonderAktionen.modell3d = async () => {
+  aktionen.modell3d = async () => {
     if (!zustand.karte) return;
     const datei = await dateiWaehlen('.glb,model/gltf-binary', true);
     if (!datei) return;
@@ -106,7 +106,7 @@ export function eigeneUi({ zustand, sonderAktionen, aktionen }) {
     if (w && !w.lizenz) zustand.meldung('Keine Lizenz angegeben – bitte vor dem Veröffentlichen prüfen, ob du das Modell nutzen darfst', 'fehler');
   };
 
-  sonderAktionen.grafik = async () => {
+  aktionen.grafik = async () => {
     const eigeneMitBild = zustand.karte ? [...zustand.karte.s('typen')].filter(([, t]) => t.bild) : [];
     const felder = [
       { name: 'id', label: 'Grafik-ID', typ: 'text', wert: eigeneMitBild[0]?.[0] ?? '', pflicht: true, hilfe: 'Objekttyp bzw. Item-ID, die die Grafik bekommt' },
@@ -137,7 +137,7 @@ export function eigeneUi({ zustand, sonderAktionen, aktionen }) {
     dialog({ titel: 'Antrag erstellt', html: `<p><code>${esc(w.id)}.grafik.json</code> wurde heruntergeladen.</p><ol><li>nach <code>werkzeuge/assets/editor_grafiken/</code> legen</li><li><code>python3 werkzeuge/assets/baue_assets.py</code> (prüft Lizenz, packt Atlas, Credits)</li><li><code>npm run assets:3d</code>, <code>npm test</code>, committen</li></ol>` });
   };
 
-  sonderAktionen.texturen = async () => {
+  aktionen.texturen = async () => {
     const k = zustand.karte;
     if (!k) return;
     const typen = [...new Set([...[...k.s('objekte').values()].map((o) => o.typ), ...k.s('texturen').keys()])].sort();

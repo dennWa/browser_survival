@@ -4,12 +4,13 @@ import { kachelBild } from './zeichner2d.js';
 import { dialog, bestaetigen, esc } from './dialoge.js';
 
 /**
- * Zonen verbinden (Phase 7): Reiter „Zonen“ mit Weltkarte aller Zonen des Projekts (ziehen = anordnen, Klick = öffnen),
+ * Zonen verbinden (Phase 7): Reiter „🗺 Zonen“ (linke Seitenleiste) mit Weltkarte aller Zonen des Projekts (ziehen = anordnen, Klick = öffnen),
  * Nachbarn, Übergänge als Linien, Vorschläge für Übergänge an gemeinsamen Kanten, Prüfung aller Zonen.
  * Die Anordnung (zustand.layout) liegt im Editor-Speicher (meta/layout), nicht in den Karten.
  * Außerdem: Nachbarzonen am Rand der Fläche anzeigen (zeichner.nachbarn).
  */
-export function zonenUi({ zustand, panel, aktionen, sonderAktionen, zeichner, projektZonen }) {
+export function zonenUi({ zustand, panel, aktionen, befehle, layout, zeichner, projektZonen }) {
+  const REITER = '🗺 Zonen';
   const zonenMap = () => new Map([...zustand.zonen].map(([id, e]) => [id, e.karte]));
 
   const aktualisiereNachbarn = () => {
@@ -27,19 +28,19 @@ export function zonenUi({ zustand, panel, aktionen, sonderAktionen, zeichner, pr
   const layoutGeaendert = () => {
     zustand.speicher.setze('meta', 'layout', zustand.layout);
     aktualisiereNachbarn();
-    if (panel.aktiv === 'Zonen') panel.zeichne();
+    if (panel.aktiv === REITER) panel.zeichne();
   };
 
-  sonderAktionen.zonen = () => panel.zeige('Zonen');
-  sonderAktionen.vorschlaege = () => vorschlagen();
+  aktionen.zonen = () => layout.zeigeReiter('links', REITER);
+  aktionen.vorschlaege = () => vorschlagen();
 
   async function vorschlagen() {
     const zonen = zonenMap();
     const id = zustand.aktivId;
     const paare = nachbarn(zonen, zustand.layout).filter((n) => n.a === id || n.b === id);
     if (!paare.length) {
-      panel.zeige('Zonen');
-      return dialog({ titel: 'Keine Nachbarn', html: '<p>Die aktive Zone grenzt an keine andere Zone. Im Reiter <b>Zonen</b> die Zonen auf der Weltkarte Kante an Kante schieben (oder „Aus Übergängen anordnen“).</p>' });
+      aktionen.zonen();
+      return dialog({ titel: 'Keine Nachbarn', html: '<p>Die aktive Zone grenzt an keine andere Zone. Im Reiter <b>🗺 Zonen</b> die Zonen auf der Weltkarte Kante an Kante schieben (oder „Aus Übergängen anordnen“).</p>' });
     }
     const liste = paare.flatMap((paar) => vorschlaegeFuerPaar(zonen, zustand.layout, paar).map((v) => ({ paar, v })));
     if (!liste.length) return dialog({ titel: 'Keine neuen Vorschläge', html: `<p>An den gemeinsamen Kanten (${paare.map((p) => `${esc(p.a)} ↔ ${esc(p.b)}`).join(', ')}) gibt es schon Übergänge, oder keine Stelle ist auf beiden Seiten begehbar.</p>` });
@@ -60,10 +61,10 @@ export function zonenUi({ zustand, panel, aktionen, sonderAktionen, zeichner, pr
     zustand.meldung(`${gewaehlt.length} Übergänge (mit Rückweg + Ankunft) angelegt`, 'ok');
   }
 
-  panel.reiter.set('Zonen', () => {
+  panel.registriere(REITER, () => {
     const el = panel.el;
     const zonen = zonenMap();
-    el.innerHTML = '<h3>Zonen des Projekts</h3><p class="leise">Weltkarte: Zone ziehen = anordnen (Kante an Kante = Nachbarn), Klick = öffnen. Blaue Linien = Übergänge.</p>';
+    el.innerHTML = '<p class="leise">Weltkarte: Zone ziehen = anordnen (Kante an Kante = Nachbarn), Klick = öffnen. Blaue Linien = Übergänge.</p>';
     const leinwand = document.createElement('canvas');
     leinwand.style.cssText = 'width:100%;height:240px;background:#0d0f12;border-radius:6px;touch-action:none;cursor:grab';
     el.append(leinwand);
@@ -83,7 +84,7 @@ export function zonenUi({ zustand, panel, aktionen, sonderAktionen, zeichner, pr
       layoutGeaendert();
     }, 'legt Nachbarzonen so, dass Übergang und Rückweg zusammenpassen');
     knopf('💡 Übergänge vorschlagen', () => vorschlagen());
-    knopf('➕ Zone öffnen', () => aktionen.befehl?.('oeffnen'));
+    knopf('➕ Zone öffnen', () => befehle.fuehreAus('datei.oeffnen'));
     el.append(reihe);
     // Liste + Prüfung
     const alle = projektZonen();
@@ -111,7 +112,7 @@ export function zonenUi({ zustand, panel, aktionen, sonderAktionen, zeichner, pr
       ul.append(li);
     }
     el.append(ul);
-  });
+  }, { ereignisse: ['zone'], ohneKarte: true });
 
   function zeichneWeltkarte(leinwand, zonen) {
     const dpr = window.devicePixelRatio || 1;

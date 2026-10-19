@@ -9,15 +9,15 @@ import { dialog, schliesse, esc } from './dialoge.js';
  * Spiel mit `client/?editorTest=1` öffnen. Das Spiel registriert die Entwürfe zur Laufzeit als Zonen (wie der Lokal-Modus),
  * ohne Repo-Code zu ändern. Zurück: Banner-Knopf → `editor/?vonTest=<id>` (Entwürfe liegen im Editor-Speicher).
  */
-export function testUi({ zustand, panel, aktionen, sonderAktionen, projektZonen }) {
-  sonderAktionen.testen = async () => {
+export function testUi({ zustand, aktionen, layout, projektZonen }) {
+  aktionen.testen = async () => {
     const k = zustand.karte;
     if (!k) return zustand.meldung('Erst eine Zone öffnen', 'fehler');
     const liste = validiere(k, { zonen: projektZonen() });
     zustand.validierung = liste;
     zustand.melde('pruefung');
     if (hatFehler(liste)) {
-      panel.zeige('Prüfung');
+      layout.zeigeReiter('rechts', 'Prüfung');
       const fehler = liste.filter((e) => e.schwere === 'fehler');
       await dialog({
         titel: `⛔ ${fehler.length} Fehler – Test nicht möglich`,

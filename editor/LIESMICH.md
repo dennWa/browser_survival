@@ -11,12 +11,22 @@ Start: im Anmeldebildschirm des Spiels auf **🗺 Map-Editor** (oder direkt `…
 
 | Bereich | Wofür |
 |---|---|
-| **Kopfleiste** | Zone wählen · ➕ Neu · 📂 Öffnen · 💾 Speichern · 📤 Export · 🤖 KI-Import · ▶ Testen · ↶ ↷ · 2D/3D · ? |
-| **Seitenleiste links** | Kategorien: Wege, Mauern, Böden, Umwelt, Gebäude, Ressourcen, Möbel, Fahrzeuge, Spawns, Loot, Tiere, Wetter, Terrain, Räume, Zonen, Eigene |
-| **Bauleiste unten** | Einträge der gewählten Kategorie (z. B. Wege → Asphalt, Straße, Gehweg, Laterne …) |
-| **Werkzeugleiste** (auf der Fläche) | Auswahl, Schwenken, Pinsel, Rechteck, Linie, Füllen, Radierer, Pipette, Zone, Drehen, Pinselgröße |
-| **Fläche** | Lineale oben/links mit Kachelnummern; die Koordinate unter der Maus steht unten in der Statusleiste |
-| **Panel rechts** | Eigenschaften der Auswahl · Zone (Name, ID, Größe, Zonen-Werte) · Prüfung (Fehlerliste, Klick springt hin) · Zonen · Prefabs |
+| **Menüleiste** | Datei · Bearbeiten · Ansicht · Einfügen · Werkzeuge · Zone · KI · Hilfe – jeder Befehl mit Tastenkürzel (am Handy: ☰) |
+| **Schnellleiste** (oben) | Zone wählen · ↶ ↷ · 🧊 3D · ▶ Testen · 🚀 Veröffentlichen · 🤖 Helfer · ◧ ◨ Seitenleisten · Speicherstatus |
+| **Werkzeugleiste** (ganz links) | Auswahl, Schwenken, Pinsel, Rechteck, Linie, Füllen, Radierer, Pipette, Gelände, Farbe, Zonengröße |
+| **Seitenleiste links** | 🧱 **Assets** (Suche, ★ Favoriten, 🕘 Zuletzt, 7 Gruppen: Gelände · Bauen · Natur · Einrichtung · Gameplay · Zonen & Logik · Eigene) · 🏠 Prefabs · 🗺 Zonen · 🚪 Räume |
+| **Optionsleiste** (über der Karte) | Einstellungen des aktiven Werkzeugs: Pinselgröße, Mal-Modus, Drehung, „mehrfach setzen“, Farbe, Stärke + Bedienhinweis |
+| **Fläche** | Lineale oben/links mit Kachelnummern; Koordinate, Kachel und Objekt unter der Maus stehen unten in der Statusleiste |
+| **Seitenleiste rechts** | **Inspektor** (Auswahl – oder ohne Auswahl: Zone mit Name, ID, Größe, Zonen-Werte) · **Ebenen** (👁 ein-/ausblenden, 🔒 sperren) · **Prüfung** |
+| **KI-Seitenleiste** | 🤖 Gemini-Helfer (Strg+J), ein-/ausklappbar |
+
+Seitenleisten lassen sich ein-/ausklappen (◧ ◨) und an der Innenkante in der Breite ziehen (Doppelklick = Standard).
+**Tab** (auf der Karte) = Fokus-Modus: nur die Karte. **Rechtsklick** = Kontextmenü (Duplizieren, Drehen, Kopieren, Als Prefab …),
+**Rechts-Ziehen** = schwenken. Am Handy sind die Seitenleisten Schubladen über der Karte.
+
+**Ebenen:** Boden, Bemalung, Gelände, Räume & Bereiche, Objekte, Bauwerke, Spawns/Loot/Ankünfte, Übergänge. Ausgeblendete Ebenen
+werden nicht gezeichnet, gesperrte ausgegraut – beide sind nicht anklickbar, und Werkzeuge verändern sie nicht (Meldung unten).
+Dazu Anzeigen: Raster, Innen/Außen, steile Hänge, Nachbarzonen.
 
 Koordinaten sind **Kacheln** (1 Kachel = 1 m = 32 px im Spiel), x nach rechts, y nach unten, (0|0) oben links.
 
@@ -26,41 +36,42 @@ Koordinaten sind **Kacheln** (1 Kachel = 1 m = 32 px im Spiel), x nach rechts, y
   Oder „Größe eingeben“. ID: nur `a–z`, `0–9`, `_` (wird der Dateiname im Spiel).
 - **📂 Öffnen:** eine Zone aus dem Spiel (Stadtrand, Waldweg …) als **Vorlage** (verlustfrei), einen Entwurf des Projekts
   oder eine Datei (`*.entwurf.json`, `*.karte.json` oder eine rohe Kartendefinition).
-- **Größe ändern:** Werkzeug ⤡ (Taste **Z**) und an den Griffen (Ecken/Kanten) ziehen – oder Panel „Zone → Größe ändern…“
+- **Größe ändern:** Werkzeug ⤡ (Taste **Z**) und an den Griffen (Ecken/Kanten) ziehen – oder Menü Zone → „Größe ändern…“
   (Ränder einzeln ±). Beim Verkleinern zeigt der Editor, was abgeschnitten würde, und fragt nach.
 - Außerhalb der Zone (weißer Rahmen) gibt es nichts zu bauen.
 
 ## Malen und Bauen
 
-- **Kacheln:** Kategorie wählen (z. B. Wege), Eintrag anklicken, dann Pinsel (**B**, Größe mit `[` `]`), Rechteck (**U**,
+- **Kacheln:** im Asset-Browser einen Eintrag anklicken (oder suchen), dann Pinsel (**B**, Größe mit `[` `]`), Rechteck (**U**,
   Umschalt = nur Rand), Linie (**L**), Füllen (**G**). **Mauern** (Wand, Fenster, Tür, Zaun) rasten beim Linienziehen
   waagerecht/senkrecht/45° ein (Umschalt = frei). Radierer (**E**) macht Rasen und entfernt Objekte.
 - **Objekte** (Möbel, Bäume, Steine, Lampen, Autos …): Eintrag wählen, Vorschau ist **grün** (passt) oder **rot**
   (blockiert/außerhalb, Grund steht dabei). Klick setzt, **R** dreht um 90°, Umschalt = mehrere hintereinander.
 - **Auswahl (V):** Klick wählt, Umschalt = dazu, Ziehen verschiebt (Alt = feine 0,1-Schritte), ins Leere ziehen markiert
   einen **Bereich wie in Excel** (Koordinaten werden angezeigt). Strg+C/X/V, Strg+D duplizieren, Entf löschen, Pfeiltasten.
-- **Eigenschaften** im Panel: Typ, Name, x/y/b/h, Drehung (90er-Raster oder frei, z. B. 95°), blockiert, Ebene
+  Objekte bleiben in der Zone (Rand-Meldung); Drehen bleibt im Raster (viermal drehen = Ausgangslage).
+- **Eigenschaften** im Inspektor (rechts): Typ, Name, x/y/b/h, Drehung (90er-Raster oder frei, z. B. 95°), blockiert, Ebene
   (Möbel/Boden/Krone/Licht), Größe (Bäume/Steine), Licht (Radius, Farbe, Stärke, Flackern, Mast), Farbe/Textur.
 - **Rückgängig/Wiederholen** (Strg+Z / Strg+Y) ist unbegrenzt und bleibt über Sitzungen erhalten (steht im Entwurf).
 
 ## Spawns, Loot, Tiere, Wetter (pro Zone)
 
 - **Spawns:** Spieler-Start (mind. einer), Zombie-Spawn (nur draußen – die Vorschau wird im Haus rot), Horden-Spawnpunkt
-  (nachts kommt die Horde nur dort, wenn es welche gibt). Am gewählten Zombie-Spawn im Panel: **Anzahl**, **Respawn**, Horde.
-- **Loot:** Loot-Punkte gehören zu einem **Raum** (Buchstabe a–z) mit Loot-Tabelle aus `lootTabellen.js`. Im Panel: Tabelle,
+  (nachts kommt die Horde nur dort, wenn es welche gibt). Am gewählten Zombie-Spawn im Inspektor: **Anzahl**, **Respawn**, Horde.
+- **Loot:** Loot-Punkte gehören zu einem **Raum** (Buchstabe a–z) mit Loot-Tabelle aus `lootTabellen.js`. Im Inspektor: Tabelle,
   **Loot-Chance** (liegt dort etwas?) und **Nachschub** (Sekunden) je Raum; die Wahrscheinlichkeiten der Tabelle stehen darunter.
 - **Tiere:** Hasen-Bereich aufziehen (Kategorie Tiere) – dann spawnen Hasen nur in diesen Bereichen, mit Anzahl und Respawn.
   Ohne Bereiche verteilt das Spiel sie wie bisher auf allen Rasen.
-- **Zonen-Werte** (Panel „Zone“): Wetter (an/aus, Regen-Anteil, Dauer, Pausen), Zombies (Dichte, Respawn, Nacht-Horde,
+- **Zonen-Werte** (Inspektor ohne Auswahl, aufklappbare Gruppen; Menü Zone → Zonen-Werte): Wetter (an/aus, Regen-Anteil, Dauer, Pausen), Zombies (Dichte, Respawn, Nacht-Horde,
   Nacht-Tempo), Hasen, Loot, Musik-Ordner. **Leer = globaler Standard** – der steht unter jedem Feld; gesetzte Felder sind grün.
 - Das Spiel wertet all das aus (`server/spiel/karten/zonenEinstellungen.js`, `kartenLader.js`). Alte Karten ohne diese
   Felder verhalten sich unverändert.
 
 ## Räume und Gebäude
 
-- **Räume markieren:** Kategorie „Räume“ → Rechteck aufziehen oder 🪣 Füllen (füllt bis zu Wänden/Türen). Danach Raum wählen
+- **Räume markieren:** Assets → Zonen & Logik → Räume → Rechteck aufziehen oder 🪣 Füllen (füllt bis zu Wänden/Türen). Danach Raum wählen
   oder neu anlegen (Name + Loot-Tabelle). Reiter **Räume** zeigt alle Räume mit Loot-Punkten und Flächen.
-- **Innen/Außen:** Panel „Zone → Anzeige → Innen/Außen“ färbt alles blau, was das Spiel als „drinnen“ wertet
+- **Innen/Außen:** Reiter Ebenen → Anzeigen → „Innen/Außen“ färbt alles blau, was das Spiel als „drinnen“ wertet
   (Innenboden oder Dach). Dort sehen Zombies nicht hinein, und dort dürfen keine Zombie-Spawns liegen.
 - **Prefabs:** Reiter **Prefabs** – eingebaute Vorlagen (Wohnhaus, Werkstatt, Hütte, Garten mit Zaun, Parkplatz) und eigene.
   Eigene: Bereich markieren → „🏠 Als Prefab“. Einfügen hängt die Vorlage an die Maus (R dreht, Klick setzt, Umschalt =
@@ -75,14 +86,14 @@ Koordinaten sind **Kacheln** (1 Kachel = 1 m = 32 px im Spiel), x nach rechts, y
 - **🔗 Aus Übergängen anordnen** legt Zonen anhand vorhandener Übergänge passend aneinander (z. B. Waldweg nördlich vom Stadtrand).
 - **💡 Übergänge vorschlagen** sucht an gemeinsamen Kanten Stellen, die auf beiden Seiten begehbar sind (Straßen und Wege
   zuerst) und legt Übergang + Rückweg + Ankunftspunkte (3 Kacheln landeinwärts) in beiden Zonen an.
-- Von Hand: Kategorie **Zonen** → „Übergang (am Rand)“ aufziehen, Zielzone und Ankunft wählen; im Panel „📍 Ankunft in
+- Von Hand: Assets → Zonen & Logik → „Übergang (am Rand)“ aufziehen (oder Menü Einfügen), Zielzone und Ankunft wählen; im Inspektor „📍 Ankunft in
   der Zielzone setzen“. Die Prüfung meldet: Ziel fehlt, Ankunft fehlt/liegt im Übergang (Ping-Pong), kein Rückweg.
 
 ## Mit einer KI arbeiten (Export / Import)
 
 1. **Bereich markieren** wie in Excel: Auswahl-Werkzeug ⬚ (V), ins Leere ziehen. Die Koordinaten („x 20–40, y 10–25“)
    stehen am Rahmen und in der Statusleiste.
-2. **📤 Export → 🤖 Ausschnitt für KI** (oder Panel-Knopf): Der Editor erzeugt einen Text mit Bereich, ASCII-Raster mit
+2. **Menü KI → Ausschnitt für KI** (oder Rechtsklick → „KI-Ausschnitt“): Der Editor erzeugt einen Text mit Bereich, ASCII-Raster mit
    Achsen-Beschriftung, Belegungsraster (welches Objekt wo), Objektliste mit **IDs** und Eigenschaften, Spawns, Loot,
    Übergängen, Räumen – und einer Anleitung, wie die KI antworten soll. „📋 Text kopieren“ und in den KI-Chat einfügen
    (oder die JSON-Datei geben). Ganze Karte: „📄 Ganze Karte als JSON“ + „📝 LIESMICH.txt“ (Feld-Erklärung).
@@ -99,7 +110,7 @@ Koordinaten sind **Kacheln** (1 Kachel = 1 m = 32 px im Spiel), x nach rechts, y
     {"aktion":"raum","buchstabe":"d","name":"Scheune","lootTabelle":"werkstatt"}]
    ```
    Alternativ darf sie den Ausschnitt (JSON) verändert zurückgeben – der Editor rechnet die Unterschiede aus.
-4. **🤖 KI-Import**: Antwort einfügen (Text drumherum und ```json-Blöcke sind egal) → **Prüfen**. Der Reiter „KI-Import“
+4. **Menü KI → KI-Antwort importieren**: Antwort einfügen (Text drumherum und ```json-Blöcke sind egal) → **Prüfen**. Der Reiter „KI-Import“
    zeigt den **Diff**: ＋ neu (grün), － weg (rot), ～ geändert (gelb), ✗ ungültig (orange, mit Grund) – und hebt alles auf
    der Karte hervor. Ungültige Einträge (unbekannter Typ, außerhalb des Bereichs, Zombie im Haus, Wand im Weg …) werden
    gemeldet und **nicht** übernommen. Nur der markierte Bereich darf sich ändern.
@@ -118,14 +129,14 @@ Der echte Spielstand wird dabei nicht angefasst. Oben im Spiel: **⟵ Zurück zu
 - **3D** (Knopf oben oder Taste **3**): dieselbe Karte in der Spielperspektive. Ziehen = schieben, Rechts-/Alt-Ziehen =
   drehen, Mausrad / zwei Finger = Zoom, Klick = auswählen. Die Auswahl ist in 2D und 3D dieselbe. „🎮 Spielperspektive“
   stellt den Kamerawinkel des Spiels wieder her, „⬇ Von oben“ schaut senkrecht.
-- **Farbe** (Kategorie Farbe): Palette oder eigene Farbe (Panel), **Pinsel**, **Füllen** (zusammenhängende gleiche Kacheln),
+- **Farbe** (Werkzeug 🎨, Taste K): Palette oder eigene Farbe (Optionsleiste), **Pinsel**, **Füllen** (zusammenhängende gleiche Kacheln),
   **Entfernen**. Die Farbe liegt halbtransparent auf dem Boden – in 2D, in 3D **und im Spiel**.
-  Farbe/Textur **je Objekt**: Eigenschaften-Panel; **je Objekttyp**: Kategorie Farbe → „🎨 Farbe/Textur je Objekttyp“.
-- **Gelände** (Kategorie Terrain): heben, senken (Umschalt kehrt um), glätten, einebnen – Stärke und Pinselgröße im Panel.
+  Farbe/Textur **je Objekt**: Inspektor; **je Objekttyp**: Assets → Gelände → Farbe → „🎨 Farbe/Textur je Objekttyp“.
+- **Gelände** (Werkzeug ⛰, Taste T): heben, senken (Umschalt kehrt um), glätten, einebnen – Stärke und Pinselgröße in der Optionsleiste.
   **Entscheidung:** Höhen sind vorerst nur Darstellung (3D); das Spiel bleibt flach. **Steile Hänge** (über 1,5 m
   Unterschied zur Nachbarkachel, rot schraffiert) sind im Spiel **blockiert**. Weitere Wirkung wird separat entschieden.
-- **Eigene Objekte** (Kategorie Eigene): „✚ Neues Objekt anlegen“ (Name, Größe, Kollision, Ebene, Kategorie, Farbe,
-  3D-Höhe) – erscheint danach in der Bauleiste seiner Kategorie. Im Spiel ist es ein Platzhalter-Quader, bis es eine Grafik gibt.
+- **Eigene Objekte** (Assets → Eigene): „✚ Neues Objekt anlegen“ (Name, Größe, Kollision, Ebene, Kategorie, Farbe,
+  3D-Höhe) – erscheint danach im Asset-Browser in seiner Kategorie. Im Spiel ist es ein Platzhalter-Quader, bis es eine Grafik gibt.
 - **🖼 Bild → 3D:** Bild hochladen (PNG mit Transparenz am besten) → **Extrusion** (jeder deckende Pixel wird ein kleiner
   Quader) oder **Billboard** (Bild schaut immer zur Kamera). Danach bearbeitbar wie andere Objekte. Eine KI-Umwandlung
   ist bewusst noch nicht eingebaut (im Dialog als „später“ gekennzeichnet).
@@ -147,7 +158,7 @@ Projektregel „Touch mitdenken“: Kartenbau braucht Präzision, Tastenkürzel 
 
 ## Veröffentlichen (Karte → Spiel)
 
-📤 Export → **🚀 Veröffentlichen**. Der Editor prüft zuerst (Fehler müssen weg) und bietet zwei Dateien an:
+**🚀 Veröffentlichen** (Schnellleiste oder Menü Datei). Der Editor prüft zuerst (Fehler müssen weg) und bietet zwei Dateien an:
 
 1. **Empfohlen:** `<id>.karte.json` herunterladen, im Repo `npm run karte:editor -- <id>.karte.json` ausführen →
    schreibt `server/spiel/karten/<id>.js` und trägt die Zone in `KARTEN` ein (wie `npm run karte:import` für Tiled).
@@ -158,8 +169,11 @@ Danach `npm test`. Neue Zone mit Übergang? Die Nachbarzone braucht einen Überg
 
 ## Tastenkürzel
 
-`?` zeigt alle. Wichtigste: V Auswahl · H Schwenken · B Pinsel · U Rechteck · L Linie · G Füllen · E Radierer · I Pipette ·
-Z Zonengröße · R drehen · Strg+Z/Y · Strg+C/X/V · Strg+D · Entf · F ganze Zone · 3 = 2D/3D · Esc.
+`?` (oder F1) zeigt **alle** Befehle mit Kürzeln – mit Suchfeld. Wichtigste: V Auswahl · H Schwenken · B Pinsel · U Rechteck ·
+L Linie · G Füllen · E Radierer · I Pipette (oder Alt+Klick) · T Gelände · K Farbe · Z Zonengröße · R drehen · Strg+Z/Y ·
+Strg+C/X/V · Strg+D · Strg+A ganze Zone · Entf · Pfeile verschieben (Umschalt = 5) · F ganze Zone · 3 = 2D/3D · Tab Fokus ·
+Strg+F Assets suchen · Strg+J KI-Helfer · Strg+Enter testen · Strg+S speichern · Esc.
+Trackpad: zwei Finger = schwenken, Pinch = zoomen.
 
 ## 🤖 KI-Helfer (Gemini)
 

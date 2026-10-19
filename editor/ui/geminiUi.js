@@ -3,7 +3,7 @@ import { bereichText } from '../kern/ausschnitt.js';
 import { dialog, esc } from './dialoge.js';
 
 /**
- * KI-Helfer (Gemini) als Chat im Panel-Reiter „🤖 Helfer“.
+ * KI-Helfer (Gemini) als Chat in der eigenen, einklappbaren KI-Seitenleiste (Menü KI → KI-Helfer, Strg+J).
  * - Schlüssel + Modell: localStorage `browserSurvival.editorGemini` (nur dieser Browser; fällt bei gesperrtem Speicher auf den Arbeitsspeicher zurück).
  * - Jede Frage bekommt frischen Kontext (Markierung/Auswahl/Zone, siehe kern/gemini.js); der Chatverlauf speichert nur Fragen + Antworten.
  * - Änderungsvorschläge (```json-Aktionsliste) landen NIE direkt in der Karte: Knopf „Prüfen“ → gleiche Vorschau wie 🤖 KI-Import.
@@ -17,7 +17,8 @@ const VORSCHLAEGE = [
   ['🧟 Spawns prüfen', 'Wirkt die Verteilung von Zombie-Spawns und Loot-Punkten hier sinnvoll? Was würdest du ändern?'],
 ];
 
-export function geminiUi({ zustand, panel, aktionen, sonderAktionen, auswahlBereich, pruefeText }) {
+export function geminiUi({ zustand, panel, aktionen, pruefeText }) {
+  const auswahlBereich = () => aktionen.auswahlBereich();
   const speicher = ladeEinstellungen();
   const verlauf = []; // { rolle, text }
   let laeuft = null; // AbortController
@@ -70,7 +71,7 @@ export function geminiUi({ zustand, panel, aktionen, sonderAktionen, auswahlBere
       const b = Object.assign(document.createElement('button'), { textContent: `🔍 ${extra.aktionen.anzahl} Änderungen prüfen`, className: 'akzent', type: 'button' });
       b.addEventListener('click', () => {
         if (!extra.bereich) return zustand.meldung('Ohne Bereich kann ich nichts prüfen – erst einen Bereich markieren (⬚), dann nochmal fragen', 'fehler');
-        pruefeText(extra.aktionen.json, extra.bereich, '🤖 Helfer');
+        pruefeText(extra.aktionen.json, extra.bereich);
       });
       n.append(b);
     }
@@ -143,14 +144,13 @@ export function geminiUi({ zustand, panel, aktionen, sonderAktionen, auswahlBere
     e.stopPropagation(); // Editor-Tastenkürzel (Werkzeuge) nicht beim Tippen auslösen
   });
   wurzel.addEventListener('change', zeigeKontext);
-  for (const ev of ['auswahl', 'zone', 'karte']) zustand.bei(ev, () => panel.aktiv === '🤖 Helfer' && zeigeKontext());
+  for (const ev of ['auswahl', 'zone', 'karte']) zustand.bei(ev, () => !panel.wurzel.hidden && zeigeKontext());
 
-  panel.reiter.set('🤖 Helfer', () => {
-    panel.el.replaceChildren(wurzel);
+  panel.registriere('🤖 Helfer', () => {
+    if (panel.el.firstChild !== wurzel) panel.el.replaceChildren(wurzel);
     zeigeStatus();
     zeigeKontext();
-  });
-  sonderAktionen.helfer = () => panel.zeige('🤖 Helfer');
+  }, { ereignisse: [], ohneKarte: true });
 }
 
 function ladeEinstellungen() {

@@ -4,22 +4,23 @@ import { formular, bestaetigen, esc } from './dialoge.js';
 import { herunterladen, dateiWaehlen } from './speicher.js';
 
 /**
- * Prefabs (Phase 6): Panel-Reiter „Prefabs“ – eingebaute Vorlagen (Wohnhaus, Werkstatt …) und eigene (lokal gespeichert,
+ * Prefabs (Phase 6): Reiter „🏠 Prefabs“ der linken Seitenleiste – eingebaute Vorlagen (Wohnhaus, Werkstatt …) und eigene (lokal gespeichert,
  * Bereich 'prefabs' im Editor-Speicher, als Datei austauschbar). Einfügen hängt die Vorlage an die Maus (aktionen.einfuegen).
  */
-export function prefabUi({ zustand, panel, aktionen, auswahlBereich }) {
+export function prefabUi({ zustand, panel, aktionen, layout }) {
+  const REITER = '🏠 Prefabs';
   const eigene = new Map(); // Name → Vorlage
   const laden = async () => {
     for (const name of await zustand.speicher.schluessel('prefabs')) {
       const v = await zustand.speicher.hole('prefabs', name);
       if (v?.zellen) eigene.set(name, v);
     }
-    if (panel.aktiv === 'Prefabs') panel.zeichne();
+    if (panel.aktiv === REITER) panel.zeichne();
   };
   laden();
 
   aktionen.prefabSpeichern = async () => {
-    const r = auswahlBereich();
+    const r = aktionen.auswahlBereich();
     if (!r) return zustand.meldung('Erst einen Bereich markieren (⬚ ins Leere ziehen)', 'fehler');
     const w = await formular('Als Prefab speichern', [{ name: 'name', label: 'Name', typ: 'text', wert: 'Mein Gebäude', pflicht: true }], { text: `Bereich ${r.b} × ${r.h} ab ${r.x}|${r.y} – Kacheln, Objekte, Marker, Bauwerke und Räume kommen mit.` });
     if (!w) return;
@@ -27,12 +28,13 @@ export function prefabUi({ zustand, panel, aktionen, auswahlBereich }) {
     eigene.set(w.name, vorlage);
     await zustand.speicher.setze('prefabs', w.name, vorlage);
     zustand.meldung(`🏠 Prefab „${w.name}“ gespeichert`, 'ok');
-    panel.zeige('Prefabs');
+    layout.zeigeReiter('links', REITER);
   };
+  aktionen.prefabs = () => layout.zeigeReiter('links', REITER);
 
-  panel.reiter.set('Prefabs', () => {
+  panel.registriere(REITER, () => {
     const el = panel.el;
-    el.innerHTML = '<h3>Prefabs</h3><p class="leise">Vorlage wählen → hängt an der Maus, R dreht, Klick setzt. Eigene: Bereich markieren → „🏠 Als Prefab“.</p>';
+    el.innerHTML = '<p class="leise">Vorlage wählen → hängt an der Maus, R dreht, Klick setzt. Eigene: Bereich markieren → Rechtsklick → „Als Prefab“.</p>';
     const liste = (titel, eintraege, eigen) => {
       el.insertAdjacentHTML('beforeend', `<h4>${esc(titel)}</h4>`);
       if (!eintraege.length) el.insertAdjacentHTML('beforeend', '<p class="leise">noch keine</p>');
@@ -80,5 +82,5 @@ export function prefabUi({ zustand, panel, aktionen, auswahlBereich }) {
     });
     reihe.children[1].addEventListener('click', () => aktionen.prefabSpeichern());
     el.append(reihe);
-  });
+  }, { ereignisse: ['zone'], ohneKarte: true });
 }

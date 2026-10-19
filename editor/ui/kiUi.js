@@ -11,12 +11,13 @@ import { herunterladen, dateiWaehlen } from './speicher.js';
 const FARBE = { neu: '#4caf50', weg: '#e5484d', aendern: '#f5b83d', ungueltig: '#ff8a3c' };
 const ZEICHEN = { neu: '＋', weg: '－', aendern: '～', ungueltig: '✗' };
 
-export function kiUi({ zustand, panel, aktionen, sonderAktionen, zeichner, auswahlBereich }) {
+export function kiUi({ zustand, panel, aktionen, layout, zeichner }) {
+  const auswahlBereich = () => aktionen.auswahlBereich();
   let offen = null; // { ergebnis, karte, quelle }
 
   const bereichOderZone = () => auswahlBereich() ?? (zustand.karte ? { x: 0, y: 0, b: zustand.karte.breite, h: zustand.karte.hoehe } : null);
 
-  aktionen.ausschnittExport = sonderAktionen.ausschnittExport = async () => {
+  aktionen.ausschnittExport = async () => {
     const k = zustand.karte;
     if (!k) return;
     const r = bereichOderZone();
@@ -41,7 +42,7 @@ export function kiUi({ zustand, panel, aktionen, sonderAktionen, zeichner, auswa
     }
   };
 
-  sonderAktionen.kiImport = async () => {
+  aktionen.kiImport = async () => {
     const k = zustand.karte;
     if (!k) return zustand.meldung('Erst eine Zone öffnen', 'fehler');
     const r = auswahlBereich();
@@ -58,7 +59,7 @@ export function kiUi({ zustand, panel, aktionen, sonderAktionen, zeichner, auswa
   };
 
   /** Antworttext prüfen und als Vorschau zeigen (auch vom Gemini-Helfer genutzt). bereich = {x0,x1,y0,y1}|null */
-  function pruefeText(text, bereich, zurueck = 'Eigenschaften') {
+  function pruefeText(text, bereich, zurueck = 'Inspektor') {
     const k = zustand.karte;
     try {
       const gelesen = leseKiAntwort(text, k);
@@ -79,16 +80,16 @@ export function kiUi({ zustand, panel, aktionen, sonderAktionen, zeichner, auswa
     zeichner.anfordern();
     const b = ergebnis.bereich;
     zeichner.springeZu(Math.round((b.x0 + b.x1) / 2), Math.round((b.y0 + b.y1) / 2), Math.min(28, Math.max(6, (zeichner.groesse.b - 60) / (b.x1 - b.x0 + 4))));
-    panel.reiter.set('KI-Import', kiReiter);
-    panel.zeige('KI-Import');
+    panel.registriere('KI-Import', kiReiter, { ereignisse: ['zone'] });
+    layout.zeigeReiter('rechts', 'KI-Import');
   }
 
   function verwerfen(meldung = 'KI-Änderungen verworfen') {
-    const zurueck = offen?.zurueck ?? 'Eigenschaften';
+    const zurueck = offen?.zurueck ?? 'Inspektor';
     offen = null;
     zeichner.ueberlagerungen = [];
     zeichner.anfordern();
-    panel.reiter.delete('KI-Import');
+    panel.entferne('KI-Import');
     panel.zeige(zurueck);
     zustand.meldung(meldung);
   }
@@ -97,7 +98,7 @@ export function kiUi({ zustand, panel, aktionen, sonderAktionen, zeichner, auswa
   function kiReiter() {
     const el = panel.el;
     if (!offen) {
-      el.innerHTML = '<p class="leise">Keine KI-Änderungen geladen – 🤖 KI-Import in der Kopfleiste.</p>';
+      el.innerHTML = '<p class="leise">Keine KI-Änderungen geladen – Menü KI → KI-Antwort importieren.</p>';
       return;
     }
     const { ergebnis, karte } = offen;

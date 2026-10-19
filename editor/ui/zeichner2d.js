@@ -9,6 +9,7 @@ import { BAUWERKE } from '../../gemeinsam/welt/bauwerke.js';
  * Oben und links laufen Lineale mit Kachelnummern (LINEAL px breit) – Koordinaten überall.
  * Kacheln liegen in einem 1-Pixel-pro-Kachel-Bild (wird nur an geänderten Stellen nachgemalt) und werden ohne Glättung
  * hochskaliert → scharf und schnell, auch bei 160 × 120.
+ * Ebenen (zustand.ebenen, kern/ebenen.js): ausgeblendete werden nicht gezeichnet, gesperrte ausgegraut (`this.dimm`).
  */
 export const LINEAL = 24;
 const MIN_ZOOM = 2;
@@ -31,6 +32,8 @@ export class Zeichner2D {
     this.innen = null; // Uint8Array, gesetzt von außen (Spiel-Berechnung)
     /** Hervorhebungen über allem (KI-Diff, Prüf-Fehler): [{ rechteck, farbe, gestrichelt?, text? }] */
     this.ueberlagerungen = [];
+    /** Deckkraft der gerade gezeichneten Ebene (1 = normal, gesperrt = ausgegraut) – alle globalAlpha damit malnehmen */
+    this.dimm = 1;
     this.#angefragt = false;
     zustand.bei('karte', (ops) => this.#aufOps(ops));
     zustand.bei('zone', () => {
@@ -38,6 +41,7 @@ export class Zeichner2D {
       this.anfordern();
     });
     zustand.bei('auswahl', () => this.anfordern());
+    zustand.bei('ebenen', () => this.anfordern());
     zustand.bei('werkzeug', () => {
       this.vorschau = null; // alte Platzier-Vorschau nicht kleben lassen
       this.anfordern();
@@ -197,25 +201,32 @@ export class Zeichner2D {
       if (this.cache.farbeAlt) this.#baueFarbe();
       this.#zeichneNachbarn(ctx);
       const o = this.zuBild(0, 0);
+      const b = k.breite * this.zoom;
+      const hh = k.hoehe * this.zoom;
       ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(this.cache.bild, o.x, o.y, k.breite * this.zoom, k.hoehe * this.zoom);
-      if (this.cache.farbe) {
-        ctx.globalAlpha = 0.6;
-        ctx.drawImage(this.cache.farbe, o.x, o.y, k.breite * this.zoom, k.hoehe * this.zoom);
-        ctx.globalAlpha = 1;
+      if (this.zustand.sichtbar('boden')) this.#ebene(ctx, 'boden', () => ctx.drawImage(this.cache.bild, o.x, o.y, b, hh));
+      else {
+        ctx.fillStyle = '#2a2f37';
+        ctx.fillRect(o.x, o.y, b, hh);
       }
-      if (this.cache.terrain) {
-        ctx.imageSmoothingEnabled = true;
-        ctx.drawImage(this.cache.terrain, o.x, o.y, k.breite * this.zoom, k.hoehe * this.zoom);
-      }
-      this.#zeichneKachelDetails(ctx, k);
-      if (this.zustand.overlays.innen) this.#zeichneInnen(ctx, k);
-      if (this.zustand.overlays.steil) this.#zeichneSteil(ctx, k);
-      if (this.zustand.overlays.bereiche) this.#zeichneBereiche(ctx, k);
-      this.#zeichneObjekte(ctx, k);
-      this.#zeichneBauwerke(ctx, k);
-      this.#zeichneMarker(ctx, k);
-      this.#zeichneUebergaenge(ctx, k);
+      if (this.cache.farbe)
+        this.#ebene(ctx, 'bemalung', () => {
+          ctx.globalAlpha = 0.6 * this.dimm;
+          ctx.drawImage(this.cache.farbe, o.x, o.y, b, hh);
+        });
+      if (this.cache.terrain)
+        this.#ebene(ctx, 'terrain', () => {
+          ctx.imageSmoothingEnabled = true;
+          ctx.drawImage(this.cache.terrain, o.x, o.y, b, hh);
+        });
+      if (this.zustand.sichtbar('boden')) this.#ebene(ctx, 'boden', () => this.#zeichneKachelDetails(ctx, k));
+      if (this.zustand.sichtbar('innen')) this.#zeichneInnen(ctx, k);
+      if (this.zustand.sichtbar('steil')) this.#zeichneSteil(ctx, k);
+      this.#ebene(ctx, 'bereiche', () => this.#zeichneBereiche(ctx, k));
+      this.#ebene(ctx, 'objekte', () => this.#zeichneObjekte(ctx, k));
+      this.#ebene(ctx, 'bauwerke', () => this.#zeichneBauwerke(ctx, k));
+      this.#ebene(ctx, 'marker', () => this.#zeichneMarker(ctx, k));
+      this.#ebene(ctx, 'uebergaenge', () => this.#zeichneUebergaenge(ctx, k));
       this.#zeichneAuswahlRechteck(ctx);
       this.#zeichneUeberlagerungen(ctx);
       this.#zeichneVorschau(ctx);
@@ -223,6 +234,17 @@ export class Zeichner2D {
     }
     if (this.neuRechteck) this.#rahmen(ctx, this.neuRechteck, '#4caf50', `${this.neuRechteck.b} × ${this.neuRechteck.h}`, true);
     this.#zeichneLineale(ctx);
+  }
+
+  /** Ebene zeichnen: ausgeblendet = gar nicht, gesperrt = ausgegraut */
+  #ebene(ctx, id, zeichne) {
+    if (!this.zustand.sichtbar(id)) return;
+    this.dimm = this.zustand.ebenen[id]?.gesperrt ? 0.35 : 1;
+    ctx.save();
+    ctx.globalAlpha = this.dimm;
+    zeichne();
+    ctx.restore();
+    this.dimm = 1;
   }
 
   #rechteckBild(x, y, bb, hh) {
@@ -249,7 +271,7 @@ export class Zeichner2D {
     const f = this.#sichtFenster(k);
     ctx.save();
     // Raster
-    if (this.zustand.overlays.raster && z >= 8) {
+    if (this.zustand.sichtbar('raster') && z >= 8) {
       ctx.strokeStyle = 'rgba(0,0,0,0.18)';
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -359,12 +381,12 @@ export class Zeichner2D {
       const farbe = o.farbe && o.typ !== 'licht' ? o.farbe : (k.s('texturen').get(o.typ)?.farbe ?? info.farbe);
       ctx.save();
       if (o.ebene === 'oben') {
-        ctx.globalAlpha = 0.72;
+        ctx.globalAlpha = 0.72 * this.dimm;
         ctx.fillStyle = farbe;
         ctx.beginPath();
         ctx.ellipse(r.x + r.b / 2, r.y + r.h / 2, r.b / 2, r.h / 2, 0, 0, Math.PI * 2);
         ctx.fill();
-        ctx.globalAlpha = 1;
+        ctx.globalAlpha = this.dimm;
         ctx.strokeStyle = 'rgba(10,25,8,0.8)';
         ctx.lineWidth = 1;
         ctx.stroke();
@@ -382,7 +404,7 @@ export class Zeichner2D {
         ctx.arc(r.x + r.b / 2, r.y + r.h / 2, Math.max(2, z * 0.3), 0, Math.PI * 2);
         ctx.fill();
       } else {
-        ctx.globalAlpha = o.ebene === 'boden' ? 0.7 : 1;
+        ctx.globalAlpha = (o.ebene === 'boden' ? 0.7 : 1) * this.dimm;
         const sprite = !o.farbe && this.#sprite(o.typ);
         if (sprite && z >= 6) this.#zeichneSprite(ctx, sprite, r, o.drehung ?? 0);
         else {
@@ -396,7 +418,7 @@ export class Zeichner2D {
         }
         if (info.bild && this.#bild(info.bild)) ctx.drawImage(this.#bild(info.bild), r.x, r.y, r.b, r.h);
         if (!sprite && z >= 14 && r.b >= 14 && r.h >= 14) {
-          ctx.globalAlpha = 1;
+          ctx.globalAlpha = this.dimm;
           ctx.font = `${Math.min(r.b, r.h, z) * 0.6}px system-ui`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
@@ -404,7 +426,7 @@ export class Zeichner2D {
         }
         // Drehung anzeigen (Pfeil)
         if ((o.drehung ?? 0) !== 0 && z >= 10) {
-          ctx.globalAlpha = 0.9;
+          ctx.globalAlpha = 0.9 * this.dimm;
           ctx.strokeStyle = '#fff';
           ctx.translate(r.x + r.b / 2, r.y + r.h / 2);
           ctx.rotate(((o.drehung ?? 0) * Math.PI) / 180);
@@ -570,7 +592,7 @@ export class Zeichner2D {
   }
 
   #zeichneNachbarn(ctx) {
-    if (!this.zustand.overlays.nachbarn) return;
+    if (!this.zustand.sichtbar('nachbarn')) return;
     for (const n of this.nachbarn) {
       const k = n.karte;
       const bild = kachelBild(k);

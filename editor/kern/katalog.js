@@ -19,6 +19,42 @@ import { KACHEL_FARBEN } from '../../client/darstellung/farben.js';
  */
 export const KATEGORIEN = Object.freeze(['Wege', 'Mauern', 'Böden', 'Umwelt', 'Gebäude', 'Ressourcen', 'Möbel', 'Fahrzeuge', 'Spawns', 'Loot', 'Tiere', 'Wetter', 'Terrain', 'Farbe', 'Räume', 'Zonen', 'Eigene']);
 
+/** Gruppen des Asset-Browsers (Editor 2.0): jede Kategorie gehört zu genau einer Gruppe (Test prüft das). */
+export const GRUPPEN = Object.freeze([
+  { name: 'Gelände', symbol: '⛰', kategorien: ['Böden', 'Wege', 'Terrain', 'Farbe'] },
+  { name: 'Bauen', symbol: '🧱', kategorien: ['Mauern', 'Gebäude'] },
+  { name: 'Natur', symbol: '🌳', kategorien: ['Ressourcen', 'Umwelt'] },
+  { name: 'Einrichtung', symbol: '🛋', kategorien: ['Möbel', 'Fahrzeuge'] },
+  { name: 'Gameplay', symbol: '🎮', kategorien: ['Spawns', 'Loot', 'Tiere', 'Wetter'] },
+  { name: 'Zonen & Logik', symbol: '🗺', kategorien: ['Räume', 'Zonen'] },
+  { name: 'Eigene', symbol: '✦', kategorien: ['Eigene'] },
+]);
+
+/** Gruppe einer Kategorie (unbekannte Kategorien eigener Typen → „Eigene“) */
+export function gruppeVon(kategorie) {
+  return GRUPPEN.find((g) => g.kategorien.includes(kategorie)) ?? GRUPPEN.at(-1);
+}
+
+/** Suchtext normalisieren (klein, ohne Umlaute/Akzente) – für die Suche im Asset-Browser */
+export function suchNormal(text) {
+  return String(text ?? '')
+    .toLowerCase()
+    .replace(/ä/g, 'ae')
+    .replace(/ö/g, 'oe')
+    .replace(/ü/g, 'ue')
+    .replace(/ß/g, 'ss')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '');
+}
+
+/** Passt ein Katalog-Eintrag zur Suche? (alle Wörter müssen in Name, Typ, Kategorie oder Gruppe vorkommen) */
+export function passtZurSuche(e, suche) {
+  const woerter = suchNormal(suche).split(/\s+/).filter(Boolean);
+  if (!woerter.length) return true;
+  const heu = suchNormal(`${e.name} ${e.typ ?? ''} ${e.zeichen ?? ''} ${e.kategorie} ${gruppeVon(e.kategorie).name} ${(e.tags ?? []).join(' ')}`);
+  return woerter.every((w) => heu.includes(w));
+}
+
 /** Kacheln → Kategorie (+ Anzeigename) */
 const KACHEL_KATEGORIE = {
   '_': ['Wege', 'Asphalt'],

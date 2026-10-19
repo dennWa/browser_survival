@@ -11,60 +11,44 @@
     </script>
   </head>
   <body>
-    <!-- Kopfleiste: Karte öffnen/neu/speichern/exportieren/testen -->
+    <!-- Kopf: Menüleiste (aus ui/befehlsliste.js) · Zone · Schnellleiste · Speicherstatus -->
     <header id="kopf">
       <a class="logo" href="../client/" title="Zurück zum Spiel">🧟 <b>Map-Editor</b></a>
-      <label class="zonenwahl" title="Aktive Zone (Entwürfe dieses Projekts)">Zone <select id="zone-wahl"></select></label>
-      <div class="gruppe">
-        <button data-befehl="neu" title="Neue Zone (Rechteck aufziehen)">➕ Neu</button>
-        <button data-befehl="oeffnen" title="Zone aus dem Spiel als Vorlage oder Entwurf aus Datei öffnen">📂 Öffnen</button>
-        <button data-befehl="speichern" title="Entwurf als Datei speichern (Strg+S speichert lokal)">💾 Speichern</button>
-        <button data-befehl="exportieren" title="Export: ganze Karte (JSON + LIESMICH), Ausschnitt für KI, Veröffentlichen">📤 Export</button>
-        <button data-befehl="helfer" class="akzent" title="KI-Helfer (Gemini): Chat zur Karte, Vorschläge mit Vorschau">🤖 Helfer</button>
-        <button data-befehl="kiImport" title="KI-Änderungen importieren (mit Vorschau)">🤖 KI-Import</button>
-        <button data-befehl="testen" class="akzent" title="Karte im Spiel testen (lokal, ohne Repo-Änderung)">▶ Testen</button>
-      </div>
-      <div class="gruppe">
-        <button data-befehl="rueckgaengig" title="Rückgängig (Strg+Z)">↶</button>
-        <button data-befehl="wiederholen" title="Wiederholen (Strg+Y)">↷</button>
-        <button data-befehl="ansicht" id="ansicht-knopf" title="2D/3D umschalten (Taste 3)">3D</button>
-        <button data-befehl="hilfe" title="Tastenkürzel (?)">?</button>
-      </div>
-      <span id="speicher-status" title="Lokaler Speicher"></span>
+      <nav id="menue" aria-label="Menü"></nav>
+      <label class="zonenwahl" title="Aktive Zone (Entwürfe dieses Projekts)"><span>Zone</span> <select id="zone-wahl"></select></label>
+      <div id="schnell" class="gruppe" role="toolbar" aria-label="Schnellzugriff"></div>
+      <button id="speicher-status" type="button" title="Lokaler Speicher – Klick speichert sofort"></button>
     </header>
 
     <div id="haupt">
-      <!-- Seitenleiste: Kategorien -->
-      <nav id="kategorien" aria-label="Kategorien"></nav>
-
-      <main id="flaeche">
-        <canvas id="leinwand2d" tabindex="0"></canvas>
-        <canvas id="leinwand3d" hidden></canvas>
-        <div id="hinweis-leer" hidden>Keine Zone geöffnet – <b>➕ Neu</b> (Rechteck aufziehen) oder <b>📂 Öffnen</b>.</div>
-        <!-- Werkzeugleiste -->
-        <div id="werkzeuge" role="toolbar" aria-label="Werkzeuge"></div>
-        <div id="knoepfe-3d" hidden>
-          <button data-3d="spiel" title="Spielperspektive (Kamera wie im Spiel)">🎮 Spielperspektive</button>
-          <button data-3d="oben" title="Von oben">⬇ Von oben</button>
-          <span class="leise">Ziehen = schieben · Rechts/Alt-Ziehen = drehen · Rad/2 Finger = Zoom · Klick = wählen</span>
-        </div>
-        <div id="zoom-knoepfe">
-          <button data-zoom="1.25" title="Hineinzoomen (+)">＋</button>
-          <button data-zoom="0.8" title="Herauszoomen (−)">－</button>
-          <button data-zoom="0" title="Ganze Zone (F)">⤢</button>
+      <!-- Werkzeugleiste (fest, überdeckt die Karte nicht) -->
+      <nav id="werkzeuge" role="toolbar" aria-label="Werkzeuge"></nav>
+      <!-- Links: Assets · Prefabs · Zonen · Räume -->
+      <aside id="links" class="seitenleiste" aria-label="Assets und Projekt"><div class="reiter" role="tablist"></div><div class="inhalt"></div></aside>
+      <main id="mitte">
+        <div id="optionen" role="toolbar" aria-label="Werkzeug-Optionen"></div>
+        <div id="flaeche">
+          <canvas id="leinwand2d" tabindex="0"></canvas>
+          <canvas id="leinwand3d" hidden></canvas>
+          <div id="hinweis-leer" hidden>Keine Zone geöffnet – <b>Datei → Neue Zone</b> (Rechteck aufziehen) oder <b>Öffnen</b>.</div>
+          <div id="knoepfe-3d" hidden>
+            <button data-3d="spiel" title="Spielperspektive (Kamera wie im Spiel)">🎮 Spielperspektive</button>
+            <button data-3d="oben" title="Von oben">⬇ Von oben</button>
+          </div>
+          <div id="zoom-knoepfe">
+            <button data-befehl="ansicht.zoomRein" title="Hineinzoomen (+)">＋</button>
+            <button data-befehl="ansicht.zoomRaus" title="Herauszoomen (−)">－</button>
+            <button data-befehl="ansicht.einpassen" title="Ganze Zone (F)">⤢</button>
+          </div>
         </div>
       </main>
-
-      <!-- Eigenschaften / Zone / Prüfung / Zonen / Prefabs -->
-      <aside id="panel">
-        <div id="panel-reiter" role="tablist"></div>
-        <div id="panel-inhalt"></div>
-      </aside>
+      <!-- Rechts: Inspektor · Ebenen · Prüfung (+ KI-Import-Vorschau) -->
+      <aside id="rechts" class="seitenleiste" aria-label="Inspektor"><div class="reiter" role="tablist"></div><div class="inhalt"></div></aside>
+      <!-- KI-Helfer (einklappbar, Strg+J) -->
+      <aside id="ki" class="seitenleiste" aria-label="KI-Helfer" hidden><div class="reiter" role="tablist"></div><div class="inhalt"></div></aside>
     </div>
 
-    <!-- Bauleiste: Einträge der gewählten Kategorie -->
-    <footer id="bauleiste" aria-label="Bauleiste"></footer>
-    <div id="status"><span id="status-koord">–</span><span id="status-info"></span><span id="status-pruefung"></span><span id="status-meldung"></span></div>
+    <footer id="status"><span id="status-koord">–</span><span id="status-info"></span><span id="status-auswahl"></span><button id="status-pruefung" type="button" title="Prüfung anzeigen"></button><span id="status-meldung" role="status" aria-live="polite"></span></footer>
 
     <div id="dialog-hintergrund" hidden><div id="dialog" role="dialog" aria-modal="true"></div></div>
     <script type="module" src="main.js"></script>

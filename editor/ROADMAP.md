@@ -29,10 +29,10 @@
 | # | Schritt | Größe |
 |---|---|---|
 | ☑ 1.1 | **Fehlersuche systematisch:** Prüfliste aller Werkzeuge/Knöpfe/Dialoge/Tasten bei 1400/1280/390 px + Touch durchgehen, Fehler B1–B6 + neue Funde hier eintragen, je Fehler Regressionstest | M |
-| ☐ 1.2 | **Befehlsregister** `editor/ui/befehle.js`: jede Aktion einmal (ID, Name, Symbol, Gruppe, Standard-Kürzel, `ausfuehren`, `verfuegbar`). Menüs, Werkzeugleiste, Kontextmenü, Tastatur (und später Hilfe/Befehlspalette/eigene Kürzel) lesen nur daraus. `main.js` zerfällt in Module (datei, bearbeiten, ansicht, zone), `erweiterungen.js`/`sonderAktionen` entfallen | L |
-| ☐ 1.3 | **Neues Layout** (Vorbild Tiled/LDtk/Godot): Menüleiste (Datei · Bearbeiten · Ansicht · Einfügen · Werkzeuge · KI · Hilfe) + schlanke Schnellleiste (↶ ↷, 2D/3D, ▶ Testen, 🚀 Veröffentlichen); links feste Werkzeugleiste (nicht mehr über der Karte) + **Asset-Browser** mit Suche und 7 Gruppen statt 17 Kategorien (Gelände · Bauen · Natur · Einrichtung · Gameplay · Zonen & Logik · Eigene), Raster mit Vorschau statt Bauleiste unten; über der Karte **Werkzeug-Optionsleiste** (Pinselgröße, Modus, Einrasten, Stärke, Farbe, Drehung); rechts Inspektor · Ebenen · Prüfung; Projekt (Zonen/Weltkarte, Prefabs, Räume) als Reiter links; KI-Helfer als eigene, einklappbare Seitenleiste; Panels einklapp- und in der Breite ziehbar (gemerkt); Fokus-Modus | XL |
-| ☐ 1.4 | **Ebenen-System:** Boden · Bemalung · Terrain · Objekte · Bauwerke · Marker · Bereiche/Zonen · Nachbarn – je Ebene sichtbar/gesperrt (gesperrt = ausgegraut, nicht anklickbar). Grundlage für Phase 6 | M |
-| ☐ 1.5 | **Arbeitsabläufe:** Rechtsklick-Kontextmenü (Kopieren, Duplizieren, Drehen, Löschen, Als Prefab, KI-Ausschnitt …), zuletzt benutzte Assets + Favoriten (Tasten 1–9), Alt+Klick = Pipette in jedem Malwerkzeug, Trackpad-Gesten (2 Finger schwenken, Pinch zoomen), Statusleiste mit Objekt unter der Maus + Auswahlgröße, klare Meldungen statt stiller Abbrüche | M |
+| ☑ 1.2 | **Befehlsregister** `editor/ui/befehle.js`: jede Aktion einmal (ID, Name, Symbol, Gruppe, Standard-Kürzel, `ausfuehren`, `verfuegbar`). Menüs, Werkzeugleiste, Kontextmenü, Tastatur (und später Hilfe/Befehlspalette/eigene Kürzel) lesen nur daraus. `main.js` zerfällt in Module (datei, bearbeiten, ansicht, zone), `erweiterungen.js`/`sonderAktionen` entfallen | L |
+| ☑ 1.3 | **Neues Layout** (Vorbild Tiled/LDtk/Godot): Menüleiste (Datei · Bearbeiten · Ansicht · Einfügen · Werkzeuge · KI · Hilfe) + schlanke Schnellleiste (↶ ↷, 2D/3D, ▶ Testen, 🚀 Veröffentlichen); links feste Werkzeugleiste (nicht mehr über der Karte) + **Asset-Browser** mit Suche und 7 Gruppen statt 17 Kategorien (Gelände · Bauen · Natur · Einrichtung · Gameplay · Zonen & Logik · Eigene), Raster mit Vorschau statt Bauleiste unten; über der Karte **Werkzeug-Optionsleiste** (Pinselgröße, Modus, Einrasten, Stärke, Farbe, Drehung); rechts Inspektor · Ebenen · Prüfung; Projekt (Zonen/Weltkarte, Prefabs, Räume) als Reiter links; KI-Helfer als eigene, einklappbare Seitenleiste; Panels einklapp- und in der Breite ziehbar (gemerkt); Fokus-Modus | XL |
+| ☑ 1.4 | **Ebenen-System:** Boden · Bemalung · Terrain · Objekte · Bauwerke · Marker · Bereiche/Zonen · Nachbarn – je Ebene sichtbar/gesperrt (gesperrt = ausgegraut, nicht anklickbar). Grundlage für Phase 6 | M |
+| ☑ 1.5 | **Arbeitsabläufe:** Rechtsklick-Kontextmenü (Kopieren, Duplizieren, Drehen, Löschen, Als Prefab, KI-Ausschnitt …), zuletzt benutzte Assets + Favoriten (Schnellwahl per Taste → 7.1), Alt+Klick = Pipette in jedem Malwerkzeug, Trackpad-Gesten (2 Finger schwenken, Pinch zoomen), Statusleiste mit Objekt unter der Maus + Auswahlgröße, klare Meldungen statt stiller Abbrüche | M |
 | ☐ 1.6 | **Datensicherheit vorgezogen** (aus Phase 7, weil Phase 3 das Speicherformat erweitert): sichtbare Autosave-Anzeige (● ungespeichert · ⟳ speichert · ✓ gespeichert hh:mm · ⚠ Fehler + Wiederholen), Speicherplatz-Anzeige, **Komplett-Backup** aller Entwürfe (+ Verlauf, Prefabs, Einstellungen) als eine Datei + Wiederherstellen | M |
 
 ## Phase 2 – Map Building & Terrain
@@ -127,9 +127,9 @@
 | # | Fehler | Stand |
 |---|---|---|
 | B1 | „🤖 Helfer“ meldete zusätzlich rot „Helfer fehlt“ (`?.() ?? meldung` auf `undefined`) | ☑ behoben (main.js) |
-| B2 | Kopfleiste bricht bei 1280 px um, Handy 3 Zeilen | → 1.3 (neues Layout) |
-| B3 | Werkzeugleiste überdeckt den linken Kartenrand | → 1.3 |
-| B4 | Prüfungs-Zähler im Reiter über `children[2]` | → 1.3 (Seitenleiste mit Beschriftungs-Funktion) |
+| B2 | Kopfleiste bricht bei 1280 px um, Handy 3 Zeilen | ☑ 1.3 (Menüleiste, ☰ am Handy) |
+| B3 | Werkzeugleiste überdeckt den linken Kartenrand | ☑ 1.3 (feste Spalte) |
+| B4 | Prüfungs-Zähler im Reiter über `children[2]` | ☑ 1.3 (Seitenleiste `beschriftung`) |
 | B5 | Trackpad: Zwei-Finger-Wischen zoomte statt zu schwenken | ☑ `istMausrad` (werkzeuge.js) |
 | B6 | KI-Helfer schickt kleine Zonen ganz mit | → 9.1 |
 | B7 | Drehen von 2×1-Objekten → halbe Kacheln (x 17,5), driftet bei mehrfachem Drehen | ☑ `kern/bearbeiten.js dreheObjekt` (Raster, 4× = Ausgangslage) |

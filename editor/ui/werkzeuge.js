@@ -5,6 +5,7 @@ import { terrainHeben, terrainGlaetten, terrainEbnen } from '../kern/terrain.js'
 import { elementeIn, dreheVorlage } from '../kern/auswahl.js';
 import { verschiebeOps, dreheOps } from '../kern/bearbeiten.js';
 import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
+import { ebeneVon } from '../kern/ebenen.js';
 import { LINEAL } from './zeichner2d.js';
 import { STANDARD_KONFIGURATION } from '../../server/spiel/konfiguration/spielKonfiguration.js';
 
@@ -22,6 +23,8 @@ import { STANDARD_KONFIGURATION } from '../../server/spiel/konfiguration/spielKo
  *   pipette  Kachel/Objekt unter der Maus in die Bauleiste übernehmen
  * Touch: Ansehen & Schwenken überall (1 Finger mit Hand-Werkzeug, 2 Finger immer = schwenken + zoomen). Malen/Bauen geht
  * per Tippen, Ziel ist aber der Desktop (bewusste Ausnahme, siehe editor/LIESMICH.md).
+ * Maus: Rechts-Ziehen schwenkt, Rechtsklick ohne Ziehen = Kontextmenü (beim Platzieren/Einfügen: drehen),
+ * Alt+Klick in Mal-/Platzier-Werkzeugen = Pipette. Ausgeblendete/gesperrte Ebenen sind nicht anklickbar (zustand.ebenen).
  */
 export class Werkzeuge {
   constructor({ leinwand, zeichner, zustand, aktionen }) {
@@ -93,13 +96,15 @@ export class Werkzeuge {
     }
     if (this.zeiger.size > 2) return;
     const zustand = this.zustand;
-    const hand = e.button === 1 || this.leertaste || zustand.werkzeug === 'hand' || (e.button === 2 && zustand.werkzeug !== 'platzieren');
+    const drehWerkzeug = zustand.werkzeug === 'platzieren' || zustand.werkzeug === 'einfuegen';
+    const hand = e.button === 1 || this.leertaste || zustand.werkzeug === 'hand' || (e.button === 2 && !drehWerkzeug);
     if (hand) {
-      this.ziehen = { art: 'schwenken', px: p.px, py: p.py };
+      // Rechte Taste ohne Ziehen → Kontextmenü (in #hoch entschieden)
+      this.ziehen = { art: 'schwenken', px: p.px, py: p.py, rechts: e.button === 2, startPx: p.px, startPy: p.py, weg: 0 };
       return;
     }
     if (e.button === 2) {
-      // Rechtsklick beim Platzieren: drehen
+      // Rechtsklick beim Platzieren/Einfügen: drehen
       this.drehe();
       return;
     }
@@ -110,6 +115,7 @@ export class Werkzeuge {
     if (!this.karte) return;
     if (p.px < LINEAL || p.py < LINEAL) return;
     const w = zustand.werkzeug;
+    if (e.altKey && ['malen', 'platzieren', 'farbe', 'radierer', 'terrain'].includes(w)) return this.#pipette(p);
     if (w === 'zone') return this.#zoneRunter(p);
     if (w === 'auswahl') return this.#auswahlRunter(p, e.shiftKey);
     if (w === 'malen') return this.#malenRunter(p, e.shiftKey);
@@ -119,7 +125,7 @@ export class Werkzeuge {
       this.#radiere(p, p);
       return;
     }
-    if (w === 'platzieren') return this.#platziere(p, e.shiftKey);
+    if (w === 'platzieren') return this.#platziere(p, e.shiftKey || zustand.mehrfach);
     if (w === 'bereich') {
       this.ziehen = { art: 'bereich', start: p };
       this.#bereichVorschau(p, p);
@@ -148,7 +154,7 @@ export class Werkzeuge {
     }
     if (w === 'einfuegen') {
       const v = this.zustand.einfuegeVorlage;
-      if (v) this.aktionen.einfuegenBei(v, p.tx - Math.floor(v.b / 2), p.ty - Math.floor(v.h / 2), e.shiftKey);
+      if (v) this.aktionen.einfuegenBei(v, p.tx - Math.floor(v.b / 2), p.ty - Math.floor(v.h / 2), e.shiftKey || zustand.mehrfach);
       return;
     }
     if (w === 'pipette') return this.#pipette(p);
@@ -168,6 +174,7 @@ export class Werkzeuge {
     const d = this.ziehen;
     if (d?.art === 'geste') return this.#geste(e.pointerId, vorher);
     if (d?.art === 'schwenken') {
+      d.weg = Math.max(d.weg ?? 0, Math.hypot(p.px - d.startPx, p.py - d.startPy));
       this.z.schwenken(p.px - d.px, p.py - d.py);
       d.px = p.px;
       d.py = p.py;
@@ -214,6 +221,10 @@ export class Werkzeuge {
     this.ziehen = null;
     const p = this.#pos(e);
     if (abgebrochen) return this.#abbrechen(d);
+    if (d.art === 'schwenken') {
+      if (d.rechts && d.weg < 5 && this.karte) this.#kontextmenue(e, p);
+      return;
+    }
     if (d.art === 'neu') {
       const r = this.z.neuRechteck;
       this.z.neuRechteck = null;
@@ -230,6 +241,13 @@ export class Werkzeuge {
     if (d.art === 'zone') this.#zoneFertig();
     this.z.vorschau = null;
     this.z.anfordern();
+  }
+
+  /** Rechtsklick: Element unter der Maus wählen (falls nicht schon gewählt) und Kontextmenü öffnen */
+  #kontextmenue(e, p) {
+    const t = this.treffer(p);
+    if (t && !this.zustand.istGewaehlt(t.s, t.k)) this.zustand.waehle([t]);
+    this.aktionen.kontextmenue?.(e.clientX, e.clientY, { treffer: t, x: p.tx, y: p.ty });
   }
 
   #abbrechen(d = this.ziehen) {
@@ -267,21 +285,22 @@ export class Werkzeuge {
   treffer(p) {
     const k = this.karte;
     if (!k) return null;
-    const m = k.markerAn(p.tx, p.ty);
+    const frei = (s) => this.zustand.ebeneFrei(ebeneVon(s));
+    const m = frei('marker') && k.markerAn(p.tx, p.ty);
     if (m) return { s: 'marker', k: markerSchluessel(p.tx, p.ty) };
-    for (const [n, a] of k.s('ankuenfte')) if (a.x === p.tx && a.y === p.ty) return { s: 'ankuenfte', k: n };
-    for (const [id, b] of k.s('bauwerke')) if (b.tx === p.tx && b.ty === p.ty) return { s: 'bauwerke', k: id };
+    if (frei('ankuenfte')) for (const [n, a] of k.s('ankuenfte')) if (a.x === p.tx && a.y === p.ty) return { s: 'ankuenfte', k: n };
+    if (frei('bauwerke')) for (const [id, b] of k.s('bauwerke')) if (b.tx === p.tx && b.ty === p.ty) return { s: 'bauwerke', k: id };
     // Möbel vor Kronen: erst nicht-'oben', dann 'oben'
     let treffer = null;
     let krone = null;
-    for (const [id, o] of k.s('objekte')) {
+    if (frei('objekte')) for (const [id, o] of k.s('objekte')) {
       if (p.wx < o.x || p.wx >= o.x + o.b || p.wy < o.y || p.wy >= o.y + o.h) continue;
       if (o.ebene === 'oben') krone = { s: 'objekte', k: id };
       else treffer = { s: 'objekte', k: id };
     }
     if (treffer || krone) return treffer ?? krone;
     for (const s of ['uebergaenge', 'tierBereiche', 'raumFlaechen'])
-      for (const [id, r] of k.s(s)) if (p.wx >= r.x && p.wx < r.x + r.b && p.wy >= r.y && p.wy < r.y + r.h) return { s, k: id };
+      if (frei(s)) for (const [id, r] of k.s(s)) if (p.wx >= r.x && p.wx < r.x + r.b && p.wy >= r.y && p.wy < r.y + r.h) return { s, k: id };
     return null;
   }
 
@@ -306,7 +325,7 @@ export class Werkzeuge {
     for (const s of ['objekte', 'bauwerke', 'tierBereiche', 'raumFlaechen', 'marker']) for (const k of e[s]) liste.push({ s, k });
     for (const [id, u] of this.karte.s('uebergaenge')) if (u.x >= r.x && u.y >= r.y && u.x + u.b <= r.x + r.b && u.y + u.h <= r.y + r.h) liste.push({ s: 'uebergaenge', k: id });
     for (const [n, a] of this.karte.s('ankuenfte')) if (a.x >= r.x && a.y >= r.y && a.x < r.x + r.b && a.y < r.y + r.h) liste.push({ s: 'ankuenfte', k: n });
-    this.zustand.waehle(liste, umschalt);
+    this.zustand.waehle(liste.filter(({ s }) => this.zustand.ebeneFrei(ebeneVon(s))), umschalt);
     this.zustand.meldung(`Bereich x ${r.x}–${r.x + r.b - 1}, y ${r.y}–${r.y + r.h - 1} (${r.b} × ${r.h}) · ${liste.length} Elemente – Strg+C kopiert, Export → Ausschnitt`);
   }
 
@@ -320,8 +339,7 @@ export class Werkzeuge {
     if (Math.abs(sx) < 1e-9 && Math.abs(sy) < 1e-9) return;
     const ops = verschiebeOps(this.karte, this.zustand.gewaehlte(), sx, sy);
     if (!ops.ops) return;
-    const ausgefuehrt = this.karte.anwenden(ops.ops);
-    this.zustand.verlauf.sammle(ausgefuehrt);
+    this.zustand.sammle(ops.ops);
     // Marker haben neue Schlüssel → Auswahl nachziehen
     if (ops.neueAuswahl) this.zustand.waehle(ops.neueAuswahl);
     d.dx = dx;
@@ -349,7 +367,7 @@ export class Werkzeuge {
   }
 
   #formPunkte(d, p, umschalt) {
-    if (this.zustand.malModus === 'rechteck') return rechteck(d.start.tx, d.start.ty, p.tx, p.ty, umschalt);
+    if (this.zustand.malModus === 'rechteck') return rechteck(d.start.tx, d.start.ty, p.tx, p.ty, umschalt || !!this.zustand.nurRand);
     // Linie: Mauern rasten waagerecht/senkrecht/45° ein (Umschalt = frei)
     const mauer = this.zustand.eintrag?.kategorie === 'Mauern';
     const ende = mauer !== umschalt ? rasteEin(d.start.tx, d.start.ty, p.tx, p.ty) : { x: p.tx, y: p.ty };
@@ -371,16 +389,19 @@ export class Werkzeuge {
   #radiere(von, bis) {
     const k = this.karte;
     const punkte = nurImFeld(k, linie(von.tx, von.ty, bis.tx, bis.ty).flatMap(({ x, y }) => pinsel(x, y, this.zustand.pinselGroesse)));
-    const ops = kachelOps(k, punkte, ',');
+    const ops = this.zustand.ebeneFrei('boden') ? kachelOps(k, punkte, ',') : [];
     const menge = new Set(punkte.map(({ x, y }) => `${x},${y}`));
     for (const { x, y } of punkte) if (k.markerAn(x, y)) ops.push({ s: 'marker', k: markerSchluessel(x, y), neu: null });
+    // Radierer nimmt nur von freien Ebenen (gesperrte bleiben ohne Meldung stehen)
+    const frei = (op) => this.zustand.ebeneFrei(ebeneVon(op.s));
+    const nurFrei = () => ops.filter(frei);
     for (const [id, o] of k.s('objekte')) for (const { x, y } of punkte) if (x + 0.5 > o.x && x + 0.5 < o.x + o.b && y + 0.5 > o.y && y + 0.5 < o.y + o.h) {
       ops.push({ s: 'objekte', k: id, neu: null });
       break;
     }
     for (const [id, b] of k.s('bauwerke')) if (menge.has(`${b.tx},${b.ty}`)) ops.push({ s: 'bauwerke', k: id, neu: null });
     for (const [n, a] of k.s('ankuenfte')) if (menge.has(`${a.x},${a.y}`)) ops.push({ s: 'ankuenfte', k: n, neu: null });
-    this.zustand.verlauf.sammle(k.anwenden(ops));
+    this.zustand.sammle(nurFrei());
   }
 
   // --- Platzieren ------------------------------------------------------------------
@@ -542,6 +563,14 @@ export class Werkzeuge {
   }
 
   #pipette(p) {
+    if (this.zustand.werkzeug === 'farbe') {
+      const f = this.karte.farbeAn(p.tx, p.ty);
+      if (f) {
+        this.zustand.farbe = f;
+        this.zustand.melde('eintrag');
+        return this.zustand.meldung(`Farbe ${f} übernommen`);
+      }
+    }
     const t = this.treffer(p);
     if (t?.s === 'objekte') this.aktionen.waehleEintrag?.({ typ: this.karte.s('objekte').get(t.k).typ });
     else this.aktionen.waehleEintrag?.({ zeichen: this.karte.kachelAn(p.tx, p.ty) });
@@ -552,7 +581,7 @@ export class Werkzeuge {
     const k = this.karte;
     const entfernen = this.zustand.eintrag?.werkzeug === 'farbeEntfernen';
     const punkte = nurImFeld(k, linie(von.tx, von.ty, bis.tx, bis.ty).flatMap(({ x, y }) => pinsel(x, y, this.zustand.pinselGroesse)));
-    this.zustand.verlauf.sammle(k.anwenden(punkte.map(({ x, y }) => ({ s: 'bemalung', k: markerSchluessel(x, y), neu: entfernen ? null : this.zustand.farbe }))));
+    this.zustand.sammle(punkte.map(({ x, y }) => ({ s: 'bemalung', k: markerSchluessel(x, y), neu: entfernen ? null : this.zustand.farbe })));
   }
 
   // --- Terrain ---------------------------------------------------------------------
@@ -566,7 +595,7 @@ export class Werkzeuge {
     if (art === 'terrainGlaetten') ops = terrainGlaetten(k, p.tx, p.ty, r, staerke);
     else if (art === 'terrainEbnen') ops = terrainEbnen(k, p.tx, p.ty, r, 0);
     else ops = terrainHeben(k, p.tx, p.ty, r, (art === 'terrainSenken') !== umschalt ? -staerke : staerke);
-    zustand.verlauf.sammle(k.anwenden(ops));
+    zustand.sammle(ops);
   }
 
   // --- Zone ändern -----------------------------------------------------------------

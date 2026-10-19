@@ -1,11 +1,16 @@
 import { Verlauf } from '../kern/verlauf.js';
 import { entwurfJson, ladeDatei } from '../kern/format.js';
 import { ID_SAMMLUNGEN } from '../kern/karte.js';
+import { EBENEN, ebenenAus, ebeneFrei, ebeneVon, filtereGesperrt } from '../kern/ebenen.js';
+
+const EBENEN_SPEICHER = 'browserSurvival.editorEbenen';
 
 /**
  * Zustand des Editors (Browser): Projekt = mehrere Zonen-Entwürfe { karte, verlauf }, aktive Zone, Werkzeug, Auswahl,
  * Zwischenablage, Ansicht. Kleine Ereignis-Schnittstelle: `bei(name, f)` / `melde(name, daten)`.
- * Ereignisse: 'karte' (Inhalt geändert), 'zone' (andere Zone aktiv / Liste), 'auswahl', 'werkzeug', 'ansicht', 'meldung'.
+ * Ereignisse: 'karte' (Inhalt geändert), 'zone' (andere Zone aktiv / Liste), 'auswahl', 'werkzeug', 'eintrag' (Asset gewählt),
+ * 'ebenen' (sichtbar/gesperrt), 'ansicht', 'meldung', 'speicher', 'pruefung'.
+ * Ebenen (kern/ebenen.js): Änderungen an gesperrten/ausgeblendeten Ebenen lässt `ausfuehren`/`sammle` aus (mit Meldung).
  *
  * ⚠ Editor-Code ändert die Karte NIE direkt: nur über `ausfuehren` (→ Verlauf, Autosave). So bleibt jede Änderung
  *   rückgängig machbar, und UI-Umbauten können keine Karte verändern.
@@ -27,7 +32,7 @@ export class Zustand {
     this.auswahlRechteck = null; // { x, y, b, h } (Excel-artig, für Kopieren & Ausschnitt-Export)
     this.zwischenablage = null;
     this.ansicht = '2d';
-    this.overlays = { raster: true, innen: false, steil: true, nachbarn: true, bereiche: true };
+    this.ebenen = ebenenAus(liesLokal(EBENEN_SPEICHER));
     this.terrainStaerke = 0.5;
     this.farbe = '#c0392b'; // aktuelle Malfarbe (Kategorie Farbe)
     this.layout = {}; // Zonen-Weltposition (Phase 7): id → { x, y }
@@ -133,11 +138,56 @@ export class Zustand {
     return true;
   }
 
-  /** Änderung an der aktiven Karte (mit Verlauf). @returns ausgeführte ops */
+  /** Änderung an der aktiven Karte (mit Verlauf, 1 Schritt). Gesperrte Ebenen werden ausgelassen. @returns ausgeführte ops */
   ausfuehren(name, ops, karte = this.karte) {
     if (!karte) return [];
     const z = [...this.zonen.values()].find((e) => e.karte === karte);
-    return z.verlauf.ausfuehren(karte, name, ops);
+    return z.verlauf.ausfuehren(karte, name, this.#ohneGesperrte(ops));
+  }
+
+  /** Laufende Änderung (Pinselstrich, Ziehen) in die offene Verlaufsgruppe sammeln (verlauf.beginne/beende) */
+  sammle(ops) {
+    const k = this.karte;
+    if (!k) return [];
+    const fertig = k.anwenden(this.#ohneGesperrte(ops));
+    this.verlauf.sammle(fertig);
+    return fertig;
+  }
+
+  #gesperrtGemeldet = 0;
+  #ohneGesperrte(ops) {
+    const { ops: frei, ausgelassen } = filtereGesperrt(this.ebenen, ops);
+    const namen = Object.keys(ausgelassen);
+    if (namen.length && performance.now() - this.#gesperrtGemeldet > 1500) {
+      this.#gesperrtGemeldet = performance.now();
+      this.meldung(`🔒 Ebene ${namen.map((id) => `„${EBENEN.find((e) => e.id === id)?.name ?? id}“`).join(', ')} gesperrt oder ausgeblendet – Änderung ausgelassen (Reiter Ebenen)`, 'fehler');
+    }
+    return frei;
+  }
+
+  // --- Ebenen ------------------------------------------------------------------
+  setzeEbene(id, feld, wert) {
+    if (!this.ebenen[id] || !(feld in this.ebenen[id])) return;
+    this.ebenen[id][feld] = wert;
+    // Ausgeblendetes/Gesperrtes kann nicht ausgewählt bleiben
+    if (!ebeneFrei(this.ebenen, id)) for (const [sk, { s }] of this.auswahl) if (ebeneVon(s) === id) this.auswahl.delete(sk);
+    schreibeLokal(EBENEN_SPEICHER, this.ebenen);
+    this.melde('ebenen');
+    this.melde('auswahl');
+  }
+
+  ebeneFrei(id) {
+    return ebeneFrei(this.ebenen, id);
+  }
+
+  sichtbar(id) {
+    return this.ebenen[id]?.sichtbar !== false;
+  }
+
+  /** Asset aus Browser/Pipette wählen (meldet 'eintrag' → Optionsleiste, Asset-Browser) */
+  setzeEintrag(eintrag) {
+    this.eintrag = eintrag;
+    this.melde('eintrag');
   }
 
   rueckgaengig() {
@@ -259,5 +309,21 @@ export class Zustand {
   /** Nächste freie ID in einer Zahl-Sammlung (für Vorschauen) */
   static istIdSammlung(s) {
     return ID_SAMMLUNGEN.includes(s);
+  }
+}
+
+function liesLokal(schluessel) {
+  try {
+    return JSON.parse(localStorage.getItem(schluessel) ?? 'null');
+  } catch {
+    return null;
+  }
+}
+
+function schreibeLokal(schluessel, wert) {
+  try {
+    localStorage.setItem(schluessel, JSON.stringify(wert));
+  } catch {
+    /* gesperrter Speicher: gilt nur für diese Sitzung */
   }
 }

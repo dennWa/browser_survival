@@ -3,15 +3,15 @@ import { ausSchluessel } from '../kern/karte.js';
 import { bestaetigen, esc } from './dialoge.js';
 
 /**
- * Räume (Phase 6): Panel-Reiter „Räume“ – alle Räume der Zone mit Loot-Tabelle, Loot-Punkten und markierten Flächen.
+ * Räume (Phase 6): Reiter „🚪 Räume“ der linken Seitenleiste – alle Räume der Zone mit Loot-Tabelle, Loot-Punkten und markierten Flächen.
  * Ein Raum = Buchstabe a–z in `raeume` (Name, Loot-Tabelle, optional Chance/Nachschub). Markieren: Kategorie „Räume“
  * (Rechteck oder Füllen bis zu Wänden). Innen/Außen zeigt „Zone → Anzeige → Innen/Außen“ (Berechnung wie im Spiel).
  */
-export function raeumeUi({ zustand, panel, aktionen }) {
-  panel.reiter.set('Räume', () => {
+export function raeumeUi({ zustand, panel, aktionen, zeigeInspektor }) {
+  panel.registriere('🚪 Räume', () => {
     const k = zustand.karte;
     const el = panel.el;
-    el.innerHTML = '<h3>Räume</h3><p class="leise">Markieren: Kategorie „Räume“ (Rechteck oder 🪣 Füllen). Loot-Punkte: Kategorie „Loot“. Innen/Außen: Reiter Zone → Anzeige.</p>';
+    el.innerHTML = '<p class="leise">Markieren: Assets → Zonen & Logik → Räume (Rechteck oder 🪣 Füllen). Loot-Punkte: Assets → Gameplay → Loot. Innen/Außen: Ebenen → Anzeigen.</p>';
     if (!k.s('raeume').size) el.insertAdjacentHTML('beforeend', '<p>Noch keine Räume.</p>');
     for (const [b, r] of k.s('raeume')) {
       const punkte = [...k.s('marker')].filter(([, m]) => m.raum === b);
@@ -37,7 +37,7 @@ export function raeumeUi({ zustand, panel, aktionen }) {
         if (punkte[0]) zustand.waehle([{ s: 'marker', k: punkte[0][0] }]);
         else if (flaechen[0]) zustand.waehle([{ s: 'raumFlaechen', k: flaechen[0][0] }]);
         else return zustand.meldung('Raum hat weder Loot-Punkte noch Flächen – erst markieren', 'fehler');
-        panel.zeige('Eigenschaften');
+        zeigeInspektor();
       });
       knopf('🎁 Loot-Punkt setzen', () => {
         zustand.lootRaum = b;
@@ -51,7 +51,7 @@ export function raeumeUi({ zustand, panel, aktionen }) {
       el.append(div);
     }
     const neu = Object.assign(document.createElement('button'), { textContent: '➕ Neuer Raum' });
-    neu.addEventListener('click', () => aktionen.aktion('neuerRaum'));
+    neu.addEventListener('click', () => aktionen.neuerRaum());
     el.append(neu);
   });
 }

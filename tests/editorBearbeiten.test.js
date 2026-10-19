@@ -86,3 +86,63 @@ test('Prefab drehen: Tür-/Fenster-Bauwerke kippen ihre Ausrichtung auch ohne ge
   assert.equal(v.bauwerke[0].drehung, 1);
   assert.equal(v.bauwerke[1].drehung, 0);
 });
+
+// --- Editor 2.0, Schritt 1.2–1.4: Ebenen, Gruppen, Tastenkürzel --------------------------------
+import { EBENEN, ANZEIGEN, ebeneVon, ebenenAus, filtereGesperrt, standardEbenen } from '../editor/kern/ebenen.js';
+import { GRUPPEN, KATEGORIEN, gruppeVon, passtZurSuche, katalog } from '../editor/kern/katalog.js';
+import { SAMMLUNGEN } from '../editor/kern/karte.js';
+import { tastenKuerzel, Befehle } from '../editor/ui/befehle.js';
+
+test('Ebenen: jede Kartenänderung hat eine Ebene, gesperrte Ebenen werden ausgelassen, Speicherstand robust', () => {
+  for (const s of ['kachel', 'hoehe', ...SAMMLUNGEN.filter((x) => !['raeume', 'typen', 'texturen'].includes(x))]) assert.ok(ebeneVon(s), `Ebene für ${s}`);
+  for (const s of ['raeume', 'typen', 'texturen', 'wert', 'raster']) assert.equal(ebeneVon(s), null, `${s} ist immer änderbar`);
+  const e = standardEbenen();
+  e.objekte.gesperrt = true;
+  e.marker.sichtbar = false;
+  const { ops, ausgelassen } = filtereGesperrt(e, [{ s: 'objekte', k: 1, neu: null }, { s: 'kachel', i: 0, neu: '#' }, { s: 'ankuenfte', k: 'nord', neu: null }, { s: 'wert', pfad: 'name', neu: 'x' }]);
+  assert.deepEqual(ops.map((o) => o.s), ['kachel', 'wert']);
+  assert.deepEqual(ausgelassen, { objekte: 1, marker: 1 });
+  // Gespeichertes mit Müll → Standard
+  const g = ebenenAus({ objekte: { sichtbar: false, gesperrt: 'ja' }, raster: { sichtbar: false, gesperrt: true }, quatsch: {} });
+  assert.equal(g.objekte.sichtbar, false);
+  assert.equal(g.objekte.gesperrt, false);
+  assert.equal(g.raster.sichtbar, false);
+  assert.equal('gesperrt' in g.raster, false, 'Anzeigen sind nicht sperrbar');
+  assert.equal(Object.keys(g).length, EBENEN.length + ANZEIGEN.length);
+});
+
+test('Asset-Gruppen: jede Kategorie in genau einer Gruppe, Suche ohne Umlaute', () => {
+  for (const k of KATEGORIEN) assert.equal(GRUPPEN.filter((g) => g.kategorien.includes(k)).length, 1, k);
+  assert.equal(gruppeVon('Unbekannt').name, 'Eigene');
+  const tisch = katalog().find((e) => e.id === 'objekt:tisch');
+  assert.ok(passtZurSuche(tisch, 'TISCH'));
+  assert.ok(passtZurSuche(tisch, 'einrichtung tisch'), 'Gruppenname zählt');
+  const kueche = katalog().find((e) => e.typ === 'kueche_herd');
+  assert.ok(passtZurSuche(kueche, 'herd'));
+  assert.ok(passtZurSuche(katalog().find((e) => e.name.startsWith('Böden') || e.kategorie === 'Böden'), 'boeden'), 'ö = oe');
+  assert.ok(!passtZurSuche(tisch, 'auto'));
+});
+
+test('Tastenkürzel: Schreibweise, Umschalt nur bei Buchstaben, AltGr-Zeichen, Befehlsregister', () => {
+  const t = (key, extra = {}) => tastenKuerzel({ key, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, code: '', ...extra });
+  assert.equal(t('z', { ctrlKey: true }), 'Strg+Z');
+  assert.equal(t('Z', { ctrlKey: true, shiftKey: true }), 'Strg+Umschalt+Z');
+  assert.equal(t('z', { metaKey: true }), 'Strg+Z', '⌘ = Strg');
+  assert.equal(t('?', { shiftKey: true }), '?', 'Umschalt steckt im Zeichen');
+  assert.equal(t('ArrowLeft', { shiftKey: true }), 'Umschalt+Links');
+  assert.equal(t('Delete'), 'Entf');
+  assert.equal(t('['), '[');
+  assert.equal(t('[', { ctrlKey: true, altKey: true, getModifierState: (m) => m === 'AltGraph' }), '[', 'AltGr+8 auf deutscher Tastatur');
+  assert.equal(t('Shift', { shiftKey: true }), null);
+  const befehle = new Befehle();
+  let n = 0;
+  let gesperrt = false;
+  befehle.registriere({ id: 'x.a', name: 'A', kuerzel: ['Strg+S'], inEingabe: true, ausfuehren: () => n++ }, { id: 'x.b', name: 'B', kuerzel: ['V'], verfuegbar: () => !gesperrt, ausfuehren: () => (n += 10) });
+  const ev = (key, extra = {}) => ({ key, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, preventDefault() {}, ...extra });
+  assert.ok(befehle.behandleTaste(ev('s', { ctrlKey: true }), { inEingabe: true }));
+  assert.ok(!befehle.behandleTaste(ev('v'), { inEingabe: true }), 'Werkzeug-Tasten nicht beim Tippen');
+  assert.ok(befehle.behandleTaste(ev('v')));
+  gesperrt = true;
+  befehle.behandleTaste(ev('v'));
+  assert.equal(n, 11);
+});
