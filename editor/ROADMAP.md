@@ -15,19 +15,16 @@
 - Phase 2 komplett (2.1–2.5): Licht (kein Sichtkegel, dunkle Nächte, Kegel-Lampen), Wände ziehen, Gelände-Werkzeuge,
   Gelände im Spiel begehbar/sichtbar (`gemeinsam/welt/gelaende.js`), Ego-Zielen mit Neigung.
 
-**In Arbeit: Phase 3 (Asset-Management).** Bisher: `werkzeuge/assets/baue_3d.mjs --nur-vendor` + OBJLoader/GLTFExporter
-im Addon-Bündel (`client/vendor/three/addons.js`). Geplanter Entwurf:
-- `editor/kern/bibliothek.js` (umgebungsfrei, getestet): `assetId(bytes)` (FNV → `m_…`, gleiche Datei = gleiche ID),
-  `istGlb`, `glbInfo` (Dreiecke, Animationen, nicht unterstützte Kompression), `gltfZuGlb` (eingebettetes .gltf → .glb),
-  Base64-Helfer, `setzeModellQuelle(fn)`/`mitModell(typ)` (löst `typ.asset` → `typ.glb` auf), `verwendungen(zonen, id)`.
-- Karten-Typen verweisen per `asset: '<id>'` (statt `glb` Data-URL im Entwurf). `format.nachDefinition` bettet `glb`
-  ein (Test/Export/Veröffentlichen bleiben selbständig). Alte Typen mit `glb` wandern beim Laden in die Bibliothek.
-- `editor/ui/speicher.js`: Bereich `assets` (DB-Version 2, Blob). `editor/ui/bibliothek.js`: Cache id → Data-URL + Meta.
-- Entwurf-Download und Komplett-Backup nehmen benutzte Modelle mit (`bibliothek: [...]`), Öffnen/Wiederherstellen übernimmt sie.
-- UI: Reiter „📦 Modelle“ links (Drag & Drop mehrerer Dateien, Ordner, Tags, Suche, Vorschaubild per WebGL, Maße
-  automatisch), Einträge auch im Asset-Browser; Löschen mit Abhängigkeitsprüfung (mitlöschen/ersetzen).
-- 3.2: Bild → 3D und Grafik-Antrag ausblenden (Code bleibt). 3.3: `eigeneModelle.mjs` räumt verwaiste `<karte>_*.glb` auf.
-- 3.5: Poly Pizza (API-Schlüssel nur localStorage, wie Gemini).
+- Phase 3 komplett (3.1–3.5): Modell-Bibliothek (`editor/kern/bibliothek.js`, `editor/ui/bibliothek.js`, IndexedDB-Bereich
+  `assets`), Typen verweisen per `asset` (Export/Test/Veröffentlichen betten `glb` ein), Upload .glb/.gltf/.obj/.fbx mit Maßen,
+  Vorschaubild, Ordnern, Tags (`ui/modellImport.js`, `ui/modelleUi.js`), Löschen mit Abhängigkeiten (mitlöschen/ersetzen),
+  `karte:editor` räumt verwaiste Modelle auf, Poly Pizza (`kern/quellen.js`; echte API ungetestet – ohne Schlüssel, Preflight
+  ohne CORS-Kopf → Rückfall Link + „Datei mit Lizenzangaben“ ist eingebaut), Bild→3D + Grafik-Antrag ausgeblendet.
+
+**Als Nächstes: Phase 4 (Audio-Engine, Tabelle unten).** Ideen für den Einstieg: Audio-Bibliothek analog zur Modell-Bibliothek
+(IndexedDB-Bereich `audio`, Ordner/Tags, `kern/bibliothek.js` als Vorbild), Bearbeitung nicht-destruktiv als Parameter
+(Start/Ende, Fades, Lautstärke, Tonhöhen-Streuung) statt Datei-Schnitt; Spiel-Seite: `client/` hat schon Audio (siehe Manifest
+„Audio“), Zonen-Ambience/BGM als Erweiterungsfeld der Karte (`musik` gibt es schon) + Klang-Objekte (Typ `klang`).
 
 **Danach:** Phasen 4–9 laut Tabellen unten (4 Audio, 5 3D-Modul, 6 Zonen/Loot, 7 UX, 8 Testlauf, 9 KI).
 
@@ -72,11 +69,11 @@ im Addon-Bündel (`client/vendor/three/addons.js`). Geplanter Entwurf:
 ## Phase 3 – Asset-Management (Modelle, Sounds, Importe)
 | # | Schritt | Größe |
 |---|---|---|
-| ☐ 3.1 | **Projekt-Bibliothek:** IndexedDB-Speicher `assets` (Dateien als Blob statt Base64 in der Karte), Metadaten (Name, Art, Ordner/Kategorie, Tags, Maße, Dreiecke, Animationen, Lizenz, Urheber, Quelle, Vorschaubild); Karten verweisen per Asset-ID; automatische Übernahme vorhandener `glb`-Typen; Test/Export/Veröffentlichen betten ein bzw. legen Dateien ab | L |
-| ☐ 3.2 | **„Eigene“ nur 3D-Formate:** .glb, .gltf (eingebettet), optional .obj/.fbx → intern zu .glb; Prüfung per Datei-Signatur + Probe-Laden, Größen-/Dreieckswarnung; **Bild → 3D und Grafik-Antrag deaktiviert** (ausgeblendet, Code bleibt) | M |
-| ☐ 3.3 | **Löschen:** Modell in Bibliothek/Typ löschen mit Abhängigkeitsprüfung („wird in 2 Zonen von 14 Objekten benutzt“ → mitlöschen oder ersetzen); verschwindet aus dem Browser-Speicher; aus dem Repo beim nächsten `npm run karte:editor` (räumt verwaiste Dateien in `client/assets/eigene/` + LIZENZEN.md auf) – je nach Entscheidung F3 zusätzlich direkt | M |
-| ☐ 3.4 | **GLB-Upload & Kategorien:** Drag & Drop (mehrere Dateien), Zuordnung zu Kategorie/eigenem Ordner + Tags, automatische Maße/Kollisionsbox aus dem Modell, Vorschaubild (3D-Render), sofort im Asset-Browser auffindbar (Suche nach Name/Tag) | M |
-| ☐ 3.5 | **Externe Bibliotheken:** Poly Pizza (CC0/CC-BY, eigener kostenloser API-Schlüssel nur im Browser wie bei Gemini): Suche, Vorschau, Lizenzanzeige, „Übernehmen“ → Bibliothek mit Urheber/Lizenz/Quelle (→ LIZENZEN.md/Credits). Quellen als Adapter (weitere später); Fallback ohne CORS: Link + Datei-Import | M |
+| ☑ 3.1 | **Projekt-Bibliothek:** IndexedDB-Speicher `assets` (Dateien als Blob statt Base64 in der Karte), Metadaten (Name, Art, Ordner/Kategorie, Tags, Maße, Dreiecke, Animationen, Lizenz, Urheber, Quelle, Vorschaubild); Karten verweisen per Asset-ID; automatische Übernahme vorhandener `glb`-Typen; Test/Export/Veröffentlichen betten ein bzw. legen Dateien ab | L |
+| ☑ 3.2 | **„Eigene“ nur 3D-Formate:** .glb, .gltf (eingebettet), optional .obj/.fbx → intern zu .glb; Prüfung per Datei-Signatur + Probe-Laden, Größen-/Dreieckswarnung; **Bild → 3D und Grafik-Antrag deaktiviert** (ausgeblendet, Code bleibt) | M |
+| ☑ 3.3 | **Löschen:** Modell in Bibliothek/Typ löschen mit Abhängigkeitsprüfung („wird in 2 Zonen von 14 Objekten benutzt“ → mitlöschen oder ersetzen); verschwindet aus dem Browser-Speicher; aus dem Repo beim nächsten `npm run karte:editor` (räumt verwaiste Dateien in `client/assets/eigene/` + LIZENZEN.md auf) – je nach Entscheidung F3 zusätzlich direkt | M |
+| ☑ 3.4 | **GLB-Upload & Kategorien:** Drag & Drop (mehrere Dateien), Zuordnung zu Kategorie/eigenem Ordner + Tags, automatische Maße/Kollisionsbox aus dem Modell, Vorschaubild (3D-Render), sofort im Asset-Browser auffindbar (Suche nach Name/Tag) | M |
+| ☑ 3.5 | **Externe Bibliotheken:** Poly Pizza (CC0/CC-BY, eigener kostenloser API-Schlüssel nur im Browser wie bei Gemini): Suche, Vorschau, Lizenzanzeige, „Übernehmen“ → Bibliothek mit Urheber/Lizenz/Quelle (→ LIZENZEN.md/Credits). Quellen als Adapter (weitere später); Fallback ohne CORS: Link + Datei-Import | M |
 | – 3.6 | Audio → eigene Phase 4 (Nutzer-Zusatz 2026-10-19) | – |
 
 ## Phase 4 – Audio-Engine & Soundscape (Zusatzmodul)

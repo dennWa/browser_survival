@@ -6,6 +6,7 @@
  *   npm run karte:editor -- downloads/meinezone.karte.json [--id neue_id]
  *
  * Danach: npm test (prüft Spawns, Loot, Übergänge, Erreichbarkeit) und committen.
+ * 3D-Modelle: Karten-Export bettet sie ein; eine Entwurf-Datei bringt sie in `bibliothek` mit (Typen verweisen per `asset`).
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -15,7 +16,8 @@ import { alsJsModul } from '../../editor/kern/veroeffentlichen.js';
 import { validiere, hatFehler } from '../../editor/kern/validierung.js';
 import { verarbeiteKarte } from '../../server/spiel/karten/kartenLader.js';
 import { registriere } from './registrieren.mjs';
-import { schreibeEigeneModelle } from './eigeneModelle.mjs';
+import { leseBibliotheksExport, setzeModellQuelle, bytesZuGlbUrl } from '../../editor/kern/bibliothek.js';
+import { schreibeEigeneModelle, raeumeEigeneModelleAuf } from './eigeneModelle.mjs';
 
 const WURZEL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const KARTEN_ORDNER = path.join(WURZEL, 'server/spiel/karten');
@@ -25,7 +27,11 @@ const neueId = i >= 0 ? rest[i + 1] : null;
 
 try {
   if (!datei) throw new Error('Benutzung: npm run karte:editor -- <datei.karte.json|datei.entwurf.json> [--id neue_id]');
-  const { karte, warnungen } = ladeDatei(readFileSync(datei, 'utf8'));
+  const roh = JSON.parse(readFileSync(datei, 'utf8'));
+  // Entwurf-Datei: Modelle aus `bibliothek` → Typen mit `asset` bekommen beim Export ihr glb (kern/bibliothek.js)
+  const modelle = new Map(leseBibliotheksExport(roh.bibliothek).map((e) => [e.id, bytesZuGlbUrl(e.bytes)]));
+  setzeModellQuelle((id) => modelle.get(id) ?? null);
+  const { karte, warnungen } = ladeDatei(roh);
   if (neueId) karte.anwenden([{ s: 'wert', pfad: 'id', neu: neueId }]);
   for (const w of warnungen) console.log(`  ⚠ ${w}`);
   const probleme = validiere(karte, { mitErreichbarkeit: true });
@@ -33,6 +39,7 @@ try {
   if (hatFehler(probleme)) throw new Error('Karte hat Fehler (siehe oben) – im Editor beheben');
   const definition = nachDefinition(karte);
   for (const d of schreibeEigeneModelle(definition, path.join(WURZEL, 'client'))) console.log(`  ✓ ${d} (eigenes 3D-Modell)`);
+  for (const d of raeumeEigeneModelleAuf(definition, path.join(WURZEL, 'client'))) console.log(`  🗑 ${d} (nicht mehr benutzt – entfernt)`);
   verarbeiteKarte(definition); // wirft bei allem, was das Spiel nicht laden könnte
   const ziel = path.join(KARTEN_ORDNER, `${definition.id}.js`);
   writeFileSync(ziel, alsJsModul(definition));

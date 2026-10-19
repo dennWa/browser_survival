@@ -4,13 +4,14 @@ import { dateiWaehlen, herunterladen } from './speicher.js';
 import { verkleinereBild } from './bild3d.js';
 
 /**
- * Eigene Objekte & Grafik (Phase 10):
+ * Eigene Objekte & Grafik (Phase 10, Phase 3 von Editor 2.0):
  *   • Neues Objekt anlegen (Name, Größe, Kollision, Ebene, Kategorie, Farbe, 3D-Höhe) → Sammlung `typen` der Karte,
  *     erscheint in der Bauleiste seiner Kategorie. Im Spiel: Platzhalter-Quader, bis eine Grafik per Pipeline kommt.
- *   • Bild → 3D: Bild hochladen → Billboard oder Extrusion (Alpha-Maske); KI-Umwandlung nur als gekennzeichneter Platzhalter.
- *   • 3D-Modell (.glb): Datei als Data-URL in den Typ (`glb`); 3D-Ansicht lädt und skaliert es auf den Fußabdruck.
- *   • Neue Grafik (Antrag): erzeugt <id>.grafik.json (Bild + Lizenz CC0/CC-BY Pflicht + Urheber + Quelle) für
- *     werkzeuge/assets/editor_grafiken/ → baue_assets.py packt es in den Atlas und schreibt die Credits fort (Projektregel 6).
+ *   • 3D-Modelle: seit Phase 3 über die Projekt-Bibliothek (ui/modelleUi.js, Reiter „📦 Modelle“); `modell3d` leitet dorthin.
+ *   • Ausgeblendet seit Schritt 3.2 (Nutzer-Wunsch „nur 3D-Formate“, Code bleibt, Aufruf nur noch über aktionen.*):
+ *     Bild → 3D (Billboard/Extrusion, `aktionen.bild3d`) und Neue Grafik (Antrag `<id>.grafik.json` für
+ *     werkzeuge/assets/editor_grafiken/ → baue_assets.py, Lizenz CC0/CC-BY Pflicht, `aktionen.grafik`). Vorhandene Bild-Typen
+ *     werden weiter angezeigt.
  *   • Farbe/Textur je Objekttyp (Sammlung `texturen`) – pro Objekt geht es im Eigenschaften-Panel.
  */
 const ID_MUSTER = /^[a-z0-9_]{1,40}$/;
@@ -44,7 +45,7 @@ export function eigeneUi({ zustand, aktionen }) {
 
   aktionen.neuerTyp = async () => {
     if (!zustand.karte) return;
-    const w = await formular('✚ Neues Objekt anlegen', typFelder(), { okText: 'Anlegen', pruefe: pruefeId(true), text: 'Ein neuer Objekttyp für diese Karte. Grafik später über „🎨 Neue Grafik“ oder „🖼 Bild → 3D“.' });
+    const w = await formular('✚ Neues Objekt anlegen', typFelder(), { okText: 'Anlegen', pruefe: pruefeId(true), text: 'Ein neuer Objekttyp für diese Karte – im Spiel ein farbiger Quader. Für ein echtes 3D-Modell: 📦 Modelle (Datei hochladen).' });
     if (w) speichereTyp(w);
   };
 
@@ -81,8 +82,9 @@ export function eigeneUi({ zustand, aktionen }) {
     speichereTyp(w, { bild, modus: w.modus, tiefe: w.tiefe ?? 0.3 });
   };
 
-  // 3D-Modell (.glb) als Objekttyp: Datei wird als Data-URL in den Typ geschrieben (`glb`), die Karte bleibt damit eine Datei.
-  aktionen.modell3d = async () => {
+  // Alt (vor Phase 3): .glb als Data-URL direkt in den Typ. Neu: Projekt-Bibliothek – der alte Weg bleibt nur als Rückfall.
+  aktionen.modell3d = () => (aktionen.modellHochladen ? aktionen.modellHochladen() : alterModellDialog());
+  const alterModellDialog = async () => {
     if (!zustand.karte) return;
     const datei = await dateiWaehlen('.glb,model/gltf-binary', true);
     if (!datei) return;

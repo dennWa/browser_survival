@@ -8,10 +8,10 @@
  * Ablauf: Login-Link → Editor → neue Zone (Rechteck aufziehen) → Kacheln malen (Pinsel, Rechteck, Linie, Füllen) →
  * Objekt platzieren + drehen + verschieben → Rückgängig/Wiederholen → Spielzone Waldweg als Vorlage öffnen → Auswahl +
  * Ausschnitt-Export → Zone vergrößern → 3D-Ansicht → Validierung → Neu laden (Entwurf + Verlauf bleiben) → Karte testen.
- * Editor 2.0: Menüleiste, Asset-Browser (Suche), Kontextmenü, Ebenen sperren, Hilfe mit Suche.
+ * Editor 2.0: Menüleiste, Asset-Browser (Suche), Kontextmenü, Ebenen sperren, Hilfe mit Suche, Modell-Bibliothek (Phase 3).
  */
 import { spawn, execSync } from 'node:child_process';
-import { mkdirSync, readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -203,6 +203,72 @@ try {
   await seite.click('#dialog button:has-text("Wiederherstellen")');
   const zurueckGeholt = await seite.evaluate(() => ({ da: window.mapEditor.zustand.zonen.has('testzone'), obj: window.mapEditor.zustand.zonen.get('testzone')?.karte.s('objekte').size }));
   pruefe(zurueckGeholt.da && zurueckGeholt.obj === 1, `Backup wiederhergestellt (${JSON.stringify(zurueckGeholt)})`);
+
+  schritt('Phase 3: Modell-Bibliothek – .glb/.obj hochladen, platzieren, Poly Pizza (gemockt), Löschen mit Abhängigkeit');
+  const { gltfZuGlb, bytesZuBase64 } = await import('../../editor/kern/bibliothek.js');
+  const wuerfel = (farbe) => {
+    const pos = new Float32Array([-0.5, 0, -0.5, 0.5, 0, -0.5, 0.5, 1.5, -0.5, -0.5, 1.5, -0.5, -0.5, 0, 0.5, 0.5, 0, 0.5, 0.5, 1.5, 0.5, -0.5, 1.5, 0.5]);
+    const ind = new Uint16Array([0, 1, 2, 0, 2, 3, 4, 6, 5, 4, 7, 6, 0, 4, 5, 0, 5, 1, 3, 2, 6, 3, 6, 7, 0, 3, 7, 0, 7, 4, 1, 5, 6, 1, 6, 2]);
+    const puffer = Buffer.concat([Buffer.from(pos.buffer), Buffer.from(ind.buffer)]);
+    return gltfZuGlb({ asset: { version: '2.0' }, scenes: [{ nodes: [0] }], nodes: [{ mesh: 0 }], materials: [{ pbrMetallicRoughness: { baseColorFactor: farbe } }],
+      meshes: [{ primitives: [{ attributes: { POSITION: 0 }, indices: 1, material: 0 }] }],
+      accessors: [{ bufferView: 0, componentType: 5126, count: 8, type: 'VEC3', min: [-0.5, 0, -0.5], max: [0.5, 1.5, 0.5] }, { bufferView: 1, componentType: 5123, count: 36, type: 'SCALAR' }],
+      bufferViews: [{ buffer: 0, byteLength: pos.byteLength }, { buffer: 0, byteOffset: pos.byteLength, byteLength: ind.byteLength }],
+      buffers: [{ byteLength: puffer.length, uri: `data:application/octet-stream;base64,${bytesZuBase64(new Uint8Array(puffer))}` }] });
+  };
+  const glbPfad = path.join(AUSGABE, 'rauchtest_saeule.glb');
+  writeFileSync(glbPfad, wuerfel([0.8, 0.2, 0.2, 1]));
+  const objPfad = path.join(AUSGABE, 'rauchtest_kiste.obj');
+  writeFileSync(objPfad, 'v -1 0 -1\nv 1 0 -1\nv 1 0 1\nv -1 0 1\nv -1 1 -1\nv 1 1 -1\nv 1 1 1\nv -1 1 1\nf 1 2 3 4\nf 5 8 7 6\nf 1 5 6 2\nf 2 6 7 3\nf 3 7 8 4\nf 4 8 5 1\n');
+  await seite.evaluate(async () => {
+    for (const m of window.mapEditor.bibliothek.liste) await window.mapEditor.bibliothek.entferne(m.id);
+  });
+  await seite.click('#links [data-reiter="📦 Modelle"]');
+  const [modellWahl] = await Promise.all([seite.waitForEvent('filechooser'), seite.click('#links [data-waehlen]')]);
+  await modellWahl.setFiles([glbPfad, objPfad]);
+  await seite.waitForSelector('#dialog h2:has-text("Hochladen")', { timeout: 20000 }); // Hinweis: OBJ umgewandelt
+  await seite.click('#dialog button:has-text("OK")');
+  const bib = await seite.evaluate(() => window.mapEditor.bibliothek.liste.map((m) => ({ name: m.name, masse: m.masse, vorschau: !!m.vorschau })));
+  pruefe(bib.length === 2 && bib.every((m) => m.vorschau) && bib.find((m) => m.name === 'rauchtest saeule')?.masse.hoehe === 1.5, `2 Modelle mit Maßen + Vorschaubild (${JSON.stringify(bib)})`);
+  await seite.click('#links .modell:has-text("rauchtest saeule")');
+  await klick(14, 4); // frei: im Raum aus Schritt 2.2
+  await seite.keyboard.press('Escape');
+  const typ = await seite.evaluate(() => [...window.mapEditor.zustand.karte.s('typen').values()].find((t) => t.asset));
+  pruefe(typ && !typ.glb && (await seite.evaluate(() => [...window.mapEditor.zustand.karte.s('objekte').values()].some((o) => o.typ.startsWith('m_')))), 'Modell platziert, Typ verweist nur per asset-ID');
+  const exportGlb = await seite.evaluate(async () => Object.values((await import('/editor/kern/format.js')).nachDefinition(window.mapEditor.zustand.karte).typen ?? {}).some((t) => t.glb?.startsWith('data:model/gltf-binary;base64,')));
+  pruefe(exportGlb, 'Export/Test betten das Modell ein');
+  await seite.fill('#links .modelle-filter input', '#keintreffer');
+  pruefe((await seite.locator('#links .modell').count()) === 0, 'Suche filtert');
+  await seite.fill('#links .modelle-filter input', '');
+  // Poly Pizza: API + Download gemockt – Schlüssel nur im Header
+  let pizza = null;
+  await seite.route('https://api.poly.pizza/**', async (route) => {
+    pizza = { url: route.request().url(), schluessel: route.request().headers()['x-auth-token'] };
+    await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ total: 2, results: [{ ID: 'tst', Title: 'Blauer Pfeiler', Licence: 'CC-BY 3.0', Creator: { Username: 'Testerin' }, Download: 'https://static.poly.pizza/tst.glb', Thumbnail: '' }, { ID: 'nc', Title: 'Verboten', Licence: 'CC-BY-NC 4.0', Download: 'https://static.poly.pizza/nc.glb' }] }) });
+  });
+  await seite.route('https://static.poly.pizza/**', (route) => route.fulfill({ status: 200, contentType: 'model/gltf-binary', headers: { 'access-control-allow-origin': '*' }, body: Buffer.from(wuerfel([0.2, 0.3, 0.9, 1])) }));
+  await seite.click('#links [data-poly]');
+  await seite.fill('#dialog [name="schluessel"]', 'PIZZAKEY');
+  await seite.fill('#dialog [name="suche"]', 'pillar');
+  await seite.click('#dialog [data-suchen]');
+  await seite.waitForSelector('#dialog .quelle-liste .modell', { timeout: 10000 });
+  pruefe((await seite.locator('#dialog .quelle-liste .modell').count()) === 1 && pizza?.schluessel === 'PIZZAKEY' && !pizza.url.includes('PIZZAKEY'), 'Poly Pizza: nur CC0/CC-BY, Schlüssel im Header');
+  await seite.click('#dialog .quelle-liste .modell');
+  await seite.waitForFunction(() => window.mapEditor.bibliothek.liste.some((m) => m.urheber === 'Testerin'), null, { timeout: 15000 });
+  await seite.screenshot({ path: path.join(AUSGABE, 'editor-12-polypizza.png') });
+  await seite.click('#dialog button:has-text("Schließen")');
+  const pfeiler = await seite.evaluate(() => window.mapEditor.bibliothek.liste.find((m) => m.urheber === 'Testerin'));
+  pruefe(pfeiler?.lizenz === 'CC-BY 3.0' && pfeiler.quelle === 'https://poly.pizza/m/tst', 'Übernommen mit Lizenz, Urheber, Quelle');
+  // Löschen: unbenutzt → einfache Rückfrage; benutzt → Abhängigkeiten (hier: ersetzen durch den Pfeiler)
+  await seite.click('#links .modell:has-text("rauchtest saeule") [data-bearbeiten]');
+  await seite.click('#dialog button:has-text("Löschen")');
+  await seite.waitForSelector('#dialog h2:has-text("Modell löschen")');
+  pruefe((await seite.locator('#dialog').textContent()).includes('1 Objekt'), 'Löschen zeigt die Verwendung');
+  await seite.selectOption('#dialog [name="ersatz"]', pfeiler.id);
+  await seite.click('#dialog button:has-text("Ersetzen & löschen")');
+  const nachErsatz = await seite.evaluate((id) => ({ n: window.mapEditor.bibliothek.liste.length, typ: [...window.mapEditor.zustand.karte.s('typen').values()].find((t) => t.asset)?.asset === id }), pfeiler.id);
+  pruefe(nachErsatz.n === 2 && nachErsatz.typ, `Modell ersetzt und gelöscht (${JSON.stringify(nachErsatz)})`);
+  await seite.click('#links [data-reiter="🧱 Assets"]');
 
   if (!nurBis) {
     schritt('Spielzone Waldweg als Vorlage');

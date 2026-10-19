@@ -3,6 +3,7 @@ import { LOOT_TABELLEN } from '../../server/spiel/konfiguration/lootTabellen.js'
 import { BAUWERKE } from '../../gemeinsam/welt/bauwerke.js';
 import { KACHEL_GROESSE } from '../../gemeinsam/konstanten.js';
 import { nachDefinition } from './format.js';
+import { hatModell } from './bibliothek.js';
 import { ausSchluessel } from './karte.js';
 import { istBekannterTyp } from './katalog.js';
 import { ZONEN_ID_MUSTER } from './zone.js';
@@ -47,9 +48,15 @@ export function validiere(karte, { zonen = null, mitErreichbarkeit = true } = {}
     else if (o.ebene !== 'oben' && (o.x < 0 || o.y < 0 || o.x + o.b > karte.breite + 1e-9 || o.y + o.h > karte.hoehe + 1e-9)) warnung('objekt-rand', `Objekt „${o.typ}“ ragt über den Rand`, Math.floor(o.x), Math.floor(o.y));
     if (!(o.b > 0 && o.h > 0)) fehler('objekt-groesse', `Objekt „${o.typ}“ ohne Größe`, Math.floor(o.x), Math.floor(o.y));
     if (!istBekannterTyp(o.typ, karte)) warnung('objekt-typ', `Unbekannter Objekttyp „${o.typ}“ (Spiel zeichnet einen Ersatz-Quader)`, Math.floor(o.x), Math.floor(o.y));
-    else if (karte.s('typen').has(o.typ) && !karte.s('typen').get(o.typ).glb && !eigeneGemeldet.has(o.typ)) {
-      eigeneGemeldet.add(o.typ);
-      warnung('eigener-typ', `Eigener Typ „${o.typ}“: im Spiel ein Platzhalter-Quader (ohne 3D-Modell)`, Math.floor(o.x), Math.floor(o.y));
+    else if (karte.s('typen').has(o.typ) && !eigeneGemeldet.has(o.typ)) {
+      const t = karte.s('typen').get(o.typ);
+      if (t.asset && !t.glb && !t.glbDatei && !hatModell(t.asset)) {
+        eigeneGemeldet.add(o.typ);
+        warnung('modell-fehlt', `Typ „${o.typ}“: 3D-Modell fehlt in der Bibliothek (anderer Browser? Backup/Entwurf-Datei mit Modellen öffnen)`, Math.floor(o.x), Math.floor(o.y));
+      } else if (!t.glb && !t.asset && !t.glbDatei) {
+        eigeneGemeldet.add(o.typ);
+        warnung('eigener-typ', `Eigener Typ „${o.typ}“: im Spiel ein Platzhalter-Quader (ohne 3D-Modell)`, Math.floor(o.x), Math.floor(o.y));
+      }
     }
   }
   // Nächte sind dunkel (Editor 2.0, 2.1): Licht gibt es nur an Lampen, Laternen, Scheinwerfern und Lagerfeuern

@@ -177,7 +177,10 @@ export function inspektor({ zustand, leiste, aktionen, befehle }) {
       setze(name, neu);
     });
     if (o.farbe && o.typ !== 'licht') knoepfe(el, [['Farbe entfernen', () => setze('farbe', setzeOptional(o, 'farbe', undefined))]]);
-    if (k.s('typen').has(o.typ)) knoepfe(el, [[`✎ Typ „${o.typ}“ bearbeiten`, () => aktionen.typBearbeiten?.(o.typ)]]);
+    if (k.s('typen').has(o.typ)) {
+      const asset = k.s('typen').get(o.typ).asset;
+      knoepfe(el, [[`✎ Typ „${o.typ}“ bearbeiten`, () => aktionen.typBearbeiten?.(o.typ)], ...(asset ? [['🧊 Modell (Bibliothek)', () => aktionen.modellBearbeiten?.(asset)]] : [])]);
+    }
   }
 
   function markerFelder(el, schl, m, setze) {

@@ -5,6 +5,7 @@ import { validiere, hatFehler } from '../kern/validierung.js';
 import { veroeffentlichung } from '../kern/veroeffentlichen.js';
 import { AKTIONEN_ANLEITUNG } from '../kern/ausschnitt.js';
 import { baueBackup, leseBackup, backupDateiname, groesseText, EINSTELLUNGEN_WHITELIST } from '../kern/backup.js';
+import { benutzteModelle } from '../kern/bibliothek.js';
 import { herunterladen, dateiWaehlen } from './speicher.js';
 import { dialog, schliesse, bestaetigen, esc } from './dialoge.js';
 
@@ -12,9 +13,18 @@ import { dialog, schliesse, bestaetigen, esc } from './dialoge.js';
  * Menü „Datei“ (aus main.js herausgelöst, Editor 2.0 Schritt 1.2): neue Zone, öffnen (Spielzone als Vorlage, Entwurf, Datei),
  * lokal speichern, als Datei herunterladen, Export (JSON, LIESMICH, alle Entwürfe), Veröffentlichen,
  * Komplett-Backup + Wiederherstellen + Speicherplatz (Schritt 1.6, Format kern/backup.js – ohne Gemini-Schlüssel).
+ * 3D-Modelle (Phase 3, ui/bibliothek.js): Entwurf-Datei und Backup nehmen die benutzten bzw. alle Modelle mit (`bibliothek`),
+ * Öffnen/Wiederherstellen übernimmt sie in die Projekt-Bibliothek; Export/Veröffentlichen betten sie als `glb` ein.
  * Der Editor schreibt NIE Repo-Dateien – Veröffentlichen = Download + `npm run karte:editor`.
  */
-export function dateiAktionen({ zustand, zeichner, werkzeuge, aktionen, rechts }) {
+export function dateiAktionen({ zustand, zeichner, werkzeuge, aktionen, rechts, bibliothek }) {
+  /** Entwurf als Datei: mit den Modellen, die die Zone benutzt (sonst fehlen sie auf einem anderen Gerät) */
+  const entwurfDatei = (karte, verlauf) => {
+    const j = entwurfJson(karte, verlauf);
+    const modelle = bibliothek?.exportiere(benutzteModelle(karte)) ?? [];
+    return modelle.length ? { ...j, bibliothek: modelle } : j;
+  };
+
   const spielZonenPuffer = new Map();
   const ausDefinitionGepuffert = (id, d) => {
     if (!spielZonenPuffer.has(id)) spielZonenPuffer.set(id, ausDefinition(d).karte);
@@ -74,7 +84,15 @@ export function dateiAktionen({ zustand, zeichner, werkzeuge, aktionen, rechts }
 
     async oeffneDatei(text, name = '') {
       try {
-        const { karte, verlauf, warnungen, art } = ladeDatei(text);
+        let roh = text;
+        try {
+          roh = typeof text === 'string' ? JSON.parse(text) : text;
+        } catch {
+          /* ladeDatei meldet den Fehler */
+        }
+        const neueModelle = roh?.bibliothek && bibliothek ? await bibliothek.importiere(roh.bibliothek) : 0;
+        const { karte, verlauf, warnungen, art } = ladeDatei(roh);
+        if (neueModelle) warnungen.unshift(`${neueModelle} 3D-Modell(e) in die Bibliothek übernommen`);
         if (zustand.zonen.has(karte.id) && !(await bestaetigen('Entwurf ersetzen?', `„${esc(karte.id)}“ ist schon im Projekt. Ersetzen?`, { ok: 'Ersetzen', gefahr: true }))) return;
         zustand.fuegeZoneHinzu(karte, verlauf);
         zeichner.einpassen();
@@ -94,12 +112,12 @@ export function dateiAktionen({ zustand, zeichner, werkzeuge, aktionen, rechts }
     async herunterladen() {
       if (!zustand.karte) return;
       await zustand.speichereJetzt();
-      herunterladen(`${zustand.karte.id}.entwurf.json`, JSON.stringify(entwurfJson(zustand.karte, zustand.verlauf)));
+      herunterladen(`${zustand.karte.id}.entwurf.json`, JSON.stringify(entwurfDatei(zustand.karte, zustand.verlauf)));
       zustand.meldung('💾 Entwurf als Datei heruntergeladen (mit Verlauf)', 'ok');
     },
 
     alleHerunterladen() {
-      for (const [id, e] of zustand.zonen) herunterladen(`${id}.entwurf.json`, JSON.stringify(entwurfJson(e.karte, e.verlauf)));
+      for (const [id, e] of zustand.zonen) herunterladen(`${id}.entwurf.json`, JSON.stringify(entwurfDatei(e.karte, e.verlauf)));
     },
 
     exportJson() {
@@ -150,10 +168,10 @@ export function dateiAktionen({ zustand, zeichner, werkzeuge, aktionen, rechts }
           /* gesperrt oder kaputt → weglassen */
         }
       }
-      const b = baueBackup({ entwuerfe: [...zustand.zonen].map(([id, e]) => ({ id, entwurf: entwurfJson(e.karte, e.verlauf) })), prefabs, meta: { layout: zustand.layout, aktiv: zustand.aktivId }, einstellungen });
+      const b = baueBackup({ entwuerfe: [...zustand.zonen].map(([id, e]) => ({ id, entwurf: entwurfJson(e.karte, e.verlauf) })), prefabs, meta: { layout: zustand.layout, aktiv: zustand.aktivId }, einstellungen, bibliothek: bibliothek?.exportiere() ?? [] });
       const text = JSON.stringify(b);
       herunterladen(backupDateiname(), text);
-      zustand.meldung(`🛟 Komplett-Backup: ${b.entwuerfe.length} Zonen, ${Object.keys(prefabs).length} Prefabs (${groesseText(text.length)})`, 'ok');
+      zustand.meldung(`🛟 Komplett-Backup: ${b.entwuerfe.length} Zonen, ${Object.keys(prefabs).length} Prefabs, ${b.bibliothek.length} Modelle (${groesseText(text.length)})`, 'ok');
     },
 
     /** Backup-Datei laden → Auswahl, was zurückkommt → Entwürfe ersetzen/ergänzen, Prefabs + Anordnung übernehmen */
@@ -170,6 +188,7 @@ export function dateiAktionen({ zustand, zeichner, werkzeuge, aktionen, rechts }
         ${b.entwuerfe.map((e, i) => `<label class="feld" style="grid-template-columns:24px 1fr"><input type="checkbox" name="z${i}" checked><span>${esc(e.karte.name)} (${esc(e.id)}, ${e.karte.breite} × ${e.karte.hoehe}, ${e.verlauf.zurueck.length} Schritte) ${zustand.zonen.has(e.id) ? '<b style="color:var(--gelb)">ersetzt vorhandenen</b>' : 'neu'}</span></label>`).join('')}
         ${b.fehlerhaft.length ? `<p style="color:var(--rot)">${b.fehlerhaft.length} beschädigt: ${b.fehlerhaft.map((f) => `${esc(f.id)} (${esc(f.grund)})`).join(', ')}</p>` : ''}
         <label class="feld" style="grid-template-columns:24px 1fr"><input type="checkbox" name="prefabs" ${Object.keys(b.prefabs).length ? 'checked' : 'disabled'}><span>${Object.keys(b.prefabs).length} eigene Prefabs (gleiche Namen werden ersetzt)</span></label>
+        <label class="feld" style="grid-template-columns:24px 1fr"><input type="checkbox" name="modelle" ${b.bibliothek.length ? 'checked' : 'disabled'}><span>${b.bibliothek.length} 3D-Modelle der Bibliothek (gleiche Dateien werden nicht doppelt angelegt)</span></label>
         <label class="feld" style="grid-template-columns:24px 1fr"><input type="checkbox" name="einst" checked><span>Weltanordnung der Zonen + Editor-Einstellungen (Ebenen, Layout, Favoriten)</span></label>`;
       const w = await dialog({
         titel: '♻ Backup wiederherstellen',
@@ -177,6 +196,8 @@ export function dateiAktionen({ zustand, zeichner, werkzeuge, aktionen, rechts }
         knoepfe: [{ text: 'Abbrechen', wert: null }, { text: 'Wiederherstellen', art: 'akzent', wert: (box) => Object.fromEntries([...box.querySelectorAll('input[type=checkbox]')].map((c) => [c.name, c.checked])) }],
       });
       if (!w) return;
+      // Modelle zuerst: die Entwürfe verweisen darauf
+      const modelle = w.modelle && bibliothek ? await bibliothek.importiere(b.bibliothek) : 0;
       let n = 0;
       for (const [i, e] of b.entwuerfe.entries()) {
         if (!w[`z${i}`]) continue;
@@ -198,7 +219,7 @@ export function dateiAktionen({ zustand, zeichner, werkzeuge, aktionen, rechts }
       const ziel = b.meta.aktiv && zustand.zonen.has(b.meta.aktiv) ? b.meta.aktiv : (zustand.aktivId ?? b.entwuerfe[0]?.id);
       if (ziel) zustand.aktiviere(ziel);
       zeichner.einpassen();
-      zustand.meldung(`♻ ${n} Zonen${w.prefabs ? ` + ${Object.keys(b.prefabs).length} Prefabs` : ''} wiederhergestellt${w.einst ? ' (Einstellungen gelten nach dem Neuladen)' : ''}`, 'ok');
+      zustand.meldung(`♻ ${n} Zonen${w.prefabs ? ` + ${Object.keys(b.prefabs).length} Prefabs` : ''}${modelle ? ` + ${modelle} Modelle` : ''} wiederhergestellt${w.einst ? ' (Einstellungen gelten nach dem Neuladen)' : ''}`, 'ok');
     },
 
     /** Speicherplatz & Status */

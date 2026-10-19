@@ -3,10 +3,12 @@
  * Nie eine Ausnahme nach außen: wenn gar nichts geht (privates Fenster, Speicher voll, blockiert), meldet `art`
  * 'fluechtig' und das UI warnt („bitte als Datei speichern“).
  *
- * Bereiche: 'entwuerfe' (Zonen-ID → Entwurf-JSON), 'prefabs' (Name → Vorlage), 'meta' (Schlüssel → Wert)
+ * Bereiche: 'entwuerfe' (Zonen-ID → Entwurf-JSON), 'prefabs' (Name → Vorlage), 'meta' (Schlüssel → Wert),
+ *          'assets' (Modell-ID → { meta, blob } bzw. ohne IndexedDB { meta, daten: Data-URL }; ui/bibliothek.js)
  */
 const DB_NAME = 'browserSurvivalEditor';
-const BEREICHE = ['entwuerfe', 'prefabs', 'meta'];
+const BEREICHE = ['entwuerfe', 'prefabs', 'meta', 'assets'];
+const DB_VERSION = 2; // 2 = Bereich 'assets' (Phase 3)
 const LS_PRAEFIX = 'browserSurvivalEditor.';
 
 export class EditorSpeicher {
@@ -21,7 +23,7 @@ export class EditorSpeicher {
     try {
       if (!globalThis.indexedDB) throw new Error('IndexedDB fehlt');
       this.db = await new Promise((ok, nein) => {
-        const anfrage = indexedDB.open(DB_NAME, 1);
+        const anfrage = indexedDB.open(DB_NAME, DB_VERSION);
         anfrage.onupgradeneeded = () => {
           for (const b of BEREICHE) if (!anfrage.result.objectStoreNames.contains(b)) anfrage.result.createObjectStore(b);
         };

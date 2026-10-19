@@ -49,3 +49,22 @@ test('LIZENZEN.md hält Urheber und Lizenz fest, fehlende Lizenz wird ausgewiese
   assert.match(md, /\| assets\/eigene\/testzone_a\.glb \| Baum \| Max \| CC-BY 4\.0 \|/);
   assert.match(md, /\| assets\/eigene\/testzone_b\.glb \| Fund \| – \| \*\*keine Angabe\*\* \|/);
 });
+
+test('karte:editor räumt verwaiste Modelle der Karte auf und behält Lizenzzeilen anderer Karten (Schritt 3.3)', async () => {
+  const { raeumeEigeneModelleAuf } = await import('../werkzeuge/karten/eigeneModelle.mjs');
+  const { existsSync } = await import('node:fs');
+  const ordner = mkdtempSync(path.join(tmpdir(), 'eigene-'));
+  schreibeEigeneModelle({ id: 'andere', typen: { x: { name: 'X', glb: GLB, lizenz: 'CC0' } } }, ordner);
+  schreibeEigeneModelle({ id: 'testzone', typen: { a: { name: 'A', glb: GLB }, b: { name: 'B', glb: GLB } } }, ordner);
+  // zweite Veröffentlichung: b gelöscht, a bleibt (schon als Datei), c neu
+  const definition = { id: 'testzone', typen: { a: { name: 'A', glbDatei: 'assets/eigene/testzone_a.glb' }, c: { name: 'C', glb: GLB } } };
+  schreibeEigeneModelle(definition, ordner);
+  assert.deepEqual(raeumeEigeneModelleAuf(definition, ordner), ['assets/eigene/testzone_b.glb']);
+  assert.ok(!existsSync(path.join(ordner, 'assets/eigene/testzone_b.glb')));
+  assert.ok(existsSync(path.join(ordner, 'assets/eigene/andere_x.glb')));
+  const md = readFileSync(path.join(ordner, 'assets/eigene/LIZENZEN.md'), 'utf8');
+  assert.match(md, /andere_x\.glb \| X \| – \| CC0/);
+  assert.match(md, /testzone_a\.glb/);
+  assert.match(md, /testzone_c\.glb/);
+  assert.doesNotMatch(md, /testzone_b\.glb/);
+});

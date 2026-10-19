@@ -1,4 +1,5 @@
 import { ladeDatei } from './format.js';
+import { leseBibliotheksExport } from './bibliothek.js';
 
 /**
  * Komplett-Backup des Editors (Editor 2.0, Schritt 1.6) – umgebungsfrei, getestet in tests/editorBearbeiten.test.js.
@@ -6,14 +7,15 @@ import { ladeDatei } from './format.js';
  * Editor-Einstellungen aus der Whitelist (Ebenen, Layout, Favoriten). ⚠ Der Gemini-Schlüssel (und alles andere außerhalb
  * der Whitelist) kommt NIE ins Backup.
  *   { format: 'browser-survival-editor-backup', formatVersion: 1, erstellt, entwuerfe: [{ id, entwurf }], prefabs: { name: vorlage },
- *     meta: { layout, aktiv }, einstellungen: { schluessel: wert } }
+ *     meta: { layout, aktiv }, einstellungen: { schluessel: wert }, bibliothek: [{ …Meta, daten: Data-URL }] }
+ * `bibliothek` (Phase 3) = 3D-Modelle der Projekt-Bibliothek (kern/bibliothek.js); ältere Backups haben sie nicht.
  */
 export const BACKUP_FORMAT = 'browser-survival-editor-backup';
 export const BACKUP_VERSION = 1;
 /** localStorage-Schlüssel, die ins Backup dürfen (nichts Geheimes!) */
 export const EINSTELLUNGEN_WHITELIST = Object.freeze(['browserSurvival.editorEbenen', 'browserSurvival.editorLayout', 'browserSurvival.editorAssets']);
 
-export function baueBackup({ entwuerfe = [], prefabs = {}, meta = {}, einstellungen = {}, erstellt = new Date().toISOString() }) {
+export function baueBackup({ entwuerfe = [], prefabs = {}, meta = {}, einstellungen = {}, bibliothek = [], erstellt = new Date().toISOString() }) {
   const erlaubt = Object.fromEntries(Object.entries(einstellungen).filter(([k]) => EINSTELLUNGEN_WHITELIST.includes(k)));
   return {
     format: BACKUP_FORMAT,
@@ -23,12 +25,13 @@ export function baueBackup({ entwuerfe = [], prefabs = {}, meta = {}, einstellun
     prefabs,
     meta: { layout: meta.layout ?? {}, aktiv: meta.aktiv ?? null },
     einstellungen: erlaubt,
+    bibliothek,
   };
 }
 
 /**
  * Backup lesen und prüfen. Wirft nur, wenn die Datei gar kein Backup ist; einzelne kaputte Entwürfe landen in `fehlerhaft`.
- * @returns { erstellt, entwuerfe: [{ id, karte, verlauf, warnungen }], fehlerhaft: [{ id, grund }], prefabs, meta, einstellungen }
+ * @returns { erstellt, entwuerfe: [{ id, karte, verlauf, warnungen }], fehlerhaft: [{ id, grund }], prefabs, meta, einstellungen, bibliothek: [{ id, bytes, meta }] }
  */
 export function leseBackup(eingabe) {
   let j = eingabe;
@@ -55,7 +58,7 @@ export function leseBackup(eingabe) {
   for (const [name, v] of Object.entries(j.prefabs && typeof j.prefabs === 'object' ? j.prefabs : {})) if (v && Array.isArray(v.zellen) && v.b > 0 && v.h > 0) prefabs[name] = v;
   const einstellungen = Object.fromEntries(Object.entries(j.einstellungen && typeof j.einstellungen === 'object' ? j.einstellungen : {}).filter(([k]) => EINSTELLUNGEN_WHITELIST.includes(k)));
   const layout = j.meta?.layout && typeof j.meta.layout === 'object' ? j.meta.layout : {};
-  return { erstellt: j.erstellt ?? null, entwuerfe, fehlerhaft, prefabs, meta: { layout, aktiv: typeof j.meta?.aktiv === 'string' ? j.meta.aktiv : null }, einstellungen };
+  return { erstellt: j.erstellt ?? null, entwuerfe, fehlerhaft, prefabs, meta: { layout, aktiv: typeof j.meta?.aktiv === 'string' ? j.meta.aktiv : null }, einstellungen, bibliothek: leseBibliotheksExport(j.bibliothek) };
 }
 
 /** Dateiname mit Zeitstempel: editor-backup-2026-10-19-1432.json */

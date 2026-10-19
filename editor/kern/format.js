@@ -3,6 +3,7 @@ import { EditorKarte, markerSchluessel, ausSchluessel, kopie } from './karte.js'
 import { Verlauf } from './verlauf.js';
 import { steileKacheln } from './terrain.js';
 import { alsRechtecke } from './raster.js';
+import { mitModell } from './bibliothek.js';
 
 /** Farbe im Format #rrggbb */
 export const FARBE = /^#[0-9a-fA-F]{6}$/;
@@ -25,8 +26,9 @@ export const FARBE = /^#[0-9a-fA-F]{6}$/;
  *   raeume.X      + spawnChance?, respawnZeit?                Loot-Häufigkeit je Raum
  *   einstellungen { wetter:{…}, zombie:{…}, tiere:{…}, loot:{…} }  Zonen-Werte, überschreiben konfiguration (nur gesetzte)
  *   musik         'ordner'                                    Musik-Ordner (client/musik/<ordner>/), Standard = id
- *   terrain       { hoehen: ["0 0 1 …", …], steil: [[x,y],…] } Höhen je Kachel (nur Darstellung), steil = blockiert
- *   typen         { typId: { name, kategorie, b, h, blockiert, ebene, farbe?, bild?, modus? } }  eigene Objekttypen
+ *   terrain       { hoehen: ["0 0 1 …", …], steil: [[x,y],…] } Höhen je Kachel (m); Klippenfüße blockiert (gemeinsam/welt/gelaende.js)
+ *   typen         { typId: { name, kategorie, b, h, blockiert, ebene, farbe?, bild?, modus?, asset?, glb? } }  eigene Objekttypen
+ *                 (asset = ID in der Projekt-Bibliothek, kern/bibliothek.js; Export bettet das Modell als glb ein)
  *   texturen      { typId: { farbe?, muster? } }              Bemalung pro Typ
  *   bemalung      { '#rrggbb': [[x, y, b, h], …] }           Farbe auf dem Boden (Rechtecke je Farbe)
  */
@@ -169,7 +171,7 @@ export function nachDefinition(karte) {
       steil: steileKacheln(karte),
     };
   }
-  if (karte.s('typen').size) def.typen = Object.fromEntries(sortiert(karte.s('typen')).map(([k, t]) => [k, kopie(t)]));
+  if (karte.s('typen').size) def.typen = Object.fromEntries(sortiert(karte.s('typen')).map(([k, t]) => [k, mitModell(kopie(t))])); // Bibliotheks-Modell → glb eingebettet
   if (karte.s('bemalung').size) {
     const jeFarbe = new Map();
     for (const [k, f] of karte.s('bemalung')) {

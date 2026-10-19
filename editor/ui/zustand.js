@@ -9,7 +9,8 @@ const EBENEN_SPEICHER = 'browserSurvival.editorEbenen';
  * Zustand des Editors (Browser): Projekt = mehrere Zonen-Entwürfe { karte, verlauf }, aktive Zone, Werkzeug, Auswahl,
  * Zwischenablage, Ansicht. Kleine Ereignis-Schnittstelle: `bei(name, f)` / `melde(name, daten)`.
  * Ereignisse: 'karte' (Inhalt geändert), 'zone' (andere Zone aktiv / Liste), 'auswahl', 'werkzeug', 'eintrag' (Asset gewählt),
- * 'ebenen' (sichtbar/gesperrt), 'ansicht', 'meldung', 'speicher', 'pruefung'.
+ * 'ebenen' (sichtbar/gesperrt), 'ansicht', 'meldung', 'speicher', 'pruefung', 'bibliothek' (3D-Modelle, ui/bibliothek.js).
+ * `bibliothek` (Bibliothek) setzt main.js vor `ladeAlle`.
  * Ebenen (kern/ebenen.js): Änderungen an gesperrten/ausgeblendeten Ebenen lässt `ausfuehren`/`sammle` aus (mit Meldung).
  *
  * ⚠ Editor-Code ändert die Karte NIE direkt: nur über `ausfuehren` (→ Verlauf, Autosave). So bleibt jede Änderung
@@ -77,6 +78,8 @@ export class Zustand {
   /** Zone ins Projekt aufnehmen (ersetzt gleiche ID) und aktivieren */
   fuegeZoneHinzu(karte, verlauf = new Verlauf(), { aktivieren = true, speichern = true } = {}) {
     this.zonen.get(karte.id)?.abmelden?.();
+    // Eingebettete 3D-Modelle (alte Entwürfe/Dateien) → Projekt-Bibliothek, Typ verweist danach per `asset` (Phase 3)
+    if (this.bibliothek?.uebernimm(karte)) speichern = true;
     const eintrag = { karte, verlauf };
     eintrag.abmelden = karte.beobachte((ops) => {
       this.melde('karte', ops);
@@ -141,11 +144,14 @@ export class Zustand {
     return true;
   }
 
-  /** Änderung an der aktiven Karte (mit Verlauf, 1 Schritt). Gesperrte Ebenen werden ausgelassen. @returns ausgeführte ops */
-  ausfuehren(name, ops, karte = this.karte) {
+  /**
+   * Änderung an der aktiven (oder genannten) Karte (mit Verlauf, 1 Schritt). Gesperrte Ebenen werden ausgelassen –
+   * außer `alleEbenen` (projektweite Aufräum-Aktionen wie „Modell aus der Bibliothek löschen“). @returns ausgeführte ops
+   */
+  ausfuehren(name, ops, karte = this.karte, { alleEbenen = false } = {}) {
     if (!karte) return [];
     const z = [...this.zonen.values()].find((e) => e.karte === karte);
-    return z.verlauf.ausfuehren(karte, name, this.#ohneGesperrte(ops));
+    return z.verlauf.ausfuehren(karte, name, alleEbenen ? ops : this.#ohneGesperrte(ops));
   }
 
   /** Laufende Änderung (Pinselstrich, Ziehen) in die offene Verlaufsgruppe sammeln (verlauf.beginne/beende) */

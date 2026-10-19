@@ -9,6 +9,9 @@ import { esc } from './dialoge.js';
  * Eintrag wählen setzt das passende Werkzeug: Kachel → malen, Objekt/Bauwerk/Marker → platzieren, Bereich → bereich,
  * Werkzeug-Einträge (Terrain, Farbe, Raum füllen) → ihr Werkzeug, Aktions-Einträge (➕ Neuer Raum …) → aktionen[name].
  * Favoriten/Zuletzt/offene Gruppen: localStorage `browserSurvival.editorAssets`.
+ * 3D-Modelle der Projekt-Bibliothek (Phase 3) erscheinen als `bib:<id>` in ihrer Kategorie (mit Vorschaubild); Wählen legt
+ * den Typ in der Zone an (aktionen.verwendeModell). Zonen-Typen, die auf ein vorhandenes Bibliotheks-Modell zeigen, werden
+ * dafür nicht doppelt gezeigt. Bild → 3D und Grafik-Antrag sind ausgeblendet (Schritt 3.2, Code bleibt in eigeneUi.js).
  */
 const SPEICHER = 'browserSurvival.editorAssets';
 const ZULETZT_MAX = 8;
@@ -22,13 +25,14 @@ function zusatzEintraege(kategorie, karte) {
   }
   if (kategorie === 'Räume') liste.push({ id: 'aktion:prefab', art: 'aktion', aktion: 'prefabs', name: 'Prefabs (Vorlagen)', kategorie, symbol: '🏠' });
   if (kategorie === 'Zonen') liste.push({ id: 'aktion:zonen', art: 'aktion', aktion: 'zonen', name: 'Zonen-Übersicht', kategorie, symbol: '🗺' }, { id: 'aktion:vorschlaege', art: 'aktion', aktion: 'vorschlaege', name: 'Übergänge vorschlagen', kategorie, symbol: '💡' });
-  if (kategorie === 'Eigene') liste.push({ id: 'aktion:neuerTyp', art: 'aktion', aktion: 'neuerTyp', name: 'Neues Objekt anlegen', kategorie, symbol: '✚' }, { id: 'aktion:bild3d', art: 'aktion', aktion: 'bild3d', name: 'Bild → 3D-Objekt', kategorie, symbol: '🖼' }, { id: 'aktion:modell3d', art: 'aktion', aktion: 'modell3d', name: '3D-Modell (.glb) laden', kategorie, symbol: '🧊' }, { id: 'aktion:grafik', art: 'aktion', aktion: 'grafik', name: 'Neue Grafik (Antrag)', kategorie, symbol: '🎨' });
+  if (kategorie === 'Eigene') liste.push({ id: 'aktion:modellHochladen', art: 'aktion', aktion: 'modellHochladen', name: '3D-Modelle hochladen', kategorie, symbol: '⬆' }, { id: 'aktion:modelle', art: 'aktion', aktion: 'modelle', name: 'Modell-Bibliothek', kategorie, symbol: '📦' }, { id: 'aktion:neuerTyp', art: 'aktion', aktion: 'neuerTyp', name: 'Platzhalter-Objekt anlegen', kategorie, symbol: '✚' });
   if (kategorie === 'Farbe') liste.push({ id: 'aktion:texturen', art: 'aktion', aktion: 'texturen', name: 'Farbe/Textur je Objekttyp', kategorie, symbol: '🎨' });
   return liste;
 }
 
 export class AssetBrowser {
-  constructor({ zustand, leiste, aktionen }) {
+  constructor({ zustand, leiste, aktionen, bibliothek = null }) {
+    this.bibliothek = bibliothek;
     this.zustand = zustand;
     this.leiste = leiste;
     this.aktionen = aktionen;
@@ -80,14 +84,25 @@ export class AssetBrowser {
     leiste.registriere('🧱 Assets', () => {
       if (leiste.el.firstChild !== this.wurzel) leiste.el.replaceChildren(this.wurzel);
       this.zeichneListe();
-    }, { ereignisse: ['zone', 'eintrag'], ohneKarte: true });
+    }, { ereignisse: ['zone', 'eintrag', 'bibliothek'], ohneKarte: true });
     zustand.bei('karte', (ops) => ops.some((o) => o.s === 'raeume' || o.s === 'typen') && leiste.aktiv === '🧱 Assets' && this.zeichneListe());
   }
 
-  /** Alle wählbaren Einträge (fest + eigene + Zusatz) */
+  /** Bibliotheks-Modelle als Einträge */
+  #modelle() {
+    return (this.bibliothek?.liste ?? []).map((m) => ({ id: `bib:${m.id}`, art: 'bibliothek', asset: m.id, name: m.name, kategorie: KATEGORIEN.includes(m.kategorie) ? m.kategorie : 'Eigene', symbol: '🧊', vorschau: m.vorschau, tags: [...m.tags, m.ordner, 'modell', '3d'].filter(Boolean), b: m.masse.b, h: m.masse.h }));
+  }
+
+  /** Einträge einer Kategorie: fest + Zonen-Typen (ohne die, die ein Bibliotheks-Modell schon zeigt) + Modelle + Zusatz */
+  #derKategorie(kat, k) {
+    const ausBibliothek = (e) => e.eigen && this.bibliothek?.meta(k?.s('typen').get(e.typ)?.asset);
+    return [...eintraegeDerKategorie(kat, k).filter((e) => !ausBibliothek(e)), ...this.#modelle().filter((e) => e.kategorie === kat), ...zusatzEintraege(kat, k)];
+  }
+
+  /** Alle wählbaren Einträge (fest + eigene + Modelle + Zusatz) */
   #alle() {
     const k = this.zustand.karte;
-    return KATEGORIEN.flatMap((kat) => [...eintraegeDerKategorie(kat, k), ...zusatzEintraege(kat, k)]);
+    return KATEGORIEN.flatMap((kat) => this.#derKategorie(kat, k));
   }
 
   #eintrag(id) {
@@ -96,7 +111,8 @@ export class AssetBrowser {
 
   #kachel(e) {
     const aktiv = this.zustand.eintrag?.id === e.id;
-    const vorschau = e.art === 'kachel' ? `<span class="farbe" style="background:${esc(e.farbe)}"></span>` : `<span class="symbol">${esc(e.symbol ?? '▪')}</span>`;
+    const bild = e.vorschau ?? (e.eigen ? this.bibliothek?.meta(this.zustand.karte?.s('typen').get(e.typ)?.asset)?.vorschau : null);
+    const vorschau = e.art === 'kachel' ? `<span class="farbe" style="background:${esc(e.farbe)}"></span>` : bild ? `<img class="vorschau" src="${esc(bild)}" alt="">` : `<span class="symbol">${esc(e.symbol ?? '▪')}</span>`;
     const masse = e.b ? ` (${e.b} × ${e.h}${e.blockiert ? ', blockiert' : ''})` : '';
     const stern = e.art === 'aktion' ? '' : `<span class="stern${this.favoriten.has(e.id) ? ' an' : ''}" title="Favorit">${this.favoriten.has(e.id) ? '★' : '☆'}</span>`;
     return `<button type="button" class="asset${aktiv ? ' aktiv' : ''}" data-id="${esc(e.id)}" title="${esc(e.name + masse)}">${vorschau}<span class="name">${esc(e.name)}</span>${stern}</button>`;
@@ -121,7 +137,7 @@ export class AssetBrowser {
         let inhalt = '';
         let n = 0;
         for (const kat of g.kategorien) {
-          const eintraege = [...eintraegeDerKategorie(kat, k), ...zusatzEintraege(kat, k)].filter((e) => {
+          const eintraege = this.#derKategorie(kat, k).filter((e) => {
             const basis = e.id.split('@')[0];
             if (gesehen.has(basis)) return false;
             gesehen.add(basis);
@@ -133,7 +149,7 @@ export class AssetBrowser {
         }
         // Eigene Typen mit eigener (unbekannter) Kategorie landen in „Eigene“
         if (g.name === 'Eigene' && k) {
-          const fremd = eigeneEintraege(k).filter((e) => !KATEGORIEN.includes(e.kategorie));
+          const fremd = eigeneEintraege(k).filter((e) => !KATEGORIEN.includes(e.kategorie) && !this.bibliothek?.meta(k.s('typen').get(e.typ)?.asset));
           if (fremd.length) {
             n += fremd.length;
             inhalt += `<h5>Weitere</h5><div class="asset-raster">${fremd.map((e) => this.#kachel(e)).join('')}</div>`;
@@ -149,6 +165,12 @@ export class AssetBrowser {
   waehle(e) {
     const z = this.zustand;
     if (e.art === 'aktion') return this.aktionen[e.aktion]?.();
+    if (e.art === 'bibliothek') {
+      if (z.ansicht === '3d') return z.meldung('Malen und Bauen gehen nur in 2D – Taste 3 schaltet um', 'fehler');
+      this.zuletzt = [e.id, ...this.zuletzt.filter((id) => id !== e.id)].slice(0, ZULETZT_MAX);
+      this.#speichere();
+      return this.aktionen.verwendeModell?.(e.asset);
+    }
     if (e.art === 'werkzeug' && (e.werkzeug === 'wetter' || e.werkzeug === 'musik')) return this.aktionen.zonenEinstellungen?.(e.werkzeug === 'wetter' ? 'wetter' : null);
     if (z.ansicht === '3d') return z.meldung('Malen und Bauen gehen nur in 2D – Taste 3 schaltet um', 'fehler');
     z.setzeEintrag(e);

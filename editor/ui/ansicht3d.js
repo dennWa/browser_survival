@@ -5,6 +5,7 @@ import { ausSchluessel } from '../kern/karte.js';
 import { kachelInfo, objektInfo } from '../kern/katalog.js';
 import { eigenesModellUrl, ladeEigenesModell, eigenesModellInhalt } from '../../client/darstellung/eigeneModelle.js';
 import { musterTextur, extrusionsGeometrie } from './bild3d.js';
+import { mitModell } from '../kern/bibliothek.js';
 
 /**
  * 3D-Ansicht des Editors (Phase 10): dieselbe Karte in Spielperspektive (Kamera-Winkel wie client/darstellung/renderer.js).
@@ -47,6 +48,7 @@ export class Ansicht3D {
     this.#zeiger = new Map();
     zustand.bei('karte', () => this.#veraltet());
     zustand.bei('zone', () => this.#veraltet(true));
+    zustand.bei('bibliothek', () => this.#veraltet()); // Modell ersetzt/gelöscht
     zustand.bei('auswahl', () => this.#markiereAuswahl());
     zustand.bei('ansicht', () => {
       if (zustand.ansicht !== '3d') return;
@@ -252,7 +254,7 @@ export class Ansicht3D {
         kronen.push({ id, o, farbe, cx, cz, boden });
         continue;
       }
-      const eigen = k.s('typen').get(o.typ);
+      const eigen = mitModell(k.s('typen').get(o.typ)); // Bibliotheks-Modell (asset) → glb
       let mesh;
       if (eigenesModellUrl(eigen)) {
         mesh = this.#glbGruppe(id, o, eigen, typTextur, cx, boden, cz);

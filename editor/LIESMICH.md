@@ -14,7 +14,7 @@ Start: im Anmeldebildschirm des Spiels auf **🗺 Map-Editor** (oder direkt `…
 | **Menüleiste** | Datei · Bearbeiten · Ansicht · Einfügen · Werkzeuge · Zone · KI · Hilfe – jeder Befehl mit Tastenkürzel (am Handy: ☰) |
 | **Schnellleiste** (oben) | Zone wählen · ↶ ↷ · 🧊 3D · ▶ Testen · 🚀 Veröffentlichen · 🤖 Helfer · ◧ ◨ Seitenleisten · Speicherstatus |
 | **Werkzeugleiste** (ganz links) | Auswahl, Schwenken, Pinsel, Rechteck, Linie, Füllen, Radierer, Pipette, Gelände, Farbe, Zonengröße |
-| **Seitenleiste links** | 🧱 **Assets** (Suche, ★ Favoriten, 🕘 Zuletzt, 7 Gruppen: Gelände · Bauen · Natur · Einrichtung · Gameplay · Zonen & Logik · Eigene) · 🏠 Prefabs · 🗺 Zonen · 🚪 Räume |
+| **Seitenleiste links** | 🧱 **Assets** (Suche, ★ Favoriten, 🕘 Zuletzt, 7 Gruppen: Gelände · Bauen · Natur · Einrichtung · Gameplay · Zonen & Logik · Eigene) · 📦 Modelle · 🏠 Prefabs · 🗺 Zonen · 🚪 Räume |
 | **Optionsleiste** (über der Karte) | Einstellungen des aktiven Werkzeugs: Pinselgröße, Mal-Modus, Drehung, „mehrfach setzen“, Farbe, Stärke + Bedienhinweis |
 | **Fläche** | Lineale oben/links mit Kachelnummern; Koordinate, Kachel und Objekt unter der Maus stehen unten in der Statusleiste |
 | **Seitenleiste rechts** | **Inspektor** (Auswahl – oder ohne Auswahl: Zone mit Name, ID, Größe, Zonen-Werte) · **Ebenen** (👁 ein-/ausblenden, 🔒 sperren) · **Prüfung** |
@@ -150,14 +150,30 @@ Flackern, Lichtform (Punkt/Kegel). Die 2D-Ansicht zeigt Radius bzw. Kegel. Die P
   **Im Spiel:** Gelände ist sichtbar und **begehbar** – Plateau-Oberseiten, Hänge und Rampen auch. Ist eine Nachbarkachel
   **mehr als 1 m höher**, ist die untere Kachel der **Fuß einer Klippe** und gesperrt (rot schraffiert). Die Prüfung warnt
   bei einem „Plateau ohne Zugang“ (Rampe vergessen). Treffer von oben bleiben 2D; in der Ego-Ansicht muss man nach oben/unten zielen.
-- **Eigene Objekte** (Assets → Eigene): „✚ Neues Objekt anlegen“ (Name, Größe, Kollision, Ebene, Kategorie, Farbe,
-  3D-Höhe) – erscheint danach im Asset-Browser in seiner Kategorie. Im Spiel ist es ein Platzhalter-Quader, bis es eine Grafik gibt.
-- **🖼 Bild → 3D:** Bild hochladen (PNG mit Transparenz am besten) → **Extrusion** (jeder deckende Pixel wird ein kleiner
-  Quader) oder **Billboard** (Bild schaut immer zur Kamera). Danach bearbeitbar wie andere Objekte. Eine KI-Umwandlung
-  ist bewusst noch nicht eingebaut (im Dialog als „später“ gekennzeichnet).
-- **🎨 Neue Grafik (Antrag):** Für echte Spielgrafik erzeugt der Editor `<id>.grafik.json` (Bild, **Lizenz CC0/CC-BY –
-  Pflicht**, Urheber, Quelle). Datei nach `werkzeuge/assets/editor_grafiken/`, dann `python3 werkzeuge/assets/baue_assets.py`
-  und `npm run assets:3d`. Die Pipeline prüft die Lizenz nochmals und schreibt die Credits fort.
+- **Platzhalter-Objekt** (Assets → Eigene → „✚ Platzhalter-Objekt anlegen“): Name, Größe, Kollision, Ebene, Kategorie, Farbe,
+  3D-Höhe – im Spiel ein farbiger Quader. Für echte Optik: 3D-Modell (nächster Abschnitt).
+
+## 3D-Modelle (Reiter 📦 Modelle)
+
+- **Hochladen:** Dateien in die gestrichelte Fläche ziehen (mehrere auf einmal) oder **📂 Dateien wählen**. Erlaubt sind nur
+  3D-Formate: **.glb**, **.gltf** (alles eingebettet), **.obj** und **.fbx** (werden in .glb umgewandelt – externe Texturen fehlen
+  dann). Der Editor prüft die Datei (Signatur, Probe-Laden), misst **Maße** (1 m = 1 Kachel), zählt **Dreiecke/Animationen**, macht
+  ein **Vorschaubild** und warnt bei sehr großen Dateien (> 3 MB) oder vielen Dreiecken (> 60 000). Grenze: 8 MB.
+- **Bibliothek:** Modelle liegen **einmal im Projekt** (alle Zonen), nicht in jeder Karte. Ordner, Tags (Suche mit `#tag`),
+  Kategorie (Gruppe im Asset-Browser), Lizenz/Urheber/Quelle: **✎** an der Karte. Modelle stehen auch im **🧱 Asset-Browser**.
+- **Platzieren:** Modell anklicken → Klick auf die Karte setzt es (R dreht). Beim ersten Mal legt der Editor in der Zone einen Typ
+  an (Größe aus den Maßen, im Inspektor über „✎ Typ bearbeiten“ änderbar).
+- **Löschen:** ✎ → 🗑. Ist das Modell benutzt, zeigt der Editor wo („2 Zonen, 14 Objekte“) und bietet **Mitlöschen** (Objekte + Typ
+  je Zone, rückgängig machbar) oder **Ersetzen** durch ein anderes Modell. Das Modell selbst ist danach weg (nicht rückgängig –
+  vorher ggf. Komplett-Backup). Im Repo räumt der nächste `npm run karte:editor` die alte Datei aus `client/assets/eigene/` auf.
+- **🌐 Poly Pizza:** kostenlose Modelle, nur **CC0/CC-BY**. Eigenen kostenlosen API-Schlüssel eintragen (bleibt nur in diesem
+  Browser, nie in Backup/Export) → suchen → Klick übernimmt das Modell mit Urheber, Lizenz und Quelle (landet beim Veröffentlichen
+  in `client/assets/eigene/LIZENZEN.md`). Blockiert der Browser den Zugriff, zeigt der Dialog einen Link zur Seite und
+  „📂 Datei mit Lizenzangaben“ (Datei herunterladen und mit Urheber/Lizenz/Quelle importieren).
+- **Mitnehmen:** Entwurf-Download und Komplett-Backup enthalten die Modelle, Öffnen/Wiederherstellen übernimmt sie. Export,
+  Testen und Veröffentlichen betten die Modelle ein. Alte Entwürfe mit eingebetteten Modellen wandern beim Laden automatisch in die
+  Bibliothek.
+- **Ausgeblendet:** „Bild → 3D“ und „Neue Grafik (Antrag)“ (nur noch 3D-Formate). Vorhandene Bild-Objekte werden weiter angezeigt.
 
 ## Speichern und Sichern
 
@@ -165,8 +181,8 @@ Flackern, Lichtform (Punkt/Kegel). Die 2D-Ansicht zeigt Radius bzw. Kegel. Die P
   Die Anzeige oben rechts zeigt den Zustand: ● ungespeichert · ⟳ speichert · ✓ gespeichert 14:32 · ⚠ Fehler (Klick = erneut versuchen)
   · ⚠ nur Arbeitsspeicher (privates Fenster). Klick auf die Anzeige öffnet Speichern/Backup.
 - **Strg+S** speichert sofort lokal, **Strg+Umschalt+S** lädt den Entwurf der aktiven Zone als Datei herunter (inkl. Verlauf).
-- **🛟 Komplett-Backup** (Datei → Sicherung): **eine** Datei mit allen Entwürfen samt Verlauf, eigenen Prefabs, Weltanordnung und
-  Editor-Einstellungen (Ebenen, Layout, Favoriten). Der Gemini-Schlüssel kommt **nie** hinein. **♻ Backup wiederherstellen** zeigt,
+- **🛟 Komplett-Backup** (Datei → Sicherung): **eine** Datei mit allen Entwürfen samt Verlauf, eigenen Prefabs, 3D-Modellen,
+  Weltanordnung und Editor-Einstellungen (Ebenen, Layout, Favoriten). Der Gemini-Schlüssel kommt **nie** hinein. **♻ Backup wiederherstellen** zeigt,
   was zurückkommt (Häkchen je Zone; gleiche IDs werden ersetzt). So zieht man auch auf ein anderes Gerät um.
 - **💽 Speicherplatz & Status:** belegt/frei, und ob der Browser die Daten dauerhaft hält (sonst darf er bei Speichermangel löschen –
   dann regelmäßig ein Backup ziehen).
