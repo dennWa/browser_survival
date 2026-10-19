@@ -15,6 +15,7 @@ export const EBENEN = Object.freeze([
   { id: 'bauwerke', name: 'Bauwerke', symbol: '🧱' },
   { id: 'marker', name: 'Spawns, Loot & Ankünfte', symbol: '📍' },
   { id: 'uebergaenge', name: 'Übergänge', symbol: '🚪' },
+  { id: 'klaenge', name: 'Klänge', symbol: '🔊' },
 ]);
 
 export const ANZEIGEN = Object.freeze([
@@ -35,6 +36,7 @@ const SAMMLUNG_EBENE = {
   raumFlaechen: 'bereiche',
   tierBereiche: 'bereiche',
   uebergaenge: 'uebergaenge',
+  klaenge: 'klaenge',
 };
 
 /** Ebene einer Sammlung bzw. Operationsart ('kachel', 'objekte' …) oder null */

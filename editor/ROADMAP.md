@@ -21,10 +21,14 @@
   `karte:editor` räumt verwaiste Modelle auf, Poly Pizza (`kern/quellen.js`; echte API ungetestet – ohne Schlüssel, Preflight
   ohne CORS-Kopf → Rückfall Link + „Datei mit Lizenzangaben“ ist eingebaut), Bild→3D + Grafik-Antrag ausgeblendet.
 
-**Als Nächstes: Phase 4 (Audio-Engine, Tabelle unten).** Ideen für den Einstieg: Audio-Bibliothek analog zur Modell-Bibliothek
-(IndexedDB-Bereich `audio`, Ordner/Tags, `kern/bibliothek.js` als Vorbild), Bearbeitung nicht-destruktiv als Parameter
-(Start/Ende, Fades, Lautstärke, Tonhöhen-Streuung) statt Datei-Schnitt; Spiel-Seite: `client/` hat schon Audio (siehe Manifest
-„Audio“), Zonen-Ambience/BGM als Erweiterungsfeld der Karte (`musik` gibt es schon) + Klang-Objekte (Typ `klang`).
+**In Arbeit: Phase 4 (Audio-Engine).** Fertig: `gemeinsam/audio/klanglandschaft.js` (Feldprüfung `pruefeKlang`, `pegel`
+Abfall/Panorama, `bedingung` je Auslöser, `KlangSteuerung` Loop/Intervall/Einmal + Abklingzeit, Pitch ±%, Tests
+`tests/klanglandschaft.test.js`), Lader → `daten.klaenge`, Editor-Sammlung `klaenge` (ID-Sammlung, Ebene 🔊), Format
+ein/aus (`mitAudio` bettet `daten` ein), Audio-Teil in `editor/kern/bibliothek.js` (`a_…`-IDs, `audioMetaNormal`, `wellenform`,
+`audioVerwendungen`, `uebernimmEingebetteteAudio`, `leseAudioExport`). Offen: `ui/audioBibliothek.js` (IndexedDB-Bereich
+`audio`, DB-Version 3), Reiter „🔊 Audio“ (Upload/Probe-Dekodierung/Ordner/Tags/Vorhören/Löschen), Klang-Inspektor mit
+Wellenform + Trimm-Griffen + Fades, Platzieren (Punkt/Bereich/Global, an Objekt), 2D/3D-Anzeige mit Falloff-Griffen,
+Spiel `client/audio/klaenge.js` (Sound-Busse, nächste N), karte:editor → `client/audio/karten/<zone>/`, Backup/Entwurf-Datei.
 
 **Danach:** Phasen 4–9 laut Tabellen unten (4 Audio, 5 3D-Modul, 6 Zonen/Loot, 7 UX, 8 Testlauf, 9 KI).
 

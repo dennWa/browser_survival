@@ -37,17 +37,18 @@ export function dataUrlZuBytes(url) {
 
 export const bytesZuGlbUrl = (bytes) => GLB_KOPF + bytesZuBase64(bytes);
 
-/** Inhalts-ID: FNV-1a (32 bit) + Länge → 'm_1a2b3c4d_5kq' */
-export function assetId(bytes) {
+/** Inhalts-ID: FNV-1a (32 bit) + Länge → 'm_1a2b3c4d_5kq' (Modelle) bzw. 'a_…' (Audio, Phase 4) */
+export function assetId(bytes, praefix = 'm') {
   let h = 0x811c9dc5;
   for (let i = 0; i < bytes.length; i++) {
     h ^= bytes[i];
     h = Math.imul(h, 0x01000193) >>> 0;
   }
-  return `m_${h.toString(16).padStart(8, '0')}_${bytes.length.toString(36)}`;
+  return `${praefix}_${h.toString(16).padStart(8, '0')}_${bytes.length.toString(36)}`;
 }
 
 export const ASSET_ID_MUSTER = /^m_[0-9a-f]{8}_[0-9a-z]{1,8}$/;
+export const AUDIO_ID_MUSTER = /^a_[0-9a-f]{8}_[0-9a-z]{1,8}$/;
 
 // ---------------------------------------------------------------- GLB lesen / bauen
 
@@ -322,3 +323,130 @@ export function leseBibliotheksExport(liste) {
 export function benutzteModelle(karte) {
   return [...new Set([...karte.s('typen').values()].map((t) => t.asset).filter(Boolean))];
 }
+
+// ================================================================ Audio (Editor 2.0, Phase 4)
+// Gleiche Idee wie Modelle: Datei einmal im Projekt (IndexedDB-Bereich 'audio', ui/audioBibliothek.js), Klänge der Karte
+// (Sammlung `klaenge`) verweisen per `audio: 'a_…'`; Export/Test betten `daten` (Data-URL) ein, karte:editor legt Dateien ab.
+
+export const AUDIO_MAX_MB = 15;
+export const WELLENFORM_PUNKTE = 160;
+
+/** Audio-Format aus Dateiname oder MIME → Endung (mp3, wav, ogg, m4a, flac, opus, webm) oder null */
+export function audioFormat(name = '', mime = '') {
+  const e = String(name).toLowerCase().match(/\.([a-z0-9]+)$/)?.[1];
+  if (['mp3', 'wav', 'ogg', 'oga', 'm4a', 'mp4', 'aac', 'flac', 'opus', 'webm'].includes(e)) return { oga: 'ogg', mp4: 'm4a', aac: 'm4a' }[e] ?? e;
+  const m = String(mime).toLowerCase();
+  return m.includes('mpeg') ? 'mp3' : m.includes('wav') ? 'wav' : m.includes('ogg') ? 'ogg' : m.includes('flac') ? 'flac' : m.includes('mp4') || m.includes('aac') ? 'm4a' : m.includes('webm') ? 'webm' : null;
+}
+
+/** Datei-Signatur grob prüfen (vor dem Probe-Dekodieren): RIFF/WAVE, ID3/MPEG-Frame, OggS, fLaC, ftyp (m4a), EBML (webm) */
+export function istAudio(bytes) {
+  if (!bytes || bytes.length < 12) return false;
+  const t = (a, b) => String.fromCharCode(...bytes.subarray(a, b));
+  return (t(0, 4) === 'RIFF' && t(8, 12) === 'WAVE') || t(0, 3) === 'ID3' || (bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0) || t(0, 4) === 'OggS' || t(0, 4) === 'fLaC' || t(4, 8) === 'ftyp' || (bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3);
+}
+
+/** Wellenform: Spitzenwerte (0–1, 2 Stellen) aus PCM-Kanälen, `punkte` Säulen */
+export function wellenform(kanaele, punkte = WELLENFORM_PUNKTE) {
+  const n = kanaele[0]?.length ?? 0;
+  if (!n) return [];
+  const schritt = Math.max(1, Math.floor(n / punkte));
+  const aus = [];
+  for (let p = 0; p < punkte && p * schritt < n; p++) {
+    let max = 0;
+    for (const k of kanaele) for (let i = p * schritt, e = Math.min(n, (p + 1) * schritt); i < e; i += 4) max = Math.max(max, Math.abs(k[i]));
+    aus.push(Math.round(Math.min(1, max) * 100) / 100);
+  }
+  return aus;
+}
+
+export function audioMetaNormal(m = {}, id = m.id) {
+  return {
+    id,
+    name: text(m.name) || id,
+    art: 'audio',
+    ordner: text(m.ordner, 60).replace(/[\\]+/g, '/').replace(/^\/+|\/+$/g, ''),
+    tags: tagsAus(m.tags),
+    lizenz: text(m.lizenz, 40),
+    urheber: text(m.urheber),
+    quelle: /^https?:\/\//.test(m.quelle ?? '') ? text(m.quelle, 300) : '',
+    format: audioFormat(`x.${m.format ?? ''}`) ?? 'mp3',
+    dauer: zahl(m.dauer, 0, 36000, 0),
+    kanaele: Math.round(zahl(m.kanaele, 1, 8, 2)),
+    wellenform: Array.isArray(m.wellenform) ? m.wellenform.slice(0, WELLENFORM_PUNKTE).map((w) => zahl(w, 0, 1, 0)) : [],
+    groesse: Number.isFinite(m.groesse) ? m.groesse : 0,
+    erstellt: text(m.erstellt, 40) || null,
+  };
+}
+
+/** Audio-Datei → Data-URL mit passendem MIME (Spiel/Browser erkennen das Format daran) */
+export function bytesZuAudioUrl(bytes, format) {
+  const mime = { mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg', m4a: 'audio/mp4', flac: 'audio/flac', opus: 'audio/ogg', webm: 'audio/webm' }[format] ?? 'audio/mpeg';
+  return `data:${mime};base64,${bytesZuBase64(bytes)}`;
+}
+
+let audioQuelle = () => null;
+/** Browser (ui/audioBibliothek.js) bzw. editorImport.mjs melden id → Data-URL */
+export function setzeAudioQuelle(f) {
+  audioQuelle = typeof f === 'function' ? f : () => null;
+}
+export const hatAudio = (id) => !!audioQuelle(id);
+
+/** Klang mit eingebetteten `daten` (falls er auf die Bibliothek verweist und die Datei da ist) */
+export function mitAudio(klang) {
+  if (!klang?.audio || klang.daten || klang.datei) return klang;
+  const url = audioQuelle(klang.audio);
+  return url ? { ...klang, daten: url } : klang;
+}
+
+/** Wo wird eine Audio-Datei benutzt? → { zonen: [{ id, name, klaenge: n }], klaenge } */
+export function audioVerwendungen(zonen, id) {
+  const liste = [];
+  let n = 0;
+  for (const [zid, k] of zonen) {
+    const c = [...k.s('klaenge').values()].filter((x) => x.audio === id).length;
+    if (c) liste.push({ id: zid, name: k.name, klaenge: c });
+    n += c;
+  }
+  return { zonen: liste, klaenge: n };
+}
+
+export const audioLoeschOps = (karte, id) => [...karte.s('klaenge')].filter(([, x]) => x.audio === id).map(([k]) => ({ s: 'klaenge', k, neu: null }));
+export const audioErsetzOps = (karte, alt, neu) => [...karte.s('klaenge')].filter(([, x]) => x.audio === alt).map(([k, x]) => ({ s: 'klaenge', k, neu: { ...x, audio: neu } }));
+
+/** Eingebettete Klänge (daten aus Datei-Import/Testlauf) → Bibliothek; ändert die Karte direkt (vor dem Beobachten) */
+export function uebernimmEingebetteteAudio(karte) {
+  const neu = new Map();
+  for (const [, k] of karte.s('klaenge')) {
+    if (typeof k.daten !== 'string' || !k.daten.startsWith('data:audio/')) continue;
+    let bytes;
+    try {
+      bytes = dataUrlZuBytes(k.daten);
+    } catch {
+      continue;
+    }
+    const id = assetId(bytes, 'a');
+    if (!neu.has(id)) neu.set(id, { id, bytes, meta: audioMetaNormal({ name: k.name, format: audioFormat('', k.daten.slice(5, k.daten.indexOf(';'))), groesse: bytes.length }, id) });
+    delete k.daten;
+    k.audio = id;
+  }
+  return [...neu.values()];
+}
+
+export function leseAudioExport(liste) {
+  const aus = [];
+  for (const e of Array.isArray(liste) ? liste : []) {
+    try {
+      if (typeof e?.daten !== 'string' || !e.daten.startsWith('data:audio/')) continue;
+      const bytes = dataUrlZuBytes(e.daten);
+      if (!istAudio(bytes)) continue;
+      const id = assetId(bytes, 'a');
+      aus.push({ id, bytes, meta: audioMetaNormal({ ...e, groesse: bytes.length }, id) });
+    } catch {
+      /* kaputt → weglassen */
+    }
+  }
+  return aus;
+}
+
+export const benutzteAudios = (karte) => [...new Set([...karte.s('klaenge').values()].map((k) => k.audio).filter(Boolean))];

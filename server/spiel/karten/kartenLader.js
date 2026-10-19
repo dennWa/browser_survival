@@ -2,6 +2,7 @@ import { KACHEL_GROESSE } from '../../../gemeinsam/konstanten.js';
 import { KACHELN, MARKER, istKachel, istLootMarker } from '../../../gemeinsam/welt/kacheln.js';
 import { BAUWERKE } from '../../../gemeinsam/welt/bauwerke.js';
 import { liesHoehen, klippenFuesse } from '../../../gemeinsam/welt/gelaende.js';
+import { pruefeKlang } from '../../../gemeinsam/audio/klanglandschaft.js';
 import { pruefeZonenEinstellungen } from './zonenEinstellungen.js';
 import { STADTRAND } from './stadtrand.js';
 import { WALDWEG } from './waldweg.js';
@@ -36,6 +37,7 @@ export const KARTEN = Object.freeze({
  *   bauwerke [{ typ, tx, ty, drehung? }] → kartenfeste Bauwerke ohne Besitzer (SpielWelt setzt sie)
  *   tierBereiche [{ x, y, b, h, art, anzahl, respawnZeit? }] → Hasen nur dort (tierSystem)
  *   einstellungen → Zonen-Werte (zonenEinstellungen.js), musik → daten.musik (Client: Musik-Ordner)
+ *   klaenge → daten.klaenge (Klanglandschaft, gemeinsam/audio/klanglandschaft.js; nur mit Datei/eingebetteten Daten)
  *   bemalung { '#rrggbb': [[x, y, b, h]] } → daten.bemalung (nur Optik: Client malt es in die Bodentextur)
  */
 export function ladeKarte(id) {
@@ -150,6 +152,8 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE, { au
   const typen = pruefeTypen(definition.typen);
   if (typen) daten.typen = typen;
   if (typeof definition.musik === 'string' && /^[a-z0-9_-]{1,40}$/i.test(definition.musik)) daten.musik = definition.musik;
+  const klaenge = (Array.isArray(definition.klaenge) ? definition.klaenge : []).map((k) => pruefeKlang(k, { breite, hoehe })).filter((k) => k && (k.datei || k.daten));
+  if (klaenge.length) daten.klaenge = klaenge;
   const bemalung = pruefeBemalung(definition.bemalung, breite, hoehe);
   if (bemalung) daten.bemalung = bemalung;
 
