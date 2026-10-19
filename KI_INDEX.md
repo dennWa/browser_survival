@@ -6,7 +6,7 @@
 ## 0 · Regeln (aus CLAUDE.md, hart)
 - Code DE, Bezeichner ohne Umlaute; Vanilla ESM, kein Build; Node ≥20 + `ws`; Three.js nur 3D (`C:darstellung/renderer.js`).
 - Spiellogik NUR `S:` (autoritativ, umgebungsfrei: kein `node:`, kein DOM). `G:` = von beiden importiert → ebenfalls umgebungsfrei.
-- Grafik nur via `werkzeuge/assets/baue_assets.py` + `npm run assets:3d` (danach `git checkout client/assets/3d/animationen.json`, falls nur Rauschen). Nur CC0/CC-BY; Credits-Dialog bleibt. Ausnahme: Editor-Modelle `.glb` → `client/assets/eigene/` (keine Prüfung, Nutzer-Entscheidung).
+- Grafik nur via `werkzeuge/assets/baue_assets.py` + `npm run assets:3d` (danach `git checkout client/assets/3d/animationen.json`, falls nur Rauschen). Nur CC0/CC-BY; Credits-Dialog bleibt. Ausnahme: Editor-Modelle `.glb` → `client/assets/eigene/` (keine Sperre, Nutzer-Entscheidung; Editor warnt bei fehlender Lizenz; `schreibeEigeneModelle` schreibt Urheber/Lizenz nach `client/assets/eigene/LIZENZEN.md`).
 - Touch für jede neue Aktion (HUD-Knopf, `.nur-touch`). Vor Commit `npm test`. Manifest + Changelog pflegen. Antwortende: Spiel-Link.
 - ⚠ `server/daten/konten.json`, `einstellungen.json`, `spielstaende/` nie committen (gitignored).
 

@@ -37,3 +37,15 @@ test('schreibeEigeneModelle legt die .glb ab und ersetzt die Daten durch den Pfa
 test('schreibeEigeneModelle lehnt Nicht-glb-Daten ab', () => {
   assert.throws(() => schreibeEigeneModelle({ id: 'testzone', typen: { x: { glb: 'data:image/png;base64,AAAA' } } }, tmpdir()), /keine .glb-Datei/);
 });
+
+test('LIZENZEN.md hält Urheber und Lizenz fest, fehlende Lizenz wird ausgewiesen', () => {
+  const ordner = mkdtempSync(path.join(tmpdir(), 'eigene-'));
+  const definition = { id: 'testzone', typen: {
+    a: { name: 'Baum', glb: GLB, urheber: 'Max', lizenz: 'CC-BY 4.0' },
+    b: { name: 'Fund', glb: GLB },
+  } };
+  schreibeEigeneModelle(definition, ordner);
+  const md = readFileSync(path.join(ordner, 'assets/eigene/LIZENZEN.md'), 'utf8');
+  assert.match(md, /\| assets\/eigene\/testzone_a\.glb \| Baum \| Max \| CC-BY 4\.0 \|/);
+  assert.match(md, /\| assets\/eigene\/testzone_b\.glb \| Fund \| – \| \*\*keine Angabe\*\* \|/);
+});

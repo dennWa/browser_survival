@@ -102,6 +102,8 @@ export function eigeneUi({ zustand, sonderAktionen, aktionen }) {
     // Browser liefern für .glb oft keinen MIME-Typ (→ octet-stream); der Server nimmt nur model/gltf-binary an
     const glb = datei.text.replace(/^data:[^,]*,/, 'data:model/gltf-binary;base64,');
     if (w) speichereTyp(w, { glb, ...(w.urheber ? { urheber: w.urheber } : {}), ...(w.lizenz ? { lizenz: w.lizenz } : {}) });
+    // Nur Hinweis, kein Stopp: Aus dem Internet stammende Modelle brauchen eine Lizenzangabe (landet in client/assets/eigene/LIZENZEN.md)
+    if (w && !w.lizenz) zustand.meldung('Keine Lizenz angegeben – bitte vor dem Veröffentlichen prüfen, ob du das Modell nutzen darfst', 'fehler');
   };
 
   sonderAktionen.grafik = async () => {
