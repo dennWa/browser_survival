@@ -146,3 +146,28 @@ test('Editor: Klänge rund um Format, Bibliothek und karte:editor (Dateien ableg
     B.setzeAudioQuelle(null);
   }
 });
+
+test('Prüfung: Klang ohne Datei in der Bibliothek, außerhalb, falscher Radius, zwei Musik-Ersatz', async () => {
+  const { neueZone } = await import('../editor/kern/zone.js');
+  const { validiere } = await import('../editor/kern/validierung.js');
+  const B = await import('../editor/kern/bibliothek.js');
+  const k = neueZone({ id: 'pruefklang', breite: 10, hoehe: 10 });
+  k.anwenden([
+    { s: 'klaenge', k: 1, neu: neuerKlang('punkt', { name: 'A', audio: AUDIO, x: 3, y: 3, innen: 4, aussen: 4 }) },
+    { s: 'klaenge', k: 2, neu: neuerKlang('bereich', { name: 'B', audio: AUDIO, x: 8, y: 8, b: 5, h: 5 }) },
+    { s: 'klaenge', k: 3, neu: neuerKlang('global', { name: 'M1', audio: AUDIO, ersetztMusik: true }) },
+    { s: 'klaenge', k: 4, neu: neuerKlang('global', { name: 'M2', audio: AUDIO, ersetztMusik: true }) },
+  ]);
+  const codes = (p) => p.filter((x) => x.code.startsWith('klang') || x.text.includes('Ambiente')).map((x) => x.code);
+  const ohne = codes(validiere(k));
+  assert.equal(ohne.filter((c) => c === 'klang-fehlt').length, 4);
+  assert.ok(ohne.includes('klang-radius'));
+  assert.ok(ohne.includes('objekt-aussen'));
+  assert.ok(ohne.includes('klang-musik'));
+  B.setzeAudioQuelle((id) => (id === AUDIO ? 'data:audio/wav;base64,AAAA' : null));
+  try {
+    assert.ok(!codes(validiere(k)).includes('klang-fehlt'));
+  } finally {
+    B.setzeAudioQuelle(null);
+  }
+});

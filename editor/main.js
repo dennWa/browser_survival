@@ -29,6 +29,7 @@ import { testUi } from './ui/testUi.js';
 import { eigeneUi } from './ui/eigeneUi.js';
 import { Bibliothek, AUDIO } from './ui/bibliothek.js';
 import { modelleUi } from './ui/modelleUi.js';
+import { audioUi } from './ui/audioUi.js';
 import { Ansicht3D, webglVerfuegbar } from './ui/ansicht3d.js';
 import { dialog, esc, istDialogOffen } from './ui/dialoge.js';
 
@@ -36,7 +37,7 @@ import { dialog, esc, istDialogOffen } from './ui/dialoge.js';
  * Einstieg des Map-Editors (editor/index.html). Läuft ohne Server, ohne Account – nur im Browser.
  * Aufbau (Editor 2.0): Zustand (Projekt/Zonen/Verlauf/Ebenen) · Zeichner2D + Werkzeuge · Befehlsregister (ui/befehle.js,
  * alle Befehle in ui/befehlsliste.js) → Menüleiste, Schnellleiste, Werkzeugleiste, Kontextmenü, Tastatur ·
- * Seitenleisten links (Assets, Modelle, Prefabs, Zonen, Räume) / rechts (Inspektor, Ebenen, Prüfung) / KI-Helfer · Optionsleiste.
+ * Seitenleisten links (Assets, Modelle, Audio, Prefabs, Zonen, Räume) / rechts (Inspektor, Ebenen, Prüfung) / KI-Helfer · Optionsleiste.
  * Spielcode wird nur GELESEN. Geschrieben wird nur lokal (IndexedDB) bzw. per Download.
  */
 const speicher = new EditorSpeicher();
@@ -60,8 +61,9 @@ const links = new Seitenleiste({ wurzel: document.getElementById('links'), zusta
 const rechts = new Seitenleiste({ wurzel: document.getElementById('rechts'), zustand });
 const kiLeiste = new Seitenleiste({ wurzel: document.getElementById('ki'), zustand });
 const layout = new Layout({ leisten: { links, rechts, ki: kiLeiste }, beiAenderung: () => befehle.melde() });
-const assets = new AssetBrowser({ zustand, leiste: links, aktionen, bibliothek });
+const assets = new AssetBrowser({ zustand, leiste: links, aktionen, bibliothek, audioBibliothek });
 modelleUi({ zustand, panel: links, aktionen, layout, bibliothek });
+audioUi({ zustand, panel: links, aktionen, layout, audioBibliothek });
 const insp = inspektor({ zustand, leiste: rechts, aktionen, befehle });
 ebenenUi({ zustand, leiste: rechts });
 pruefungUi({ zustand, leiste: rechts, aktionen });
@@ -292,4 +294,4 @@ async function starten() {
 starten();
 
 // Für Konsole & automatische Tests
-window.mapEditor = { zustand, bibliothek, audioBibliothek, zeichner, aktionen, befehle, werkzeuge, layout, links, rechts, assets, datei, oeffneDatei: datei.oeffneDatei, oeffneSpielzone: datei.oeffneSpielzone, markerSchluessel, pruefeMarker, kopiere, dreheVorlage };
+window.mapEditor = { zustand, bibliothek, audioBibliothek, zeichner, teile, aktionen, befehle, werkzeuge, layout, links, rechts, assets, datei, oeffneDatei: datei.oeffneDatei, oeffneSpielzone: datei.oeffneSpielzone, markerSchluessel, pruefeMarker, kopiere, dreheVorlage };

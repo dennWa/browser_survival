@@ -3,7 +3,7 @@ import { LOOT_TABELLEN } from '../../server/spiel/konfiguration/lootTabellen.js'
 import { BAUWERKE } from '../../gemeinsam/welt/bauwerke.js';
 import { KACHEL_GROESSE } from '../../gemeinsam/konstanten.js';
 import { nachDefinition } from './format.js';
-import { hatModell } from './bibliothek.js';
+import { hatModell, hatAudio } from './bibliothek.js';
 import { ausSchluessel } from './karte.js';
 import { istBekannterTyp } from './katalog.js';
 import { ZONEN_ID_MUSTER } from './zone.js';
@@ -12,6 +12,7 @@ import { pruefWelt } from './innen.js';
 /**
  * Live-Validierung. Liefert eine Liste { schwere: 'fehler' | 'warnung', code, text, x, y } (x/y = Kachel zum Hinspringen).
  * "fehler" verhindern Test/Veröffentlichen, "warnung" nicht.
+ * Klänge (Phase 4): klang-quelle (Fehler), klang-fehlt (Datei nicht in der Audio-Bibliothek), klang-radius, klang-schnitt, klang-musik.
  *
  * Die Spielregeln kommen aus dem Spiel selbst: die Karte wird mit kartenLader.verarbeiteKarte geladen und als Welt
  * aufgebaut → istBlockiert / istInnen / Erreichbarkeit sind exakt wie im Spiel.
@@ -62,6 +63,19 @@ export function validiere(karte, { zonen = null, mitErreichbarkeit = true } = {}
   // Nächte sind dunkel (Editor 2.0, 2.1): Licht gibt es nur an Lampen, Laternen, Scheinwerfern und Lagerfeuern
   const hatLicht = [...karte.s('objekte').values()].some((o) => o.typ === 'licht') || [...karte.s('bauwerke').values()].some((b) => b.typ === 'lagerfeuer');
   if (!hatLicht && karte.breite * karte.hoehe > 0) warnung('kein-licht', 'Keine Lichtquelle: nachts ist die Zone stockdunkel (nur Taschenlampe) – Lampe, Laterne, Scheinwerfer oder Lagerfeuer setzen');
+  // Klänge (Phase 4): Datei muss da sein, Punkt/Bereich in der Zone, sinnvolle Radien; höchstens eine Karten-Musik ersetzt den Ordner
+  let ersetzend = 0;
+  for (const [, c] of karte.s('klaenge')) {
+    const ort = c.art === 'global' ? [null, null] : [Math.floor(c.x), Math.floor(c.y)];
+    if (!c.audio && !c.daten && !c.datei) fehler('klang-quelle', `Klang „${c.name}“ ohne Audio-Datei`, ...ort);
+    else if (c.audio && !c.daten && !c.datei && !hatAudio(c.audio)) warnung('klang-fehlt', `Klang „${c.name}“: Audio-Datei fehlt in der Bibliothek (anderer Browser? Backup/Entwurf-Datei mit Audio öffnen)`, ...ort);
+    if (c.art === 'punkt' && (c.x < 0 || c.y < 0 || c.x > karte.breite || c.y > karte.hoehe)) fehler('objekt-aussen', `Klang „${c.name}“ außerhalb der Zone`, ...ort);
+    if (c.art === 'punkt' && !(c.aussen > c.innen)) warnung('klang-radius', `Klang „${c.name}“: Hörweite muss größer sein als „Voll bis“`, ...ort);
+    if (c.art === 'bereich' && (c.x < 0 || c.y < 0 || c.x + c.b > karte.breite || c.y + c.h > karte.hoehe)) fehler('objekt-aussen', `Ambiente „${c.name}“ außerhalb der Zone`, ...ort);
+    if (c.ende && c.ende <= c.start) warnung('klang-schnitt', `Klang „${c.name}“: Ende liegt vor dem Start`, ...ort);
+    if (c.art === 'global' && c.ersetztMusik) ersetzend++;
+  }
+  if (ersetzend > 1) warnung('klang-musik', `${ersetzend} globale Klänge ersetzen die Zonen-Musik – sie laufen gleichzeitig`);
   for (const [, b] of karte.s('bauwerke')) {
     if (!BAUWERKE[b.typ]) fehler('bauwerk-typ', `Unbekanntes Bauwerk „${b.typ}“`, b.tx, b.ty);
     if (!karte.imFeld(b.tx, b.ty)) fehler('objekt-aussen', `Bauwerk „${b.typ}“ außerhalb der Zone`, b.tx, b.ty);

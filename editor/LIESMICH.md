@@ -175,6 +175,32 @@ Flackern, Lichtform (Punkt/Kegel). Die 2D-Ansicht zeigt Radius bzw. Kegel. Die P
   Bibliothek.
 - **Ausgeblendet:** „Bild → 3D“ und „Neue Grafik (Antrag)“ (nur noch 3D-Formate). Vorhandene Bild-Objekte werden weiter angezeigt.
 
+## 🔊 Klänge (Reiter 🔊 Audio)
+
+- **Hochladen:** Audio-Dateien in die gestrichelte Fläche ziehen oder **📂 Dateien wählen** – **mp3, wav, ogg, m4a, flac, opus,
+  webm**, höchstens 15 MB. Der Editor prüft die Datei (Signatur) und spielt sie probeweise ab (Dauer, Mono/Stereo, Wellenform).
+  Lange (> 5 min) oder große (> 5 MB) Dateien bekommen einen Hinweis – fürs Handy lieber kurze Schleifen.
+- **Bibliothek:** Audio liegt **einmal im Projekt** (alle Zonen). ▶ hört vor, **✎** ändert Name, Ordner, Tags (Suche mit `#tag`),
+  Lizenz/Urheber/Quelle. Die Dateien stehen auch im **🧱 Asset-Browser** (Gruppe 🔊 Klang).
+- **Drei Arten:**
+  - **📍 Punkt-Klang** (Huhn, Maschine, Lagerfeuer): Klick auf die Karte, auf ein Objekt = an dessen Mitte. Innerer Kreis = volle
+    Lautstärke, gestrichelter äußerer Kreis = Hörweite. Beide Kreise haben Griffe zum Ziehen. Im Spiel kommt der Klang von links
+    oder rechts (Stereo).
+  - **▭ Ambiente** (Wald, Halle, Bach): Rechteck auf der Karte ziehen. „Übergang“ = so viele Kacheln weich ein- bzw. ausblenden.
+  - **🌐 Global** (Karten-Musik/Atmo): gilt in der ganzen Zone. „Ersetzt Zonen-Musik“ schaltet die Ordner-Musik ab.
+- **Bearbeiten (Inspektor, nicht-destruktiv – die Datei bleibt unverändert):** Wellenform mit Griffen für **Anfang/Ende** (ziehen;
+  Doppelklick setzt zurück), **Einblenden/Ausblenden**, **Lautstärke** (bis 2×), **Regler** (Effekte · Wind & Regen · Musik – der
+  Lautstärke-Regler im Spiel), **▶ Vorhören** / **🔁 Loop hören**. Jede Änderung ist ein Schritt für Rückgängig.
+- **Wiedergabe & Auslöser:** Endlos-Schleife, **zufällige Abstände** (Pause min–max) oder **einmal je Auslösung** (mit Abklingzeit).
+  Auslöser: immer, drinnen/verlassen (Ambiente), Annäherung auf X Kacheln, Tag, Nacht, Kampf in der Nähe, Horde, Zonen-Wechsel.
+  **Tonhöhe ± %** variiert kurze, wiederkehrende Geräusche bei jedem Abspielen.
+- **Prüfung:** warnt bei fehlender Datei (anderer Browser → Backup/Entwurf-Datei mit Audio öffnen), Hörweite ≤ „Voll bis“, Ende vor
+  dem Start, mehreren Musik-Ersatz-Klängen; Klänge außerhalb der Zone sind Fehler.
+- **Mitnehmen & Veröffentlichen:** Entwurf-Datei, Komplett-Backup, Export und **▶ Testen** enthalten die Audio-Dateien.
+  `npm run karte:editor` legt sie unter `client/audio/karten/<karte>/` ab und räumt nicht mehr benutzte auf.
+- **Löschen:** ✎ → 🗑. Ist die Datei benutzt, zeigt der Editor wo und bietet **Mitlöschen** oder **Ersetzen** (Position, Schnitt und
+  Auslöser bleiben). Die Ebene **🔊 Klänge** blendet alle Klänge auf der Karte aus oder sperrt sie.
+
 ## Speichern und Sichern
 
 - **Automatisch:** jede Änderung landet nach ~1 s im Browser (IndexedDB, sonst localStorage) – für **alle** geänderten Zonen.
@@ -182,7 +208,7 @@ Flackern, Lichtform (Punkt/Kegel). Die 2D-Ansicht zeigt Radius bzw. Kegel. Die P
   · ⚠ nur Arbeitsspeicher (privates Fenster). Klick auf die Anzeige öffnet Speichern/Backup.
 - **Strg+S** speichert sofort lokal, **Strg+Umschalt+S** lädt den Entwurf der aktiven Zone als Datei herunter (inkl. Verlauf).
 - **🛟 Komplett-Backup** (Datei → Sicherung): **eine** Datei mit allen Entwürfen samt Verlauf, eigenen Prefabs, 3D-Modellen,
-  Weltanordnung und Editor-Einstellungen (Ebenen, Layout, Favoriten). Der Gemini-Schlüssel kommt **nie** hinein. **♻ Backup wiederherstellen** zeigt,
+  Audio-Dateien, Weltanordnung und Editor-Einstellungen (Ebenen, Layout, Favoriten). Der Gemini-Schlüssel kommt **nie** hinein. **♻ Backup wiederherstellen** zeigt,
   was zurückkommt (Häkchen je Zone; gleiche IDs werden ersetzt). So zieht man auch auf ein anderes Gerät um.
 - **💽 Speicherplatz & Status:** belegt/frei, und ob der Browser die Daten dauerhaft hält (sonst darf er bei Speichermangel löschen –
   dann regelmäßig ein Backup ziehen).

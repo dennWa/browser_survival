@@ -8,6 +8,7 @@ import { ausSchluessel, markerSchluessel, kopie } from './karte.js';
  *     (Baumkronen – ebene 'oben' – dürfen höchstens zur Hälfte überstehen, wie in den Spielzonen).
  *   - Drehen um 90° bleibt im Raster: ganzzahlige Objekte auf ganzzahliger Position drehen um die Mitte, wenn das wieder
  *     im Raster landet, sonst um die linke obere Ecke (kein „halbe Kachel“-Versatz, viermal drehen = Ausgangslage).
+ *   - Klänge (Phase 4): Punkt frei verschiebbar, Ambiente-Bereich nur um ganze Kacheln, globale Klänge haben keinen Ort.
  */
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -39,6 +40,20 @@ export function verschiebeOps(karte, gewaehlte, dx, dy) {
   const markerNeu = [];
   const raus = { ops: null, grund: 'Rand der Zone erreicht' };
   for (const { s, k, wert } of gewaehlte) {
+    if (s === 'klaenge') {
+      // Punkt-Klänge frei, Ambiente-Bereiche nur ganze Kacheln, globale Klänge haben keinen Ort
+      if (wert.art === 'punkt') {
+        const neu = { ...wert, x: r3(wert.x + dx), y: r3(wert.y + dy) };
+        if (neu.x < 0 || neu.y < 0 || neu.x > karte.breite || neu.y > karte.hoehe) return raus;
+        ops.push({ s, k, neu });
+      } else if (wert.art === 'bereich' && ganz) {
+        const neu = { ...wert, x: wert.x + dx, y: wert.y + dy };
+        if (neu.x < 0 || neu.y < 0 || neu.x + neu.b > karte.breite || neu.y + neu.h > karte.hoehe) return raus;
+        ops.push({ s, k, neu });
+      }
+      neueAuswahl.push({ s, k });
+      continue;
+    }
     if (s === 'objekte') {
       const neu = { ...wert, x: r3(wert.x + dx), y: r3(wert.y + dy) };
       if (!objektPasst(karte, wert, neu)) return raus;
@@ -151,6 +166,12 @@ export function dupliziereOps(karte, gewaehlte) {
     } else if (s === 'bauwerke') {
       const dx = versatz(wert.tx, 1, karte.breite);
       ops.push({ s, k: id, neu: { ...kopie(wert), tx: wert.tx + dx, ty: wert.ty + (dx ? 0 : versatz(wert.ty, 1, karte.hoehe)) } });
+      neueAuswahl.push({ s, k: id++ });
+    } else if (s === 'klaenge') {
+      const neu = kopie(wert);
+      if (wert.art === 'punkt') Object.assign(neu, { x: r3(Math.min(karte.breite, wert.x + 1)), y: r3(Math.min(karte.hoehe, wert.y + 1)) });
+      else if (wert.art === 'bereich') Object.assign(neu, { x: wert.x + versatz(wert.x, wert.b, karte.breite), y: wert.y + versatz(wert.y, wert.h, karte.hoehe) });
+      ops.push({ s, k: id, neu });
       neueAuswahl.push({ s, k: id++ });
     } else if (s === 'objekte' || s === 'tierBereiche' || s === 'raumFlaechen' || s === 'uebergaenge') {
       const b = wert.b ?? 1;

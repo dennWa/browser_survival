@@ -21,84 +21,20 @@
   `karte:editor` räumt verwaiste Modelle auf, Poly Pizza (`kern/quellen.js`; echte API ungetestet – ohne Schlüssel, Preflight
   ohne CORS-Kopf → Rückfall Link + „Datei mit Lizenzangaben“ ist eingebaut), Bild→3D + Grafik-Antrag ausgeblendet.
 
-**In Arbeit: Phase 4 (Audio-Engine) – Stand 2026-10-19, Teil 2 (nicht alles committet, siehe „uncommitted“).**
+- Phase 4 komplett (4.1–4.5, 2026-10-19): Klanglandschaft `gemeinsam/audio/klanglandschaft.js` (Pegel, Auslöser, Loop/Intervall/
+  Einmal, Pitch, Schnitt), Lader `daten.klaenge`, Spiel-Abspieler `client/audio/klaenge.js` (Busse, Stereo, nächste N Quellen,
+  `ersetztMusik`), Editor: Audio-Bibliothek (IndexedDB `audio`), Reiter „🔊 Audio“ (`ui/audioUi.js`: Upload + Probe-Dekodierung,
+  Ordner/Tags/Suche, Vorhören, Löschen mit Abhängigkeiten), Katalog „Klänge“, Inspektor mit Wellenform-Trimmen/Fades/Auslösern,
+  Radius-Griffe, 2D- und 3D-Anzeige, Prüfung (`klang-*`), Verschieben/Duplizieren, `karte:editor` → `client/audio/karten/<karte>/`.
+  Doku: LIESMICH „🔊 Klänge“, KI_INDEX §10, Manifest. Prüfung: `npm test` 238/238, `rauchtest:editor` + `rauchtest` grün.
+  Bekannt/offen: echte Musikdateien auf dem Handy nicht geprüft (nur WAV im Rauchtest); Klang-Vorschau in 3D ohne Ton.
 
-*Fertig (committet, getestet):*
-- `gemeinsam/audio/klanglandschaft.js` (umgebungsfrei): `pruefeKlang` (Felder säubern, Quelle = `audio` | `daten` | `datei`),
-  `neuerKlang(art, felder)` (Standardwerte je Art), `pegel` (Punkt: innen voll → außen 0, Panorama; Bereich: weich am Rand),
-  `bedingung` (Auslöser: drinnen, verlassen, naehe, tag, nacht, kampf, horde, zone, immer), `KlangSteuerung` (Loop /
-  Intervall mit Zufallspause / Einmal mit Abklingzeit), `tonhoehe` (±% Pitch), `schnittDauer`, `zufallMit` (deterministisch).
-  Tests: `tests/klanglandschaft.test.js` (6 Tests, inkl. Editor-Rundreise + karte:editor-Dateiablage).
-- Lader: `server/spiel/karten/kartenLader.js` → `daten.klaenge` (nur Klänge mit `datei`/`daten`).
-- Editor-Modell: Sammlung `klaenge` (Zahl-IDs, `ID_SAMMLUNGEN`), Ebene `klaenge` (🔊) in `ebenen.js`, Format ein/aus in
-  `kern/format.js` (`mitAudio` bettet `daten` ein; Import prüft mit `pruefeKlang`; Warnung bei kaputtem Klang).
-- Bibliothek Audio: `editor/kern/bibliothek.js` (`a_<fnv>_<len>`-IDs, `audioFormat`, `istAudio` (Signatur), `wellenform`,
-  `audioMetaNormal`, `bytesZuAudioUrl`, `setzeAudioQuelle`/`mitAudio`, `audioVerwendungen`, `audioLoeschOps`,
-  `audioErsetzOps`, `uebernimmEingebetteteAudio`, `leseAudioExport`, `benutzteAudios`).
-- Browser-Bibliothek: `editor/ui/bibliothek.js` ist jetzt generisch: `new Bibliothek(speicher, zustand, MODELLE|AUDIO)`.
-  IndexedDB-Bereich `audio` (DB-Version 3 in `ui/speicher.js`). `main.js` hat `audioBibliothek` (`window.mapEditor.audioBibliothek`).
-  Zustand: `zustand.audioBibliothek` wird in `fuegeZoneHinzu` mit `uebernimm(karte)` gefüttert. Ereignis `'bibliothek'`
-  trägt jetzt die Art als Daten (`'modell'|'audio'`).
-- Backup/Entwurf-Datei: Feld `audio: [{…meta, daten}]` neben `bibliothek` (`kern/backup.js`, `ui/dateiAktionen.js`);
-  Wiederherstellen übernimmt Modelle + Audio mit einem Häkchen.
-- Veröffentlichen: `klaenge` in `kern/veroeffentlichen.js` (alsJsModul-Liste).
-- Karte veröffentlichen: `werkzeuge/karten/eigeneKlaenge.mjs` (`schreibeKlaenge`) → `client/audio/karten/<karte>/<a_…>.<ext>`,
-  setzt `datei`, entfernt verwaiste Dateien der Karte. In `editorImport.mjs` aufgerufen; Entwurf-`audio` wird vorher über
-  `setzeAudioQuelle` aufgelöst.
-- Spiel-Abspieler: `client/audio/klaenge.js` (`Klanglandschaft`: lädt Puffer, Busse über `sound.klangAusgang()`,
-  Lautstärke+Panorama je Bild, MAX_AKTIV nächste N (Handy 6 / Desktop 12), `ersetztMusik` schaltet Ordner-Musik ab).
-  `client/audio/sound.js`: neue Methode `klangAusgang()`. `client/kern/clientSpiel.js`: Hörer, Tag/Nacht, Kampf-Auslöser
-  (`#kampfInDerNaehe`, 15 Kacheln), Horde (≥6 Zombies in 20 Kacheln), Zonenwechsel-Auslöser, `stoppe()` beim Beenden.
+**Nächster Schritt: Phase 5 – 5.1 Modell-Werkstatt** (noch nicht begonnen). Vorgehen: großes Fenster (Dialog/Overlay) aus dem
+Reiter „📦 Modelle“ (✎ → „🛠 Werkstatt“), Three.js-Szene mit OrbitControls (Vendor-Addons prüfen: `client/vendor/three/addons.js`,
+ggf. über `werkzeuge/assets/baue_3d.mjs --nur-vendor` ergänzen – nie direkt in `client/vendor/`), TransformControls-Gizmo,
+Speichern über GLTFExporter als neue Bibliotheks-Version (neue ID, Original bleibt; Typen per `ersetzOps` umhängen fragen).
 
-*Uncommitted (Stand jetzt, Tests 237/237 grün, Browser noch NICHT geprüft):*
-- `client/audio/klaenge.js`, `client/audio/sound.js`, `client/kern/clientSpiel.js` (Spiel-Seite, siehe oben).
-- `editor/ui/werkzeuge.js`: Klang platzieren (Klick = Punkt, an Objekt = Mitte des Objekts), Bereich ziehen = Ambiente,
-  Auswahl/Treffer für Klänge (Punkt-Radius, Bereich-Rechteck), Radius-Griffe (`#klangGriffRunter`, `#klangRadius`,
-  Undo-Gruppe `Hörweite`/`Volle Lautstärke bis`), Hover-Kreis. `objektInfo`/`neuerKlang` sind importiert.
-- `werkzeuge/karten/eigeneKlaenge.mjs`, `editorImport.mjs`, `editor/kern/veroeffentlichen.js`, `editor/main.js`,
-  `editor/ui/zustand.js`, `editor/ui/speicher.js`, `editor/ui/dateiAktionen.js`, `editor/kern/backup.js`, `editor/ui/bibliothek.js`.
-
-*Noch offen (in dieser Reihenfolge):*
-1. **Audio-Reiter „🔊 Audio“** (linke Seitenleiste, neben „📦 Modelle“): `editor/ui/audioUi.js` – Hochladen (Drag & Drop +
-   📂, Formate mp3/wav/ogg/m4a/flac/opus/webm, max. 15 MB, `istAudio`-Signatur), Probe-Dekodierung im Browser
-   (`AudioContext.decodeAudioData` → Dauer, Kanäle, `wellenform`), Ordner/Tags/Suche, Vorhören (kleiner Player),
-   Löschen mit `audioVerwendungen`-Dialog (mitlöschen `audioLoeschOps` / ersetzen `audioErsetzOps`). Reiter bei
-   `ereignisse: ['zone','bibliothek']` registrieren. Aktionen: `aktionen.audioHochladen`, `aktionen.audioReiter`,
-   `aktionen.klangWaehlen(id)`.
-2. **Asset-Browser:** Kategorie „Klänge“ (in `editor/kern/katalog.js` `KATEGORIEN`/`GRUPPEN` ergänzen, Gruppe z. B.
-   „Eigene“ oder neue Gruppe „Klang“) mit Einträgen `art: 'klang'` für jede Audio-Bibliotheks-Datei (`audio: <id>`) plus
-   Zusatz-Einträge „Punkt-Klang“, „Ambiente (Bereich)“, „Global (Karten-Musik)“ – die Art wird im Werkzeug gesetzt
-   (`waehle()`: `e.art === 'klang'` → `z.setzeEintrag(e)`, Werkzeug `platzieren` für Punkt, `bereich` für Ambiente).
-   `neuerKlang(art, { audio })` nutzen; Global-Klänge über Bereich-Werkzeug nicht, sondern eigener Eintrag mit `art:'global'`.
-3. **Inspektor für Klänge** (`editor/ui/inspektor.js`, Zweig `s === 'klaenge'`): Name, Quelle (Dropdown aus der
-   Audio-Bibliothek + Vorschau), Art (nur anzeigen), Lautstärke (0–2), Bus, Wiedergabe (loop/intervall/einmal),
-   Intervall min/max, Auslöser (AUSLOESER-Liste), Naehe, Abklingzeit, Pitch ±%, Start/Ende (s), Fade-In/-Out (s),
-   Punkt: x/y, innen, aussen; Bereich: x/y/b/h, rand; Global: ersetztMusik. Wellenform-Canvas mit Trimm-Griffen
-   (Start/Ende ziehen → `setze` mit `start`/`ende`, 1 Undo-Schritt). Vorhören-Knopf.
-   Alle Änderungen über `z.ausfuehren` (Undo!). Knopf „Löschen“ über `bearbeiten.loeschen` (kommt automatisch).
-4. **Anzeige auf der Karte** (`editor/ui/zeichner2d.js`, neue Methode `#zeichneKlaenge(ctx, k)` nach `#zeichneObjekte`):
-   Punkt = Lautsprecher-Symbol 🔊 + gestrichelter Kreis innen (volle Lautstärke) und außen (Hörweite, Griff);
-   Bereich = gestricheltes Rechteck mit Randzone (rand) schraffiert; Global = Badge oben links. Ebene `klaenge`
-   respektieren (`this.dimm`). Auswahl hervorheben.
-5. **3D-Ansicht** (`editor/ui/ansicht3d.js`): optional, Klänge als kleine Marker (Kugel + Ring) – erst nach 2D.
-6. **Prüfung** (`editor/kern/validierung.js`): `klang-fehlt` (Audio-ID ohne Datei in der Bibliothek → Warnung;
-   ohne `datei`/`daten`/`audio` → Fehler), `klang-lang` (> 5 min → Warnung), `klang-aussen` (aussen < innen).
-   Ebenfalls `hatAudio` nutzen, analog `modell-fehlt`.
-7. **Kartenformat-Doku:** `editor/kern/format.js` Kopfkommentar (Feld `klaenge`) ist drin; `editor/LIESMICH.md` um
-   Abschnitt „🔊 Klänge“ ergänzen (Punkt/Ambiente/Global, Auslöser, Loop/Intervall/Einmal, Trimmen, Fades, Busse).
-8. **Tests:** `tests/klanglandschaft.test.js` um Editor-Teile erweitern (Validierung `klang-fehlt`), und ein
-   Rauchtest-Schritt „Phase 4“ in `werkzeuge/test/editorRauchtest.mjs` (Audio hochladen mit einer kleinen WAV aus
-   Bytes wie im Test, Klang platzieren, Radius-Griff, Speichern, Veröffentlichen-Dateien prüfen).
-9. **Browser-Check Spiel:** `npm run rauchtest` (Spiel-Seite lädt, keine Fehler durch `klaenge.js`).
-10. **Doku:** `KI_INDEX.md` (Klanglandschaft-Zeile in §6/§10), `project_manifest.md` (Baum: `gemeinsam/audio/klanglandschaft.js`,
-    `client/audio/klaenge.js`, `editor/ui/audioUi.js`, `werkzeuge/karten/eigeneKlaenge.mjs`; Changelog-Zeile 0.15.0-dev
-    Phase 4 ergänzen), ROADMAP-Häkchen ☑ 4.1–4.5 erst wenn 1–9 fertig sind.
-
-*Regeln, die bei der Fortsetzung gelten:* jede Änderung über `zustand.ausfuehren`/`sammle` (Undo); Audio-Dateien nur
-über Bibliothek/Ops referenzieren, nie direkt in die Karte schreiben; keine Modell-IDs in Commits/Code;
-Commit-Trailer `Co-Authored-By`/`Claude-Session` wie bisher; vor jedem Commit `npm test`.
-
-**Danach:** Phasen 4–9 laut Tabellen unten (4 Audio, 5 3D-Modul, 6 Zonen/Loot, 7 UX, 8 Testlauf, 9 KI).
+**Danach:** Phasen 5–9 laut Tabellen unten (5 3D-Modul, 6 Zonen/Loot, 7 UX, 8 Testlauf, 9 KI).
 
 ## Ausgangslage (Analyse 2026-10-19)
 - Editor v0.14: Phasen 0–11 fertig, ~10 000 Zeilen in `editor/`, 210 Tests grün, Rauchtest grün.
@@ -153,11 +89,11 @@ Commit-Trailer `Co-Authored-By`/`Claude-Session` wie bisher; vor jedem Commit `n
 > angewendet (Editor-Vorschau und Spiel benutzen denselben Abspiel-Kern `gemeinsam`-frei in `client/audio/`).
 | # | Schritt | Größe |
 |---|---|---|
-| ☐ 4.1 | **Upload & Verwaltung:** Musik/Effekte (.mp3, .wav, .ogg, .m4a, .flac – Probe-Dekodierung, Dauer, Größe) in die Projekt-Bibliothek (3.1), eigene **Ordner + Tags**, Suche, Vorhören, Löschen mit Abhängigkeitsprüfung | M |
-| ☐ 4.2 | **Audio-Bearbeitung im Editor:** Wellenform-Ansicht, **Start-/Endpunkt** (Trimmen per Ziehen), **Fade-In/Fade-Out**, **Grundlautstärke**, Loop-Vorhören mit Übergang; alles als Sound-Einstellungen (1 Undo-Schritt je Änderung) | M |
-| ☐ 4.3 | 🎮 **Räumliches Audio & Zuweisung:** *objektbasiert* (Sound an ein Objekt/einen Punkt hängen: Huhn, Maschine) mit **sichtbarem Falloff** in 2D/3D (innerer Radius = volle Lautstärke, äußerer = unhörbar, per Griff ziehbar); *zonenbasiert* (Ambiente in markierten Zonen, weiches Ein-/Ausblenden an der Grenze); *global* (Hintergrundmusik/BGM der Karte, ersetzt bzw. ergänzt den Musik-Ordner). Spiel: Abstand/Stereo-Panorama zur eigenen Figur, Busse aus `sound.js` (Effekte/Atmosphäre/Musik), Leistungsgrenze (nur die nächsten N Quellen) | L |
-| ☐ 4.4 | 🎮 **Wiedergabe-Logik & Trigger:** Endlos-Loop oder **zufällige Intervalle** (z. B. alle 5–15 s), **Ereignis-Trigger** (Zone betreten/verlassen, Annäherung auf X m, Tag-/Nacht-Wechsel, Kampfbeginn, Horde, Übergang), einmalig/wiederholbar mit Abklingzeit, **automatische Pitch-Variation** (±x %) für kurze, wiederkehrende Sounds | M |
-| ☐ 4.5 | 🎮 **Veröffentlichen & Test:** Editor-Test spielt die Soundscape (Dateien eingebettet), `npm run karte:editor` legt die Dateien unter `client/audio/karten/<zone>/` ab (verwaiste werden entfernt), Lader prüft alle Felder, Tests (Lader, Trigger-Logik, Intervall/Pitch deterministisch mit festem Zufall) | M |
+| ☑ 4.1 | **Upload & Verwaltung:** Musik/Effekte (.mp3, .wav, .ogg, .m4a, .flac – Probe-Dekodierung, Dauer, Größe) in die Projekt-Bibliothek (3.1), eigene **Ordner + Tags**, Suche, Vorhören, Löschen mit Abhängigkeitsprüfung | M |
+| ☑ 4.2 | **Audio-Bearbeitung im Editor:** Wellenform-Ansicht, **Start-/Endpunkt** (Trimmen per Ziehen), **Fade-In/Fade-Out**, **Grundlautstärke**, Loop-Vorhören mit Übergang; alles als Sound-Einstellungen (1 Undo-Schritt je Änderung) | M |
+| ☑ 4.3 | 🎮 **Räumliches Audio & Zuweisung:** *objektbasiert* (Sound an ein Objekt/einen Punkt hängen: Huhn, Maschine) mit **sichtbarem Falloff** in 2D/3D (innerer Radius = volle Lautstärke, äußerer = unhörbar, per Griff ziehbar); *zonenbasiert* (Ambiente in markierten Zonen, weiches Ein-/Ausblenden an der Grenze); *global* (Hintergrundmusik/BGM der Karte, ersetzt bzw. ergänzt den Musik-Ordner). Spiel: Abstand/Stereo-Panorama zur eigenen Figur, Busse aus `sound.js` (Effekte/Atmosphäre/Musik), Leistungsgrenze (nur die nächsten N Quellen) | L |
+| ☑ 4.4 | 🎮 **Wiedergabe-Logik & Trigger:** Endlos-Loop oder **zufällige Intervalle** (z. B. alle 5–15 s), **Ereignis-Trigger** (Zone betreten/verlassen, Annäherung auf X m, Tag-/Nacht-Wechsel, Kampfbeginn, Horde, Übergang), einmalig/wiederholbar mit Abklingzeit, **automatische Pitch-Variation** (±x %) für kurze, wiederkehrende Sounds | M |
+| ☑ 4.5 | 🎮 **Veröffentlichen & Test:** Editor-Test spielt die Soundscape (Dateien eingebettet), `npm run karte:editor` legt die Dateien unter `client/audio/karten/<zone>/` ab (verwaiste werden entfernt), Lader prüft alle Felder, Tests (Lader, Trigger-Logik, Intervall/Pitch deterministisch mit festem Zufall) | M |
 
 ## Phase 5 – 3D-Bearbeitungsmodul & Objekt-Handling
 | # | Schritt | Größe |

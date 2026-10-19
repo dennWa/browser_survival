@@ -921,3 +921,64 @@ kbd {
   max-height: 50vh;
   overflow: auto;
 }
+
+/* Audio-Reiter (🔊, ui/audioUi.js) */
+.audio-zeile {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 4px 6px;
+  align-items: center;
+  padding: 5px;
+  border: 1px solid var(--rand);
+  border-radius: 6px;
+  background: var(--bg3);
+  margin-bottom: 4px;
+}
+.audio-zeile > button[data-a='hoeren'] {
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0;
+}
+.audio-zeile .name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+  font-size: 12px;
+}
+.audio-zeile .knoepfe {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 4px;
+}
+.audio-zeile .knoepfe button {
+  flex: 1;
+  min-height: 30px;
+  padding: 0 4px;
+}
+svg.welle {
+  fill: var(--akzent);
+  opacity: 0.85;
+  max-width: 100%;
+}
+.klang-liste {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.klang-eintrag {
+  text-align: left;
+  font-size: 12px;
+}
+.klang-eintrag.aktiv {
+  border-color: var(--blau);
+}
+canvas.wellen-editor {
+  width: 100%;
+  height: 64px;
+  display: block;
+  border-radius: 6px;
+  margin: 4px 0 8px;
+  touch-action: none;
+  cursor: ew-resize;
+}

@@ -222,7 +222,8 @@ test('Innen/Außen wie im Spiel (Innenboden; Dach eines kartenfesten Bauwerks z�
 
 test('Katalog: alle Kategorien belegt, jede Kachel und jeder Kartenobjekt-Typ der Spielzonen ist drin', () => {
   const k = katalog();
-  for (const kat of KATEGORIEN.filter((x) => x !== 'Eigene')) assert.ok(k.some((e) => e.kategorie === kat), kat);
+  // Eigene/Klänge füllen sich aus der Karte bzw. der Audio-Bibliothek
+  for (const kat of KATEGORIEN.filter((x) => x !== 'Eigene' && x !== 'Klänge')) assert.ok(k.some((e) => e.kategorie === kat), kat);
   const typen = new Set(Object.values(KARTEN).flatMap((d) => d.objekte.map((o) => o.typ)));
   for (const t of typen) assert.ok(objektInfo(t).bekannt, `Objekttyp ${t} fehlt im Katalog`);
   assert.ok(k.some((e) => e.art === 'bauwerk' && e.typ === 'zaun'));

@@ -12,6 +12,7 @@ import { esc } from './dialoge.js';
  * 3D-Modelle der Projekt-Bibliothek (Phase 3) erscheinen als `bib:<id>` in ihrer Kategorie (mit Vorschaubild); Wählen legt
  * den Typ in der Zone an (aktionen.verwendeModell). Zonen-Typen, die auf ein vorhandenes Bibliotheks-Modell zeigen, werden
  * dafür nicht doppelt gezeigt. Bild → 3D und Grafik-Antrag sind ausgeblendet (Schritt 3.2, Code bleibt in eigeneUi.js).
+ * Audio-Dateien (Phase 4) erscheinen in „Klänge“ als `klang:punkt:<id>` (art 'klang') → aktionen.klangSetzen (ui/audioUi.js).
  */
 const SPEICHER = 'browserSurvival.editorAssets';
 const ZULETZT_MAX = 8;
@@ -26,13 +27,15 @@ function zusatzEintraege(kategorie, karte) {
   if (kategorie === 'Räume') liste.push({ id: 'aktion:prefab', art: 'aktion', aktion: 'prefabs', name: 'Prefabs (Vorlagen)', kategorie, symbol: '🏠' });
   if (kategorie === 'Zonen') liste.push({ id: 'aktion:zonen', art: 'aktion', aktion: 'zonen', name: 'Zonen-Übersicht', kategorie, symbol: '🗺' }, { id: 'aktion:vorschlaege', art: 'aktion', aktion: 'vorschlaege', name: 'Übergänge vorschlagen', kategorie, symbol: '💡' });
   if (kategorie === 'Eigene') liste.push({ id: 'aktion:modellHochladen', art: 'aktion', aktion: 'modellHochladen', name: '3D-Modelle hochladen', kategorie, symbol: '⬆' }, { id: 'aktion:modelle', art: 'aktion', aktion: 'modelle', name: 'Modell-Bibliothek', kategorie, symbol: '📦' }, { id: 'aktion:neuerTyp', art: 'aktion', aktion: 'neuerTyp', name: 'Platzhalter-Objekt anlegen', kategorie, symbol: '✚' });
+  if (kategorie === 'Klänge') liste.push({ id: 'aktion:audioHochladen', art: 'aktion', aktion: 'audioHochladen', name: 'Audio hochladen', kategorie, symbol: '⬆' }, { id: 'aktion:audioReiter', art: 'aktion', aktion: 'audioReiter', name: 'Audio-Bibliothek (Ambiente, Musik)', kategorie, symbol: '🔊' });
   if (kategorie === 'Farbe') liste.push({ id: 'aktion:texturen', art: 'aktion', aktion: 'texturen', name: 'Farbe/Textur je Objekttyp', kategorie, symbol: '🎨' });
   return liste;
 }
 
 export class AssetBrowser {
-  constructor({ zustand, leiste, aktionen, bibliothek = null }) {
+  constructor({ zustand, leiste, aktionen, bibliothek = null, audioBibliothek = null }) {
     this.bibliothek = bibliothek;
+    this.audioBibliothek = audioBibliothek;
     this.zustand = zustand;
     this.leiste = leiste;
     this.aktionen = aktionen;
@@ -96,7 +99,8 @@ export class AssetBrowser {
   /** Einträge einer Kategorie: fest + Zonen-Typen (ohne die, die ein Bibliotheks-Modell schon zeigt) + Modelle + Zusatz */
   #derKategorie(kat, k) {
     const ausBibliothek = (e) => e.eigen && this.bibliothek?.meta(k?.s('typen').get(e.typ)?.asset);
-    return [...eintraegeDerKategorie(kat, k).filter((e) => !ausBibliothek(e)), ...this.#modelle().filter((e) => e.kategorie === kat), ...zusatzEintraege(kat, k)];
+    const klaenge = kat === 'Klänge' ? (this.audioBibliothek?.liste ?? []).map((m) => ({ id: `klang:punkt:${m.id}`, art: 'klang', klangArt: 'punkt', audio: m.id, name: m.name, kategorie: kat, symbol: '🔊', tags: [...m.tags, m.ordner, 'klang', 'audio', 'sound'].filter(Boolean) })) : [];
+    return [...eintraegeDerKategorie(kat, k).filter((e) => !ausBibliothek(e)), ...this.#modelle().filter((e) => e.kategorie === kat), ...klaenge, ...zusatzEintraege(kat, k)];
   }
 
   /** Alle wählbaren Einträge (fest + eigene + Modelle + Zusatz) */
@@ -165,6 +169,11 @@ export class AssetBrowser {
   waehle(e) {
     const z = this.zustand;
     if (e.art === 'aktion') return this.aktionen[e.aktion]?.();
+    if (e.art === 'klang') {
+      this.zuletzt = [e.id, ...this.zuletzt.filter((id) => id !== e.id)].slice(0, ZULETZT_MAX);
+      this.#speichere();
+      return this.aktionen.klangSetzen?.(e.audio, e.klangArt);
+    }
     if (e.art === 'bibliothek') {
       if (z.ansicht === '3d') return z.meldung('Malen und Bauen gehen nur in 2D – Taste 3 schaltet um', 'fehler');
       this.zuletzt = [e.id, ...this.zuletzt.filter((id) => id !== e.id)].slice(0, ZULETZT_MAX);

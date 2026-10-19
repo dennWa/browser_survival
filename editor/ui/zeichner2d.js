@@ -10,6 +10,7 @@ import { BAUWERKE } from '../../gemeinsam/welt/bauwerke.js';
  * Kacheln liegen in einem 1-Pixel-pro-Kachel-Bild (wird nur an geänderten Stellen nachgemalt) und werden ohne Glättung
  * hochskaliert → scharf und schnell, auch bei 160 × 120.
  * Ebenen (zustand.ebenen, kern/ebenen.js): ausgeblendete werden nicht gezeichnet, gesperrte ausgegraut (`this.dimm`).
+ * Klänge (Phase 4, #zeichneKlaenge): Punkt mit Kreisen voll/Hörweite (+ Griffe), Ambiente-Rechteck mit Rand, Global als Hinweis.
  */
 export const LINEAL = 24;
 const MIN_ZOOM = 2;
@@ -228,6 +229,7 @@ export class Zeichner2D {
       this.#ebene(ctx, 'bauwerke', () => this.#zeichneBauwerke(ctx, k));
       this.#ebene(ctx, 'marker', () => this.#zeichneMarker(ctx, k));
       this.#ebene(ctx, 'uebergaenge', () => this.#zeichneUebergaenge(ctx, k));
+      this.#ebene(ctx, 'klaenge', () => this.#zeichneKlaenge(ctx, k));
       this.#zeichneAuswahlRechteck(ctx);
       this.#zeichneUeberlagerungen(ctx);
       this.#zeichneVorschau(ctx);
@@ -408,6 +410,68 @@ export class Zeichner2D {
       if (this.zoom >= 5) this.#text(ctx, `🐇 ×${t.anzahl}`, rb.x + rb.b / 2, rb.y + 10, '#f3dcc0');
     }
     ctx.restore();
+  }
+
+  /**
+   * Klänge (Phase 4): Punkt = 🔊 + Kreis „voll bis“ (innen, gefüllt) + gestrichelte Hörweite (außen); gewählt mit Griffen
+   * auf beiden Kreisen (ziehen = Radius, ui/werkzeuge.js). Ambiente = Rechteck mit Übergangszone. Global = Hinweis oben links.
+   */
+  #zeichneKlaenge(ctx, k) {
+    const z = this.zoom;
+    const globale = [];
+    for (const [id, c] of k.s('klaenge')) {
+      const gew = this.zustand.istGewaehlt('klaenge', id);
+      const farbe = gew ? '#ffffff' : '#7fd6ff';
+      if (c.art === 'global') {
+        globale.push(c);
+        continue;
+      }
+      ctx.save();
+      if (c.art === 'punkt') {
+        const p = this.zuBild(c.x, c.y);
+        ctx.fillStyle = 'rgba(127,214,255,0.13)';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, c.innen * z, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = farbe;
+        ctx.lineWidth = gew ? 2 : 1.2;
+        ctx.stroke();
+        ctx.setLineDash([6, 5]);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, c.aussen * z, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        if (gew)
+          for (const r of [c.innen, c.aussen]) {
+            if (r <= 0) continue;
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(p.x + r * z - 4, p.y - 4, 8, 8);
+          }
+        this.#text(ctx, '🔊', p.x, p.y, '#fff', Math.max(11, Math.min(20, z * 0.8)));
+        if (z >= 8) this.#text(ctx, c.name, p.x, p.y + Math.max(14, z * 0.9), farbe, 11);
+      } else {
+        const rb = this.#rechteckBild(c.x, c.y, c.b, c.h);
+        ctx.fillStyle = 'rgba(127,214,255,0.08)';
+        ctx.fillRect(rb.x, rb.y, rb.b, rb.h);
+        ctx.strokeStyle = farbe;
+        ctx.lineWidth = gew ? 2 : 1.2;
+        ctx.setLineDash([8, 4]);
+        ctx.strokeRect(rb.x, rb.y, rb.b, rb.h);
+        const r = Math.min(c.rand, c.b / 2, c.h / 2) * z;
+        if (r > 2) {
+          ctx.setLineDash([2, 4]);
+          ctx.strokeRect(rb.x + r, rb.y + r, rb.b - 2 * r, rb.h - 2 * r);
+        }
+        ctx.setLineDash([]);
+        if (z >= 5) this.#text(ctx, `🔊 ${c.name}`, rb.x + rb.b / 2, rb.y + 12, farbe, 11);
+      }
+      ctx.restore();
+    }
+    if (globale.length) {
+      const t = `🌐 ${globale.map((c) => c.name).join(' · ')}`;
+      ctx.font = '600 12px system-ui';
+      this.#text(ctx, t, LINEAL + 10 + ctx.measureText(t).width / 2, LINEAL + 14, '#7fd6ff', 12);
+    }
   }
 
   #zeichneObjekte(ctx, k) {

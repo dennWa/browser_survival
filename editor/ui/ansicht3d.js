@@ -12,6 +12,7 @@ import { mitModell } from '../kern/bibliothek.js';
  * 1 Kachel = 1 Einheit, Höhe in Metern (Terrain-Höhen sind echte Höhen der Bodenfläche). Boden = Canvas aus Kachelfarben +
  * Bemalung (dieselbe Farbe wie 2D und Spiel). Objekte als einfache Körper (Möbel = Quader in Typ-/Objektfarbe mit Muster,
  * Bäume instanziert, eigene Bild-Objekte als Billboard oder Extrusion, eigene .glb-Modelle eingepasst auf Fußabdruck × 3D-Höhe).
+ * Klänge (Phase 4): Punkt = Kugel + Bodenringe (voll bis / Hörweite), Ambiente = durchsichtiger Rahmen (Ebene „klaenge“).
  * Auswahl ist synchron mit 2D (Klick wählt).
  * Steuerung: Ziehen = schieben, Rechts-/Alt-Ziehen = drehen, Rad/Pinch = Zoom, Tippen = wählen (Touch: Ansehen + Schwenken).
  * Gezeichnet wird nur bei Bedarf (anfordern), neu gebaut nur, wenn sich die Karte geändert hat und die Ansicht sichtbar ist.
@@ -49,6 +50,7 @@ export class Ansicht3D {
     zustand.bei('karte', () => this.#veraltet());
     zustand.bei('zone', () => this.#veraltet(true));
     zustand.bei('bibliothek', () => this.#veraltet()); // Modell ersetzt/gelöscht
+    zustand.bei('ebenen', () => this.#veraltet()); // Klang-Ebene ein/aus
     zustand.bei('auswahl', () => this.#markiereAuswahl());
     zustand.bei('ansicht', () => {
       if (zustand.ansicht !== '3d') return;
@@ -155,6 +157,7 @@ export class Ansicht3D {
     this.#baueObjekte(k);
     this.#baueBauwerke(k);
     this.#baueMarker(k);
+    if (this.zustand.sichtbar('klaenge')) this.#baueKlaenge(k);
     this.#markiereAuswahl();
     this.anfordern();
   }
@@ -377,6 +380,40 @@ export class Ansicht3D {
     }
   }
 
+  /** Klänge (Phase 4): Punkt = Kugel + Bodenringe (voll bis / Hörweite), Ambiente = durchsichtiger Rahmen, Global ohne Ort */
+  #baueKlaenge(k) {
+    const farbe = 0x7fd6ff;
+    const ring = (r, x, y, z, gestrichelt) => {
+      const punkte = [];
+      for (let i = 0; i <= 48; i++) punkte.push(new THREE.Vector3(x + Math.cos((i / 48) * Math.PI * 2) * r, y, z + Math.sin((i / 48) * Math.PI * 2) * r));
+      const geo = new THREE.BufferGeometry().setFromPoints(punkte);
+      const linie = new THREE.Line(geo, gestrichelt ? new THREE.LineDashedMaterial({ color: farbe, dashSize: 0.5, gapSize: 0.35 }) : new THREE.LineBasicMaterial({ color: farbe }));
+      if (gestrichelt) linie.computeLineDistances();
+      this.welt.add(linie);
+    };
+    for (const [id, c] of k.s('klaenge')) {
+      if (c.art === 'punkt') {
+        const boden = k.hoeheAn(Math.floor(c.x), Math.floor(c.y));
+        const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.25, 14, 10), new THREE.MeshStandardMaterial({ color: farbe, emissive: farbe, emissiveIntensity: 0.6 }));
+        mesh.position.set(c.x, boden + 1.2, c.y);
+        mesh.userData = { s: 'klaenge', k: id };
+        this.welt.add(mesh);
+        this.waehlbar.push(mesh);
+        if (c.innen > 0) ring(c.innen, c.x, boden + 0.08, c.y, false);
+        ring(c.aussen, c.x, boden + 0.08, c.y, true);
+        this.boxen.set(`klaenge|${id}`, { x: c.x, y: boden + 0.9, z: c.y, b: 0.6, h: 0.6, hoehe: 0.6 });
+      } else if (c.art === 'bereich') {
+        const boden = k.hoeheAn(c.x, c.y);
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(c.b, 2, c.h), new THREE.MeshStandardMaterial({ color: farbe, transparent: true, opacity: 0.12, depthWrite: false }));
+        mesh.position.set(c.x + c.b / 2, boden + 1, c.y + c.h / 2);
+        mesh.userData = { s: 'klaenge', k: id };
+        this.welt.add(mesh);
+        this.waehlbar.push(mesh);
+        this.boxen.set(`klaenge|${id}`, { x: c.x + c.b / 2, y: boden, z: c.y + c.h / 2, b: c.b, h: c.h, hoehe: 2 });
+      }
+    }
+  }
+
   /** Auswahl aus 2D (oder 3D) als leuchtende Rahmen */
   #markiereAuswahl() {
     for (const kind of [...this.markierung.children]) {
@@ -455,7 +492,8 @@ export class Ansicht3D {
     const d = treffer.object.userData;
     const k = d.ids ? d.ids[treffer.instanceId] : d.k;
     this.zustand.waehle([{ s: d.s, k }], umschalt);
-    this.zustand.meldung(`3D: ${d.s === 'objekte' ? this.zustand.karte.s('objekte').get(k)?.typ : d.s} gewählt – Eigenschaften rechts, in 2D ebenfalls markiert`);
+    const was = d.s === 'objekte' ? this.zustand.karte.s('objekte').get(k)?.typ : d.s === 'klaenge' ? `🔊 ${this.zustand.karte.s('klaenge').get(k)?.name}` : d.s;
+    this.zustand.meldung(`3D: ${was} gewählt – Eigenschaften rechts, in 2D ebenfalls markiert`);
   }
 }
 

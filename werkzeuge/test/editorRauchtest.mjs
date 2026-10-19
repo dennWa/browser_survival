@@ -8,7 +8,8 @@
  * Ablauf: Login-Link → Editor → neue Zone (Rechteck aufziehen) → Kacheln malen (Pinsel, Rechteck, Linie, Füllen) →
  * Objekt platzieren + drehen + verschieben → Rückgängig/Wiederholen → Spielzone Waldweg als Vorlage öffnen → Auswahl +
  * Ausschnitt-Export → Zone vergrößern → 3D-Ansicht → Validierung → Neu laden (Entwurf + Verlauf bleiben) → Karte testen.
- * Editor 2.0: Menüleiste, Asset-Browser (Suche), Kontextmenü, Ebenen sperren, Hilfe mit Suche, Modell-Bibliothek (Phase 3).
+ * Editor 2.0: Menüleiste, Asset-Browser (Suche), Kontextmenü, Ebenen sperren, Hilfe mit Suche, Modell-Bibliothek (Phase 3),
+ * Audio-Bibliothek + Klänge (Phase 4).
  */
 import { spawn, execSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -270,6 +271,73 @@ try {
   pruefe(nachErsatz.n === 2 && nachErsatz.typ, `Modell ersetzt und gelöscht (${JSON.stringify(nachErsatz)})`);
   await seite.click('#links [data-reiter="🧱 Assets"]');
 
+  schritt('Phase 4: Audio hochladen (WAV), Punkt-Klang setzen, Hörweite per Griff, Trimmen, kaputte Datei abgelehnt');
+  const wav = (sek, hz) => {
+    const rate = 8000;
+    const n = Math.floor(sek * rate);
+    const b = Buffer.alloc(44 + n * 2);
+    b.write('RIFF', 0);
+    b.writeUInt32LE(36 + n * 2, 4);
+    b.write('WAVEfmt ', 8);
+    b.writeUInt32LE(16, 16);
+    b.writeUInt16LE(1, 20);
+    b.writeUInt16LE(1, 22);
+    b.writeUInt32LE(rate, 24);
+    b.writeUInt32LE(rate * 2, 28);
+    b.writeUInt16LE(2, 32);
+    b.writeUInt16LE(16, 34);
+    b.write('data', 36);
+    b.writeUInt32LE(n * 2, 40);
+    for (let i = 0; i < n; i++) b.writeInt16LE(Math.round(Math.sin((2 * Math.PI * hz * i) / rate) * 9000), 44 + i * 2);
+    return b;
+  };
+  const wavPfad = path.join(AUSGABE, 'rauchtest_huhn.wav');
+  writeFileSync(wavPfad, wav(1, 660));
+  const kaputtPfad = path.join(AUSGABE, 'rauchtest_kaputt.mp3');
+  writeFileSync(kaputtPfad, 'kein audio');
+  await seite.evaluate(async () => {
+    for (const m of window.mapEditor.audioBibliothek.liste) await window.mapEditor.audioBibliothek.entferne(m.id);
+  });
+  await seite.click('#links [data-reiter="🔊 Audio"]');
+  const [audioWahl] = await Promise.all([seite.waitForEvent('filechooser'), seite.click('#links .audio [data-waehlen]')]);
+  await audioWahl.setFiles([wavPfad, kaputtPfad]);
+  await seite.waitForSelector('#dialog h2:has-text("Hochladen")', { timeout: 20000 });
+  pruefe((await seite.locator('#dialog').textContent()).includes('rauchtest_kaputt.mp3'), 'Kaputte Datei abgelehnt (Signatur)');
+  await seite.click('#dialog button:has-text("OK")');
+  const audioMeta = await seite.evaluate(() => window.mapEditor.audioBibliothek.liste.map((m) => ({ dauer: m.dauer, welle: m.wellenform.length })));
+  pruefe(audioMeta.length === 1 && Math.abs(audioMeta[0].dauer - 1) < 0.05 && audioMeta[0].welle > 50, `WAV dekodiert: Dauer + Wellenform (${JSON.stringify(audioMeta)})`);
+  await seite.click('#links .audio-zeile [data-a="punkt"]');
+  await klick(8, 4);
+  await seite.keyboard.press('Escape');
+  await seite.keyboard.press('v');
+  const klangId = await seite.evaluate(() => [...window.mapEditor.zustand.karte.s('klaenge').keys()][0]);
+  await seite.evaluate((id) => window.mapEditor.zustand.waehle([{ s: 'klaenge', k: id }]), klangId);
+  const griff = await kachel(8.5 + 10 - 0.5, 4);
+  const griffZiel = await kachel(8.5 + 6 - 0.5, 4);
+  await seite.mouse.move(griff.x, griff.y);
+  await seite.mouse.down();
+  await seite.mouse.move(griffZiel.x, griffZiel.y, { steps: 5 });
+  await seite.mouse.up();
+  // Inspektor baut nach Kartenänderungen verzögert (120 ms) neu – erst danach die Wellenform greifen
+  await seite.waitForTimeout(400);
+  await seite.waitForSelector('#rechts canvas.wellen-editor');
+  const welle = await seite.locator('#rechts canvas.wellen-editor').boundingBox();
+  await seite.mouse.move(welle.x + 2, welle.y + welle.height / 2);
+  await seite.mouse.down();
+  await seite.mouse.move(welle.x + welle.width * 0.3, welle.y + welle.height / 2, { steps: 4 });
+  await seite.mouse.up();
+  const klang = await seite.evaluate((id) => window.mapEditor.zustand.karte.s('klaenge').get(id), klangId);
+  pruefe(klang?.art === 'punkt' && klang.aussen === 6 && klang.start > 0.2, `Klang gesetzt, Hörweite gezogen, getrimmt (${JSON.stringify({ x: klang?.x, aussen: klang?.aussen, start: klang?.start })})`);
+  await seite.screenshot({ path: path.join(AUSGABE, 'editor-13-audio.png') });
+  await seite.keyboard.press('3');
+  await seite.waitForTimeout(1500);
+  const klang3d = await seite.evaluate((id) => window.mapEditor.teile?.ansicht3d?.boxen.has(`klaenge|${id}`) ?? 'ohne WebGL', klangId);
+  pruefe(klang3d === true || klang3d === 'ohne WebGL', `Klang-Marker in 3D (${klang3d})`);
+  await seite.screenshot({ path: path.join(AUSGABE, 'editor-14-audio-3d.png') });
+  await seite.keyboard.press('3');
+  await seite.keyboard.press('Escape');
+  await seite.click('#links [data-reiter="🧱 Assets"]');
+
   if (!nurBis) {
     schritt('Spielzone Waldweg als Vorlage');
     await seite.evaluate(() => window.mapEditor.oeffneSpielzone('waldweg'));
@@ -398,6 +466,8 @@ try {
     await seite.waitForFunction(() => window.browserSurvival?.spiel && window.browserSurvival.server, null, { timeout: 90000 });
     const zone = await seite.evaluate(() => ({ id: window.browserSurvival.server.startZone.id, breite: window.browserSurvival.server.startZone.spielWelt.welt.breite }));
     pruefe(zone.id === 'testzone', `Spiel läuft mit dem Entwurf (${JSON.stringify(zone)})`);
+    const klaengeImSpiel = await seite.evaluate(() => ({ spiel: window.browserSurvival.spiel.klaenge?.eintraege.length, daten: window.browserSurvival.server.startZone.spielWelt.karte.daten.klaenge?.[0]?.daten?.slice(0, 14) }));
+    pruefe(klaengeImSpiel.spiel === 1 && klaengeImSpiel.daten === 'data:audio/wav', `Klang im Testlauf eingebettet und geladen (${JSON.stringify(klaengeImSpiel)})`);
     await seite.waitForTimeout(1500);
     await seite.screenshot({ path: path.join(AUSGABE, 'editor-8-test-im-spiel.png') });
     await seite.click('#editor-test-banner a');

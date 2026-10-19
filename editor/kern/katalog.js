@@ -16,8 +16,9 @@ import { KACHEL_FARBEN } from '../../client/darstellung/farben.js';
  *   art 'marker'   → marker: 'start' | 'zombie' | 'loot' | 'ankunft' (+ horde)
  *   art 'bereich'  → sammlung (tierBereiche | raumFlaechen | uebergaenge)
  *   art 'werkzeug' → werkzeug (terrain-heben …, wetter-panel)
+ *   art 'klang'    → klangArt punkt|bereich, audio (Datei der Audio-Bibliothek; Einträge kommen aus ui/assetBrowser.js)
  */
-export const KATEGORIEN = Object.freeze(['Wege', 'Mauern', 'Böden', 'Umwelt', 'Gebäude', 'Ressourcen', 'Möbel', 'Fahrzeuge', 'Spawns', 'Loot', 'Tiere', 'Wetter', 'Terrain', 'Farbe', 'Räume', 'Zonen', 'Eigene']);
+export const KATEGORIEN = Object.freeze(['Wege', 'Mauern', 'Böden', 'Umwelt', 'Gebäude', 'Ressourcen', 'Möbel', 'Fahrzeuge', 'Spawns', 'Loot', 'Tiere', 'Wetter', 'Terrain', 'Farbe', 'Räume', 'Zonen', 'Klänge', 'Eigene']);
 
 /** Gruppen des Asset-Browsers (Editor 2.0): jede Kategorie gehört zu genau einer Gruppe (Test prüft das). */
 export const GRUPPEN = Object.freeze([
@@ -27,6 +28,7 @@ export const GRUPPEN = Object.freeze([
   { name: 'Einrichtung', symbol: '🛋', kategorien: ['Möbel', 'Fahrzeuge'] },
   { name: 'Gameplay', symbol: '🎮', kategorien: ['Spawns', 'Loot', 'Tiere', 'Wetter'] },
   { name: 'Zonen & Logik', symbol: '🗺', kategorien: ['Räume', 'Zonen'] },
+  { name: 'Klang', symbol: '🔊', kategorien: ['Klänge'] },
   { name: 'Eigene', symbol: '✦', kategorien: ['Eigene'] },
 ]);
 
