@@ -3,6 +3,7 @@ import { markerSchluessel, ausSchluessel, kopie } from '../kern/karte.js';
 import { pruefeObjekt, pruefeMarker, pruefeBauwerk, pruefeBereich } from '../kern/platzierung.js';
 import { terrainHeben, terrainGlaetten, terrainEbnen } from '../kern/terrain.js';
 import { elementeIn, dreheVorlage } from '../kern/auswahl.js';
+import { verschiebeOps, dreheOps } from '../kern/bearbeiten.js';
 import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
 import { LINEAL } from './zeichner2d.js';
 import { STANDARD_KONFIGURATION } from '../../server/spiel/konfiguration/spielKonfiguration.js';
@@ -48,8 +49,13 @@ export class Werkzeuge {
     leinwand.addEventListener('wheel', (e) => {
       e.preventDefault();
       const r = leinwand.getBoundingClientRect();
-      if (e.ctrlKey || !e.shiftKey) this.z.zoomen(Math.exp(-Math.max(-1, Math.min(1, e.deltaY / 200)) * 0.35), e.clientX - r.left, e.clientY - r.top);
-      else this.z.schwenken(-e.deltaY, 0);
+      const px = e.clientX - r.left;
+      const py = e.clientY - r.top;
+      // Trackpad: Pinch kommt als Strg+Rad (kleine Schritte), Zwei-Finger-Wischen als Rad mit kleinen deltaX/deltaY → schwenken
+      if (e.ctrlKey) this.z.zoomen(Math.exp(-Math.max(-50, Math.min(50, e.deltaY)) * 0.01), px, py);
+      else if (!istMausrad(e)) this.z.schwenken(-e.deltaX, -e.deltaY);
+      else if (e.shiftKey) this.z.schwenken(-e.deltaY, 0);
+      else this.z.zoomen(Math.exp(-Math.max(-1, Math.min(1, e.deltaY / 200)) * 0.35), px, py);
     }, { passive: false });
     leinwand.addEventListener('contextmenu', (e) => e.preventDefault());
     window.addEventListener('keydown', (e) => {
@@ -313,7 +319,7 @@ export class Werkzeuge {
     const sy = dy - d.dy;
     if (Math.abs(sx) < 1e-9 && Math.abs(sy) < 1e-9) return;
     const ops = verschiebeOps(this.karte, this.zustand.gewaehlte(), sx, sy);
-    if (!ops) return;
+    if (!ops.ops) return;
     const ausgefuehrt = this.karte.anwenden(ops.ops);
     this.zustand.verlauf.sammle(ausgefuehrt);
     // Marker haben neue Schlüssel → Auswahl nachziehen
@@ -491,18 +497,11 @@ export class Werkzeuge {
       if (this.letzteHover) this.#hoverVorschau(this.letzteHover, false);
       return;
     }
-    const ops = [];
-    for (const { s, k, wert } of zustand.gewaehlte()) {
-      if (s === 'objekte') {
-        // um die Mitte drehen: b/h tauschen, drehung + 90
-        const cx = wert.x + wert.b / 2;
-        const cy = wert.y + wert.h / 2;
-        const neu = { ...wert, b: wert.h, h: wert.b, x: Math.round((cx - wert.h / 2) * 1000) / 1000, y: Math.round((cy - wert.b / 2) * 1000) / 1000, drehung: ((wert.drehung ?? 0) + 90) % 360 };
-        if (!neu.drehung) delete neu.drehung;
-        ops.push({ s, k, neu });
-      } else if (s === 'bauwerke') ops.push({ s, k, neu: { ...wert, drehung: wert.drehung ? 0 : 1 } });
-    }
+    const gew = zustand.gewaehlte();
+    if (!gew.length) return zustand.meldung('Nichts zum Drehen ausgewählt (R dreht beim Platzieren die Vorschau)');
+    const { ops, uebersprungen } = dreheOps(this.karte, gew);
     if (ops.length) zustand.ausfuehren('Drehen 90°', ops);
+    if (uebersprungen) zustand.meldung(`${uebersprungen} Element(e) ohne Drehung (Marker, Bereiche) übersprungen`);
   }
 
   // --- Bereiche --------------------------------------------------------------------
@@ -608,49 +607,7 @@ export class Werkzeuge {
   }
 }
 
-/**
- * Operationen zum Verschieben der gewählten Elemente um (dx, dy) Kacheln. Marker/Ankünfte/Bauwerke/Übergänge/Bereiche
- * nur um ganze Kacheln. @returns { ops, neueAuswahl } oder null, wenn etwas aus der Zone fiele
- */
-export function verschiebeOps(karte, gewaehlte, dx, dy) {
-  const ganz = Number.isInteger(dx) && Number.isInteger(dy);
-  const ops = [];
-  const neueAuswahl = [];
-  const markerWeg = [];
-  const markerNeu = [];
-  const r3 = (v) => Math.round(v * 1000) / 1000;
-  for (const { s, k, wert } of gewaehlte) {
-    if (s === 'objekte') {
-      const neu = { ...wert, x: r3(wert.x + dx), y: r3(wert.y + dy) };
-      if (neu.x < -wert.b / 2 || neu.y < -wert.h / 2 || neu.x >= karte.breite || neu.y >= karte.hoehe) return null;
-      ops.push({ s, k, neu });
-      neueAuswahl.push({ s, k });
-      continue;
-    }
-    if (!ganz) {
-      neueAuswahl.push({ s, k });
-      continue;
-    }
-    if (s === 'marker') {
-      const [x, y] = ausSchluessel(k);
-      if (!karte.imFeld(x + dx, y + dy)) return null;
-      markerWeg.push({ s, k, neu: null });
-      markerNeu.push({ s, k: markerSchluessel(x + dx, y + dy), neu: wert });
-      neueAuswahl.push({ s, k: markerSchluessel(x + dx, y + dy) });
-    } else if (s === 'ankuenfte') {
-      if (!karte.imFeld(wert.x + dx, wert.y + dy)) return null;
-      ops.push({ s, k, neu: { x: wert.x + dx, y: wert.y + dy } });
-      neueAuswahl.push({ s, k });
-    } else if (s === 'bauwerke') {
-      if (!karte.imFeld(wert.tx + dx, wert.ty + dy)) return null;
-      ops.push({ s, k, neu: { ...wert, tx: wert.tx + dx, ty: wert.ty + dy } });
-      neueAuswahl.push({ s, k });
-    } else {
-      const neu = { ...wert, x: wert.x + dx, y: wert.y + dy };
-      if (neu.x < 0 || neu.y < 0 || neu.x + neu.b > karte.breite || neu.y + neu.h > karte.hoehe) return null;
-      ops.push({ s, k, neu });
-      neueAuswahl.push({ s, k });
-    }
-  }
-  return { ops: [...ops, ...markerWeg, ...markerNeu], neueAuswahl };
+/** Mausrad oder Trackpad? Mausräder liefern grobe Schritte (Zeilenmodus oder ≥ 50 px) und kein deltaX. */
+export function istMausrad(e) {
+  return e.deltaMode !== 0 || (e.deltaX === 0 && Math.abs(e.deltaY) >= 50);
 }

@@ -39,6 +39,7 @@ export class Zustand {
 
   #hoerer;
   #speicherTimer;
+  #ungespeichert = new Set();
 
   bei(name, f) {
     if (!this.#hoerer.has(name)) this.#hoerer.set(name, new Set());
@@ -71,7 +72,7 @@ export class Zustand {
     const eintrag = { karte, verlauf };
     eintrag.abmelden = karte.beobachte((ops) => {
       this.melde('karte', ops);
-      this.#planeSpeichern();
+      this.#planeSpeichern(karte.id);
     });
     this.zonen.set(karte.id, eintrag);
     if (!this.layout[karte.id]) this.layout[karte.id] = this.#freieWeltposition(karte);
@@ -209,16 +210,21 @@ export class Zustand {
   }
 
   // --- Speichern -------------------------------------------------------------
-  #planeSpeichern() {
+  /** Geänderte Zonen merken (nicht nur die aktive: Übergangs-Vorschläge/Umbenennen ändern auch andere) und gesammelt speichern */
+  #planeSpeichern(id = this.aktivId) {
+    this.#ungespeichert.add(id);
     this.speicherStatus = 'ungespeichert …';
     this.melde('speicher');
     clearTimeout(this.#speicherTimer);
-    this.#speicherTimer = setTimeout(() => this.speichereJetzt(this.aktivId), 800);
+    this.#speicherTimer = setTimeout(async () => {
+      for (const z of [...this.#ungespeichert]) if (this.zonen.has(z)) await this.speichereJetzt(z);
+    }, 800);
   }
 
   async speichereJetzt(id = this.aktivId) {
     const e = this.zonen.get(id);
     if (!e) return;
+    this.#ungespeichert.delete(id);
     e.verlauf.beende?.();
     const ok = await this.speicher.setze('entwuerfe', id, entwurfJson(e.karte, e.verlauf));
     await this.speicher.setze('meta', 'layout', this.layout);

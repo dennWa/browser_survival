@@ -28,7 +28,7 @@
 ## Phase 1 – Aufräumen, Fehlersuche, Fundament
 | # | Schritt | Größe |
 |---|---|---|
-| ☐ 1.1 | **Fehlersuche systematisch:** Prüfliste aller Werkzeuge/Knöpfe/Dialoge/Tasten bei 1400/1280/390 px + Touch durchgehen, Fehler B1–B6 + neue Funde hier eintragen, je Fehler Regressionstest | M |
+| ☑ 1.1 | **Fehlersuche systematisch:** Prüfliste aller Werkzeuge/Knöpfe/Dialoge/Tasten bei 1400/1280/390 px + Touch durchgehen, Fehler B1–B6 + neue Funde hier eintragen, je Fehler Regressionstest | M |
 | ☐ 1.2 | **Befehlsregister** `editor/ui/befehle.js`: jede Aktion einmal (ID, Name, Symbol, Gruppe, Standard-Kürzel, `ausfuehren`, `verfuegbar`). Menüs, Werkzeugleiste, Kontextmenü, Tastatur (und später Hilfe/Befehlspalette/eigene Kürzel) lesen nur daraus. `main.js` zerfällt in Module (datei, bearbeiten, ansicht, zone), `erweiterungen.js`/`sonderAktionen` entfallen | L |
 | ☐ 1.3 | **Neues Layout** (Vorbild Tiled/LDtk/Godot): Menüleiste (Datei · Bearbeiten · Ansicht · Einfügen · Werkzeuge · KI · Hilfe) + schlanke Schnellleiste (↶ ↷, 2D/3D, ▶ Testen, 🚀 Veröffentlichen); links feste Werkzeugleiste (nicht mehr über der Karte) + **Asset-Browser** mit Suche und 7 Gruppen statt 17 Kategorien (Gelände · Bauen · Natur · Einrichtung · Gameplay · Zonen & Logik · Eigene), Raster mit Vorschau statt Bauleiste unten; über der Karte **Werkzeug-Optionsleiste** (Pinselgröße, Modus, Einrasten, Stärke, Farbe, Drehung); rechts Inspektor · Ebenen · Prüfung; Projekt (Zonen/Weltkarte, Prefabs, Räume) als Reiter links; KI-Helfer als eigene, einklappbare Seitenleiste; Panels einklapp- und in der Breite ziehbar (gemerkt); Fokus-Modus | XL |
 | ☐ 1.4 | **Ebenen-System:** Boden · Bemalung · Terrain · Objekte · Bauwerke · Marker · Bereiche/Zonen · Nachbarn – je Ebene sichtbar/gesperrt (gesperrt = ausgegraut, nicht anklickbar). Grundlage für Phase 6 | M |
@@ -123,5 +123,18 @@
 ## Später (nicht im aktuellen Umfang)
 - Lokaler Editor-Server (`npm run editor:lokal`): Modelle/Sounds direkt ins Repo schreiben und löschen, Veröffentlichen ohne Download.
 
-## Fehlerliste (wird in 1.1 gepflegt)
-B1–B6 siehe Ausgangslage.
+## Fehlerliste (1.1, Browser-Suche mit Grenzfällen)
+| # | Fehler | Stand |
+|---|---|---|
+| B1 | „🤖 Helfer“ meldete zusätzlich rot „Helfer fehlt“ (`?.() ?? meldung` auf `undefined`) | ☑ behoben (main.js) |
+| B2 | Kopfleiste bricht bei 1280 px um, Handy 3 Zeilen | → 1.3 (neues Layout) |
+| B3 | Werkzeugleiste überdeckt den linken Kartenrand | → 1.3 |
+| B4 | Prüfungs-Zähler im Reiter über `children[2]` | → 1.3 (Seitenleiste mit Beschriftungs-Funktion) |
+| B5 | Trackpad: Zwei-Finger-Wischen zoomte statt zu schwenken | ☑ `istMausrad` (werkzeuge.js) |
+| B6 | KI-Helfer schickt kleine Zonen ganz mit | → 9.1 |
+| B7 | Drehen von 2×1-Objekten → halbe Kacheln (x 17,5), driftet bei mehrfachem Drehen | ☑ `kern/bearbeiten.js dreheObjekt` (Raster, 4× = Ausgangslage) |
+| B8 | Pfeiltasten/Ziehen schoben Objekte über den Zonenrand, Abbruch ohne Meldung | ☑ `verschiebeOps` (Rand + Grund) |
+| B9 | Duplizieren von Markern/Ankünften tat still nichts | ☑ `dupliziereOps` |
+| B10 | Werkzeug-Tasten (B, U, L …) wechselten in 3D unsichtbar das 2D-Werkzeug | ☑ Meldung statt Wechsel |
+| B11 | Autosave speicherte nur die aktive Zone (Übergangs-Vorschläge/Umbenennen ändern auch andere) | ☑ Menge geänderter Zonen (zustand.js) |
+| B12 | Prefab drehen: Türen/Fenster ohne gesetzte `drehung` kippten nicht | ☑ `dreheVorlage` |

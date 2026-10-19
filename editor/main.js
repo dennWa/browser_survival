@@ -4,12 +4,13 @@ import { ausDefinition, ladeDatei, entwurfJson, exportJson, LIESMICH_TEXT } from
 import { neueZone, groesseAendern, ZONEN_ID_MUSTER } from './kern/zone.js';
 import { kopiere, loescheOps, einfuegeOps, dreheVorlage } from './kern/auswahl.js';
 import { katalog } from './kern/katalog.js';
-import { markerSchluessel, ID_SAMMLUNGEN, kopie } from './kern/karte.js';
+import { markerSchluessel, kopie } from './kern/karte.js';
 import { validiere, hatFehler } from './kern/validierung.js';
 import { veroeffentlichung } from './kern/veroeffentlichen.js';
 import { pruefeMarker } from './kern/platzierung.js';
 import { AKTIONEN_ANLEITUNG } from './kern/ausschnitt.js';
-import { verschiebeOps, Werkzeuge } from './ui/werkzeuge.js';
+import { Werkzeuge } from './ui/werkzeuge.js';
+import { verschiebeOps, dupliziereOps } from './kern/bearbeiten.js';
 import { EditorSpeicher, herunterladen, dateiWaehlen } from './ui/speicher.js';
 import { Zustand } from './ui/zustand.js';
 import { Zeichner2D } from './ui/zeichner2d.js';
@@ -106,18 +107,13 @@ const aktionen = {
   },
   duplizieren() {
     const gew = zustand.gewaehlte();
-    if (!gew.length) return;
-    const ops = [];
-    let id = zustand.karte.naechsteId;
-    const neu = [];
-    for (const { s, wert } of gew) {
-      if (!ID_SAMMLUNGEN.includes(s)) continue;
-      const kopieWert = s === 'bauwerke' ? { ...wert, tx: Math.min(wert.tx + 1, zustand.karte.breite - 1) } : { ...wert, x: wert.x + 1, y: wert.y + 1 };
-      ops.push({ s, k: id, neu: kopieWert });
-      neu.push({ s, k: id++ });
+    if (!gew.length) return zustand.meldung('Nichts ausgewählt – erst anklicken (⬚)', 'fehler');
+    const { ops, neueAuswahl, uebersprungen } = dupliziereOps(zustand.karte, gew);
+    if (ops.length) {
+      zustand.ausfuehren(`Duplizieren (${neueAuswahl.length})`, ops);
+      zustand.waehle(neueAuswahl);
     }
-    zustand.ausfuehren('Duplizieren', ops);
-    zustand.waehle(neu);
+    if (uebersprungen) zustand.meldung(`${uebersprungen} Element(e) nicht dupliziert (kein freier Platz daneben)`, 'fehler');
   },
   drehen: () => werkzeuge.drehe(),
   auswahlLoeschen() {
@@ -350,9 +346,10 @@ const befehle = {
     zustand.meldung('💾 Entwurf gespeichert (lokal + Datei, mit Verlauf)', 'ok');
   },
   exportieren: () => exportDialog(),
-  helfer: () => sonderAktionen.helfer?.() ?? zustand.meldung('Helfer fehlt', 'fehler'),
-  kiImport: () => sonderAktionen.kiImport?.() ?? zustand.meldung('KI-Import fehlt', 'fehler'),
-  testen: () => sonderAktionen.testen?.() ?? zustand.meldung('Testen fehlt', 'fehler'),
+  // ⚠ nicht „?.() ?? meldung“: die Aktionen liefern undefined → meldete fälschlich „fehlt“
+  helfer: () => (sonderAktionen.helfer ? sonderAktionen.helfer() : zustand.meldung('Helfer fehlt', 'fehler')),
+  kiImport: () => (sonderAktionen.kiImport ? sonderAktionen.kiImport() : zustand.meldung('KI-Import fehlt', 'fehler')),
+  testen: () => (sonderAktionen.testen ? sonderAktionen.testen() : zustand.meldung('Testen fehlt', 'fehler')),
   rueckgaengig: () => zustand.rueckgaengig(),
   wiederholen: () => zustand.wiederholen(),
   ansicht: () => schalteAnsicht(),
@@ -507,12 +504,15 @@ window.addEventListener('keydown', (e) => {
     const gew = zustand.gewaehlte();
     if (gew.length && zustand.karte) {
       const erg = verschiebeOps(zustand.karte, gew, dx, dy);
-      if (erg) {
+      if (erg.ops) {
         zustand.ausfuehren('Verschieben', erg.ops);
         zustand.waehle(erg.neueAuswahl);
-      }
+      } else zustand.meldung(erg.grund, 'fehler');
     } else zeichner.schwenken(-dx * zeichner.zoom, -dy * zeichner.zoom);
-  } else if (TASTEN[t]) aktionen.werkzeug(TASTEN[t]);
+  } else if (TASTEN[t]) {
+    if (zustand.ansicht === '3d') zustand.meldung('Malen und Bauen gehen nur in 2D – Taste 3 schaltet um', 'fehler');
+    else aktionen.werkzeug(TASTEN[t]);
+  }
   else return;
   e.preventDefault();
 });

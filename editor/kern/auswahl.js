@@ -178,7 +178,7 @@ export function dreheVorlage(v) {
   n.objekte = (v.objekte ?? []).map((o) => ({ ...dreheRechteck(o), drehung: ((o.drehung ?? 0) + 90) % 360 }));
   n.tierBereiche = (v.tierBereiche ?? []).map(dreheRechteck);
   n.raumFlaechen = (v.raumFlaechen ?? []).map(dreheRechteck);
-  n.bauwerke = (v.bauwerke ?? []).map((bw) => ({ ...bw, tx: h - 1 - bw.ty, ty: bw.tx, ...(bw.drehung !== undefined ? { drehung: bw.drehung ? 0 : 1 } : {}) }));
+  n.bauwerke = (v.bauwerke ?? []).map((bw) => ({ ...bw, tx: h - 1 - bw.ty, ty: bw.tx, drehung: bw.drehung ? 0 : 1 })); // Ausrichtung kippt immer (auch ohne gesetztes Feld)
   n.marker = (v.marker ?? []).map(([x, y, m]) => [h - 1 - y, x, m]);
   n.bemalung = (v.bemalung ?? []).map(([x, y, f]) => [h - 1 - y, x, f]);
   return n;
