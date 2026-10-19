@@ -7,6 +7,8 @@ import { verschiebeOps, dreheOps } from '../kern/bearbeiten.js';
 import { istWandEintrag, wandPunkte, begrenzeTueren, wandBauwerkOps } from '../kern/wand.js';
 import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
 import { ebeneVon } from '../kern/ebenen.js';
+import { objektInfo } from '../kern/katalog.js';
+import { neuerKlang } from '../../gemeinsam/audio/klanglandschaft.js';
 import { LINEAL } from './zeichner2d.js';
 import { STANDARD_KONFIGURATION } from '../../server/spiel/konfiguration/spielKonfiguration.js';
 
@@ -121,6 +123,7 @@ export class Werkzeuge {
     const w = zustand.werkzeug;
     if (e.altKey && ['malen', 'platzieren', 'farbe', 'radierer', 'terrain'].includes(w)) return this.#pipette(p);
     if (w === 'zone') return this.#zoneRunter(p);
+    if (w === 'auswahl' && this.#klangGriffRunter(p)) return;
     if (w === 'auswahl') return this.#auswahlRunter(p, e.shiftKey);
     if (w === 'malen') return this.#malenRunter(p, e.shiftKey);
     if (w === 'radierer') {
@@ -215,6 +218,7 @@ export class Werkzeuge {
       d.letzte = p;
     }
     else if (d.art === 'bewegen') this.#bewege(d, p, e.altKey);
+    else if (d.art === 'klangRadius') this.#klangRadius(d, p);
     else if (d.art === 'wand') this.#wandVorschau(d, p, e.shiftKey);
     else if (d.art === 'rampe') this.#rampeVorschau(d, p);
     else if (d.art === 'rahmen') {
@@ -248,7 +252,7 @@ export class Werkzeuge {
       this.z.anfordern();
       return;
     }
-    if (d.art === 'pinsel' || d.art === 'radieren' || d.art === 'terrain' || d.art === 'bewegen' || d.art === 'farbe') this.zustand.verlauf.beende();
+    if (d.art === 'pinsel' || d.art === 'radieren' || d.art === 'terrain' || d.art === 'bewegen' || d.art === 'farbe' || d.art === 'klangRadius') this.zustand.verlauf.beende();
     if (d.art === 'form') this.#formAnwenden(d, p, e.shiftKey);
     if (d.art === 'wand') this.#wandFertig(d, p, e.shiftKey);
     if (d.art === 'rampe') this.#rampeFertig(d, p);
@@ -268,7 +272,7 @@ export class Werkzeuge {
 
   #abbrechen(d = this.ziehen) {
     if (!d) return;
-    if (['pinsel', 'radieren', 'terrain', 'bewegen', 'farbe'].includes(d.art)) this.zustand.verlauf.beende();
+    if (['pinsel', 'radieren', 'terrain', 'bewegen', 'farbe', 'klangRadius'].includes(d.art)) this.zustand.verlauf.beende();
     this.z.vorschau = null;
     this.z.zonenVorschau = null;
     this.z.neuRechteck = null;
@@ -315,8 +319,11 @@ export class Werkzeuge {
       else treffer = { s: 'objekte', k: id };
     }
     if (treffer || krone) return treffer ?? krone;
+    // Klänge: Punkt = Symbol/innerer Kreis, Bereich = Rechteck (nach den anderen Bereichen)
+    if (frei('klaenge')) for (const [id, c] of k.s('klaenge')) if (c.art === 'punkt' && Math.hypot(p.wx - c.x, p.wy - c.y) <= Math.max(0.7, Math.min(c.innen, 2))) return { s: 'klaenge', k: id };
     for (const s of ['uebergaenge', 'tierBereiche', 'raumFlaechen'])
       if (frei(s)) for (const [id, r] of k.s(s)) if (p.wx >= r.x && p.wx < r.x + r.b && p.wy >= r.y && p.wy < r.y + r.h) return { s, k: id };
+    if (frei('klaenge')) for (const [id, c] of k.s('klaenge')) if (c.art === 'bereich' && p.wx >= c.x && p.wx < c.x + c.b && p.wy >= c.y && p.wy < c.y + c.h) return { s: 'klaenge', k: id };
     return null;
   }
 
@@ -341,6 +348,7 @@ export class Werkzeuge {
     for (const s of ['objekte', 'bauwerke', 'tierBereiche', 'raumFlaechen', 'marker']) for (const k of e[s]) liste.push({ s, k });
     for (const [id, u] of this.karte.s('uebergaenge')) if (u.x >= r.x && u.y >= r.y && u.x + u.b <= r.x + r.b && u.y + u.h <= r.y + r.h) liste.push({ s: 'uebergaenge', k: id });
     for (const [n, a] of this.karte.s('ankuenfte')) if (a.x >= r.x && a.y >= r.y && a.x < r.x + r.b && a.y < r.y + r.h) liste.push({ s: 'ankuenfte', k: n });
+    for (const [id, c] of this.karte.s('klaenge')) if (c.art === 'punkt' && c.x >= r.x && c.y >= r.y && c.x <= r.x + r.b && c.y <= r.y + r.h) liste.push({ s: 'klaenge', k: id });
     this.zustand.waehle(liste.filter(({ s }) => this.zustand.ebeneFrei(ebeneVon(s))), umschalt);
     this.zustand.meldung(`Bereich x ${r.x}–${r.x + r.b - 1}, y ${r.y}–${r.y + r.h - 1} (${r.b} × ${r.h}) · ${liste.length} Elemente – Strg+C kopiert, Export → Ausschnitt`);
   }
@@ -508,6 +516,9 @@ export class Werkzeuge {
       } else if (e.art === 'marker') {
         const pr = pruefeMarker(this.karte, e.marker, p.tx, p.ty);
         v = { rechtecke: [{ x: p.tx, y: p.ty, b: 1, h: 1 }], gueltig: pr.ok, text: pr.ok ? e.name : pr.grund, textX: p.tx + 0.5, textY: p.ty };
+      } else if (e.art === 'klang') {
+        const std = neuerKlang('punkt');
+        v = { kreis: { x: p.tx + 0.5, y: p.ty + 0.5, r: std.aussen }, rechtecke: [{ x: p.tx, y: p.ty, b: 1, h: 1 }], gueltig: true, text: `🔊 ${e.name} (hörbar ${std.aussen} Kacheln)`, textX: p.tx + 0.5, textY: p.ty };
       }
     } else if ((w === 'malen' && zustand.malModus === 'pinsel') || w === 'radierer') {
       v = { kacheln: nurImFeld(this.karte, pinsel(p.tx, p.ty, zustand.pinselGroesse)), farbe: w === 'radierer' ? 'rgba(255,80,80,0.5)' : e?.farbe };
@@ -554,6 +565,15 @@ export class Werkzeuge {
       const b = { typ: e.typ, tx: p.tx, ty: p.ty };
       if (zustand.drehung % 180 !== 0) b.drehung = 1;
       zustand.ausfuehren(`${e.name} setzen`, [{ s: 'bauwerke', k: k.naechsteId, neu: b }]);
+    } else if (e.art === 'klang') {
+      // Punkt-Klang: Kachelmitte – oder Mitte des Objekts unter der Maus („Klang an Objekt“: Huhn, Maschine …)
+      const ziel = this.treffer(p);
+      const o = ziel?.s === 'objekte' ? k.s('objekte').get(ziel.k) : null;
+      const x = o ? Math.round((o.x + o.b / 2) * 100) / 100 : p.tx + 0.5;
+      const y = o ? Math.round((o.y + o.h / 2) * 100) / 100 : p.ty + 0.5;
+      const id = k.naechsteId;
+      zustand.ausfuehren(`Klang „${e.name}“ setzen`, [{ s: 'klaenge', k: id, neu: neuerKlang('punkt', { name: o ? `${e.name} (${objektInfo(o.typ, k).name})` : e.name, audio: e.audio, x, y }) }]);
+      if (!umschalt) zustand.waehle([{ s: 'klaenge', k: id }]);
     } else if (e.art === 'marker') {
       const pr = pruefeMarker(k, e.marker, p.tx, p.ty);
       if (!pr.ok) return zustand.meldung(`Nicht platzierbar: ${pr.grund}`, 'fehler');
@@ -569,6 +589,29 @@ export class Werkzeuge {
       zustand.ausfuehren(`${e.name} setzen`, [{ s: 'marker', k: schl, neu: m }]);
       zustand.waehle([{ s: 'marker', k: schl }]);
     }
+  }
+
+  /** Griffe eines gewählten Punkt-Klangs: Kreisrand innen/außen ziehen (1 Undo-Schritt) */
+  #klangGriffRunter(p) {
+    const gew = this.zustand.gewaehlte();
+    if (gew.length !== 1 || gew[0].s !== 'klaenge' || gew[0].wert.art !== 'punkt' || !this.zustand.ebeneFrei('klaenge')) return false;
+    const c = gew[0].wert;
+    const d = Math.hypot(p.wx - c.x, p.wy - c.y);
+    const toleranz = Math.max(0.3, 8 / this.z.zoom);
+    const feld = Math.abs(d - c.aussen) <= toleranz ? 'aussen' : Math.abs(d - c.innen) <= toleranz && d > 0.7 ? 'innen' : null;
+    if (!feld) return false;
+    this.zustand.verlauf.beginne(feld === 'aussen' ? 'Hörweite' : 'Volle Lautstärke bis');
+    this.ziehen = { art: 'klangRadius', k: gew[0].k, feld };
+    return true;
+  }
+
+  #klangRadius(d, p) {
+    const c = this.karte.s('klaenge').get(d.k);
+    if (!c) return;
+    const r = Math.round(Math.hypot(p.wx - c.x, p.wy - c.y) * 2) / 2;
+    const neu = d.feld === 'aussen' ? { ...c, aussen: Math.max(c.innen + 0.5, r) } : { ...c, innen: Math.max(0, Math.min(c.aussen - 0.5, r)) };
+    this.zustand.sammle([{ s: 'klaenge', k: d.k, neu }]);
+    this.zustand.meldung(`${d.feld === 'aussen' ? 'Hörweite' : 'Volle Lautstärke bis'} ${neu[d.feld]} Kacheln`);
   }
 
   /** R: Drehung für neue Objekte bzw. Auswahl um 90° drehen */
@@ -596,7 +639,7 @@ export class Werkzeuge {
   // --- Bereiche --------------------------------------------------------------------
   #bereichVorschau(a, p) {
     const r = rechteckAus(a.tx, a.ty, p.tx, p.ty);
-    const pr = pruefeBereich(this.karte, this.zustand.eintrag?.sammlung, r);
+    const pr = this.zustand.eintrag?.art === 'klang' ? { ok: true } : pruefeBereich(this.karte, this.zustand.eintrag?.sammlung, r);
     this.z.vorschau = { rechtecke: [r], gueltig: pr.ok, text: pr.ok ? `${r.b} × ${r.h}` : pr.grund, textX: r.x + r.b / 2, textY: r.y };
     this.z.anfordern();
   }
@@ -604,6 +647,12 @@ export class Werkzeuge {
   #bereichFertig(d, p) {
     const e = this.zustand.eintrag;
     const r = rechteckAus(d.start.tx, d.start.ty, p.tx, p.ty);
+    if (e.art === 'klang') {
+      const id = this.karte.naechsteId;
+      const rr = { x: Math.max(0, r.x), y: Math.max(0, r.y), b: Math.min(r.b, this.karte.breite - Math.max(0, r.x)), h: Math.min(r.h, this.karte.hoehe - Math.max(0, r.y)) };
+      this.zustand.ausfuehren(`Ambiente „${e.name}“`, [{ s: 'klaenge', k: id, neu: neuerKlang('bereich', { name: e.name, audio: e.audio, ...rr, rand: Math.max(1, Math.min(4, Math.floor(Math.min(rr.b, rr.h) / 4))) }) }]);
+      return this.zustand.waehle([{ s: 'klaenge', k: id }]);
+    }
     const pr = pruefeBereich(this.karte, e.sammlung, r);
     if (!pr.ok) return this.zustand.meldung(pr.grund, 'fehler');
     if (e.sammlung === 'uebergaenge') return this.aktionen.uebergangAnlegen(r);

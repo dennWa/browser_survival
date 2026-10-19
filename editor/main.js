@@ -27,7 +27,7 @@ import { kiUi } from './ui/kiUi.js';
 import { geminiUi } from './ui/geminiUi.js';
 import { testUi } from './ui/testUi.js';
 import { eigeneUi } from './ui/eigeneUi.js';
-import { Bibliothek } from './ui/bibliothek.js';
+import { Bibliothek, AUDIO } from './ui/bibliothek.js';
 import { modelleUi } from './ui/modelleUi.js';
 import { Ansicht3D, webglVerfuegbar } from './ui/ansicht3d.js';
 import { dialog, esc, istDialogOffen } from './ui/dialoge.js';
@@ -43,6 +43,8 @@ const speicher = new EditorSpeicher();
 const zustand = new Zustand(speicher);
 const bibliothek = new Bibliothek(speicher, zustand); // 3D-Modelle des Projekts (Phase 3)
 zustand.bibliothek = bibliothek;
+const audioBibliothek = new Bibliothek(speicher, zustand, AUDIO); // Klänge des Projekts (Phase 4)
+zustand.audioBibliothek = audioBibliothek;
 const leinwand = document.getElementById('leinwand2d');
 const zeichner = new Zeichner2D(leinwand, zustand);
 zeichner.ladeAtlas();
@@ -63,7 +65,7 @@ modelleUi({ zustand, panel: links, aktionen, layout, bibliothek });
 const insp = inspektor({ zustand, leiste: rechts, aktionen, befehle });
 ebenenUi({ zustand, leiste: rechts });
 pruefungUi({ zustand, leiste: rechts, aktionen });
-const datei = dateiAktionen({ zustand, zeichner, werkzeuge, aktionen, rechts, bibliothek });
+const datei = dateiAktionen({ zustand, zeichner, werkzeuge, aktionen, rechts, bibliothek, audioBibliothek });
 Object.assign(teile, { werkzeuge, assets, inspektor: insp, layout, links, rechts, datei, aktionen, schalteAnsicht, zeigeHilfe, kontextmenue });
 
 // --- Module der Phasen 6–11 ---------------------------------------------------------------
@@ -269,7 +271,8 @@ async function starten() {
   if (art === 'fluechtig') zustand.setzeSpeicher('fluechtig', speicher.fehler);
   // Browser bitten, die Entwürfe nicht bei Speichermangel zu löschen (stillschweigend; Status unter Datei → Speicherplatz)
   navigator.storage?.persist?.().catch(() => {});
-  await bibliothek.lade(); // vor den Entwürfen: Typen verweisen auf Modelle
+  await bibliothek.lade(); // vor den Entwürfen: Typen verweisen auf Modelle, Klänge auf Audio
+  await audioBibliothek.lade();
   const n = await zustand.ladeAlle();
   zustand.melde('zone');
   for (const l of [links, rechts, kiLeiste]) l.zeichne();
@@ -289,4 +292,4 @@ async function starten() {
 starten();
 
 // Für Konsole & automatische Tests
-window.mapEditor = { zustand, bibliothek, zeichner, aktionen, befehle, werkzeuge, layout, links, rechts, assets, datei, oeffneDatei: datei.oeffneDatei, oeffneSpielzone: datei.oeffneSpielzone, markerSchluessel, pruefeMarker, kopiere, dreheVorlage };
+window.mapEditor = { zustand, bibliothek, audioBibliothek, zeichner, aktionen, befehle, werkzeuge, layout, links, rechts, assets, datei, oeffneDatei: datei.oeffneDatei, oeffneSpielzone: datei.oeffneSpielzone, markerSchluessel, pruefeMarker, kopiere, dreheVorlage };

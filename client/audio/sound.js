@@ -158,6 +158,16 @@ export class Sound {
     return this.stumm;
   }
 
+  /**
+   * Für die Klanglandschaft der Karte (audio/klaenge.js): Audio-Kontext + Bus je Regler ('effekte' | 'atmosphaere' | 'musik').
+   * null, solange der Ton gesperrt ist.
+   */
+  klangAusgang() {
+    const ctx = this.#ctx;
+    if (!ctx || ctx.state !== 'running') return null;
+    return { ctx, bus: (name) => (name === 'musik' ? this.#musikBus : name === 'atmosphaere' ? this.#atmoBus : this.#effekte) };
+  }
+
   setzeHoerer(x, y) {
     this.#hoerer.x = x;
     this.#hoerer.y = y;

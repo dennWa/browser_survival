@@ -6,7 +6,8 @@
  *   npm run karte:editor -- downloads/meinezone.karte.json [--id neue_id]
  *
  * Danach: npm test (prüft Spawns, Loot, Übergänge, Erreichbarkeit) und committen.
- * 3D-Modelle: Karten-Export bettet sie ein; eine Entwurf-Datei bringt sie in `bibliothek` mit (Typen verweisen per `asset`).
+ * 3D-Modelle/Klänge: Karten-Export bettet sie ein; eine Entwurf-Datei bringt sie in `bibliothek`/`audio` mit (Verweis per ID).
+ * Klang-Dateien → client/audio/karten/<zone>/ (eigeneKlaenge.mjs), Modelle → client/assets/eigene/ (eigeneModelle.mjs).
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -16,8 +17,9 @@ import { alsJsModul } from '../../editor/kern/veroeffentlichen.js';
 import { validiere, hatFehler } from '../../editor/kern/validierung.js';
 import { verarbeiteKarte } from '../../server/spiel/karten/kartenLader.js';
 import { registriere } from './registrieren.mjs';
-import { leseBibliotheksExport, setzeModellQuelle, bytesZuGlbUrl } from '../../editor/kern/bibliothek.js';
+import { leseBibliotheksExport, setzeModellQuelle, bytesZuGlbUrl, leseAudioExport, setzeAudioQuelle, bytesZuAudioUrl } from '../../editor/kern/bibliothek.js';
 import { schreibeEigeneModelle, raeumeEigeneModelleAuf } from './eigeneModelle.mjs';
+import { schreibeKlaenge } from './eigeneKlaenge.mjs';
 
 const WURZEL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const KARTEN_ORDNER = path.join(WURZEL, 'server/spiel/karten');
@@ -31,6 +33,8 @@ try {
   // Entwurf-Datei: Modelle aus `bibliothek` → Typen mit `asset` bekommen beim Export ihr glb (kern/bibliothek.js)
   const modelle = new Map(leseBibliotheksExport(roh.bibliothek).map((e) => [e.id, bytesZuGlbUrl(e.bytes)]));
   setzeModellQuelle((id) => modelle.get(id) ?? null);
+  const audios = new Map(leseAudioExport(roh.audio).map((e) => [e.id, bytesZuAudioUrl(e.bytes, e.meta.format)]));
+  setzeAudioQuelle((id) => audios.get(id) ?? null);
   const { karte, warnungen } = ladeDatei(roh);
   if (neueId) karte.anwenden([{ s: 'wert', pfad: 'id', neu: neueId }]);
   for (const w of warnungen) console.log(`  ⚠ ${w}`);
@@ -40,6 +44,9 @@ try {
   const definition = nachDefinition(karte);
   for (const d of schreibeEigeneModelle(definition, path.join(WURZEL, 'client'))) console.log(`  ✓ ${d} (eigenes 3D-Modell)`);
   for (const d of raeumeEigeneModelleAuf(definition, path.join(WURZEL, 'client'))) console.log(`  🗑 ${d} (nicht mehr benutzt – entfernt)`);
+  const klaenge = schreibeKlaenge(definition, path.join(WURZEL, 'client'));
+  for (const d of klaenge.dateien) console.log(`  ✓ ${d} (Klang)`);
+  for (const d of klaenge.entfernt) console.log(`  🗑 ${d} (Klang nicht mehr benutzt – entfernt)`);
   verarbeiteKarte(definition); // wirft bei allem, was das Spiel nicht laden könnte
   const ziel = path.join(KARTEN_ORDNER, `${definition.id}.js`);
   writeFileSync(ziel, alsJsModul(definition));

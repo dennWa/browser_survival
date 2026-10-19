@@ -96,3 +96,53 @@ test('KlangSteuerung: Intervall mit Zufallspausen, Einmal mit Abklingzeit, Tonh�
   assert.equal(schnittDauer({ start: 1, ende: 0 }, 5), 4);
   assert.equal(schnittDauer({ start: 1, ende: 3 }, 5), 2);
 });
+
+test('Editor: Klänge rund um Format, Bibliothek und karte:editor (Dateien ablegen, verwaiste löschen)', async () => {
+  const { mkdtempSync, existsSync, readFileSync, writeFileSync, mkdirSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const path = await import('node:path');
+  const { neueZone } = await import('../editor/kern/zone.js');
+  const { nachDefinition, ausDefinition } = await import('../editor/kern/format.js');
+  const B = await import('../editor/kern/bibliothek.js');
+  const { verarbeiteKarte } = await import('../server/spiel/karten/kartenLader.js');
+  const { schreibeKlaenge } = await import('../werkzeuge/karten/eigeneKlaenge.mjs');
+  const { markerSchluessel } = await import('../editor/kern/karte.js');
+  // kleinste WAV-Datei (44 Byte Kopf + 4 Byte Daten)
+  const wav = new Uint8Array(48);
+  wav.set([...'RIFF'].map((c) => c.charCodeAt(0)), 0);
+  wav.set([...'WAVEfmt '].map((c) => c.charCodeAt(0)), 8);
+  const id = B.assetId(wav, 'a');
+  const k = neueZone({ id: 'klangzone', breite: 20, hoehe: 15 });
+  k.anwenden([
+    { s: 'klaenge', k: 1, neu: neuerKlang('punkt', { name: 'Huhn', audio: id, x: 5, y: 5 }) },
+    { s: 'klaenge', k: 2, neu: neuerKlang('bereich', { name: 'Wald', audio: id, x: 2, y: 2, b: 8, h: 6 }) },
+    { s: 'marker', k: markerSchluessel(1, 1), neu: { art: 'start' } },
+  ]);
+  try {
+    // ohne Datei in der Bibliothek: Spiel bekommt nichts (nur Editor-ID)
+    assert.equal(verarbeiteKarte(nachDefinition(k)).daten.klaenge, undefined);
+    B.setzeAudioQuelle((x) => (x === id ? B.bytesZuAudioUrl(wav, 'wav') : null));
+    const def = nachDefinition(k);
+    assert.ok(def.klaenge.every((x) => x.daten.startsWith('data:audio/wav;base64,')));
+    assert.equal(verarbeiteKarte(def).daten.klaenge.length, 2);
+    // Datei-Import: eingebettete daten → Bibliothek, Klang verweist danach per ID
+    const { karte: zurueck } = ausDefinition(JSON.parse(JSON.stringify(def)));
+    assert.equal(zurueck.s('klaenge').size, 2);
+    const neu = B.uebernimmEingebetteteAudio(zurueck);
+    assert.equal(neu.length, 1, 'gleiche Datei nur einmal');
+    assert.ok([...zurueck.s('klaenge').values()].every((x) => x.audio === id && !x.daten));
+    // karte:editor
+    const ordner = mkdtempSync(path.join(tmpdir(), 'klang-'));
+    mkdirSync(path.join(ordner, 'audio/karten/klangzone'), { recursive: true });
+    writeFileSync(path.join(ordner, 'audio/karten/klangzone/alt.ogg'), 'x');
+    const { dateien, entfernt } = schreibeKlaenge(def, ordner);
+    assert.deepEqual(dateien, [`audio/karten/klangzone/${id}.wav`]);
+    assert.deepEqual(entfernt, ['audio/karten/klangzone/alt.ogg']);
+    assert.ok(def.klaenge.every((x) => x.datei === dateien[0] && !x.daten && !x.audio));
+    assert.deepEqual([...readFileSync(path.join(ordner, dateien[0]))], [...wav]);
+    assert.equal(verarbeiteKarte(def).daten.klaenge[0].datei, dateien[0]);
+    assert.ok(!existsSync(path.join(ordner, 'audio/karten/klangzone/alt.ogg')));
+  } finally {
+    B.setzeAudioQuelle(null);
+  }
+});

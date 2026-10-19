@@ -15,6 +15,7 @@ import { Effekte } from '../darstellung/effekte.js';
 import { SpielSchleife } from './spielSchleife.js';
 import { Karte } from '../ui/karte.js';
 import { BauModus } from './bauModus.js';
+import { Klanglandschaft } from '../audio/klaenge.js';
 
 /** Maximal gemerkte, vom Server noch nicht bestätigte Eingaben (~4 s). */
 const MAX_OFFENE_EINGABEN = 120;
@@ -65,6 +66,9 @@ export class ClientSpiel {
     this.eigeneId = anmeldeDaten.spielerId;
     this.welt = new Welt(anmeldeDaten.karte);
     this.musikOrdner = anmeldeDaten.karte.musik ?? this.welt.id; // Musik-Ordner der Zone (Map-Editor: Feld musik)
+    // Klanglandschaft der Karte (Map-Editor Phase 4: Punkt-/Bereichs-/Global-Klänge mit Auslösern)
+    this.klaenge = new Klanglandschaft(sound, anmeldeDaten.karte.klaenge ?? [], { handy: globalThis.matchMedia?.('(pointer: coarse)').matches ?? false });
+    this.klangZeit = { zoneSeit: performance.now(), kampf: -Infinity, letzte: null };
     if (anmeldeDaten.tueren) this.welt.uebernimmOffeneTueren(anmeldeDaten.tueren);
     if (anmeldeDaten.abgebaut) this.welt.uebernimmAbgebaute(anmeldeDaten.abgebaut);
     if (anmeldeDaten.bauwerke) this.welt.uebernimmBauwerke(anmeldeDaten.bauwerke);
@@ -159,7 +163,8 @@ export class ClientSpiel {
     });
     this.schleife.starten();
     this.sound?.starteAtmosphaere();
-    this.musik?.setzeZone(this.musikOrdner);
+    if (this.klaenge.ersetztMusik) this.musik?.stoppen(); // Karte bringt eigene Hintergrundmusik mit
+    else this.musik?.setzeZone(this.musikOrdner);
   }
 
   /** Sitzung beenden (Logout, Kick, Verbindungsverlust). Idempotent. */
@@ -192,6 +197,7 @@ export class ClientSpiel {
     this.hud.zeigeAuto(null);
     this.sound?.stoppeAtmosphaere();
     this.sound?.motor(null);
+    this.klaenge?.stoppe();
     clearInterval(this.pingTimer);
     for (const ab of this.abmelden) ab();
   }
@@ -908,14 +914,31 @@ export class ClientSpiel {
   // ---------------------------------------------------------------------------
   // Sound
 
+  /** Kampf-Auslöser der Klanglandschaft: Schuss/Treffer im Umkreis von 15 Kacheln */
+  #kampfInDerNaehe(e) {
+    if (Number.isFinite(e.x) && Math.hypot(e.x - this.lokal.x, e.y - this.lokal.y) < 15 * this.welt.kachelGroesse) this.klangZeit.kampf = performance.now();
+  }
+
+  /** Klanglandschaft je Bild: Hörer = eigene Figur (Kacheln), Tag/Nacht, Kampf, Horde (≥ 6 Zombies im Umkreis von 20 Kacheln) */
+  #klaengeAktualisieren(jetzt, uhr, andere) {
+    const z = this.klangZeit;
+    const dt = z.letzte === null ? 0 : Math.min(0.25, (jetzt - z.letzte) / 1000);
+    z.letzte = jetzt;
+    const g = this.welt.kachelGroesse;
+    const zombies = andere.filter((e) => e.typ === 'zombie' && Math.hypot(e.x - this.lokal.x, e.y - this.lokal.y) < 20 * g).length;
+    this.klaenge.aktualisiere(dt, { hx: this.lokal.x / g, hy: this.lokal.y / g, nacht: uhr.istNacht, kampfSeit: (performance.now() - z.kampf) / 1000, horde: zombies >= 6, zoneSeit: (performance.now() - z.zoneSeit) / 1000 });
+  }
+
   #ereignisSound(e) {
     if (!this.sound) return;
     switch (e.typ) {
       case 'feuer':
         this.sound.spiele(e.waffe === 'schrotflinte' ? 'schrotflinte' : 'pistole', { x: e.x, y: e.y });
+        this.#kampfInDerNaehe(e);
         break;
       case 'treffer':
         this.sound.spiele(e.ziel === 'zombie' ? 'treffer_zombie' : 'treffer_spieler', { x: e.x, y: e.y });
+        this.#kampfInDerNaehe(e);
         break;
       case 'tod':
         if (e.ziel !== 'tier') this.sound.spiele(e.ziel === 'zombie' ? 'zombie_tod' : 'spieler_tod', { x: e.x, y: e.y }); // Hasen fallen lautlos um
@@ -1089,6 +1112,7 @@ export class ClientSpiel {
     const aufhebbar = interaktion?.gegenstand ?? null;
     if (this.werkbankOffen && !this.#naheWerkbank()) this.werkbankUmschalten(false); // weggegangen → zu
     const uhr = tageszeit(this.serverZeit + (jetzt - this.zeitEmpfangen) / 1000, this.tageszeitDauer);
+    if (this.klaenge.eintraege.length) this.#klaengeAktualisieren(jetzt, uhr, andere);
 
     if (this.platzierung) this.renderer.zeigeVorschau({ typ: this.platzierung.typ, ...this.#platzierungsZiel() });
     else if (!this.bau.aktiv) {

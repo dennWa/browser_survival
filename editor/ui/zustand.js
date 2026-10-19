@@ -10,7 +10,7 @@ const EBENEN_SPEICHER = 'browserSurvival.editorEbenen';
  * Zwischenablage, Ansicht. Kleine Ereignis-Schnittstelle: `bei(name, f)` / `melde(name, daten)`.
  * Ereignisse: 'karte' (Inhalt geändert), 'zone' (andere Zone aktiv / Liste), 'auswahl', 'werkzeug', 'eintrag' (Asset gewählt),
  * 'ebenen' (sichtbar/gesperrt), 'ansicht', 'meldung', 'speicher', 'pruefung', 'bibliothek' (3D-Modelle, ui/bibliothek.js).
- * `bibliothek` (Bibliothek) setzt main.js vor `ladeAlle`.
+ * `bibliothek` (Modelle) und `audioBibliothek` (Klänge) setzt main.js vor `ladeAlle`.
  * Ebenen (kern/ebenen.js): Änderungen an gesperrten/ausgeblendeten Ebenen lässt `ausfuehren`/`sammle` aus (mit Meldung).
  *
  * ⚠ Editor-Code ändert die Karte NIE direkt: nur über `ausfuehren` (→ Verlauf, Autosave). So bleibt jede Änderung
@@ -80,6 +80,7 @@ export class Zustand {
     this.zonen.get(karte.id)?.abmelden?.();
     // Eingebettete 3D-Modelle (alte Entwürfe/Dateien) → Projekt-Bibliothek, Typ verweist danach per `asset` (Phase 3)
     if (this.bibliothek?.uebernimm(karte)) speichern = true;
+    if (this.audioBibliothek?.uebernimm(karte)) speichern = true;
     const eintrag = { karte, verlauf };
     eintrag.abmelden = karte.beobachte((ops) => {
       this.melde('karte', ops);
