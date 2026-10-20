@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 
 /**
- * Wetter (Darstellung): Regen = fallende Striche rund um den Spieler, Nebel = dichterer Nebel + graue Stimmung.
- * Der Server schickt nur die Art ('klar' | 'regen' | 'nebel', ZUSTAND.wetter); hier blenden sich die Werte weich
+ * Wetter (Darstellung): Regen = fallende Striche rund um den Spieler, Schnee = langsam taumelnde Flocken (nur Schneezonen,
+ * lautlos), Nebel = dichterer Nebel + graue Stimmung.
+ * Der Server schickt nur die Art ('klar' | 'regen' | 'schnee' | 'nebel', ZUSTAND.wetter); hier blenden sich die Werte weich
  * über (regen/nebel 0..1 → Renderer: Nebelweite, Lichtstärke, Himmelsfarbe, Regen-Ton).
  */
 const TROPFEN = 650;
@@ -10,6 +11,8 @@ const RADIUS = 760; // px um den Fokus, in denen es regnet (Kamera sieht ~±900 
 const HOEHE = 520;
 const LAENGE = 15;
 const BLENDE_PRO_SEKUNDE = 0.35;
+const FLOCKEN = 900;
+const FLOCKEN_HOEHE = 480;
 
 // Der Regen fällt komplett auf der Grafikkarte (Position aus Zeit + Zufallswerten): kein Puffer-Upload, keine Schleife pro Frame.
 const VERTEX = `
@@ -29,12 +32,45 @@ const FRAGMENT = `
   uniform float uDeckkraft;
   void main() { gl_FragColor = vec4(0.706, 0.784, 0.894, uDeckkraft); }`;
 
+// Schnee: ebenfalls komplett auf der Grafikkarte. Flocke = Punktsprite, fällt langsam (60–110 px/s) und schwankt seitlich.
+const SCHNEE_VERTEX = `
+  attribute vec4 flocke; // x, z (Versatz), y0 (Starthöhe), v (Fallgeschwindigkeit)
+  attribute float groesse;
+  uniform vec3 uFokus;
+  uniform float uZeit;
+  uniform float uAnteil;
+  uniform float uSkala;
+  varying float vAlpha;
+  void main() {
+    float y = mod(flocke.z - uZeit * flocke.w, ${FLOCKEN_HOEHE.toFixed(1)});
+    float phase = flocke.x * 0.037 + flocke.y * 0.021;
+    // Weltfest: Flocken liegen auf einem Gitter, das mit dem Fokus mitwandert (Spieler läuft durch den Schnee, nicht mit ihm)
+    float bx = uFokus.x + mod(flocke.x - uFokus.x + ${RADIUS.toFixed(1)}, ${(RADIUS * 2).toFixed(1)}) - ${RADIUS.toFixed(1)};
+    float bz = uFokus.z + mod(flocke.y - uFokus.z + ${RADIUS.toFixed(1)}, ${(RADIUS * 2).toFixed(1)}) - ${RADIUS.toFixed(1)};
+    vec3 p = vec3(bx + sin(uZeit * 0.8 + phase) * 22.0, y, bz + cos(uZeit * 0.6 + phase * 1.7) * 16.0);
+    // Anteil: bei leichtem Schneefall bleiben Flocken mit hoher Kennung weg
+    vAlpha = fract(flocke.z * 0.01731 + flocke.x * 0.00317) > uAnteil ? 0.0 : 1.0;
+    vec4 mv = viewMatrix * vec4(p, 1.0);
+    gl_Position = projectionMatrix * mv;
+    gl_PointSize = groesse * uSkala * clamp(780.0 / max(-mv.z, 1.0), 0.5, 1.4);
+  }`;
+const SCHNEE_FRAGMENT = `
+  uniform float uDeckkraft;
+  varying float vAlpha;
+  void main() {
+    float d = length(gl_PointCoord - 0.5) * 2.0;
+    if (d > 1.0 || vAlpha < 0.5) discard;
+    gl_FragColor = vec4(0.97, 0.985, 1.0, uDeckkraft * (1.0 - d * d));
+  }`;
+
 export class WetterEffekt {
   constructor(szene) {
     this.art = 'klar';
     this.regen = 0;
     this.nebel = 0;
+    this.schnee = 0;
     this.zeit = 0;
+    this.schneeZeit = 0;
     this.windZeit = 0;
     this.windStufe = 1; // 0 windstill … 3 stark (fließend), steuert das Baum-Schwanken
     const tropfen = new Float32Array(TROPFEN * 2 * 4);
@@ -62,28 +98,63 @@ export class WetterEffekt {
     this.linien.visible = false;
     this.linien.renderOrder = 5;
     szene.add(this.linien);
+
+    const flocken = new Float32Array(FLOCKEN * 4);
+    const groessen = new Float32Array(FLOCKEN);
+    for (let i = 0; i < FLOCKEN; i++) {
+      flocken.set([(Math.random() * 2 - 1) * RADIUS, (Math.random() * 2 - 1) * RADIUS, Math.random() * FLOCKEN_HOEHE, 55 + Math.random() * 55], i * 4);
+      groessen[i] = 2 + Math.random() * 3;
+    }
+    this.schneeGeo = new THREE.BufferGeometry();
+    this.schneeGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(FLOCKEN * 3), 3)); // wird nie genutzt (Zählung)
+    this.schneeGeo.setAttribute('flocke', new THREE.BufferAttribute(flocken, 4));
+    this.schneeGeo.setAttribute('groesse', new THREE.BufferAttribute(groessen, 1));
+    this.schneeMaterial = new THREE.ShaderMaterial({
+      vertexShader: SCHNEE_VERTEX,
+      fragmentShader: SCHNEE_FRAGMENT,
+      uniforms: { uFokus: { value: new THREE.Vector3() }, uZeit: { value: 0 }, uAnteil: { value: 1 }, uSkala: { value: Math.min(2, globalThis.devicePixelRatio || 1) }, uDeckkraft: { value: 0 } },
+      transparent: true,
+      depthWrite: false,
+    });
+    this.schneeFlocken = new THREE.Points(this.schneeGeo, this.schneeMaterial);
+    this.schneeFlocken.frustumCulled = false;
+    this.schneeFlocken.visible = false;
+    this.schneeFlocken.renderOrder = 5;
+    szene.add(this.schneeFlocken);
   }
 
   setzeArt(art) {
-    this.art = art === 'regen' || art === 'nebel' ? art : 'klar';
+    this.art = art === 'regen' || art === 'schnee' || art === 'nebel' ? art : 'klar';
   }
 
   /** Stärke des Wetters für Ton & Licht (0 = klar … 1 = voll). */
   get stimmung() {
-    return Math.max(this.regen, this.nebel);
+    return Math.max(this.regen, this.nebel, this.schnee * 0.6);
   }
 
   aktualisiere(dt, fokusX, fokusY) {
     const zielRegen = this.art === 'regen' ? 1 : 0;
-    const zielNebel = this.art === 'nebel' ? 1 : this.art === 'regen' ? 0.3 : 0;
+    const zielSchnee = this.art === 'schnee' ? 1 : 0;
+    const zielNebel = this.art === 'nebel' ? 1 : this.art === 'regen' ? 0.3 : this.art === 'schnee' ? 0.4 : 0;
     const schritt = BLENDE_PRO_SEKUNDE * dt;
     this.regen += Math.max(-schritt, Math.min(schritt, zielRegen - this.regen));
     this.nebel += Math.max(-schritt, Math.min(schritt, zielNebel - this.nebel));
+    this.schnee += Math.max(-schritt, Math.min(schritt, zielSchnee - this.schnee));
     // Wind passt sich dem Wetter an: Nebel = fast windstill, klar = leicht (mit Böen), Regen = mittel bis stark
     this.windZeit += dt;
     const boe = 0.5 + 0.5 * Math.sin(this.windZeit * 0.21) * Math.sin(this.windZeit * 0.067 + 1);
-    const zielWind = this.art === 'nebel' ? 0.15 : this.art === 'regen' ? 2 + boe : 0.6 + 0.9 * boe;
+    const zielWind = this.art === 'nebel' ? 0.15 : this.art === 'regen' ? 2 + boe : this.art === 'schnee' ? 0.4 + 0.6 * boe : 0.6 + 0.9 * boe;
     this.windStufe += (zielWind - this.windStufe) * Math.min(1, dt * 0.4);
+    const schneit = this.schnee > 0.01;
+    this.schneeFlocken.visible = schneit;
+    if (schneit) {
+      this.schneeZeit += dt;
+      const s = this.schneeMaterial.uniforms;
+      s.uZeit.value = this.schneeZeit;
+      s.uFokus.value.set(fokusX, 0, fokusY);
+      s.uAnteil.value = Math.min(1, this.schnee + 0.1);
+      s.uDeckkraft.value = 0.85 * this.schnee;
+    }
     const sichtbar = this.regen > 0.01;
     this.linien.visible = sichtbar;
     if (!sichtbar) return;

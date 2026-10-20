@@ -144,7 +144,7 @@ export function inspektor({ zustand, leiste, aktionen, befehle }) {
       { name: 'blockiert', label: 'Blockiert', typ: 'haken', wert: !!o.blockiert },
       { name: 'ebene', label: 'Ebene', typ: 'auswahl', wert: o.ebene ?? 'moebel', optionen: [['moebel', 'Möbel (Standard)'], ['boden', 'Boden (flach)'], ['oben', 'Oben (Krone)'], ['licht', 'Licht']] },
     ];
-    if (['baum', 'baum_herbst', 'stein'].includes(o.typ)) liste.push({ name: 'groesse', label: 'Größe', typ: 'auswahl', wert: o.groesse ?? '', optionen: [['', 'automatisch (Zufall nach Position)'], ['klein', 'klein (1 Ertrag)'], ['gross', 'groß (2 Ertrag)']] });
+    if (['baum', 'baum_herbst', 'tanne', 'stein'].includes(o.typ)) liste.push({ name: 'groesse', label: 'Größe', typ: 'auswahl', wert: o.groesse ?? '', optionen: [['', 'automatisch (Zufall nach Position)'], ['klein', 'klein (1 Ertrag)'], ['gross', 'groß (2 Ertrag)']] });
     if (o.typ === 'licht')
       liste.push(
         { name: 'radius', label: 'Radius (Kacheln)', typ: 'zahl', wert: o.radius ?? 4, min: 1, schritt: 0.5 },

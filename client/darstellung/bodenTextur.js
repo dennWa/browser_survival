@@ -7,6 +7,8 @@ import { FARBEN, KACHEL_FARBEN } from './farben.js';
  * Bodentexturen aus dem Atlas bzw. prozedural (Asphalt, Straße mit Markierungen, Gehwegplatten),
  * Bodendeko (Teppiche, Blut, Parkplatzmarkierungen) und Türschwellen.
  * Wände, Möbel und Bäume sind im 3D-Renderer echte Körper und fehlen hier bewusst.
+ * Schneezonen (welt.schnee): Kachel 'schnee' prozedural (bläulich-weiße Verwehungen, Glitzer); Straßen/Gehwege/Asphalt sind
+ * verschneit (Ränder zum Schnee dicht, in der Mitte lückenhaft – man sieht den Asphalt noch), Wasser ist Eis.
  */
 export class BodenTextur {
   constructor(welt, assets) {
@@ -49,6 +51,10 @@ export class BodenTextur {
 
     const x = tx * g;
     const y = ty * g;
+    if (name === 'schnee') {
+      this.#schnee(ctx, tx, ty, x, y);
+      return;
+    }
     const varianten = this.assets?.boden(name);
     const bild = this.assets?.umgebungBild;
     if (varianten && bild) {
@@ -75,6 +81,86 @@ export class BodenTextur {
     if (name === 'strasse') this.#strassenMarkierung(ctx, tx, ty);
     if (name === 'gehweg') this.#gehwegPlatten(ctx, tx, ty);
     if (name === 'wasser') this.#wasser(ctx, tx, ty);
+    if (this.welt.schnee) {
+      if (name === 'asphalt' || name === 'strasse' || name === 'gehweg') this.#strassenSchnee(ctx, tx, ty);
+      if (name === 'wasser') this.#eis(ctx, tx, ty);
+    }
+  }
+
+  /**
+   * Schnee: helle, leicht bläuliche Fläche mit großflächigen Verwehungen (Rauschen von Schatten-Blau bis Reinweiß),
+   * ein paar weichen Mulden und Glitzerpunkten. Absichtlich nicht ganz weiß, sonst brennt der Boden im Sonnenlicht aus.
+   */
+  #schnee(ctx, tx, ty, x, y) {
+    const g = this.g;
+    const n = wertRauschen(tx * 0.13 + 11, ty * 0.13 + 5) * 0.7 + wertRauschen(tx * 0.5 + 90, ty * 0.5 + 33) * 0.3; // 0..1
+    ctx.fillStyle = '#d3e0ec';
+    ctx.fillRect(x, y, g + 0.25, g + 0.25);
+    ctx.fillStyle = n > 0.5 ? `rgba(250, 253, 255, ${((n - 0.5) * 1.1).toFixed(3)})` : `rgba(120, 150, 190, ${((0.5 - n) * 0.55).toFixed(3)})`;
+    ctx.fillRect(x, y, g + 0.25, g + 0.25);
+    const h = streuwert(tx * 5 + 1, ty * 11 + 9);
+    for (let i = 0; i < 3; i++) {
+      const bx = x + ((h >> (i * 5)) % g);
+      const by = y + ((h >> (i * 5 + 2)) % g);
+      const hell = (h >> (i + 9)) % 3 !== 0;
+      const verlauf = ctx.createRadialGradient(bx, by, 0, bx, by, 10);
+      verlauf.addColorStop(0, hell ? 'rgba(255, 255, 255, 0.35)' : 'rgba(110, 140, 185, 0.22)');
+      verlauf.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      ctx.fillStyle = verlauf;
+      ctx.fillRect(bx - 10, by - 10, 20, 20);
+    }
+    // Glitzer
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    for (let i = 0; i < 2; i++) ctx.fillRect(x + ((h >> (i * 7 + 3)) % (g - 2)), y + ((h >> (i * 7 + 11)) % (g - 2)), 1.5, 1.5);
+  }
+
+  /** Verschneite Straße: Schnee am Rand zum Schneeland dicht, sonst lückenhafte Flecken – der Asphalt bleibt erkennbar. */
+  #strassenSchnee(ctx, tx, ty) {
+    const g = this.g;
+    const x = tx * g;
+    const y = ty * g;
+    const istSchnee = (dx, dy) => KACHELN[this.welt.kachelAn(tx + dx, ty + dy)]?.name === 'schnee';
+    const rand = 11;
+    ctx.fillStyle = 'rgba(232, 240, 248, 0.88)';
+    const seiten = [[0, -1, x, y, g, rand], [0, 1, x, y + g - rand, g, rand], [-1, 0, x, y, rand, g], [1, 0, x + g - rand, y, rand, g]];
+    for (const [dx, dy, sx, sy, sb, sh] of seiten) {
+      if (!istSchnee(dx, dy)) continue;
+      const v = dx === 0 ? ctx.createLinearGradient(0, dy < 0 ? sy : sy + sh, 0, dy < 0 ? sy + sh : sy) : ctx.createLinearGradient(dx < 0 ? sx : sx + sb, 0, dx < 0 ? sx + sb : sx, 0);
+      v.addColorStop(0, 'rgba(232, 240, 248, 0.92)');
+      v.addColorStop(1, 'rgba(232, 240, 248, 0)');
+      ctx.fillStyle = v;
+      ctx.fillRect(sx, sy, sb, sh);
+    }
+    const n = wertRauschen(tx * 0.2 + 3, ty * 0.2 + 17);
+    const dichte = 0.18 + 0.5 * n; // stellenweise fast frei, stellenweise zugeweht
+    const h = streuwert(tx * 3 + 7, ty * 5 + 1);
+    for (let i = 0; i < 6; i++) {
+      if (((h >> (i * 3)) % 10) / 10 > dichte + 0.25) continue;
+      const bx = x + ((h >> (i * 4)) % g);
+      const by = y + ((h >> (i * 4 + 5)) % g);
+      const r = 5 + ((h >> (i + 2)) % 6);
+      const verlauf = ctx.createRadialGradient(bx, by, 0, bx, by, r);
+      verlauf.addColorStop(0, `rgba(238, 244, 250, ${(0.35 + dichte * 0.5).toFixed(2)})`);
+      verlauf.addColorStop(1, 'rgba(238, 244, 250, 0)');
+      ctx.fillStyle = verlauf;
+      ctx.fillRect(bx - r, by - r, r * 2, r * 2);
+    }
+  }
+
+  /** Zugefrorener See: das Blau wird blass und milchig, Risse als dünne helle Linien. */
+  #eis(ctx, tx, ty) {
+    const g = this.g;
+    ctx.fillStyle = 'rgba(205, 228, 242, 0.62)';
+    ctx.fillRect(tx * g, ty * g, g + 0.25, g + 0.25);
+    const h = streuwert(tx * 13 + 2, ty * 7 + 6);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    const x0 = tx * g + (h % g);
+    const y0 = ty * g + ((h >> 6) % g);
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x0 + ((h >> 10) % 15) - 7, y0 + ((h >> 14) % 15) - 7);
+    ctx.stroke();
   }
   /**
    * Rasen dunkler und lebendiger: Grundabdunklung + großflächiges Rauschen (Wiesenflecken von sattgrün bis olivgelb/blaugrün)

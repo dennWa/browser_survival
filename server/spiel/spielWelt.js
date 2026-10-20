@@ -75,7 +75,7 @@ export class SpielWelt {
     this.meldungen = [];
     this.zombieRespawns = []; // [{ spawnIndex, rest }]
     this.tierRespawns = []; // [{ rest, bereich }] Sekunden bis ein erlegter Hase nachkommt (bereich = Index in karte.tierBereiche oder null)
-    /** Wetter dieser Zone (systeme/wetterSystem.js): art 'klar' | 'regen' | 'nebel', rest = Sekunden bis zum Wechsel */
+    /** Wetter dieser Zone (systeme/wetterSystem.js): art 'klar' | 'regen' | 'schnee' (nur Schneezonen) | 'nebel', rest = Sekunden bis zum Wechsel */
     this.wetter = { art: 'klar', rest: 30 + this.zufall.zahl() * 120 };
     /** Offene Kisten-Ansichten, die der Zone-Versand abholt: [{ spielerId, id, inhalt | null }] */
     this.kistenNachrichten = [];

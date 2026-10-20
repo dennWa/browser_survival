@@ -103,5 +103,12 @@
   "zombie_tod_0.ogg",
   "zombie_tod_1.ogg",
   "zombie_tod_2.ogg"
+ ],
+ "schritt_schnee": [
+  "schritt_schnee_0.ogg",
+  "schritt_schnee_1.ogg",
+  "schritt_schnee_2.ogg",
+  "schritt_schnee_3.ogg",
+  "schritt_schnee_4.ogg"
  ]
 }

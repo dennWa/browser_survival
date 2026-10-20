@@ -144,7 +144,7 @@ export const ADMIN_BEFEHLE = Object.freeze({
  *   angelWurf / angelBiss / gefangen { von, x, y, anzahl? }  Angeln (Pose ausgeworfen / Biss / Fang)
  *   bossBeute { x, y }                       Boss-Zombie hat Waffe + Munition fallen lassen
  *   gebaut { bauwerk, x, y, von } / abgerissen { bauwerk, x, y, von } / tuerBau { offen, x, y }   Basisbau
- * ZUSTAND.wetter = 'klar' | 'regen' | 'nebel'; Entität typ 'tier' (art 'hase').
+ * ZUSTAND.wetter = 'klar' | 'regen' | 'schnee' | 'nebel'; Entität typ 'tier' (art 'hase').
  */
 
 /** Objekt → Text für den Transport. */

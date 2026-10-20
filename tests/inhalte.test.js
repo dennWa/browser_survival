@@ -7,7 +7,7 @@ import { Welt } from '../gemeinsam/welt/welt.js';
 
 const atlas = JSON.parse(readFileSync(new URL('../client/assets/atlas.json', import.meta.url), 'utf8'));
 /** Objekttypen, die prozedural gezeichnet werden und keine Grafik brauchen */
-const PROZEDURAL = new Set(['markierung', 'licht', 'stein', 'eisenerz', 'werkbank']);
+const PROZEDURAL = new Set(['markierung', 'licht', 'stein', 'eisenerz', 'werkbank', 'tanne']);
 
 for (const id of Object.keys(KARTEN)) {
   test(`Karte "${id}": alles vom Spieler-Start aus erreichbar (keine zugestellten Türen)`, () => {

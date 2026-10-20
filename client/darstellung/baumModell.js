@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { vereineGeometrien, matrixAus } from './geometrie.js';
 import { BAUM_DATEN } from '../assets/3d/baumDaten.js';
+import { ladeEigenesModell } from './eigeneModelle.js';
 
 /**
  * Prozedurale Cartoon-Bäume und -Büsche (kein Bild-Asset nötig): Stamm mit Wurzelansatz und Ästen,
@@ -11,9 +12,17 @@ import { BAUM_DATEN } from '../assets/3d/baumDaten.js';
  * Attribut `kronenMaske` (1 = Laub) erlaubt pro Instanz eine Laubfarb-Variation (BAUM_LAUB_TOENE). Büsche bleiben prozedural.
  * Maße in Weltpixeln für einen Baum mit 112 px Grundfläche (3,5 Kacheln); kartenModell skaliert passend.
  * Die Krone sitzt komplett ÜBER dem Stamm (Stamm endet in der Krone) – nichts ragt oben heraus.
+ *
+ * Tanne ('tanne', Schneezonen): Modell client/assets/eigene/tanne_schnee.glb (Pine Tree with Snow, Chris Lee, CC-BY – siehe credits.json);
+ * `baueBaum('tanne')` liefert sofort eine prozedurale Ersatz-Tanne, `ladeTanneAusGlb()` die Geometrie aus der Datei
+ * (Materialfarben → Vertexfarben, auf `TANNE_BREITE` × `TANNE_HOEHE` eingepasst) – kartenModell tauscht sie nach dem Laden ein.
+ * Eine neue Textur/ein neues Modell: einfach die .glb ersetzen (Farben stammen aus den Materialien der Datei).
  */
 export const BAUM_GRUNDFLAECHE = 112;
 export const BUSCH_GRUNDFLAECHE = 48;
+export const TANNE_BREITE = 100; // Grundfläche der Tanne in Weltpixeln (Instanz-Skalierung: Objektbreite / TANNE_BREITE)
+export const TANNE_HOEHE = 190;
+export const TANNE_GLB = new URL('../assets/eigene/tanne_schnee.glb', import.meta.url).href;
 const UMRISS = 1.6;
 const BAUM_MASSSTAB = 0.5; // tree.glb ist ~254 hoch → ~127 (wie der alte Cartoon-Baum) // Dicke des schwarzen Umrisses
 
@@ -112,10 +121,81 @@ const BUSCH_KRONE = [
   [3, 19, 4, 9, 2],
 ];
 
+const TANNE_NADEL = new THREE.Color().setRGB(0, 0.31, 0.25, THREE.LinearSRGBColorSpace);
+const TANNE_SCHNEE = new THREE.Color().setRGB(0.95, 0.97, 1, THREE.LinearSRGBColorSpace);
+const TANNE_RINDE = new THREE.Color().setRGB(0.19, 0.09, 0.06, THREE.LinearSRGBColorSpace);
+
+/** Umriss (Inverted Hull) zu einer Geometrie ohne Index: Eckpunkte gleicher Position teilen sich eine gemittelte Normale. */
+function umrissVon(koerper) {
+  const position = koerper.attributes.position.array;
+  const normale = koerper.attributes.normal.array;
+  const schluessel = (i) => `${position[i * 3].toFixed(1)},${position[i * 3 + 1].toFixed(1)},${position[i * 3 + 2].toFixed(1)}`;
+  const glatt = new Map();
+  for (let i = 0; i < position.length / 3; i++) {
+    const k = schluessel(i);
+    const n = glatt.get(k) ?? [0, 0, 0];
+    for (let a = 0; a < 3; a++) n[a] += normale[i * 3 + a];
+    glatt.set(k, n);
+  }
+  const umrissPosition = position.slice();
+  for (let i = 0; i < position.length / 3; i++) {
+    const n = glatt.get(schluessel(i));
+    const laenge = Math.hypot(n[0], n[1], n[2]) || 1;
+    for (let a = 0; a < 3; a++) umrissPosition[i * 3 + a] += (n[a] / laenge) * UMRISS;
+  }
+  const umriss = new THREE.BufferGeometry();
+  umriss.setAttribute('position', new THREE.BufferAttribute(umrissPosition, 3));
+  umriss.computeBoundingSphere();
+  return umriss;
+}
+
+/** Ersatz-Tanne (bis die .glb geladen ist bzw. falls sie fehlt): Stamm + 4 Kegel-Etagen, Schneehauben auf jeder Etage. */
+function baueErsatzTanne() {
+  const teile = [{ geometrie: new THREE.CylinderGeometry(5, 8, 36, 7, 1), matrix: matrixAus(0, 18, 0), farbe: TANNE_RINDE }];
+  for (const [radius, hoehe, y] of [[46, 74, 62], [38, 64, 100], [29, 56, 136], [19, 48, 168]]) {
+    teile.push({ geometrie: new THREE.ConeGeometry(radius, hoehe, 9, 1), matrix: matrixAus(0, y, 0), farbe: TANNE_NADEL });
+    teile.push({ geometrie: new THREE.ConeGeometry(radius * 0.7, hoehe * 0.55, 9, 1), matrix: matrixAus(0, y + hoehe * 0.2, 0), farbe: TANNE_SCHNEE });
+  }
+  const koerper = vereineGeometrien(teile, { mitFarbe: true });
+  return { koerper, umriss: umrissVon(koerper), grundflaeche: TANNE_BREITE };
+}
+
+/**
+ * Tanne aus der .glb: alle Meshes zusammenfassen, Materialfarbe → Vertexfarbe, Unterkante auf y = 0, Breite TANNE_BREITE,
+ * Höhe TANNE_HOEHE. @returns {Promise<{ koerper, umriss } | null>} null, wenn die Datei fehlt/unlesbar ist
+ */
+export async function ladeTanneAusGlb(url = TANNE_GLB) {
+  let szene;
+  try {
+    szene = await ladeEigenesModell(url);
+  } catch {
+    return null;
+  }
+  szene.updateMatrixWorld(true);
+  const teile = [];
+  szene.traverse((t) => {
+    if (!t.isMesh || !t.geometry?.attributes?.position) return;
+    const material = Array.isArray(t.material) ? t.material[0] : t.material;
+    const geometrie = t.geometry.clone();
+    if (!geometrie.attributes.normal) geometrie.computeVertexNormals();
+    teile.push({ geometrie, matrix: t.matrixWorld, farbe: material?.color ?? TANNE_NADEL });
+  });
+  if (!teile.length) return null;
+  const koerper = vereineGeometrien(teile, { mitFarbe: true });
+  const box = new THREE.Box3().setFromBufferAttribute(koerper.attributes.position);
+  const groesse = box.getSize(new THREE.Vector3());
+  const faktor = Math.min(TANNE_BREITE / (Math.max(groesse.x, groesse.z) || 1), TANNE_HOEHE / (groesse.y || 1));
+  koerper.translate(-(box.min.x + box.max.x) / 2, -box.min.y, -(box.min.z + box.max.z) / 2);
+  koerper.scale(faktor, faktor, faktor);
+  koerper.computeBoundingSphere();
+  return { koerper, umriss: umrissVon(koerper) };
+}
+
 /**
  * @returns {{ koerper: THREE.BufferGeometry, umriss: THREE.BufferGeometry }} beide mit Vertexfarbe (umriss ohne)
  */
 export function baueBaum(typ) {
+  if (typ === 'tanne') return baueErsatzTanne();
   if (typ !== 'busch') return baueModellBaum();
   const istBusch = true;
   const farben = (FARBEN[typ] ?? FARBEN.baum).map((f) => new THREE.Color(f));

@@ -6,6 +6,7 @@
  */
 export const KACHELN = Object.freeze({
   ',': { name: 'gras', blockiert: false },
+  '*': { name: 'schnee', blockiert: false }, // Schneezone: Boden statt Gras (Textur prozedural, Schritte knirschen)
   '_': { name: 'asphalt', blockiert: false },
   '=': { name: 'strasse', blockiert: false },
   '-': { name: 'gehweg', blockiert: false },

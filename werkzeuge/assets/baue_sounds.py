@@ -26,7 +26,7 @@ QUELLEN = {
 }
 
 LIZENZEN = [
-    ('Impact Sounds', 'Kenney (kenney.nl)', 'CC0', 'https://kenney.nl/assets/impact-sounds', 'Hacken, Treffer, Aufprall, Türen'),
+    ('Impact Sounds', 'Kenney (kenney.nl)', 'CC0', 'https://kenney.nl/assets/impact-sounds', 'Hacken, Treffer, Aufprall, Türen, Schritte im Schnee'),
     ('RPG Audio', 'Kenney (kenney.nl)', 'CC0', 'https://kenney.nl/assets/rpg-audio', 'Axthieb, Türen, Knarren, Stoff'),
     ('Zombies Sound Pack', 'artisticdude', 'CC0', 'https://opengameart.org/content/zombies-sound-pack', 'Zombie-Laute'),
     ('Zombie Noises and Moans', 'ianzazz', 'CC0', 'https://opengameart.org/content/zombie-noises-and-moans', 'Zombie-Stöhnen'),
@@ -60,6 +60,7 @@ SAMPLES = {
     'autotuer': [imp('impactMetal_light_002.ogg'), rpg('metalLatch.ogg')],
     'gebaut': [imp('impactWood_medium_000.ogg'), imp('impactWood_medium_003.ogg'), imp('impactPlank_medium_001.ogg')],
     'werkeln': [imp('impactPlank_medium_000.ogg'), imp('impactPlank_medium_004.ogg'), imp('impactWood_light_002.ogg')],
+    'schritt_schnee': [imp(f'footstep_snow_00{i}.ogg', -3) for i in range(5)],
     'graben': [imp('impactSoft_medium_000.ogg'), imp('impactSoft_medium_003.ogg')],
     'stein_bricht': [imp('impactMining_003.ogg')],
     'zombie_stoehnen': [('zombienoises', 'zombienoise1.ogg', 0), ('zombienoises', 'zombienoise2.ogg', 0)] + [('zombies', f'zombie-{i}.wav', 0) for i in (16, 17, 18, 21)],

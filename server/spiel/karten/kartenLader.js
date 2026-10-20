@@ -7,6 +7,7 @@ import { pruefeLootZone, punkteDerZone } from './lootZonen.js';
 import { pruefeZonenEinstellungen } from './zonenEinstellungen.js';
 import { STADTRAND } from './stadtrand.js';
 import { WALDWEG } from './waldweg.js';
+import { SCHNEELAND } from './schneeland.js';
 
 /**
  * Registrierte Karten (= Zonen der offenen Welt). Neue Karte: Datei in diesem Ordner anlegen (von Hand, per
@@ -16,6 +17,7 @@ import { WALDWEG } from './waldweg.js';
 export const KARTEN = Object.freeze({
   stadtrand: STADTRAND,
   waldweg: WALDWEG,
+  schneeland: SCHNEELAND,
 });
 
 /**
@@ -40,6 +42,7 @@ export const KARTEN = Object.freeze({
  *   einstellungen → Zonen-Werte (zonenEinstellungen.js), musik → daten.musik (Client: Musik-Ordner)
  *   klaenge → daten.klaenge (Klanglandschaft, gemeinsam/audio/klanglandschaft.js; nur mit Datei/eingebetteten Daten)
  *   lootZonen → zusätzliche lootPunkte mit `lootZone` (Regeln: lootZonen.js; nur Server, der Client sieht nur die Items)
+ *   schnee true → Schneezone (daten.schnee): Schneefall statt Regen, verschneite Straßen, knirschende Schritte (Kachel '*' = Schnee)
  *   bemalung { '#rrggbb': [[x, y, b, h]] } → daten.bemalung (nur Optik: Client malt es in die Bodentextur)
  */
 export function ladeKarte(id) {
@@ -168,6 +171,7 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE, { au
 
   const daten = { id: definition.id, name: definition.name, breite, hoehe, kachelGroesse, kacheln, raeume, objekte, uebergaenge };
   if (hoehen) daten.hoehen = hoehen;
+  if (definition.schnee === true) daten.schnee = true; // Schneezone: Schneefall statt Regen, Schritte knirschen, Straßen verschneit (Optik)
   const typen = pruefeTypen(definition.typen);
   if (typen) daten.typen = typen;
   if (typeof definition.musik === 'string' && /^[a-z0-9_-]{1,40}$/i.test(definition.musik)) daten.musik = definition.musik;
@@ -249,7 +253,7 @@ function ermittleUntergrund(zeilen, x, y) {
 /** Anteil der Bäume, der beim Laden weggelassen wird (Karten sind sonst zu dicht bewaldet). */
 const BAUM_AUSDUENNUNG = 0.35;
 const ANTEIL_GROSS = 0.4;
-const GROESSEN_TYPEN = ['baum', 'baum_herbst', 'stein'];
+const GROESSEN_TYPEN = ['baum', 'baum_herbst', 'tanne', 'stein'];
 
 /** Fester Pseudo-Zufallswert 0..1 aus einer Position (gleiche Karte → gleiche Auswahl, auf Server und Client). */
 function streuwert(x, y, salz) {

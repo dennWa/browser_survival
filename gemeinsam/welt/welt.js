@@ -40,6 +40,8 @@ export class Welt {
     this.uebergaenge = kartenDaten.uebergaenge ?? [];
     /** Bemalung des Bodens aus dem Map-Editor (nur Optik): { '#rrggbb': [[x, y, b, h], …] } oder null */
     this.bemalung = kartenDaten.bemalung ?? null;
+    /** Schneezone (Kartenfeld `schnee`): Niederschlag fällt als Schnee, Straßen sind verschneit, Schritte knirschen */
+    this.schnee = kartenDaten.schnee === true;
     /** Gelände-Höhen (Meter je Kachel) aus dem Map-Editor oder null (flach) – Darstellung + Ego-Zielen; Klippen sind 'hang'-Objekte */
     this.hoehen = Array.isArray(kartenDaten.hoehen) && kartenDaten.hoehen.length === this.breite * this.hoehe ? kartenDaten.hoehen : null;
     /** Kachelindizes (ty * breite + tx), die durch Möbel blockiert sind */

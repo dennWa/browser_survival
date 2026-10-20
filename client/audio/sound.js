@@ -27,7 +27,7 @@ const PROBEN_PEGEL = {
   pistole: 1.0, schrotflinte: 1.15, hack_holz: 1.0, hack_stein: 0.9, treffer_zombie: 0.8, treffer_spieler: 0.9,
   tuer_auf: 0.7, tuer_zu: 0.8, tuer_schlag: 1.0, tuer_bricht: 1.1, aufprall: 1.0, fahrzeug_schaden: 0.8, fahrzeug_kaputt: 1.0,
   autotuer: 0.7, gebaut: 0.8, werkeln: 0.7, graben: 0.7, stein_bricht: 1.0, 
-  zombie_stoehnen: 0.8, zombie_angriff: 0.9, zombie_tod: 0.9, aufheben: 0.25,
+  zombie_stoehnen: 0.8, zombie_angriff: 0.9, zombie_tod: 0.9, aufheben: 0.25, schritt_schnee: 0.9,
 };
 
 export class Sound {
@@ -682,6 +682,12 @@ const REZEPTE = {
   feuer_aus: ({ ctx, ausgang, t, rauschen }) => {
     rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.7, typ: 'highpass', frequenz: 2500, lautstaerke: 0.35, anschlag: 0.05 }); // Zischen
     return 0.75;
+  },
+  schritt_schnee: ({ ctx, ausgang, t, rauschen }) => {
+    // Ersatz ohne Sample: weiches Knirschen = mehrere kurze, helle Rauschstöße dicht hintereinander + dumpfer Tritt
+    rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.07, typ: 'lowpass', frequenz: 500, lautstaerke: 0.25 });
+    for (let i = 0; i < 4; i++) rauschStoss(ctx, ausgang, rauschen, t + 0.012 + i * 0.028 + Math.random() * 0.012, { dauer: 0.03, typ: 'bandpass', frequenz: 2800 + Math.random() * 2600, lautstaerke: 0.16 });
+    return 0.25;
   },
   knistern: ({ ctx, ausgang, t, rauschen }) => {
     for (let i = 0; i < 3; i++) {

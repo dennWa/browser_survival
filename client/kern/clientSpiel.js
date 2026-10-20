@@ -16,6 +16,7 @@ import { SpielSchleife } from './spielSchleife.js';
 import { Karte } from '../ui/karte.js';
 import { BauModus } from './bauModus.js';
 import { Klanglandschaft } from '../audio/klaenge.js';
+import { Schritte } from '../audio/schritte.js';
 
 /** Maximal gemerkte, vom Server noch nicht bestätigte Eingaben (~4 s). */
 const MAX_OFFENE_EINGABEN = 120;
@@ -86,7 +87,8 @@ export class ClientSpiel {
       kontext: () => ({ daten: this.spielerDaten, lokal: this.lokal, name: this.benutzername, defs: this.itemDefinitionen, eigeneDaten: this.eigeneDaten }),
       vorBeginn: () => this.platzierungAbbrechen(),
     });
-    this.wetter = 'klar'; // 'klar' | 'regen' | 'nebel' (vom Server)
+    this.wetter = 'klar'; // 'klar' | 'regen' | 'schnee' | 'nebel' (vom Server)
+    this.schritte = new Schritte(); // Knirschen im Schnee (audio/schritte.js)
     /** Auto-Lauf: { ziel: {tx, ty}, pfad: [{x, y}], stuck: Sekunden, letzterNeuStart } oder null */
     this.autoLauf = null;
     /** Angetippter/rechtsgeklickter Zombie: Blick + Dauerfeuer, bis er umfällt (Zombie-ID oder null) */
@@ -1172,6 +1174,7 @@ export class ClientSpiel {
       tageszeit: uhr,
       wetter: this.wetter,
     });
+    this.schritte.aktualisiere([...andere, eigen], this.welt, this.sound, this.eigeneId, eigen);
     this.hud.aktualisiere({
       serverName: this.serverName,
       verbindung: this.verbindung.beschreibung,

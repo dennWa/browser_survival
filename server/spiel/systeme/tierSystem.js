@@ -24,9 +24,15 @@ export function spawneStartTiere(spielWelt) {
     return;
   }
   let gras = 0;
-  for (let ty = 0; ty < welt.hoehe; ty++) for (let tx = 0; tx < welt.breite; tx++) if (KACHELN[welt.kachelAn(tx, ty)]?.name === 'gras') gras++;
+  for (let ty = 0; ty < welt.hoehe; ty++) for (let tx = 0; tx < welt.breite; tx++) if (istTierBoden(welt, tx, ty)) gras++;
   const anzahl = Math.min(k.hasenMax, Math.round((gras / 1000) * k.hasenProTausend));
   for (let i = 0; i < anzahl; i++) spawneHase(spielWelt, 0);
+}
+
+/** Hasen leben auf Rasen und im Schnee. */
+function istTierBoden(welt, tx, ty) {
+  const name = KACHELN[welt.kachelAn(tx, ty)]?.name;
+  return name === 'gras' || name === 'schnee';
 }
 
 /**
@@ -41,7 +47,7 @@ export function spawneHase(spielWelt, abstand = MIN_ABSTAND_SPIELER, bereich = n
   for (let versuch = 0; versuch < 60; versuch++) {
     const tx = r ? spielWelt.zufall.ganzzahl(r.x, r.x + r.b - 1) : spielWelt.zufall.ganzzahl(1, welt.breite - 2);
     const ty = r ? spielWelt.zufall.ganzzahl(r.y, r.y + r.h - 1) : spielWelt.zufall.ganzzahl(1, welt.hoehe - 2);
-    if ((!r && KACHELN[welt.kachelAn(tx, ty)]?.name !== 'gras') || welt.istBlockiert(tx, ty)) continue;
+    if ((!r && !istTierBoden(welt, tx, ty)) || welt.istBlockiert(tx, ty)) continue;
     const x = (tx + 0.5) * g;
     const y = (ty + 0.5) * g;
     if (spieler.some((s) => Math.hypot(s.x - x, s.y - y) < abstand)) continue;

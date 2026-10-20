@@ -124,6 +124,7 @@ export function ausDefinition(def) {
   }
   if (def.einstellungen && typeof def.einstellungen === 'object') karte.werte.einstellungen = kopie(def.einstellungen);
   if (typeof def.musik === 'string') karte.werte.musik = def.musik;
+  if (def.schnee === true) karte.werte.schnee = true;
   if (Array.isArray(def.terrain?.hoehen)) {
     def.terrain.hoehen.slice(0, hoehe).forEach((zeile, y) => {
       String(zeile)
@@ -181,6 +182,7 @@ export function nachDefinition(karte) {
   const einstellungen = bereinigeLeere(kopie(karte.werte.einstellungen ?? {}));
   if (Object.keys(einstellungen).length) def.einstellungen = einstellungen;
   if (karte.werte.musik) def.musik = karte.werte.musik;
+  if (karte.werte.schnee) def.schnee = true;
   if (karte.hoehen.some((h) => h !== 0)) {
     def.terrain = {
       hoehen: zeilen.map((_, y) => karte.hoehen.slice(y * breite, (y + 1) * breite).map((h) => Math.round(h * 100) / 100).join(' ')),

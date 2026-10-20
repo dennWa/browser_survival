@@ -338,7 +338,7 @@ export class Karte {
       const h = o.h * g * s;
       if (o.ebene === 'unsichtbar') continue; // steile Hänge (Map-Editor-Terrain): nur Kollision
       if (o.ebene === 'oben') {
-        ctx.fillStyle = o.typ === 'baum_herbst' ? 'rgba(196, 120, 50, 0.85)' : 'rgba(46, 120, 52, 0.85)';
+        ctx.fillStyle = o.typ === 'baum_herbst' ? 'rgba(196, 120, 50, 0.85)' : o.typ === 'tanne' ? 'rgba(40, 96, 84, 0.9)' : 'rgba(46, 120, 52, 0.85)';
         ctx.beginPath();
         ctx.arc(x + b / 2, y + h / 2, Math.min(b, h) / 2.4, 0, Math.PI * 2);
         ctx.fill();

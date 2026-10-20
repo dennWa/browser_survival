@@ -16,6 +16,7 @@ export const EREIGNISSE = {
   wind: ['Atmosphäre & Wetter', 'Wind draußen (immer, Schleife; Regler „Wind & Regen“)', { loop: true }],
   regen: ['Atmosphäre & Wetter', 'Regen (Schleife, Lautstärke folgt der Regenstärke)', { loop: true }],
   nacht: ['Atmosphäre & Wetter', 'Nachtgeräusche – Grillen (Schleife, nur nachts)', { loop: true }],
+  schritt_schnee: ['Atmosphäre & Wetter', 'Schritte im Schnee (Knirschen, jeder Tritt; Schneefall selbst ist lautlos)'],
   // Tiere
   hase_flucht: ['Tiere', 'Hase erschrickt und hoppelt davon'],
   hase_tod: ['Tiere', 'Hase wird erlegt (ohne eigene Datei lautlos)', { stumm: true }],

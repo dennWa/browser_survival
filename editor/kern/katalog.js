@@ -66,18 +66,20 @@ const KACHEL_KATEGORIE = {
   F: ['Mauern', 'Fenster'],
   T: ['Mauern', 'Tür'],
   ',': ['Böden', 'Rasen'],
+  '*': ['Böden', 'Schnee'],
   '.': ['Böden', 'Fliesen (innen)'],
   ':': ['Böden', 'Beton (innen)'],
   '+': ['Böden', 'Holzboden (innen)'],
   '~': ['Umwelt', 'Wasser (See)'],
 };
-const KACHEL_SYMBOL = { ',': '🌱', _: '⬛', '=': '🛣', '-': '▦', '.': '⬜', ':': '◻', '+': '🟫', T: '🚪', '#': '🧱', F: '🪟', '~': '🌊' };
+const KACHEL_SYMBOL = { ',': '🌱', '*': '❄', _: '⬛', '=': '🛣', '-': '▦', '.': '⬜', ':': '◻', '+': '🟫', T: '🚪', '#': '🧱', F: '🪟', '~': '🌊' };
 
 const M = { blockiert: true };
 /** Kartenobjekte (Möbel, Deko, Natur) mit Standardwerten wie in stadtrand/waldweg. */
 export const OBJEKT_TYPEN = Object.freeze({
   // Umwelt / Ressourcen
   baum: { name: 'Baum (Holz)', kategorie: 'Ressourcen', b: 3.5, h: 3.5, ebene: 'oben', symbol: '🌳', farbe: '#2f6b2a', auch: ['Umwelt'] },
+  tanne: { name: 'Tanne mit Schnee (Holz)', kategorie: 'Ressourcen', b: 3, h: 3, ebene: 'oben', symbol: '🌲', farbe: '#1f5a4a', auch: ['Umwelt'] },
   baum_herbst: { name: 'Herbstbaum (Holz)', kategorie: 'Ressourcen', b: 3.5, h: 3.5, ebene: 'oben', symbol: '🍂', farbe: '#a8641f', auch: ['Umwelt'] },
   stein: { name: 'Stein', kategorie: 'Ressourcen', b: 1, h: 1, ...M, symbol: '🪨', farbe: '#8d8f93', auch: ['Umwelt'] },
   eisenerz: { name: 'Eisenerz', kategorie: 'Ressourcen', b: 1, h: 1, ...M, symbol: '⛏', farbe: '#9a5b3c', auch: ['Umwelt'] },

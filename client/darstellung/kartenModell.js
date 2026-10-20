@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
 import { RESSOURCEN_OBJEKTE } from '../../gemeinsam/welt/ressourcen.js';
-import { baueBaum, baueStumpf, toonMaterial, baumMaterial, BAUM_LAUB_TOENE } from './baumModell.js';
+import { baueBaum, baueStumpf, toonMaterial, baumMaterial, ladeTanneAusGlb, BAUM_LAUB_TOENE } from './baumModell.js';
 import { BodenTextur } from './bodenTextur.js';
 import { Daecher } from './dachModell.js';
 import { WandDurchsicht } from './wandDurchsicht.js';
@@ -613,6 +613,18 @@ export class KartenModell {
         teile.set(schluessel, { mesh, rand, naechster: 0 });
       }
       this.baumArten.set(typ, { teile, grundflaeche, toene: BAUM_LAUB_TOENE[typ] });
+      if (typ === 'tanne') {
+        // Ersatz-Tanne steht sofort; sobald die .glb da ist, wird die Geometrie getauscht (gleiche Materialien → kein Shader-Neubau)
+        ladeTanneAusGlb().then((modell) => {
+          if (!modell) return;
+          for (const t of teile.values()) {
+            t.mesh.geometry.dispose();
+            t.rand.geometry.dispose();
+            t.mesh.geometry = modell.koerper;
+            t.rand.geometry = modell.umriss;
+          }
+        });
+      }
     }
     const stammBloecke = new Map();
     for (const o of baeume) if (o.typ !== 'busch') stammBloecke.set(blockVon(o), (stammBloecke.get(blockVon(o)) ?? 0) + 1);
