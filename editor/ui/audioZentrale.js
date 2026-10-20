@@ -770,6 +770,7 @@ class AudioZentrale {
         : e.art === 'musikOrdner'
           ? `<label>Titel-Name <input type="text" data-f="titelName" value="${esc(b.titelName)}" maxlength="60"></label><button type="button" data-a="titel" class="akzent">✔ Als Titel hinzufügen</button>`
           : `<button type="button" data-a="ersatz" class="akzent">✔ Ersetzen</button>`;
+    const zwischen = e.art === 'ereignis' ? '<button type="button" data-a="einstellungen" title="Pegel, Streuung und Takt speichern – ohne die Datei zu ersetzen">💾 Zwischenspeichern</button>' : '';
     const takt =
       e.art === 'ereignis' && !e.loop
         ? `<div class="az-takt">
@@ -798,7 +799,7 @@ class AudioZentrale {
         <button type="button" data-a="zuruecksetzen" title="Alle Änderungen zurück">⟲ Zurücksetzen</button>
       </div>
       <p class="az-ergebnis leise"></p>
-      <div class="knopfreihe az-ziele">${ziele}<button type="button" data-a="abbrechen">Abbrechen</button></div>`;
+      <div class="knopfreihe az-ziele">${zwischen}${ziele}<button type="button" data-a="abbrechen">Abbrechen</button></div>`;
     const wb = this.elDetail.querySelector('.az-werkbank');
     const k = (a, f) => wb.querySelector(`[data-a=${a}]`)?.addEventListener('click', f);
     k('vor', () => (this.laeuft === 'vor' ? this.stoppe() : this.vorhoeren(false)));
@@ -812,6 +813,7 @@ class AudioZentrale {
       this.#zeichneDetail();
     });
     for (const f of wb.querySelectorAll('[data-t]')) f.addEventListener('keydown', (ev) => ev.stopPropagation());
+    k('einstellungen', () => this.speichereEinstellungen(e));
     k('ersatz', () => this.uebernehmen({ ersetzen: true }));
     k('variante', () => this.uebernehmen({ ersetzen: false }));
     k('titel', () => this.uebernehmen({ ersetzen: false }));

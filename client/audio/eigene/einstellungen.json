@@ -9,6 +9,7 @@
     "streuung": 0.06
   },
   "hack_holz": {
-    "maxDauer": 8
+    "maxDauer": 6,
+    "einmal": true
   }
 }
