@@ -172,6 +172,11 @@ unten (lokaler Editor-Server) bzw. neue Wünsche.
   Tests `tests/audioZentrale.test.js`. Im Browser geprüft: WAV hochladen → kürzen → speichern → `client/audio/eigene/ui_klick.ogg`
   (0,5 s) → Spiel `sound.quelleVon('ui_klick') === 'eigen'`; Musik-Titel + Reihenfolge; Handy-Layout.
 
+- 10.7 fertig (2026-10-20): Werkzeugleiste mit Symbol + Text + Taste (124 px; ≤ 900 px schmal mit Mini-Text), linke Reiter auf
+  4 reduziert (🧱 Assets · 📦 Modelle · 🔊 Audio · 🗺 Projekt = Unter-Reiter Zonen · Räume · Prefabs, `Seitenleiste` Option `gruppe`),
+  Asset-Browser mit Gruppen-Chips (immer eine Gruppe offen, ★ Schnell = Favoriten/Zuletzt, `assets.zeigeEintrag(id)`), Testen
+  ohne Spieler-Start → Rückfrage „Spawn in die Mitte?“ → setzt ihn (`kern/platzierung.js startInDerMitte`, 1 Undo-Schritt).
+
 **Phase 10 läuft** (Audio-Zentrale) – nächster Schritt siehe Tabelle Phase 10 (erster ☐). Rauchtest für Phase 10 gesammelt am Ende.
 
 ## Ausgangslage (Analyse 2026-10-19)
@@ -290,7 +295,7 @@ unten (lokaler Editor-Server) bzw. neue Wünsche.
 | ☑ 10.4 | **Ersetzen & Hochladen:** Datei per Knopf/Drag & Drop (.mp3 .ogg .wav .m4a .flac, Probe-Dekodierung) als Ersatz oder zusätzliche Variante, „↺ Original“ (eigene Dateien entfernen), Musik: Titel je Ordner hinzufügen, Reihenfolge, entfernen, Zufall/der Reihe nach | M |
 | ☑ 10.5 | **Bearbeiten:** Wellenform mit Start/Ende ziehen, Fade-In/-Out, Lautstärke + Normalisieren, Loop mit weicher Überblendung, Tonhöhen-Streuung, Vorhören (auch in Schleife), Undo; gespeichert wird NUR die bearbeitete Fassung, kompakt als Ogg/Opus (WebCodecs, sonst WAV mit Hinweis), Warnung bei großen Dateien | L |
 | ☐ 10.6 | 🎮 **Spiel & Abschluss:** Spiel nutzt eigene Dateien/Einstellungen (eigene > Samples > Synthese, Loops ohne Knacken, Regler gelten), Hauptmenü-Musik, Musik-Reihenfolge; Tests (Katalog, Pfadprüfung, Schnitt, Ogg, Index) + Rauchtest-Schritt (WAV hochladen → kürzen → speichern → Datei gekürzt im Ordner → Spiel spielt sie) | M |
-| ☐ 10.7 | **Aufräumen (Nutzerwunsch):** Werkzeugleiste mit Text + Symbol statt nichtssagender Icons, linke Seitenleiste übersichtlicher (weniger Reiter, Asset-Gruppen als Chips statt langer Liste), Testen ohne Spawn → Rückfrage „Spawn in die Kartenmitte?“ → OK setzt ihn | M |
+| ☑ 10.7 | **Aufräumen (Nutzerwunsch):** Werkzeugleiste mit Text + Symbol statt nichtssagender Icons, linke Seitenleiste übersichtlicher (weniger Reiter, Asset-Gruppen als Chips statt langer Liste), Testen ohne Spawn → Rückfrage „Spawn in die Kartenmitte?“ → OK setzt ihn | M |
 
 ---
 

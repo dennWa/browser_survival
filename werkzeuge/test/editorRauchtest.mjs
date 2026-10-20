@@ -9,10 +9,10 @@
  * Objekt platzieren + drehen + verschieben → Rückgängig/Wiederholen → Spielzone Waldweg als Vorlage öffnen → Auswahl +
  * Ausschnitt-Export → Zone vergrößern → 3D-Ansicht → Validierung → Neu laden (Entwurf + Verlauf bleiben) → Karte testen.
  * Editor 2.0: Menüleiste, Asset-Browser (Suche), Kontextmenü, Ebenen sperren, Hilfe mit Suche, Modell-Bibliothek (Phase 3),
- * Audio-Bibliothek + Klänge (Phase 4), Modell-Werkstatt (5.1) mit Material/Malen/Aufklebern (5.2) und Animationen/Gelenken (5.3, auch im Spiel), Werkstatt-KI gemockt (5.4), Free-Modus (5.5).
+ * Audio-Bibliothek + Klänge (Phase 4), Modell-Werkstatt (5.1) mit Material/Malen/Aufklebern (5.2) und Animationen/Gelenken (5.3, auch im Spiel), Werkstatt-KI gemockt (5.4), Free-Modus (5.5), Audio-Zentrale + lokaler Editor-Server (Phase 10).
  */
 import { spawn, execSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs';
 import { deflateSync, crc32 } from 'node:zlib';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -77,6 +77,7 @@ try {
   };
   const asset = async (id) => {
     await seite.click('#links [data-reiter="🧱 Assets"]');
+    await seite.evaluate((id) => window.mapEditor.assets.zeigeEintrag(id), id); // Gruppen-Chips (10.7): passende Gruppe öffnen
     await seite.click(`#links button.asset[data-id="${id}"]`);
   };
 
@@ -768,7 +769,7 @@ try {
     await seite.screenshot({ path: path.join(AUSGABE, 'editor-4-zone.png') });
 
     schritt('Prefab „Wohnhaus“ einfügen (Phase 6), Innen/Außen anzeigen');
-    await seite.click('#links [data-reiter="🏠 Prefabs"]');
+    await seite.evaluate(() => window.mapEditor.layout.zeigeReiter('links', '🏠 Prefabs'));
     const raeumeVorher = await seite.evaluate(() => window.mapEditor.zustand.karte.s('raeume').size);
     await seite.click('#links .inhalt button:has-text("Wohnhaus")');
     await seite.evaluate(() => window.mapEditor.zeichner.springeZu(60, 40, 14));
@@ -782,7 +783,7 @@ try {
 
     schritt('Zonen verbinden (Phase 7): Stadtrand dazu, aus Übergängen anordnen, Nachbar am Rand');
     await seite.evaluate(() => window.mapEditor.oeffneSpielzone('stadtrand'));
-    await seite.click('#links [data-reiter="🗺 Zonen"]');
+    await seite.evaluate(() => window.mapEditor.layout.zeigeReiter('links', '🗺 Zonen'));
     await seite.click('#links .inhalt button:has-text("Aus Übergängen anordnen")');
     const layout = await seite.evaluate(() => window.mapEditor.zustand.layout);
     pruefe(layout.waldweg && layout.stadtrand && layout.waldweg.y === layout.stadtrand.y - 120 && layout.waldweg.x === layout.stadtrand.x + 89, `Waldweg nördlich angeordnet (${JSON.stringify(layout)})`);
@@ -994,7 +995,7 @@ try {
     await seite.click('#dialog button:has-text("Archivieren")');
     await seite.waitForFunction(() => !window.mapEditor.zustand.zonen.has('waldweg'));
     pruefe((await zm(async () => Object.keys(await window.mapEditor.zustand.archiv()))).includes('waldweg'), 'Zone archiviert (nicht gelöscht)');
-    await seite.click('#links [data-reiter="🗺 Zonen"]');
+    await seite.evaluate(() => window.mapEditor.layout.zeigeReiter('links', '🗺 Zonen'));
     await seite.click('#links [data-archiv="waldweg"] [data-a="zurueck"]');
     await seite.waitForFunction(() => window.mapEditor.zustand.zonen.has('waldweg'));
     pruefe((await zm(async () => Object.keys(await window.mapEditor.zustand.archiv()).length)) === 0, 'Zone aus dem Archiv zurückgeholt');
@@ -1230,6 +1231,99 @@ try {
     pruefe(handyMalen.map && handyMalen.speichern, `Werkstatt am Handy: mit dem Finger gemalt (${JSON.stringify(handyMalen)})`);
     await h.screenshot({ path: path.join(AUSGABE, 'editor-17-werkstatt-handy.png') });
     await handy.close();
+  }
+
+  {
+    schritt('Audio-Zentrale + lokaler Editor-Server (Phase 10): WAV hochladen → kürzen → speichern → Spiel spielt sie');
+    const lokalPort = port + 1;
+    const lokal = spawn(process.execPath, ['werkzeuge/editor/lokalerServer.mjs', '--port', String(lokalPort)], { cwd: WURZEL, stdio: ['ignore', 'pipe', 'pipe'] });
+    let lokalLog = '';
+    lokal.stdout.on('data', (d) => (lokalLog += d));
+    lokal.stderr.on('data', (d) => (lokalLog += d));
+    const testDatei = path.join(WURZEL, 'client/audio/eigene/ui_klick.ogg');
+    try {
+      for (let i = 0; i < 50 && !lokalLog.includes('läuft'); i++) await new Promise((r) => setTimeout(r, 100));
+      pruefe(!existsSync(testDatei), 'vorher keine eigene ui_klick-Datei (Test räumt selbst auf)');
+      const az = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+      az.on('pageerror', (e) => fehler.push(`Seitenfehler (Audio): ${e.message}`));
+      const lb = `http://localhost:${lokalPort}`;
+      await az.goto(`${lb}/editor/`);
+      await az.waitForFunction(() => window.mapEditor, null, { timeout: 15000 });
+      await az.evaluate(() => window.mapEditor.bereit);
+      await az.keyboard.press('Shift+A');
+      await az.waitForSelector('.audiozentrale .az-zeile');
+      pruefe(await az.locator('.az-lokal.ok').count() === 1, 'Audio-Zentrale erkennt den lokalen Server');
+      const zahlen = await az.evaluate(() => [...document.querySelectorAll('.az-gruppen button')].map((b) => b.textContent.trim()));
+      pruefe(zahlen.length === 11 && zahlen.some((t) => t.includes('Tiere')) && zahlen.some((t) => t.includes('Musik')), `Gruppen links (${zahlen.length})`);
+      await az.fill('.az-suche', 'klick');
+      pruefe(await az.locator('.az-zeile[data-id="ereignis:ui_klick"]').count() === 1, 'Suche findet „Klick“');
+      await az.click('.az-zeile[data-id="ereignis:ui_klick"] .az-name');
+      // WAV (2 s, Ton) über das Datei-Feld hochladen
+      const rate = 22050;
+      const n = rate * 2;
+      const wav = Buffer.alloc(44 + n * 2);
+      wav.write('RIFF', 0);
+      wav.writeUInt32LE(36 + n * 2, 4);
+      wav.write('WAVEfmt ', 8);
+      wav.writeUInt32LE(16, 16);
+      wav.writeUInt16LE(1, 20);
+      wav.writeUInt16LE(1, 22);
+      wav.writeUInt32LE(rate, 24);
+      wav.writeUInt32LE(rate * 2, 28);
+      wav.writeUInt16LE(2, 32);
+      wav.writeUInt16LE(16, 34);
+      wav.write('data', 36);
+      wav.writeUInt32LE(n * 2, 40);
+      for (let i = 0; i < n; i++) wav.writeInt16LE(Math.round(Math.sin((2 * Math.PI * 660 * i) / rate) * 9000), 44 + i * 2);
+      await az.setInputFiles('.az-datei', { name: 'klick test.wav', mimeType: 'audio/wav', buffer: wav });
+      await az.waitForSelector('.az-werkbank canvas');
+      // Kürzen: Start 0,2 s, Ende 0,7 s per Feld
+      await az.fill('.az-felder [data-f=start]', '0.2');
+      await az.press('.az-felder [data-f=start]', 'Tab');
+      await az.fill('.az-felder [data-f=ende]', '0.7');
+      await az.press('.az-felder [data-f=ende]', 'Tab');
+      const ergebnis = await az.locator('.az-ergebnis').textContent();
+      pruefe(/0,5 s/.test(ergebnis), `Ergebnis-Anzeige nach dem Kürzen (${ergebnis.trim()})`);
+      await az.click('.az-werkbank [data-a=undo]');
+      pruefe(/0,7 s|0,5 s/.test(await az.locator('.az-ergebnis').textContent()), 'Rückgängig in der Werkbank');
+      await az.click('.az-werkbank [data-a=redo]');
+      await az.click('.az-werkbank [data-a=vor]');
+      await az.screenshot({ path: path.join(AUSGABE, 'editor-19-audiozentrale.png') });
+      await az.click('.az-werkbank [data-a=ersatz]');
+      await az.waitForFunction(() => /Gespeichert/.test(document.getElementById('status-meldung').textContent), null, { timeout: 15000 });
+      const gespeichert = await az.evaluate(async () => {
+        const r = await fetch('/client/audio/eigene/ui_klick.ogg', { cache: 'no-store' });
+        const b = await r.arrayBuffer();
+        const groesse = b.byteLength;
+        const p = await new AudioContext().decodeAudioData(b);
+        const index = await (await fetch('/client/audio/eigene/eigene.json', { cache: 'no-store' })).json();
+        return { ok: r.ok, groesse, dauer: p.duration, index: index.ui_klick?.dateien };
+      });
+      pruefe(gespeichert.ok && Math.abs(gespeichert.dauer - 0.5) < 0.02, `Datei liegt gekürzt im Ordner (${gespeichert.dauer?.toFixed(3)} s, ${gespeichert.groesse} B)`);
+      pruefe(gespeichert.groesse < 20000, 'kompakt gespeichert (< 20 KB statt ~88 KB WAV)');
+      pruefe(JSON.stringify(gespeichert.index) === '["ui_klick.ogg"]', 'eigene.json automatisch neu gebaut');
+      // Spiel: lädt die eigene Datei
+      await az.goto(`${lb}/client/`);
+      await az.waitForSelector('#login-editor', { state: 'attached', timeout: 20000 });
+      await az.mouse.click(10, 10);
+      await az.waitForFunction(() => window.browserSurvival?.sound?.quelleVon('ui_klick') === 'eigen', null, { timeout: 15000 }).catch(() => {});
+      pruefe(await az.evaluate(() => window.browserSurvival.sound.quelleVon('ui_klick')) === 'eigen', 'Spiel spielt die neue Datei (Quelle „eigen“)');
+      // ↺ Original über die Zentrale
+      await az.goto(`${lb}/editor/`);
+      await az.evaluate(() => window.mapEditor.bereit);
+      await az.evaluate(() => window.mapEditor.aktionen.audioZentrale('ereignis:ui_klick').bereit);
+      await az.click('.az-detail [data-a=original]');
+      await az.click('#dialog .knopfreihe button.gefahr, #dialog .knopfreihe button.akzent');
+      await az.waitForFunction(() => /Original/.test(document.getElementById('status-meldung').textContent), null, { timeout: 10000 });
+      pruefe(!existsSync(testDatei), '↺ Original löscht die Datei wieder');
+      await az.close();
+    } finally {
+      lokal.kill();
+      if (existsSync(testDatei)) {
+        rmSync(testDatei);
+        execSync('npm run sounds', { cwd: WURZEL, stdio: 'ignore' });
+      }
+    }
   }
 
   const pruefung = await seite.locator('#status-pruefung').textContent();

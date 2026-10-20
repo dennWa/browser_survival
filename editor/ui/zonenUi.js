@@ -121,7 +121,7 @@ export function zonenUi({ zustand, panel, aktionen, befehle, layout, zeichner, p
       archivEl.innerHTML = `<h4>🗄 Archiv <span class="leise">${eintraege.length}</span></h4>${eintraege.length ? `<ul class="zonen-liste ablage-liste">${eintraege.map(([id, a]) => `<li data-archiv="${esc(id)}"><span class="name">${esc(a.name)}<span class="leise klein"> ${esc(id)} · ${a.archiviert ? new Date(a.archiviert).toLocaleDateString('de-DE') : ''}</span></span><button type="button" data-a="zurueck" class="akzent" title="wieder ins Projekt">♻ Zurück</button><button type="button" data-a="loeschen" class="gefahr" title="endgültig löschen (Sicherung wird geladen)">🗑</button></li>`).join('')}</ul>` : '<p class="leise">leer – 🗄 an einer Zone archiviert sie (statt sie zu löschen)</p>'}`;
       archivEl.querySelectorAll('[data-archiv] button').forEach((b) => b.addEventListener('click', () => (b.dataset.a === 'zurueck' ? aktionen.archivZurueck?.(b.closest('[data-archiv]').dataset.archiv) : aktionen.archivLoeschen?.(b.closest('[data-archiv]').dataset.archiv))));
     });
-  }, { ereignisse: ['zone'], ohneKarte: true });
+  }, { gruppe: '🗺 Projekt', ereignisse: ['zone'], ohneKarte: true });
 
   function zeichneWeltkarte(leinwand, zonen) {
     const dpr = window.devicePixelRatio || 1;

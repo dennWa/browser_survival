@@ -168,5 +168,5 @@ export function prefabUi({ zustand, panel, aktionen, layout }) {
     });
     reihe.children[1].addEventListener('click', () => aktionen.prefabSpeichern());
     el.append(reihe);
-  }, { ereignisse: ['zone', 'vorlagen'], ohneKarte: true });
+  }, { gruppe: '🗺 Projekt', ereignisse: ['zone', 'vorlagen'], ohneKarte: true });
 }

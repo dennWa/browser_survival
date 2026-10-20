@@ -53,5 +53,5 @@ export function raeumeUi({ zustand, panel, aktionen, zeigeInspektor }) {
     const neu = Object.assign(document.createElement('button'), { textContent: '➕ Neuer Raum' });
     neu.addEventListener('click', () => aktionen.neuerRaum());
     el.append(neu);
-  });
+  }, { gruppe: '🗺 Projekt' });
 }

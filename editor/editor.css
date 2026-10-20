@@ -254,7 +254,7 @@ input[type='checkbox'] {
   min-width: 0;
 }
 #werkzeuge {
-  flex: 0 0 44px;
+  flex: 0 0 124px;
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -264,11 +264,38 @@ input[type='checkbox'] {
   overflow-y: auto;
   scrollbar-width: none;
 }
+/* Werkzeugleiste mit Text + Symbol + Taste (Phase 10.7) */
 #werkzeuge button {
-  width: 36px;
-  min-height: 34px;
-  padding: 0;
-  font-size: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 32px;
+  padding: 0 6px;
+  font-size: 12px;
+  text-align: left;
+  flex: 0 0 auto;
+}
+#werkzeuge button .symbol {
+  flex: 0 0 18px;
+  font-size: 15px;
+  text-align: center;
+}
+#werkzeuge button .text {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#werkzeuge button kbd {
+  font: 10px/1 ui-monospace, monospace;
+  color: var(--leise);
+  border: 1px solid var(--rand);
+  border-radius: 3px;
+  padding: 2px 3px;
+}
+#werkzeuge button.aktiv kbd {
+  color: var(--text);
 }
 #werkzeuge .trenner {
   height: 1px;
@@ -312,6 +339,25 @@ input[type='checkbox'] {
   min-height: 28px;
   padding: 0 5px;
   white-space: nowrap;
+}
+/* Unter-Reiter (z. B. 🗺 Projekt: Zonen · Räume · Prefabs) */
+.seitenleiste .unterreiter {
+  display: flex;
+  gap: 2px;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--rand);
+  background: var(--bg);
+}
+.seitenleiste .unterreiter button {
+  flex: 1;
+  min-height: 26px;
+  font-size: 12px;
+  background: transparent;
+  border-color: transparent;
+}
+.seitenleiste .unterreiter button.aktiv {
+  background: var(--bg3);
+  border-color: var(--rand);
 }
 .seitenleiste .inhalt {
   overflow-y: auto;
@@ -613,6 +659,18 @@ details.gruppe-auf > div {
   z-index: 2;
   width: 100%;
 }
+/* Gruppen-Chips im Asset-Browser (Phase 10.7): immer nur eine Gruppe offen */
+.asset-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.asset-chips button {
+  min-height: 26px;
+  padding: 0 8px;
+  font-size: 12px;
+  border-radius: 13px;
+}
 .asset-liste h5 {
   margin: 8px 0 4px;
   font-size: 11px;
@@ -631,7 +689,7 @@ details.asset-gruppe > summary {
 }
 .asset-raster {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
   gap: 4px;
 }
 button.asset {
@@ -641,7 +699,7 @@ button.asset {
   align-items: center;
   justify-content: center;
   gap: 3px;
-  height: 64px;
+  height: 58px;
   padding: 3px 2px;
   font-size: 11px;
   line-height: 1.1;
@@ -1851,5 +1909,30 @@ img.ki-bild {
   }
   .az-detail button {
     min-height: 42px;
+  }
+}
+
+/* Handy/schmal: Werkzeugleiste wieder schmal (nur Symbol + kleines Wort darunter) */
+@media (max-width: 900px) {
+  #werkzeuge {
+    flex: 0 0 52px;
+  }
+  #werkzeuge button {
+    flex-direction: column;
+    justify-content: center;
+    gap: 1px;
+    padding: 2px 0;
+    min-height: 44px;
+    text-align: center;
+  }
+  #werkzeuge button .text {
+    font-size: 9px;
+    max-width: 48px;
+  }
+  #werkzeuge button kbd {
+    display: none;
+  }
+  #links {
+    left: 52px;
   }
 }

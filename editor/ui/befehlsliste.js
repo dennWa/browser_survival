@@ -19,7 +19,9 @@ export function meldeBefehleAn(befehle, t) {
     const g = z.gewaehlte();
     return g.length === 1 && g[0].s === 'objekte' ? (z.karte?.s('typen').get(g[0].wert.typ)?.asset ?? null) : null;
   };
-  const werkzeug = (id, name, symbol, kuerzel, ziel, aktiv) => ({ id, name, symbol, kuerzel, gruppe: 'Werkzeuge', verfuegbar: in2d, grund: 'nur in 2D (Taste 3)', ausfuehren: () => a.werkzeug(ziel), aktiv });
+  // `kurz` = Beschriftung in der Werkzeugleiste links (Phase 10.7: Text + Symbol statt nur Symbol)
+  const KURZ = { auswahl: 'Auswahl', hand: 'Hand', pinsel: 'Pinsel', rechteck: 'Rechteck', linie: 'Linie', fuellen: 'Füllen', radierer: 'Radierer', pipette: 'Pipette', messen: 'Messen', terrain: 'Gelände', farbe: 'Bemalen', zone: 'Zone' };
+  const werkzeug = (id, name, symbol, kuerzel, ziel, aktiv) => ({ id, name, kurz: KURZ[id.split('.')[1]], symbol, kuerzel, gruppe: 'Werkzeuge', verfuegbar: in2d, grund: 'nur in 2D (Taste 3)', ausfuehren: () => a.werkzeug(ziel), aktiv });
 
   befehle.registriere(
     // --- Datei ---------------------------------------------------------------------

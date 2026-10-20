@@ -88,3 +88,24 @@ export function pruefeBereich(karte, sammlung, r) {
   }
   return { ok: true };
 }
+
+/**
+ * Freie Kachel für den Spieler-Start möglichst nah an der Kartenmitte (Phase 10.7: „Testen ohne Spawn → in die Mitte?“).
+ * Sucht ringförmig nach außen; bevorzugt draußen begehbare Kacheln, die pruefeMarker erlaubt. @returns { x, y } | null
+ */
+export function startInDerMitte(karte) {
+  const mx = Math.floor(karte.breite / 2);
+  const my = Math.floor(karte.hoehe / 2);
+  const max = Math.max(karte.breite, karte.hoehe);
+  for (let r = 0; r <= max; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const x = mx + dx;
+        const y = my + dy;
+        if (karte.imFeld(x, y) && pruefeMarker(karte, 'start', x, y).ok && !KACHELN[karte.kachelAn(x, y)]?.wasser && karte.kachelAn(x, y) !== '~') return { x, y };
+      }
+    }
+  }
+  return null;
+}

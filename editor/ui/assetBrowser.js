@@ -9,7 +9,9 @@ import { lootVorlagenEintraege } from '../kern/bibliothekVorlagen.js';
  *   (kern/katalog.js GRUPPEN) mit den Kategorien als Unterüberschrift.
  * Eintrag wählen setzt das passende Werkzeug: Kachel → malen, Objekt/Bauwerk/Marker → platzieren, Bereich → bereich,
  * Werkzeug-Einträge (Terrain, Farbe, Raum füllen) → ihr Werkzeug, Aktions-Einträge (➕ Neuer Raum …) → aktionen[name].
- * Favoriten/Zuletzt/offene Gruppen: localStorage `browserSurvival.editorAssets`.
+ * Phase 10.7 (aufgeräumt): Gruppen als Chips oben („★ Schnell“ = Favoriten + Zuletzt, dann ⛰ Gelände, 🧱 Bauen …) – es ist
+ * immer nur EINE Gruppe offen statt einer langen Liste; die Suche durchsucht alles. `zeigeEintrag(id)` springt zur Gruppe.
+ * Favoriten/Zuletzt/gewählte Gruppe: localStorage `browserSurvival.editorAssets`.
  * 3D-Modelle der Projekt-Bibliothek (Phase 3) erscheinen als `bib:<id>` in ihrer Kategorie (mit Vorschaubild); Wählen legt
  * den Typ in der Zone an (aktionen.verwendeModell). Zonen-Typen, die auf ein vorhandenes Bibliotheks-Modell zeigen, werden
  * dafür nicht doppelt gezeigt. Bild → 3D und Grafik-Antrag sind ausgeblendet (Schritt 3.2, Code bleibt in eigeneUi.js).
@@ -48,12 +50,22 @@ export class AssetBrowser {
     this.favoriten = new Set(g.favoriten ?? []);
     this.zuletzt = g.zuletzt ?? [];
     this.zu = new Set(g.zu ?? []);
+    this.gruppe = g.gruppe ?? null; // gewählter Chip (null = automatisch)
     // Gerüst einmal bauen; die Liste wird neu gezeichnet, das Suchfeld bleibt (Fokus!)
     this.wurzel = document.createElement('div');
     this.wurzel.className = 'asset-browser';
-    this.wurzel.innerHTML = '<input type="search" class="asset-suche" placeholder="Assets suchen … (Strg+F)" aria-label="Assets suchen"><div class="asset-liste"></div>';
+    this.wurzel.innerHTML = '<input type="search" class="asset-suche" placeholder="🔎 Suchen … (Strg+F)" aria-label="Assets suchen"><div class="asset-chips" role="tablist" aria-label="Gruppen"></div><div class="asset-liste"></div>';
     this.eingabe = this.wurzel.querySelector('.asset-suche');
     this.liste = this.wurzel.querySelector('.asset-liste');
+    this.chips = this.wurzel.querySelector('.asset-chips');
+    this.chips.addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-chip]');
+      if (!b) return;
+      this.gruppe = b.dataset.chip;
+      this.#speichere();
+      this.zeichneListe();
+      this.liste.scrollTop = 0;
+    });
     this.eingabe.addEventListener('input', () => {
       this.suche = this.eingabe.value;
       this.zeichneListe();
@@ -146,10 +158,17 @@ export class AssetBrowser {
       teile.push(einmal.length ? `<div class="asset-raster">${einmal.map((e) => this.#kachel(e)).join('')}</div>` : '<p class="leise">Nichts gefunden.</p>');
     } else {
       const fav = [...this.favoriten].map((id) => this.#eintrag(id)).filter(Boolean);
-      if (fav.length) teile.push(`<h5>★ Favoriten</h5><div class="asset-raster">${fav.map((e) => this.#kachel(e)).join('')}</div>`);
       const zul = this.zuletzt.map((id) => this.#eintrag(id)).filter(Boolean);
-      if (zul.length) teile.push(`<h5>🕘 Zuletzt</h5><div class="asset-raster">${zul.map((e) => this.#kachel(e)).join('')}</div>`);
-      for (const g of GRUPPEN) {
+      const prefabs = this.aktionen.prefabEintraege?.() ?? [];
+      const chips = [{ id: 'schnell', text: '★ Schnell', titel: 'Favoriten und zuletzt benutzt' }, ...GRUPPEN.map((g) => ({ id: g.name, text: `${g.symbol} ${g.name}`, titel: g.kategorien.join(', ') })), ...(prefabs.length ? [{ id: 'Prefabs', text: '🏠 Prefabs', titel: 'Fertige Bausteine (Häuser …)' }] : [])];
+      if (!chips.some((c) => c.id === this.gruppe)) this.gruppe = fav.length || zul.length ? 'schnell' : GRUPPEN[0].name;
+      this.chips.innerHTML = chips.map((c) => `<button type="button" role="tab" data-chip="${esc(c.id)}" class="${c.id === this.gruppe ? 'aktiv' : ''}" title="${esc(c.titel)}">${esc(c.text)}</button>`).join('');
+      if (this.gruppe === 'schnell') {
+        if (fav.length) teile.push(`<h5>★ Favoriten</h5><div class="asset-raster">${fav.map((e) => this.#kachel(e)).join('')}</div>`);
+        if (zul.length) teile.push(`<h5>🕘 Zuletzt</h5><div class="asset-raster">${zul.map((e) => this.#kachel(e)).join('')}</div>`);
+        if (!fav.length && !zul.length) teile.push('<p class="leise">Noch leer – benutzte Assets erscheinen hier, ☆ an einem Asset macht es zum Favoriten.</p>');
+      }
+      for (const g of GRUPPEN.filter((x) => x.name === this.gruppe)) {
         const gesehen = new Set();
         let inhalt = '';
         let n = 0;
@@ -172,11 +191,11 @@ export class AssetBrowser {
             inhalt += `<h5>Weitere</h5><div class="asset-raster">${fremd.map((e) => this.#kachel(e)).join('')}</div>`;
           }
         }
-        teile.push(`<details class="asset-gruppe" data-gruppe="${esc(g.name)}"${this.zu.has(g.name) ? '' : ' open'}><summary>${esc(g.symbol)} ${esc(g.name)} <span class="leise">${n}</span></summary>${inhalt}</details>`);
+        teile.push(`<div class="asset-gruppe" data-gruppe="${esc(g.name)}">${inhalt || '<p class="leise">Leer.</p>'}</div>`);
       }
-      const prefabs = this.aktionen.prefabEintraege?.() ?? [];
-      if (prefabs.length) teile.push(`<details class="asset-gruppe" data-gruppe="Prefabs"${this.zu.has('Prefabs') ? '' : ' open'}><summary>🏠 Prefabs <span class="leise">${prefabs.length}</span></summary><div class="asset-raster">${prefabs.map((e) => this.#kachel(e)).join('')}</div></details>`);
+      if (this.gruppe === 'Prefabs') teile.push(`<div class="asset-gruppe" data-gruppe="Prefabs"><div class="asset-raster">${prefabs.map((e) => this.#kachel(e)).join('')}</div></div>`);
     }
+    this.chips.hidden = !!suche;
     this.liste.innerHTML = teile.join('');
   }
 
@@ -245,8 +264,20 @@ export class AssetBrowser {
 
   /** Eintrag per ID wählen (Pipette, Menü „Einfügen“, Räume-Reiter) – mit Zusatzfeldern (z. B. Raum) */
   waehleId(id, extra = {}) {
+    if (!this.suche.trim() && this.gruppe !== 'schnell') this.zeigeEintrag(id);
     const e = this.#eintrag(id) ?? katalog().find((x) => x.id === id);
     if (e) this.waehle({ ...e, ...extra });
+  }
+
+  /** Zur Gruppe springen, in der ein Eintrag liegt (Rauchtest, Pipette, Menü) – danach ist sein Knopf sichtbar */
+  zeigeEintrag(id) {
+    const basis = id.split('@')[0];
+    const k = this.zustand.karte;
+    const g = id.startsWith('prefab:') ? 'Prefabs' : GRUPPEN.find((x) => x.kategorien.some((kat) => this.#derKategorie(kat, k).some((e) => e.id.split('@')[0] === basis)))?.name;
+    if (g && g !== this.gruppe) {
+      this.gruppe = g;
+      this.zeichneListe();
+    }
   }
 
   fokusSuche() {
@@ -258,7 +289,7 @@ export class AssetBrowser {
 
   #speichere() {
     try {
-      localStorage.setItem(SPEICHER, JSON.stringify({ favoriten: [...this.favoriten], zuletzt: this.zuletzt, zu: [...this.zu] }));
+      localStorage.setItem(SPEICHER, JSON.stringify({ favoriten: [...this.favoriten], zuletzt: this.zuletzt, zu: [...this.zu], gruppe: this.gruppe }));
     } catch {
       /* gesperrter Speicher */
     }

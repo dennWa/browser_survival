@@ -116,9 +116,10 @@ leinwand.addEventListener('drop', (e) => {
 Object.assign(teile, { werkzeuge, touch, assets, inspektor: insp, layout, links, rechts, datei, aktionen, schalteAnsicht, zeigeHilfe, zeigePalette, kontextmenue });
 
 // --- Module der Phasen 6–11 ---------------------------------------------------------------
-prefabUi({ zustand, panel: links, aktionen, layout });
+// „🗺 Projekt“ = ein Reiter mit Unter-Reitern Zonen · Räume · Prefabs (Phase 10.7)
 zonenUi({ zustand, panel: links, aktionen, befehle, layout, zeichner, projektZonen: datei.projektZonen });
 raeumeUi({ zustand, panel: links, aktionen, zeigeInspektor: () => layout.zeigeReiter('rechts', 'Inspektor') });
+prefabUi({ zustand, panel: links, aktionen, layout });
 const ki = kiUi({ zustand, panel: rechts, aktionen, layout, zeichner });
 geminiUi({ zustand, panel: kiLeiste, aktionen, pruefeText: ki.pruefeText });
 kiAufgabenUi({ zustand, aktionen, zeichner, pruefeText: ki.pruefeText, layout }); // Phase 9: Text zu Karte, Lückenfinder, Fehler erklären …
@@ -144,8 +145,8 @@ meldeBefehleAn(befehle, teile);
 new Menueleiste(document.getElementById('menue'), befehle, menues(teile));
 const optionen = new Optionsleiste({ element: document.getElementById('optionen'), zustand, aktionen, befehle });
 
-/** Knopfleiste aus Befehls-IDs (Schnellleiste oben, Werkzeugleiste links) */
-function baueLeiste(element, ids, mitText) {
+/** Knopfleiste aus Befehls-IDs (Schnellleiste oben, Werkzeugleiste links; `mitTaste` = Kürzel klein rechts daneben) */
+function baueLeiste(element, ids, mitText, { mitTaste = false } = {}) {
   element.innerHTML = '';
   for (const id of ids) {
     if (id === '-') {
@@ -158,13 +159,13 @@ function baueLeiste(element, ids, mitText) {
     knopf.type = 'button';
     knopf.dataset.befehl = id;
     knopf.title = `${b.name}${b.kuerzel[0] ? ` (${kuerzelText(b.kuerzel[0])})` : ''}`;
-    knopf.innerHTML = `${esc(b.symbol ?? '')}${mitText && b.kurz ? `<span class="text"> ${esc(b.kurz)}</span>` : ''}`;
+    knopf.innerHTML = `<span class="symbol">${esc(b.symbol ?? '')}</span>${mitText && b.kurz ? `<span class="text"> ${esc(b.kurz)}</span>` : ''}${mitTaste && b.kuerzel[0] ? `<kbd>${esc(kuerzelText(b.kuerzel[0]))}</kbd>` : ''}`;
     if (id === 'zone.testen' || id === 'datei.veroeffentlichen') knopf.classList.add('akzent');
     element.append(knopf);
   }
 }
 baueLeiste(document.getElementById('schnell'), SCHNELLLEISTE, true);
-baueLeiste(document.getElementById('werkzeuge'), WERKZEUGLEISTE, false);
+baueLeiste(document.getElementById('werkzeuge'), WERKZEUGLEISTE, true, { mitTaste: true });
 // Knöpfe mit data-befehl in Leisten und auf der Fläche führen ihren Befehl aus (Seitenleisten/Optionsleiste binden selbst)
 document.body.addEventListener('click', (e) => {
   const k = e.target.closest('button[data-befehl]');

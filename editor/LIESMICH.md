@@ -30,6 +30,10 @@ Dazu Anzeigen: Raster, Innen/Außen, steile Hänge, Nachbarzonen.
 
 Koordinaten sind **Kacheln** (1 Kachel = 1 m = 32 px im Spiel), x nach rechts, y nach unten, (0|0) oben links.
 
+**Seit Phase 10.7 aufgeräumt:** Die Werkzeugleiste ganz links zeigt Symbol, Namen und Taste (Auswahl V, Hand H, Pinsel B …).
+Die linke Seitenleiste hat nur noch vier Reiter: **🧱 Assets** (oben Gruppen-Chips – ★ Schnell, ⛰ Gelände, 🧱 Bauen, 🌳 Natur …;
+es ist immer eine Gruppe offen, die Suche findet alles), **📦 Modelle**, **🔊 Audio** und **🗺 Projekt** (darunter Zonen · Räume · Prefabs).
+
 ## Zone anlegen und öffnen
 
 - **➕ Neu → Rechteck aufziehen:** Ziehe auf der Fläche ein Rechteck – die Zone wird mit **Rasen** gefüllt, sonst nichts.
@@ -157,6 +161,9 @@ Alles ist rückgängig machbar (Strg+Z). Die Einstellungen gehören zum Entwurf,
    geändert, warnt der Editor (Prüfsumme).
 
 ## Karte testen
+
+Fehlt der **Spieler-Start**, fragt der Editor: „Der Spawn kommt in die Mitte der Karte – einverstanden?“ → **OK** setzt ihn
+(rückgängig machbar) und startet den Test.
 
 **🔧 Automatisch beheben** (Reiter Prüfung oder Menü Zone): Eindeutige Fälle bekommen ein 🔧 – Übergang an den Rand,
 Ankunft aus dem Übergang bzw. vom Hindernis, Zombie-Spawn aus dem Haus nach draußen, Marker unter Möbeln frei (Loot bleibt

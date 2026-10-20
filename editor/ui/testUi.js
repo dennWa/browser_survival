@@ -2,18 +2,33 @@ import { validiere, hatFehler } from '../kern/validierung.js';
 import { testDaten } from '../kern/testlauf.js';
 import { speichereEditorTest } from '../../client/ui/editorTestSpeicher.js';
 import { dialog, schliesse, esc } from './dialoge.js';
+import { startInDerMitte } from '../kern/platzierung.js';
+import { markerSchluessel } from '../kern/karte.js';
 
 /**
  * Karte testen (Phase 9): prüfen (Start, Zombies im Haus, Übergänge, Objekte außerhalb …) → Fehler als Liste mit
  * Koordinaten (Klick springt hin) → sonst alle Entwürfe des Projekts in IndexedDB (client/ui/editorTestSpeicher.js) und das
  * Spiel mit `client/?editorTest=1` öffnen. Das Spiel registriert die Entwürfe zur Laufzeit als Zonen (wie der Lokal-Modus),
  * ohne Repo-Code zu ändern. Zurück: Banner-Knopf → `editor/?vonTest=<id>` (Entwürfe liegen im Editor-Speicher).
+ * Phase 10.7: Fehlt nur der Spieler-Start, fragt der Editor „Spawn in die Mitte der Karte?“ → OK setzt ihn (1 Undo-Schritt) und testet.
  */
 export function testUi({ zustand, aktionen, layout, projektZonen }) {
   aktionen.testen = async () => {
     const k = zustand.karte;
     if (!k) return zustand.meldung('Erst eine Zone öffnen', 'fehler');
-    const liste = validiere(k, { zonen: projektZonen() });
+    let liste = validiere(k, { zonen: projektZonen() });
+    if (liste.some((e) => e.code === 'start')) {
+      const ort = startInDerMitte(k);
+      const ok = ort && (await dialog({
+        titel: '🧍 Kein Spieler-Start gesetzt',
+        html: `<p>Der Spawn kommt in die <b>Mitte der Karte</b> (${ort.x}|${ort.y}). Einverstanden?</p><p class="leise">Später verschieben: Marker anklicken und ziehen – oder Spawns → Spieler-Start.</p>`,
+        knoepfe: [{ text: 'Abbrechen', wert: false }, { text: 'OK – Spawn in die Mitte', wert: true, art: 'akzent' }],
+      }));
+      if (!ok) return;
+      zustand.ausfuehren('Spieler-Start (Kartenmitte)', [{ s: 'marker', k: markerSchluessel(ort.x, ort.y), neu: { art: 'start' } }]);
+      zustand.meldung(`🧍 Spieler-Start in die Mitte gesetzt (${ort.x}|${ort.y})`, 'ok');
+      liste = validiere(k, { zonen: projektZonen() });
+    }
     zustand.validierung = liste;
     zustand.melde('pruefung');
     if (hatFehler(liste)) {
