@@ -1252,7 +1252,7 @@ try {
       await az.evaluate(() => window.mapEditor.bereit);
       await az.keyboard.press('Shift+A');
       await az.waitForSelector('.audiozentrale .az-zeile');
-      pruefe(await az.locator('.az-lokal.ok').count() === 1, 'Audio-Zentrale erkennt den lokalen Server');
+      pruefe(await az.waitForSelector('.az-lokal.ok', { timeout: 8000 }).then(() => true, () => false), 'Audio-Zentrale erkennt den lokalen Server');
       const zahlen = await az.evaluate(() => [...document.querySelectorAll('.az-gruppen button')].map((b) => b.textContent.trim()));
       pruefe(zahlen.length === 11 && zahlen.some((t) => t.includes('Tiere')) && zahlen.some((t) => t.includes('Musik')), `Gruppen links (${zahlen.length})`);
       await az.fill('.az-suche', 'klick');
@@ -1285,7 +1285,7 @@ try {
       const ergebnis = await az.locator('.az-ergebnis').textContent();
       pruefe(/0,5 s/.test(ergebnis), `Ergebnis-Anzeige nach dem Kürzen (${ergebnis.trim()})`);
       await az.click('.az-werkbank [data-a=undo]');
-      pruefe(/0,7 s|0,5 s/.test(await az.locator('.az-ergebnis').textContent()), 'Rückgängig in der Werkbank');
+      pruefe(/1,8 s/.test(await az.locator('.az-ergebnis').textContent()), 'Rückgängig in der Werkbank (Ende wieder ganz → 1,8 s)');
       await az.click('.az-werkbank [data-a=redo]');
       await az.click('.az-werkbank [data-a=vor]');
       await az.screenshot({ path: path.join(AUSGABE, 'editor-19-audiozentrale.png') });

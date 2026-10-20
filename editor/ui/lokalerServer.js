@@ -8,6 +8,7 @@
 export const LOKAL_HINWEIS = 'Speichern in den Projektordner geht nur lokal: Editor lokal starten mit „npm run editor:lokal“ und http://localhost:8090/editor/ öffnen.';
 const KOPF = { 'X-Editor': '1' };
 let status = null;
+let laufend = null; // gleichzeitige Aufrufe teilen sich EINE Anfrage (sonst bekam der zweite den Platzhalter „nicht verbunden“)
 
 const api = (route, parameter = {}) => {
   const u = new URL(`/api/editor/${route}`, location.origin);
@@ -26,21 +27,25 @@ async function antwortLesen(r) {
   return daten;
 }
 
-export async function pruefeLokalenServer({ neu = false } = {}) {
-  if (status && !neu) return status;
-  status = { verbunden: false, ordner: [] };
-  if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) return status;
+export function pruefeLokalenServer({ neu = false } = {}) {
+  if (status && !neu) return Promise.resolve(status);
+  if (!laufend || neu) laufend = frageStatus().finally(() => (laufend = null));
+  return laufend;
+}
+
+async function frageStatus() {
+  const ergebnis = { verbunden: false, ordner: [] };
+  if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) return (status = ergebnis);
   try {
     const steuerung = new AbortController();
-    const t = setTimeout(() => steuerung.abort(), 1500);
+    const t = setTimeout(() => steuerung.abort(), 4000);
     const r = await fetch(api('status'), { headers: KOPF, signal: steuerung.signal, cache: 'no-store' });
     clearTimeout(t);
     const d = await antwortLesen(r);
-    status = { verbunden: true, ordner: d.ordner ?? [], version: d.version };
+    return (status = { verbunden: true, ordner: d.ordner ?? [], version: d.version });
   } catch {
-    /* kein lokaler Editor-Server (z. B. Spielserver npm start) */
+    return (status = ergebnis); // kein lokaler Editor-Server (z. B. Spielserver npm start)
   }
-  return status;
 }
 
 export function istVerbunden() {
