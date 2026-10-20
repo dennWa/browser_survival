@@ -121,6 +121,7 @@ export function meldeBefehleAn(befehle, t) {
     { id: 'zone.raeume', name: 'Räume', symbol: '🚪', gruppe: 'Zone', verfuegbar: karte, ausfuehren: () => t.layout.zeigeReiter('links', '🚪 Räume') },
     { id: 'zone.prefabs', name: 'Prefabs (Vorlagen)', symbol: '🏠', gruppe: 'Zone', ausfuehren: () => t.layout.zeigeReiter('links', '🏠 Prefabs') },
     { id: 'zone.pruefung', name: 'Prüfung anzeigen', symbol: '✓', gruppe: 'Zone', verfuegbar: karte, ausfuehren: () => t.layout.zeigeReiter('rechts', 'Prüfung') },
+    { id: 'zone.autoFix', name: 'Alle eindeutigen Prüf-Fälle beheben…', kurz: 'Auto-Fix', symbol: '🔧', gruppe: 'Zone', verfuegbar: karte, ausfuehren: () => a.autoFixAlle?.() },
     { id: 'zone.testen', name: 'Im Spiel testen', kurz: 'Testen', symbol: '▶', gruppe: 'Zone', kuerzel: ['Strg+Enter'], verfuegbar: karte, ausfuehren: () => a.testen?.() },
 
     // --- KI -----------------------------------------------------------------------
@@ -162,7 +163,7 @@ export function menues(t) {
     { titel: 'Ansicht', eintraege: ['ansicht.dreiD', 'ansicht.einpassen', 'ansicht.zoomRein', 'ansicht.zoomRaus', '-', 'ansicht.links', 'ansicht.rechts', 'ki.helfer', 'ansicht.fokus', '-', 'ansicht.ebenen', ...ANZEIGEN.map((a) => `ansicht.${a.id}`), 'messen.einrasten', 'messen.raster', '-', 'ansicht.suche'] },
     { titel: 'Einfügen', eintraege: () => einfuegenEintraege(t) },
     { titel: 'Werkzeuge', eintraege: WERKZEUGLEISTE.filter((x) => x !== '-').concat(['-', 'werkzeug.kleiner', 'werkzeug.groesser']) },
-    { titel: 'Zone', eintraege: ['zone.einstellungen', 'zone.groesse', '-', 'zone.uebersicht', 'zone.vorschlaege', 'zone.raeume', 'zone.prefabs', '-', 'zone.pruefung', 'zone.testen'] },
+    { titel: 'Zone', eintraege: ['zone.einstellungen', 'zone.groesse', '-', 'zone.uebersicht', 'zone.vorschlaege', 'zone.raeume', 'zone.prefabs', '-', 'zone.pruefung', 'zone.autoFix', 'zone.testen'] },
     { titel: 'KI', eintraege: ['ki.helfer', 'ki.ausschnitt', 'ki.import'] },
     { titel: 'Hilfe', eintraege: ['hilfe.palette', 'hilfe.kuerzel', 'hilfe.anleitung'] },
   ];

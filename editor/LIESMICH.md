@@ -158,6 +158,12 @@ Alles ist rückgängig machbar (Strg+Z). Die Einstellungen gehören zum Entwurf,
 
 ## Karte testen
 
+**🔧 Automatisch beheben** (Reiter Prüfung oder Menü Zone): Eindeutige Fälle bekommen ein 🔧 – Übergang an den Rand,
+Ankunft aus dem Übergang bzw. vom Hindernis, Zombie-Spawn aus dem Haus nach draußen, Marker unter Möbeln frei (Loot bleibt
+drinnen), Objekt in die Zone, Möbel aus Wand/Tür, Loot-Punkt ohne Raum (nur wenn der Raum klar ist). **„Alle eindeutigen
+beheben“** zeigt erst eine Vorschau (Liste + Markierung auf der Karte: rot vorher, grün nachher); Übernehmen ist **ein**
+Schritt, Strg+Z nimmt alles zurück. Mehrdeutige Fälle bleiben stehen – die löst du selbst.
+
 **▶ Testen** prüft zuerst (Spieler-Start vorhanden, keine Zombies im Haus, Übergänge gültig, keine Objekte außerhalb,
 Loot-Tabellen bekannt …). Fehler erscheinen als Liste mit Koordinaten – ein Klick springt zur Stelle. Ist alles gut,
 öffnet sich das Spiel im **Lokal-Modus mit deinem Entwurf** (alle Zonen des Projekts sind dabei, Übergänge funktionieren).

@@ -94,7 +94,7 @@ modelleUi({ zustand, panel: links, aktionen, layout, bibliothek });
 audioUi({ zustand, panel: links, aktionen, layout, audioBibliothek });
 const insp = inspektor({ zustand, leiste: rechts, aktionen, befehle });
 ebenenUi({ zustand, leiste: rechts });
-pruefungUi({ zustand, leiste: rechts, aktionen });
+pruefungUi({ zustand, leiste: rechts, aktionen, zeichner });
 zonenManagerUi({ zustand, leiste: rechts, zeichner, aktionen });
 versionenUi({ zustand, leiste: rechts, zeichner, aktionen });
 lootUi({ zustand, aktionen });

@@ -113,11 +113,18 @@
   `schleife.tickDauerMs` (Spieldateien mit Freigabe, vermerkt KI_INDEX §10). Tests `tests/debugLauf.test.js`, Rauchtest-Schritt
   „Debug-Testlauf (8.1)“ – alles grün (npm test 300, Rauchtest 137). Bekannt: Rauchtest misst kein echtes Tempo (Software-Grafik).
 
-Offen: 8.2, Phase 9 (9.1–9.9) laut Tabellen unten.
+- 8.2 fertig (2026-10-20): `editor/kern/autoFix.js` (BEHEBBAR, fixFuer, fixeAlle – nacheinander auf einer Kopie, 1 Satz ops):
+  Übergang an den Rand, Ankunft aus dem Übergang/vom Hindernis, Zombie-Spawn nach draußen, Marker unter Möbeln frei (Loot bleibt
+  drinnen), Objekt in die Zone, Möbel aus Wand/Tür, Loot-Punkt ohne Raum (nur eindeutig: Raumfläche oder einziger Raum).
+  Prüfungs-Reiter: 🔧 je Eintrag + „🔧 Alle eindeutigen beheben“, Befehl `zone.autoFix` (Menü Zone); Vorschau-Dialog +
+  Markierungen (rot vorher, grün nachher), Übernehmen = 1 Undo-Schritt. Tests `tests/autoFix.test.js` (je Fall), Rauchtest-Schritt „Auto-Fix (8.2)“ (Rauchtest ab jetzt gesammelt am Ende – Nutzerwunsch).
+  Phase 8 komplett.
 
-**Nächster Schritt: 8.2 Auto-Fix** (siehe Tabelle Phase 8).
+Offen: Phase 9 (9.1–9.9) laut Tabellen unten.
 
-**Danach:** Phasen 8–9 laut Tabellen unten (8 Testlauf, 9 KI).
+**Nächster Schritt: 9.1 KI-Fundament** (siehe Tabelle Phase 9).
+
+**Danach:** Phase 9 laut Tabelle unten (KI).
 
 ## Ausgangslage (Analyse 2026-10-19)
 - Editor v0.14: Phasen 0–11 fertig, ~10 000 Zeilen in `editor/`, 210 Tests grün, Rauchtest grün.
@@ -209,7 +216,7 @@ Offen: 8.2, Phase 9 (9.1–9.9) laut Tabellen unten.
 | # | Schritt | Größe |
 |---|---|---|
 | ☑ 8.1 | 🎮 **Debug-Testlauf:** Zeitlupe (0,1×–1×), Pause, Schritt-für-Schritt (1/10 Ticks), Overlays: Zombie-Pfade (A*), Ziele/Sichtradius, Spawn-Punkte mit Respawn-Timern, Loot-Punkte, Audio-Zonen, Übergänge; Klick auf Zombie = Info. Nur im Editor-Test (Lokal-Server im selben Tab), nie online | L |
-| ☐ 8.2 | **Auto-Fix:** Prüfungseinträge bekommen „Automatisch beheben“ für eindeutige Fälle (Übergang an den Rand/nächste Kachel, Ankunft aus dem Übergang, Zombie-Spawn nach draußen, Objekt aus Blockade/vor Tür befreien, Objekt in die Zone, Loot-Punkt ohne Raum, Marker auf Wand) + „Alle eindeutigen beheben“ – mit Vorschau, 1 Undo-Schritt, je Fall ein Test | M |
+| ☑ 8.2 | **Auto-Fix:** Prüfungseinträge bekommen „Automatisch beheben“ für eindeutige Fälle (Übergang an den Rand/nächste Kachel, Ankunft aus dem Übergang, Zombie-Spawn nach draußen, Objekt aus Blockade/vor Tür befreien, Objekt in die Zone, Loot-Punkt ohne Raum, Marker auf Wand) + „Alle eindeutigen beheben“ – mit Vorschau, 1 Undo-Schritt, je Fall ein Test | M |
 
 ## Phase 9 – KI-Assistent
 | # | Schritt | Größe |

@@ -1492,3 +1492,14 @@ img.ki-bild {
     height: 44px;
   }
 }
+
+/* Auto-Fix (8.2) im Prüfungs-Reiter */
+.auto-fix-alle {
+  margin: 4px 0 8px;
+  min-height: 34px;
+}
+.liste li .auto-fix {
+  min-width: 34px;
+  min-height: 30px;
+  padding: 0 6px;
+}

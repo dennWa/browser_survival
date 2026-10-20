@@ -1062,6 +1062,44 @@ try {
   }
 
   if (!nurBis) {
+    schritt('Auto-Fix (8.2): Vorschau, alle eindeutigen beheben = 1 Undo-Schritt');
+    const af = await seite.evaluate(() => {
+      const m = window.mapEditor;
+      const k = m.zustand.karte;
+      // Zombie-Spawn unter einem Tisch (marker-blockiert) + Tisch über den Rand (objekt-rand)
+      let frei = null;
+      for (let y = 2; y < k.hoehe - 2 && !frei; y++) for (let x = 2; x < k.breite - 3 && !frei; x++) if (k.kachelAn(x, y) === ',' && !k.markerAn(x, y) && !k.objektBei(x + 0.5, y + 0.5)) frei = { x, y };
+      m.zustand.ausfuehren('Testfälle', [
+        { s: 'marker', k: m.markerSchluessel(frei.x, frei.y), neu: { art: 'zombie' } },
+        { s: 'objekte', k: k.naechsteId, neu: { typ: 'tisch', x: frei.x, y: frei.y, b: 1, h: 1, blockiert: true } },
+        { s: 'objekte', k: k.naechsteId + 1, neu: { typ: 'tisch', x: k.breite - 1, y: k.hoehe - 1, b: 2, h: 1, blockiert: true } },
+      ]);
+      return { frei, schritte: m.zustand.verlauf.zurueck.length };
+    });
+    await seite.waitForTimeout(600); // Prüfung läuft verzögert
+    await seite.click('#rechts [data-reiter^="Prüfung"]');
+    await seite.waitForSelector('#rechts .auto-fix-alle');
+    await seite.click('#rechts .auto-fix-alle');
+    await seite.waitForSelector('#dialog button.akzent:has-text("Übernehmen")');
+    const vorschauText = await seite.locator('#dialog').textContent();
+    const markiert = await seite.evaluate(() => window.mapEditor.zeichner.ueberlagerungen.length);
+    pruefe(vorschauText.includes('Zombie-Spawn') && vorschauText.includes('in die Zone') && markiert >= 4, `Vorschau listet beide Fälle und markiert sie (${markiert} Markierungen)`);
+    await seite.screenshot({ path: path.join(AUSGABE, 'editor-22-autofix.png') });
+    await seite.click('#dialog button.akzent:has-text("Übernehmen")');
+    await seite.waitForTimeout(600);
+    const nachFix = await seite.evaluate(({ frei }) => {
+      const m = window.mapEditor;
+      return { marker: !!m.zustand.karte.markerAn(frei.x, frei.y), schritte: m.zustand.verlauf.zurueck.length, offen: m.zustand.validierung.filter((e) => ['marker-blockiert', 'objekt-rand'].includes(e.code)).length };
+    }, af);
+    pruefe(!nachFix.marker && nachFix.offen === 0 && nachFix.schritte === af.schritte + 1, `Beide behoben in einem Undo-Schritt (${JSON.stringify(nachFix)})`);
+    await seite.keyboard.press('Escape');
+    await seite.click('#leinwand2d', { position: { x: 5, y: 450 } }).catch(() => {});
+    await seite.keyboard.press('Control+z');
+    pruefe(await seite.evaluate(({ frei }) => !!window.mapEditor.zustand.karte.markerAn(frei.x, frei.y), af), 'Strg+Z nimmt den Auto-Fix zurück');
+    await seite.keyboard.press('Control+z');
+  }
+
+  if (!nurBis) {
     schritt('Touch (Handy): Ansehen + Schwenken mit dem Finger');
     const handy = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
     const h = await handy.newPage();
