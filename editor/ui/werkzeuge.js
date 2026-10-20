@@ -14,6 +14,7 @@ import { neueLootZone } from '../../server/spiel/karten/lootZonen.js';
 import { LINEAL } from './zeichner2d.js';
 import { streckenInfo, fangKandidaten, fange, hilfslinieOps } from '../kern/messen.js';
 import { STANDARD_KONFIGURATION } from '../../server/spiel/konfiguration/spielKonfiguration.js';
+import { touchRaster } from '../kern/touchBauen.js';
 
 /**
  * Maus/Touch auf der 2D-Fläche → Werkzeuge. Werkzeuge:
@@ -33,8 +34,9 @@ import { STANDARD_KONFIGURATION } from '../../server/spiel/konfiguration/spielKo
  *   Strg = aus) beim Platzieren und Verschieben von Objekten an Kanten/Mitten/Hilfslinien (kern/messen.js).
  * Free-Modus (zustand.frei, Optionsleiste „Frei“, 5.5): Platzieren/Ziehen stufenlos (0,01), R dreht 15°, Alt+Rad dreht 5° (Umschalt
  *   15°; eine Rad-Folge = 1 Undo-Schritt), Drehgriff über einem einzeln gewählten Objekt (Umschalt = 15°-Raster).
- * Touch: Ansehen & Schwenken überall (1 Finger mit Hand-Werkzeug, 2 Finger immer = schwenken + zoomen). Malen/Bauen geht
- * per Tippen, Ziel ist aber der Desktop (bewusste Ausnahme, siehe editor/LIESMICH.md).
+ * Touch (7.6): Finger-Ereignisse gehen zuerst an `this.touch` (ui/touchBauen.js: Fadenkreuz über dem Finger, Lupe,
+ *   ✓/✕ beim Platzieren, große Griffe, Langdruck = Kontextmenü); die reicht sie als `roh`-Ereignisse über runterRoh/
+ *   bewegenRoh/hochRoh wieder herein. 2 Finger = immer schwenken + zoomen. `amFinger` = Einrasten auf touchRaster.
  * Maus: Rechts-Ziehen schwenkt, Rechtsklick ohne Ziehen = Kontextmenü (beim Platzieren/Einfügen: drehen),
  * Alt+Klick in Mal-/Platzier-Werkzeugen = Pipette. Ausgeblendete/gesperrte Ebenen sind nicht anklickbar (zustand.ebenen).
  */
@@ -51,13 +53,16 @@ export class Werkzeuge {
     this.letzteHover = null;
     /** Zusatztasten beim Ziehen (Strg = Raum-Umriss bei Wänden) */
     this.strg = false;
+    /** 7.6: Touch-Bauen (ui/touchBauen.js) fängt Finger-Ereignisse ab; amFinger = gerade per Finger bedient */
+    this.touch = null;
+    this.amFinger = false;
 
     leinwand.addEventListener('pointerdown', (e) => this.#runter(e));
     leinwand.addEventListener('pointermove', (e) => this.#bewegen(e));
     leinwand.addEventListener('pointerup', (e) => this.#hoch(e));
     leinwand.addEventListener('pointercancel', (e) => this.#hoch(e, true));
     leinwand.addEventListener('pointerleave', () => {
-      if (!this.ziehen) {
+      if (!this.ziehen && !this.touch?.offen) {
         this.z.hover = null;
         this.z.vorschau = null;
         this.z.anfordern();
@@ -98,6 +103,27 @@ export class Werkzeuge {
     this.#platziere(this.#pos(e), false);
   }
 
+  /** 7.6: von ui/touchBauen.js aufbereitete Finger-Ereignisse (Fadenkreuz-Versatz, verzögerter Start) */
+  runterRoh(e) {
+    this.#runter(e);
+  }
+
+  bewegenRoh(e) {
+    this.#bewegen(e);
+  }
+
+  hochRoh(e, abgebrochen = false) {
+    this.#hoch(e, abgebrochen);
+  }
+
+  /** Platzier-/Einfüge-Vorschau an der Stelle des Ereignisses (Touch-Geist) */
+  vorschauBei(e) {
+    const p = this.#pos(e);
+    this.letzteHover = p;
+    this.z.hover = { x: p.tx, y: p.ty };
+    this.#hoverVorschau(p, false);
+  }
+
   #pos(e) {
     const r = this.leinwand.getBoundingClientRect();
     const px = e.clientX - r.left;
@@ -108,8 +134,13 @@ export class Werkzeuge {
 
   // --- Zeiger ------------------------------------------------------------------
   #runter(e) {
+    if (e.pointerType === 'touch' && !e.roh && this.touch?.faengt(e, 'runter')) return;
     this.leinwand.focus();
-    this.leinwand.setPointerCapture(e.pointerId);
+    try {
+      this.leinwand.setPointerCapture(e.pointerId);
+    } catch {
+      /* Touch-Tippen wird erst nach dem Loslassen ausgeführt – der Zeiger ist dann schon weg */
+    }
     const p = this.#pos(e);
     this.zeiger.set(e.pointerId, { x: p.px, y: p.py });
     if (this.zeiger.size === 2) {
@@ -201,6 +232,7 @@ export class Werkzeuge {
   }
 
   #bewegen(e) {
+    if (e.pointerType === 'touch' && !e.roh && this.touch?.faengt(e, 'bewegen')) return;
     const p = this.#pos(e);
     this.strg = e.ctrlKey || e.metaKey;
     const vorher = this.zeiger.get(e.pointerId);
@@ -260,6 +292,7 @@ export class Werkzeuge {
   }
 
   #hoch(e, abgebrochen = false) {
+    if (e.pointerType === 'touch' && !e.roh && this.touch?.faengt(e, abgebrochen ? 'abbruch' : 'hoch')) return;
     this.zeiger.delete(e.pointerId);
     const d = this.ziehen;
     if (!d) return;
@@ -317,6 +350,7 @@ export class Werkzeuge {
 
   /** Esc */
   abbrechen() {
+    this.touch?.verwerfe();
     this.#abbrechen();
     this.neuModus = false;
     this.massbandLeeren();
@@ -462,7 +496,7 @@ export class Werkzeuge {
 
   /** Gewähltes um ganze Kacheln verschieben (Alt = 0,1-Schritte für Objekte, Free-Modus = stufenlos 0,01) */
   #bewege(d, p, fein) {
-    const raster = this.zustand.frei ? 0.01 : fein ? 0.1 : 1;
+    const raster = this.amFinger && this.zustand.frei ? touchRaster(true) : this.zustand.frei ? 0.01 : fein ? 0.1 : 1;
     let dx = Math.round((p.wx - d.start.wx) / raster) * raster;
     let dy = Math.round((p.wy - d.start.wy) / raster) * raster;
     // Einrasten: das zuerst gewählte Objekt bestimmt den Fang (alle bewegen sich gleich)
@@ -597,7 +631,7 @@ export class Werkzeuge {
     const b = quer ? e.h : e.b;
     const h = quer ? e.b : e.h;
     const frei = this.zustand.frei;
-    const raster = frei ? 0.01 : b < 1 || h < 1 ? 0.1 : 1;
+    const raster = this.amFinger ? touchRaster(frei, b, h) : frei ? 0.01 : b < 1 || h < 1 ? 0.1 : 1;
     const runde = (v) => Math.round(v / raster) * raster;
     const o = { typ: e.typ, x: runde(p.wx - b / 2), y: runde(p.wy - h / 2), b, h };
     if (!frei && b >= 1 && h >= 1 && Number.isInteger(b) && Number.isInteger(h)) {

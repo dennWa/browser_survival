@@ -1023,6 +1023,99 @@ try {
     const nachher = await h.evaluate(() => ({ ...window.mapEditor.zeichner.kamera }));
     pruefe(nachher.x > vorher.x && nachher.y > vorher.y, `mit dem Finger geschwenkt (${vorher.x.toFixed(1)} → ${nachher.x.toFixed(1)})`);
     await h.screenshot({ path: path.join(AUSGABE, 'editor-9-handy.png') });
+
+    schritt('Touch-Bauen (7.6): Geist + ✓ Setzen, Griff skalieren, Langdruck-Menü, Pinsel mit Fadenkreuz');
+    const finger = async (art, x, y) => cdp.send('Input.dispatchTouchEvent', { type: art, touchPoints: art === 'touchEnd' ? [] : punkt(x, y) });
+    const tippe = async (x, y, ms = 60) => {
+      await finger('touchStart', x, y);
+      await h.waitForTimeout(ms);
+      await finger('touchEnd');
+      await h.waitForTimeout(120);
+    };
+    const ziehe = async (x0, y0, x1, y1, { schritte = 8, bild = null } = {}) => {
+      await finger('touchStart', x0, y0);
+      for (let i = 1; i <= schritte; i++) await finger('touchMove', x0 + ((x1 - x0) * i) / schritte, y0 + ((y1 - y0) * i) / schritte);
+      if (bild) await h.screenshot({ path: path.join(AUSGABE, bild) });
+      await finger('touchEnd');
+      await h.waitForTimeout(150);
+    };
+    // Freie Stelle für einen Tisch suchen und dorthin zoomen (Bildmitte = Fadenkreuz-Ziel)
+    const ort = await h.evaluate(async () => {
+      const m = window.mapEditor;
+      const { pruefeObjekt } = await import('/editor/kern/platzierung.js');
+      m.aktionen.werkzeug('auswahl');
+      m.assets.waehleId('objekt:tisch');
+      const e = m.zustand.eintrag;
+      const k = m.zustand.karte;
+      for (let y = 20; y < k.hoehe - 20; y++)
+        for (let x = 20; x < k.breite - 20; x++)
+          if ([0, 1, 2, 3].every((d) => pruefeObjekt(k, { typ: e.typ, x: x - 2 + d, y, b: e.b, h: e.h }).ok)) {
+            m.zeichner.springeZu(x, y, 24);
+            return { x, y, b: e.b, h: e.h };
+          }
+      return null;
+    });
+    pruefe(!!ort, 'freie Stelle für den Tisch gefunden');
+    await h.waitForTimeout(150);
+    const bildpunkt = (x, y) => h.evaluate(([x, y]) => window.mapEditor.zeichner.zuBild(x, y), [x, y]);
+    const lw = await h.locator('#leinwand2d').boundingBox();
+    const mitteB = await bildpunkt(ort.x + 0.5, ort.y + 0.5);
+    const [cx, cy] = [lw.x + mitteB.x, lw.y + mitteB.y];
+    const objZahl = () => h.evaluate(() => window.mapEditor.zustand.karte.s('objekte').size);
+    const vorObj = await objZahl();
+    await tippe(cx, cy + 64); // Finger unter dem Ziel → Fadenkreuz trifft die Mitte
+    const geist = await h.evaluate(() => ({ leiste: !document.querySelector('.touch-bestaetigen').hidden, gueltig: window.mapEditor.zeichner.vorschau?.gueltig, offen: !!window.mapEditor.touch.offen }));
+    pruefe(geist.leiste && geist.offen && (await objZahl()) === vorObj, `Tippen zeigt nur den Geist + ✓/✕ (${JSON.stringify(geist)})`);
+    pruefe(geist.gueltig === true, 'Geist liegt unter dem Fadenkreuz auf freiem Platz (grün)');
+    await h.screenshot({ path: path.join(AUSGABE, 'editor-18-touch-geist.png') });
+    await h.tap('.touch-bestaetigen [data-t="setzen"]');
+    await h.waitForTimeout(150);
+    const gesetzt = await h.evaluate(() => {
+      const m = window.mapEditor;
+      const g = m.zustand.gewaehlte()[0];
+      return { n: m.zustand.karte.s('objekte').size, g: g?.wert, k: g?.k, leiste: !document.querySelector('.touch-bestaetigen').hidden };
+    });
+    pruefe(gesetzt.n === vorObj + 1 && !gesetzt.leiste, '✓ Setzen legt den Tisch an');
+    pruefe(gesetzt.g && Math.abs(gesetzt.g.x + gesetzt.g.b / 2 - (ort.x + 0.5)) <= 1 && Math.abs(gesetzt.g.y + gesetzt.g.h / 2 - (ort.y + 0.5)) <= 1, `Tisch sitzt am Fadenkreuz, nicht unter dem Finger (${JSON.stringify(gesetzt.g)})`);
+    // Griffe: Auswahl-Werkzeug, Skalier-Griff ziehen (+2 Kacheln) = 1 Undo-Schritt
+    await h.evaluate(() => window.mapEditor.aktionen.werkzeug('auswahl'));
+    await h.waitForTimeout(100);
+    const griffe = await h.evaluate(() => window.mapEditor.touch.griffe());
+    pruefe(['bewegen', 'drehen', 'skalieren'].every((id) => griffe.some((g) => g.id === id)), `große Griffe am gewählten Tisch (${griffe.map((g) => g.id).join(', ')})`);
+    const sk = griffe.find((g) => g.id === 'skalieren');
+    if (sk) {
+      await ziehe(lw.x + sk.x, lw.y + sk.y, lw.x + sk.x + 48, lw.y + sk.y, { bild: 'editor-18-touch-griff.png' });
+      const breite = await h.evaluate((k) => window.mapEditor.zustand.karte.s('objekte').get(k).b, gesetzt.k);
+      pruefe(breite === gesetzt.g.b + 2, `Skalier-Griff macht den Tisch 2 Kacheln breiter (${gesetzt.g.b} → ${breite})`);
+      await h.tap('#handy-leiste [data-befehl="bearbeiten.rueckgaengig"]');
+      const zurueck = await h.evaluate((k) => window.mapEditor.zustand.karte.s('objekte').get(k).b, gesetzt.k);
+      pruefe(zurueck === gesetzt.g.b, 'Handy-Leiste ↶ nimmt das Skalieren in einem Schritt zurück');
+    }
+    // Langdruck auf den Tisch = Kontextmenü
+    await finger('touchStart', cx, cy);
+    await h.waitForTimeout(800);
+    await finger('touchEnd');
+    await h.waitForTimeout(150);
+    pruefe(await h.locator('.menue-liste [data-befehl="bearbeiten.duplizieren"]').count() === 1, 'Langdruck öffnet das Kontextmenü');
+    pruefe((await objZahl()) === vorObj + 1, 'Langdruck hat nichts verschoben/gesetzt');
+    await h.keyboard.press('Escape');
+    // Pinsel: Strich mit dem Finger 2 Kacheln unter der Zielreihe → gemalt wird in der Reihe am Fadenkreuz
+    const mal = await h.evaluate(([x, y]) => {
+      const m = window.mapEditor;
+      const k = m.zustand.karte;
+      m.zustand.leereAuswahl();
+      const zeichen = ['_', '=', '-', '.'].find((z) => [x - 1, x, x + 1].every((xx) => k.kachelAn(xx, y + 3) !== z));
+      m.assets.waehleId(`kachel:${zeichen}`);
+      m.zustand.malModus = 'pinsel';
+      m.zustand.pinselGroesse = 1;
+      return { zeichen, unten: [x - 1, x, x + 1].map((xx) => k.kachelAn(xx, y + 6)) };
+    }, [ort.x, ort.y]);
+    const reihe = await bildpunkt(ort.x + 0.5, ort.y + 3.5);
+    await ziehe(cx - 24, lw.y + reihe.y + 64, cx + 24, lw.y + reihe.y + 64, { bild: 'editor-18-touch-lupe.png' });
+    const gemalt = await h.evaluate(([x, y]) => [x - 1, x, x + 1].map((xx) => window.mapEditor.zustand.karte.kachelAn(xx, y + 3)), [ort.x, ort.y]);
+    pruefe(gemalt.every((z) => z === mal.zeichen), `Pinsel malt am Fadenkreuz (${gemalt.join('')} statt ${mal.zeichen.repeat(3)})`);
+    const unten = await h.evaluate(([x, y]) => [x - 1, x, x + 1].map((xx) => window.mapEditor.zustand.karte.kachelAn(xx, y + 6)), [ort.x, ort.y]);
+    pruefe(unten.join('') === mal.unten.join(''), 'unter dem Finger bleibt alles unverändert');
     // Werkstatt am Handy: Bühne + Seite gestapelt, mit dem Finger malen
     const schildId = await h.evaluate(async (bytes) => (await window.mapEditor.bibliothek.fuegeHinzu(new Uint8Array(bytes), { name: 'Handy-Schild' })).meta.id, [...platte()]);
     await h.evaluate((id) => void window.mapEditor.aktionen.werkstatt(id), schildId);

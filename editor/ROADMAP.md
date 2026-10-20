@@ -95,11 +95,21 @@
   automatische Sicherung), automatisch bei Export/Veröffentlichen, Änderungsübersicht im Veröffentlichen-Dialog.
   Speicher-Bereich 'versionen' (IndexedDB DB_VERSION 4). Nicht im Komplett-Backup (Größe). Tests + Rauchtest.
 
-Offen: 7.6, Phase 8 (8.1–8.2), Phase 9 (9.1–9.9) laut Tabellen unten.
+- 7.6 fertig (2026-10-20): `editor/kern/touchBauen.js` (touchArt bestaetigen|zeichnen|direkt, fadenkreuz, istLangdruck,
+  lupenQuelle, touchGriffe/griffBei, auswahlRahmen, skaliereObjekt, touchRaster) + `editor/ui/touchBauen.js` (fängt
+  Finger-Ereignisse in `werkzeuge.js` ab: Fadenkreuz 64 px über dem Finger + Lupe, Platzieren → Geist + ✓/⟳/✕, Langdruck =
+  Kontextmenü, Griffe ✥/⟳/⤡), Handy-Leiste `#handy-leiste` (Schubladen, ↶ ↷, ⋯), größere Trefferflächen (`pointer: coarse`).
+  Touch-Ausnahme in LIESMICH/Manifest aufgehoben. Tests `tests/touchBauen.test.js`, Rauchtest-Schritt „Touch-Bauen (7.6)“.
+  ⚠ Rauchtest lief lokal nicht (Playwright auf dem Windows-Rechner nicht installiert) – der Ablauf wurde stattdessen im
+  eingebauten Browser mit simulierten Touch-Pointer-Events geprüft (Geist/✓, Skalier-Griff + Undo, Langdruck, Pinsel am
+  Fadenkreuz: alles ok). Bei nächster Gelegenheit `npm run rauchtest:editor` laufen lassen.
+  Phase 7 komplett.
 
-**Nächster Schritt: 7.6 Touch-Bauen** (siehe Tabelle Phase 7).
+Offen: Phase 8 (8.1–8.2), Phase 9 (9.1–9.9) laut Tabellen unten.
 
-**Danach:** Phasen 6–9 laut Tabellen unten (6 Zonen/Loot, 7 UX, 8 Testlauf, 9 KI).
+**Nächster Schritt: 8.1 Debug-Testlauf** (siehe Tabelle Phase 8).
+
+**Danach:** Phasen 8–9 laut Tabellen unten (8 Testlauf, 9 KI).
 
 ## Ausgangslage (Analyse 2026-10-19)
 - Editor v0.14: Phasen 0–11 fertig, ~10 000 Zeilen in `editor/`, 210 Tests grün, Rauchtest grün.
@@ -185,7 +195,7 @@ Offen: 7.6, Phase 8 (8.1–8.2), Phase 9 (9.1–9.9) laut Tabellen unten.
 | ☑ 7.3 | **Messen & Ausrichten:** Maßband (Strecke, Pfadlänge, Winkel), Lineale mit herausziehbaren Hilfslinien, einstellbares Raster (Weite, Hauptlinien), Einrasten an Raster/Objektkanten/-mitten/Hilfslinien, 3D-Ausrichtungshilfen (Raster, Achsen-Gizmo, auf Gelände einrasten) | M |
 | ☑ 7.4 | **Bibliothek & Vorlagen:** Prefabs in Ordnern, Suche, automatische Vorschaubilder für eigene Prefabs/Objekte, Favoriten, Ziehen aus der Bibliothek auf die Karte (eine Bibliothek für Assets, Prefabs, Loot-Vorlagen, Audio) | M |
 | ☑ 7.5 | **Versionskontrolle:** benannte Versionen (manuell + automatisch bei Export/Veröffentlichen), Versionsliste, **„Diff zu Version X“** (Liste + farbig auf der Karte), **„Wiederherstellungspunkt laden“** (als rückgängig machbarer Schritt), vor dem Veröffentlichen **Änderungsübersicht seit dem letzten Export** | L |
-| ☐ 7.6 | **Touch-Bauen:** Fadenkreuz-Cursor über dem Finger, **Lupe**, Snap-to-Grid, große **Griffe** (verschieben/drehen/skalieren), Bestätigen/Abbrechen-Knöpfe, Langdruck = Kontextmenü, Schubladen-Layout fürs Handy; hebt die bisherige „Touch-Ausnahme“ auf (Doku) | L |
+| ☑ 7.6 | **Touch-Bauen:** Fadenkreuz-Cursor über dem Finger, **Lupe**, Snap-to-Grid, große **Griffe** (verschieben/drehen/skalieren), Bestätigen/Abbrechen-Knöpfe, Langdruck = Kontextmenü, Schubladen-Layout fürs Handy; hebt die bisherige „Touch-Ausnahme“ auf (Doku) | L |
 
 ## Phase 8 – Testlauf & Debugging
 | # | Schritt | Größe |

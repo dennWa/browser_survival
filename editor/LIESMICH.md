@@ -196,7 +196,7 @@ Flackern, Lichtform (Punkt/Kegel). Die 2D-Ansicht zeigt Radius bzw. Kegel. Die P
   **Drehgriff** (Kreis über dem Objekt) – ziehen dreht frei. Im Inspektor steht der Winkel als Zahl (0–359°).
 - **Im Spiel:** 0°, 90°, 180° und 270° verhalten sich genau wie vorher. Schräg gestellte Möbel stoßen auch schräg an
   (Spieler, Zombies, Schüsse), der Boden darunter ist entsprechend belegt. Die Prüfung meldet Überschneidungen gedreht.
-- **Touch:** Winkel über die Optionsleiste oder den Inspektor eintippen, der Drehgriff geht auch mit dem Finger.
+- **Touch:** Winkel über die Optionsleiste oder den Inspektor eintippen, oder den großen ⟳-Griff mit dem Finger ziehen (15°-Schritte).
 
 ## 3D-Modelle (Reiter 📦 Modelle)
 
@@ -292,11 +292,23 @@ Veröffentlichen-Dialog listet die Änderungen seit dem letzten Export.
 - **💽 Speicherplatz & Status:** belegt/frei, und ob der Browser die Daten dauerhaft hält (sonst darf er bei Speichermangel löschen –
   dann regelmäßig ein Backup ziehen).
 
-## Touch (Handy/Tablet) – bewusste Ausnahme
+## Touch (Handy/Tablet) – Touch-Bauen
 
-Ansehen, **Schwenken und Zoomen** gehen überall (zwei Finger; Hand-Werkzeug ✋ für einen Finger). Malen und Bauen
-funktionieren per Tippen, sind aber für **Maus und Tastatur** gebaut – das ist eine bewusste Ausnahme von der
-Projektregel „Touch mitdenken“: Kartenbau braucht Präzision, Tastenkürzel und große Bildschirme.
+Der Editor lässt sich mit dem Finger bedienen (die frühere „Touch-Ausnahme“ ist aufgehoben):
+
+- **Zwei Finger** schwenken und zoomen immer (bricht eine laufende Aktion ab); ✋ Hand-Werkzeug = mit einem Finger schwenken.
+- **Fadenkreuz über dem Finger:** Beim Bauen erscheint das Fadenkreuz etwas **über** dem Finger, damit man sieht, wo es
+  landet – dazu eine **Lupe** in der Ecke. Gebaut wird am Fadenkreuz, nicht unter dem Finger.
+- **Platzieren/Einfügen:** Finger auflegen → der Geist folgt dem Fadenkreuz (grün/rot), loslassen → unten erscheint
+  **✓ Setzen · ⟳ Drehen · ✕ Abbrechen**. Neu auflegen verschiebt den Geist. Am Finger rastet alles ins Raster ein
+  (im Free-Modus ¼ Kachel).
+- **Pinsel, Radierer, Gelände, Farbe, Bereiche, Wände, Maßband:** ziehen = Strich am Fadenkreuz, tippen = ein Punkt.
+- **Auswahl:** tippen wählt, ziehen verschiebt bzw. zieht einen Rahmen. Um die Auswahl liegen **große Griffe**:
+  ✥ verschieben · ⟳ tippen = drehen (Free-Modus: ziehen = frei drehen in 15°-Schritten) · ⤡ Größe (ein Objekt).
+  Jeder Griff-Zug ist ein Undo-Schritt.
+- **Langdruck** (Finger ruhig liegen lassen) = Kontextmenü (wie Rechtsklick).
+- **Handy-Leiste** unten (schmale Bildschirme): 🧱 Assets-Schublade · ↶ ↷ · ⋯ Kontextmenü · ◨ Inspektor-Schublade.
+  Tippen auf die Karte schließt die Schublade.
 
 ## Veröffentlichen (Karte → Spiel)
 

@@ -18,6 +18,8 @@ import { drehGriff } from '../kern/bearbeiten.js';
  * Frei gedrehte Objekte (5.5): Grundfläche als gedrehtes Polygon (gemeinsam/welt/drehung.js), im Free-Modus Drehgriff am
  * einzeln gewählten Objekt (kern/bearbeiten.drehGriff); Vorschau ebenfalls gedreht.
  * Klänge (Phase 4, #zeichneKlaenge): Punkt mit Kreisen voll/Hörweite (+ Griffe), Ambiente-Rechteck mit Rand, Global als Hinweis.
+ * Touch (7.6, gesetzt von ui/touchBauen.js): `fadenkreuz` {px,py} über dem Finger, `griffQuelle()` → große Griffe
+ * [{x,y,symbol,id}] in Bildpunkten, `nachZeichnen()` danach (Lupe kopiert aus der fertigen Leinwand).
  */
 export const LINEAL = 24;
 const MIN_ZOOM = 2;
@@ -37,6 +39,9 @@ export class Zeichner2D {
     this.massband = null; // 7.3: { punkte: [{x,y}], fertig }
     this.fangLinien = null; // 7.3: [{ achse, wert }] beim Einrasten
     this.hilfslinieZiehen = null; // 7.3: { achse, wert } beim Ziehen aus dem Lineal
+    this.fadenkreuz = null; // 7.6: { px, py } Touch-Fadenkreuz über dem Finger
+    this.griffQuelle = null; // 7.6: () => [{ x, y, symbol, id, aktiv? }] Touch-Griffe in Bildpunkten
+    this.nachZeichnen = null; // 7.6: Lupe nachziehen
     this.zonenGriffe = false;
     this.zonenVorschau = null; // { x, y, b, h } beim Größe ändern
     this.nachbarn = []; // [{ karte, dx, dy }] Nachbarzonen relativ (Phase 7)
@@ -246,9 +251,52 @@ export class Zeichner2D {
       this.#zeichneVorschau(ctx);
       this.#zeichneZonenRand(ctx, k);
       this.#zeichneMessen(ctx, k);
+      this.#zeichneTouch(ctx);
     }
     if (this.neuRechteck) this.#rahmen(ctx, this.neuRechteck, '#4caf50', `${this.neuRechteck.b} × ${this.neuRechteck.h}`, true);
     this.#zeichneLineale(ctx);
+    this.nachZeichnen?.();
+  }
+
+  /** 7.6: große Touch-Griffe um die Auswahl + Fadenkreuz über dem Finger */
+  #zeichneTouch(ctx) {
+    const griffe = this.griffQuelle?.() ?? [];
+    ctx.save();
+    for (const g of griffe) {
+      ctx.beginPath();
+      ctx.arc(g.x, g.y, 20, 0, Math.PI * 2);
+      ctx.fillStyle = g.aktiv ? 'rgba(255,193,7,0.95)' : 'rgba(20,23,28,0.82)';
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#ffc107';
+      ctx.stroke();
+      ctx.fillStyle = g.aktiv ? '#111' : '#fff';
+      ctx.font = 'bold 20px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(g.symbol, g.x, g.y + 1);
+    }
+    const f = this.fadenkreuz;
+    if (f) {
+      for (const [farbe, breite] of [['rgba(0,0,0,0.7)', 4], ['#fff', 1.5]]) {
+        ctx.strokeStyle = farbe;
+        ctx.lineWidth = breite;
+        ctx.beginPath();
+        ctx.moveTo(f.px - 18, f.py);
+        ctx.lineTo(f.px - 5, f.py);
+        ctx.moveTo(f.px + 5, f.py);
+        ctx.lineTo(f.px + 18, f.py);
+        ctx.moveTo(f.px, f.py - 18);
+        ctx.lineTo(f.px, f.py - 5);
+        ctx.moveTo(f.px, f.py + 5);
+        ctx.lineTo(f.px, f.py + 18);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(f.px, f.py, 11, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
   }
 
   /** Ebene zeichnen: ausgeblendet = gar nicht, gesperrt = ausgegraut */

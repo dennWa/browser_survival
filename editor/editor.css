@@ -1405,3 +1405,86 @@ img.ki-bild {
   text-align: right;
   white-space: nowrap;
 }
+
+/* Touch-Bauen (7.6): Lupe über dem Fadenkreuz, ✓/✕-Leiste beim Platzieren, Handy-Leiste mit Schubladen */
+.touch-lupe {
+  position: absolute;
+  top: 32px;
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  border: 3px solid #ffc107;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  z-index: 6;
+}
+.touch-bestaetigen {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  padding: 6px;
+  background: rgba(20, 23, 28, 0.92);
+  border: 1px solid #ffc107;
+  border-radius: 12px;
+  z-index: 7;
+}
+.touch-bestaetigen button {
+  min-width: 52px;
+  min-height: 48px;
+  font-size: 20px;
+  white-space: nowrap;
+}
+.touch-bestaetigen button.akzent {
+  font-size: 17px;
+  padding: 0 16px;
+}
+#handy-leiste {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  #handy-leiste {
+    position: absolute;
+    left: 50%;
+    bottom: 8px;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    padding: 4px;
+    background: rgba(20, 23, 28, 0.9);
+    border-radius: 12px;
+    z-index: 5;
+  }
+  #handy-leiste button {
+    width: 46px;
+    height: 44px;
+    font-size: 20px;
+  }
+  #zoom-knoepfe {
+    top: 32px;
+    bottom: auto;
+    flex-direction: column;
+  }
+  .touch-bestaetigen {
+    bottom: 64px;
+  }
+}
+
+/* Finger: größere Trefferflächen in Leisten und Menüs */
+@media (pointer: coarse) {
+  #werkzeuge button,
+  #schnell button {
+    min-width: 40px;
+    min-height: 40px;
+  }
+  .menue-liste .eintrag {
+    min-height: 40px;
+  }
+  #zoom-knoepfe button {
+    width: 44px;
+    height: 44px;
+  }
+}

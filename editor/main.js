@@ -5,6 +5,7 @@ import { kopiere, dreheVorlage } from './kern/auswahl.js';
 import { kachelInfo, objektInfo } from './kern/katalog.js';
 import { innenRaster } from './kern/innen.js';
 import { Werkzeuge } from './ui/werkzeuge.js';
+import { TouchBauen } from './ui/touchBauen.js';
 import { EditorSpeicher } from './ui/speicher.js';
 import { Zustand } from './ui/zustand.js';
 import { Zeichner2D } from './ui/zeichner2d.js';
@@ -42,6 +43,7 @@ import { dialog, esc, istDialogOffen } from './ui/dialoge.js';
  * Aufbau (Editor 2.0): Zustand (Projekt/Zonen/Verlauf/Ebenen) · Zeichner2D + Werkzeuge · Befehlsregister (ui/befehle.js,
  * alle Befehle in ui/befehlsliste.js) → Menüleiste, Schnellleiste, Werkzeugleiste, Kontextmenü, Tastatur ·
  * Seitenleisten links (Assets, Modelle, Audio, Prefabs, Zonen, Räume) / rechts (Inspektor, Ebenen, Prüfung, Bereiche, Versionen 7.5) / KI-Helfer · Optionsleiste.
+ * Touch-Bauen (7.6): ui/touchBauen.js hängt sich in die Werkzeuge; Handy-Leiste #handy-leiste (≤ 900 px).
  * Spielcode wird nur GELESEN. Geschrieben wird nur lokal (IndexedDB) bzw. per Download.
  */
 const speicher = new EditorSpeicher();
@@ -80,6 +82,7 @@ const { zeigeHilfe, zeigePalette } = hilfeUi({ befehle, zustand });
 const teile = { befehle, zustand, zeichner };
 const aktionen = erstelleAktionen({ zustand, zeichner, leinwand, teile });
 const werkzeuge = new Werkzeuge({ leinwand, zeichner, zustand, aktionen });
+const touch = new TouchBauen({ werkzeuge, zeichner, zustand, aktionen, flaeche: document.getElementById('flaeche') }); // 7.6
 
 // --- Seitenleisten & Layout ---------------------------------------------------------------
 const links = new Seitenleiste({ wurzel: document.getElementById('links'), zustand });
@@ -106,7 +109,7 @@ leinwand.addEventListener('drop', (e) => {
   e.preventDefault();
   assets.ablegen(id, e);
 });
-Object.assign(teile, { werkzeuge, assets, inspektor: insp, layout, links, rechts, datei, aktionen, schalteAnsicht, zeigeHilfe, zeigePalette, kontextmenue });
+Object.assign(teile, { werkzeuge, touch, assets, inspektor: insp, layout, links, rechts, datei, aktionen, schalteAnsicht, zeigeHilfe, zeigePalette, kontextmenue });
 
 // --- Module der Phasen 6–11 ---------------------------------------------------------------
 prefabUi({ zustand, panel: links, aktionen, layout });
@@ -166,7 +169,7 @@ document.body.addEventListener('click', (e) => {
 });
 /** Aktiv/verfügbar-Zustand aller Befehlsknöpfe nachziehen */
 function aktualisiereKnoepfe() {
-  for (const k of document.querySelectorAll('#schnell [data-befehl], #werkzeuge [data-befehl], #zoom-knoepfe [data-befehl]')) {
+  for (const k of document.querySelectorAll('#schnell [data-befehl], #werkzeuge [data-befehl], #zoom-knoepfe [data-befehl], #handy-leiste [data-befehl]')) {
     k.classList.toggle('aktiv', befehle.aktiv(k.dataset.befehl));
     k.disabled = !befehle.verfuegbar(k.dataset.befehl);
   }
@@ -177,6 +180,11 @@ befehle.bei(aktualisiereKnoepfe);
 function kontextmenue(x, y, ziel) {
   oeffneListe({ x, y }, kontextEintraege(teile, ziel), befehle);
 }
+// Handy-Leiste (7.6): ⋯ = Kontextmenü der Auswahl (wie Rechtsklick/Langdruck)
+document.getElementById('handy-mehr').addEventListener('click', (e) => {
+  const r = e.currentTarget.getBoundingClientRect();
+  kontextmenue(r.left, r.top - 4, { treffer: null });
+});
 
 // --- Tastatur (alles über das Befehlsregister) ----------------------------------------------
 window.addEventListener('keydown', (e) => {
@@ -312,4 +320,4 @@ async function starten() {
 starten();
 
 // Für Konsole & automatische Tests
-window.mapEditor = { zustand, bibliothek, audioBibliothek, zeichner, teile, aktionen, befehle, werkzeuge, layout, links, rechts, assets, datei, oeffneDatei: datei.oeffneDatei, oeffneSpielzone: datei.oeffneSpielzone, markerSchluessel, pruefeMarker, kopiere, dreheVorlage };
+window.mapEditor = { zustand, bibliothek, audioBibliothek, zeichner, teile, aktionen, befehle, werkzeuge, touch, layout, links, rechts, assets, datei, oeffneDatei: datei.oeffneDatei, oeffneSpielzone: datei.oeffneSpielzone, markerSchluessel, pruefeMarker, kopiere, dreheVorlage };

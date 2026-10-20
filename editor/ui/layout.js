@@ -1,7 +1,7 @@
 /**
  * Layout des Editors (Editor 2.0, Schritt 1.3): Seitenleisten links (Assets …), rechts (Inspektor …) und KI ein-/ausklappen,
  * Breite per Griff ziehen, Fokus-Modus (Tab: nur Karte). Auf schmalen Bildschirmen (≤ 900 px) sind die Leisten
- * Schubladen über der Karte – immer nur eine offen. Gemerkt in localStorage `browserSurvival.editorLayout`.
+ * Schubladen über der Karte – immer nur eine offen; geöffnet über die Handy-Leiste unten (#handy-leiste, 7.6). Gemerkt in localStorage `browserSurvival.editorLayout`.
  */
 const SPEICHER = 'browserSurvival.editorLayout';
 const SCHMAL = window.matchMedia('(max-width: 900px)');
@@ -26,9 +26,9 @@ export class Layout {
       for (const l of Object.values(leisten)) l.wurzel.hidden = SCHMAL.matches ? true : l.wurzel.hidden;
       this.#melde();
     });
-    // Handy: Tippen auf die Karte schließt die Schublade
-    document.getElementById('flaeche').addEventListener('pointerdown', () => {
-      if (SCHMAL.matches) for (const l of Object.values(leisten)) l.wurzel.hidden = true;
+    // Handy: Tippen auf die Karte schließt die Schublade (nicht die Handy-Leiste – deren Knöpfe schalten selbst um)
+    document.getElementById('flaeche').addEventListener('pointerdown', (e) => {
+      if (SCHMAL.matches && !e.target.closest('#handy-leiste, .touch-bestaetigen')) for (const l of Object.values(leisten)) l.wurzel.hidden = true;
     });
   }
 
