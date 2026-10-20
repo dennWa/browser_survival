@@ -214,12 +214,14 @@ export const BILD_MODELL = 'gemini-2.5-flash-image';
 export async function frageGeminiBild({ schluessel, modell = BILD_MODELL, prompt, signal = undefined, fetchFn = globalThis.fetch }) {
   if (!schluessel?.trim()) throw new Error('Kein API-Schlüssel hinterlegt (⚙ im Helfer-Reiter).');
   if (!/^[\w.\-]+$/.test(modell)) throw new Error('Ungültiger Modellname');
+  const body = JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { responseModalities: ['TEXT', 'IMAGE'] } });
+  if (schluessel.trim().length >= 8 && body.includes(schluessel.trim())) throw new Error('Sicherheitsstopp: der API-Schlüssel stünde in der Anfrage – nichts gesendet.');
   let antwort;
   try {
     antwort = await fetchFn(`${GEMINI_BASIS}/${modell}:generateContent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': schluessel.trim() },
-      body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { responseModalities: ['TEXT', 'IMAGE'] } }),
+      body,
       signal,
     });
   } catch (e) {

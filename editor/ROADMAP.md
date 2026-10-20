@@ -143,9 +143,14 @@
   moebel|oben|boden, blockiert). Modell-Dialog (öffnet nach dem Upload): „🤖 Vorschlag“ füllt Name/Kategorie/Ordner/Tags/Maße vor;
   Ebene/Kollision gelten beim Anlegen des Typs (`aktionen.verwendeModell`, `pendingTyp`). Tests `tests/modellKi.test.js`.
 
-Offen: 9.9 laut Tabelle unten.
+- 9.9 fertig (2026-10-20): Sicherheitsprüfung `tests/kiSicherheit.test.js` (Backup ohne Gemini/Poly-Pizza-Schlüssel, KI-Aktionen
+  können nichts außerhalb der Whitelist schreiben, kein `?key=` und kein Schlüssel in console-Ausgaben im ganzen `editor/`,
+  Gemini-URL nur in `kern/gemini.js`, Schlüssel-Stopp auch im Bildmodell, Kontextgrenze für alle Aufgaben auch bei 160×120).
+  Editor-Version **2.0** (KI_INDEX §10, Manifest, LIESMICH).
 
-**Nächster Schritt: 9.9 Abschluss** (siehe Tabelle Phase 9).
+**🎉 Editor 2.0 komplett (Phasen 1–9).** Offen ist nur noch der gesammelte Rauchtest für 8.2 (lief grün), 9.1–9.8
+(`npm run rauchtest:editor` – Phase-11-Schritt mockt ```json-Antworten, der Rückweg wird weiter gelesen). Danach: „Später“-Liste
+unten (lokaler Editor-Server) bzw. neue Wünsche.
 
 **Danach:** Phase 9 laut Tabelle unten (KI).
 
@@ -252,7 +257,7 @@ Offen: 9.9 laut Tabelle unten.
 | ☑ 9.6 | **Zonen-Themen:** „Mach diese Zone winterlich“ → gebündelt Bodenfarben, Typ-Texturen, Wetter-Werte, Musik → Vorschau → 1 Undo-Schritt | M |
 | ☑ 9.7 | **Beschriftung:** Namen für Zonen/Räume/Objekte, Release-Notes/Beschreibung aus der Änderungsübersicht (7.5) im Veröffentlichen-Dialog | S |
 | ☑ 9.8 | **Modell → Metadaten:** beim Upload lokal Maße/Dreiecke messen + Vorschaubild an die KI → Vorschlag Name, Kategorie, Größe, Kollisionsbox, Ebene, Tags (im Upload-Dialog vorausgefüllt) | M |
-| ☐ 9.9 | **Abschluss:** Sicherheitsprüfung (Schlüssel nie in Entwurf/Export/Backup/Log, Kontextgrenzen getestet), Version + Doku | S |
+| ☑ 9.9 | **Abschluss:** Sicherheitsprüfung (Schlüssel nie in Entwurf/Export/Backup/Log, Kontextgrenzen getestet), Version + Doku | S |
 
 ---
 

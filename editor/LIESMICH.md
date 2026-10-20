@@ -1,4 +1,4 @@
-# Map-Editor – Anleitung
+# Map-Editor 2.0 – Anleitung
 
 Der Map-Editor baut Zonen (Karten) für Browser Survival – im Browser, ohne Server und ohne Konto.
 Start: im Anmeldebildschirm des Spiels auf **🗺 Map-Editor** (oder direkt `…/editor/`).
