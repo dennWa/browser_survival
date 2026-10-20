@@ -153,6 +153,16 @@ Flackern, Lichtform (Punkt/Kegel). Die 2D-Ansicht zeigt Radius bzw. Kegel. Die P
 - **Platzhalter-Objekt** (Assets → Eigene → „✚ Platzhalter-Objekt anlegen“): Name, Größe, Kollision, Ebene, Kategorie, Farbe,
   3D-Höhe – im Spiel ein farbiger Quader. Für echte Optik: 3D-Modell (nächster Abschnitt).
 
+## Free-Modus (frei drehen und platzieren)
+
+- **Einschalten:** in der Optionsleiste beim Platzieren **„Frei“** – dann rastet nichts mehr auf halbe Kacheln ein, und der
+  **Winkel** steht daneben als Zahl. Ohne „Frei“ bleibt alles wie gewohnt im Raster.
+- **Drehen:** **R** = 15° (ohne Frei: 90°), **Alt + Mausrad** = 5° (mit Umschalt 15°). Gewählte Objekte haben einen
+  **Drehgriff** (Kreis über dem Objekt) – ziehen dreht frei. Im Inspektor steht der Winkel als Zahl (0–359°).
+- **Im Spiel:** 0°, 90°, 180° und 270° verhalten sich genau wie vorher. Schräg gestellte Möbel stoßen auch schräg an
+  (Spieler, Zombies, Schüsse), der Boden darunter ist entsprechend belegt. Die Prüfung meldet Überschneidungen gedreht.
+- **Touch:** Winkel über die Optionsleiste oder den Inspektor eintippen, der Drehgriff geht auch mit dem Finger.
+
 ## 3D-Modelle (Reiter 📦 Modelle)
 
 - **Hochladen:** Dateien in die gestrichelte Fläche ziehen (mehrere auf einmal) oder **📂 Dateien wählen**. Erlaubt sind nur

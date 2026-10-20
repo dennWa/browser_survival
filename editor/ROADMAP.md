@@ -56,10 +56,9 @@
   (Altfehler: eigene Modelle bei 90° hatten vertauschte Maße – behoben), Editor: Optionsleiste „Frei“ + Winkel, R = 15°, Alt+Rad 5°
   (Umschalt 15°), Drehgriff, Inspektor `setzeDrehung`, Platzierungsprüfung gedreht, 2D-Polygon, 3D Rest-Winkel.
   Tests `tests/drehung.test.js`, Rauchtest „Phase 5.5“. Alles grün (npm test 253, rauchtest:editor, rauchtest).
-  ⚠ Doku-Rest offen: LIESMICH-Abschnitt „Free-Modus“ und Manifest-Changelog-Zeile für 5.5 fehlen noch (KI_INDEX ist nachgezogen).
+  Doku komplett (LIESMICH „Free-Modus“, Manifest-Changelog, KI_INDEX).
 
-**Nächster Schritt: Phase 6 – 6.1 Zonen-Manager** (noch nicht begonnen). Vorher: LIESMICH + Manifest für 5.5 nachtragen.
-Arbeit pausiert auf Nutzerwunsch (Limit) – hier weitermachen.
+**Nächster Schritt: Phase 6 – 6.1 Zonen-Manager** (in Arbeit ab 2026-10-20).
 
 **Danach:** Phasen 6–9 laut Tabellen unten (6 Zonen/Loot, 7 UX, 8 Testlauf, 9 KI).
 
