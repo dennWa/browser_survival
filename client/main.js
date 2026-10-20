@@ -12,7 +12,7 @@ import { zeigeCredits } from './ui/credits.js';
 import { Sound } from './audio/sound.js';
 import { ZonenMusik } from './audio/zonenMusik.js';
 import { lokalerServer, setzeTestKarten } from './netzwerk/lokalerServer.js';
-import { ladeEditorTest, zeigeTestBanner } from './ui/editorTest.js';
+import { ladeEditorTest, zeigeTestBanner, istVonAudio, zeigeAudioBanner } from './ui/editorTest.js';
 import { starteDebugLauf } from './debug/debugLauf.js';
 import { AKTIONEN, NACHRICHT } from '../gemeinsam/protokoll.js';
 import { EgoModus } from './ego/egoModus.js'; // EGO-PROTOTYP (siehe EGO_PROTOTYP.md)
@@ -282,6 +282,11 @@ async function starten() {
     anmeldungStarten({ server: SERVER_LISTE.find((s) => s.typ === 'lokal'), benutzername: 'Gast-0001', gast: true });
     // Debug-Testlauf (Map-Editor 8.1): Zeitlupe, Pause, Schritte, Overlays – nur hier, nie online
     window.browserSurvival.debug = starteDebugLauf({ spiel: () => aktuellesSpiel, server: () => lokalerServer(), leinwand });
+    return;
+  }
+  if (istVonAudio() && !fehlerText) {
+    zeigeAudioBanner(document); // Audio-Zentrale ▶ Spiel starten: lokal als Gast, Rückweg im Banner
+    anmeldungStarten({ server: SERVER_LISTE.find((s) => s.typ === 'lokal'), benutzername: 'Gast-0001', gast: true });
     return;
   }
   login.anzeigen(fehlerText);

@@ -364,10 +364,10 @@ export class Sound {
     const eigen = this.#eigeneSchleife('wind');
     if (eigen) {
       const g = ctx.createGain();
-      g.gain.value = 0.5 * pegel;
+      g.gain.value = WIND_EIGEN * pegel;
       eigen.connect(g).connect(this.#atmoBus);
       eigen.start();
-      this.#wind = Object.assign([eigen], { synth: false });
+      this.#wind = Object.assign([eigen], { synth: false, regler: (p) => (g.gain.value = WIND_EIGEN * p) });
       return;
     }
     const quelle = ctx.createBufferSource();
@@ -378,7 +378,7 @@ export class Sound {
     filter.frequency.value = 520;
     filter.Q.value = 0.7;
     const gain = ctx.createGain();
-    gain.gain.value = 0.22 * pegel; // Wind bewusst leise (war 0.55)
+    gain.gain.value = WIND_SYNTH * pegel; // Wind bewusst leise (war 0.55)
     const lfo = ctx.createOscillator(); // Böen: Klangfarbe …
     lfo.frequency.value = 0.09;
     const lfoFilter = ctx.createGain();
@@ -387,17 +387,30 @@ export class Sound {
     const lfo2 = ctx.createOscillator(); // … und Lautstärke schwellen in anderem Takt an und ab
     lfo2.frequency.value = 0.053;
     const lfoGain = ctx.createGain();
-    lfoGain.gain.value = 0.09;
+    lfoGain.gain.value = WIND_BOEN * pegel; // Böen skalieren mit (sonst übertönen sie einen kleinen Pegel)
     lfo2.connect(lfoGain).connect(gain.gain);
     const brummen = ctx.createOscillator();
     brummen.type = 'sine';
     brummen.frequency.value = 49; // Netzbrummen der Notbeleuchtung
     const brummGain = ctx.createGain();
-    brummGain.gain.value = 0.012;
+    brummGain.gain.value = WIND_BRUMM * pegel;
     quelle.connect(filter).connect(gain).connect(this.#atmoBus);
     brummen.connect(brummGain).connect(this.#atmoBus);
     for (const knoten of [quelle, lfo, lfo2, brummen]) knoten.start();
-    this.#wind = Object.assign([quelle, lfo, lfo2, brummen], { synth: true });
+    this.#wind = Object.assign([quelle, lfo, lfo2, brummen], {
+      synth: true,
+      regler: (p) => {
+        gain.gain.value = WIND_SYNTH * p;
+        lfoGain.gain.value = WIND_BOEN * p;
+        brummGain.gain.value = WIND_BRUMM * p;
+      },
+    });
+  }
+
+  /** Pegel eines Ereignisses live ändern (Audio-Zentrale: Regler während des Anhörens); Wind sofort, andere ab dem nächsten Abspielen */
+  setzePegel(name, wert) {
+    this.#eigenePegel[name] = wert;
+    if (name === 'wind') this.#wind?.regler?.(wert);
   }
 
   stoppeAtmosphaere({ ohneRegen = false } = {}) {
@@ -822,6 +835,12 @@ const REZEPTE = {
     return 0.6;
   },
 };
+
+/** Wind-Grundlautstärken (bei Pegel 100 %): eigene Datei, Synthese, Böen-Schwellen, Brummen */
+const WIND_EIGEN = 0.25;
+const WIND_SYNTH = 0.12;
+const WIND_BOEN = 0.05;
+const WIND_BRUMM = 0.008;
 
 /** Schleifen ohne Rezept (laufen über eigene Methoden: starteAtmosphaere, regen, nacht, motor) */
 const SCHLEIFEN_SYNTH = new Set(['wind', 'regen', 'nacht', 'motor']);

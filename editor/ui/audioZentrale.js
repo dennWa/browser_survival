@@ -86,6 +86,7 @@ class AudioZentrale {
         <input type="search" class="az-suche" placeholder="Suchen … (Name, Ereignis, Datei)" aria-label="Sounds suchen">
         <select class="az-filter" aria-label="Filter">${Object.entries(FILTER).map(([k, t]) => `<option value="${k}">${esc(t)}</option>`).join('')}</select>
         <span class="fueller"></span>
+        <button type="button" data-a="spielStart" class="akzent" title="Spiel starten (lokal, Gast) – mit ⟵-Knopf im Spiel kommst du zurück hierher">▶ Spiel starten</button>
         <button type="button" data-a="zu" title="Schließen (Esc)">✕ Schließen</button>
       </header>
       <nav class="az-gruppen" aria-label="Gruppen"></nav>
@@ -100,6 +101,11 @@ class AudioZentrale {
     this.elGruppen = el.querySelector('.az-gruppen');
     this.elDatei = el.querySelector('.az-datei');
     el.querySelector('[data-a=zu]').addEventListener('click', () => this.schliesse());
+    el.querySelector('[data-a=spielStart]').addEventListener('click', async () => {
+      this.stoppe();
+      await this.zustand.speichereAlle?.();
+      location.href = new URL('../client/?vonAudio=1', location.href).href;
+    });
     const suche = el.querySelector('.az-suche');
     suche.addEventListener('input', () => {
       this.suche = suche.value;
@@ -416,7 +422,12 @@ class AudioZentrale {
     knopf('runter', (i) => this.#verschiebeTitel(e, Number.isNaN(i) ? e.position : i, 1));
     knopf('titelWeg', (i) => this.#titelEntfernen(e, Number.isNaN(i) ? e.position : i));
     knopf('ordner', () => this.waehle(`musikOrdner:${e.ordner}`));
-    for (const r of d.querySelectorAll('.az-regler input')) r.addEventListener('input', () => (r.nextElementSibling.textContent = `${r.value} %`));
+    for (const r of d.querySelectorAll('.az-regler input')) {
+      r.addEventListener('input', () => {
+        r.nextElementSibling.textContent = `${r.value} %`;
+        if (r.dataset.f === 'pegel') this.#pegelLive(e, Number(r.value) / 100);
+      });
+    }
     d.querySelector('[data-f=reihe]')?.addEventListener('change', (ev) => this.#setzeReihe(e, ev.target.checked));
     const ablage = d.querySelector('.az-ablage');
     if (ablage) {
@@ -510,10 +521,22 @@ class AudioZentrale {
     try {
       const puffer = await this.#puffer(pfad);
       const s = e?.streuung ?? 0;
-      this.#spielePuffer(puffer, { pegel: e?.pegel ?? 1, rate: 1 + (Math.random() * 2 - 1) * s, loop: !!e?.loop, marke });
+      this.#spielePuffer(puffer, { pegel: this.#reglerPegel(e), rate: 1 + (Math.random() * 2 - 1) * s, loop: !!e?.loop, marke });
     } catch (fehler) {
       this.zustand.meldung(`Abspielen nicht möglich: ${fehler.message}`, 'fehler');
     }
+  }
+
+  /** Pegel wie am Regler eingestellt (auch ungespeichert), sonst der gespeicherte */
+  #reglerPegel(e) {
+    const r = e && this.elDetail?.querySelector('[data-f=pegel]');
+    return r ? Number(r.value) / 100 : e?.pegel ?? 1;
+  }
+
+  /** Regler bewegt → laufenden Ton sofort anpassen */
+  #pegelLive(e, wert) {
+    if (this.stimme) this.stimme.g.gain.setTargetAtTime(Math.min(3, wert) * 0.8, this.stimme.q.context.currentTime, 0.02);
+    this.synth?.setzePegel(e.ereignis, wert);
   }
 
   /** Eintrag anhören: Datei (zufällige Variante) oder Synthese wie im Spiel */
@@ -528,7 +551,8 @@ class AudioZentrale {
     const s = this.synth;
     s.entsperren();
     const n = e.ereignis;
-    const pegel = e.pegel;
+    const pegel = this.#reglerPegel(e);
+    s.setzePegel(n, pegel);
     if (n === 'wind') s.starteAtmosphaere();
     else if (n === 'regen') s.regen(1);
     else if (n === 'nacht') s.nacht(1);
@@ -940,8 +964,14 @@ class AudioZentrale {
     if (!(await this.#nurLokal())) return;
     try {
       await schreibeDatei('client/audio/eigene/einstellungen.json', setzeSoundEinstellung(this.daten.einstellungen, e.ereignis, { lautstaerke: pegel, streuung }));
-      this.zustand.meldung(`✓ ${e.name}: Pegel ${prozent(pegel)}${streuung ? `, Streuung ±${Math.round(streuung * 100)} %` : ''} gespeichert`, 'ok');
+      this.zustand.meldung(`✓ Übernommen – ${e.name}: Pegel ${prozent(pegel)}${streuung ? `, Streuung ±${Math.round(streuung * 100)} %` : ''} (im Spiel nach Neuladen aktiv)`, 'ok');
       await this.neuLaden();
+      const knopf = this.elDetail.querySelector('[data-a=einstellungen]');
+      if (knopf) {
+        const alt = knopf.textContent;
+        knopf.textContent = '✓ Übernommen';
+        setTimeout(() => knopf.isConnected && (knopf.textContent = alt), 2500);
+      }
     } catch (f) {
       this.zustand.meldung(`Speichern fehlgeschlagen: ${f.message}`, 'fehler');
     }
