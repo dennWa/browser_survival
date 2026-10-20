@@ -128,6 +128,11 @@ export function meldeBefehleAn(befehle, t) {
     { id: 'ki.helfer', name: 'KI-Helfer (Gemini-Chat)', kurz: 'Helfer', symbol: '🤖', gruppe: 'KI', kuerzel: ['Strg+J'], aktiv: () => t.layout.sichtbar('ki'), ausfuehren: () => t.layout.umschalten('ki') },
     { id: 'ki.ausschnitt', name: 'Ausschnitt für KI…', kurz: 'KI-Ausschnitt', symbol: '🤖', gruppe: 'KI', verfuegbar: karte, ausfuehren: () => a.ausschnittExport?.() },
     { id: 'ki.import', name: 'KI-Antwort importieren (mit Vorschau)…', symbol: '📥', gruppe: 'KI', verfuegbar: karte, ausfuehren: () => a.kiImport?.() },
+    { id: 'ki.textZuKarte', name: 'Text zu Karte…', kurz: 'Text→Karte', symbol: '🗺', gruppe: 'KI', verfuegbar: karte, ausfuehren: () => a.textZuKarte?.() },
+    { id: 'ki.luecken', name: 'Lückenfinder (lokal + KI)…', kurz: 'Lücken', symbol: '🔎', gruppe: 'KI', verfuegbar: karte, ausfuehren: () => a.lueckenfinder?.() },
+    { id: 'ki.lootBalance', name: 'Loot-Balance prüfen (KI)…', symbol: '⚖', gruppe: 'KI', verfuegbar: karte, ausfuehren: () => a.lootBalance?.() },
+    { id: 'ki.thema', name: 'Zonen-Thema (KI)…', symbol: '🎨', gruppe: 'KI', verfuegbar: karte, ausfuehren: () => a.zonenThema?.() },
+    { id: 'ki.beschriftung', name: 'Namen vorschlagen (KI)…', symbol: '🏷', gruppe: 'KI', verfuegbar: karte, ausfuehren: () => a.beschriftung?.() },
 
     // --- Hilfe --------------------------------------------------------------------
     { id: 'hilfe.kuerzel', name: 'Tastenkürzel & Befehle (anpassen)', symbol: '⌨', gruppe: 'Hilfe', kuerzel: ['?', 'F1'], ausfuehren: () => t.zeigeHilfe() },
@@ -164,7 +169,7 @@ export function menues(t) {
     { titel: 'Einfügen', eintraege: () => einfuegenEintraege(t) },
     { titel: 'Werkzeuge', eintraege: WERKZEUGLEISTE.filter((x) => x !== '-').concat(['-', 'werkzeug.kleiner', 'werkzeug.groesser']) },
     { titel: 'Zone', eintraege: ['zone.einstellungen', 'zone.groesse', '-', 'zone.uebersicht', 'zone.vorschlaege', 'zone.raeume', 'zone.prefabs', '-', 'zone.pruefung', 'zone.autoFix', 'zone.testen'] },
-    { titel: 'KI', eintraege: ['ki.helfer', 'ki.ausschnitt', 'ki.import'] },
+    { titel: 'KI', eintraege: ['ki.helfer', '-', 'ki.textZuKarte', 'ki.luecken', 'ki.lootBalance', 'ki.thema', 'ki.beschriftung', '-', 'ki.ausschnitt', 'ki.import'] },
     { titel: 'Hilfe', eintraege: ['hilfe.palette', 'hilfe.kuerzel', 'hilfe.anleitung'] },
   ];
 }

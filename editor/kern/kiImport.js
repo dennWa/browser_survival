@@ -43,6 +43,7 @@ const SYNONYME = {
   lootzone: 'lootzone', lootzonen: 'lootzone',
   name: 'name', benenne: 'name', umbenennen: 'name',
   prefab: 'prefab', vorlage: 'prefab',
+  bodenton: 'bodenton', bodenfarbe: 'bodenton',
 };
 /** Leerer Bereich: jede Aktion mit Ort ist darin ungültig */
 const KEIN_BEREICH = Object.freeze({ x0: 0, y0: 0, x1: -1, y1: -1 });
@@ -53,7 +54,7 @@ export function istZonenweit(a) {
     const ziel = a.ziel ?? (a.buchstabe ? 'raum' : a.id !== undefined ? 'objekt' : 'zone');
     return ziel === 'zone' || ziel === 'raum';
   }
-  return ['wert', 'raum', 'typtextur'].includes(art);
+  return ['wert', 'raum', 'typtextur', 'bodenton'].includes(art);
 }
 /** Felder, die eine KI an Objekten setzen darf */
 const OBJEKT_FELDER = new Set(['typ', 'x', 'y', 'b', 'h', 'blockiert', 'ebene', 'drehung', 'name', 'groesse', 'radius', 'farbe', 'staerke', 'flackern', 'mast', 'textur', 'art', 'richtung', 'oeffnung']);
@@ -198,7 +199,7 @@ export function pruefeAenderungen(karte, { aktionen, meta = {}, warnungen = [] }
     };
     if (!a || typeof a !== 'object' || Array.isArray(a)) return ungueltig('keine Aktion (Objekt erwartet)');
     const art = SYNONYME[String(a.aktion ?? (a.typ ? 'setze' : '')).toLowerCase()];
-    if (!art) return ungueltig(`unbekannte Aktion „${a.aktion}“ (erlaubt: setze, entferne, aendere, kachel, linie, marker, bauwerk, raum, hoehe, typtextur, bemale, wert, lootzone, name, prefab)`);
+    if (!art) return ungueltig(`unbekannte Aktion „${a.aktion}“ (erlaubt: setze, entferne, aendere, kachel, linie, marker, bauwerk, raum, hoehe, typtextur, bemale, bodenton, wert, lootzone, name, prefab)`);
 
     if (art === 'setze') {
       if (typeof a.typ !== 'string') return ungueltig('Feld "typ" fehlt');
@@ -345,6 +346,18 @@ export function pruefeAenderungen(karte, { aktionen, meta = {}, warnungen = [] }
       const ops = [];
       for (let y = a.y; y < a.y + hh; y++) for (let x = a.x; x < a.x + bb; x++) ops.push({ s: 'bemalung', k: markerSchluessel(x, y), neu: weg ? null : a.farbe.toLowerCase() });
       return fertig('aendern', `🖌 ${bb}×${hh} Bodenfarbe ${weg ? 'entfernt' : a.farbe} ab ${a.x}|${a.y}`, ops, a.x, a.y, { kacheln: ops.map((o) => { const [x, y] = o.k.split(',').map(Number); return { x, y }; }) });
+    }
+
+    if (art === 'bodenton') {
+      // Zonen-Thema (9.6): alle Kacheln eines Zeichens in der ganzen Zone einfärben (Bemalung); farbe null = entfernen
+      const zeichen = kachelZeichen(a.zeichen ?? a.kachel);
+      if (!zeichen) return ungueltig(`bodenton: unbekannte Kachel „${a.zeichen ?? a.kachel}“`);
+      const weg = a.farbe === null || a.farbe === '' || a.farbe === undefined;
+      if (!weg && !FARBE_HEX.test(a.farbe)) return ungueltig(`bodenton: Farbe „${a.farbe}“ ist kein #rrggbb`);
+      const ops = [];
+      for (let i = 0; i < sim.zellen.length; i++) if (sim.zellen[i] === zeichen) ops.push({ s: 'bemalung', k: markerSchluessel(i % sim.breite, Math.floor(i / sim.breite)), neu: weg ? null : a.farbe.toLowerCase() });
+      if (!ops.length) return ungueltig(`bodenton: keine Kachel „${zeichen}“ in der Zone`);
+      return fertig('aendern', `🖌 Bodenton ${KACHELN[zeichen].name} „${zeichen}“ → ${weg ? 'ohne Farbe' : a.farbe} (${ops.length} Kacheln)`, ops, null, null);
     }
 
     if (art === 'wert') {

@@ -129,9 +129,18 @@
   Bereich (`istZonenweit`). Helfer: „👁 Das wird gesendet“. Tests `tests/kiFundament.test.js`. ⚠ Rauchtest für 9.1 noch offen
   (gesammelt am Ende; Phase-11-Schritt mockt noch ```json-Antworten – Rückweg wird weiter gelesen).
 
-Offen: 9.2–9.9 laut Tabelle unten.
+- 9.2–9.7 fertig (2026-10-20): `editor/ui/kiAufgaben.js` (alle über `kiPipeline`: „Das wird gesendet“-Dialog → Senden →
+  Antwort-Dialog → 🔍 Vorschau = `kiUi.pruefeText` mit Geistern auf der Karte → Übernehmen 1 Undo-Schritt). KI_AUFGABEN
+  textZuKarte, luecken, fehler, lootBalance, thema, beschriftung (je Systemtext-Zusatz; `extra`-Bausteine; `rahmenUm`).
+  9.2 Text zu Karte (Menü KI, markierter Bereich oder neue leere Zone ≤ 50×50, Prefabs als Bausteine). 9.3 `kern/lueckenfinder.js`
+  (Sackgassen, Haus ohne Eingang, Raum/Zone ohne Loot, Spawn in Sichtweite mit `sichtlinieFrei`, Unerreichbares) → Liste +
+  Markierungen → 🤖. 9.4 🤖 je Prüfungseintrag (Kontext ±6 Kacheln). 9.5 Loot-Balance (nur Zahlen, Aktionen wert/raum).
+  9.6 Zonen-Thema + neue zonenweite Aktion `bodenton`. 9.7 Namen vorschlagen + 🤖 Release-Notes im Veröffentlichen-Dialog
+  (ohne eigenen Bestätigungsdialog, Hinweis daneben). Tests `tests/kiAufgaben.test.js`. Echte Gemini-API ungetestet (kein Schlüssel).
 
-**Nächster Schritt: 9.2 Text zu Karte** (siehe Tabelle Phase 9).
+Offen: 9.8, 9.9 laut Tabelle unten.
+
+**Nächster Schritt: 9.8 Modell → Metadaten** (siehe Tabelle Phase 9).
 
 **Danach:** Phase 9 laut Tabelle unten (KI).
 
@@ -231,12 +240,12 @@ Offen: 9.2–9.9 laut Tabelle unten.
 | # | Schritt | Größe |
 |---|---|---|
 | ☑ 9.1 | **KI-Fundament:** zentrale Pipeline „KI-Vorschlag → Vorschau → 1 Undo-Schritt“ für **alle** KI-Funktionen; Kontext-Baukasten je Aufgabe (nur markierter Bereich/Auswahl/Statistik, **nie die ganze Karte**, nie der Schlüssel), Anzeige „Das wird gesendet“, strukturierte JSON-Antworten; neue Aktionen `wert` (Zonen-Werte inkl. Wetter, Whitelist), `lootzone`, `name`, `prefab` | M |
-| ☐ 9.2 | **Text zu Karte:** Prompt → Aktionsliste (nutzt Prefabs als Bausteine) → Geister-Vorschau auf der Karte → Übernehmen/Verwerfen (neue Zone oder markierter Bereich) | L |
-| ☐ 9.3 | **Lückenfinder:** erst lokal berechnet (Sackgassen, Häuser ohne Eingang, Zonen/Räume ohne Loot, Spawns in Sichtweite des Starts – mit der Spiel-Sichtlinie), dann erklärt/priorisiert die KI und schlägt Korrekturen als Aktionsliste vor | M |
-| ☐ 9.4 | **KI-Fehlerbehebung:** je Prüfungsfehler „🤖 Erklären“ → ein verständlicher Satz + Korrektur als Aktionsliste (nur die Umgebung des Fehlers als Kontext) | S |
-| ☐ 9.5 | **Loot-Balance:** Loot-Tabellen/Dichte gegen Schwierigkeit (Zombie-Dichte, Horde, Tempo) → Vorschlagswerte als Tabelle → Übernehmen | M |
-| ☐ 9.6 | **Zonen-Themen:** „Mach diese Zone winterlich“ → gebündelt Bodenfarben, Typ-Texturen, Wetter-Werte, Musik → Vorschau → 1 Undo-Schritt | M |
-| ☐ 9.7 | **Beschriftung:** Namen für Zonen/Räume/Objekte, Release-Notes/Beschreibung aus der Änderungsübersicht (7.5) im Veröffentlichen-Dialog | S |
+| ☑ 9.2 | **Text zu Karte:** Prompt → Aktionsliste (nutzt Prefabs als Bausteine) → Geister-Vorschau auf der Karte → Übernehmen/Verwerfen (neue Zone oder markierter Bereich) | L |
+| ☑ 9.3 | **Lückenfinder:** erst lokal berechnet (Sackgassen, Häuser ohne Eingang, Zonen/Räume ohne Loot, Spawns in Sichtweite des Starts – mit der Spiel-Sichtlinie), dann erklärt/priorisiert die KI und schlägt Korrekturen als Aktionsliste vor | M |
+| ☑ 9.4 | **KI-Fehlerbehebung:** je Prüfungsfehler „🤖 Erklären“ → ein verständlicher Satz + Korrektur als Aktionsliste (nur die Umgebung des Fehlers als Kontext) | S |
+| ☑ 9.5 | **Loot-Balance:** Loot-Tabellen/Dichte gegen Schwierigkeit (Zombie-Dichte, Horde, Tempo) → Vorschlagswerte als Tabelle → Übernehmen | M |
+| ☑ 9.6 | **Zonen-Themen:** „Mach diese Zone winterlich“ → gebündelt Bodenfarben, Typ-Texturen, Wetter-Werte, Musik → Vorschau → 1 Undo-Schritt | M |
+| ☑ 9.7 | **Beschriftung:** Namen für Zonen/Räume/Objekte, Release-Notes/Beschreibung aus der Änderungsübersicht (7.5) im Veröffentlichen-Dialog | S |
 | ☐ 9.8 | **Modell → Metadaten:** beim Upload lokal Maße/Dreiecke messen + Vorschaubild an die KI → Vorschlag Name, Kategorie, Größe, Kollisionsbox, Ebene, Tags (im Upload-Dialog vorausgefüllt) | M |
 | ☐ 9.9 | **Abschluss:** Sicherheitsprüfung (Schlüssel nie in Entwurf/Export/Backup/Log, Kontextgrenzen getestet), Version + Doku | S |
 

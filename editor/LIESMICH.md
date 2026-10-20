@@ -356,6 +356,18 @@ Trackpad: zwei Finger = schwenken, Pinch = zoomen.
 
 ## 🤖 KI-Helfer (Gemini)
 
+**KI-Werkzeuge (Menü KI, gleicher Schlüssel wie der Helfer):** Vor jedem Senden zeigt ein Dialog, **was gesendet wird**;
+Vorschläge landen immer erst als **Vorschau** (Geister auf der Karte), Übernehmen ist ein Undo-Schritt.
+- **🗺 Text zu Karte:** beschreiben, was entstehen soll – im markierten Bereich oder in einer neuen leeren Zone (bis 50 × 50).
+  Die KI baut mit Prefabs, Wegen, Natur, Spawns und Loot-Zonen.
+- **🔎 Lückenfinder:** erst lokal (Sackgassen, Häuser ohne Eingang, Räume/Zone ohne Loot, Zombie-Spawns in Sichtweite des Starts,
+  Unerreichbares) – orange auf der Karte; **🤖 Erklären & Korrekturen** lässt die KI priorisieren und Fixes vorschlagen.
+- **🤖 im Reiter Prüfung:** je Fehler ein verständlicher Satz + Korrektur (gesendet wird nur die Umgebung des Fehlers).
+- **⚖ Loot-Balance:** Loot gegen Schwierigkeit – Tabelle + Vorschlagswerte (Zonen-Werte, Raum-Chancen).
+- **🎨 Zonen-Thema:** „winterlich“, „verregneter Herbst“ … → Bodentöne, Typ-Farben, Wetter, Musik-Ordner auf einmal.
+- **🏷 Namen vorschlagen** für unbenannte Räume, Objekte, Übergänge, Loot-Zonen; im **🚀 Veröffentlichen**-Dialog schreibt
+  **🤖 Release-Notes** eine kurze Beschreibung aus der Änderungsübersicht.
+
 Ein Chat an deiner Seite: Zone markieren (⬚), Wunsch schreiben, die KI schlägt Änderungen vor – **übernommen wird erst nach deiner Vorschau**.
 
 1. **Schlüssel:** kostenlos auf <https://aistudio.google.com/apikey>. Im Editor **🤖 Helfer** → ⚙ → Schlüssel einfügen (Modell Standard `gemini-2.5-flash`, `gemini-2.5-pro` ist schlauer, aber langsamer/teurer).

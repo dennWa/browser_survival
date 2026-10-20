@@ -166,8 +166,17 @@ export function dateiAktionen({ zustand, zeichner, werkzeuge, aktionen, rechts, 
           <ol><li><b>Empfohlen:</b> <code>${esc(k.id)}.karte.json</code> herunterladen und im Repo <code>npm run karte:editor -- ${esc(k.id)}.karte.json</code> ausführen → schreibt <code>server/spiel/karten/${esc(v.dateiname)}</code>${neu ? ' und trägt die Zone in KARTEN ein' : ''}.</li>
           <li>Von Hand: <code>${esc(v.dateiname)}</code> nach <code>server/spiel/karten/</code> legen${neu ? `; in <code>kartenLader.js</code> ergänzen:<pre>${esc(v.importZeile)}\n…\nexport const KARTEN = Object.freeze({\n…\n${esc(v.kartenZeile)}\n});</pre>` : ' (Zone ist schon in KARTEN eingetragen).'}</li></ol>
           ${aenderungen}
+          ${seit?.zeilen.length ? '<p><button type="button" data-a="notes">🤖 Release-Notes schreiben</button> <span class="leise">sendet nur die Änderungszeilen + Zonen-Statistik an Gemini</span></p><textarea class="release-notes" hidden rows="5" readonly></textarea>' : ''}
           <p>Danach <code>npm test</code>. ${probleme.length ? `<br>⚠ ${probleme.length} Warnungen (siehe Prüfung).` : ''}</p>`,
         knoepfe: [{ text: 'Schließen', wert: null }, { text: `${v.dateiname} laden`, wert: 'js' }, { text: `${k.id}.karte.json laden`, wert: 'json', art: 'akzent' }],
+        // 9.7: Release-Notes aus der Änderungsübersicht (KI, nur Text – zum Kopieren in Commit/Beschreibung)
+        beiOeffnen: (b) => b.querySelector('[data-a=notes]')?.addEventListener('click', async (e) => {
+          e.target.disabled = true;
+          const text = await aktionen.releaseNotes?.(seit.zeilen);
+          const feld = b.querySelector('.release-notes');
+          if (text && feld) Object.assign(feld, { hidden: false, value: text });
+          e.target.disabled = false;
+        }),
       });
       if (w) await aktionen.versionAuto?.('veroeffentlichen');
       if (w === 'js') herunterladen(v.dateiname, v.quelltext, 'text/javascript');

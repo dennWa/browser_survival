@@ -27,6 +27,7 @@ import { raeumeUi } from './ui/raeumeUi.js';
 import { zonenUi } from './ui/zonenUi.js';
 import { kiUi } from './ui/kiUi.js';
 import { geminiUi } from './ui/geminiUi.js';
+import { kiAufgabenUi } from './ui/kiAufgaben.js';
 import { testUi } from './ui/testUi.js';
 import { eigeneUi } from './ui/eigeneUi.js';
 import { Bibliothek, AUDIO } from './ui/bibliothek.js';
@@ -117,6 +118,7 @@ zonenUi({ zustand, panel: links, aktionen, befehle, layout, zeichner, projektZon
 raeumeUi({ zustand, panel: links, aktionen, zeigeInspektor: () => layout.zeigeReiter('rechts', 'Inspektor') });
 const ki = kiUi({ zustand, panel: rechts, aktionen, layout, zeichner });
 geminiUi({ zustand, panel: kiLeiste, aktionen, pruefeText: ki.pruefeText });
+kiAufgabenUi({ zustand, aktionen, zeichner, pruefeText: ki.pruefeText, layout }); // Phase 9: Text zu Karte, Lückenfinder, Fehler erklären …
 const test = testUi({ zustand, aktionen, layout, projektZonen: datei.projektZonen });
 eigeneUi({ zustand, aktionen });
 if (webglVerfuegbar()) {

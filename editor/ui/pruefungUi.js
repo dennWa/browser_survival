@@ -73,6 +73,17 @@ export function pruefungUi({ zustand, leiste, aktionen, zeichner }) {
           });
           li.append(' ', k);
         }
+        // 9.4: 🤖 Erklären – ein Satz + Korrektur, Kontext nur die Umgebung des Fehlers
+        const ki = document.createElement('button');
+        ki.type = 'button';
+        ki.className = 'auto-fix';
+        ki.title = 'KI erklärt den Fehler und schlägt eine Korrektur vor';
+        ki.textContent = '🤖';
+        ki.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          aktionen.fehlerErklaeren?.(e);
+        });
+        li.append(' ', ki);
         ul.append(li);
       }
       el.append(ul);

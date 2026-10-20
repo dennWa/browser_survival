@@ -34,6 +34,7 @@ export const AKTIONEN_ANLEITUNG = [
   '{"aktion":"wert","pfad":"wetter.regenAnteil","wert":0.8}  – Zonen-Wert (wetter.*, zombie.*, tiere.*, loot.* wie im Inspektor, oder "musik"); "wert":null = Standard',
   '{"aktion":"lootzone","x":20,"y":10,"b":5,"h":4,"name":"Lager","modus":"chance","items":[{"id":"konserve","chance":30,"menge":[1,2]}],"punkte":4,"ort":"innen"}  – Loot-Zone (oder "tabelle":"lager" als Startliste)',
   '{"aktion":"name","ziel":"raum","buchstabe":"a","name":"Scheune"}  – Namen für zone | raum | objekt/uebergang/lootzone (mit "id")',
+  '{"aktion":"bodenton","zeichen":",","farbe":"#e8eef2"}  – ALLE Kacheln dieses Zeichens in der Zone einfärben (Thema, z. B. Schnee); null = entfernen',
   '{"aktion":"prefab","name":"Wohnhaus","x":20,"y":10}  – Prefab einsetzen (linke obere Ecke); Namen siehe "prefabs" im Kontext',
   'Zombies nur draußen (nicht auf Innenböden . : +). Türen T nicht zustellen. Jede Aktion wird vor dem Übernehmen geprüft und als Vorschau gezeigt.',
 ];
