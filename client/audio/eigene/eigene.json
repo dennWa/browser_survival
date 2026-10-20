@@ -1,1 +1,29 @@
-{}
+{
+  "hack_holz": {
+    "dateien": [
+      "hack_holz.ogg"
+    ],
+    "lautstaerke": 1
+  },
+  "nachladen": {
+    "dateien": [
+      "nachladen.ogg"
+    ],
+    "lautstaerke": 1
+  },
+  "regen": {
+    "dateien": [
+      "regen.ogg"
+    ],
+    "lautstaerke": 2
+  },
+  "wind": {
+    "dateien": [],
+    "lautstaerke": 0.05
+  },
+  "hase_flucht": {
+    "dateien": [],
+    "lautstaerke": 1,
+    "streuung": 0.06
+  }
+}

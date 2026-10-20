@@ -1,0 +1,11 @@
+{
+  "regen": {
+    "lautstaerke": 2
+  },
+  "wind": {
+    "lautstaerke": 0.05
+  },
+  "hase_flucht": {
+    "streuung": 0.06
+  }
+}
