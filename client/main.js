@@ -188,6 +188,7 @@ async function anmeldungStarten({ server, adresse, benutzername, passwort, gast 
  * Auch beim Zonenwechsel (zone = Name der neuen Zone, seq = Eingabe-Zähler der alten Sitzung).
  */
 async function spielStarten(verbindung, anmeldeDaten, benutzername, { zone = null, seq = 0 } = {}) {
+  const nahtlos = anmeldeDaten.nahtlos === true; // Nachbarkarte war schon da: kein Ladebildschirm, kein Aufwärmen
   const vorab = []; // Nachrichten, die während des Ladens ankommen, gehen nicht verloren
   const vorabAbmelden = verbindung.beiNachricht((n) => vorab.push(n));
   let getrennt = null;
@@ -201,11 +202,15 @@ async function spielStarten(verbindung, anmeldeDaten, benutzername, { zone = nul
     renderer.verbergen();
     login.anzeigen(grund === 'Abgemeldet' ? '' : grund);
   };
-  eingabe.aktiv = false;
-  zeigeLaden(zone ? `Unterwegs nach ${zone} …` : 'Welt wird aufgebaut …', 70);
+  if (!nahtlos) {
+    eingabe.aktiv = false;
+    zeigeLaden(zone ? `Unterwegs nach ${zone} …` : 'Welt wird aufgebaut …', 70);
+  }
   login.verbergen();
-  await naechsterFrame();
-  await naechsterFrame();
+  if (!nahtlos) {
+    await naechsterFrame();
+    await naechsterFrame();
+  }
   vorabAbmelden();
   trennAbmelden();
   if (getrennt) return zurueckZumLogin(getrennt);
@@ -232,6 +237,10 @@ async function spielStarten(verbindung, anmeldeDaten, benutzername, { zone = nul
   });
   if (spiel.beendet) return; // während des Nachholens schon weitergezogen
   aktuellesSpiel = spiel;
+  if (nahtlos) {
+    eingabe.aktiv = true;
+    return;
+  }
   zeigeLaden(zone ? `${zone} …` : 'Grafik wärmt auf …', 90);
   await renderer.warteBisRuhig();
   if (aktuellesSpiel !== spiel) return;

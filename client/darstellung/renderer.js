@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { FBXLoader, SkeletonUtils } from '../vendor/three/addons.js';
+import { Welt } from '../../gemeinsam/welt/welt.js';
 import { KartenModell, TUER_EBENE, TUER_SCHIMMER_WEITE } from './kartenModell.js';
 import { Himmel } from './himmel.js';
 import { strahlGegenWaende } from '../../gemeinsam/physik/strahl.js';
@@ -101,6 +102,10 @@ export const GRAFIK_PROFILE = Object.freeze({
 const GRAFIK_SCHLUESSEL = 'browserSurvival.grafik';
 const ADAPTIV_MAX_STUFE = 4; // im Profil "hoch" wird höchstens bis hier gespart (Schatten, Baum-Details) – Auflösung bleibt
 const AUFWAERM_MS = 6000; // so lange nach dem Betreten nicht messen (Shader, Texturen, erste Frames)
+const NACHBAR_BAU_WEITE = 1500; // px: so nah an der Nachbarkarte wird sie (unsichtbar weit hinten) gebaut
+const NACHBAR_FREI_WEITE = 2400; // px: weiter weg wird sie wieder freigegeben
+const NACHBAR_BUDGET_MS = 5; // so viel Rechenzeit pro Bild für den Aufbau einer Nachbarkarte
+const NACHBAR_TIEFE = -0.8; // Nachbarkarte liegt knapp unter dem Boden der aktiven Karte
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 1.35; // weiter raus geht nicht (Nutzer: war zu weit) – gilt auch als Sichtweite der Ich-Ansicht
 /** Ich-Ansicht sieht nicht weiter als die Draufsicht beim weitesten Rauszoomen: Halbbreite des Bildes am Boden (1 = Halbbreite, 2 = ganzer Durchmesser) */
@@ -115,6 +120,7 @@ const HIMMEL_DUNST = 0.12; // so breit (Kameraabstände) verblasst die Welt vor 
 const REGEN_ZENIT = new THREE.Color(0x3c4048);
 const REGEN_WOLKEN = new THREE.Color(0x62666e);
 
+const _einheit = new THREE.Matrix4();
 const _ziel = new THREE.Vector3();
 const _kameraZiel = new THREE.Vector3();
 
@@ -209,6 +215,7 @@ export class Renderer {
     this.muendungslichter = Array.from({ length: MUENDUNGS_LICHTER }, () => this.#neuesPunktlicht(0xffc070, 380));
     this.#baueEffektObjekte();
     this.fussspuren = new Fussspuren(this.szene);
+    this.nachbarn = []; // Nachbarzonen mit nahtlosem Übergang: { id, versatz, daten|welt, modell|null }
     this.fallendeBaeume = []; // { gruppe, achse, zeit }
     this.fallendeLaternen = []; // { gruppe, achse, zeit } – von Autos umgefahrene Straßenlaternen
     this.bauwerke = new Map(); // Bauwerk-ID → { gruppe, aktualisiere, typ }
@@ -304,9 +311,12 @@ export class Renderer {
   }
 
   /** Baut die statische Szene aus der Welt und kompiliert alle Shader vor (dauert kurz, danach ruckelfrei). */
-  setzeWelt(welt) {
+  setzeWelt(welt, nahtlos = false) {
+    const alteWelt = this.welt;
     this.welt = welt;
-    if (this.karte) {
+    // Nahtloser Zonenwechsel: die schon gebaute Nachbarkarte wird zur aktuellen (kein Neuaufbau, kein Ladebildschirm)
+    const uebernahme = nahtlos && this.karte ? this.nachbarn.find((n) => n.modell && n.id === welt.id) : null;
+    if (this.karte && !uebernahme) {
       // Zonenwechsel/Neu-Login: alte Karte raus und ihre Geometrie freigeben (Grafikspeicher; geteilte
       // Geometrie lädt three.js bei Bedarf einfach neu hoch – Materialien/Texturen bleiben)
       this.szene.remove(this.karte.statisch, this.karte.beweglich);
@@ -340,22 +350,117 @@ export class Renderer {
     this.zeigeVorschau(null);
     this.blaetter?.entfernen();
     this.blaetter = new BlaetterEffekt(this.szene, welt);
-    this.karte = new KartenModell({
-      welt,
-      assets: this.assets,
-      gl: this.gl,
-      mitSchnitt: (m) => this.#mitSchnitt(m),
-      bodenMassstab: this.#bodenMassstab(),
-    });
+    if (uebernahme) {
+      const altKarte = this.karte;
+      const v = uebernahme.versatz;
+      this.nachbarn = this.nachbarn.filter((n) => n !== uebernahme);
+      this.#entferneNachbarn();
+      this.karte = uebernahme.modell;
+      this.karte.uebernimmWelt(welt);
+      this.karte.setzeAlsNachbar(false);
+      this.#setzeVersatz(this.karte, 0, 0);
+      // alte Zone bleibt als Nachbar sichtbar (in den Koordinaten der neuen Zone), Kamera wandert mit der Spielerposition
+      this.nachbarn = [{ id: alteWelt.id, welt: alteWelt, versatz: { x: -v.x, y: -v.y }, modell: altKarte, daten: null }];
+      altKarte.setzeAlsNachbar(true);
+      this.#setzeVersatz(altKarte, -v.x, -v.y);
+      this.kamera3d.position.x -= v.x;
+      this.kamera3d.position.z -= v.y;
+    } else {
+      this.#entferneNachbarn();
+      this.karte = new KartenModell({
+        welt,
+        assets: this.assets,
+        gl: this.gl,
+        mitSchnitt: (m) => this.#mitSchnitt(m),
+        bodenMassstab: this.#bodenMassstab(),
+      });
+    }
     this.szene.add(this.karte.statisch, this.karte.beweglich);
     this.natur = this.naturModelle ? NaturSchicht.erzeuge(welt, this.naturModelle, (x, z) => this.#hy(x, z), this.istHandy) : null;
     if (this.natur) {
       this.natur.gruppe.visible = GRAFIK_PROFILE[this.grafik].natur !== false;
       this.szene.add(this.natur.gruppe);
     }
+    if (uebernahme) return; // Shader sind warm, Qualität gemessen
     this.karte.setzeBaumDetail(QUALITAETS_STUFEN[this.stufe].baumDetail);
     this.#vorkompilieren();
     this.aufwaermen();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Nachbarzonen (nahtloser Übergang): Karte der Nachbarzone wird kurz vor der Grenze gebaut und an ihrer Stelle gezeigt
+
+  /** @param liste [{ id, versatz: {x,y} (Ursprung der Nachbarkarte in Pixeln dieser Zone), karte: Kartendaten }] */
+  setzeNachbarn(liste) {
+    const alt = this.nachbarn;
+    this.nachbarn = [];
+    for (const n of liste ?? []) {
+      const vorhanden = alt.find((a) => a.id === n.id);
+      if (vorhanden) {
+        vorhanden.versatz = n.versatz;
+        if (vorhanden.modell) this.#setzeVersatz(vorhanden.modell, n.versatz.x, n.versatz.y);
+        this.nachbarn.push(vorhanden);
+        alt.splice(alt.indexOf(vorhanden), 1);
+      } else this.nachbarn.push({ id: n.id, versatz: n.versatz, daten: n.karte, welt: null, modell: null });
+    }
+    for (const a of alt) this.#entferneNachbar(a);
+  }
+
+  #setzeVersatz(modell, x, y) {
+    for (const g of [modell.statisch, modell.beweglich]) {
+      g.position.set(x, x === 0 && y === 0 ? 0 : NACHBAR_TIEFE, y); // Nachbar knapp unter dem Boden: im Überlappungsstreifen gewinnt immer die aktive Karte
+      g.updateMatrix();
+      // Modell ist eingefroren (matrixWorldAutoUpdate aus): Weltmatrizen von Hand neu berechnen
+      const nachziehen = (o, eltern) => {
+        o.matrixWorld.multiplyMatrices(eltern, o.matrix);
+        for (const k of o.children) nachziehen(k, o.matrixWorld);
+      };
+      nachziehen(g, _einheit);
+    }
+  }
+
+  #entferneNachbar(n) {
+    if (!n.modell) return;
+    this.szene.remove(n.modell.statisch, n.modell.beweglich);
+    for (const teil of [n.modell.statisch, n.modell.beweglich]) teil.traverse((o) => o.geometry?.dispose());
+    n.modell = null;
+  }
+
+  #entferneNachbarn() {
+    for (const n of this.nachbarn) this.#entferneNachbar(n);
+    this.nachbarn = [];
+  }
+
+  /** Pro Bild: Nachbarkarte bauen, sobald man sich nähert (NACHBAR_BAU_WEITE), weit weg wieder freigeben (NACHBAR_FREI_WEITE). */
+  #aktualisiereNachbarn(dt, dunkel, fokus) {
+    for (const n of this.nachbarn) {
+      const w = n.welt ?? n.daten;
+      const breite = (n.welt ? n.welt.breite * n.welt.kachelGroesse : w.breite * w.kachelGroesse);
+      const hoehe = (n.welt ? n.welt.hoehe * n.welt.kachelGroesse : w.hoehe * w.kachelGroesse);
+      const dx = Math.max(n.versatz.x - fokus.x, 0, fokus.x - (n.versatz.x + breite));
+      const dy = Math.max(n.versatz.y - fokus.y, 0, fokus.y - (n.versatz.y + hoehe));
+      const abstand = Math.hypot(dx, dy);
+      if (!n.modell && abstand < NACHBAR_BAU_WEITE && !this.ruhigWarter) {
+        n.welt ??= new Welt(n.daten);
+        // Boden (der dicke Brocken) erst in kleinen Portionen malen, jedes Bild nur ein paar Millisekunden
+        n.maler ??= KartenModell.malePortionen(n.welt, this.assets, this.#bodenMassstab());
+        const ende = performance.now() + NACHBAR_BUDGET_MS;
+        let schritt = n.maler.next();
+        while (!schritt.done && performance.now() < ende) schritt = n.maler.next();
+        if (!schritt.done) break;
+        const massstab = this.#bodenMassstab();
+        n.maler = null;
+        n.modell = new KartenModell({ welt: n.welt, assets: this.assets, gl: this.gl, mitSchnitt: (m) => this.#mitSchnitt(m), bodenMassstab: massstab, bodenLeinwand: schritt.value });
+        n.modell.setzeBaumDetail(QUALITAETS_STUFEN[this.stufe].baumDetail);
+        n.modell.setzeAlsNachbar(true);
+        this.#setzeVersatz(n.modell, n.versatz.x, n.versatz.y);
+        this.szene.add(n.modell.statisch, n.modell.beweglich);
+        break; // höchstens eine Karte pro Bild bauen
+      }
+      if (!n.modell && n.maler && abstand > NACHBAR_FREI_WEITE) n.maler = null;
+      if (n.modell && abstand > NACHBAR_FREI_WEITE) this.#entferneNachbar(n);
+      else if (n.modell) n.modell.aktualisiere(dt, dunkel, null);
+    }
   }
 
   /** Kurzinfo für das Debug-Overlay (F3). */
@@ -393,6 +498,7 @@ export class Renderer {
     const dunkel = this.#tageslicht(tageszeit, _ziel);
 
     this.karte.aktualisiere(dt, dunkel, fokus);
+    if (this.nachbarn.length) this.#aktualisiereNachbarn(dt, dunkel, fokus);
     this.karte.aktualisiereDaecher(fokus.x, fokus.y);
     this.karte.aktualisiereDurchsicht(dt, fokus.x, fokus.y, !this.egoHaken);
     this.natur?.aktualisiere(fokus, this.welt.bauwerkeVersion, !!this.egoHaken);

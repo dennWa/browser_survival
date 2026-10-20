@@ -22,10 +22,21 @@ export class BodenTextur {
 
   /** @param massstab Pixel pro Weltpixel */
   rendere(massstab = 1) {
+    const it = this.renderePortionen(massstab);
+    let schritt = it.next();
+    while (!schritt.done) schritt = it.next();
+    return schritt.value;
+  }
+
+  /** Wie rendere(), aber als Generator: gibt nach jeweils einigen Kachelzeilen ab (Nachbarkarte baut sich ruckelfrei im Hintergrund); Ergebnis = Canvas */
+  *renderePortionen(massstab = 1) {
     const canvas = neuesCanvas(this.welt.pixelBreite * massstab, this.welt.pixelHoehe * massstab);
     const ctx = canvas.getContext('2d');
     ctx.setTransform(massstab, 0, 0, massstab, 0, 0);
-    for (let ty = 0; ty < this.welt.hoehe; ty++) for (let tx = 0; tx < this.welt.breite; tx++) this.#zeichneBoden(ctx, tx, ty);
+    for (let ty = 0; ty < this.welt.hoehe; ty++) {
+      for (let tx = 0; tx < this.welt.breite; tx++) this.#zeichneBoden(ctx, tx, ty);
+      if (ty % 4 === 3) yield;
+    }
     if (this.bemalung) {
       ctx.globalAlpha = 0.55;
       for (const [farbe, rechtecke] of Object.entries(this.bemalung)) {

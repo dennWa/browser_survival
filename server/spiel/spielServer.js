@@ -252,7 +252,7 @@ export class SpielServer {
    * Ankunftspunkt rein, Client baut neu auf (ZONE_WECHSEL). Unbekanntes Ziel → Weg "versperrt".
    */
   async #wechsleZone(sitzung, spieler) {
-    const { ziel, ankunft, name, spawn = false } = spieler.zonenwechsel;
+    const { ziel, ankunft, name, spawn = false, versatz = null } = spieler.zonenwechsel;
     spieler.zonenwechsel = null;
     const alt = sitzung.zone;
     const zone = ziel === alt.id ? null : this.zone(ziel);
@@ -291,6 +291,15 @@ export class SpielServer {
         zone.spielWelt.melde(neu.id, 'Dein Bett ist weg oder zugebaut – du startest am normalen Startpunkt');
       }
     }
+    // Nahtloser Übergang: dieselbe Stelle in Koordinaten der Zielkarte (nur wenn dort begehbar und nicht im Rückweg-Übergang)
+    let nahtlos = false;
+    if (!punkt && versatz) {
+      const p = { x: spieler.x - versatz.x, y: spieler.y - versatz.y };
+      if (this.#ankunftFrei(zone, p)) {
+        punkt = p;
+        nahtlos = true;
+      }
+    }
     punkt ??= zone.ankunft(ankunft);
     Object.assign(neu, behalten, { x: punkt.x, y: punkt.y });
     sitzung.zone = zone;
@@ -299,8 +308,28 @@ export class SpielServer {
     sitzung.letzteSpielerDaten = null;
     sitzung.status = 'imSpiel';
     zone.spielWelt.melde(neu.id, `Du betrittst: ${zone.name}`);
-    this.#senden(sitzung, { typ: NACHRICHT.ZONE_WECHSEL, zone: zone.name, ...this.#startDaten(zone, neu) });
+    this.#senden(sitzung, { typ: NACHRICHT.ZONE_WECHSEL, zone: zone.name, nahtlos, ...this.#startDaten(zone, neu) });
     this.log.info?.(`[Server] ${sitzung.benutzername}: ${alt.id} → ${zone.id}`);
+  }
+
+  /** Ankunftsstelle für nahtlosen Übergang: in der Karte, nicht blockiert, nicht in einem Übergangs-Rechteck (sonst Ping-Pong) */
+  #ankunftFrei(zone, p) {
+    const welt = zone.spielWelt.welt;
+    const g = welt.kachelGroesse;
+    if (!(p.x >= 0 && p.y >= 0 && p.x < welt.breite * g && p.y < welt.hoehe * g)) return false;
+    if (welt.istBlockiert(Math.floor(p.x / g), Math.floor(p.y / g))) return false;
+    return !zone.spielWelt.karte.daten.uebergaenge.some((u) => p.x >= u.px.x0 && p.x < u.px.x1 && p.y >= u.px.y0 && p.y < u.px.y1);
+  }
+
+  /** Nachbarzonen mit nahtlosem Übergang: Kartendaten + Ursprung (Pixel dieser Zone), damit der Client sie vorab zeigen kann. */
+  #nachbarn(zone) {
+    const aus = [];
+    for (const u of zone.spielWelt.karte.daten.uebergaenge) {
+      if (!u.nahtlos || aus.some((n) => n.zone === u.ziel)) continue;
+      const nachbar = u.ziel === zone.id ? null : this.zone(u.ziel);
+      if (nachbar) aus.push({ zone: u.ziel, versatz: u.nahtlos.versatz, karte: nachbar.spielWelt.karte.daten });
+    }
+    return aus;
   }
 
   /** Alles, was der Client zum (Neu-)Aufbau braucht – ANMELDUNG_OK und ZONE_WECHSEL. */
@@ -314,6 +343,7 @@ export class SpielServer {
       spielerDaten: spielerDatenPrivat(spieler, this.konfiguration, zone.spielWelt),
       erkundet: packeErkundet(spieler.erkundet),
       rezepte: REZEPTE,
+      nachbarn: this.#nachbarn(zone),
       ...zone.weltDaten(),
     };
   }

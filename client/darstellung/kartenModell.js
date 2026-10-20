@@ -70,7 +70,8 @@ export class KartenModell {
    * @param mitSchnitt  Funktion, die einem Material den Wand-Schnitt (siehe Renderer) verpasst
    * @param bodenMassstab  Auflösung der Bodentextur (Pixel pro Weltpixel) – auf Handys kleiner
    */
-  constructor({ welt, assets, gl, mitSchnitt, bodenMassstab = 1 }) {
+  constructor({ welt, assets, gl, mitSchnitt, bodenMassstab = 1, bodenLeinwand = null }) {
+    this.vorgemalt = bodenLeinwand; // schon gemalter Boden (Nachbarkarte, siehe malePortionen)
     this.welt = welt;
     this.assets = assets;
     this.gl = gl;
@@ -95,6 +96,18 @@ export class KartenModell {
     this.#baueTueren();
     this.#baueRessourcen();
     einfrieren(this.statisch);
+  }
+
+  /** Nahtloser Zonenwechsel: dieses Modell gehört jetzt zur echten Welt der Zone (Türen, gefällte Bäume, Laternen werden beim nächsten Bild angeglichen). */
+  uebernimmWelt(welt) {
+    this.welt = welt;
+    this.abgebautStand = -1;
+    this.laternenStand = -1;
+  }
+
+  /** Als Nachbarkarte gezeigt: der Rasen jenseits des Kartenrands gehört nur der aktiven Karte (sonst verdeckt er die Karte darunter). */
+  setzeAlsNachbar(ist) {
+    if (this.draussen) this.draussen.visible = !ist;
   }
 
   /** Lampen der Karte: [{ x, y, z, farbe, radius, staerke, objekt }] – für den Licht-Pool im Renderer */
@@ -182,9 +195,27 @@ export class KartenModell {
 
   /** Bodenbild malen (Innenräume abgedunkelt, weil es kein Dach gibt) */
   #maleBoden(massstab) {
-    const welt = this.welt;
-    const g = this.g;
-    const leinwand = new BodenTextur(welt, this.assets).rendere(massstab);
+    if (this.vorgemalt) {
+      const fertig = this.vorgemalt;
+      this.vorgemalt = null;
+      return fertig;
+    }
+    const it = KartenModell.malePortionen(this.welt, this.assets, massstab);
+    let schritt = it.next();
+    while (!schritt.done) schritt = it.next();
+    return schritt.value;
+  }
+
+  /** Bodenbild als Generator (gibt zwischendurch ab) – für Nachbarkarten, die sich im Hintergrund aufbauen. Ergebnis = Canvas für `bodenLeinwand`. */
+  static *malePortionen(welt, assets, massstab) {
+    const g = welt.kachelGroesse;
+    const it = new BodenTextur(welt, assets).renderePortionen(massstab);
+    let schritt = it.next();
+    while (!schritt.done) {
+      yield;
+      schritt = it.next();
+    }
+    const leinwand = schritt.value;
     const ctx = leinwand.getContext('2d');
     ctx.setTransform(massstab, 0, 0, massstab, 0, 0);
     ctx.fillStyle = 'rgba(0, 0, 0, 0.42)';
@@ -225,7 +256,8 @@ export class KartenModell {
     boden.receiveShadow = true;
     const draussen = new THREE.Mesh(new THREE.PlaneGeometry(8000, 8000), new THREE.MeshStandardMaterial({ color: 0x3f8f4f, roughness: 1 }) /* Rasen jenseits des Kartenrands – war fast schwarz und wirkte im Auto (Kamera weiter weg) wie "extrem dunkel" im Norden */);
     draussen.rotation.x = -Math.PI / 2;
-    draussen.position.set(welt.pixelBreite / 2, -0.5, welt.pixelHoehe / 2);
+    draussen.position.set(welt.pixelBreite / 2, -1.5, welt.pixelHoehe / 2); // unter dem Boden einer Nachbarkarte (-0,8), die ihrerseits unter dem eigenen Boden liegt
+    this.draussen = draussen;
     this.statisch.add(boden, draussen);
   }
 

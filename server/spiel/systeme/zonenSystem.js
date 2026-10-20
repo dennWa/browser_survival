@@ -18,6 +18,6 @@ export function pruefeUebergaenge(spielWelt) {
     if (s.imUebergang) continue;
     s.imUebergang = true;
     if (s.fahrzeug) spielWelt.melde(s.id, `Nach ${u.name} geht es nur zu Fuß weiter`);
-    else s.zonenwechsel = { ziel: u.ziel, ankunft: u.ankunft, name: u.name };
+    else s.zonenwechsel = { ziel: u.ziel, ankunft: u.ankunft, name: u.name, versatz: u.nahtlos?.versatz ?? null };
   }
 }

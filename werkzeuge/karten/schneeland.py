@@ -322,7 +322,7 @@ js += ['  ],', '  raeume: {',
        '  },', '  objekte: [']
 js += [f'    {js_objekt(e)},' for e in objekte]
 js += ['  ],', '  uebergaenge: [',
-       f"    {{ x: 0, y: {HAUPT_Y0 - 2}, b: 1, h: {HAUPT_Y1 - HAUPT_Y0 + 5}, ziel: 'stadtrand', ankunft: 'ost', name: 'Stadtrand (Westen)' }},",
+       f"    {{ x: 0, y: {HAUPT_Y0 - 2}, b: 1, h: {HAUPT_Y1 - HAUPT_Y0 + 5}, ziel: 'stadtrand', ankunft: 'ost', name: 'Stadtrand (Westen)', nahtlos: {{ dx: -153, dy: 0 }} }}},",
        '  ],', '  ankuenfte: {', f'    west: {{ x: 5, y: {(HAUPT_Y0 + HAUPT_Y1) // 2} }}, // wer vom Stadtrand kommt (Straße, nicht im Übergang)', '  },', '};']
 ZIEL.write_text('\n'.join(js) + '\n', encoding='utf-8')
 print(f'{ZIEL} geschrieben ({B} × {H}, {len(objekte)} Objekte, {sum(1 for o_ in objekte if o_["typ"] == "tanne")} Tannen, {len(wasser)} Eiskacheln)')

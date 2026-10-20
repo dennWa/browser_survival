@@ -789,7 +789,7 @@ export const STADTRAND = {
   ],
   uebergaenge: [
     { x: 117, y: 0, b: 7, h: 1, ziel: 'waldweg', ankunft: 'sued', name: 'Waldweg (Norden)' },
-    { x: 154, y: 86, b: 1, h: 9, ziel: 'schneeland', ankunft: 'west', name: 'Schneeland (Osten)' },
+    { x: 154, y: 86, b: 1, h: 9, ziel: 'schneeland', ankunft: 'west', name: 'Schneeland (Osten)', nahtlos: { dx: 153, dy: 0 } },
   ],
   ankuenfte: {
     nord: { x: 120, y: 5 }, // wer vom Waldweg kommt (Straße, nicht im Übergang)

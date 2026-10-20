@@ -28,7 +28,7 @@ export const KARTEN = Object.freeze({
  *   ankuenfte    → { name: {x, y} } (Pixel, Kachelmitte): wo man ankommt, wenn man aus einer anderen Zone kommt
  *
  * Übergänge (definition.uebergaenge): [{ x, y, b, h, ziel, ankunft, name }] in Kacheln – wer das Rechteck betritt,
- * wechselt in Zone `ziel` und landet dort bei `ankuenfte[ankunft]`. In daten.uebergaenge zusätzlich in Pixeln (px).
+ * wechselt in Zone `ziel` und landet dort bei `ankuenfte[ankunft]` (mit `nahtlos {dx,dy}`: an der gleichen Stelle, versetzt um den Ursprung der Zielkarte). In daten.uebergaenge zusätzlich in Pixeln (px).
  *
  * Erweiterungen (Map-Editor, alle optional – alte Karten ohne sie verhalten sich wie immer; Format: editor/kern/format.js):
  *   zombieSpawns  [{ x, y, anzahl?, respawnZeit?, horde? }] → Eigenschaften der Z-Marker; anzahl × einstellungen.zombie.dichte
@@ -143,7 +143,10 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE, { au
       throw new Error(`Karte "${definition.id}": Übergang #${i} ungültig (x, y, b, h in der Karte, ziel, ankunft nötig)`);
     }
     const px = { x0: u.x * kachelGroesse, y0: u.y * kachelGroesse, x1: (u.x + u.b) * kachelGroesse, y1: (u.y + u.h) * kachelGroesse };
-    return { x: u.x, y: u.y, b: u.b, h: u.h, ziel: u.ziel, ankunft: u.ankunft, name: u.name ?? u.ziel, px };
+    // nahtlos { dx, dy }: Ursprung der Zielkarte in Kacheln dieser Karte → Client zeigt die Nachbarzone schon vorab, Ankunft = gleiche Stelle (Versatz)
+    const n = u.nahtlos;
+    const nahtlos = n && Number.isInteger(n.dx) && Number.isInteger(n.dy) ? { dx: n.dx, dy: n.dy, versatz: { x: n.dx * kachelGroesse, y: n.dy * kachelGroesse } } : null;
+    return { x: u.x, y: u.y, b: u.b, h: u.h, ziel: u.ziel, ankunft: u.ankunft, name: u.name ?? u.ziel, px, ...(nahtlos ? { nahtlos } : {}) };
   });
 
   const bauwerke = (Array.isArray(definition.bauwerke) ? definition.bauwerke : [])

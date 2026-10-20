@@ -217,3 +217,32 @@ test('Zonenwechsel: Toter zieht nicht um; derselbe Account kann sich währenddes
   const zweiter = verbinde(server, 'Doppelt');
   await warteAuf(() => letzte(zweiter.empfangen, NACHRICHT.ANMELDUNG_FEHLER), 'zweiter Login abgelehnt');
 });
+
+test('Nahtloser Übergang: Stadtrand ↔ Schneeland tauscht an derselben Stelle (Versatz), ohne Ping-Pong; Nachbarkarte im Start', async (t) => {
+  const server = new SpielServer({ authentifizierung: new GastAuthentifizierung(), protokoll: stillerLog });
+  t.after(() => server.stoppen());
+  const { empfangen } = verbinde(server, 'Nahtlos');
+  await warteAuf(() => letzte(empfangen, NACHRICHT.ANMELDUNG_OK), 'Login');
+  const ok = letzte(empfangen, NACHRICHT.ANMELDUNG_OK);
+  const nachbar = ok.nachbarn.find((n) => n.zone === 'schneeland');
+  assert.ok(nachbar, 'Stadtrand schickt die Nachbarkarte Schneeland mit');
+  assert.deepEqual(nachbar.versatz, { x: 153 * 32, y: 0 });
+  assert.equal(nachbar.karte.id, 'schneeland');
+
+  const welt = server.weltVon('Nahtlos');
+  const ich = [...welt.alleVomTyp('spieler')][0];
+  const u = welt.karte.daten.uebergaenge.find((x) => x.ziel === 'schneeland');
+  ich.x = u.px.x0 + 5;
+  ich.y = (u.px.y0 + u.px.y1) / 2;
+  const alt = { x: ich.x, y: ich.y };
+  server.tickAusfuehren();
+  await warteAuf(() => letzte(empfangen, NACHRICHT.ZONE_WECHSEL), 'ZONE_WECHSEL');
+  const wechsel = letzte(empfangen, NACHRICHT.ZONE_WECHSEL);
+  assert.equal(wechsel.nahtlos, true);
+  assert.deepEqual(wechsel.start, { x: alt.x - 153 * 32, y: alt.y });
+  assert.ok(wechsel.nachbarn.some((n) => n.zone === 'stadtrand' && n.versatz.x === -153 * 32));
+  // kein Ping-Pong: ein Tick später ist man noch in Schneeland
+  server.tickAusfuehren();
+  await warte(20);
+  assert.equal(server.weltVon('Nahtlos').karte.daten.id, 'schneeland');
+});

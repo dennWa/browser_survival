@@ -145,7 +145,8 @@ export class ClientSpiel {
     this.letzterTick = 0;
     this.beendet = false;
 
-    this.renderer.setzeWelt(this.welt);
+    this.renderer.setzeWelt(this.welt, anmeldeDaten.nahtlos === true);
+    this.renderer.setzeNachbarn((anmeldeDaten.nachbarn ?? []).map((n) => ({ id: n.zone, versatz: n.versatz, karte: n.karte })));
     this.hud.setzeSpielerDaten(this.spielerDaten, this.itemDefinitionen);
     this.abmelden = [
       verbindung.beiNachricht((n) => this.#nachricht(n)),
