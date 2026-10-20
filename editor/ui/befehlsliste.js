@@ -83,6 +83,7 @@ export function meldeBefehleAn(befehle, t) {
     { id: 'ansicht.fokus', name: 'Fokus-Modus (nur Karte)', symbol: '⛶', gruppe: 'Ansicht', kuerzel: ['Tab'], aktiv: () => t.layout.fokus, ausfuehren: () => t.layout.fokusUmschalten() },
     { id: 'ansicht.ebenen', name: 'Ebenen (ein-/ausblenden, sperren)', symbol: '🗂', gruppe: 'Ansicht', ausfuehren: () => t.layout.zeigeReiter('rechts', 'Ebenen') },
     ...ANZEIGEN.map((anz) => ({ id: `ansicht.${anz.id}`, name: anz.name, ...(anz.kurz ? { kurz: anz.kurz, symbol: anz.symbol } : {}), ...(anz.kuerzel ? { kuerzel: anz.kuerzel } : {}), gruppe: 'Ansicht', aktiv: () => z.sichtbar(anz.id), ausfuehren: () => z.setzeEbene(anz.id, 'sichtbar', !z.sichtbar(anz.id)) })),
+    { id: 'audio.zentrale', name: 'Audio-Zentrale (alle Sounds & Musik des Spiels)', kurz: 'Audio', symbol: '🎵', gruppe: 'Ansicht', kuerzel: ['Umschalt+A'], ausfuehren: () => a.audioZentrale?.() },
     { id: 'ansicht.suche', name: 'Assets suchen', symbol: '🔎', gruppe: 'Ansicht', kuerzel: ['Strg+F'], ausfuehren: () => {
         t.layout.zeige('links');
         t.assets.fokusSuche();
@@ -166,7 +167,7 @@ export function menues(t) {
   return [
     { titel: 'Datei', eintraege: ['datei.neu', 'datei.oeffnen', '-', 'datei.speichern', 'datei.herunterladen', 'datei.alleHerunterladen', 'datei.version', 'datei.versionen', '-', { ueberschrift: 'Export' }, 'datei.exportJson', 'datei.liesmich', 'ki.ausschnitt', '-', 'datei.veroeffentlichen', '-', { ueberschrift: 'Sicherung' }, 'datei.backup', 'datei.wiederherstellen', 'datei.speicherplatz', 'datei.lokal', '-', 'datei.zoneEntfernen', 'datei.zumSpiel'] },
     { titel: 'Bearbeiten', eintraege: ['bearbeiten.rueckgaengig', 'bearbeiten.wiederholen', '-', 'bearbeiten.kopieren', 'bearbeiten.ausschneiden', 'bearbeiten.einfuegen', 'bearbeiten.duplizieren', 'bearbeiten.drehen', 'bearbeiten.loeschen', '-', 'bearbeiten.alles', 'bearbeiten.bereichLeeren', 'bearbeiten.alsPrefab', 'bearbeiten.werkstatt', 'bearbeiten.abbrechen', '-', { ueberschrift: 'Anordnen' }, 'anordnen.links', 'anordnen.mitteH', 'anordnen.rechts', 'anordnen.oben', 'anordnen.mitteV', 'anordnen.unten', 'anordnen.verteilenH', 'anordnen.verteilenV', 'anordnen.spiegelnH', 'anordnen.spiegelnV'] },
-    { titel: 'Ansicht', eintraege: ['ansicht.dreiD', 'ansicht.einpassen', 'ansicht.zoomRein', 'ansicht.zoomRaus', '-', 'ansicht.links', 'ansicht.rechts', 'ki.helfer', 'ansicht.fokus', '-', 'ansicht.ebenen', ...ANZEIGEN.map((a) => `ansicht.${a.id}`), 'messen.einrasten', 'messen.raster', '-', 'ansicht.suche'] },
+    { titel: 'Ansicht', eintraege: ['ansicht.dreiD', 'ansicht.einpassen', 'ansicht.zoomRein', 'ansicht.zoomRaus', '-', 'ansicht.links', 'ansicht.rechts', 'ki.helfer', 'ansicht.fokus', '-', 'ansicht.ebenen', ...ANZEIGEN.map((a) => `ansicht.${a.id}`), 'messen.einrasten', 'messen.raster', '-', 'audio.zentrale', 'ansicht.suche'] },
     { titel: 'Einfügen', eintraege: () => einfuegenEintraege(t) },
     { titel: 'Werkzeuge', eintraege: WERKZEUGLEISTE.filter((x) => x !== '-').concat(['-', 'werkzeug.kleiner', 'werkzeug.groesser']) },
     { titel: 'Zone', eintraege: ['zone.einstellungen', 'zone.groesse', '-', 'zone.uebersicht', 'zone.vorschlaege', 'zone.raeume', 'zone.prefabs', '-', 'zone.pruefung', 'zone.autoFix', 'zone.testen'] },
@@ -175,7 +176,7 @@ export function menues(t) {
   ];
 }
 
-export const SCHNELLLEISTE = ['bearbeiten.rueckgaengig', 'bearbeiten.wiederholen', '-', 'ansicht.dreiD', 'ansicht.loot', 'zone.testen', 'datei.veroeffentlichen', '-', 'ki.helfer', 'ansicht.links', 'ansicht.rechts'];
+export const SCHNELLLEISTE = ['bearbeiten.rueckgaengig', 'bearbeiten.wiederholen', '-', 'ansicht.dreiD', 'ansicht.loot', 'audio.zentrale', 'zone.testen', 'datei.veroeffentlichen', '-', 'ki.helfer', 'ansicht.links', 'ansicht.rechts'];
 
 export const WERKZEUGLEISTE = ['werkzeug.auswahl', 'werkzeug.hand', '-', 'werkzeug.pinsel', 'werkzeug.rechteck', 'werkzeug.linie', 'werkzeug.fuellen', 'werkzeug.radierer', 'werkzeug.pipette', 'werkzeug.messen', '-', 'werkzeug.terrain', 'werkzeug.farbe', '-', 'werkzeug.zone'];
 

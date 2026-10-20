@@ -292,6 +292,30 @@ Veröffentlichen-Dialog listet die Änderungen seit dem letzten Export.
 - **Löschen:** ✎ → 🗑. Ist die Datei benutzt, zeigt der Editor wo und bietet **Mitlöschen** oder **Ersetzen** (Position, Schnitt und
   Auslöser bleiben). Die Ebene **🔊 Klänge** blendet alle Klänge auf der Karte aus oder sperrt sie.
 
+## 🎵 Audio-Zentrale (alle Sounds & Musik des Spiels)
+
+Öffnen: Schnellleiste **🎵 Audio**, **Umschalt+A**, Menü Ansicht oder Knopf oben im Reiter 🔊 Audio. Esc schließt.
+
+- **Übersicht:** links die Gruppen (🎵 Musik · 🌦 Atmosphäre & Wetter · 🐄 Tiere · 🔫 Waffen & Kampf · 🧟 Zombies · 🚗 Fahrzeuge ·
+  🔨 Bauen/Handwerk/Arbeit · 🎒 Inventar & Items · 🖱 Oberfläche & Menüs · 🔊 Karten-Klänge), Suche oben, Filter (nur geänderte,
+  nur synthetische, nur fehlende/stumme). Jede Zeile: **▶** anhören, Name, wann er im Spiel ertönt, Quelle
+  (*Synthetisch erzeugt* · *Mitgeliefertes Sample* · *Eigene Datei* · *Kein Ton*), Varianten, Dauer, Größe, Pegel. 🔁 = Dauergeräusch.
+- **Details (Klick auf eine Zeile):** Ereignis-Name, Ordner/Datei, alle Dateien einzeln anhörbar. **Pegel** (0–300 %) und
+  **Tonhöhen-Streuung** gelten im Spiel für jede Quelle → „💾 Einstellungen speichern“. **↺ Original** entfernt eigene Dateien.
+- **Ersetzen:** Datei auf die Zeile oder in die gestrichelte Fläche ziehen (oder 📂). Dann **bearbeiten**: Start/Ende direkt in der
+  Wellenform ziehen (Doppelklick = alles), Einblenden/Ausblenden, Lautstärke in dB, Normalisieren, **🔁 Loop** (das Ende wird weich
+  in den Anfang überblendet – für Wind, Regen, Motor …), **▶ Vorhören** / **🔁 In Schleife**, ↶/↷ (Strg+Z/Y).
+  „✔ Als Ersatz übernehmen“ ersetzt alle bisherigen eigenen Dateien, „➕ Als Variante“ ergänzt eine (Spiel wählt zufällig).
+  Auch vorhandene Samples lassen sich mit **✂ Datei bearbeiten** kürzen und als eigene Datei speichern.
+- **Gespeichert wird nur die bearbeitete Fassung** (gekürzt, Fades/Lautstärke eingerechnet) als kompakte **.ogg (Opus)** – das
+  ungekürzte Original nicht. Unveränderte mp3/ogg/m4a bleiben, wie sie sind. Browser ohne Opus-Kodierer (z. B. älteres Safari)
+  speichern WAV (größer, mit Hinweis). Bei großen Dateien kommt eine Warnung.
+- **Musik:** Ordner *Hauptmenü / Login*, *Alle Zonen* und je Zone. Titel hinzufügen (hochladen → bearbeiten → „✔ Als Titel
+  hinzufügen“), ↑/↓ Reihenfolge, 🗑 entfernen, „der Reihe nach spielen“ (sonst zufällig).
+- **Speichern geht nur mit dem lokalen Editor-Server** (siehe unten). Online kann man alles anhören und ausprobieren; beim
+  Speichern gibt es den Hinweis und die fertige Datei zum Herunterladen.
+- Handy: Gruppen als Leiste oben, Details als eigene Seite („← Liste“).
+
 ## 🖥 Lokaler Editor-Server (direkt in den Projektordner speichern)
 
 - Start: `npm run editor:lokal` → **http://localhost:8090/editor/** öffnen (das Spiel liegt unter `/client/`).

@@ -152,7 +152,7 @@ export function audioUi({ zustand, panel, aktionen, layout, audioBibliothek: bib
   let spieltId = null;
   const wurzel = document.createElement('div');
   wurzel.className = 'modelle audio';
-  wurzel.innerHTML = `<div class="ablage" tabindex="0" title="Audio-Dateien hierher ziehen">⬇ mp3 / wav / ogg / m4a / flac hierher ziehen<br><button type="button" class="akzent" data-waehlen>📂 Dateien wählen …</button></div>
+  wurzel.innerHTML = `<button type="button" class="akzent az-oeffnen" data-zentrale title="Alle Sounds & Musik des Spiels: anhören, ersetzen, bearbeiten">🎵 Audio-Zentrale öffnen (alle Spiel-Sounds &amp; Musik)</button><div class="ablage" tabindex="0" title="Audio-Dateien hierher ziehen">⬇ mp3 / wav / ogg / m4a / flac hierher ziehen<br><button type="button" class="akzent" data-waehlen>📂 Dateien wählen …</button></div>
     <div class="modelle-filter"><input type="search" placeholder="Audio suchen … (#tag)" aria-label="Audio suchen"><select aria-label="Ordner"></select></div>
     <div class="audio-liste"></div><h5>Klänge dieser Zone</h5><div class="klang-liste"></div>`;
   const eingabe = wurzel.querySelector('input[type=search]');
@@ -176,6 +176,7 @@ export function audioUi({ zustand, panel, aktionen, layout, audioBibliothek: bib
     zeichneListe();
   });
   wurzel.querySelector('[data-waehlen]').addEventListener('click', () => waehleDateien());
+  wurzel.querySelector('[data-zentrale]').addEventListener('click', () => aktionen.audioZentrale?.());
   for (const art of ['dragenter', 'dragover']) ablage.addEventListener(art, (e) => (e.preventDefault(), ablage.classList.add('ueber')));
   for (const art of ['dragleave', 'drop']) ablage.addEventListener(art, () => ablage.classList.remove('ueber'));
   ablage.addEventListener('drop', (e) => {

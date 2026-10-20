@@ -48,7 +48,9 @@ export class Sound {
   #nacht = null;
   #letzteEigene = {}; // Name → zuletzt gespielter Index (keine direkte Wiederholung)
 
-  constructor() {
+  /** @param nurSynth true = keine Dateien laden, immer die Synthese (Vorhören in der Audio-Zentrale des Editors) */
+  constructor({ nurSynth = false } = {}) {
+    this.nurSynth = nurSynth;
     this.stumm = false;
     this.lautstaerken = { gesamt: 0.7, effekte: 1, atmosphaere: 0.6, musik: 0.5 };
     try {
@@ -116,7 +118,7 @@ export class Sound {
 
   /** Lädt die echten Aufnahmen im Hintergrund; bis sie da sind (oder fehlen), spielt die Synthese. */
   #ladeProben() {
-    if (this.#probenGeladen) return;
+    if (this.#probenGeladen || this.nurSynth) return;
     this.#probenGeladen = true;
     const basis = new URL('./samples/', import.meta.url);
     fetch(new URL('samples.json', basis))

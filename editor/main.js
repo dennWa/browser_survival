@@ -33,6 +33,7 @@ import { eigeneUi } from './ui/eigeneUi.js';
 import { Bibliothek, AUDIO } from './ui/bibliothek.js';
 import { modelleUi } from './ui/modelleUi.js';
 import { audioUi } from './ui/audioUi.js';
+import { audioZentraleUi } from './ui/audioZentrale.js';
 import { zonenManagerUi } from './ui/zonenManagerUi.js';
 import { versionenUi } from './ui/versionenUi.js';
 import { lootUi } from './ui/lootUi.js';
@@ -94,6 +95,7 @@ const layout = new Layout({ leisten: { links, rechts, ki: kiLeiste }, beiAenderu
 const assets = new AssetBrowser({ zustand, leiste: links, aktionen, bibliothek, audioBibliothek });
 modelleUi({ zustand, panel: links, aktionen, layout, bibliothek });
 audioUi({ zustand, panel: links, aktionen, layout, audioBibliothek });
+audioZentraleUi({ zustand, aktionen }); // Phase 10: 🎵 Audio-Zentrale (alle Spiel-Sounds & Musik)
 const insp = inspektor({ zustand, leiste: rechts, aktionen, befehle });
 ebenenUi({ zustand, leiste: rechts });
 pruefungUi({ zustand, leiste: rechts, aktionen, zeichner });

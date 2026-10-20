@@ -153,7 +153,7 @@ export function erstelleEditorServer({ wurzel }) {
     if (!ausgeliefert.some((o) => datei.startsWith(o))) return antwort.writeHead(404).end('Nicht gefunden');
     try {
       const inhalt = await readFile(datei);
-      antwort.writeHead(200, { 'Content-Type': MIME[path.extname(datei).toLowerCase()] ?? 'application/octet-stream', 'Cache-Control': 'no-cache' });
+      antwort.writeHead(200, { 'Content-Type': MIME[path.extname(datei).toLowerCase()] ?? 'application/octet-stream', 'Content-Length': inhalt.length, 'Cache-Control': 'no-cache' });
       antwort.end(anfrage.method === 'HEAD' ? undefined : inhalt);
     } catch {
       antwort.writeHead(404).end('Nicht gefunden');

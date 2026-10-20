@@ -163,6 +163,15 @@ unten (lokaler Editor-Server) bzw. neue Wünsche.
   inventar_auf/_zu, ui_klick/ui_fehler; `sound.js` Streuung/Pegel je Ereignis, `quelleVon`, `SYNTH_EREIGNISSE`; Hauptmenü-Musik
   (`client/musik/hauptmenue/`), Musik der Reihe nach (`_optionen.zufall`). Spieldateien vermerkt in KI_INDEX §13.
 
+- 10.3–10.5 fertig (2026-10-20): 🎵 Audio-Zentrale `editor/ui/audioZentrale.js` (Vollbild, Befehl `audio.zentrale` Umschalt+A,
+  Schnellleiste „🎵 Audio“, Knopf im 🔊-Reiter): Gruppen, Suche, Filter, ▶ (Synthese über `new Sound({ nurSynth: true })`), Dauer
+  (Audio-Metadaten) + Größe (HEAD), Pegel/Streuung speichern, ↺ Original, Upload (Knopf/Drag & Drop, auch auf Zeilen) mit Probe-
+  Dekodierung, Werkbank (Wellenform-Griffe, Fades, dB, Normalisieren, Loop-Überblendung, Vorhören/Schleife, ↶/↷), Speichern als
+  Ersatz/Variante/Musik-Titel, Musik ↑/↓/🗑/der Reihe nach. Kern: `kern/audioKatalog.js`, `kern/audioSchnitt.js`, `kern/oggOpus.js`
+  (+ `ui/audioKodierer.js` WebCodecs-Opus, sample-genau geprüft; Rückfall WAV). Ohne Server: Hinweis + Download der fertigen Datei.
+  Tests `tests/audioZentrale.test.js`. Im Browser geprüft: WAV hochladen → kürzen → speichern → `client/audio/eigene/ui_klick.ogg`
+  (0,5 s) → Spiel `sound.quelleVon('ui_klick') === 'eigen'`; Musik-Titel + Reihenfolge; Handy-Layout.
+
 **Phase 10 läuft** (Audio-Zentrale) – nächster Schritt siehe Tabelle Phase 10 (erster ☐). Rauchtest für Phase 10 gesammelt am Ende.
 
 ## Ausgangslage (Analyse 2026-10-19)
@@ -277,9 +286,9 @@ unten (lokaler Editor-Server) bzw. neue Wünsche.
 |---|---|---|
 | ☑ 10.1 | **Lokaler Editor-Server** `npm run editor:lokal` (nur 127.0.0.1): liefert Spiel + Editor aus, Schreib-/Lösch-API NUR in freigegebenen Ordnern (`client/audio/eigene/`, `client/audio/karten/`, `client/musik/`, `client/assets/eigene/`, `server/spiel/karten/`), strenge Pfadprüfung (kein `..`, keine Laufwerke/Backslashes, Endungs-Whitelist, Host/Origin-Prüfung), Indexe (`eigene.json`, `musik.json`) nach jeder Änderung neu; Editor erkennt den Server, sonst Hinweis „Editor lokal starten mit npm run editor:lokal“ | M |
 | ☑ 10.2 | 🎮 **Alle Geräusche als Ereignisse:** `EREIGNISSE` neu gruppiert (Musik · Atmosphäre & Wetter · Tiere · Waffen & Kampf · Zombies · Fahrzeuge · Bauen/Handwerk/Arbeit · Inventar & Items · Oberfläche/Menüs), neue Ereignisse für bisher fest verdrahtete Geräusche (Wind, Regen, Nacht, Motor als Schleifen; Hase flieht/stirbt; Klick, Inventar auf/zu; Hauptmenü-Musik), `sound.js` spielt Schleifen aus eigenen Dateien, Einstellungen je Ereignis (`einstellungen.json`: Pegel, Tonhöhen-Streuung, Loop) im Index | M |
-| ☐ 10.3 | **Audio-Zentrale – Übersicht:** eigenes Vollbild-Fenster (Menü Ansicht/Schnellleiste/🔊-Reiter), Katalog `kern/audioKatalog.js` (alle Ereignisse + Samples + eigene + Musik-Ordner + Karten-Klänge), je Eintrag Name, Zuordnung/Wann, Quelle (synthetisch/Sample/eigene Datei), Dauer, Größe, Pegel, Varianten; Suche, Filter (geändert, synthetisch, fehlend), ▶ Anhören; Handy-Layout | L |
-| ☐ 10.4 | **Ersetzen & Hochladen:** Datei per Knopf/Drag & Drop (.mp3 .ogg .wav .m4a .flac, Probe-Dekodierung) als Ersatz oder zusätzliche Variante, „↺ Original“ (eigene Dateien entfernen), Musik: Titel je Ordner hinzufügen, Reihenfolge, entfernen, Zufall/der Reihe nach | M |
-| ☐ 10.5 | **Bearbeiten:** Wellenform mit Start/Ende ziehen, Fade-In/-Out, Lautstärke + Normalisieren, Loop mit weicher Überblendung, Tonhöhen-Streuung, Vorhören (auch in Schleife), Undo; gespeichert wird NUR die bearbeitete Fassung, kompakt als Ogg/Opus (WebCodecs, sonst WAV mit Hinweis), Warnung bei großen Dateien | L |
+| ☑ 10.3 | **Audio-Zentrale – Übersicht:** eigenes Vollbild-Fenster (Menü Ansicht/Schnellleiste/🔊-Reiter), Katalog `kern/audioKatalog.js` (alle Ereignisse + Samples + eigene + Musik-Ordner + Karten-Klänge), je Eintrag Name, Zuordnung/Wann, Quelle (synthetisch/Sample/eigene Datei), Dauer, Größe, Pegel, Varianten; Suche, Filter (geändert, synthetisch, fehlend), ▶ Anhören; Handy-Layout | L |
+| ☑ 10.4 | **Ersetzen & Hochladen:** Datei per Knopf/Drag & Drop (.mp3 .ogg .wav .m4a .flac, Probe-Dekodierung) als Ersatz oder zusätzliche Variante, „↺ Original“ (eigene Dateien entfernen), Musik: Titel je Ordner hinzufügen, Reihenfolge, entfernen, Zufall/der Reihe nach | M |
+| ☑ 10.5 | **Bearbeiten:** Wellenform mit Start/Ende ziehen, Fade-In/-Out, Lautstärke + Normalisieren, Loop mit weicher Überblendung, Tonhöhen-Streuung, Vorhören (auch in Schleife), Undo; gespeichert wird NUR die bearbeitete Fassung, kompakt als Ogg/Opus (WebCodecs, sonst WAV mit Hinweis), Warnung bei großen Dateien | L |
 | ☐ 10.6 | 🎮 **Spiel & Abschluss:** Spiel nutzt eigene Dateien/Einstellungen (eigene > Samples > Synthese, Loops ohne Knacken, Regler gelten), Hauptmenü-Musik, Musik-Reihenfolge; Tests (Katalog, Pfadprüfung, Schnitt, Ogg, Index) + Rauchtest-Schritt (WAV hochladen → kürzen → speichern → Datei gekürzt im Ordner → Spiel spielt sie) | M |
 | ☐ 10.7 | **Aufräumen (Nutzerwunsch):** Werkzeugleiste mit Text + Symbol statt nichtssagender Icons, linke Seitenleiste übersichtlicher (weniger Reiter, Asset-Gruppen als Chips statt langer Liste), Testen ohne Spawn → Rückfrage „Spawn in die Kartenmitte?“ → OK setzt ihn | M |
 
