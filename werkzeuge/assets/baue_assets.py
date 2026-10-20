@@ -58,9 +58,9 @@ LIZENZEN = [
     ('Zombie-Sounds & Gunshot Sounds', 'artisticdude, ianzazz, Tabasco (opengameart.org)', 'CC0', 'https://opengameart.org/content/zombies-sound-pack', 'Geräusche: Zombies, Pistole, Schrotflinte'),
     ('Glitch Food & Drink Items', 'Tiny Speck (Glitch)', 'CC0',
      'https://opengameart.org/content/glitch-food-drink-items-svg', 'Essen & Getränke, Holz'),
-    # Nutzer-Upload (werkzeuge/assets/quellen/natur/*.glb): Urheber & Lizenz stehen nicht in den Dateien – bitte ergänzen, sobald bekannt
-    ('Gras-Modelle (Grass, Tall Grass, Grass Wispy)', 'vom Projektinhaber bereitgestellt – Urheber/Lizenz bitte ergänzen', 'Lizenz offen',
-     'https://github.com/dennwa/browser_survival', '3D-Gras auf der Karte (client/assets/3d/natur)'),
+    # Nutzer-Upload (werkzeuge/assets/quellen/natur/*.glb): Quelle laut Projektinhaber: Stylized Nature MegaKit von Quaternius (CC0)
+    ('Stylized Nature MegaKit (Gras)', 'Quaternius (quaternius.com)', 'CC0',
+     'https://quaternius.com/packs/stylizednaturemegakit.html', '3D-Gras auf der Karte (client/assets/3d/natur)'),
 ]
 
 # ---------------------------------------------------------------------------
