@@ -20,10 +20,10 @@
 /** Verteilung je Untergrund (Kachelname) */
 export const STREUUNG = {
   gras: [
-    { art: 'gras', proKachel: 1.1, hoehe: [12, 20] },
-    { art: 'gras_wispy_a', proKachel: 0.22, hoehe: [14, 22] },
-    { art: 'gras_wispy_b', proKachel: 0.22, hoehe: [13, 20] },
-    { art: 'gras_hoch', proKachel: 0.28, hoehe: [20, 29], farbe: [0.8, 1.05] },
+    { art: 'gras', proKachel: 0.85, hoehe: [12, 20] },
+    { art: 'gras_wispy_a', proKachel: 0.08, hoehe: [14, 22] },
+    { art: 'gras_wispy_b', proKachel: 0.08, hoehe: [13, 20] },
+    { art: 'gras_hoch', proKachel: 0.12, hoehe: [20, 29], farbe: [0.8, 1.05] },
   ],
 };
 
@@ -33,7 +33,9 @@ export const ZONEN = {
 };
 
 /** Nur Büschel innerhalb dieses Abstands (px) um die Kamera werden gezeichnet (Dreiecke sparen) */
-export const NATUR_SICHTWEITE = 700;
+export const NATUR_SICHTWEITE = 440;
+/** In der Ego-Ansicht (flacher Blick, teurer) noch kürzer */
+export const NATUR_SICHTWEITE_EGO = 300;
 /** Handys zeichnen nur diesen Anteil der Büschel */
 export const HANDY_DICHTE = 0.5;
 /** Kantenlänge (Kacheln) der Blöcke fürs Sichtweiten-/Frustum-Culling */

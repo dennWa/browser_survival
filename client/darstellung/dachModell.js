@@ -10,8 +10,8 @@ import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
  * flacht es zum Flachdach ab). Traufe ragt etwas über die Wand hinaus. Flache Dreiecke (kein Weichzeichnen), Schindel-Textur
  * mit Farbe je Gebäude.
  *
- * Räume: Steht man in einem Raum, verschwindet dessen Dach samt Wandkappen (aktualisiere); die anderen Räume bleiben zu.
- * Pro Gebäude 1 Mesh, bei Raumwechsel werden nur die betroffenen Gebäude neu zusammengesetzt (Kachel-Geometrie ist vorberechnet).
+ * Betritt man ein Gebäude, verschwindet das ganze Dach (alle Räume sofort sichtbar); andere Gebäude bleiben zu.
+ * Pro Gebäude 1 Mesh, beim Betreten/Verlassen wird nur dieses Gebäude neu zusammengesetzt (Kachel-Geometrie ist vorberechnet).
  */
 const ANSTIEG_KLEIN = 34; // Dachhöhe (px) über der Traufe bei kleinen Gebäuden (Wohnhäuser)
 const ANSTIEG_GROSS = 14; // bei großen Gebäuden (Flachdach mit abgeschrägtem Rand)
@@ -74,7 +74,7 @@ export class Daecher {
     this.gebaeude = []; // { mesh, kacheln:[idx], daten Map idx→{pos,nor,uv,col}, raeume:Set }
     this.gebaeudeVon = new Map(); // Kachelindex → Gebäude-Nr.
     this.versteckt = new Set(); // aktuell offene (nicht gezeichnete) Dachkacheln
-    this.offenerRaum = -1;
+    this.offenesGebaeude = -1;
     material.map = schindelTextur();
     material.vertexColors = true;
     material.roughness = 0.85;
@@ -93,22 +93,33 @@ export class Daecher {
     return this.raumAn.get(idx) ?? this.tuerRaum.get(idx) ?? -1;
   }
 
-  /** Raum wechseln: dessen Dach (inkl. Wandkappen) ausblenden, das des alten Raums wieder zeigen. */
-  aktualisiere(x, y) {
+  /** Gebäude-Nr. an Weltposition (-1 draußen); Tür-/Innenkachel zählt zum Gebäude, in dem man steht. */
+  gebaeudeBei(x, y) {
     const raum = this.raumBei(x, y);
-    if (raum === this.offenerRaum) return;
-    const betroffen = new Set();
-    for (const [nr, sichtbar] of [[this.offenerRaum, true], [raum, false]]) {
-      if (nr < 0) continue;
-      for (const idx of [...this.raumKacheln[nr], ...this.huelleVonRaum[nr]]) {
-        if (sichtbar) this.versteckt.delete(idx);
-        else this.versteckt.add(idx);
-        betroffen.add(this.gebaeudeVon.get(idx));
-      }
+    return raum < 0 ? -1 : (this.gebaeudeVon.get(this.raumKacheln[raum][0]) ?? -1);
+  }
+
+  /** Liegt der Punkt draußen oder im gerade geöffneten Gebäude? */
+  einsehbar(x, y) {
+    const idx = Math.floor(y / this.g) * this.welt.breite + Math.floor(x / this.g);
+    const raum = this.raumAn.get(idx);
+    return raum === undefined || this.gebaeudeVon.get(idx) === this.offenesGebaeude;
+  }
+
+  /** Gebäude betreten/verlassen: beim Betreten wird das GANZE Dach des Gebäudes ausgeblendet (alle Räume sichtbar), draußen bleibt alles zu. */
+  aktualisiere(x, y) {
+    const gebaeude = this.gebaeudeBei(x, y);
+    if (gebaeude === this.offenesGebaeude) return;
+    const alt = this.offenesGebaeude;
+    this.offenesGebaeude = gebaeude;
+    if (alt >= 0) {
+      for (const idx of this.gebaeude[alt].kacheln) this.versteckt.delete(idx);
+      this.#baueMesh(alt);
     }
-    // Hüllkacheln, die noch an einen anderen offenen Raum grenzen, nicht wieder zeigen (nur ein Raum ist offen → nichts zu prüfen)
-    this.offenerRaum = raum;
-    for (const nr of betroffen) if (nr !== undefined) this.#baueMesh(nr);
+    if (gebaeude >= 0) {
+      for (const idx of this.gebaeude[gebaeude].kacheln) this.versteckt.add(idx);
+      this.#baueMesh(gebaeude);
+    }
   }
 
   #baue() {

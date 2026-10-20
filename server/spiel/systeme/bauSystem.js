@@ -101,7 +101,6 @@ export function legeFeldAn(spielWelt, spieler, tx, ty) {
   nutzeWerkzeug(spielWelt, spieler, 'hacke');
   const g = welt.kachelGroesse;
   spielWelt.ereignis({ typ: 'gebaut', bauwerk: 'beet', x: (tx + 0.5) * g, y: (ty + 0.5) * g, von: spieler.id });
-  spielWelt.melde(spieler.id, 'Ackerfeld angelegt – Samen in die Hand nehmen und Linksklick');
 }
 
 /** AKTION feldEntfernen { tx, ty }: Hacke in der Hand → Beet (auch mit Pflanze) wird wieder Rasen. */

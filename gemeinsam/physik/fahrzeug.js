@@ -25,6 +25,9 @@ export const FAHRZEUG_MAX_KMH = 70;
 /** ab diesem Tempo wirken Aufprälle (Schaden am eigenen Auto) und Bäume/Laternen werden umgefahren */
 export const AUFPRALL_MIN_KMH = 10;
 
+/** Straßenlaternen werden erst ab diesem Tempo umgefahren (darunter halten sie das Auto auf) */
+export const LATERNE_MIN_KMH = 40;
+
 /** px/s → km/h (für Tacho & Aufprall-Schwelle) */
 export function tempoZuKmh(tempo) {
   return (Math.abs(tempo) * FAHRZEUG_MAX_KMH) / FAHRZEUG.max;
@@ -132,11 +135,12 @@ export function fahre(fz, eingabe, welt, dt) {
 
 /**
  * Passt das Fahrzeug an Position (x, y)? Drei Kreise entlang der Längsachse.
- * Baumstämme und Lampenmasten blockieren nur unter AUFPRALL_MIN_KMH – schneller werden sie umgefahren (der Server fällt sie, fahrzeugSystem).
+ * Baumstämme blockieren nur unter AUFPRALL_MIN_KMH, Lampenmasten unter LATERNE_MIN_KMH – schneller werden sie umgefahren (der Server fällt sie, fahrzeugSystem).
  */
 export function passt(fz, x, y, welt, winkel = fz.winkel) {
   const r = fz.breite / 2;
-  const hindernisseBlockieren = tempoZuKmh(fz.tempo) < AUFPRALL_MIN_KMH && typeof welt.umfahrbareImKreis === 'function';
+  const kmh = tempoZuKmh(fz.tempo);
+  const hindernisseBlockieren = kmh < LATERNE_MIN_KMH && typeof welt.umfahrbareImKreis === 'function';
   const versatz = fz.laenge / 2 - r;
   const g = welt.kachelGroesse;
   for (const s of [-versatz, 0, versatz]) {
@@ -152,7 +156,7 @@ export function passt(fz, x, y, welt, winkel = fz.winkel) {
         if ((cx - nx) ** 2 + (cy - ny) ** 2 < r2 * r2) return false;
       }
     }
-    if (hindernisseBlockieren && welt.umfahrbareImKreis(cx, cy, r2).length > 0) return false;
+    if (hindernisseBlockieren && welt.umfahrbareImKreis(cx, cy, r2).some((h) => kmh < (h.typ === 'laterne' ? LATERNE_MIN_KMH : AUFPRALL_MIN_KMH))) return false;
   }
   return true;
 }

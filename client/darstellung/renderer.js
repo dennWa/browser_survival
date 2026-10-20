@@ -55,16 +55,17 @@ const KOPF = { hoehe: 1.22, breite: 0.9, tiefe: 1.07 }; // Schädelmaße im Verh
 const _wetterGrau = new THREE.Color();
 const _zenit = new THREE.Color();
 const _buffer = new THREE.Vector2();
+const _blick = new THREE.Vector3();
 const _wolkenFarbe = new THREE.Color();
 const MAX_TASCHENLAMPEN = 3;
 const NACHT_EIGENLEUCHTEN = 0.2; // Emissive-Stärke der Spieler-Figur bei voller Dunkelheit (nur Orientierung, kein echtes Licht)
-const TASCHENLAMPEN_ANSATZ = { vorn: 9, hoehe: 38 }; // Lichtkegel beginnt knapp vor der Brust (px vor der Körpermitte, Höhe über Boden)
+const TASCHENLAMPEN_ANSATZ = { vorn: 16, hoehe: 36 }; // Lichtkegel beginnt knapp vor der Brust (px vor der Körpermitte, Höhe über Boden)
 // So viele Kartenlampen leuchten gleichzeitig echt (die nächsten); jede echte Lichtquelle kostet in jedem Pixel → klein halten,
 // die übrigen Lampen zeigen nachts nur ihren Lichtschein am Boden (kartenModell.js)
 const LAMPEN_POOL = { handy: 5, desktop: 8 };
 const KEGEL_POOL = { handy: 1, desktop: 2 }; // Kegel-Lampen (Scheinwerfer, art 'kegel')
 /** Taschenlampe (Spieler): eher schmal und schwach – Nächte sollen düster bleiben (Nutzer-Wunsch, Editor 2.0 Schritt 2.1) */
-const TASCHENLAMPE = { winkel: 0.3, rand: 0.75, reichweite: 430, staerke: 220, staerkeNacht: 950 };
+const TASCHENLAMPE = { winkel: 0.36, rand: 0.6, reichweite: 820, staerke: 260, staerkeNacht: 1500, kegelLaenge: 380 };
 const SCHEINWERFER = { winkel: 0.45, rand: 0.5, reichweite: 650, staerke: 500, staerkeNacht: 2600 };
 const MUENDUNGS_LICHTER = 2;
 const SITZ_TIEFE = 24; // so weit sinkt die Figur beim Sitzen am Feuer
@@ -103,8 +104,8 @@ const TAG = { sonne: new THREE.Color(0xfff1dc), himmel: new THREE.Color(0xbfd8ff
 const NACHT = { sonne: new THREE.Color(0x8aa0d8), himmel: new THREE.Color(0x1b2238), boden: new THREE.Color(0x050505), hintergrund: new THREE.Color(0x02030a), zenit: new THREE.Color(0x000105), wolken: new THREE.Color(0x0b0e18) };
 const DAEMMERUNG = { sonne: new THREE.Color(0xff9a4d), hintergrund: new THREE.Color(0xe08a5a), zenit: new THREE.Color(0x5a5aa8), wolken: new THREE.Color(0xffb48a) };
 /** Himmel (himmel.js): Die Welt endet per Kamera-Ferne (Vielfaches des Kameraabstands) – darüber, am oberen Bildrand, beginnt der Himmel. */
-const HIMMEL_FERNE = 1.17;
-const HIMMEL_DUNST = 0.16; // so breit (Kameraabstände) verblasst die Welt vor der Ferne in die Horizontfarbe
+const HIMMEL_FERNE = 1.36; // Welt endet erst knapp über dem oberen Bildrand – der Himmel verdeckt das Spielfeld nicht
+const HIMMEL_DUNST = 0.12; // so breit (Kameraabstände) verblasst die Welt vor der Ferne in die Horizontfarbe
 const REGEN_ZENIT = new THREE.Color(0x3c4048);
 const REGEN_WOLKEN = new THREE.Color(0x62666e);
 
@@ -196,6 +197,7 @@ export class Renderer {
     this.figurMaterialien = new Map(); // Skin-Schlüssel → Material (geteilt)
     this.spielerMaterialien = []; // Spieler-Skins: bekommen nachts ein schwaches Eigenleuchten
     this.taschenlampen = Array.from({ length: MAX_TASCHENLAMPEN }, (_, i) => this.#neueTaschenlampe(i === 0));
+    this.taschenKegel = Array.from({ length: MAX_TASCHENLAMPEN }, () => this.#neuerLichtKegel()); // sichtbarer Strahl
     this.taschenScheine = Array.from({ length: MAX_TASCHENLAMPEN }, () => this.#neuerTaschenSchein()); // weicher Lichtfleck direkt vor der Figur
     this.lampenPool = Array.from({ length: LAMPEN_POOL[this.istHandy ? 'handy' : 'desktop'] }, () => this.#neuesPunktlicht(0xffffff, 300));
     this.kegelPool = Array.from({ length: KEGEL_POOL[this.istHandy ? 'handy' : 'desktop'] }, () => this.#neuesKegellicht());
@@ -382,7 +384,7 @@ export class Renderer {
 
     this.karte.aktualisiere(dt, dunkel, fokus);
     this.karte.aktualisiereDaecher(fokus.x, fokus.y);
-    this.natur?.aktualisiere(fokus, this.welt.bauwerkeVersion);
+    this.natur?.aktualisiere(fokus, this.welt.bauwerkeVersion, !!this.egoHaken);
     const tuerAbstand = this.karte.aktualisiereTuerSchimmer(fokus);
     this.blaetter?.aktualisiere(dt, fokus, jetzt, dunkel);
     this.#aktualisiereFahrzeuge(entitaeten, fokus);
@@ -858,6 +860,24 @@ export class Renderer {
     return mesh;
   }
 
+  /** Sichtbarer Lichtkegel (additiv, Spitze am Spieler, nach vorn ausblendend) – zeigt den Strahl der Taschenlampe in der Luft. */
+  #neuerLichtKegel() {
+    const laenge = TASCHENLAMPE.kegelLaenge;
+    const geometrie = new THREE.CylinderGeometry(0, laenge * Math.tan(TASCHENLAMPE.winkel), laenge, 24, 1, true).translate(0, -laenge / 2, 0).rotateZ(Math.PI / 2);
+    const pos = geometrie.attributes.position;
+    const farben = new Float32Array(pos.count * 3);
+    for (let i = 0; i < pos.count; i++) farben.fill(1 - pos.getX(i) / laenge, i * 3, i * 3 + 3);
+    geometrie.setAttribute('color', new THREE.BufferAttribute(farben, 3));
+    const mesh = new THREE.Mesh(
+      geometrie,
+      new THREE.MeshBasicMaterial({ color: 0xffe9b8, vertexColors: true, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, fog: false }),
+    );
+    mesh.visible = false;
+    mesh.frustumCulled = false;
+    this.szene.add(mesh);
+    return mesh;
+  }
+
   #neuesPunktlicht(farbe, reichweite) {
     const licht = new THREE.PointLight(farbe, 0, reichweite, 1);
     this.szene.add(licht);
@@ -1110,7 +1130,9 @@ export class Renderer {
     this.taschenlampen.forEach((spot, i) => {
       const s = spieler[i];
       const schein = this.taschenScheine[i];
+      const kegel = this.taschenKegel[i];
       schein.visible = false;
+      kegel.visible = false;
       if (!s) {
         spot.intensity = 0;
         return;
@@ -1133,7 +1155,7 @@ export class Renderer {
       // Der Kegel beginnt direkt vor der Brust (nicht mehr an der ausgestreckten Waffe): so liegt der Lichtkreis spürbar vorm Charakter.
       // Knapp außerhalb der Körpermitte, sonst verschluckt der eigene Schatten den Kegel.
       spot.position.set(s.x + vx * TASCHENLAMPEN_ANSATZ.vorn, TASCHENLAMPEN_ANSATZ.hoehe + this.#hy(s.x, s.y), s.y + vz * TASCHENLAMPEN_ANSATZ.vorn);
-      spot.target.position.set(s.x + vx * 200, this.#hy(s.x + vx * 200, s.y + vz * 200), s.y + vz * 200);
+      spot.target.position.set(s.x + vx * 420, this.#hy(s.x + vx * 420, s.y + vz * 420), s.y + vz * 420);
       // Schmaler, schwacher Kegel (düster); tagsüber sieht man ihn kaum
       Object.assign(spot, { angle: TASCHENLAMPE.winkel, penumbra: TASCHENLAMPE.rand, distance: TASCHENLAMPE.reichweite });
       spot.intensity = this.nachtsicht ? 400 : TASCHENLAMPE.staerke + TASCHENLAMPE.staerkeNacht * dunkel;
@@ -1144,6 +1166,10 @@ export class Renderer {
         schein.rotation.y = -s.blick;
         schein.scale.set(120, 1, 78);
         schein.material.opacity = 0.34 * dunkel;
+        kegel.visible = true;
+        kegel.position.set(s.x + vx * TASCHENLAMPEN_ANSATZ.vorn, 30 + this.#hy(s.x, s.y), s.y + vz * TASCHENLAMPEN_ANSATZ.vorn);
+        kegel.rotation.y = -s.blick;
+        kegel.material.opacity = 0.16 * dunkel;
       }
     });
   }
@@ -1328,24 +1354,33 @@ export class Renderer {
    */
   #zeichneHimmel(hell, daemmerung, regen, nebel, abstand, kamAbstand) {
     const ego = !!this.egoHaken;
-    this.himmel.sichtbar = !ego;
+    this.himmel.sichtbar = true;
     const kamera = this.kamera3d;
     const ferne = ego ? 4000 : kamAbstand * HIMMEL_FERNE;
     if (Math.abs(kamera.far - ferne) > 0.5) {
       kamera.far = ferne;
       kamera.updateProjectionMatrix();
     }
-    if (ego) return;
-    // Nebel endet an der Kamera-Ferne (nie näher als vor der Figur): so ist die Weltkante unsichtbar
-    this.szene.fog.far = ferne;
-    this.szene.fog.near = Math.max(kamAbstand * 0.92, Math.min(this.szene.fog.near, ferne - kamAbstand * HIMMEL_DUNST));
+    let schnitt;
+    if (ego) {
+      // Ego: echter Horizont – Bildhöhe der Horizontlinie aus der Kameraneigung; der Himmel füllt alles darüber
+      kamera.getWorldDirection(_blick);
+      const neigung = Math.asin(Math.max(-1, Math.min(1, _blick.y)));
+      schnitt = Math.min(1.5, Math.max(-0.5, 0.5 - (0.5 * Math.tan(neigung)) / Math.tan((kamera.fov * Math.PI) / 360)));
+    } else {
+      // Nebel endet an der Kamera-Ferne (nie näher als vor der Figur): so ist die Weltkante unsichtbar
+      this.szene.fog.far = Math.min(this.szene.fog.far, ferne);
+      this.szene.fog.near = Math.max(kamAbstand * 0.92, Math.min(this.szene.fog.near, ferne - kamAbstand * HIMMEL_DUNST));
+    }
     // Wo auf dem Bildschirm schneidet die Bodenebene die Kamera-Ferne? (Tiefe = Ferne, Neigung der Kamera aus dem Versatz)
+    if (!ego) {
     const hoeheUeberBoden = KAMERA_VERSATZ.y * abstand;
     const neigung = Math.atan2(hoeheUeberBoden, KAMERA_VERSATZ.z * abstand + 20);
     const kot = (ferne / hoeheUeberBoden - Math.sin(neigung)) / Math.cos(neigung);
     const winkel = kot > 0 ? Math.atan(1 / kot) : Math.PI / 2;
     const bildY = Math.tan(neigung - winkel) / Math.tan((kamera.fov * Math.PI) / 360);
-    const schnitt = Math.min(0.97, Math.max(0.55, 0.5 + 0.5 * bildY));
+    schnitt = Math.min(0.97, Math.max(0.55, 0.5 + 0.5 * bildY));
+    }
     const stimmung = Math.max(regen, nebel);
     _zenit.copy(NACHT.zenit).lerp(TAG.zenit, hell).lerp(DAEMMERUNG.zenit, daemmerung * 0.55);
     _wolkenFarbe.copy(NACHT.wolken).lerp(TAG.wolken, hell).lerp(DAEMMERUNG.wolken, daemmerung * 0.6);

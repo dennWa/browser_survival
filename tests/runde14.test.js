@@ -113,7 +113,7 @@ test('Wand-Aufprall ab 10 km/h beschädigt das eigene Auto, langsam nicht', () =
   assert.equal(langsam.auto.leben, langsam.auto.maxLeben, 'kein Schaden unter 10 km/h');
 });
 
-test('Baum & Laterne: ab 10 km/h umgefahren (Server fällt/knickt sie), langsam halten sie das Auto auf', () => {
+test('Baum & Laterne: Baum ab 10, Laterne ab 40 km/h umgefahren, langsam halten sie das Auto auf', () => {
   const objekte = [
     { typ: 'baum', x: 14, y: 3, b: 3, h: 3, ebene: 'oben', groesse: 'klein' },
     { typ: 'licht', x: 24, y: 3, b: 1, h: 1, radius: 3, farbe: '#ffc070', staerke: 0.8, mast: true },
@@ -124,7 +124,7 @@ test('Baum & Laterne: ab 10 km/h umgefahren (Server fällt/knickt sie), langsam 
   fahre(welt, spieler, -1, 6);
   assert.ok(!welt.welt.istRessourceDa(baumId), 'Baum umgefahren');
   assert.ok(welt.welt.laternenUmgefahren.has(0), 'Laterne umgefahren');
-  assert.ok(auto.leben === auto.maxLeben || auto.leben > 0, 'Bäume/Laternen machen keinen Schaden');
+  assert.ok(auto.leben < auto.maxLeben, 'die Laterne kostet das Auto Leben (0,5)');
   assert.ok(welt.ressourcenNachwuchs.has(baumId) && welt.laternenNachwuchs.has(0), 'beide wachsen/werden nach');
   // langsam: der Mast hält das Auto auf (weniger als 10 km/h)
   const langsam = aufbau(objekte);

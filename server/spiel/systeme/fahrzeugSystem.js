@@ -1,4 +1,4 @@
-import { AUFPRALL_MIN_KMH, EINSTIEG_ABSTAND, FAHRZEUG_MAX_KMH, abstandZumFahrzeug, ausstiegsPunkt, fahrzeugKacheln, kmhZuTempo } from '../../../gemeinsam/physik/fahrzeug.js';
+import { AUFPRALL_MIN_KMH, LATERNE_MIN_KMH, tempoZuKmh, EINSTIEG_ABSTAND, FAHRZEUG_MAX_KMH, abstandZumFahrzeug, ausstiegsPunkt, fahrzeugKacheln, kmhZuTempo } from '../../../gemeinsam/physik/fahrzeug.js';
 import { fuegeSchadenZu, toeten } from './kampfSystem.js';
 
 /**
@@ -146,6 +146,7 @@ function fahreHindernisseUm(spielWelt, fz) {
   const fahrer = fz.fahrerId !== null ? spielWelt.holen(fz.fahrerId) : null;
   for (const h of kandidaten) {
     if (abstandZumFahrzeug(fz, h.x, h.y) > h.radius + 2) continue;
+    if (h.typ === 'laterne' && tempoZuKmh(fz.tempo) < LATERNE_MIN_KMH) continue; // Laternen erst ab 40 km/h
     if (h.typ === 'baum') {
       welt.setzeRessource(h.id, false);
       spielWelt.ressourcenNachwuchs.set(h.id, spielWelt.konfiguration.ressourcen.holz.nachwachsen);
@@ -156,6 +157,8 @@ function fahreHindernisseUm(spielWelt, fz) {
       spielWelt.laternenNachwuchs.set(h.id, spielWelt.konfiguration.fahrzeug.laterneNachwachsen);
       spielWelt.ereignis({ typ: 'laterneUmgefahren', id: h.id, x: h.x, y: h.y, sx: fz.x, sy: fz.y });
       fz.tempo *= 0.97;
+      schlageFahrzeug(spielWelt, fz, spielWelt.konfiguration.fahrzeug.laterneSchaden);
+      if (fz.kaputt) return;
     }
   }
 }

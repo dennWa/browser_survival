@@ -1181,11 +1181,9 @@ export class ClientSpiel {
           ? '🎣 Warten auf den Biss …'
           : !touch && angel === 'auswerfen'
             ? '🎣 Linksklick: Angel auswerfen'
-            : !touch && hand?.art === 'hacke'
-              ? '🌱 Linksklick: Ackerfeld anlegen · Rechtsklick: zurück zu Rasen'
-              : !touch && hand?.art === 'samen'
-                ? '🌱 Linksklick: Samen pflanzen'
-                : null,
+            : !touch && hand?.art === 'samen'
+              ? '🌱 Linksklick: Samen pflanzen'
+              : null,
       angel === 'biss',
     );
     if (this.hud.minikarteAn && jetzt - this.letzteMiniKarte > 180) {

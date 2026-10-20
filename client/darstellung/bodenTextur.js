@@ -61,6 +61,7 @@ export class BodenTextur {
         ctx.rotate(((h >> 4) % 4) * (Math.PI / 2));
         ctx.drawImage(bild, v.x, v.y, v.b, v.h, -g / 2 - 0.25, -g / 2 - 0.25, g + 0.5, g + 0.5);
         ctx.restore();
+        this.#grasTon(ctx, tx, ty, x, y);
       } else {
         ctx.drawImage(bild, v.x, v.y, v.b, v.h, x, y, g + 0.25, g + 0.25);
       }
@@ -75,6 +76,30 @@ export class BodenTextur {
     if (name === 'gehweg') this.#gehwegPlatten(ctx, tx, ty);
     if (name === 'wasser') this.#wasser(ctx, tx, ty);
   }
+  /**
+   * Rasen dunkler und lebendiger: Grundabdunklung + großflächiges Rauschen (Wiesenflecken von sattgrün bis olivgelb/blaugrün)
+   * + ein paar kleine weiche Flecken pro Kachel. Deterministisch aus der Kachelposition.
+   */
+  #grasTon(ctx, tx, ty, x, y) {
+    const g = this.g;
+    const n = wertRauschen(tx * 0.16, ty * 0.16) * 0.85 + wertRauschen(tx * 0.55 + 40, ty * 0.55 + 7) * 0.15; // 0..1
+    ctx.fillStyle = 'rgba(6, 34, 12, 0.5)';
+    ctx.fillRect(x, y, g + 0.25, g + 0.25);
+    ctx.fillStyle = n > 0.5 ? `rgba(120, 132, 28, ${((n - 0.5) * 0.45).toFixed(3)})` : `rgba(0, 40, 36, ${((0.5 - n) * 0.5).toFixed(3)})`;
+    ctx.fillRect(x, y, g + 0.25, g + 0.25);
+    const h = streuwert(tx * 7 + 3, ty * 13 + 5);
+    for (let i = 0; i < 3; i++) {
+      const bx = x + ((h >> (i * 5)) % 32);
+      const by = y + ((h >> (i * 5 + 2)) % 32);
+      const hell = (h >> (i + 9)) % 2 === 0;
+      const verlauf = ctx.createRadialGradient(bx, by, 0, bx, by, 9);
+      verlauf.addColorStop(0, hell ? 'rgba(110, 150, 40, 0.22)' : 'rgba(0, 20, 8, 0.28)');
+      verlauf.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = verlauf;
+      ctx.fillRect(bx - 9, by - 9, 18, 18);
+    }
+  }
+
   /** See: tiefes Blau in der Mitte, helle Uferkante zum Land, ein paar Wellenstriche (die bewegten Wellen liegen in kartenModell). */
   #wasser(ctx, tx, ty) {
     const g = this.g;
@@ -209,4 +234,18 @@ function neuesCanvas(breite, hoehe) {
   canvas.width = Math.max(1, Math.round(breite));
   canvas.height = Math.max(1, Math.round(hoehe));
   return canvas;
+}
+
+/** Glattes Wertrauschen 0..1 (bilinear zwischen Gitterwerten) */
+function wertRauschen(px, py) {
+  const ix = Math.floor(px);
+  const iy = Math.floor(py);
+  const fx = px - ix;
+  const fy = py - iy;
+  const w = (a, b) => (streuwert(a * 31 + 7, b * 17 + 3) % 1000) / 1000;
+  const sx = fx * fx * (3 - 2 * fx);
+  const sy = fy * fy * (3 - 2 * fy);
+  const oben = w(ix, iy) * (1 - sx) + w(ix + 1, iy) * sx;
+  const unten = w(ix, iy + 1) * (1 - sx) + w(ix + 1, iy + 1) * sx;
+  return oben * (1 - sy) + unten * sy;
 }

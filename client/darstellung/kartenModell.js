@@ -156,10 +156,7 @@ export class KartenModell {
 
   /** Liegt der Punkt draußen oder im gerade geöffneten Raum? (Beschriftungen in geschlossenen Räumen bleiben aus.) */
   istEinsehbar(x, y) {
-    if (!this.daecher) return true;
-    const kachel = Math.floor(y / this.g) * this.welt.breite + Math.floor(x / this.g);
-    const raum = this.daecher.raumAn.get(kachel);
-    return raum === undefined || raum === this.daecher.offenerRaum;
+    return this.daecher ? this.daecher.einsehbar(x, y) : true;
   }
 
   /** Echte Walmdächer über allen Gebäuden (dachModell.js), räumeweise aufklappbar. */

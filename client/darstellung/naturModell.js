@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from '../vendor/three/addons.js';
 import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
 import { BAUM_WIND } from './baumModell.js';
-import { STREUUNG, ZONEN, NATUR_SICHTWEITE, HANDY_DICHTE, NATUR_BLOCK } from './naturKonfiguration.js';
+import { STREUUNG, ZONEN, NATUR_SICHTWEITE, NATUR_SICHTWEITE_EGO, HANDY_DICHTE, NATUR_BLOCK } from './naturKonfiguration.js';
 
 /**
  * Natur-Schicht: streut 3D-Modelle (Gras u. a., Konfiguration in naturKonfiguration.js) auf den Untergrund der Karte – anstelle der
@@ -195,6 +195,7 @@ export class NaturSchicht {
     }
     this.bloecke = [...blockGruppen.values()];
     this.blockRadius2 = (NATUR_SICHTWEITE + NATUR_BLOCK * g * 0.75) ** 2;
+    this.blockRadiusEgo2 = (NATUR_SICHTWEITE_EGO + NATUR_BLOCK * g * 0.75) ** 2;
     this.bauwerkeStand = null;
   }
 
@@ -212,9 +213,10 @@ export class NaturSchicht {
   }
 
   /** Pro Frame: nur Blöcke in Sichtweite zeichnen; bei neuen/entfernten Spielerbauten Büschel darunter ausblenden. */
-  aktualisiere(fokus, bauwerkeVersion) {
+  aktualisiere(fokus, bauwerkeVersion, ego = false) {
+    const radius2 = ego ? this.blockRadiusEgo2 : this.blockRadius2;
     for (const b of this.bloecke) {
-      const sichtbar = (b.x - fokus.x) ** 2 + (b.z - fokus.y) ** 2 < this.blockRadius2;
+      const sichtbar = (b.x - fokus.x) ** 2 + (b.z - fokus.y) ** 2 < radius2;
       if (sichtbar !== b.sichtbar) {
         b.sichtbar = sichtbar;
         b.gruppe.visible = sichtbar;
