@@ -30,6 +30,7 @@ export function prefabUi({ zustand, panel, aktionen, layout }) {
   };
   laden();
   aktionen.prefabsNeuLaden = laden; // nach „Backup wiederherstellen“
+  aktionen.eigenePrefabs = () => [...eigene].map(([name, vorlage]) => ({ name, vorlage })); // KI-Aktion prefab (9.1)
   aktionen.prefabEintraege = () => prefabEintraege([...eingebautePrefabs(), ...[...eigene].map(([name, vorlage]) => ({ name, vorlage, eigen: true }))]);
 
   // Vorschaubilder (Cache je Vorlage-Objekt)

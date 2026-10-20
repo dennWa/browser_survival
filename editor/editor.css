@@ -1503,3 +1503,18 @@ img.ki-bild {
   min-height: 30px;
   padding: 0 6px;
 }
+
+/* KI 9.1: Das wird gesendet */
+.ki-gesendet {
+  max-height: 40vh;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-size: 11px;
+  background: #11151a;
+  padding: 8px;
+  border-radius: 6px;
+}
+.helfer-kontext button {
+  min-height: 26px;
+  font-size: 12px;
+}

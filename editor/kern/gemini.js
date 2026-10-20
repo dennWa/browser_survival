@@ -9,12 +9,20 @@ import { kopie } from './karte.js';
  * Kontext je Frage: Zonen-Überblick + (markierter Bereich als Ausschnitt | Auswahl) – wird NICHT im Verlauf gespeichert,
  * damit alte Kartenstände den Chat nicht aufblähen. Änderungen kommen als Aktionsliste (siehe kiImport.js) und laufen
  * über dieselbe Vorschau wie der KI-Import – die KI ändert NIE direkt die Karte.
+ * Editor 2.0, 9.1: NIE die ganze Karte (früher: Zonen ≤ 2500 Kacheln ganz, Fehler B6) – nur Markierung/Auswahl + Statistik;
+ * `teile` sagt, was gesendet wird (UI „Das wird gesendet“); strukturierte Antworten (`json: true` → responseMimeType
+ * application/json, Form { antwort, aktionen }); frageGemini prüft, dass der Schlüssel NIE im Body steht.
  */
 export const GEMINI_BASIS = 'https://generativelanguage.googleapis.com/v1beta/models';
 export const STANDARD_MODELL = 'gemini-2.5-flash';
 export const BEKANNTE_MODELLE = ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.5-flash-lite'];
 /** größter Bereich (Kacheln), der als Raster mitgeschickt wird */
 export const MAX_KACHELN = 2500;
+
+export const JSON_TEXT = [
+  'Antworte IMMER als JSON-Objekt: {"antwort": "<dein Text auf Deutsch>", "aktionen": [ … ]}.',
+  '"aktionen" ist die Aktionsliste (erste Aktion: die "bereich"-Aktion aus dem Kontext) – bei reinen Fragen/Ideen eine leere Liste.',
+].join('\n');
 
 export const SYSTEM_TEXT = [
   'Du bist der Helfer im Map-Editor des Browser-Survival-Spiels (Top-Down-Zombie-Survival, 1 Kachel = 1 m).',
@@ -56,17 +64,36 @@ function typListe(karte) {
   return [...eintraege.values()].join(', ');
 }
 
-/**
- * Kontext für eine Frage.
- * @returns { text, bereich: {x0,x1,y0,y1}|null, quelle: 'markierung'|'auswahl'|'zone'|'keiner', beschreibung, zu_gross }
- */
-export function baueKontext(karte, { rechteck = null, auswahl = [], mitBereich = true, mitAuswahl = true } = {}) {
-  const zeilen = [`# Kontext – Zone „${karte.name}“ (${karte.id}), ${karte.breite} × ${karte.hoehe} Kacheln`];
+/** Statistik der Zone (Kontext-Baustein, 9.1): Zählungen, Räume, Loot-Zonen, gesetzte Zonen-Werte – keine Kacheln */
+export function zonenStatistik(karte, { prefabs = [] } = {}) {
   const zaehler = {};
   for (const o of karte.s('objekte').values()) zaehler[o.typ] = (zaehler[o.typ] ?? 0) + 1;
-  zeilen.push(`Objekte in der Zone: ${Object.entries(zaehler).map(([t, n]) => `${n}× ${t}`).join(', ') || 'keine'}.`);
-  zeilen.push(`Typ-Texturen gesetzt: ${[...karte.s('texturen')].map(([t, v]) => `${t}=${JSON.stringify(v)}`).join(', ') || 'keine'}.`);
-  zeilen.push(`objektTypen: ${typListe(karte)}`);
+  const marker = { start: 0, zombie: 0, loot: 0 };
+  for (const m of karte.s('marker').values()) marker[m.art] = (marker[m.art] ?? 0) + 1;
+  const zeilen = [
+    `Objekte in der Zone: ${Object.entries(zaehler).map(([t, n]) => `${n}× ${t}`).join(', ') || 'keine'}.`,
+    `Marker: ${marker.start} Start, ${marker.zombie} Zombie-Spawns, ${marker.loot} Loot-Punkte · ${karte.s('bauwerke').size} Bauwerke · ${karte.s('uebergaenge').size} Übergänge.`,
+    `Räume: ${[...karte.s('raeume')].map(([k, r]) => `${k}=${r.name} (${r.lootTabelle})`).join(', ') || 'keine'}.`,
+    `Loot-Zonen: ${[...karte.s('lootZonen')].map(([id, z]) => `id ${id} „${z.name}“ ${z.b}×${z.h} bei ${z.x}|${z.y}`).join(', ') || 'keine'}.`,
+    `Zonen-Werte gesetzt: ${JSON.stringify(karte.wert('einstellungen') ?? {})}${karte.wert('musik') ? ` · musik=${karte.wert('musik')}` : ''}.`,
+    `Typ-Texturen gesetzt: ${[...karte.s('texturen')].map(([t, v]) => `${t}=${JSON.stringify(v)}`).join(', ') || 'keine'}.`,
+    `objektTypen: ${typListe(karte)}`,
+  ];
+  if (prefabs.length) zeilen.push(`prefabs: ${prefabs.map((p) => `${p.name} ${p.vorlage.b}×${p.vorlage.h}`).join(', ')}`);
+  return zeilen.join('\n');
+}
+
+/**
+ * Kontext für eine Frage (Kontext-Baukasten 9.1): Kopf + Statistik (immer, ohne Kacheln) + Ausschnitt NUR der Markierung bzw.
+ * um die Auswahl (nie die ganze Zone) + gewählte Objekte.
+ * @returns { text, teile: [{ titel, zeichen }], bereich: {x0,x1,y0,y1}|null, quelle: 'markierung'|'auswahl'|'keiner', beschreibung, zuGross }
+ */
+export function baueKontext(karte, { rechteck = null, auswahl = [], mitBereich = true, mitAuswahl = true, prefabs = [] } = {}) {
+  const teile = [];
+  const kopf = `# Kontext – Zone „${karte.name}“ (${karte.id}), ${karte.breite} × ${karte.hoehe} Kacheln`;
+  const statistik = zonenStatistik(karte, { prefabs });
+  teile.push({ titel: 'Zonen-Statistik (ohne Kacheln)', zeichen: statistik.length });
+  const zeilen = [kopf, statistik];
 
   const objekte = mitAuswahl ? auswahl.filter((e) => e.s === 'objekte' || e.s === 'bauwerke') : [];
   let r = null;
@@ -78,9 +105,6 @@ export function baueKontext(karte, { rechteck = null, auswahl = [], mitBereich =
   } else if (objekte.length) {
     r = auswahlBereich(karte, objekte);
     quelle = 'auswahl';
-  } else if (mitBereich && karte.breite * karte.hoehe <= MAX_KACHELN) {
-    r = { x: 0, y: 0, b: karte.breite, h: karte.hoehe };
-    quelle = 'zone';
   }
   if (r && r.b * r.h > MAX_KACHELN) {
     zuGross = true;
@@ -92,10 +116,12 @@ export function baueKontext(karte, { rechteck = null, auswahl = [], mitBereich =
   if (r) {
     const a = ausschnitt(karte, r);
     bereich = { x0: a.bereich.x0, x1: a.bereich.x1, y0: a.bereich.y0, y1: a.bereich.y1 };
-    beschreibung = `${quelle === 'markierung' ? 'Markierung' : quelle === 'auswahl' ? 'um die Auswahl' : 'ganze Zone'}: ${bereichText(bereich)}`;
-    zeilen.push('', ausschnittText(a));
+    beschreibung = `${quelle === 'markierung' ? 'Markierung' : 'um die Auswahl'}: ${bereichText(bereich)}`;
+    const t = ausschnittText(a);
+    teile.push({ titel: `Ausschnitt ${bereichText(bereich)} (${r.b} × ${r.h} Kacheln)`, zeichen: t.length });
+    zeilen.push('', t);
   } else if (zuGross) zeilen.push('', `(Der Bereich ist größer als ${MAX_KACHELN} Kacheln – nicht mitgeschickt. Der Nutzer soll einen kleineren Bereich markieren, wenn du Änderungen vorschlagen sollst.)`);
-  else zeilen.push('', '(Kein Bereich markiert – nur Rat geben, keine Aktionen.)');
+  else zeilen.push('', '(Kein Bereich markiert – nur Rat geben; erlaubt sind dann nur zonenweite Aktionen: wert, name zone/raum, raum, typtextur.)');
 
   if (objekte.length) {
     zeilen.push('', '## Aktuell ausgewählt (der Nutzer meint vermutlich diese)');
@@ -104,16 +130,30 @@ export function baueKontext(karte, { rechteck = null, auswahl = [], mitBereich =
       zeilen.push(e.s === 'objekte' ? `- Objekt id ${e.k}: ${objektInfo(w.typ, karte).name} ${JSON.stringify(w)}` : `- Bauwerk id ${e.k}: ${JSON.stringify(w)}`);
     }
     if (objekte.length > 40) zeilen.push(`- … und ${objekte.length - 40} weitere`);
+    teile.push({ titel: `${Math.min(40, objekte.length)} ausgewählte Objekte`, zeichen: 0 });
   }
   const text = zeilen.join('\n');
-  return { text, bereich, quelle, beschreibung, zuGross, objekte: objekte.length, zeichen: text.length };
+  return { text, teile, bereich, quelle, beschreibung, zuGross, objekte: objekte.length, zeichen: text.length };
 }
 
 /** Anfrage-Body für generateContent: verlauf = [{rolle:'nutzer'|'helfer', text}] ohne die neue Frage */
-export function baueAnfrage({ verlauf = [], frage, kontext, temperatur = 0.7 }) {
+export function baueAnfrage({ verlauf = [], frage, kontext, temperatur = 0.7, json = false, system = SYSTEM_TEXT }) {
   const contents = verlauf.map((n) => ({ role: n.rolle === 'helfer' ? 'model' : 'user', parts: [{ text: n.text }] }));
   contents.push({ role: 'user', parts: [{ text: `${kontext ? `${kontext}\n\n---\n` : ''}Frage des Nutzers:\n${frage}` }] });
-  return { systemInstruction: { parts: [{ text: SYSTEM_TEXT }] }, contents, generationConfig: { temperature: temperatur } };
+  const generationConfig = { temperature: temperatur };
+  if (json) generationConfig.responseMimeType = 'application/json';
+  return { systemInstruction: { parts: [{ text: json ? `${system}\n${JSON_TEXT}` : system }] }, contents, generationConfig };
+}
+
+/** Strukturierte Antwort { antwort, aktionen } lesen – sonst null (dann alter Weg: Text + ```json-Block) */
+export function leseStrukturiert(text) {
+  try {
+    const o = JSON.parse(String(text).trim().replace(/^```(?:json)?\s*|```$/g, ''));
+    if (o && typeof o === 'object' && !Array.isArray(o) && (typeof o.antwort === 'string' || Array.isArray(o.aktionen))) return { antwort: String(o.antwort ?? ''), aktionen: Array.isArray(o.aktionen) ? o.aktionen : [] };
+  } catch {
+    /* kein reines JSON */
+  }
+  return null;
 }
 
 /** Antwort-JSON → Text; wirft verständliche Fehler (blockiert, leer, abgeschnitten wird nur gemeldet) */
@@ -140,12 +180,15 @@ export function fehlerText(status, body) {
 export async function frageGemini({ schluessel, modell = STANDARD_MODELL, anfrage, signal = undefined, fetchFn = globalThis.fetch }) {
   if (!schluessel?.trim()) throw new Error('Kein API-Schlüssel hinterlegt (⚙ im Helfer-Reiter).');
   if (!/^[\w.\-]+$/.test(modell)) throw new Error('Ungültiger Modellname');
+  const body = JSON.stringify(anfrage);
+  // 9.1: Der Schlüssel gehört NUR in den Header – steht er (z. B. durch einen Fehler im Kontext) im Body, wird nichts gesendet
+  if (schluessel.trim().length >= 8 && body.includes(schluessel.trim())) throw new Error('Sicherheitsstopp: der API-Schlüssel stünde in der Anfrage – nichts gesendet.');
   let antwort;
   try {
     antwort = await fetchFn(`${GEMINI_BASIS}/${modell}:generateContent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': schluessel.trim() },
-      body: JSON.stringify(anfrage),
+      body,
       signal,
     });
   } catch (e) {
@@ -201,6 +244,11 @@ export async function frageGeminiBild({ schluessel, modell = BILD_MODELL, prompt
  * Nimmt den ```json-Block; ohne verwertbare Aktionen (reiner Text) null.
  */
 export function findeAktionen(text, karte) {
+  const s = leseStrukturiert(text);
+  if (s) {
+    const aktionen = s.aktionen.filter((a) => a && typeof a === 'object');
+    return aktionen.some((a) => String(a.aktion ?? '').toLowerCase() !== 'bereich') ? { anzahl: aktionen.filter((a) => String(a.aktion ?? '').toLowerCase() !== 'bereich').length, json: JSON.stringify(aktionen) } : null;
+  }
   const bloecke = [...text.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi)].map((m) => m[1]);
   for (const b of bloecke.reverse()) {
     try {
@@ -214,4 +262,4 @@ export function findeAktionen(text, karte) {
 }
 
 /** Text ohne die JSON-Blöcke (die zeigt die UI als Knopf) */
-export const ohneJsonBloecke = (text) => text.replace(/```(?:json)?\s*[\s\S]*?```/gi, '').replace(/\n{3,}/g, '\n\n').trim();
+export const ohneJsonBloecke = (text) => leseStrukturiert(text)?.antwort ?? text.replace(/```(?:json)?\s*[\s\S]*?```/gi, '').replace(/\n{3,}/g, '\n\n').trim();

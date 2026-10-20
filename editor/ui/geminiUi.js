@@ -1,4 +1,5 @@
-import { baueKontext, baueAnfrage, frageGemini, findeAktionen, ohneJsonBloecke, STANDARD_MODELL, BEKANNTE_MODELLE } from '../kern/gemini.js';
+import { frageGemini, ohneJsonBloecke, STANDARD_MODELL, BEKANNTE_MODELLE } from '../kern/gemini.js';
+import { kiAnfrage, kiErgebnis } from '../kern/kiPipeline.js';
 import { bereichText } from '../kern/ausschnitt.js';
 import { dialog, esc } from './dialoge.js';
 
@@ -8,6 +9,8 @@ import { dialog, esc } from './dialoge.js';
  * - Jede Frage bekommt frischen Kontext (Markierung/Auswahl/Zone, siehe kern/gemini.js); der Chatverlauf speichert nur Fragen + Antworten.
  * - Änderungsvorschläge (```json-Aktionsliste) landen NIE direkt in der Karte: Knopf „Prüfen“ → gleiche Vorschau wie 🤖 KI-Import.
  * Das DOM des Chats wird einmal gebaut und bei jedem Reiterwechsel nur wieder eingehängt (Panel zeichnet sonst bei Kartenänderung neu).
+ * 9.1: läuft über kern/kiPipeline.js (Kontext-Baukasten ohne ganze Karte, strukturierte JSON-Antworten, Vorschau → 1 Undo-Schritt);
+ * „👁 Das wird gesendet“ zeigt vor dem Senden genau, welche Teile (und den vollen Text) an Google gehen.
  */
 const SPEICHER = 'browserSurvival.editorGemini';
 const VORSCHLAEGE = [
@@ -27,7 +30,7 @@ export function geminiUi({ zustand, panel, aktionen, pruefeText }) {
   wurzel.className = 'helfer';
   wurzel.innerHTML = `
     <div class="helfer-kopf"><span class="helfer-status leise"></span><button data-a="einst" title="API-Schlüssel &amp; Modell">⚙</button><button data-a="neu" title="Neues Gespräch">🗑</button></div>
-    <div class="helfer-kontext leise"></div>
+    <div class="helfer-kontext leise"><span></span> <button type="button" data-a="gesendet" title="Genau ansehen, was an Gemini geht">👁 Das wird gesendet</button></div>
     <div class="helfer-optionen leise"><label><input type="checkbox" name="bereich" checked> Bereich/Zone mitschicken</label><label><input type="checkbox" name="auswahl" checked> Auswahl mitschicken</label></div>
     <div class="helfer-vorschlaege"></div>
     <div class="helfer-chat" aria-live="polite"></div>
@@ -47,12 +50,21 @@ export function geminiUi({ zustand, panel, aktionen, pruefeText }) {
   }
 
   const kontextOptionen = () => ({ mitBereich: el('[name=bereich]').checked, mitAuswahl: el('[name=auswahl]').checked });
-  const holeKontext = () => baueKontext(zustand.karte, { rechteck: auswahlBereich(), auswahl: ausgewaehlteElemente(), ...kontextOptionen() });
+  const prefabs = () => aktionen.eigenePrefabs?.() ?? [];
+  const bereite = (frage = '') => kiAnfrage({ karte: zustand.karte, frage, verlauf, rechteck: auswahlBereich(), auswahl: ausgewaehlteElemente(), prefabs: prefabs(), ...kontextOptionen() });
 
   function zeigeKontext() {
-    if (!zustand.karte) return (el('.helfer-kontext').textContent = 'Keine Zone geöffnet.');
-    const k = holeKontext();
-    el('.helfer-kontext').textContent = `Die KI sieht: ${k.beschreibung}${k.objekte ? ` · ${k.objekte} ausgewählt` : ''} · ~${Math.round(k.zeichen / 1000)}k Zeichen${k.zuGross ? ' · ⚠ Bereich zu groß, bitte kleiner markieren (⬚)' : ''}`;
+    const ziel = el('.helfer-kontext span');
+    if (!zustand.karte) return (ziel.textContent = 'Keine Zone geöffnet.');
+    const k = bereite().kontext;
+    ziel.textContent = `Die KI sieht: Statistik + ${k.beschreibung}${k.objekte ? ` · ${k.objekte} ausgewählt` : ''} · ~${Math.round(k.zeichen / 1000)}k Zeichen${k.zuGross ? ' · ⚠ Bereich zu groß, bitte kleiner markieren (⬚)' : ''}`;
+  }
+
+  /** „Das wird gesendet“: Teile-Liste + der komplette Kontext-Text */
+  function zeigeGesendet() {
+    if (!zustand.karte) return;
+    const { gesendet, kontext } = bereite(eingabe.value.trim());
+    dialog({ titel: '👁 Das wird an Gemini gesendet', html: `<ul class="liste">${gesendet.map((t) => `<li>${esc(t)}</li>`).join('')}</ul><details><summary>Kompletter Kontext-Text (${kontext.zeichen} Zeichen)</summary><pre class="ki-gesendet">${esc(kontext.text)}</pre></details>` });
   }
   function zeigeStatus() {
     el('.helfer-status').textContent = speicher.schluessel ? `Gemini · ${speicher.modell}` : 'Kein API-Schlüssel – ⚙ anklicken';
@@ -69,10 +81,7 @@ export function geminiUi({ zustand, panel, aktionen, pruefeText }) {
     n.innerHTML = `<div class="text">${esc(anzeige).replace(/\n/g, '<br>')}</div>`;
     if (extra.aktionen) {
       const b = Object.assign(document.createElement('button'), { textContent: `🔍 ${extra.aktionen.anzahl} Änderungen prüfen`, className: 'akzent', type: 'button' });
-      b.addEventListener('click', () => {
-        if (!extra.bereich) return zustand.meldung('Ohne Bereich kann ich nichts prüfen – erst einen Bereich markieren (⬚), dann nochmal fragen', 'fehler');
-        pruefeText(extra.aktionen.json, extra.bereich);
-      });
+      b.addEventListener('click', () => pruefeText(extra.aktionen.json, extra.bereich)); // ohne Bereich nur zonenweite Aktionen (kiImport)
       n.append(b);
     }
     if (extra.hinweis) n.insertAdjacentHTML('beforeend', `<div class="leise">${esc(extra.hinweis)}</div>`);
@@ -86,7 +95,7 @@ export function geminiUi({ zustand, panel, aktionen, pruefeText }) {
     if (!frage || laeuft) return;
     if (!zustand.karte) return zustand.meldung('Erst eine Zone öffnen', 'fehler');
     if (!speicher.schluessel) return einstellungen();
-    const kontext = holeKontext();
+    const { anfrage, kontext } = bereite(frage);
     nachricht('nutzer', frage, { hinweis: kontext.beschreibung });
     eingabe.value = '';
     const wartet = nachricht('helfer', '…denke nach…');
@@ -94,11 +103,11 @@ export function geminiUi({ zustand, panel, aktionen, pruefeText }) {
     el('[data-a=senden]').hidden = true;
     el('[data-a=stopp]').hidden = false;
     try {
-      const anfrage = baueAnfrage({ verlauf, frage, kontext: kontext.text });
       const { text, abgeschnitten } = await frageGemini({ schluessel: speicher.schluessel, modell: speicher.modell, anfrage, signal: laeuft.signal });
-      verlauf.push({ rolle: 'nutzer', text: frage }, { rolle: 'helfer', text });
+      const ergebnis = kiErgebnis(zustand.karte, text, { bereich: kontext.bereich, prefabs: prefabs() });
+      verlauf.push({ rolle: 'nutzer', text: frage }, { rolle: 'helfer', text: ergebnis.antwort || text });
       wartet.remove();
-      nachricht('helfer', text, { aktionen: findeAktionen(text, zustand.karte), bereich: kontext.bereich, hinweis: abgeschnitten ? 'Antwort wurde abgeschnitten – frag nach einem kleineren Schritt.' : null });
+      nachricht('helfer', ergebnis.antwort || text, { aktionen: ergebnis.vorschlag, bereich: kontext.bereich, hinweis: abgeschnitten ? 'Antwort wurde abgeschnitten – frag nach einem kleineren Schritt.' : ergebnis.fehler });
     } catch (e) {
       wartet.remove();
       nachricht('fehler', `⚠ ${e.message}`);
@@ -129,6 +138,7 @@ export function geminiUi({ zustand, panel, aktionen, pruefeText }) {
   wurzel.addEventListener('click', (e) => {
     const a = e.target.closest('[data-a]')?.dataset.a;
     if (a === 'einst') einstellungen();
+    else if (a === 'gesendet') zeigeGesendet();
     else if (a === 'senden') senden();
     else if (a === 'stopp') laeuft?.abort();
     else if (a === 'neu') {

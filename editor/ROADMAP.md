@@ -120,9 +120,18 @@
   Markierungen (rot vorher, grün nachher), Übernehmen = 1 Undo-Schritt. Tests `tests/autoFix.test.js` (je Fall), Rauchtest-Schritt „Auto-Fix (8.2)“ (Rauchtest ab jetzt gesammelt am Ende – Nutzerwunsch).
   Phase 8 komplett.
 
-Offen: Phase 9 (9.1–9.9) laut Tabellen unten.
+- 9.1 fertig (2026-10-20): Pipeline `editor/kern/kiPipeline.js` (KI_AUFGABEN, kiAnfrage → anfrage/kontext/gesendet,
+  kiErgebnis → antwort + geprüfte Vorschau; Übernehmen = 1 `zustand.ausfuehren`), Kontext-Baukasten in `kern/gemini.js`
+  (`zonenStatistik`, `baueKontext` ohne Ganze-Zone-Rückfall → **B6 behoben**, `teile`), strukturierte Antworten
+  (`baueAnfrage({json})` → responseMimeType application/json, Form {antwort, aktionen}; `leseStrukturiert`), Sicherheitsstopp
+  in `frageGemini` (Schlüssel im Body → nichts gesendet). Neue KI-Aktionen in `kern/kiImport.js`: wert (Whitelist
+  zonenEinstellungen + musik), lootzone, name, prefab (Option `prefabs`, `aktionen.eigenePrefabs`); zonenweite Aktionen gehen ohne
+  Bereich (`istZonenweit`). Helfer: „👁 Das wird gesendet“. Tests `tests/kiFundament.test.js`. ⚠ Rauchtest für 9.1 noch offen
+  (gesammelt am Ende; Phase-11-Schritt mockt noch ```json-Antworten – Rückweg wird weiter gelesen).
 
-**Nächster Schritt: 9.1 KI-Fundament** (siehe Tabelle Phase 9).
+Offen: 9.2–9.9 laut Tabelle unten.
+
+**Nächster Schritt: 9.2 Text zu Karte** (siehe Tabelle Phase 9).
 
 **Danach:** Phase 9 laut Tabelle unten (KI).
 
@@ -221,7 +230,7 @@ Offen: Phase 9 (9.1–9.9) laut Tabellen unten.
 ## Phase 9 – KI-Assistent
 | # | Schritt | Größe |
 |---|---|---|
-| ☐ 9.1 | **KI-Fundament:** zentrale Pipeline „KI-Vorschlag → Vorschau → 1 Undo-Schritt“ für **alle** KI-Funktionen; Kontext-Baukasten je Aufgabe (nur markierter Bereich/Auswahl/Statistik, **nie die ganze Karte**, nie der Schlüssel), Anzeige „Das wird gesendet“, strukturierte JSON-Antworten; neue Aktionen `wert` (Zonen-Werte inkl. Wetter, Whitelist), `lootzone`, `name`, `prefab` | M |
+| ☑ 9.1 | **KI-Fundament:** zentrale Pipeline „KI-Vorschlag → Vorschau → 1 Undo-Schritt“ für **alle** KI-Funktionen; Kontext-Baukasten je Aufgabe (nur markierter Bereich/Auswahl/Statistik, **nie die ganze Karte**, nie der Schlüssel), Anzeige „Das wird gesendet“, strukturierte JSON-Antworten; neue Aktionen `wert` (Zonen-Werte inkl. Wetter, Whitelist), `lootzone`, `name`, `prefab` | M |
 | ☐ 9.2 | **Text zu Karte:** Prompt → Aktionsliste (nutzt Prefabs als Bausteine) → Geister-Vorschau auf der Karte → Übernehmen/Verwerfen (neue Zone oder markierter Bereich) | L |
 | ☐ 9.3 | **Lückenfinder:** erst lokal berechnet (Sackgassen, Häuser ohne Eingang, Zonen/Räume ohne Loot, Spawns in Sichtweite des Starts – mit der Spiel-Sichtlinie), dann erklärt/priorisiert die KI und schlägt Korrekturen als Aktionsliste vor | M |
 | ☐ 9.4 | **KI-Fehlerbehebung:** je Prüfungsfehler „🤖 Erklären“ → ein verständlicher Satz + Korrektur als Aktionsliste (nur die Umgebung des Fehlers als Kontext) | S |
@@ -251,7 +260,7 @@ Offen: Phase 9 (9.1–9.9) laut Tabellen unten.
 | B3 | Werkzeugleiste überdeckt den linken Kartenrand | ☑ 1.3 (feste Spalte) |
 | B4 | Prüfungs-Zähler im Reiter über `children[2]` | ☑ 1.3 (Seitenleiste `beschriftung`) |
 | B5 | Trackpad: Zwei-Finger-Wischen zoomte statt zu schwenken | ☑ `istMausrad` (werkzeuge.js) |
-| B6 | KI-Helfer schickt kleine Zonen ganz mit | → 9.1 |
+| B6 | KI-Helfer schickt kleine Zonen ganz mit | ☑ 9.1 (nur Markierung/Auswahl + Statistik) |
 | B7 | Drehen von 2×1-Objekten → halbe Kacheln (x 17,5), driftet bei mehrfachem Drehen | ☑ `kern/bearbeiten.js dreheObjekt` (Raster, 4× = Ausgangslage) |
 | B8 | Pfeiltasten/Ziehen schoben Objekte über den Zonenrand, Abbruch ohne Meldung | ☑ `verschiebeOps` (Rand + Grund) |
 | B9 | Duplizieren von Markern/Ankünften tat still nichts | ☑ `dupliziereOps` |

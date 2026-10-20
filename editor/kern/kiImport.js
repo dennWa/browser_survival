@@ -6,6 +6,10 @@ import { katalog, objektInfo } from './katalog.js';
 import { pruefeObjekt, pruefeMarker, pruefeBauwerk } from './platzierung.js';
 import { linie as linienPunkte } from './raster.js';
 import { FORMAT_AUSSCHNITT, AUSSCHNITT_VERSION, bereichsPruefsumme, bereichText } from './ausschnitt.js';
+import { ZONEN_EINSTELLUNGEN, pruefeZonenEinstellungen } from '../../server/spiel/karten/zonenEinstellungen.js';
+import { neueLootZone, pruefeLootZone } from '../../server/spiel/karten/lootZonen.js';
+import { einfuegeOps } from './auswahl.js';
+import { eingebautePrefabs } from './prefabs.js';
 
 /**
  * Import von KI-Änderungen (Phase 8). Ablauf:
@@ -16,6 +20,9 @@ import { FORMAT_AUSSCHNITT, AUSSCHNITT_VERSION, bereichsPruefsumme, bereichText 
  *   3. erst nach Bestätigung: ergebnis.ops auf die echte Karte (ein Verlaufsschritt „KI-Änderungen“).
  * Regeln: nur der markierte Bereich (aus der Antwort {aktion:'bereich'} oder der aktuellen Auswahl) darf sich ändern;
  * alles andere wird als ungültig GEMELDET (nie still ignoriert). Platzierung wie im Editor (grün/rot-Prüfung).
+ * Editor 2.0, 9.1 – neue Aktionen: wert (Zonen-Werte, nur Whitelist zonenEinstellungen + musik), lootzone (Rechteck im
+ * Bereich, Items geprüft wie im Spiel-Lader), name (Zone/Raum/Objekt/Übergang/Loot-Zone), prefab (eingebaut oder Option
+ * `prefabs`, ganz im Bereich). Zonenweite Aktionen (wert, name zone/raum, raum, typtextur) hängen an keinem Ort.
  */
 export const KI_FORMAT = 'browser-survival-ki-aenderungen';
 
@@ -32,7 +39,22 @@ const SYNONYME = {
   typtextur: 'typtextur', textur: 'typtextur',
   bemale: 'bemale', bemalung: 'bemale', farbe: 'bemale',
   bereich: 'bereich',
+  wert: 'wert', einstellung: 'wert', zonenwert: 'wert',
+  lootzone: 'lootzone', lootzonen: 'lootzone',
+  name: 'name', benenne: 'name', umbenennen: 'name',
+  prefab: 'prefab', vorlage: 'prefab',
 };
+/** Leerer Bereich: jede Aktion mit Ort ist darin ungültig */
+const KEIN_BEREICH = Object.freeze({ x0: 0, y0: 0, x1: -1, y1: -1 });
+/** Aktion ohne Ort (gilt für die ganze Zone)? */
+export function istZonenweit(a) {
+  const art = SYNONYME[String(a?.aktion ?? '').toLowerCase()];
+  if (art === 'name') {
+    const ziel = a.ziel ?? (a.buchstabe ? 'raum' : a.id !== undefined ? 'objekt' : 'zone');
+    return ziel === 'zone' || ziel === 'raum';
+  }
+  return ['wert', 'raum', 'typtextur'].includes(art);
+}
 /** Felder, die eine KI an Objekten setzen darf */
 const OBJEKT_FELDER = new Set(['typ', 'x', 'y', 'b', 'h', 'blockiert', 'ebene', 'drehung', 'name', 'groesse', 'radius', 'farbe', 'staerke', 'flackern', 'mast', 'textur', 'art', 'richtung', 'oeffnung']);
 const FARBE_HEX = /^#[0-9a-fA-F]{6}$/;
@@ -150,8 +172,9 @@ const r3 = (v) => Math.round(v * 1000) / 1000;
  * @param optionen.bereich  { x0, x1, y0, y1 } erlaubter Bereich (Vorrang: meta.bereich aus der Antwort)
  * @returns {{ eintraege, ops, bereich, warnungen, zaehler: { neu, weg, aendern, ungueltig } }}
  */
-export function pruefeAenderungen(karte, { aktionen, meta = {}, warnungen = [] }, { bereich = null } = {}) {
-  const b = meta.bereich ?? bereich;
+export function pruefeAenderungen(karte, { aktionen, meta = {}, warnungen = [] }, { bereich = null, prefabs = [] } = {}) {
+  // Ohne Bereich gehen nur zonenweite Aktionen (9.1: wert, name zone/raum, raum, typtextur) – alles mit Ort braucht eine Markierung
+  const b = meta.bereich ?? bereich ?? (aktionen.length && aktionen.every(istZonenweit) ? KEIN_BEREICH : null);
   const hinweise = [...warnungen];
   if (!b) throw new Error('Kein Bereich: bitte vor dem Import einen Bereich markieren (⬚ ins Leere ziehen) oder {"aktion":"bereich",…} angeben');
   if (meta.zone && meta.zone !== karte.id) throw new Error(`Die Änderungen sind für Zone „${meta.zone}“, offen ist „${karte.id}“`);
@@ -175,7 +198,7 @@ export function pruefeAenderungen(karte, { aktionen, meta = {}, warnungen = [] }
     };
     if (!a || typeof a !== 'object' || Array.isArray(a)) return ungueltig('keine Aktion (Objekt erwartet)');
     const art = SYNONYME[String(a.aktion ?? (a.typ ? 'setze' : '')).toLowerCase()];
-    if (!art) return ungueltig(`unbekannte Aktion „${a.aktion}“ (erlaubt: setze, entferne, aendere, kachel, linie, marker, bauwerk, raum, hoehe, typtextur, bemale)`);
+    if (!art) return ungueltig(`unbekannte Aktion „${a.aktion}“ (erlaubt: setze, entferne, aendere, kachel, linie, marker, bauwerk, raum, hoehe, typtextur, bemale, wert, lootzone, name, prefab)`);
 
     if (art === 'setze') {
       if (typeof a.typ !== 'string') return ungueltig('Feld "typ" fehlt');
@@ -322,6 +345,68 @@ export function pruefeAenderungen(karte, { aktionen, meta = {}, warnungen = [] }
       const ops = [];
       for (let y = a.y; y < a.y + hh; y++) for (let x = a.x; x < a.x + bb; x++) ops.push({ s: 'bemalung', k: markerSchluessel(x, y), neu: weg ? null : a.farbe.toLowerCase() });
       return fertig('aendern', `🖌 ${bb}×${hh} Bodenfarbe ${weg ? 'entfernt' : a.farbe} ab ${a.x}|${a.y}`, ops, a.x, a.y, { kacheln: ops.map((o) => { const [x, y] = o.k.split(',').map(Number); return { x, y }; }) });
+    }
+
+    if (art === 'wert') {
+      // Zonen-Werte: nur was der Inspektor auch anbietet (Whitelist), Zahlen begrenzt wie im Spiel-Lader
+      const pfad = String(a.pfad ?? '').replace(/^einstellungen\./, '');
+      if (pfad === 'musik') {
+        const v = a.wert === null || a.wert === '' ? undefined : String(a.wert);
+        if (v !== undefined && !/^[\w-]{1,40}$/.test(v)) return ungueltig('wert: Musik-Ordner nur a–z, 0–9, _ und -');
+        return fertig('aendern', `🎵 Musik-Ordner → ${v ?? 'Standard'}`, [{ s: 'wert', pfad: 'musik', neu: v }], null, null);
+      }
+      const [bereichName, feld, ...rest] = pfad.split('.');
+      const def = ZONEN_EINSTELLUNGEN[bereichName]?.werte.find((f) => f.name === feld);
+      if (!def || rest.length) return ungueltig(`wert: „${a.pfad}“ ist kein Zonen-Wert (erlaubt: ${Object.entries(ZONEN_EINSTELLUNGEN).flatMap(([n, d]) => d.werte.map((f) => `${n}.${f.name}`)).join(', ')}, musik)`);
+      const titel = `${ZONEN_EINSTELLUNGEN[bereichName].titel}: ${def.label}`;
+      if (a.wert === null) return fertig('aendern', `⚙ ${titel} → Standard`, [{ s: 'wert', pfad: `einstellungen.${bereichName}.${feld}`, neu: undefined }], null, null);
+      const geprueft = pruefeZonenEinstellungen({ [bereichName]: { [feld]: a.wert } })[bereichName]?.[feld];
+      if (geprueft === undefined) return ungueltig(`wert: ${def.label} braucht ${def.typ === 'haken' ? 'true/false' : 'eine Zahl'}`);
+      return fertig('aendern', `⚙ ${titel} → ${geprueft}${geprueft !== a.wert ? ` (begrenzt von ${a.wert})` : ''}`, [{ s: 'wert', pfad: `einstellungen.${bereichName}.${feld}`, neu: geprueft }], null, null);
+    }
+
+    if (art === 'lootzone') {
+      if (![a.x, a.y, a.b, a.h].every(Number.isInteger) || a.b < 1 || a.h < 1) return ungueltig('lootzone braucht x, y, b, h (ganze Zahlen)');
+      if (!drin(a.x, a.y) || !drin(a.x + a.b - 1, a.y + a.h - 1)) return ungueltig(`lootzone ragt aus dem Bereich (${bereichText(b)})`, a.x, a.y);
+      const basis = neueLootZone({ x: a.x, y: a.y, b: a.b, h: a.h }, { tabelle: LOOT_TABELLEN[a.tabelle] ? a.tabelle : 'lager', name: typeof a.name === 'string' ? a.name : `Loot-Zone ${sim.s('lootZonen').size + 1}` });
+      const roh = { ...basis };
+      for (const f of ['modus', 'punkte', 'ort', 'spawnChance', 'respawnZeit', 'max']) if (a[f] !== undefined) roh[f] = a[f];
+      const liste = a.items ?? a.eintraege;
+      if (Array.isArray(liste)) roh.eintraege = liste.map((e) => ({ id: e?.id ?? e?.item, chance: e?.chance, gewicht: e?.gewicht, menge: e?.menge }));
+      const { zone, fehler: fz } = pruefeLootZone(roh, { breite: sim.breite, hoehe: sim.hoehe });
+      if (!zone) return ungueltig(`lootzone: ${fz.join(', ')}`, a.x, a.y);
+      const id = sim.naechsteId;
+      return fertig('neu', `🎁 Loot-Zone „${zone.name}“ ${zone.b}×${zone.h} bei ${zone.x}|${zone.y} (${zone.eintraege.length} Items, ${zone.punkte} Punkte)${fz.length ? ` – ${fz.join(', ')}` : ''}`, [{ s: 'lootZonen', k: id, neu: zone }], zone.x, zone.y, { rechteck: zone });
+    }
+
+    if (art === 'name') {
+      const name = typeof a.name === 'string' ? a.name.trim().slice(0, 60) : '';
+      if (!name || /[<>"\\]/.test(name)) return ungueltig('name: Name fehlt oder enthält < > " \\');
+      const ziel = a.ziel ?? (a.buchstabe ? 'raum' : a.id !== undefined ? 'objekt' : 'zone');
+      if (ziel === 'zone') return fertig('aendern', `🏷 Zone heißt jetzt „${name}“`, [{ s: 'wert', pfad: 'name', neu: name }], null, null);
+      if (ziel === 'raum') {
+        const k = a.buchstabe ?? a.raum;
+        const r = sim.s('raeume').get(k);
+        if (!r) return ungueltig(`name: Raum „${k}“ gibt es nicht`);
+        return fertig('aendern', `🏷 Raum ${k}: „${r.name}“ → „${name}“`, [{ s: 'raeume', k, neu: { ...r, name } }], null, null);
+      }
+      const s = ziel === 'uebergang' ? 'uebergaenge' : ziel === 'lootzone' ? 'lootZonen' : 'objekte';
+      const w = sim.s(s).get(a.id);
+      if (!w) return ungueltig(`name: kein ${ziel} mit id ${a.id}`);
+      const pos = { x: Math.floor(w.x), y: Math.floor(w.y) };
+      if (!drin(pos.x, pos.y)) return ungueltig(`name: ${ziel} (id ${a.id}) liegt außerhalb des Bereichs`, pos.x, pos.y);
+      return fertig('aendern', `🏷 ${ziel} (id ${a.id}) heißt jetzt „${name}“`, [{ s, k: a.id, neu: { ...w, name } }], pos.x, pos.y);
+    }
+
+    if (art === 'prefab') {
+      if (!Number.isInteger(a.x) || !Number.isInteger(a.y)) return ungueltig('prefab braucht x, y (linke obere Ecke, ganze Zahlen)');
+      const alle = [...prefabs, ...eingebautePrefabs()];
+      const p = alle.find((e) => e.name.toLowerCase() === String(a.name ?? '').toLowerCase());
+      if (!p) return ungueltig(`prefab „${a.name}“ unbekannt (${alle.map((e) => e.name).join(', ')})`);
+      const v = p.vorlage;
+      if (!drin(a.x, a.y) || !drin(a.x + v.b - 1, a.y + v.h - 1)) return ungueltig(`prefab „${p.name}“ (${v.b}×${v.h}) ragt bei ${a.x}|${a.y} aus dem Bereich (${bereichText(b)})`, a.x, a.y);
+      const { ops } = einfuegeOps(sim, v, a.x, a.y);
+      return fertig('neu', `🏠 Prefab „${p.name}“ (${v.b}×${v.h}) bei ${a.x}|${a.y}`, ops, a.x, a.y, { rechteck: { x: a.x, y: a.y, b: v.b, h: v.h } });
     }
 
     return ungueltig('nicht unterstützt');

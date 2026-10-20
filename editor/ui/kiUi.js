@@ -63,7 +63,7 @@ export function kiUi({ zustand, panel, aktionen, layout, zeichner }) {
     const k = zustand.karte;
     try {
       const gelesen = leseKiAntwort(text, k);
-      const ergebnis = pruefeAenderungen(k, gelesen, { bereich });
+      const ergebnis = pruefeAenderungen(k, gelesen, { bereich, prefabs: aktionen.eigenePrefabs?.() ?? [] });
       offen = { ergebnis, karte: k, gelesen, bereich, zurueck };
       zeigeVorschau();
     } catch (e) {
@@ -119,7 +119,7 @@ export function kiUi({ zustand, panel, aktionen, layout, zeichner }) {
     const ok = Object.assign(document.createElement('button'), { textContent: `✔ Übernehmen (${ergebnis.ops.length ? z.neu + z.weg + z.aendern : 0})`, className: 'akzent', disabled: !ergebnis.ops.length });
     ok.addEventListener('click', () => {
       // Hat sich die Karte seit der Vorschau geändert? Dann neu prüfen und die neue Vorschau zeigen statt blind anzuwenden
-      const frisch = pruefeAenderungen(karte, offen.gelesen, { bereich: offen.bereich });
+      const frisch = pruefeAenderungen(karte, offen.gelesen, { bereich: offen.bereich, prefabs: aktionen.eigenePrefabs?.() ?? [] });
       if (JSON.stringify(frisch.ops) !== JSON.stringify(ergebnis.ops)) {
         offen.ergebnis = frisch;
         zeigeVorschau();
