@@ -264,13 +264,7 @@ Schadensblitz per CSS, ferne Figuren werden nicht animiert. F3 zeigt Draw-Calls 
   Zombies mit ausgestreckten Armen; Schlafende liegen im Bett
 - **Waffen** = prozedurale Modelle (`waffenModelle.js`), Auswahl über `spieler.waffe` (Item-ID, z. B. `hammer`)
 - **Licht:** Sonne/Mond wandern mit der Tageszeit, Himmel-/Nebelfarbe Tag → Dämmerung → Nacht (`#tageslicht`);
-  Taschenlampen als SpotLights (Hand-/Brusthöhe vor der Waffe, decay 2, weicher Rand, Schatten an Wänden); Kartenlampen nur bei Dunkelheit; Mündungsfeuer
-- **Bild-Pipeline (Grafik-Rework):** ACES-Tonemapping + Belichtung, weiche PCF-Schatten (`shadow.radius`; r186 hat kein
-  PCFSoftShadowMap mehr), `RoomEnvironment` als `scene.environment` (IBL für PBR/.glb, Stärke nach Tageszeit), eigene .glb
-  werfen/empfangen Schatten. Hoch/Mittel: Nachbearbeitung (`nachbearbeitung.js`): GTAO liest die Tiefe des Szenen-Puffers
-  (kein zweiter Szenen-Durchgang), Bloom mit tageszeitabhängiger Schwelle. Presets/Schalter: `grafikEinstellungen.js`,
-  Konsole `browserSurvival.grafik('ssao', 0)`. Nebel bleibt linear (`THREE.Fog`): Die Weltkante/Himmel-Logik braucht
-  einen Startabstand – FogExp2 würde bei der steilen Kamera (Figur ~680 px entfernt) zuerst die Figur selbst vernebeln
+  Taschenlampen als SpotLights aus der Lampe/Mündung; Kartenlampen nur bei Dunkelheit; Mündungsfeuer
 - 2D-Overlay (`#spielflaeche`): Eingaben, Namen (`beschriftung.js`), Lebensbalken, Vignette, Schadensblitz
 
 ### Sound
@@ -428,8 +422,6 @@ browser_survival/
 │   │   └── sound.js               Synthetisierte Geräusche (Rezepte), räumlicher Klang, Wind/Atmosphäre (eigener Bus am Kompressor vorbei), Lautstärke-Kanäle (gesamt/effekte/atmosphaere), keine Schritte mehr
 │   ├── darstellung/
 │   │   ├── renderer.js            Three.js: Kamera, Figuren, Licht/Tageszeit, Lampen-Pool, Effekte, Wand-Schnitt, Overlay, Vorkompilieren
-│   │   ├── grafikEinstellungen.js (Grafik-Rework) Presets Hoch/Mittel/Niedrig + live überschreibbares GRAFIK_EINSTELLUNGEN (SSAO, Bloom, Schattenweichheit, Belichtung, FXAA)
-│   │   ├── nachbearbeitung.js     (Grafik-Rework) EffectComposer: Szenen-Pass (HDR, Tiefe+Stencil, kein MSAA) → GTAO → Bloom (CSS-Pixel) → OutputPass (ACES + sRGB) → FXAA
 │   │   ├── tierModelle.js         (v0.10) Hase (Comic-Platzhalter, prozedurale Textur) – hier echte Modelle einhängen
 │   │   ├── basisbauModelle.js     (v0.11) Basisbau-3D: Geometrien, instanzierte Schicht (Boden/Wand/Dach), Gebiets-Ring, Dach-Ausblendung
 │   │   ├── angelModell.js         (v0.10) Rute, Schnur, Pose (wackelt beim Biss)
@@ -496,8 +488,7 @@ browser_survival/
 | Aufheb-Reichweite | `gemeinsam/konstanten.js` → `AUFHEB_REICHWEITE` |
 | Loot-Nachschub, Zombie-Beute | `lootSystem.js`; Zeiten in `spielKonfiguration.js` → `loot`, `zombie.lootChance`; Tabelle `zombie` in `lootTabellen.js` |
 | Effekte (Blut, Mündungsfeuer …) | `client/darstellung/effekte.js` |
-| Taschenlampe (SpotLight) | `client/darstellung/renderer.js` → `TASCHENLAMPE`, `TASCHENLAMPEN_ANSATZ`, `#aktualisiereTaschenlampen`, `#neueTaschenlampe` |
-| **Grafik-Presets, SSAO/Bloom/Schatten/Belichtung** | `client/darstellung/grafikEinstellungen.js` (`GRAFIK_PROFILE`), Parameter `nachbearbeitung.js` (`VERDECKUNG`, `BLOOM`), live `renderer.setzeGrafikOption` |
+| Taschenlampe (3D-Kegel) | `client/darstellung/renderer.js` → `#aktualisiereTaschenlampen`, `#neueTaschenlampe` |
 | **Dächer** (Form, Neigung, Farbe, Schindeln, Raum-Aufklappen) | `client/darstellung/dachModell.js` (`ANSTIEG_*`, `DACH_FARBEN`); Einbindung `kartenModell.js → #baueDaecher`, `aktualisiereDaecher` |
 | **Himmel** (Tag blau / Regen grau / Nacht Sterne), Weltkante als Horizont | `client/darstellung/himmel.js` (Shader) + `renderer.js → #zeichneHimmel`, Paletten `TAG/NACHT/DAEMMERUNG.zenit/wolken`, `HIMMEL_FERNE`, `HIMMEL_DUNST` |
 | **Gras & Pflanzen auf der Karte** (3D-Modelle streuen) | `client/darstellung/naturKonfiguration.js` (`STREUUNG`, `ZONEN`), Logik `naturModell.js`; neue `.glb` nach `werkzeuge/assets/quellen/natur/` + `npm run assets:3d` |
@@ -508,7 +499,7 @@ browser_survival/
 | Fahrzeug-Schaden (Wand/Fahrzeug), Bäume/Laternen umfahren, Roadkill-XP | `fahrzeugSystem.js` (`verarbeiteAufprall`, `fahreHindernisseUm`), Werte `spielKonfiguration.js → fahrzeug.aufprallSchaden`; XP-Sperre `kampfSystem.js → toeten(…, {ohneXp})` |
 | Brocken/Tank (Häufigkeit, Leben) | `spielKonfiguration.js → zombie.varianten.brocken` (`gewicht`, `leben` = 10 Pistolentreffer) |
 | Lampen auf der Karte | Kartendatei → `objekte` mit `typ: 'licht'` (radius, farbe, staerke, flackern) |
-| Einstellungen (⚙: Ton-Regler, Grafikstufen, Abmelden, Vollbild) | `client/ui/einstellungen.js`, HTML `#einstellungen` in `client/index.html`; Grafikprofile `GRAFIK_PROFILE` in `grafikEinstellungen.js` (hoch/mittel/niedrig, gemerkt in `localStorage browserSurvival.grafik`) |
+| Einstellungen (⚙: Ton-Regler, Grafikstufen, Abmelden, Vollbild) | `client/ui/einstellungen.js`, HTML `#einstellungen` in `client/index.html`; Grafikprofile `GRAFIK_PROFILE` in `renderer.js` (hoch/mittel/niedrig, gemerkt in `localStorage browserSurvival.grafik`) |
 | Frisur/Aussehen der Figur (3D-Anbauteile) | `client/darstellung/haarModell.js` (`FRISUREN`), Zuordnung `frisur` je Körper-Option in `gemeinsam/spieler/aussehen.js`, Anbau `renderer.js → #setzeFrisur` |
 | Geräusche ändern / neue Geräusche | `client/audio/sound.js` → `REZEPTE`; Auslöser in `clientSpiel.js` (`#ereignisSound`, `#datenSound`) |
 | Schnellleiste, Balken, Todesbildschirm | `client/ui/hud.js`, Markup `client/index.html`, Stil `client/stil.css` |
@@ -873,6 +864,5 @@ Weiter: `statischerServer.js` liefert `editor/` aus,
 | 0.14.2 | 2026-10-18 | **Fix: eigenes .glb blieb im Spiel Platzhalter:** Browser liefern für .glb oft `application/octet-stream` → Server verwarf den Typ still. Editor setzt beim Hochladen jetzt `data:model/gltf-binary;base64,` (`editor/ui/eigeneUi.js`). Betroffene Typen: Modell im Editor neu hochladen |
 | 0.14.1 | 2026-10-18 | **Editor: eigene 3D-Modelle (.glb):** Button „3D-Modell (.glb) laden“ in der Kategorie Eigene → Objekttyp mit `glb` (Data-URL, ≤8 MB), 3D-Ansicht lädt es per GLTFLoader (eingepasst auf Fußabdruck × 3D-Höhe, Typ-Farbe aus `texturen`); GLTFLoader im Vendor-Bündel (`baue_3d.mjs`). **Im Spiel sichtbar:** `karte:editor` legt die Datei unter `client/assets/eigene/` ab (keine Lizenzprüfung; Urheber/Lizenz optional am Typ), Server reicht nur den Pfad (`kartenLader.pruefeTypen`), Client platziert es (`darstellung/eigeneModelle.js`) |
 | 0.13.1 | 2026-10-17 | **Eigene Sounds:** Ordner `client/audio/eigene/` (Dateiname = Ereignis, Zufallsvarianten per `_1/_2/…`, `lautstaerke.txt`), `npm run sounds` → `eigene.json` + README mit Ereignisliste, Tippfehler-Warnungen, Test `eigeneSounds.test.js` |
+| 0.16.0-dev | 2026-10-20 | **Zurückgesetzt:** Grafik-Rework (Nachbearbeitung GTAO/Bloom, IBL, Presets, Taschenlampen-Umbau) wieder entfernt (git revert); 3D-Gras vorübergehend ausgeschaltet (`naturKonfiguration.js` `ZONEN.stadtrand: false`) |
 | 0.16.0-dev | 2026-10-20 | **Hauptspiel Runde 14** (Plan siehe Chat/KI_INDEX §11): Taschenlampe näher am Körper + Boden-Lichtfleck, Spieler nachts schwach sichtbar (Emissive), Straßenlaternen 150 px hoch & nur auf dem Gehweg (Generator), Stoff als 3D-Item ohne Leuchten, **echte Walmdächer** (`dachModell.js`), **dynamischer Himmel** (`himmel.js`), **3D-Gras** auf Stadtrand (`naturModell.js`, `naturKonfiguration.js`, Asset-Pipeline `quellen/natur`), Tür-Röntgen nur in Reichweite, **10er-Schnellleiste**, Doppelklick = Essen/Trinken (AKTION `konsumieren`), **Tacho** (70 km/h), Aufprallschaden ≥10 km/h, Bäume/Laternen umfahrbar, Roadkill 0 XP, Brocken selten + 250 Leben. Test `runde14.test.js` |
-| 0.16.0-dev | 2026-10-20 | **Fix Grafik-Rework-Leistung (Hoch/Mittel ~10 FPS):** kein MSAA mehr im Composer-Puffer (wurde pro Bild bis zu 4× samt Tiefe+Stencil aufgelöst) → FXAA; GTAO und Bloom rechnen in CSS-Pixeln statt Gerätepixeln, GTAO 8 statt 12 Samples, adaptiv fällt nach SSAO auch Bloom weg; Hoch-Auflösung max. 1,5 (Handy ≤1,25) |
-| 0.16.0-dev | 2026-10-20 | **Grafik-Rework (vor PBR/.glb):** Taschenlampe als echtes SpotLight (Halbwinkel ~25°, penumbra 0,5, decay 2, 720 px, Ursprung vor Hand/Waffe, Schatten) – Additiv-Kegel und Bodenfleck entfernt; ACES + Belichtung, weiche PCF-Schatten, RoomEnvironment-IBL, **Nachbearbeitung** (`nachbearbeitung.js`: GTAO + Bloom + OutputPass), Presets/Schalter `grafikEinstellungen.js` (Hoch voll, Mittel AO halbe Auflösung, Niedrig ohne Nachbearbeitung; adaptiv spart GTAO zuerst), Konsole `browserSurvival.grafik()`, .glb mit Schatten; Vendor-Addons um Composer/GTAO/Bloom/Output/RoomEnvironment ergänzt |

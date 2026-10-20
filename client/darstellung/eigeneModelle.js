@@ -59,10 +59,6 @@ export function eigenesModellInhalt(szene, { b, h, hoehe, einheit = 1, farbe = n
       return c;
     };
     t.material = Array.isArray(t.material) ? t.material.map(kopie) : kopie(t.material);
-    // PBR-Vorbereitung (Grafik-Rework): .glb fügen sich ins Licht ein – Schatten werfen/empfangen; Glanz/Reflexe kommen aus
-    // scene.environment (renderer.js, RoomEnvironment), Normal-/Roughness-Maps des GLTFLoaders wirken damit ohne Zusatzarbeit
-    t.castShadow = true;
-    t.receiveShadow = true;
     if (id !== null) t.userData = { s: 'objekte', k: id };
   });
   const box = new THREE.Box3().setFromObject(modell);

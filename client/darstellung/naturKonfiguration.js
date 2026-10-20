@@ -29,7 +29,7 @@ export const STREUUNG = {
 
 /** Karten-ID → Streuung an/aus (Karten ohne Eintrag bleiben wie gehabt). `true` = STREUUNG, oder eigene Liste je Untergrund. */
 export const ZONEN = {
-  stadtrand: true,
+  stadtrand: false, // vorübergehend AUS (Nutzer-Wunsch 2026-10-20: Spiel optisch zurücksetzen) – wieder an mit `true`
 };
 
 /** Nur Büschel innerhalb dieses Abstands (px) um die Kamera werden gezeichnet (Dreiecke sparen) */

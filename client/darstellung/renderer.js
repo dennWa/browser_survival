@@ -1,9 +1,8 @@
 import * as THREE from 'three';
-import { FBXLoader, RoomEnvironment, SkeletonUtils } from '../vendor/three/addons.js';
-import { GRAFIK_EINSTELLUNGEN, GRAFIK_PROFILE, waehleProfil } from './grafikEinstellungen.js';
-import { Nachbearbeitung } from './nachbearbeitung.js';
+import { FBXLoader, SkeletonUtils } from '../vendor/three/addons.js';
 import { KartenModell, TUER_EBENE, TUER_SCHIMMER_WEITE } from './kartenModell.js';
 import { Himmel } from './himmel.js';
+import { strahlGegenWaende } from '../../gemeinsam/physik/strahl.js';
 import { NaturSchicht, ladeNaturModelle } from './naturModell.js';
 import { vereineGeometrien } from './geometrie.js';
 import { Fussspuren } from './fussspuren.js';
@@ -45,10 +44,6 @@ import { BlaetterEffekt } from './blaetterEffekt.js';
  *   - adaptive Qualität (QUALITAETS_STUFEN): fallen die FPS, werden erst Details gespart (Retina-Auflösung,
  *     Schattenauflösung, Baum-Umrisse/-Schatten) und erst ganz zum Schluss die Auflösung unter 1 – nie unter 0,8
  *   - Figuren außerhalb der Sichtweite werden nicht animiert
- *
- * Bild-Pipeline (Grafik-Rework): ACES-Tonemapping, weiche PCF-Schatten (shadow.radius), RoomEnvironment als scene.environment
- * (IBL für PBR-Materialien/.glb, Stärke nach Tageszeit) und – in den Profilen hoch/mittel – Nachbearbeitung (nachbearbeitung.js:
- * GTAO + Bloom + OutputPass). Einstellungen: grafikEinstellungen.js (Presets + setzeGrafikOption).
  */
 const ASSETS = new URL('../assets/', import.meta.url);
 const FIGUR_HOEHE = 64;
@@ -65,39 +60,43 @@ const _blick = new THREE.Vector3();
 const _wolkenFarbe = new THREE.Color();
 const MAX_TASCHENLAMPEN = 3;
 const NACHT_EIGENLEUCHTEN = 0.2; // Emissive-Stärke der Spieler-Figur bei voller Dunkelheit (nur Orientierung, kein echtes Licht)
-// Lichtursprung auf Hand-/Brusthöhe knapp VOR Hand/Waffe: mit decay 2 würde alles direkt vor der Linse (Waffe, Arme) grell überstrahlen
-// (Beleuchtung ∝ 1/Abstand²) – so liegt nichts Eigenes im Kegel und der Körper wirft keinen Schatten in den Strahl
-const TASCHENLAMPEN_ANSATZ = { vorn: 28, hoehe: 36 };
+const TASCHENLAMPEN_ANSATZ = { vorn: 16, hoehe: 36 }; // Lichtkegel beginnt knapp vor der Brust (px vor der Körpermitte, Höhe über Boden)
 // So viele Kartenlampen leuchten gleichzeitig echt (die nächsten); jede echte Lichtquelle kostet in jedem Pixel → klein halten,
 // die übrigen Lampen zeigen nachts nur ihren Lichtschein am Boden (kartenModell.js)
 const LAMPEN_POOL = { handy: 5, desktop: 8 };
 const KEGEL_POOL = { handy: 1, desktop: 2 }; // Kegel-Lampen (Scheinwerfer, art 'kegel')
-/**
- * Taschenlampe (Spieler, Grafik-Rework): natürlicher Kegel (~25° Halbwinkel), weicher Rand, physikalischer Abfall (decay 2),
- * Reichweite ≈ 20 m (1 m ≈ 36 px). Nur echtes Licht + Schatten (stoppt an Wänden) – kein Platzhalter-Kegel/Bodenfleck mehr.
- * decay 2 → Stärke in Candela-artigen Einheiten (Beleuchtung ≈ staerke / Abstand²). Ziel = Boden `ziel` px vor der Figur. Tagsüber aus.
- */
-const TASCHENLAMPE = { winkel: 0.44, rand: 0.5, reichweite: 720, decay: 2, staerke: 0, staerkeNacht: 110000, nachtsicht: 60000, ziel: 300 };
+/** Taschenlampe (Spieler): eher schmal und schwach – Nächte sollen düster bleiben (Nutzer-Wunsch, Editor 2.0 Schritt 2.1) */
+// Fokussierter Strahl: schmaler Kegel (~11°), 520 px Reichweite, weicher Rand (penumbra) und Abfall mit decay 1,5 statt hartem Schnitt.
+// Bei decay > 1 fällt das Licht schneller ab → Stärken entsprechend höher (≈ ×16 gegenüber decay 1 bei 250 px). Tagsüber aus.
+const TASCHENLAMPE = { winkel: 0.2, rand: 0.75, reichweite: 520, decay: 1.5, staerke: 0, staerkeNacht: 26000, kegelLaenge: 330 };
 const SCHEINWERFER = { decay: 1, winkel: 0.45, rand: 0.5, reichweite: 650, staerke: 500, staerkeNacht: 2600 };
 const MUENDUNGS_LICHTER = 2;
 const SITZ_TIEFE = 24; // so weit sinkt die Figur beim Sitzen am Feuer
 const SICHTWEITE = 1300; // weiter entfernte Figuren werden nicht animiert/gezeichnet
 /**
  * Qualitätsstufen, von schön (0) nach sparsam. aufloesung = Obergrenze fürs Pixelverhältnis (null = Gerät),
- * schatten = Größe der Schattenkarte, baumDetail = Umrisse + Schatten der Bäume, ao/bloom = Effekt darf laufen
- * (adaptiv im Profil „hoch“: ab Stufe 3 wird GTAO als Erstes gespart, ab Stufe 4 Bloom; im Profil „mittel“ entscheidet GRAFIK_EINSTELLUNGEN.ssao).
+ * schatten = Größe der Schattenkarte, baumDetail = Umrisse + Schatten der Bäume.
  */
 const QUALITAETS_STUFEN = [
-  { aufloesung: null, schatten: 2048, baumDetail: true, ao: true, bloom: true },
-  { aufloesung: 1.5, schatten: 2048, baumDetail: true, ao: true, bloom: true },
-  { aufloesung: 1, schatten: 2048, baumDetail: true, ao: true, bloom: true },
-  { aufloesung: 1, schatten: 1024, baumDetail: true, ao: false, bloom: true },
-  { aufloesung: 1, schatten: 1024, baumDetail: false, ao: false, bloom: false },
-  { aufloesung: 0.9, schatten: 1024, baumDetail: false, ao: false, bloom: false },
-  { aufloesung: 0.8, schatten: 1024, baumDetail: false, ao: false, bloom: false },
+  { aufloesung: null, schatten: 2048, baumDetail: true },
+  { aufloesung: 1.5, schatten: 2048, baumDetail: true },
+  { aufloesung: 1, schatten: 2048, baumDetail: true },
+  { aufloesung: 1, schatten: 1024, baumDetail: true },
+  { aufloesung: 1, schatten: 1024, baumDetail: false },
+  { aufloesung: 0.9, schatten: 1024, baumDetail: false },
+  { aufloesung: 0.8, schatten: 1024, baumDetail: false },
 ];
-/** Grafik-Presets: grafikEinstellungen.js (hier re-exportiert für einstellungen.js) */
-export { GRAFIK_PROFILE };
+/**
+ * Grafik-Einstellung (Einstellungen ⚙): hoch = volle Auflösung, Schatten & Texturen (Bildrate wird nur über
+ * Schatten/Baum-Details nachgeregelt, die Auflösung bleibt – sonst wirkt das Bild mal scharf, mal unscharf),
+ * mittel = etwas abgeschwächt, niedrig = beste Bildrate (kleinere Auflösung, kleine Texturen, keine Sonnenschatten).
+ * stufe = feste Qualitätsstufe (QUALITAETS_STUFEN), adaptiv = darf bei Ruckeln sparsamer werden.
+ */
+export const GRAFIK_PROFILE = Object.freeze({
+  hoch: { name: 'Hoch', beschreibung: 'volle Auflösung, Schatten, Texturen', stufe: null, adaptiv: true, aufloesung: null, texturen: 1, sonnenschatten: true },
+  mittel: { name: 'Mittel', beschreibung: 'etwas weichere Schatten & Texturen', stufe: 3, adaptiv: false, aufloesung: 1.25, texturen: 0.6, sonnenschatten: true },
+  niedrig: { name: 'Niedrig', beschreibung: 'beste Leistung für schwache Geräte (ohne 3D-Gras)', stufe: 6, adaptiv: false, aufloesung: 0.8, texturen: 0.4, sonnenschatten: false, natur: false },
+});
 const GRAFIK_SCHLUESSEL = 'browserSurvival.grafik';
 const ADAPTIV_MAX_STUFE = 4; // im Profil "hoch" wird höchstens bis hier gespart (Schatten, Baum-Details) – Auflösung bleibt
 const AUFWAERM_MS = 6000; // so lange nach dem Betreten nicht messen (Shader, Texturen, erste Frames)
@@ -158,11 +157,9 @@ export class Renderer {
 
     this.gl = new THREE.WebGLRenderer({ canvas: this.leinwand, antialias: !this.istHandy, stencil: true, powerPreference: 'high-performance' });
     this.gl.shadowMap.enabled = true;
-    // r186: PCFShadowMap IST der weiche Filter (Vogel-Disk, Weichheit = shadow.radius); PCFSoftShadowMap wurde entfernt
     this.gl.shadowMap.type = THREE.PCFShadowMap;
-    this.gl.toneMapping = THREE.ACESFilmicToneMapping; // filmische Kontraste statt Plastikfarben; mit Nachbearbeitung wendet der OutputPass es an
+    this.gl.toneMapping = THREE.ACESFilmicToneMapping;
     this.gl.outputColorSpace = THREE.SRGBColorSpace;
-    this.gl.info.autoReset = false; // mehrere Durchgänge pro Bild (Composer, Silhouette) → Statistik pro Bild selbst zurücksetzen
 
     this.szene = new THREE.Scene();
     this.szene.background = new THREE.Color(0x04060b);
@@ -181,11 +178,6 @@ export class Renderer {
     Object.assign(this.mond.shadow.camera, { left: -650, right: 650, top: 650, bottom: -650, near: 10, far: 2500 });
     this.mond.shadow.bias = -0.0006;
     this.szene.add(this.umgebung, this.mond, this.mond.target);
-    // Umgebungslicht für PBR (MeshStandardMaterial, .glb mit Normal-/Roughness-Maps): weiches Studio-IBL, einmal vorgefiltert.
-    // Stärke folgt der Tageszeit (#tageslicht) – nachts fast 0, sonst hellen Reflexe die düsteren Nächte auf.
-    const pmrem = new THREE.PMREMGenerator(this.gl);
-    this.szene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-    pmrem.dispose();
 
     /** Wand-Schnitt: Wände zwischen Kamera und eigener Figur werden nahe der Figur weggeschnitten (#mitSchnitt) */
     this.schnitt = { uFokus: { value: new THREE.Vector3() }, uRadius: { value: SCHNITT_RADIUS }, uHoehe: { value: SCHNITT_HOEHE } };
@@ -208,6 +200,8 @@ export class Renderer {
     this.figurMaterialien = new Map(); // Skin-Schlüssel → Material (geteilt)
     this.spielerMaterialien = []; // Spieler-Skins: bekommen nachts ein schwaches Eigenleuchten
     this.taschenlampen = Array.from({ length: MAX_TASCHENLAMPEN }, (_, i) => this.#neueTaschenlampe(i === 0));
+    this.taschenKegel = Array.from({ length: MAX_TASCHENLAMPEN }, () => this.#neuerLichtKegel()); // sichtbarer Strahl
+    this.taschenScheine = Array.from({ length: MAX_TASCHENLAMPEN }, () => this.#neuerTaschenSchein()); // weicher Lichtfleck direkt vor der Figur
     this.lampenPool = Array.from({ length: LAMPEN_POOL[this.istHandy ? 'handy' : 'desktop'] }, () => this.#neuesPunktlicht(0xffffff, 300));
     this.kegelPool = Array.from({ length: KEGEL_POOL[this.istHandy ? 'handy' : 'desktop'] }, () => this.#neuesKegellicht());
     this.muendungslichter = Array.from({ length: MUENDUNGS_LICHTER }, () => this.#neuesPunktlicht(0xffc070, 380));
@@ -234,12 +228,10 @@ export class Renderer {
     // Adaptive Qualität (siehe QUALITAETS_STUFEN)
     this.aufloesungMax = Math.min(window.devicePixelRatio || 1, this.istHandy ? 1.5 : 2);
     this.grafik = ladeGrafik();
-    waehleProfil(this.grafik);
-    this.nachbearbeitung = null; // Nachbearbeitung (nachbearbeitung.js), gebaut in #wendeGrafikAn
     this.stufe = 0;
     this.aufloesung = this.#stufenAufloesung();
     this.#setzeStufe(this.#startStufe());
-    this.mond.castShadow = GRAFIK_EINSTELLUNGEN.sonnenschatten;
+    this.mond.castShadow = GRAFIK_PROFILE[this.grafik].sonnenschatten;
     this.messung = { frames: 0, zeit: 0, seit: 0 };
     this.messenAb = 0;
     // Zoom (Mausrad / zwei Finger), gemerkt im Browser
@@ -356,7 +348,7 @@ export class Renderer {
     this.szene.add(this.karte.statisch, this.karte.beweglich);
     this.natur = this.naturModelle ? NaturSchicht.erzeuge(welt, this.naturModelle, (x, z) => this.#hy(x, z), this.istHandy) : null;
     if (this.natur) {
-      this.natur.gruppe.visible = GRAFIK_EINSTELLUNGEN.natur !== false;
+      this.natur.gruppe.visible = GRAFIK_PROFILE[this.grafik].natur !== false;
       this.szene.add(this.natur.gruppe);
     }
     this.karte.setzeBaumDetail(QUALITAETS_STUFEN[this.stufe].baumDetail);
@@ -418,28 +410,11 @@ export class Renderer {
       this.#aktualisiereEffekte(effekte.zustand);
     }
 
-    this.gl.info.reset();
-    this.bildFokus = fokus;
-    this.bildTuerAbstand = tuerAbstand;
-    if (this.nachbearbeitung) this.nachbearbeitung.zeichne(dt);
-    else {
-      this.gl.setRenderTarget(null);
-      this.#zeichneSzene();
-    }
+    this.gl.render(this.szene, this.kamera3d);
+    this.#zeichneSilhouette(fokus);
+    this.#zeichneTuerUmrisse(tuerAbstand);
     this.#zeichneOverlay(entitaeten, fokus, gegenstaende, itemDefinitionen);
     if (this.ruhigWarter) this.#pruefeRuhig(dt, jetzt);
-  }
-
-  /**
-   * Szene + Zusatz-Durchgänge ins aktuell gesetzte Ziel (Bildschirm oder Composer-Puffer, siehe nachbearbeitung.js).
-   * Der Hauptdurchgang löscht selbst (autoClear, Hintergrundfarbe), Silhouette & Tür-Schimmer nutzen danach Tiefe/Stencil desselben Puffers.
-   */
-  #zeichneSzene() {
-    this.gl.render(this.szene, this.kamera3d);
-    if (this.bildFokus) {
-      this.#zeichneSilhouette(this.bildFokus);
-      this.#zeichneTuerUmrisse(this.bildTuerAbstand);
-    }
   }
 
   /** Grauer Umriss der eigenen Figur, wo Wände/Dächer/Bäume sie verdecken (zweiter Durchgang, nur Figur-Ebene). */
@@ -801,16 +776,9 @@ export class Renderer {
       kopie.visible = true;
       probe.add(kopie);
     }
-    // Mit Nachbearbeitung rendern die Materialien in den HDR-Puffer (andere Shader-Variante: linear, ohne Tonemapping) → dort kompilieren
-    this.gl.setRenderTarget(this.nachbearbeitung?.composer.readBuffer ?? null);
     this.gl.compile(this.szene, this.kamera3d);
     for (const t of [this.karte.bodenTextur, ...Object.values(this.skins)]) this.gl.initTexture(t);
     this.gl.render(this.szene, this.kamera3d); // auch Schatten-Shader & Uploads einmal anstoßen
-    this.gl.setRenderTarget(null);
-    if (this.nachbearbeitung) {
-      this.bildFokus = null;
-      this.nachbearbeitung.zeichne(0); // GTAO/Bloom/Output-Shader gleich mit
-    }
     this.szene.remove(probe);
   }
 
@@ -871,9 +839,50 @@ export class Renderer {
     spot.shadow.camera.near = 6;
     spot.shadow.bias = -0.0006;
     spot.shadow.normalBias = 0.6;
-    spot.shadow.radius = GRAFIK_EINSTELLUNGEN.schattenRadius; // weiche Schattenkante (PCF/Vogel-Disk)
+    spot.shadow.radius = 3; // weiche Schattenkante
     this.szene.add(spot, spot.target);
     return spot;
+  }
+
+  /** Weicher, additiver Lichtfleck am Boden vor dem Spieler (billig, kein echtes Licht) – der Spot allein ist nahe der Figur kaum zu sehen. */
+  #neuerTaschenSchein() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const x = c.getContext('2d');
+    const verlauf = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+    verlauf.addColorStop(0, 'rgba(255,238,200,1)');
+    verlauf.addColorStop(0.5, 'rgba(255,225,170,0.4)');
+    verlauf.addColorStop(1, 'rgba(255,220,160,0)');
+    x.fillStyle = verlauf;
+    x.fillRect(0, 0, 64, 64);
+    const textur = new THREE.CanvasTexture(c);
+    textur.colorSpace = THREE.SRGBColorSpace;
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ map: textur, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }),
+    );
+    mesh.visible = false;
+    mesh.renderOrder = 1;
+    this.szene.add(mesh);
+    return mesh;
+  }
+
+  /** Sichtbarer Lichtkegel (additiv, Spitze am Spieler, nach vorn ausblendend) – zeigt den Strahl der Taschenlampe in der Luft. */
+  #neuerLichtKegel() {
+    const laenge = TASCHENLAMPE.kegelLaenge;
+    const geometrie = new THREE.CylinderGeometry(0, laenge * Math.tan(TASCHENLAMPE.winkel) * 0.75, laenge, 24, 1, true).translate(0, -laenge / 2, 0).rotateZ(Math.PI / 2);
+    const pos = geometrie.attributes.position;
+    const farben = new Float32Array(pos.count * 3);
+    for (let i = 0; i < pos.count; i++) farben.fill(1 - pos.getX(i) / laenge, i * 3, i * 3 + 3);
+    geometrie.setAttribute('color', new THREE.BufferAttribute(farben, 3));
+    const mesh = new THREE.Mesh(
+      geometrie,
+      new THREE.MeshBasicMaterial({ color: 0xffe9b8, vertexColors: true, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, fog: false }),
+    );
+    mesh.visible = false;
+    mesh.frustumCulled = false;
+    this.szene.add(mesh);
+    return mesh;
   }
 
   #neuesPunktlicht(farbe, reichweite) {
@@ -911,7 +920,7 @@ export class Renderer {
    * Jede Änderung kostet einen kurzen Hänger (Puffer neu anlegen), darum so zurückhaltend.
    */
   #passeAufloesungAn(dt, jetzt) {
-    if (!GRAFIK_EINSTELLUNGEN.adaptiv) return; // mittel/niedrig: feste Stufe
+    if (!GRAFIK_PROFILE[this.grafik].adaptiv) return; // mittel/niedrig: feste Stufe
     if (jetzt < this.messenAb || dt > 0.25) return; // Aufwärmphase bzw. Tab war im Hintergrund
     const m = this.messung;
     m.frames++;
@@ -936,17 +945,17 @@ export class Renderer {
 
   /** Beste Stufe des gewählten Profils (Handy startet im Profil "hoch" eine Stufe sparsamer). */
   #startStufe() {
-    return GRAFIK_EINSTELLUNGEN.stufe ?? (this.istHandy ? 2 : 0);
+    return GRAFIK_PROFILE[this.grafik].stufe ?? (this.istHandy ? 2 : 0);
   }
 
-  /** Pixelverhältnis: feste Profil-Grenze (hoch 1,5 · mittel 1,25 · niedrig 0,8), Handy höchstens 1,25 – nie automatisch unscharf. */
+  /** Pixelverhältnis: im Profil "hoch" immer volle Geräteauflösung (nie automatisch unscharf), sonst die Profil-Grenze. */
   #stufenAufloesung() {
-    const grenze = GRAFIK_EINSTELLUNGEN.aufloesung;
-    return Math.min(this.aufloesungMax, grenze ?? 2, this.istHandy ? 1.25 : 2); // Handy nie über 1,25
+    const grenze = GRAFIK_PROFILE[this.grafik].aufloesung;
+    return Math.min(this.aufloesungMax, grenze ?? (this.istHandy ? 1.25 : 2));
   }
 
   #bodenMassstab() {
-    const massstab = GRAFIK_EINSTELLUNGEN.texturen;
+    const massstab = GRAFIK_PROFILE[this.grafik].texturen;
     return this.istHandy ? Math.min(massstab, 0.6) : massstab;
   }
 
@@ -959,54 +968,14 @@ export class Renderer {
     } catch {
       // egal
     }
-    waehleProfil(name);
-    this.#grafikGeaendert();
-  }
-
-  /**
-   * Einzelnen Grafik-Schalter überschreiben (grafikEinstellungen.js), z. B. setzeGrafikOption('ssao', 0), ('bloom', false),
-   * ('schattenRadius', 2), ('fxaa', false), ('belichtung', 1.2) – wirkt sofort, bis zum nächsten setzeGrafik(). @returns aktuelle Einstellungen
-   */
-  setzeGrafikOption(feld, wert) {
-    if (!(feld in GRAFIK_EINSTELLUNGEN) || feld === 'profil') return GRAFIK_EINSTELLUNGEN;
-    GRAFIK_EINSTELLUNGEN[feld] = wert;
-    this.#grafikGeaendert();
-    return GRAFIK_EINSTELLUNGEN;
-  }
-
-  #grafikGeaendert() {
-    const e = GRAFIK_EINSTELLUNGEN;
+    const profil = GRAFIK_PROFILE[name];
     this.#setzeStufe(this.#startStufe());
-    this.mond.castShadow = e.sonnenschatten;
-    if (this.natur) this.natur.gruppe.visible = e.natur !== false; // Gras nur in den Profilen hoch/mittel
+    this.mond.castShadow = profil.sonnenschatten;
+    if (this.natur) this.natur.gruppe.visible = profil.natur !== false; // Gras nur in den Profilen hoch/mittel
     this.karte?.setzeBodenMassstab(this.#bodenMassstab());
-    this.#wendeGrafikAn();
     this.messung = { frames: 0, zeit: 0, seit: 0 };
     this.guteFenster = 0;
     this.messenAb = performance.now() + 3000;
-  }
-
-  /**
-   * Belichtung, Schattenweichheit und Nachbearbeitung nach GRAFIK_EINSTELLUNGEN + Qualitätsstufe (ao) einstellen.
-   * Der Composer wird nur neu gebaut, wenn sich SSAO/Bloom/FXAA ändern (sonst nur Größe).
-   */
-  #wendeGrafikAn() {
-    const e = GRAFIK_EINSTELLUNGEN;
-    this.gl.toneMappingExposure = e.belichtung;
-    this.mond.shadow.radius = e.schattenRadius;
-    for (const spot of this.taschenlampen) spot.shadow.radius = e.schattenRadius;
-    const stufe = this.stufe <= this.#startStufe() ? null : QUALITAETS_STUFEN[this.stufe]; // adaptiv: erst GTAO, dann Bloom sparen
-    const optionen = { ssao: stufe && !stufe.ao ? 0 : e.ssao, bloom: !!e.bloom && (!stufe || stufe.bloom), fxaa: !!e.fxaa };
-    if (!e.nachbearbeitung) {
-      this.nachbearbeitung?.freigeben();
-      this.nachbearbeitung = null;
-      return;
-    }
-    if (!this.nachbearbeitung?.passtZu(optionen)) {
-      this.nachbearbeitung?.freigeben();
-      this.nachbearbeitung = new Nachbearbeitung(this.gl, this.szene, this.kamera3d, () => this.#zeichneSzene(), optionen);
-    }
-    this.nachbearbeitung.setzeGroesse(window.innerWidth, window.innerHeight, this.aufloesung);
   }
 
   #setzeStufe(stufe) {
@@ -1025,7 +994,6 @@ export class Renderer {
       this.mond.shadow.map = null;
     }
     if (neu.baumDetail !== vorher.baumDetail) this.karte?.setzeBaumDetail(neu.baumDetail);
-    if (this.taschenlampen) this.#wendeGrafikAn(); // Auflösung/ao können sich geändert haben (nicht schon im Konstruktor vor den Lampen)
   }
 
   #aktualisiereFiguren(entitaeten, fokus, dt, jetzt) {
@@ -1168,6 +1136,10 @@ export class Renderer {
     spieler.sort((a, b) => (b.istEigener ? 1 : 0) - (a.istEigener ? 1 : 0) || Math.hypot(a.x - fokus.x, a.y - fokus.y) - Math.hypot(b.x - fokus.x, b.y - fokus.y));
     this.taschenlampen.forEach((spot, i) => {
       const s = spieler[i];
+      const schein = this.taschenScheine[i];
+      const kegel = this.taschenKegel[i];
+      schein.visible = false;
+      kegel.visible = false;
       if (!s) {
         spot.intensity = 0;
         return;
@@ -1188,17 +1160,31 @@ export class Renderer {
       }
       const vx = Math.cos(s.blick);
       const vz = Math.sin(s.blick);
-      // Ursprung auf Brust-/Handhöhe knapp vor dem Körper (sonst verschluckt der eigene Schatten den Kegel), Ziel am Boden voraus.
-      // Wände/Möbel/Bäume begrenzen den Strahl über die Schattenkarte (nur die eigene Lampe – jede Schattenlampe = ein Szenen-Durchgang).
-      const h = this.#hy(s.x, s.y);
-      spot.position.set(s.x + vx * TASCHENLAMPEN_ANSATZ.vorn, TASCHENLAMPEN_ANSATZ.hoehe + h, s.y + vz * TASCHENLAMPEN_ANSATZ.vorn);
-      const zx = s.x + vx * TASCHENLAMPE.ziel;
-      const zz = s.y + vz * TASCHENLAMPE.ziel;
-      spot.target.position.set(zx, this.#hy(zx, zz), zz);
+      // Der Kegel beginnt direkt vor der Brust (nicht mehr an der ausgestreckten Waffe): so liegt der Lichtkreis spürbar vorm Charakter.
+      // Knapp außerhalb der Körpermitte, sonst verschluckt der eigene Schatten den Kegel.
+      spot.position.set(s.x + vx * TASCHENLAMPEN_ANSATZ.vorn, TASCHENLAMPEN_ANSATZ.hoehe + this.#hy(s.x, s.y), s.y + vz * TASCHENLAMPEN_ANSATZ.vorn);
+      spot.target.position.set(s.x + vx * 260, this.#hy(s.x + vx * 260, s.y + vz * 260), s.y + vz * 260);
+      // Schmaler, schwacher Kegel (düster); tagsüber sieht man ihn kaum
       Object.assign(spot, { angle: TASCHENLAMPE.winkel, penumbra: TASCHENLAMPE.rand, distance: TASCHENLAMPE.reichweite, decay: TASCHENLAMPE.decay });
-      spot.intensity = this.nachtsicht ? TASCHENLAMPE.nachtsicht : TASCHENLAMPE.staerke + TASCHENLAMPE.staerkeNacht * dunkel;
+      spot.intensity = this.nachtsicht ? 14000 : TASCHENLAMPE.staerke + TASCHENLAMPE.staerkeNacht * dunkel;
       // Schattenkarte nur neu zeichnen, wenn der Strahl überhaupt sichtbar ist (nachts) – tagsüber spart das einen Szenen-Durchgang
-      spot.shadow.autoUpdate = spot.castShadow && spot.intensity > 2000;
+      spot.shadow.autoUpdate = spot.castShadow && spot.intensity > 500;
+      if (dunkel > 0.05) {
+        // Kegel und Bodenfleck enden an der ersten Wand (der echte Spot wird von der Schattenkarte begrenzt)
+        const frei = this.welt ? strahlGegenWaende(this.welt, s.x, s.y, s.blick, TASCHENLAMPE.kegelLaenge + TASCHENLAMPEN_ANSATZ.vorn).laenge - TASCHENLAMPEN_ANSATZ.vorn : TASCHENLAMPE.kegelLaenge;
+        const anteil = Math.max(0, Math.min(1, frei / TASCHENLAMPE.kegelLaenge));
+        const mitte = TASCHENLAMPEN_ANSATZ.vorn + 34 * Math.min(1, anteil * 4);
+        schein.visible = anteil > 0.03;
+        schein.position.set(s.x + vx * mitte, 1.4 + this.#hy(s.x, s.y), s.y + vz * mitte);
+        schein.rotation.y = -s.blick;
+        schein.scale.set(120 * Math.min(1, anteil * 4), 1, 78 * Math.min(1, anteil * 4));
+        schein.material.opacity = 0.34 * dunkel;
+        kegel.visible = anteil > 0.03;
+        kegel.scale.setScalar(anteil);
+        kegel.position.set(s.x + vx * TASCHENLAMPEN_ANSATZ.vorn, 30 + this.#hy(s.x, s.y), s.y + vz * TASCHENLAMPEN_ANSATZ.vorn);
+        kegel.rotation.y = -s.blick;
+        kegel.material.opacity = 0.05 * dunkel;
+      }
     });
   }
 
@@ -1347,10 +1333,7 @@ export class Renderer {
     this.mond.intensity = 0.07 + hell * 2.93; // Nächte sind dunkel: Licht gibt es nur an Lampen, Feuern, Taschenlampe und Scheinwerfern (Editor 2.0, 2.1)
     this.umgebung.color.copy(NACHT.himmel).lerp(TAG.himmel, hell);
     this.umgebung.groundColor.copy(NACHT.boden).lerp(TAG.boden, hell);
-    this.umgebung.intensity = 0.06 + hell * 1.04;
-    // IBL (RoomEnvironment): ersetzt tagsüber einen Teil des Halbkugel-Lichts und gibt PBR-Materialien Glanz/Reflexe; nachts fast aus
-    this.szene.environmentIntensity = 0.015 + hell * 0.4;
-    this.nachbearbeitung?.setzeHelligkeit(hell);
+    this.umgebung.intensity = 0.06 + hell * 1.24;
     this.szene.background.copy(NACHT.hintergrund).lerp(TAG.hintergrund, hell).lerp(DAEMMERUNG.hintergrund, daemmerung * 0.5);
     this.szene.fog.color.copy(this.szene.background);
     // Sonnenschatten: nachts (Mond ≈ 0) keinen Szenen-Durchgang; Schattenkamera nur so groß wie der sichtbare Bereich (zoomabhängig)
@@ -1553,7 +1536,6 @@ export class Renderer {
     const hoehe = window.innerHeight;
     this.gl.setPixelRatio(this.aufloesung);
     this.gl.setSize(breite, hoehe, false);
-    this.nachbearbeitung?.setzeGroesse(breite, hoehe, this.aufloesung);
     // Overlay-Canvas (nur Text) – höchstens 1,5-fach, das reicht für scharfe Schrift
     const overlayDpr = Math.min(window.devicePixelRatio || 1, 1.5);
     this.overlay.width = Math.round(breite * overlayDpr);

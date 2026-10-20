@@ -74,8 +74,7 @@ for (const datei of ['three.module.js', 'three.core.js']) {
   console.log(`  vendor/three/${datei}: ${(klein.length / 1024).toFixed(0)} KB`);
 }
 // Addons (FBX-/GLTF-/OBJ-Lader, GLTF-Exporter für den Map-Editor-Import, SkeletonUtils, Orbit-/Transform-Steuerung und Aufkleber
-// (DecalGeometry) für die Modell-Werkstatt des Editors, Nachbearbeitung (EffectComposer, GTAO, Bloom, OutputPass, FXAA) und
-// RoomEnvironment (Umgebungslicht für PBR/.glb) fürs Spiel) als ein Bündel; 'three' bleibt extern (kommt über die Import-Map)
+// (DecalGeometry) für die Modell-Werkstatt des Editors) als ein Bündel; 'three' bleibt extern (kommt über die Import-Map)
 await esbuild.build({
   // Direkte Dateipfade: 'three/addons/…' würde esbuild sonst wie 'three' als extern behandeln
   stdin: {
@@ -86,13 +85,6 @@ await esbuild.build({
                export { OrbitControls } from ${JSON.stringify(path.join(threeOrdner, 'examples/jsm/controls/OrbitControls.js'))};
                export { DecalGeometry } from ${JSON.stringify(path.join(threeOrdner, 'examples/jsm/geometries/DecalGeometry.js'))};
                export { TransformControls } from ${JSON.stringify(path.join(threeOrdner, 'examples/jsm/controls/TransformControls.js'))};
-               export { EffectComposer } from ${JSON.stringify(path.join(threeOrdner, 'examples/jsm/postprocessing/EffectComposer.js'))};
-               export { Pass } from ${JSON.stringify(path.join(threeOrdner, 'examples/jsm/postprocessing/Pass.js'))};
-               export { GTAOPass } from ${JSON.stringify(path.join(threeOrdner, 'examples/jsm/postprocessing/GTAOPass.js'))};
-               export { UnrealBloomPass } from ${JSON.stringify(path.join(threeOrdner, 'examples/jsm/postprocessing/UnrealBloomPass.js'))};
-               export { FXAAPass } from ${JSON.stringify(path.join(threeOrdner, 'examples/jsm/postprocessing/FXAAPass.js'))};
-               export { OutputPass } from ${JSON.stringify(path.join(threeOrdner, 'examples/jsm/postprocessing/OutputPass.js'))};
-               export { RoomEnvironment } from ${JSON.stringify(path.join(threeOrdner, 'examples/jsm/environments/RoomEnvironment.js'))};
                export * as SkeletonUtils from ${JSON.stringify(path.join(threeOrdner, 'examples/jsm/utils/SkeletonUtils.js'))};`,
     resolveDir: WURZEL,
   },
