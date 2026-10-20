@@ -25,6 +25,8 @@ Tipp: kurze Dateien (< 3 s), Lautstärke der Aufnahme selbst eher normalisiert.
 | `wind` | Wind draußen (immer, Schleife; Regler „Wind & Regen“) |
 | `regen` | Regen (Schleife, Lautstärke folgt der Regenstärke) |
 | `nacht` | Nachtgeräusche – Grillen (Schleife, nur nachts) |
+| `schritt_schnee` | Schritte im Schnee (Knirschen, jeder Tritt; Schneefall selbst ist lautlos) |
+| `schritt_gras` | Schritte im Gras (jeder Tritt; 6 Aufnahmen, zufällig) |
 
 ### Tiere
 

@@ -1,7 +1,7 @@
 import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
 
 /**
- * Schritt-Geräusche: wer über Schnee läuft, knirscht (Ereignis `schritt_schnee`, Kenney-Samples bzw. Synthese).
+ * Schritt-Geräusche: wer über Schnee läuft, knirscht (Ereignis `schritt_schnee`, Kenney-Samples bzw. Synthese); auf Gras `schritt_gras` (6 eigene Aufnahmen).
  * Rein clientseitig und nur Atmosphäre – gezählt wird die zurückgelegte Strecke je Spieler/Zombie (interpolierte Entitäten),
  * alle SCHRITT px gibt es einen Tritt. Ton räumlich (Entfernung/Stereo macht sound.spiele).
  * Untergrund: Kachel `schnee` = voll, Straße/Gehweg in einer Schneezone (welt.schnee) = leiser (verschneit), drinnen/anderswo = nichts.
@@ -19,6 +19,7 @@ export function untergrundFuer(welt, x, y) {
   if (!k || k.innen || k.blockiert || k.wasser) return null;
   if (k.name === 'schnee') return { ereignis: 'schritt_schnee', pegel: 1 };
   if (welt.schnee && (k.name === 'strasse' || k.name === 'asphalt' || k.name === 'gehweg')) return { ereignis: 'schritt_schnee', pegel: 0.55 };
+  if (k.name === 'gras') return { ereignis: 'schritt_gras', pegel: 1 };
   return null;
 }
 

@@ -11,13 +11,25 @@
     "dateien": [
       "nachladen.ogg"
     ],
-    "lautstaerke": 1
+    "lautstaerke": 1,
+    "verzoegerung": 0.2
   },
   "regen": {
     "dateien": [
       "regen.ogg"
     ],
     "lautstaerke": 2
+  },
+  "schritt_gras": {
+    "dateien": [
+      "schritt_gras_0.wav",
+      "schritt_gras_1.wav",
+      "schritt_gras_2.wav",
+      "schritt_gras_3.wav",
+      "schritt_gras_4.wav",
+      "schritt_gras_5.wav"
+    ],
+    "lautstaerke": 1
   },
   "wind": {
     "dateien": [],
@@ -27,5 +39,9 @@
     "dateien": [],
     "lautstaerke": 1,
     "streuung": 0.06
+  },
+  "schritt_schnee": {
+    "dateien": [],
+    "lautstaerke": 0.3
   }
 }

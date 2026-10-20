@@ -69,7 +69,7 @@ const KEGEL_POOL = { handy: 1, desktop: 2 }; // Kegel-Lampen (Scheinwerfer, art 
 /** Taschenlampe (Spieler): eher schmal und schwach – Nächte sollen düster bleiben (Nutzer-Wunsch, Editor 2.0 Schritt 2.1) */
 // Fokussierter Strahl: schmaler Kegel (~11°), 520 px Reichweite, weicher Rand (penumbra) und Abfall mit decay 1,5 statt hartem Schnitt.
 // Bei decay > 1 fällt das Licht schneller ab → Stärken entsprechend höher (≈ ×16 gegenüber decay 1 bei 250 px). Tagsüber aus.
-const TASCHENLAMPE = { winkel: 0.3, rand: 0.75, reichweite: 480, decay: 1.5, staerke: 0, staerkeNacht: 26000, kegelLaenge: 300, ziel: 180 }; // ziel = px vor dem Spieler (näher = Lichtkreis beginnt dichter an der Figur)
+const TASCHENLAMPE = { winkel: 0.4, rand: 0.75, reichweite: 450, decay: 1.5, staerke: 0, staerkeNacht: 26000, kegelLaenge: 280, ziel: 170 }; // ziel = px vor dem Spieler (näher = Lichtkreis beginnt dichter an der Figur)
 const SCHEINWERFER = { decay: 1, winkel: 0.45, rand: 0.5, reichweite: 650, staerke: 500, staerkeNacht: 2600 };
 const MUENDUNGS_LICHTER = 2;
 const SITZ_TIEFE = 24; // so weit sinkt die Figur beim Sitzen am Feuer

@@ -8,6 +8,7 @@
 6. Grafiken nur über `werkzeuge/assets/baue_assets.py` + `npm run assets:3d` ändern (nie direkt in `client/assets/` oder `client/vendor/`). Nur CC0/CC-BY-Quellen, Credits-Dialog nicht entfernen.
    **Ausnahme (Nutzer-Entscheidung):** Eigene 3D-Modelle (`.glb`) aus dem Map-Editor landen über `npm run karte:editor` unverändert unter `client/assets/eigene/` – ohne Lizenzprüfung. Die Rechte liegen bei der hochladenden Person; Urheber/Lizenz sind optionale Felder am Typ.
    **Internetzugriff erlaubt (Nutzer-Entscheidung):** Bei Wunsch nach neuen Texturen/Modellen/Sounds darfst du selbst im Internet suchen und Dateien herunterladen (CC0/CC-BY, Quelle + Lizenz in `client/assets/eigene/credits.json`). Passend zum Low-Poly-Stil wählen: kleine Texturen (typ. 256–512 px, keine 4K), niedrige Polygonzahl, kleine Dateien.
+   **Sounddateien bearbeiten (schneiden/umwandeln):** Lokal gibt es weder ffmpeg noch einen Python-Ogg-Decoder. Nimm den Browser als Decoder: Datei kurz unter `client/` ablegen, im Browser-Pane per `fetch` + `AudioContext.decodeAudioData` dekodieren, Ausschnitte als WAV bauen und per `PUT /api/editor/datei?pfad=client/audio/eigene/<name>.wav` (Kopf `X-Editor: 1`, Spielserver läuft lokal) speichern; danach `npm run sounds`, Temp-Datei löschen. Beispiel: `schritt_gras_0-5.wav`.
    Darstellung ist **nur 3D** (Three.js, `client/darstellung/renderer.js`) – kein 2D-Renderer mehr.
 7. Touch-Bedienung (Handy/Tablet) bei jeder neuen Aktion mitdenken.
 8. Vor jedem Commit: `npm test`.

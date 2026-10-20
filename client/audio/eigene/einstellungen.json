@@ -11,5 +11,11 @@
   "hack_holz": {
     "maxDauer": 6,
     "einmal": true
+  },
+  "nachladen": {
+    "verzoegerung": 0.2
+  },
+  "schritt_schnee": {
+    "lautstaerke": 0.3
   }
 }

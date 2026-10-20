@@ -227,3 +227,5 @@ Zonen-Grundlage steht (2 Zonen, Waldweg groß mit See). Nächstes sinnvoll: Basi
 - `clientSpiel`: `nacht` (Grillen) = 0 bei `welt.schnee`.
 - CLAUDE.md Regel 6: Internetzugriff für neue Texturen/Modelle erlaubt (Low-Poly-tauglich, klein, CC0/CC-BY + `credits.json`).
 - Messen im Browser-Pane: nur sichtbar (`mcp__ccd_view__show_pane preview`), sonst 30-FPS-Drossel/rAF steht; GPU-Zeit via `EXT_disjoint_timer_query_webgl2`.
+- **Schritte Gras:** Kachel `gras` → Ereignis `schritt_gras` (`C:audio/schritte.js untergrundFuer`, `eigeneSounds.EREIGNISSE`, Synth-Rezept in `sound.js`); Dateien `client/audio/eigene/schritt_gras_0-5.wav` (aus `!verteilen/377591__yudena__steps_grass_mondfisch89.ogg` im Browser per decodeAudioData geschnitten, je ~0,48 s; Index via `npm run sounds`). Credit in `credits.json` (Lizenz-Text dort ungeprüft). TASCHENLAMPE jetzt Winkel 0,4 / Reichweite 450 / kegelLaenge 280 / ziel 170.
+- Sound-Bearbeitung: Browser (decodeAudioData) + Editor-API als Decoder, siehe CLAUDE.md Regel 6
