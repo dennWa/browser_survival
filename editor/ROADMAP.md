@@ -177,7 +177,9 @@ unten (lokaler Editor-Server) bzw. neue Wünsche.
   Asset-Browser mit Gruppen-Chips (immer eine Gruppe offen, ★ Schnell = Favoriten/Zuletzt, `assets.zeigeEintrag(id)`), Testen
   ohne Spieler-Start → Rückfrage „Spawn in die Mitte?“ → setzt ihn (`kern/platzierung.js startInDerMitte`, 1 Undo-Schritt).
 
-**Phase 10 läuft** (Audio-Zentrale) – nächster Schritt siehe Tabelle Phase 10 (erster ☐). Rauchtest für Phase 10 gesammelt am Ende.
+**Phase 10 abgeschlossen.** Offene Fehler: `editor/FEHLERLISTE.txt` (F1: zwei Handy-Prüfungen im Rauchtest rot).
+
+**(Alt:) Phase 10 lief** (Audio-Zentrale) – nächster Schritt siehe Tabelle Phase 10 (erster ☐). Rauchtest für Phase 10 gesammelt am Ende.
 
 ## Ausgangslage (Analyse 2026-10-19)
 - Editor v0.14: Phasen 0–11 fertig, ~10 000 Zeilen in `editor/`, 210 Tests grün, Rauchtest grün.

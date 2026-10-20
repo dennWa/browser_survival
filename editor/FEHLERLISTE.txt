@@ -1,0 +1,31 @@
+FEHLERLISTE (offene Fehler, die wir ein andermal angehen)
+=========================================================
+Stand: 2026-10-20 · Prüfen mit: npm run rauchtest:editor
+
+F1 · Rauchtest „Touch-Bauen (7.6)": zwei Handy-Prüfungen schlagen fehl
+-----------------------------------------------------------------------
+Symptom (beide Prüfungen im Rauchtest, Handy-Fenster):
+  ✗ Handy-Leiste ↶ nimmt das Skalieren in einem Schritt zurück
+  ✗ Werkstatt am Handy: mit dem Finger gemalt ({"map":false,"speichern":true})
+Alles andere (148 Prüfungen, auch die Audio-Zentrale) ist grün. npm test ist grün (344).
+
+Was bekannt ist:
+- Erster Lauf nach Phase 10.7 (Commit ad0c207 + Audio-Schritt): Touch-Prüfungen waren GRÜN.
+- Seitdem 5 Läufe nacheinander ROT, auch ohne Editor-API (EDITOR_API=0), ohne Vorschau-Server
+  und auf dem Stand 12a8ae0 in einem getrennten Arbeitsordner → kein reines Zeit-Flackern.
+- Zwischen grünem und rotem Lauf geändert: nur `editor/ui/lokalerServer.js`
+  (Server-Erkennung als gemeinsames Promise, Timeout 1,5 s → 4 s) + Rauchtest-Audio-Schritt.
+  Verdacht, nicht bewiesen. Test lief nicht mehr durch (abgebrochen):
+  alte Fassung von `lokalerServer.js` (git show ad0c207:editor/ui/lokalerServer.js) in den
+  Stand 12a8ae0 einsetzen und Rauchtest laufen lassen – wird es grün, liegt es an der Datei.
+- Möglich auch: im ersten Lauf war es Zufall (Software-Grafik ~2 FPS, Touch-Taps 60 ms).
+
+Nächste Schritte:
+1. Obigen Vergleichslauf machen (alte lokalerServer.js einsetzen).
+2. Wenn nein: Handy-Schritt allein debuggen (Seite 375×812 mit Touch, Tisch skalieren, ↶ tippen,
+   Zähler `zustand.verlauf.zurueck` vor/nach prüfen; Werkstatt: Schild laden, Finger-Strich,
+   `aktiveWerkstatt().materialien()[0].map`).
+3. Fix + Regressionstest, Eintrag hier abhaken.
+
+Hinweis: Die Fehler betreffen nur Handy-Bedienung im Editor-Rauchtest; im Spiel und in der
+Audio-Zentrale wurden keine Auswirkungen gefunden.
