@@ -113,9 +113,11 @@ export function parseLautstaerke(text, warnungen = []) {
 /** Grenzen der Einstellungen je Ereignis (einstellungen.json, Audio-Zentrale) */
 export const PEGEL_MAX = 3;
 export const STREUUNG_MAX = 0.5;
+export const VERZOEGERUNG_MAX = 5; // s, Ton setzt später ein als die Animation
+export const MAX_DAUER_MAX = 120; // s, Ton wird nach so langer Zeit abgeschnitten (0 = nie)
 
 /**
- * einstellungen.json säubern: { ereignis: { lautstaerke: 0..3 (Faktor), streuung: 0..0.5 (± Tonhöhe), loop: bool } }.
+ * einstellungen.json säubern: { ereignis: { lautstaerke: 0..3 (Faktor), streuung: 0..0.5 (± Tonhöhe), verzoegerung: 0..5 s, maxDauer: 0..120 s, loop: bool } }.
  * Unbrauchbare Werte fliegen raus (Warnung).
  */
 export function pruefeSoundEinstellungen(roh, warnungen = []) {
@@ -129,6 +131,8 @@ export function pruefeSoundEinstellungen(roh, warnungen = []) {
     const r = {};
     if (Number.isFinite(e.lautstaerke) && e.lautstaerke >= 0) r.lautstaerke = Math.min(PEGEL_MAX, e.lautstaerke);
     if (Number.isFinite(e.streuung) && e.streuung > 0) r.streuung = Math.min(STREUUNG_MAX, e.streuung);
+    if (Number.isFinite(e.verzoegerung) && e.verzoegerung > 0) r.verzoegerung = Math.min(VERZOEGERUNG_MAX, e.verzoegerung);
+    if (Number.isFinite(e.maxDauer) && e.maxDauer > 0) r.maxDauer = Math.min(MAX_DAUER_MAX, e.maxDauer);
     if (typeof e.loop === 'boolean') r.loop = e.loop;
     if (Object.keys(r).length) aus[name] = r;
   }

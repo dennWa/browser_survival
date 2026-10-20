@@ -77,6 +77,8 @@ export function baueKatalog({ eigene = {}, einstellungen = {}, samples = {}, syn
       varianten: dateien.length,
       pegel: e[name]?.lautstaerke ?? eigene[name]?.lautstaerke ?? 1,
       streuung: e[name]?.streuung ?? 0,
+      verzoegerung: e[name]?.verzoegerung ?? 0,
+      maxDauer: e[name]?.maxDauer ?? 0,
       loop: !!opt.loop,
       stumm: !!opt.stumm,
       geaendert: eigen.length > 0 || !!e[name],
@@ -242,6 +244,8 @@ export function setzeSoundEinstellung(alt, ereignis, werte) {
   const r = {};
   if (Number.isFinite(e.lautstaerke) && Math.abs(e.lautstaerke - 1) > 0.001) r.lautstaerke = Math.round(e.lautstaerke * 100) / 100;
   if (Number.isFinite(e.streuung) && e.streuung > 0.001) r.streuung = Math.round(e.streuung * 100) / 100;
+  if (Number.isFinite(e.verzoegerung) && e.verzoegerung > 0.001) r.verzoegerung = Math.round(e.verzoegerung * 100) / 100;
+  if (Number.isFinite(e.maxDauer) && e.maxDauer > 0.001) r.maxDauer = Math.round(e.maxDauer * 100) / 100;
   if (typeof e.loop === 'boolean') r.loop = e.loop;
   if (Object.keys(r).length) neu[ereignis] = r;
   else delete neu[ereignis];

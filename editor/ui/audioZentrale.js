@@ -375,7 +375,9 @@ class AudioZentrale {
       </div>
       <h4>Im Spiel</h4>
       <label class="az-regler">Pegel <input type="range" min="0" max="300" step="5" value="${Math.round(e.pegel * 100)}" data-f="pegel"> <output>${prozent(e.pegel)}</output></label>
-      ${loop ? '' : `<label class="az-regler" title="Jedes Abspielen klingt minimal anders – gut für kurze, oft wiederholte Sounds">Tonhöhen-Streuung ± <input type="range" min="0" max="50" step="1" value="${Math.round(e.streuung * 100)}" data-f="streuung"> <output>${Math.round(e.streuung * 100)} %</output></label>`}
+      ${loop ? '' : `<label class="az-regler" title="Jedes Abspielen klingt minimal anders – gut für kurze, oft wiederholte Sounds">Tonhöhen-Streuung ± <input type="range" min="0" max="50" step="1" value="${Math.round(e.streuung * 100)}" data-f="streuung"> <output>${Math.round(e.streuung * 100)} %</output></label>
+      <label class="az-zeit" title="Ton setzt erst nach dieser Zeit ein – z. B. wenn die Animation gerade erst anfängt und der Schlag später kommt">Ton startet später: <input type="number" min="0" max="5" step="0.05" value="${e.verzoegerung || 0}" data-f="verzoegerung"> s</label>
+      <label class="az-zeit" title="Ton wird nach dieser Zeit weich abgeschnitten – z. B. wenn die Animation kürzer ist als die Datei. 0 = ganze Datei spielen">Ton endet nach: <input type="number" min="0" max="120" step="0.1" value="${e.maxDauer || 0}" data-f="maxDauer"> s <span class="leise">(0 = ganze Datei)</span></label>`}
       <div class="knopfreihe"><button type="button" data-a="einstellungen">💾 Einstellungen speichern</button><span class="leise">gilt für alle Quellen (auch Synthese/Samples)</span></div>
     </div>`;
   }
@@ -496,7 +498,7 @@ class AudioZentrale {
   }
 
   /** AudioBuffer abspielen (eine Stimme), optional Schleife; `marke` = was die Knöpfe als „läuft“ zeigen */
-  #spielePuffer(puffer, { pegel = 1, rate = 1, loop = false, marke = null } = {}) {
+  #spielePuffer(puffer, { pegel = 1, rate = 1, loop = false, marke = null, verzoegerung = 0, maxDauer = 0 } = {}) {
     this.stoppe();
     const ctx = this.#kontext();
     const q = ctx.createBufferSource();
@@ -506,7 +508,13 @@ class AudioZentrale {
     const g = ctx.createGain();
     g.gain.value = Math.min(3, pegel) * 0.8;
     q.connect(g).connect(ctx.destination);
-    q.start(ctx.currentTime + 0.02);
+    const beginn = ctx.currentTime + 0.02 + verzoegerung;
+    q.start(beginn);
+    if (maxDauer > 0 && !loop) {
+      g.gain.setValueAtTime(g.gain.value, beginn + maxDauer);
+      g.gain.linearRampToValueAtTime(0, beginn + maxDauer + 0.06);
+      q.stop(beginn + maxDauer + 0.08);
+    }
     const stimme = { q, g };
     q.onended = () => {
       if (this.stimme !== stimme) return;
@@ -521,7 +529,7 @@ class AudioZentrale {
     try {
       const puffer = await this.#puffer(pfad);
       const s = e?.streuung ?? 0;
-      this.#spielePuffer(puffer, { pegel: this.#reglerPegel(e), rate: 1 + (Math.random() * 2 - 1) * s, loop: !!e?.loop, marke });
+      this.#spielePuffer(puffer, { ...this.#zeitWerte(e), pegel: this.#reglerPegel(e), rate: 1 + (Math.random() * 2 - 1) * s, loop: !!e?.loop, marke });
     } catch (fehler) {
       this.zustand.meldung(`Abspielen nicht möglich: ${fehler.message}`, 'fehler');
     }
@@ -531,6 +539,16 @@ class AudioZentrale {
   #reglerPegel(e) {
     const r = e && this.elDetail?.querySelector('[data-f=pegel]');
     return r ? Number(r.value) / 100 : e?.pegel ?? 1;
+  }
+
+  /** „Ton startet später“ / „Ton endet nach“ (Sekunden) wie in den Feldern eingestellt (auch ungespeichert) */
+  #zeitWerte(e) {
+    const f = (n, std) => {
+      const r = e && this.elDetail?.querySelector(`[data-f=${n}]`);
+      const v = r ? Number(r.value) : std;
+      return Number.isFinite(v) && v > 0 ? v : 0;
+    };
+    return { verzoegerung: f('verzoegerung', e?.verzoegerung ?? 0), maxDauer: f('maxDauer', e?.maxDauer ?? 0) };
   }
 
   /** Regler bewegt → laufenden Ton sofort anpassen */
@@ -561,6 +579,7 @@ class AudioZentrale {
       const lauf = setInterval(() => s.motor(Math.abs(Math.sin((t += 0.1) / 2)) * 340), 100);
       this.synthStopp = () => clearInterval(lauf);
     } else {
+      s.setzeZeit(n, this.#zeitWerte(e));
       s.spiele(n, { lautstaerke: pegel, tonhoehe: 1 + (Math.random() * 2 - 1) * e.streuung });
       this.#marke(e.id);
       this.synthTimer = setTimeout(() => this.stoppe(), 1500); // Kurzgeräusch: nach ~1,5 s wieder ▶ (Rezept-Länge unbekannt)
@@ -961,10 +980,11 @@ class AudioZentrale {
   async speichereEinstellungen(e) {
     const pegel = Number(this.elDetail.querySelector('[data-f=pegel]').value) / 100;
     const streuung = Number(this.elDetail.querySelector('[data-f=streuung]')?.value ?? 0) / 100;
+    const { verzoegerung, maxDauer } = this.#zeitWerte(e);
     if (!(await this.#nurLokal())) return;
     try {
-      await schreibeDatei('client/audio/eigene/einstellungen.json', setzeSoundEinstellung(this.daten.einstellungen, e.ereignis, { lautstaerke: pegel, streuung }));
-      this.zustand.meldung(`✓ Übernommen – ${e.name}: Pegel ${prozent(pegel)}${streuung ? `, Streuung ±${Math.round(streuung * 100)} %` : ''} (im Spiel nach Neuladen aktiv)`, 'ok');
+      await schreibeDatei('client/audio/eigene/einstellungen.json', setzeSoundEinstellung(this.daten.einstellungen, e.ereignis, { lautstaerke: pegel, streuung, verzoegerung, maxDauer }));
+      this.zustand.meldung(`✓ Übernommen – ${e.name}: Pegel ${prozent(pegel)}${streuung ? `, Streuung ±${Math.round(streuung * 100)} %` : ''}${verzoegerung ? `, Start +${verzoegerung} s` : ''}${maxDauer ? `, Ende nach ${maxDauer} s` : ''} (im Spiel nach Neuladen aktiv)`, 'ok');
       await this.neuLaden();
       const knopf = this.elDetail.querySelector('[data-a=einstellungen]');
       if (knopf) {

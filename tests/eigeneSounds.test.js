@@ -33,7 +33,7 @@ test('Phase 10.2: Gruppen, Schleifen, Einstellungen im Index', async () => {
   for (const n of ['wind', 'regen', 'nacht', 'motor', 'hase_flucht', 'hase_tod', 'ui_klick', 'inventar_auf', 'inventar_zu']) assert.ok(n in EREIGNISSE, n);
   assert.deepEqual([...LOOP_EREIGNISSE].sort(), ['motor', 'nacht', 'regen', 'wind']);
   const w = [];
-  assert.deepEqual(pruefeSoundEinstellungen({ pistole: { lautstaerke: 9, streuung: 0.1, loop: 'ja' }, '../x': {}, wind: { loop: true } }, w), { pistole: { lautstaerke: 3, streuung: 0.1 }, wind: { loop: true } });
+  assert.deepEqual(pruefeSoundEinstellungen({ pistole: { lautstaerke: 9, streuung: 0.1, verzoegerung: 9, maxDauer: 2, loop: 'ja' }, '../x': {}, wind: { loop: true } }, w), { pistole: { lautstaerke: 3, streuung: 0.1, verzoegerung: 5, maxDauer: 2 }, wind: { loop: true } });
   assert.equal(w.length, 1);
   const { index } = baueIndex(['wind.ogg'], 'wind 50', { wind: { lautstaerke: 0.8, loop: true } });
   assert.deepEqual(index.wind, { dateien: ['wind.ogg'], lautstaerke: 0.8, loop: true });

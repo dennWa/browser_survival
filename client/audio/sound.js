@@ -45,6 +45,7 @@ export class Sound {
   #eigene = {}; // Name → [AudioBuffer] (eigene Dateien aus audio/eigene, haben Vorrang vor #proben und Synthese)
   #eigenePegel = {}; // Name → Faktor aus eigene/lautstaerke.txt / einstellungen.json (gilt für alle Quellen)
   #streuung = {}; // Name → ± Tonhöhe (0..0,5) aus einstellungen.json
+  #zeit = {}; // Name → { verzoegerung, maxDauer } (s) aus einstellungen.json: Ton später starten / nach so langer Zeit abschneiden
   #nacht = null;
   #letzteEigene = {}; // Name → zuletzt gespielter Index (keine direkte Wiederholung)
 
@@ -140,9 +141,10 @@ export class Sound {
     fetch(new URL('eigene.json', eigeneBasis))
       .then((r) => (r.ok ? r.json() : {}))
       .then((index) => {
-        for (const [name, { dateien = [], lautstaerke = 1, streuung = 0 }] of Object.entries(index)) {
+        for (const [name, { dateien = [], lautstaerke = 1, streuung = 0, verzoegerung = 0, maxDauer = 0 }] of Object.entries(index)) {
           this.#eigenePegel[name] = lautstaerke;
           if (streuung > 0) this.#streuung[name] = streuung;
+          if (verzoegerung > 0 || maxDauer > 0) this.#zeit[name] = { verzoegerung, maxDauer };
           if (!REZEPTE[name] && !dateien.length) console.warn(`[Sound] Unbekanntes Ereignis "${name}" in eigene/lautstaerke.txt`);
           for (const datei of dateien) {
             fetch(new URL(datei, eigeneBasis))
@@ -246,8 +248,17 @@ export class Sound {
     }
     if (gain < 0.01) return;
 
+    const { verzoegerung = 0, maxDauer = 0 } = this.#zeit[name] ?? {};
+    const beginn = ctx.currentTime + VORLAUF + verzoegerung;
     const lautstaerkeKnoten = ctx.createGain();
     lautstaerkeKnoten.gain.value = gain;
+    // maxDauer: nach so langer Zeit (ab Tonbeginn) weich ausblenden und stoppen – Ton endet mit der Animation
+    const kuerze = (quelle) => {
+      if (!(maxDauer > 0)) return;
+      lautstaerkeKnoten.gain.setValueAtTime(gain, beginn + maxDauer);
+      lautstaerkeKnoten.gain.linearRampToValueAtTime(0, beginn + maxDauer + 0.06);
+      quelle.stop(beginn + maxDauer + 0.08);
+    };
     let ziel = lautstaerkeKnoten;
     if (ctx.createStereoPanner) {
       const panner = ctx.createStereoPanner();
@@ -266,7 +277,8 @@ export class Sound {
       quelle.buffer = eigene[i];
       if (streuung) quelle.playbackRate.value = zufallsTon();
       quelle.connect(lautstaerkeKnoten);
-      quelle.start(ctx.currentTime + VORLAUF);
+      quelle.start(beginn);
+      kuerze(quelle);
       dauer = quelle.buffer.duration / quelle.playbackRate.value;
     } else if (proben?.length) {
       // Echte Aufnahme: zufällige Variante, Tonhöhe leicht gestreut (kein Maschinengewehr-Effekt bei Wiederholung)
@@ -276,12 +288,13 @@ export class Sound {
       const pegel = ctx.createGain();
       pegel.gain.value = PROBEN_PEGEL[name] ?? 1;
       quelle.connect(pegel).connect(lautstaerkeKnoten);
-      quelle.start(ctx.currentTime + VORLAUF);
+      quelle.start(beginn);
+      kuerze(quelle);
       dauer = quelle.buffer.duration / quelle.playbackRate.value;
     } else {
-      dauer = rezept({ ctx, ausgang: lautstaerkeKnoten, t: ctx.currentTime + VORLAUF, rauschen: this.#rauschen, tonhoehe: tonhoehe * (streuung ? zufallsTon() : 1) });
+      dauer = rezept({ ctx, ausgang: lautstaerkeKnoten, t: beginn, rauschen: this.#rauschen, tonhoehe: tonhoehe * (streuung ? zufallsTon() : 1) });
     }
-    setTimeout(() => ziel.disconnect(), (dauer + 0.5) * 1000);
+    setTimeout(() => ziel.disconnect(), (Math.min(dauer, maxDauer > 0 ? maxDauer : Infinity) + verzoegerung + 0.5) * 1000);
   }
 
   /**
@@ -405,6 +418,12 @@ export class Sound {
         brummGain.gain.value = WIND_BRUMM * p;
       },
     });
+  }
+
+  /** Verzögerung/Kürzung eines Ereignisses setzen (Audio-Zentrale-Vorschau, ohne Neuladen) */
+  setzeZeit(name, { verzoegerung = 0, maxDauer = 0 } = {}) {
+    if (verzoegerung > 0 || maxDauer > 0) this.#zeit[name] = { verzoegerung, maxDauer };
+    else delete this.#zeit[name];
   }
 
   /** Pegel eines Ereignisses live ändern (Audio-Zentrale: Regler während des Anhörens); Wind sofort, andere ab dem nächsten Abspielen */
