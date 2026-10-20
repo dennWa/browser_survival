@@ -28,6 +28,12 @@ export class Taktgeber {
     this.timer = null;
   }
 
+  /** Tick-Abstand ändern (Editor-Debug-Testlauf: Zeitlupe) – läuft ohne Nachholen ab jetzt im neuen Takt weiter */
+  setzeTickDauer(ms) {
+    this.tickDauerMs = ms;
+    this.naechsterTick = performance.now() + ms;
+  }
+
   #planen() {
     const jetzt = performance.now();
     let nachgeholt = 0;

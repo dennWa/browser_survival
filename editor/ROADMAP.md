@@ -106,9 +106,16 @@
   nicht; Rauchtest wartet auf `mapEditor.bereit`.
   Phase 7 komplett.
 
-Offen: Phase 8 (8.1–8.2), Phase 9 (9.1–9.9) laut Tabellen unten.
+- 8.1 fertig (2026-10-20) 🎮: Debug-Testlauf nur im Editor-Test. Kern `server/spiel/debugAnsicht.js` (ZEITLUPE, tickDauerBei,
+  debugSchnappschuss, naechsterZombie, zombieInfo – liest nur), `Taktgeber.setzeTickDauer`, Panel `client/debug/debugLauf.js`
+  (🐞 links oben: 0,1×–1×, ⏸/▶, +1/+10 Ticks, Overlays Pfade/Ziele+Radien/Spawns+Respawn-Timer/Loot/Klänge/Übergänge,
+  🔍 Zombie-Info per Klick ohne Schuss). Client: `SpielSchleife.pausiert`, Tick-Uhr/Interpolation in `clientSpiel.js` über
+  `schleife.tickDauerMs` (Spieldateien mit Freigabe, vermerkt KI_INDEX §10). Tests `tests/debugLauf.test.js`, Rauchtest-Schritt
+  „Debug-Testlauf (8.1)“ – alles grün (npm test 300, Rauchtest 137). Bekannt: Rauchtest misst kein echtes Tempo (Software-Grafik).
 
-**Nächster Schritt: 8.1 Debug-Testlauf** (siehe Tabelle Phase 8).
+Offen: 8.2, Phase 9 (9.1–9.9) laut Tabellen unten.
+
+**Nächster Schritt: 8.2 Auto-Fix** (siehe Tabelle Phase 8).
 
 **Danach:** Phasen 8–9 laut Tabellen unten (8 Testlauf, 9 KI).
 
@@ -201,7 +208,7 @@ Offen: Phase 8 (8.1–8.2), Phase 9 (9.1–9.9) laut Tabellen unten.
 ## Phase 8 – Testlauf & Debugging
 | # | Schritt | Größe |
 |---|---|---|
-| ☐ 8.1 | 🎮 **Debug-Testlauf:** Zeitlupe (0,1×–1×), Pause, Schritt-für-Schritt (1/10 Ticks), Overlays: Zombie-Pfade (A*), Ziele/Sichtradius, Spawn-Punkte mit Respawn-Timern, Loot-Punkte, Audio-Zonen, Übergänge; Klick auf Zombie = Info. Nur im Editor-Test (Lokal-Server im selben Tab), nie online | L |
+| ☑ 8.1 | 🎮 **Debug-Testlauf:** Zeitlupe (0,1×–1×), Pause, Schritt-für-Schritt (1/10 Ticks), Overlays: Zombie-Pfade (A*), Ziele/Sichtradius, Spawn-Punkte mit Respawn-Timern, Loot-Punkte, Audio-Zonen, Übergänge; Klick auf Zombie = Info. Nur im Editor-Test (Lokal-Server im selben Tab), nie online | L |
 | ☐ 8.2 | **Auto-Fix:** Prüfungseinträge bekommen „Automatisch beheben“ für eindeutige Fälle (Übergang an den Rand/nächste Kachel, Ankunft aus dem Übergang, Zombie-Spawn nach draußen, Objekt aus Blockade/vor Tür befreien, Objekt in die Zone, Loot-Punkt ohne Raum, Marker auf Wand) + „Alle eindeutigen beheben“ – mit Vorschau, 1 Undo-Schritt, je Fall ein Test | M |
 
 ## Phase 9 – KI-Assistent

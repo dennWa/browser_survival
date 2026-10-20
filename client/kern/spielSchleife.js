@@ -18,6 +18,8 @@ export class SpielSchleife {
     this.akkumulator = 0;
     this.letzteZeit = 0;
     this.fps = 0;
+    /** Editor-Debug-Testlauf (8.1): keine festen Takte (Eingabe/Vorhersage), Zeichnen läuft weiter */
+    this.pausiert = false;
   }
 
   starten() {
@@ -38,6 +40,7 @@ export class SpielSchleife {
     if (roh > MAX_FRAME_MS) this.#fpsZaehler = { frames: 0, seit: jetzt };
     this.letzteZeit = jetzt;
     this.akkumulator += delta;
+    if (this.pausiert) this.akkumulator = 0;
     while (this.akkumulator >= this.tickDauerMs) {
       this.festerTakt();
       this.akkumulator -= this.tickDauerMs;

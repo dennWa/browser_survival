@@ -884,6 +884,60 @@ try {
     pruefe(mischer >= 1, `Eigenes Modell spielt im Spiel seine Leerlauf-Animation (${mischer} Mixer)`);
     await seite.waitForTimeout(1500);
     await seite.screenshot({ path: path.join(AUSGABE, 'editor-8-test-im-spiel.png') });
+
+    schritt('Debug-Testlauf (8.1): Zeitlupe, Pause, Schritte, Overlays, Zombie-Info');
+    pruefe(await seite.locator('#debug-lauf').count() === 1, 'Debug-Panel im Editor-Test sichtbar');
+    // Zombie neben den Spieler setzen (Testzone hat evtl. keinen Spawn) – über den Server im selben Tab
+    const zid = await seite.evaluate(async () => {
+      const { erzeugeZombie } = await import('/server/spiel/entitaeten/zombie.js');
+      const bs = window.browserSurvival;
+      const w = bs.server.weltVon(bs.spiel.benutzername);
+      const ich = w.holen(bs.spiel.eigeneId);
+      const z = w.hinzufuegen(erzeugeZombie({ id: w.neueId(), x: ich.x + 64, y: ich.y, konfiguration: w.konfiguration }));
+      return z.id;
+    });
+    const tickJetzt = () => seite.evaluate(() => window.browserSurvival.server.startZone.spielWelt.tick);
+    // Echte Ticks/s lassen sich hier nicht messen (Software-Grafik blockiert die Seite, schon 1× schafft nur ~3 Ticks/s) –
+    // geprüft wird der gemeinsame Takt; dass der Taktgeber ihn einhält, prüft tests/debugLauf.test.js
+    await seite.click('#debug-lauf [data-tempo="0.25"]');
+    const takt = await seite.evaluate(() => ({ server: window.browserSurvival.server.taktgeber.tickDauerMs, client: window.browserSurvival.spiel.schleife.tickDauerMs, laeuft: window.browserSurvival.server.taktgeber.laeuft }));
+    pruefe(Math.abs(takt.server - 133.3) < 1 && takt.server === takt.client && takt.laeuft, `Zeitlupe 0,25×: Server + Client im selben Takt (${takt.server.toFixed(1)} ms statt 33,3)`);
+    await seite.click('#debug-lauf [data-d="pause"]');
+    const p0 = await tickJetzt();
+    await seite.waitForTimeout(600);
+    const p1 = await tickJetzt();
+    await seite.click('#debug-lauf [data-schritt="10"]');
+    const p2 = await tickJetzt();
+    pruefe(p1 === p0 && p2 === p1 + 10, `Pause hält die Welt an, +10 = genau 10 Ticks (${p0} → ${p1} → ${p2})`);
+    await seite.click('#debug-lauf [data-schritt="1"]');
+    pruefe((await tickJetzt()) === p2 + 1, '+1 = ein Tick');
+    await seite.waitForTimeout(300);
+    const snap = await seite.evaluate((id) => {
+      const s = window.browserSurvival.debug.schnappschuss;
+      return { zombie: s.zombies.some((z) => z.id === id), radien: s.radien, spawns: s.spawns.length, loot: s.loot.length };
+    }, zid);
+    pruefe(snap.zombie && snap.radien.bemerk > 0, `Overlay-Daten: Zombie + Radien (${JSON.stringify(snap)})`);
+    // Info: 🔍 an, auf den Zombie klicken → Info-Karte, kein Schuss
+    await seite.click('#debug-lauf [data-d="info"]');
+    const zp = await seite.evaluate((id) => {
+      const bs = window.browserSurvival;
+      const z = bs.server.weltVon(bs.spiel.benutzername).holen(id);
+      const p = bs.spiel.renderer.kamera.weltZuBildschirm(z.x, z.y);
+      const r = document.getElementById('spielflaeche').getBoundingClientRect();
+      return { x: r.left + p.x, y: r.top + p.y };
+    }, zid);
+    const schuesseVor = await seite.evaluate(() => window.browserSurvival.server.weltVon(window.browserSurvival.spiel.benutzername).holen(window.browserSurvival.spiel.eigeneId).inventar.map((e) => e?.magazin ?? 0).join(','));
+    await seite.mouse.click(zp.x, zp.y);
+    await seite.waitForTimeout(400);
+    const infoText = await seite.locator('#debug-lauf .dl-karte').textContent();
+    pruefe(infoText.includes(`#${zid}`) && infoText.includes('Leben'), `Klick auf Zombie zeigt die Info-Karte (${infoText.split('\n')[0]})`);
+    const schuesseNach = await seite.evaluate(() => window.browserSurvival.server.weltVon(window.browserSurvival.spiel.benutzername).holen(window.browserSurvival.spiel.eigeneId).inventar.map((e) => e?.magazin ?? 0).join(','));
+    pruefe(schuesseVor === schuesseNach, 'Info-Klick schießt nicht');
+    await seite.screenshot({ path: path.join(AUSGABE, 'editor-21-debuglauf.png') });
+    await seite.click('#debug-lauf [data-d="info"]');
+    await seite.click('#debug-lauf [data-d="pause"]');
+    await seite.click('#debug-lauf [data-tempo="1"]');
+    pruefe(await seite.evaluate(() => window.browserSurvival.server.taktgeber.laeuft && window.browserSurvival.server.taktgeber.tickDauerMs < 34), 'Weiter mit 1× läuft wieder normal');
     await seite.click('#editor-test-banner a');
     await seite.waitForFunction(() => window.mapEditor?.zustand.karte, null, { timeout: 20000 });
     const zurueck = await seite.evaluate(() => ({ id: window.mapEditor.zustand.aktivId, zonen: window.mapEditor.zustand.zonen.size }));

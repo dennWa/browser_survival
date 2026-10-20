@@ -13,6 +13,7 @@ import { Sound } from './audio/sound.js';
 import { ZonenMusik } from './audio/zonenMusik.js';
 import { lokalerServer, setzeTestKarten } from './netzwerk/lokalerServer.js';
 import { ladeEditorTest, zeigeTestBanner } from './ui/editorTest.js';
+import { starteDebugLauf } from './debug/debugLauf.js';
 import { AKTIONEN, NACHRICHT } from '../gemeinsam/protokoll.js';
 import { EgoModus } from './ego/egoModus.js'; // EGO-PROTOTYP (siehe EGO_PROTOTYP.md)
 
@@ -264,6 +265,8 @@ async function starten() {
     // Editor-Test: direkt ins Spiel (lokal, Gast „Tester“), Banner mit Rückweg zum Editor
     zeigeTestBanner(document, editorTest);
     anmeldungStarten({ server: SERVER_LISTE.find((s) => s.typ === 'lokal'), benutzername: 'Gast-0001', gast: true });
+    // Debug-Testlauf (Map-Editor 8.1): Zeitlupe, Pause, Schritte, Overlays – nur hier, nie online
+    window.browserSurvival.debug = starteDebugLauf({ spiel: () => aktuellesSpiel, server: () => lokalerServer(), leinwand });
     return;
   }
   login.anzeigen(fehlerText);

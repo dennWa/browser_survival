@@ -793,7 +793,7 @@ export class ClientSpiel {
       this.fahrzeugStand.delete(id);
       this.welt.entferneFahrzeugKacheln(id);
     }
-    const geschaetzt = jetzt - n.tick * TICK_DAUER_MS;
+    const geschaetzt = jetzt - n.tick * this.#tickMs; // Editor-Debug-Zeitlupe (8.1): Tick-Abstand der Schleife
     if (this.tickNull === null || geschaetzt < this.tickNull || geschaetzt - this.tickNull > 500) this.tickNull = geschaetzt;
     else this.tickNull += (geschaetzt - this.tickNull) * 0.02;
     if (this.schnappschuesse.length > 60) this.schnappschuesse.shift();
@@ -1266,10 +1266,15 @@ export class ClientSpiel {
    * interpoliert. Gerechnet wird in Server-Ticks (geglättete Uhr tickNull), nicht nach Ankunftszeit der Pakete –
    * sonst ruckelt alles, sobald Pakete ungleichmäßig ankommen. Ergebnis-Objekte werden wiederverwendet.
    */
+  /** Tick-Abstand (ms) – normal TICK_DAUER_MS, im Editor-Debug-Testlauf (Zeitlupe, client/debug/debugLauf.js) länger */
+  get #tickMs() {
+    return this.schleife?.tickDauerMs ?? TICK_DAUER_MS;
+  }
+
   #interpolierteEntitaeten(jetzt) {
     const liste = this.schnappschuesse;
     if (liste.length === 0) return [];
-    const renderTick = (jetzt - INTERPOLATIONS_VERZOEGERUNG_MS - (this.tickNull ?? jetzt)) / TICK_DAUER_MS;
+    const renderTick = (jetzt - INTERPOLATIONS_VERZOEGERUNG_MS * (this.#tickMs / TICK_DAUER_MS) - (this.tickNull ?? jetzt)) / this.#tickMs;
 
     // Alte Schnappschüsse wegwerfen, die wir nicht mehr brauchen
     while (liste.length >= 2 && liste[1].tick <= renderTick) liste.shift();

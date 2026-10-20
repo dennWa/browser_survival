@@ -163,6 +163,12 @@ Loot-Tabellen bekannt …). Fehler erscheinen als Liste mit Koordinaten – ein 
 öffnet sich das Spiel im **Lokal-Modus mit deinem Entwurf** (alle Zonen des Projekts sind dabei, Übergänge funktionieren).
 Der echte Spielstand wird dabei nicht angefasst. Oben im Spiel: **⟵ Zurück zum Editor** – dein Entwurf ist unverändert da.
 
+**🐞 Debug-Panel** (links oben, nur im Test – nie online): **Zeitlupe** 0,1× / 0,25× / 0,5× / 1×, **⏸ Pause** und dann
+**+1 / +10** Ticks einzeln weiter. Overlays zum Ankreuzen: **Pfade (A\*)** der Zombies, **Ziele/Sicht** (Linie zum Ziel,
+Bemerk-Radius; beim gewählten Zombie auch Verlier- und Hörradius), **Spawns** mit lebenden Zombies und Respawn-Timern,
+**Loot**-Punkte (gelb = liegt etwas, sonst Sekunden bis Nachschub), **Klänge**, **Übergänge**. **🔍 Zombie-Info** an →
+Zombie anklicken/antippen (es wird dabei nicht geschossen) zeigt Leben, Zustand, Ziel und Pfad live.
+
 ## Licht (Nächte sind dunkel)
 
 Nachts ist es im Spiel **dunkel** – Licht gibt es nur dort, wo Lichtquellen stehen: **Lampe** (rundum), **Straßenlaterne** (mit Mast),
