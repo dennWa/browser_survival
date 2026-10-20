@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { FBXLoader, SkeletonUtils } from '../vendor/three/addons.js';
-import { KartenModell, TUER_EBENE } from './kartenModell.js';
+import { KartenModell, TUER_EBENE, TUER_SCHIMMER_WEITE } from './kartenModell.js';
 import { vereineGeometrien } from './geometrie.js';
 import { Fussspuren } from './fussspuren.js';
 import { bauwerkDrehungY, erzeugeBauwerk, erzeugeVorschau } from './bauwerkModelle.js';
@@ -52,6 +52,8 @@ const SKINS = { normal: 'zombieMaleA', laeufer: 'zombieFemaleA', brocken: 'zombi
 const KOPF = { hoehe: 1.22, breite: 0.9, tiefe: 1.07 }; // Schädelmaße im Verhältnis zum Abstand Kopfknochen → Head_end (gemessen)
 const _wetterGrau = new THREE.Color();
 const MAX_TASCHENLAMPEN = 3;
+const NACHT_EIGENLEUCHTEN = 0.2; // Emissive-Stärke der Spieler-Figur bei voller Dunkelheit (nur Orientierung, kein echtes Licht)
+const TASCHENLAMPEN_ANSATZ = { vorn: 9, hoehe: 38 }; // Lichtkegel beginnt knapp vor der Brust (px vor der Körpermitte, Höhe über Boden)
 // So viele Kartenlampen leuchten gleichzeitig echt (die nächsten); jede echte Lichtquelle kostet in jedem Pixel → klein halten,
 // die übrigen Lampen zeigen nachts nur ihren Lichtschein am Boden (kartenModell.js)
 const LAMPEN_POOL = { handy: 5, desktop: 8 };
@@ -114,7 +116,8 @@ const SILHOUETTE_GRAU = new THREE.MeshBasicMaterial({
   stencilWrite: true, stencilFunc: THREE.NotEqualStencilFunc, stencilRef: 1, stencilZPass: THREE.ReplaceStencilOp,
 });
 
-// Türen hinter Wänden: ein leichter Farbschimmer zeigt, wo der Eingang ist (nur dort gezeichnet, wo etwas Näheres die Tür verdeckt).
+// Türen hinter Wänden: ein leichter Farbschimmer zeigt, wo der Eingang ist – nur für Türen in unmittelbarer Nähe der Figur (TUER_SCHIMMER_WEITE)
+// und nur dort gezeichnet, wo etwas Näheres die Tür verdeckt.
 const TUER_UMRISS = new THREE.MeshBasicMaterial({
   color: 0xffc04a, transparent: true, opacity: 0.4, depthWrite: false, depthFunc: THREE.GreaterDepth, fog: false,
 });
@@ -179,7 +182,9 @@ export class Renderer {
     this.zielRing.visible = false;
     this.itemMaterialien = new Map(); // defId → { normal, markiert, breite, hoehe }
     this.figurMaterialien = new Map(); // Skin-Schlüssel → Material (geteilt)
+    this.spielerMaterialien = []; // Spieler-Skins: bekommen nachts ein schwaches Eigenleuchten
     this.taschenlampen = Array.from({ length: MAX_TASCHENLAMPEN }, (_, i) => this.#neueTaschenlampe(i === 0));
+    this.taschenScheine = Array.from({ length: MAX_TASCHENLAMPEN }, () => this.#neuerTaschenSchein()); // weicher Lichtfleck direkt vor der Figur
     this.lampenPool = Array.from({ length: LAMPEN_POOL[this.istHandy ? 'handy' : 'desktop'] }, () => this.#neuesPunktlicht(0xffffff, 300));
     this.kegelPool = Array.from({ length: KEGEL_POOL[this.istHandy ? 'handy' : 'desktop'] }, () => this.#neuesKegellicht());
     this.muendungslichter = Array.from({ length: MUENDUNGS_LICHTER }, () => this.#neuesPunktlicht(0xffc070, 380));
@@ -352,6 +357,7 @@ export class Renderer {
 
     this.karte.aktualisiere(dt, dunkel, fokus);
     this.karte.aktualisiereDaecher(fokus.x, fokus.y);
+    const tuerAbstand = this.karte.aktualisiereTuerSchimmer(fokus);
     this.blaetter?.aktualisiere(dt, fokus, jetzt, dunkel);
     this.#aktualisiereFahrzeuge(entitaeten, fokus);
     this.#aktualisiereFiguren(entitaeten, fokus, dt, jetzt);
@@ -374,7 +380,7 @@ export class Renderer {
 
     this.gl.render(this.szene, this.kamera3d);
     this.#zeichneSilhouette(fokus);
-    this.#zeichneTuerUmrisse();
+    this.#zeichneTuerUmrisse(tuerAbstand);
     this.#zeichneOverlay(entitaeten, fokus, gegenstaende, itemDefinitionen);
     if (this.ruhigWarter) this.#pruefeRuhig(dt, jetzt);
   }
@@ -404,7 +410,10 @@ export class Renderer {
   }
 
   /** Zusätzlicher Durchgang: Türen (Ebene TUER_EBENE), die von Wänden verdeckt sind, als goldener Schimmer. */
-  #zeichneTuerUmrisse() {
+  #zeichneTuerUmrisse(abstand) {
+    if (!(abstand < TUER_SCHIMMER_WEITE)) return; // keine Tür in der Nähe
+    // je näher an der Tür, desto deutlicher (schwach am Rand der Reichweite)
+    TUER_UMRISS.opacity = 0.12 + 0.3 * Math.min(1, (TUER_SCHIMMER_WEITE - abstand) / (TUER_SCHIMMER_WEITE * 0.6));
     const { gl, szene, kamera3d } = this;
     const schatten = gl.shadowMap.autoUpdate;
     const ebenen = kamera3d.layers.mask;
@@ -764,6 +773,29 @@ export class Renderer {
     return spot;
   }
 
+  /** Weicher, additiver Lichtfleck am Boden vor dem Spieler (billig, kein echtes Licht) – der Spot allein ist nahe der Figur kaum zu sehen. */
+  #neuerTaschenSchein() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const x = c.getContext('2d');
+    const verlauf = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+    verlauf.addColorStop(0, 'rgba(255,238,200,1)');
+    verlauf.addColorStop(0.5, 'rgba(255,225,170,0.4)');
+    verlauf.addColorStop(1, 'rgba(255,220,160,0)');
+    x.fillStyle = verlauf;
+    x.fillRect(0, 0, 64, 64);
+    const textur = new THREE.CanvasTexture(c);
+    textur.colorSpace = THREE.SRGBColorSpace;
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ map: textur, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }),
+    );
+    mesh.visible = false;
+    mesh.renderOrder = 1;
+    this.szene.add(mesh);
+    return mesh;
+  }
+
   #neuesPunktlicht(farbe, reichweite) {
     const licht = new THREE.PointLight(farbe, 0, reichweite, 1);
     this.szene.add(licht);
@@ -939,7 +971,15 @@ export class Renderer {
     const schluessel = e.typ === 'spieler' ? skinFuer(e.aussehen) : `${e.variante ?? 'normal'}:${gesicht}`;
     if (!this.figurMaterialien.has(schluessel)) {
       const skin = e.typ === 'spieler' ? schluessel : `zombieGesicht${gesicht}`;
-      const material = new THREE.MeshStandardMaterial({ map: this.skins[skin] ?? this.skins[SKINS.normal], roughness: 0.75 });
+      const textur = this.skins[skin] ?? this.skins[SKINS.normal];
+      const material = new THREE.MeshStandardMaterial({ map: textur, roughness: 0.75 });
+      if (e.typ === 'spieler') {
+        // Nachts bleibt der Spieler-Körper schwach sichtbar (Eigenleuchten nach Skin-Textur, Stärke in #tageslicht)
+        material.emissiveMap = textur;
+        material.emissive.setRGB(1, 1, 1);
+        material.emissiveIntensity = 0;
+        this.spielerMaterialien.push(material);
+      }
       if (e.variante === 'brocken') material.color.setRGB(0.75, 0.6, 0.55);
       this.figurMaterialien.set(schluessel, material);
     }
@@ -1006,6 +1046,8 @@ export class Renderer {
     spieler.sort((a, b) => (b.istEigener ? 1 : 0) - (a.istEigener ? 1 : 0) || Math.hypot(a.x - fokus.x, a.y - fokus.y) - Math.hypot(b.x - fokus.x, b.y - fokus.y));
     this.taschenlampen.forEach((spot, i) => {
       const s = spieler[i];
+      const schein = this.taschenScheine[i];
+      schein.visible = false;
       if (!s) {
         spot.intensity = 0;
         return;
@@ -1025,14 +1067,21 @@ export class Renderer {
       }
       const vx = Math.cos(s.blick);
       const vz = Math.sin(s.blick);
-      // Aus der Lampe/Waffe in der Hand – mindestens etwas vor dem Körper, sonst verschluckt dessen Schatten den Kegel
-      const f = this.figuren.get(s.id);
-      if (f?.hatMuendung) spot.position.set(f.muendung.x + vx * 4, f.muendung.y, f.muendung.z + vz * 4);
-      else spot.position.set(s.x + vx * 20, 40 + this.#hy(s.x, s.y), s.y + vz * 20);
+      // Der Kegel beginnt direkt vor der Brust (nicht mehr an der ausgestreckten Waffe): so liegt der Lichtkreis spürbar vorm Charakter.
+      // Knapp außerhalb der Körpermitte, sonst verschluckt der eigene Schatten den Kegel.
+      spot.position.set(s.x + vx * TASCHENLAMPEN_ANSATZ.vorn, TASCHENLAMPEN_ANSATZ.hoehe + this.#hy(s.x, s.y), s.y + vz * TASCHENLAMPEN_ANSATZ.vorn);
       spot.target.position.set(s.x + vx * 200, this.#hy(s.x + vx * 200, s.y + vz * 200), s.y + vz * 200);
       // Schmaler, schwacher Kegel (düster); tagsüber sieht man ihn kaum
       Object.assign(spot, { angle: TASCHENLAMPE.winkel, penumbra: TASCHENLAMPE.rand, distance: TASCHENLAMPE.reichweite });
       spot.intensity = this.nachtsicht ? 400 : TASCHENLAMPE.staerke + TASCHENLAMPE.staerkeNacht * dunkel;
+      if (dunkel > 0.05) {
+        const mitte = TASCHENLAMPEN_ANSATZ.vorn + 34;
+        schein.visible = true;
+        schein.position.set(s.x + vx * mitte, 1.4 + this.#hy(s.x, s.y), s.y + vz * mitte);
+        schein.rotation.y = -s.blick;
+        schein.scale.set(120, 1, 78);
+        schein.material.opacity = 0.34 * dunkel;
+      }
     });
   }
 
@@ -1076,7 +1125,7 @@ export class Renderer {
       }
       licht.position.set(lampe.x, lampe.y, lampe.z);
       licht.color.copy(lampe.farbe);
-      licht.distance = lampe.reichweite;
+      licht.distance = lampe.lichtReichweite ?? lampe.reichweite;
       licht.intensity = lampe.staerke * (lampe.objekt.feuer ? feuerFlackern(lampe.objekt, jetzt) : flackern(lampe.objekt, jetzt)) * dunkel;
     });
   }
@@ -1094,7 +1143,7 @@ export class Renderer {
     const massstab = ((icon?.weltGroesse ?? 20) * 1.4) / Math.max(canvas.width, canvas.height);
     const basis = { map: textur, emissiveMap: textur, emissive: 0xffffff, transparent: true, alphaTest: 0.3 };
     const eintrag = {
-      normal: new THREE.MeshStandardMaterial({ ...basis, emissiveIntensity: 0.25 }),
+      normal: new THREE.MeshStandardMaterial({ ...basis, emissiveIntensity: 0 }), // kein Eigenleuchten: Items bleiben nachts dunkel (nur die Markierung glüht)
       markiert: new THREE.MeshStandardMaterial({ ...basis, emissiveIntensity: 0.8 }),
       geometrie: new THREE.PlaneGeometry(canvas.width * massstab, canvas.height * massstab).rotateX(-Math.PI / 2),
     };
@@ -1184,6 +1233,8 @@ export class Renderer {
     this.umgebung.intensity = 0.06 + hell * 1.24;
     this.szene.background.copy(NACHT.hintergrund).lerp(TAG.hintergrund, hell).lerp(DAEMMERUNG.hintergrund, daemmerung * 0.5);
     this.szene.fog.color.copy(this.szene.background);
+    const eigenLeuchten = NACHT_EIGENLEUCHTEN * dunkel;
+    for (const m of this.spielerMaterialien) m.emissiveIntensity = eigenLeuchten;
     // Nebel wandert mit der Kamera (Zoom, Auto-Fahrt): sonst liegt beim Rauszoomen/Fahren alles hinter dem Nebel
     const abstand = (this.grundAbstand ?? 1) * this.zoom * this.fahrZoom;
     // Wetter: Regen/Nebel dämpfen Sonne & Himmel, färben den Hintergrund grau und rücken den Nebel heran

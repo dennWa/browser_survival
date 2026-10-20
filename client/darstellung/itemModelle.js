@@ -64,6 +64,8 @@ const BAUPLAENE = {
   rucksack: () => rucksackLiegend(1, null),
   rucksack_klein: () => rucksackLiegend(0.8, 0x9a7a3a),
   rucksack_gross: () => rucksackLiegend(1.18, 0x2f4a6a),
+  // Stoffballen: zwei gefaltete Lagen mit Band – matt, kein Eigenleuchten
+  stoff: () => [box(9, 1.8, 7, 0xd7d2c4, 0, 0, 0, 0.1), box(8.2, 1.6, 6.4, 0xc9c3b3, 0.4, 1.7, -0.2, -0.12), box(7.2, 1.4, 5.6, 0xddd8ca, -0.3, 3.2, 0.2, 0.18), box(0.9, 4.6, 7.4, 0x6a7fa6, 0, 1.6, 0, 0.1)],
   // Garten & Ernte
   tomate: () => [kugel(2.6, 0xd8392b, 0, 0, 0, 1, 0.85, 1), box(1.6, 0.4, 1.6, 0x3f7a22, 0, 2.2, 0, 0.6)],
   gurke: () => [kugel(1.4, 0x3f8a2a, 0, 0, 0, 3.4, 1, 1)],

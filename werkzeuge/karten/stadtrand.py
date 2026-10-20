@@ -736,6 +736,51 @@ for i, y in enumerate(range(4, my(0) + 1, 10)):
 for i, x in enumerate(range(mx(0) + 4, B - 4, 12)):
     laterne(x, my(61) - 1, i)
 
+# --- Straßenlaternen nie auf die Fahrbahn: auf den nächsten freien Gehweg-Streifen ('-') rücken ---
+def belegt_durch_objekte():
+    belegt = set()
+    for e in objekte:
+        if e['typ'] == 'licht' or not e.get('blockiert'):
+            continue
+        for yy in range(int(e['y']), int(e['y'] + e['h'] + 0.999)):
+            for xx in range(int(e['x']), int(e['x'] + e['b'] + 0.999)):
+                belegt.add((xx, yy))
+    return belegt
+
+
+def rueckeLaternenAufGehweg():
+    belegt = belegt_durch_objekte()
+    masten = [e for e in objekte if e['typ'] == 'licht' and e.get('mast')]
+    bleibt = {(e['x'], e['y']) for e in masten if g[e['y']][e['x']] == '-' and (e['x'], e['y']) not in belegt}
+    for e in masten:
+        if (e['x'], e['y']) in bleibt:
+            continue
+        beste = None
+        for r in range(1, 12):
+            for dy in range(-r, r + 1):
+                for dx in range(-r, r + 1):
+                    if max(abs(dx), abs(dy)) != r:
+                        continue
+                    x, y = e['x'] + dx, e['y'] + dy
+                    if not (0 <= x < B and 0 <= y < H) or g[y][x] != '-' or (x, y) in belegt:
+                        continue
+                    if any(abs(x - bx) + abs(y - by) < 3 for bx, by in bleibt):
+                        continue
+                    beste = (x, y)
+                    break
+                if beste:
+                    break
+            if beste:
+                break
+        if beste:
+            e['x'], e['y'] = beste
+            bleibt.add(beste)
+        else:
+            objekte.remove(e)  # kein freier Gehweg in der Nähe → lieber keine Laterne als eine auf der Straße
+
+
+rueckeLaternenAufGehweg()
+
 # =============================================================================
 zeilen = [''.join(r) for r in g]
 

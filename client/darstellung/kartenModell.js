@@ -3,6 +3,7 @@ import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
 import { RESSOURCEN_OBJEKTE } from '../../gemeinsam/welt/ressourcen.js';
 import { baueBaum, baueStumpf, toonMaterial, baumMaterial, BAUM_LAUB_TOENE } from './baumModell.js';
 import { BodenTextur } from './bodenTextur.js';
+import { Daecher } from './dachModell.js';
 import { einfrieren, matrixAus, vereineGeometrien } from './geometrie.js';
 import { eigeneGroesse } from '../../gemeinsam/welt/drehung.js';
 import { eigenesModellUrl, ladeEigenesModell, eigenesModellInhalt, leerlaufMischer } from './eigeneModelle.js';
@@ -20,6 +21,8 @@ import { eigenesModellUrl, ladeEigenesModell, eigenesModellInhalt, leerlaufMisch
  */
 export const WANDHOEHE = 84;
 export const TUER_HOEHE = WANDHOEHE - 14;
+/** Höhe des Lichtpunkts einer Straßenlaterne – deutlich über der Figur (64 px) */
+export const LATERNEN_LICHTHOEHE = 150;
 const TUER_DREHTEMPO = 9;
 /** Höhe (Weltpixel) der Möbel-Quader */
 const MOEBEL_HOEHE = {
@@ -55,6 +58,8 @@ const NULL_MATRIX = new THREE.Matrix4().makeScale(0, 0, 0);
 const CHUNK_KACHELN = 12;
 /** Three.js-Layer, auf dem alle Türblätter zusätzlich liegen: der Renderer zeichnet sie nochmal als Schimmer, wo Wände sie verdecken. */
 export const TUER_EBENE = 2;
+/** Nur Türen näher als das (px) schimmern durch Wände (schwacher X-Ray, damit Eingänge auffindbar sind) */
+export const TUER_SCHIMMER_WEITE = 96;
 
 /** Modell-Animationen laufen nur bis zu dieser Entfernung (Kacheln) von der Kamera – spart Rechenzeit auf großen Karten */
 const ANIMATION_WEITE = 40;
@@ -121,80 +126,52 @@ export class KartenModell {
   }
 
   /**
+   * Tür-Röntgen: Türblätter in der Nähe der Figur kommen auf Ebene TUER_EBENE – der Renderer zeichnet sie dort als Schimmer durch
+   * Wände. Alle anderen Türen bleiben normal verdeckt. @returns Abstand (px) zur nächsten schimmernden Tür (Infinity = keine)
+   */
+  aktualisiereTuerSchimmer(fokus) {
+    const reichweite2 = TUER_SCHIMMER_WEITE * TUER_SCHIMMER_WEITE;
+    let naechste2 = Infinity;
+    for (const t of this.tuerFluegel) {
+      const d2 = (t.x - fokus.x) ** 2 + (t.z - fokus.y) ** 2;
+      const nah = d2 < reichweite2;
+      if (nah !== t.schimmer) {
+        t.schimmer = nah;
+        if (nah) t.blatt.layers.enable(TUER_EBENE);
+        else t.blatt.layers.disable(TUER_EBENE);
+      }
+      if (nah && d2 < naechste2) naechste2 = d2;
+    }
+    return Math.sqrt(naechste2);
+  }
+
+  /**
    * Dach-Ausblendung: Steht man in einem Raum (zusammenhängender Innenboden), ist nur dessen Dach offen –
    * von draußen bleibt alles zu, man schaut nicht mehr in fremde Räume. @param x,y Weltpixel der eigenen Figur
    */
   aktualisiereDaecher(x, y) {
-    if (!this.dachMesh) return;
-    const tx = Math.floor(x / this.g);
-    const ty = Math.floor(y / this.g);
-    const raum = this.dachRaumAn.get(ty * this.welt.breite + tx) ?? -1;
-    if (raum === this.offenerRaum) return;
-    for (const raumNr of [this.offenerRaum, raum]) {
-      if (raumNr < 0) continue;
-      for (const i of this.dachRaeume[raumNr]) {
-        if (raumNr === raum) this.dachMesh.setMatrixAt(i, NULL_MATRIX);
-        else this.dachMesh.setMatrixAt(i, this.dachMatrizen[i]);
-      }
-    }
-    this.offenerRaum = raum;
-    this.dachMesh.instanceMatrix.needsUpdate = true;
+    this.daecher?.aktualisiere(x, y);
   }
 
   /** Liegt der Punkt draußen oder im gerade geöffneten Raum? (Beschriftungen in geschlossenen Räumen bleiben aus.) */
   istEinsehbar(x, y) {
-    const raum = this.dachRaumAn?.get(Math.floor(y / this.g) * this.welt.breite + Math.floor(x / this.g));
-    return raum === undefined || raum === this.offenerRaum;
+    if (!this.daecher) return true;
+    const kachel = Math.floor(y / this.g) * this.welt.breite + Math.floor(x / this.g);
+    const raum = this.daecher.raumAn.get(kachel);
+    return raum === undefined || raum === this.daecher.offenerRaum;
   }
 
-  /** Dach über jeder Innenkachel (eine dünne Platte pro Kachel), gruppiert nach Raum (Flood-Fill, Türen trennen). */
+  /** Echte Walmdächer über allen Gebäuden (dachModell.js), räumeweise aufklappbar. */
   #baueDaecher() {
-    const welt = this.welt;
-    const g = this.g;
-    this.dachRaumAn = new Map(); // Kachelindex → Raum-Nr.
-    this.dachRaeume = []; // Raum-Nr. → [Instanz-Nr.]
-    this.dachMatrizen = [];
-    this.offenerRaum = -1;
-    const innen = (tx, ty) => KACHELN[welt.kachelAn(tx, ty)]?.innen === true;
-    const kacheln = [];
-    for (let ty = 0; ty < welt.hoehe; ty++) {
-      for (let tx = 0; tx < welt.breite; tx++) {
-        if (!innen(tx, ty) || this.dachRaumAn.has(ty * welt.breite + tx)) continue;
-        const raumNr = this.dachRaeume.length;
-        const instanzen = [];
-        const stapel = [[tx, ty]];
-        this.dachRaumAn.set(ty * welt.breite + tx, raumNr);
-        while (stapel.length > 0) {
-          const [x, y] = stapel.pop();
-          instanzen.push(kacheln.length);
-          kacheln.push({ x: x * g + g / 2, y: WANDHOEHE + 0.4 + this.hy(x * g + g / 2, y * g + g / 2), z: y * g + g / 2 });
-          for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]]) {
-            const nx = x + dx;
-            const ny = y + dy;
-            if (!innen(nx, ny) || this.dachRaumAn.has(ny * welt.breite + nx)) continue;
-            this.dachRaumAn.set(ny * welt.breite + nx, raumNr);
-            stapel.push([nx, ny]);
-          }
-        }
-        this.dachRaeume.push(instanzen);
-      }
-    }
-    if (kacheln.length === 0) {
-      this.dachMesh = null;
+    const material = this.mitSchnitt(new THREE.MeshStandardMaterial({ color: 0xffffff }));
+    this.daecher = new Daecher({ welt: this.welt, basisHoehe: WANDHOEHE, hy: this.hy, material });
+    if (this.daecher.leer) {
+      this.daecher = null;
       return;
     }
-    const material = this.mitSchnitt(new THREE.MeshStandardMaterial({ color: 0x3a3f48, roughness: 1 }));
-    const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(g, 0.8, g), material, kacheln.length);
-    kacheln.forEach((k, i) => {
-      this.dachMatrizen.push(new THREE.Matrix4().makeTranslation(k.x, k.y, k.z));
-      mesh.setMatrixAt(i, this.dachMatrizen[i]);
-    });
-    mesh.receiveShadow = true;
-    mesh.castShadow = true;
-    mesh.frustumCulled = false;
-    this.dachMesh = mesh;
-    this.statisch.add(mesh);
+    this.statisch.add(this.daecher.gruppe);
   }
+
 
   // ---------------------------------------------------------------------------
 
@@ -427,7 +404,17 @@ export class KartenModell {
     const g = this.g;
     this.lampenListe = this.welt.objekte
       .filter((o) => o.typ === 'licht')
-      .map((o) => ({ x: (o.x + 0.5) * g, y: (o.mast ? 58 : 60) + this.hy((o.x + 0.5) * g, (o.y + 0.5) * g), z: (o.y + 0.5) * g, farbe: new THREE.Color(o.farbe), reichweite: o.radius * g * 1.8, staerke: (o.staerke ?? 0.8) * 260, objekt: o }));
+      .map((o) => ({
+        x: (o.x + 0.5) * g,
+        y: (o.mast ? LATERNEN_LICHTHOEHE : 60) + this.hy((o.x + 0.5) * g, (o.y + 0.5) * g),
+        z: (o.y + 0.5) * g,
+        farbe: new THREE.Color(o.farbe),
+        reichweite: o.radius * g * 1.8,
+        // Straßenlaternen hängen hoch: Punktlicht muss weiter reichen und stärker sein, damit der Boden darunter genauso hell bleibt
+        lichtReichweite: o.radius * g * 1.8 * (o.mast ? 1.7 : 1),
+        staerke: (o.staerke ?? 0.8) * 260 * (o.mast ? 2.2 : 1),
+        objekt: o,
+      }));
     const material = new THREE.MeshBasicMaterial({ transparent: true, opacity: 1, depthWrite: false });
     this.lampenGluehen = new THREE.InstancedMesh(new THREE.SphereGeometry(3.5, 8, 6), material, Math.max(1, this.lampenListe.length));
     this.lampenListe.forEach((l, i) => {
@@ -463,9 +450,11 @@ export class KartenModell {
       const teile = [];
       for (const l of masten) {
         const b = this.hy(l.x, l.z);
-        teile.push({ geometrie: new THREE.CylinderGeometry(1.5, 2.2, 54, 6), matrix: matrixAus(l.x, 27 + b, l.z, 0), farbe: eisen });
-        teile.push({ geometrie: new THREE.CylinderGeometry(4.5, 3, 5, 6), matrix: matrixAus(l.x, 57 + b, l.z, 0), farbe: eisen });
-        teile.push({ geometrie: new THREE.CylinderGeometry(5, 5, 1.2, 6), matrix: matrixAus(l.x, 63 + b, l.z, 0), farbe: eisen });
+        const h = LATERNEN_LICHTHOEHE; // Lichtpunkt; der Mast endet knapp darüber
+        teile.push({ geometrie: new THREE.CylinderGeometry(1.8, 3, h - 2, 8), matrix: matrixAus(l.x, (h - 2) / 2 + b, l.z, 0), farbe: eisen });
+        teile.push({ geometrie: new THREE.CylinderGeometry(4, 4, 6, 8), matrix: matrixAus(l.x, 3 + b, l.z, 0), farbe: eisen }); // Sockel
+        teile.push({ geometrie: new THREE.CylinderGeometry(7, 4.5, 6, 8), matrix: matrixAus(l.x, h - 4 + b, l.z, 0), farbe: eisen }); // Lampenschale
+        teile.push({ geometrie: new THREE.CylinderGeometry(8, 8, 1.6, 8), matrix: matrixAus(l.x, h + 4.5 + b, l.z, 0), farbe: eisen }); // Dach
       }
       const mesh = new THREE.Mesh(vereineGeometrien(teile, { mitFarbe: true }), this.mitSchnitt(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.4 }))); // Masten: Höhe steckt schon in den Matrizen
       mesh.castShadow = true;
@@ -494,7 +483,7 @@ export class KartenModell {
         griff.position.set(richtung * (g - 7), TUER_HOEHE * 0.48, 0);
         blatt.castShadow = true;
         blatt.receiveShadow = true;
-        blatt.layers.enable(TUER_EBENE);
+        // Ebene TUER_EBENE wird erst in der Nähe des Spielers eingeschaltet (aktualisiereTuerSchimmer)
         fluegel.add(blatt, griff);
         scharnier.add(fluegel);
         if (tuer.senkrecht) {
@@ -504,7 +493,7 @@ export class KartenModell {
           scharnier.position.set(ersteHaelfte ? tx * g + 1 : (tx + 1) * g - 1, this.hy(tx * g + g / 2, ty * g + g / 2), ty * g + g / 2);
         }
         this.beweglich.add(scharnier);
-        this.tuerFluegel.push({ tuerId: tuer.id, fluegel, richtung, winkel: null });
+        this.tuerFluegel.push({ tuerId: tuer.id, fluegel, blatt, richtung, winkel: null, x: tx * g + g / 2, z: ty * g + g / 2, schimmer: false });
       });
     }
   }
