@@ -4,6 +4,7 @@ import { RESSOURCEN_OBJEKTE } from '../../gemeinsam/welt/ressourcen.js';
 import { baueBaum, baueStumpf, toonMaterial, baumMaterial, BAUM_LAUB_TOENE } from './baumModell.js';
 import { BodenTextur } from './bodenTextur.js';
 import { Daecher } from './dachModell.js';
+import { WandDurchsicht } from './wandDurchsicht.js';
 import { einfrieren, matrixAus, vereineGeometrien } from './geometrie.js';
 import { eigeneGroesse } from '../../gemeinsam/welt/drehung.js';
 import { eigenesModellUrl, ladeEigenesModell, eigenesModellInhalt, leerlaufMischer } from './eigeneModelle.js';
@@ -87,6 +88,7 @@ export class KartenModell {
     this.#baueWasser();
     this.#baueWaende();
     this.#baueDaecher();
+    this.#baueDurchsicht();
     this.#baueMoebel();
     this.#baueEigeneModelle();
     this.#baueLampen();
@@ -152,6 +154,11 @@ export class KartenModell {
    */
   aktualisiereDaecher(x, y) {
     this.daecher?.aktualisiere(x, y);
+  }
+
+  /** Wände des Raums, in dem die Figur steht, werden weich durchsichtig (wandDurchsicht.js). an = false → alles dicht (Ego-Modus). */
+  aktualisiereDurchsicht(dt, x, y, an = true) {
+    this.durchsicht?.aktualisiere(dt, x, y, an);
   }
 
   /** Liegt der Punkt draußen oder im gerade geöffneten Raum? (Beschriftungen in geschlossenen Räumen bleiben aus.) */
@@ -272,6 +279,7 @@ export class KartenModell {
     const welt = this.welt;
     const g = this.g;
     const teile = [];
+    const instanzVon = new Map(); // Kachelindex → Instanz-Nummern in `wand` (für die Wand-Durchsicht)
     const glas = [];
     for (let ty = 0; ty < welt.hoehe; ty++) {
       for (let tx = 0; tx < welt.breite; tx++) {
@@ -279,13 +287,21 @@ export class KartenModell {
         const x = tx * g + g / 2;
         const z = ty * g + g / 2;
         const b = this.hy(x, z); // Wände stehen auf dem Gelände
-        if (name === 'wand') teile.push({ x, z, unten: b, hoehe: WANDHOEHE });
+        const nimm = (...neu) => {
+          const liste = instanzVon.get(ty * welt.breite + tx) ?? [];
+          for (const t of neu) {
+            liste.push(teile.length);
+            teile.push(t);
+          }
+          instanzVon.set(ty * welt.breite + tx, liste);
+        };
+        if (name === 'wand') nimm({ x, z, unten: b, hoehe: WANDHOEHE });
         if (name === 'fenster') {
-          teile.push({ x, z, unten: b, hoehe: 24 }, { x, z, unten: b + WANDHOEHE - 12, hoehe: 12 });
+          nimm({ x, z, unten: b, hoehe: 24 }, { x, z, unten: b + WANDHOEHE - 12, hoehe: 12 });
           const senkrecht = !istWandig(welt, tx - 1, ty) && !istWandig(welt, tx + 1, ty);
           glas.push({ x, z, unten: b + 24, hoehe: WANDHOEHE - 36, drehung: senkrecht ? Math.PI / 2 : 0 });
         }
-        if (name === 'tuer') teile.push({ x, z, unten: b + TUER_HOEHE, hoehe: WANDHOEHE - TUER_HOEHE }); // Sturz
+        if (name === 'tuer') nimm({ x, z, unten: b + TUER_HOEHE, hoehe: WANDHOEHE - TUER_HOEHE }); // Sturz
       }
     }
     const seite = this.mitSchnitt(new THREE.MeshStandardMaterial({ color: 0x5a616c, roughness: 0.92 }));
@@ -295,6 +311,16 @@ export class KartenModell {
     wand.receiveShadow = true;
     const glasMaterial = this.mitSchnitt(new THREE.MeshStandardMaterial({ color: 0x8cc8e2, transparent: true, opacity: 0.35, roughness: 0.1, metalness: 0.2 }));
     this.statisch.add(wand, instanzen(new THREE.BoxGeometry(g, 1, g * 0.3), glasMaterial, glas));
+    this.wandDaten = { wand, teile, instanzVon, seite, oben };
+  }
+
+  /** Wand-Durchsicht (wandDurchsicht.js): braucht Wände + Räume der Dächer */
+  #baueDurchsicht() {
+    this.durchsicht = null;
+    if (!this.daecher || !this.wandDaten) return;
+    const { wand, teile, instanzVon, seite, oben } = this.wandDaten;
+    this.durchsicht = new WandDurchsicht({ wand, teile, instanzVon, daecher: this.daecher, g: this.g, seite, oben, mitSchnitt: this.mitSchnitt });
+    this.statisch.add(this.durchsicht.gruppe);
   }
 
   /** Eigene Objekte mit 3D-Modell (Map-Editor): Gruppe sofort da, Modell kommt nach dem Laden. Ohne Modell → Ersatz-Quader wie gehabt. */

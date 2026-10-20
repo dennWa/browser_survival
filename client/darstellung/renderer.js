@@ -390,6 +390,7 @@ export class Renderer {
 
     this.karte.aktualisiere(dt, dunkel, fokus);
     this.karte.aktualisiereDaecher(fokus.x, fokus.y);
+    this.karte.aktualisiereDurchsicht(dt, fokus.x, fokus.y, !this.egoHaken);
     this.natur?.aktualisiere(fokus, this.welt.bauwerkeVersion, !!this.egoHaken);
     const tuerAbstand = this.karte.aktualisiereTuerSchimmer(fokus);
     this.blaetter?.aktualisiere(dt, fokus, jetzt, dunkel);
