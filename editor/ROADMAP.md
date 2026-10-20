@@ -77,6 +77,9 @@
 - 7.2 fertig (2026-10-20): `editor/kern/anordnen.js` + Befehle `anordnen.*` (Menü, Kontextmenü, Inspektor), Tests + Rauchtest.
   Nebenbei behoben: Inspektor-Knöpfe, die die Auswahl ändern, liefen doppelt (`main.js` globaler Klick, jetzt `isConnected`).
 
+⏸ **Pausiert auf Nutzerwunsch (2026-10-20) – alles committet und gepusht, Tests grün (npm test 279, rauchtest:editor, rauchtest).**
+Offen danach: 7.3–7.6, Phase 8 (8.1–8.2), Phase 9 (9.1–9.9) laut Tabellen unten.
+
 **Nächster Schritt: 7.3 Messen & Ausrichten.** Plan: Maßband-Werkzeug (Strecke in Kacheln/m, Pfadlänge über mehrere Klicks,
 Winkel), einstellbares Raster (Weite 0,5/1/2/4, Hauptlinien alle N) in der Optionsleiste/Ansicht, Hilfslinien aus den Linealen
 ziehen (gespeichert je Zone in `werte.hilfslinien`, nur Editor), Einrasten an Raster/Objektkanten/-mitten/Hilfslinien beim
