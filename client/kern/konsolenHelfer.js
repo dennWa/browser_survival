@@ -9,6 +9,8 @@ import { fuegeZumInventarHinzu, legeAufBoden } from '../../server/spiel/systeme/
  *   browserSurvival.ich()               eigene Spieler-Entität auf dem Server (zum Ändern: .leben = 1 …)
  *   browserSurvival.welt()              die SpielWelt der eigenen Zone
  *   browserSurvival.zone('waldweg')     sofort in eine andere Zone wechseln (Ankunft optional: zone('waldweg', 'sued'))
+ *   browserSurvival.grafik('ssao', 0)   Grafik-Schalter live (ssao 0|0.5|1, bloom, schattenRadius, belichtung, msaa, nachbearbeitung);
+ *                                       grafik('mittel') = Preset, grafik() = aktuelle Werte (grafikEinstellungen.js, auch online)
  * Auch genutzt von den Playwright-Skripten in werkzeuge/test/.
  */
 export function konsolenHelfer({ spiel, server }) {
@@ -40,6 +42,12 @@ export function konsolenHelfer({ spiel, server }) {
       const s = ich();
       if (!s) return ohneServer();
       s.zonenwechsel = { ziel, ankunft, name: ziel };
+    },
+    grafik(feld, wert) {
+      const renderer = spiel()?.renderer;
+      if (!renderer?.setzeGrafikOption) return console.warn('Kein 3D-Renderer aktiv');
+      if (feld !== undefined && wert === undefined) renderer.setzeGrafik(feld);
+      return feld !== undefined && wert !== undefined ? renderer.setzeGrafikOption(feld, wert) : { ...renderer.setzeGrafikOption() };
     },
     zeit(stunde) {
       const w = welt();
