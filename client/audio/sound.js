@@ -45,7 +45,8 @@ export class Sound {
   #eigene = {}; // Name → [AudioBuffer] (eigene Dateien aus audio/eigene, haben Vorrang vor #proben und Synthese)
   #eigenePegel = {}; // Name → Faktor aus eigene/lautstaerke.txt / einstellungen.json (gilt für alle Quellen)
   #streuung = {}; // Name → ± Tonhöhe (0..0,5) aus einstellungen.json
-  #zeit = {}; // Name → { verzoegerung, maxDauer } (s) aus einstellungen.json: Ton später starten / nach so langer Zeit abschneiden
+  #zeit = {}; // Name → { verzoegerung, maxDauer, einmal } aus einstellungen.json: Ton später starten (s) / nach so langer Zeit abschneiden (s) / nicht neu starten, solange er läuft
+  #laufBis = {}; // Name → Audio-Zeit, bis der zuletzt gestartete Ton (mit `einmal`) zu Ende ist
   #nacht = null;
   #letzteEigene = {}; // Name → zuletzt gespielter Index (keine direkte Wiederholung)
 
@@ -141,10 +142,10 @@ export class Sound {
     fetch(new URL('eigene.json', eigeneBasis))
       .then((r) => (r.ok ? r.json() : {}))
       .then((index) => {
-        for (const [name, { dateien = [], lautstaerke = 1, streuung = 0, verzoegerung = 0, maxDauer = 0 }] of Object.entries(index)) {
+        for (const [name, { dateien = [], lautstaerke = 1, streuung = 0, verzoegerung = 0, maxDauer = 0, einmal = false }] of Object.entries(index)) {
           this.#eigenePegel[name] = lautstaerke;
           if (streuung > 0) this.#streuung[name] = streuung;
-          if (verzoegerung > 0 || maxDauer > 0) this.#zeit[name] = { verzoegerung, maxDauer };
+          if (verzoegerung > 0 || maxDauer > 0 || einmal) this.#zeit[name] = { verzoegerung, maxDauer, einmal };
           if (!REZEPTE[name] && !dateien.length) console.warn(`[Sound] Unbekanntes Ereignis "${name}" in eigene/lautstaerke.txt`);
           for (const datei of dateien) {
             fetch(new URL(datei, eigeneBasis))
@@ -248,7 +249,8 @@ export class Sound {
     }
     if (gain < 0.01) return;
 
-    const { verzoegerung = 0, maxDauer = 0 } = this.#zeit[name] ?? {};
+    const { verzoegerung = 0, maxDauer = 0, einmal = false } = this.#zeit[name] ?? {};
+    if (einmal && ctx.currentTime < (this.#laufBis[name] ?? 0)) return; // läuft noch (z. B. Holzhacken: jeder Schlag würde den langen Ton neu starten)
     const beginn = ctx.currentTime + VORLAUF + verzoegerung;
     const lautstaerkeKnoten = ctx.createGain();
     lautstaerkeKnoten.gain.value = gain;
@@ -294,7 +296,9 @@ export class Sound {
     } else {
       dauer = rezept({ ctx, ausgang: lautstaerkeKnoten, t: beginn, rauschen: this.#rauschen, tonhoehe: tonhoehe * (streuung ? zufallsTon() : 1) });
     }
-    setTimeout(() => ziel.disconnect(), (Math.min(dauer, maxDauer > 0 ? maxDauer : Infinity) + verzoegerung + 0.5) * 1000);
+    const spielzeit = Math.min(dauer, maxDauer > 0 ? maxDauer : Infinity) + verzoegerung;
+    if (einmal) this.#laufBis[name] = ctx.currentTime + VORLAUF + spielzeit;
+    setTimeout(() => ziel.disconnect(), (spielzeit + 0.5) * 1000);
   }
 
   /**
@@ -420,9 +424,9 @@ export class Sound {
     });
   }
 
-  /** Verzögerung/Kürzung eines Ereignisses setzen (Audio-Zentrale-Vorschau, ohne Neuladen) */
-  setzeZeit(name, { verzoegerung = 0, maxDauer = 0 } = {}) {
-    if (verzoegerung > 0 || maxDauer > 0) this.#zeit[name] = { verzoegerung, maxDauer };
+  /** Verzögerung/Kürzung/„nur einmal“ eines Ereignisses setzen (Audio-Zentrale-Vorschau, ohne Neuladen) */
+  setzeZeit(name, { verzoegerung = 0, maxDauer = 0, einmal = false } = {}) {
+    if (verzoegerung > 0 || maxDauer > 0 || einmal) this.#zeit[name] = { verzoegerung, maxDauer, einmal };
     else delete this.#zeit[name];
   }
 

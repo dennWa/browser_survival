@@ -20,6 +20,7 @@ import { dialog, bestaetigen, esc } from './dialoge.js';
  *     (ui/lokalerServer.js) – ohne Server Hinweis + Download der fertigen Datei.
  *   • Musik: Titel je Ordner hinzufügen, ↑/↓ Reihenfolge, 🗑, „der Reihe nach“ (client/musik/einstellungen.json).
  * Daten: kern/audioKatalog.js (Katalog/Pfade), kern/audioSchnitt.js (Schnitt), kern/oggOpus.js (Datei-Verpackung).
+ * ▶ Spiel starten merkt Eintrag/Gruppe/Suche/offene Bearbeitung (localStorage) → Rückkehr (`{ zuletzt: true }`) landet dort wieder.
  * Öffnen: `aktionen.audioZentrale(id?)` (Befehl `audio.zentrale`, Schnellleiste, Reiter 🔊 Audio). Test: `aktiveZentrale()`.
  */
 const ANNAHME = '.mp3,.ogg,.wav,.m4a,.flac,.opus,.webm,audio/*';
@@ -29,13 +30,23 @@ const url = (pfad) => new URL(`../${pfad.split('/').map(encodeURIComponent).join
 const dauerText = (s) => (!Number.isFinite(s) ? '–' : s >= 60 ? `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}` : `${(Math.round(s * 10) / 10).toFixed(1).replace('.', ',')} s`);
 const prozent = (f) => `${Math.round(f * 100)} %`;
 
+const MERK_SCHLUESSEL = 'browserSurvival.audioZentrale.zuletzt';
+const merkeLesen = () => {
+  try {
+    return JSON.parse(localStorage.getItem(MERK_SCHLUESSEL) || 'null');
+  } catch {
+    return null;
+  }
+};
+
 let offen = null;
 export const aktiveZentrale = () => offen;
 
 export function audioZentraleUi({ zustand, aktionen }) {
-  aktionen.audioZentrale = (id = null) => {
+  /** `zuletzt`: dort weitermachen, wo `▶ Spiel starten` die Zentrale verlassen hat (Eintrag, Gruppe, Suche, offene Bearbeitung) */
+  aktionen.audioZentrale = (id = null, { zuletzt = false } = {}) => {
     if (offen) return offen.waehle(id);
-    offen = new AudioZentrale({ zustand, aktionen, startId: id, beiZu: () => (offen = null) });
+    offen = new AudioZentrale({ zustand, aktionen, startId: id, zuletzt: zuletzt ? merkeLesen() : null, beiZu: () => (offen = null) });
     return offen;
   };
 }
@@ -50,7 +61,7 @@ async function liesJson(pfad, ersatz = {}) {
 }
 
 class AudioZentrale {
-  constructor({ zustand, aktionen, startId, beiZu }) {
+  constructor({ zustand, aktionen, startId, zuletzt = null, beiZu }) {
     this.zustand = zustand;
     this.aktionen = aktionen;
     this.beiZu = beiZu;
@@ -59,7 +70,12 @@ class AudioZentrale {
     this.gruppe = null;
     this.suche = '';
     this.filter = 'alle';
-    this.gewaehlt = startId;
+    this.gewaehlt = startId ?? zuletzt?.id ?? null;
+    if (zuletzt) {
+      this.gruppe = zuletzt.gruppe || null;
+      this.suche = zuletzt.suche || '';
+      this.filter = zuletzt.filter in FILTER ? zuletzt.filter : 'alle';
+    }
     this.info = new Map(); // pfad → { groesse, dauer }
     this.puffer = new Map(); // pfad → Promise<AudioBuffer>
     this.ctx = null;
@@ -70,9 +86,11 @@ class AudioZentrale {
     this.bearbeitung = null;
     this.handy = matchMedia('(max-width: 900px)').matches;
     this.#baue();
+    this.el.querySelector('.az-suche').value = this.suche;
+    this.el.querySelector('.az-filter').value = this.filter;
     this.tasten = (e) => this.#taste(e);
     window.addEventListener('keydown', this.tasten, true);
-    this.bereit = this.neuLaden();
+    this.bereit = this.neuLaden().then(() => this.#stelleWiederHer(zuletzt));
   }
 
   // --- Gerüst ------------------------------------------------------------------------------------------------------
@@ -104,6 +122,8 @@ class AudioZentrale {
     el.querySelector('[data-a=zu]').addEventListener('click', () => this.schliesse());
     el.querySelector('[data-a=spielStart]').addEventListener('click', async () => {
       this.stoppe();
+      await this.#speichereFuerSpiel();
+      this.#merke();
       await this.zustand.speichereAlle?.();
       // Ist im Editor eine Zone offen, testet das Spiel genau diese (Prüfung/Spawn-Frage wie bei ▶ Testen); sonst normale Spielwelt
       if (this.zustand.karte && this.aktionen?.testen) {
@@ -186,6 +206,35 @@ class AudioZentrale {
     this.el.remove();
     this.ctx?.close?.();
     this.beiZu();
+  }
+
+  /** Zustand für die Rückkehr aus dem Spiel merken (nur lokal im Browser) */
+  #merke() {
+    const b = this.bearbeitung;
+    const e = this.eintrag();
+    const zustand = { id: this.gewaehlt, gruppe: this.gruppe, suche: this.suche, filter: this.filter };
+    if (b && !b.neu && b.pfad && e?.art === 'ereignis') zustand.bearbeitung = { pfad: b.pfad, werte: b.werte };
+    try {
+      localStorage.setItem(MERK_SCHLUESSEL, JSON.stringify(zustand));
+    } catch {
+      /* Speicher gesperrt – dann landet man eben oben in der Liste */
+    }
+  }
+
+  async #stelleWiederHer(zuletzt) {
+    const e = zuletzt && this.eintrag(zuletzt.id);
+    if (!e) return;
+    this.waehle(e.id);
+    const alt = zuletzt.bearbeitung;
+    if (!alt || !e.dateien.includes(alt.pfad)) return;
+    await this.bearbeiteVorhandene(e, alt.pfad);
+    if (this.bearbeitung) this.setze(alt.werte, { merken: false });
+  }
+
+  /** Vor dem Spielstart: Pegel/Takt des offenen Eintrags speichern, damit das Spiel sie schon benutzt */
+  async #speichereFuerSpiel() {
+    const e = this.eintrag();
+    if (e?.art === 'ereignis' && istVerbunden()) await this.speichereEinstellungen(e, { still: true });
   }
 
   // --- Daten -------------------------------------------------------------------------------------------------------
@@ -383,7 +432,7 @@ class AudioZentrale {
       <h4>Im Spiel</h4>
       <label class="az-regler">Pegel <input type="range" min="0" max="300" step="5" value="${Math.round(e.pegel * 100)}" data-f="pegel"> <output>${prozent(e.pegel)}</output></label>
       ${loop ? '' : `<label class="az-regler" title="Jedes Abspielen klingt minimal anders – gut für kurze, oft wiederholte Sounds">Tonhöhen-Streuung ± <input type="range" min="0" max="50" step="1" value="${Math.round(e.streuung * 100)}" data-f="streuung"> <output>${Math.round(e.streuung * 100)} %</output></label>`}
-      <div class="knopfreihe"><button type="button" data-a="einstellungen">💾 Einstellungen speichern</button><span class="leise">gilt für alle Quellen (auch Synthese/Samples)</span></div>
+      ${this.bearbeitung ? '' : '<div class="knopfreihe"><button type="button" data-a="einstellungen">💾 Einstellungen speichern</button></div>'}
     </div>`;
   }
 
@@ -546,14 +595,15 @@ class AudioZentrale {
     return r ? Number(r.value) / 100 : e?.pegel ?? 1;
   }
 
-  /** „Ton startet später“ / „Ton endet nach“ (Sekunden) wie in den Feldern eingestellt (auch ungespeichert) */
+  /** „Ton startet später“ / „Ton endet nach“ (Sekunden) / „nur einmal“ wie in den Feldern eingestellt (auch ungespeichert) */
   #zeitWerte(e) {
     const f = (n, std) => {
       const r = e && this.elDetail?.querySelector(`[data-t=${n}]`);
       const v = r ? Number(r.value) : std;
       return Number.isFinite(v) && v > 0 ? v : 0;
     };
-    return { verzoegerung: f('verzoegerung', e?.verzoegerung ?? 0), maxDauer: f('maxDauer', e?.maxDauer ?? 0) };
+    const box = e && this.elDetail?.querySelector('[data-t=einmal]');
+    return { verzoegerung: f('verzoegerung', e?.verzoegerung ?? 0), maxDauer: f('maxDauer', e?.maxDauer ?? 0), einmal: box ? box.checked : !!e?.einmal };
   }
 
   /** Regler bewegt → laufenden Ton sofort anpassen */
@@ -635,18 +685,17 @@ class AudioZentrale {
     this.#starteBearbeitung({ puffer, bytes, endung, name: datei.name, neu: true });
   }
 
-  async bearbeiteVorhandene(e) {
-    const pfad = e.art === 'musikOrdner' ? null : e.dateien[0];
+  async bearbeiteVorhandene(e, pfad = e.art === 'musikOrdner' ? null : e.dateien[0]) {
     if (!pfad) return;
     try {
       const [puffer, bytes] = await Promise.all([this.#puffer(pfad), fetch(url(pfad), { cache: 'no-store' }).then((r) => r.arrayBuffer())]);
-      this.#starteBearbeitung({ puffer, bytes: new Uint8Array(bytes), endung: pfad.split('.').at(-1).toLowerCase(), name: pfad.split('/').at(-1), neu: false });
+      this.#starteBearbeitung({ puffer, bytes: new Uint8Array(bytes), endung: pfad.split('.').at(-1).toLowerCase(), name: pfad.split('/').at(-1), neu: false, pfad });
     } catch (f) {
       this.zustand.meldung(`Datei lässt sich nicht laden: ${f.message}`, 'fehler');
     }
   }
 
-  #starteBearbeitung({ puffer, bytes, endung, name, neu }) {
+  #starteBearbeitung({ puffer, bytes, endung, name, neu, pfad = null }) {
     const e = this.eintrag();
     const kanaele = Array.from({ length: puffer.numberOfChannels }, (_, i) => puffer.getChannelData(i));
     this.bearbeitung = {
@@ -655,6 +704,7 @@ class AudioZentrale {
       endung,
       name,
       neu,
+      pfad,
       werte: { ...STANDARD_BEARBEITUNG, loop: !!e?.loop },
       zurueck: [],
       vor: [],
@@ -723,10 +773,10 @@ class AudioZentrale {
     const takt =
       e.art === 'ereignis' && !e.loop
         ? `<div class="az-takt">
-        <h5>⏱ Takt zur Animation <span class="leise">(wirkt im Spiel, wird mit „Zeiten speichern“ übernommen)</span></h5>
-        <label title="Ton setzt erst nach dieser Zeit ein – z. B. wenn die Animation gerade erst anfängt und der Schlag später kommt">Ton startet später <input type="number" min="0" max="5" step="0.05" value="${e.verzoegerung || 0}" data-t="verzoegerung"> s</label>
-        <label title="Ton wird nach dieser Zeit weich abgeschnitten – z. B. wenn die Animation kürzer ist als der Ton. 0 = ganzer Ton">Ton endet nach <input type="number" min="0" max="120" step="0.1" value="${e.maxDauer || 0}" data-t="maxDauer"> s <span class="leise">(0 = ganz)</span></label>
-        <button type="button" data-a="zeitSpeichern">💾 Zeiten speichern</button>
+        <h5>⏱ Takt zur Animation</h5>
+        <label>Ton startet später <input type="number" min="0" max="5" step="0.05" value="${e.verzoegerung || 0}" data-t="verzoegerung"> s</label>
+        <label>Ton endet nach <input type="number" min="0" max="120" step="0.1" value="${e.maxDauer || 0}" data-t="maxDauer"> s</label>
+        <label class="haken"><input type="checkbox" data-t="einmal"${e.einmal ? ' checked' : ''}> Nur einmal abspielen, solange er läuft</label>
       </div>`
         : '';
     this.elDetail.querySelector('.az-werkbank').innerHTML = `
@@ -761,7 +811,6 @@ class AudioZentrale {
       this.stoppe();
       this.#zeichneDetail();
     });
-    k('zeitSpeichern', () => this.speichereEinstellungen(e));
     for (const f of wb.querySelectorAll('[data-t]')) f.addEventListener('keydown', (ev) => ev.stopPropagation());
     k('ersatz', () => this.uebernehmen({ ersetzen: true }));
     k('variante', () => this.uebernehmen({ ersetzen: false }));
@@ -947,6 +996,7 @@ class AudioZentrale {
       }
       await schreibeDatei(ziel.pfad, bytes);
       for (const p of ziel.loeschen) await loescheDatei(p);
+      if (e.art === 'ereignis') await this.#schreibeEinstellungen(e); // Pegel/Streuung/Takt gehören zum selben „Übernehmen“
       if (e.art === 'musikOrdner' || e.art === 'musik') {
         const ordner = e.ordner;
         const titel = this.eintrag(`musikOrdner:${ordner}`).titel;
@@ -993,14 +1043,21 @@ class AudioZentrale {
     return false;
   }
 
-  async speichereEinstellungen(e) {
+  /** Pegel/Streuung/Takt wie in den Feldern → einstellungen.json (ohne Rückmeldung; Aufrufer lädt neu) */
+  async #schreibeEinstellungen(e) {
     const pegel = Number(this.elDetail.querySelector('[data-f=pegel]').value) / 100;
     const streuung = Number(this.elDetail.querySelector('[data-f=streuung]')?.value ?? 0) / 100;
-    const { verzoegerung, maxDauer } = this.#zeitWerte(e);
-    if (!(await this.#nurLokal())) return;
+    const { verzoegerung, maxDauer, einmal } = this.#zeitWerte(e);
+    await schreibeDatei('client/audio/eigene/einstellungen.json', setzeSoundEinstellung(this.daten.einstellungen, e.ereignis, { lautstaerke: pegel, streuung, verzoegerung, maxDauer, einmal }));
+    return { pegel, streuung, verzoegerung, maxDauer, einmal };
+  }
+
+  async speichereEinstellungen(e, { still = false } = {}) {
+    if (!still && !(await this.#nurLokal())) return;
     try {
-      await schreibeDatei('client/audio/eigene/einstellungen.json', setzeSoundEinstellung(this.daten.einstellungen, e.ereignis, { lautstaerke: pegel, streuung, verzoegerung, maxDauer }));
-      this.zustand.meldung(`✓ Übernommen – ${e.name}: Pegel ${prozent(pegel)}${streuung ? `, Streuung ±${Math.round(streuung * 100)} %` : ''}${verzoegerung ? `, Start +${verzoegerung} s` : ''}${maxDauer ? `, Ende nach ${maxDauer} s` : ''} (im Spiel nach Neuladen aktiv)`, 'ok');
+      const { pegel, streuung, verzoegerung, maxDauer, einmal } = await this.#schreibeEinstellungen(e);
+      if (still) return;
+      this.zustand.meldung(`✓ Übernommen – ${e.name}: Pegel ${prozent(pegel)}${streuung ? `, Streuung ±${Math.round(streuung * 100)} %` : ''}${verzoegerung ? `, Start +${verzoegerung} s` : ''}${maxDauer ? `, Ende nach ${maxDauer} s` : ''}${einmal ? ', nur einmal' : ''} (im Spiel nach Neuladen aktiv)`, 'ok');
       await this.neuLaden();
       const knopf = this.elDetail.querySelector('[data-a=einstellungen]');
       if (knopf) {

@@ -333,7 +333,7 @@ async function starten() {
   test.nachStart(); // Rückkehr aus dem Test im Spiel (räumt die Adresse auf)
   if (zurueckZurAudio) {
     history.replaceState(null, '', location.pathname);
-    aktionen.audioZentrale?.();
+    aktionen.audioZentrale?.(null, { zuletzt: true });
   }
   // Phase 10.1: lokaler Editor-Server (npm run editor:lokal) → darf in Projektordner schreiben
   pruefeLokalenServer().then((s) => {

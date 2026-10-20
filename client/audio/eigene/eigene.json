@@ -3,7 +3,8 @@
     "dateien": [
       "hack_holz.ogg"
     ],
-    "lautstaerke": 1
+    "lautstaerke": 1,
+    "maxDauer": 8
   },
   "nachladen": {
     "dateien": [
