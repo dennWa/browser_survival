@@ -6,10 +6,13 @@
  *   2. Three.js + benötigte Addons verkleinert nach client/vendor/three/ kopieren
  *      (kein CDN nötig – das Spiel läuft auch offline / im LAN)
  *
+ *   3. Natur-Modelle (Gras, später Pflanzen/Bäume): werkzeuge/assets/quellen/natur/*.glb → client/assets/3d/natur/ + natur.json
+ *      (Index mit Höhe/Dreiecken je Modell; Streuung auf der Karte: client/darstellung/naturKonfiguration.js)
+ *
  * Braucht die Entwicklungsabhängigkeiten aus package.json (npm install).
  * `npm run assets:3d -- --nur-vendor` überspringt Schritt 1 (ohne heruntergeladene Quellpakete, z. B. nur neue Addons).
  */
-import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
@@ -94,6 +97,43 @@ await esbuild.build({
 });
 copyFileSync(path.join(threeOrdner, 'LICENSE'), path.join(ZIEL_VENDOR, 'LICENSE'));
 console.log(`  vendor/three/addons.js + LICENSE (three.js ${threeVersion}, MIT)`);
+
+// --- 3. Natur-Modelle (Gras, Pflanzen …) ------------------------------------
+{
+  const quelle = path.join(WURZEL, 'werkzeuge/assets/quellen/natur');
+  const ziel = path.join(ZIEL_3D, 'natur');
+  if (existsSync(quelle)) {
+    mkdirSync(ziel, { recursive: true });
+    const arten = {};
+    for (const datei of readdirSync(quelle).filter((d) => d.endsWith('.glb')).sort()) {
+      copyFileSync(path.join(quelle, datei), path.join(ziel, datei));
+      const info = leseGlbInfo(readFileSync(path.join(quelle, datei)));
+      arten[datei.replace(/\.glb$/, '')] = { datei, ...info };
+    }
+    writeFileSync(path.join(ziel, 'natur.json'), JSON.stringify({ arten }, null, 1) + '\n');
+    console.log(`  assets/3d/natur/ (${Object.keys(arten).length} Modelle + natur.json)`);
+  }
+}
+
+/** Höhe (Modell-Einheiten, y-Ausdehnung), Fußabdruck-Radius und Dreiecke aus dem JSON-Teil einer .glb */
+function leseGlbInfo(puffer) {
+  const json = JSON.parse(puffer.subarray(20, 20 + puffer.readUInt32LE(12)).toString('utf8'));
+  const zugriffe = json.accessors ?? [];
+  let dreiecke = 0;
+  const min = [Infinity, Infinity, Infinity];
+  const max = [-Infinity, -Infinity, -Infinity];
+  for (const mesh of json.meshes ?? []) {
+    for (const p of mesh.primitives) {
+      dreiecke += (p.indices !== undefined ? zugriffe[p.indices].count : zugriffe[p.attributes.POSITION].count) / 3;
+      const pos = zugriffe[p.attributes.POSITION];
+      for (let i = 0; i < 3; i++) {
+        min[i] = Math.min(min[i], pos.min[i]);
+        max[i] = Math.max(max[i], pos.max[i]);
+      }
+    }
+  }
+  return { hoehe: +(max[1] - Math.min(0, min[1])).toFixed(3), radius: +Math.max(max[0] - min[0], max[2] - min[2]).toFixed(3) / 2, dreiecke };
+}
 
 function findeDatei(ordner, name) {
   const kandidaten = [path.join(ordner, 'Animations', name), path.join(ordner, name)];

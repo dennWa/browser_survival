@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { FBXLoader, SkeletonUtils } from '../vendor/three/addons.js';
 import { KartenModell, TUER_EBENE, TUER_SCHIMMER_WEITE } from './kartenModell.js';
+import { Himmel } from './himmel.js';
+import { NaturSchicht, ladeNaturModelle } from './naturModell.js';
 import { vereineGeometrien } from './geometrie.js';
 import { Fussspuren } from './fussspuren.js';
 import { bauwerkDrehungY, erzeugeBauwerk, erzeugeVorschau } from './bauwerkModelle.js';
@@ -51,6 +53,9 @@ const KAMERA_VERSATZ = new THREE.Vector3(0, 540, 400); // etwas flacher als frü
 const SKINS = { normal: 'zombieMaleA', laeufer: 'zombieFemaleA', brocken: 'zombieMaleA' }; // Zombies; Spieler: aussehen.js
 const KOPF = { hoehe: 1.22, breite: 0.9, tiefe: 1.07 }; // Schädelmaße im Verhältnis zum Abstand Kopfknochen → Head_end (gemessen)
 const _wetterGrau = new THREE.Color();
+const _zenit = new THREE.Color();
+const _buffer = new THREE.Vector2();
+const _wolkenFarbe = new THREE.Color();
 const MAX_TASCHENLAMPEN = 3;
 const NACHT_EIGENLEUCHTEN = 0.2; // Emissive-Stärke der Spieler-Figur bei voller Dunkelheit (nur Orientierung, kein echtes Licht)
 const TASCHENLAMPEN_ANSATZ = { vorn: 9, hoehe: 38 }; // Lichtkegel beginnt knapp vor der Brust (px vor der Körpermitte, Höhe über Boden)
@@ -94,9 +99,14 @@ const AUFWAERM_MS = 6000; // so lange nach dem Betreten nicht messen (Shader, Te
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 1.9;
 /** Lichtfarben für Tag, Nacht und Dämmerung (siehe #tageslicht) */
-const TAG = { sonne: new THREE.Color(0xfff1dc), himmel: new THREE.Color(0xbfd8ff), boden: new THREE.Color(0x4a4636), hintergrund: new THREE.Color(0x9cc3e4) };
-const NACHT = { sonne: new THREE.Color(0x8aa0d8), himmel: new THREE.Color(0x1b2238), boden: new THREE.Color(0x050505), hintergrund: new THREE.Color(0x02030a) };
-const DAEMMERUNG = { sonne: new THREE.Color(0xff9a4d), hintergrund: new THREE.Color(0xe08a5a) };
+const TAG = { sonne: new THREE.Color(0xfff1dc), himmel: new THREE.Color(0xbfd8ff), boden: new THREE.Color(0x4a4636), hintergrund: new THREE.Color(0x9cc3e4), zenit: new THREE.Color(0x2f78e0), wolken: new THREE.Color(0xffffff) };
+const NACHT = { sonne: new THREE.Color(0x8aa0d8), himmel: new THREE.Color(0x1b2238), boden: new THREE.Color(0x050505), hintergrund: new THREE.Color(0x02030a), zenit: new THREE.Color(0x000105), wolken: new THREE.Color(0x0b0e18) };
+const DAEMMERUNG = { sonne: new THREE.Color(0xff9a4d), hintergrund: new THREE.Color(0xe08a5a), zenit: new THREE.Color(0x5a5aa8), wolken: new THREE.Color(0xffb48a) };
+/** Himmel (himmel.js): Die Welt endet per Kamera-Ferne (Vielfaches des Kameraabstands) – darüber, am oberen Bildrand, beginnt der Himmel. */
+const HIMMEL_FERNE = 1.17;
+const HIMMEL_DUNST = 0.16; // so breit (Kameraabstände) verblasst die Welt vor der Ferne in die Horizontfarbe
+const REGEN_ZENIT = new THREE.Color(0x3c4048);
+const REGEN_WOLKEN = new THREE.Color(0x62666e);
 
 const _ziel = new THREE.Vector3();
 const _kameraZiel = new THREE.Vector3();
@@ -127,6 +137,7 @@ export class Renderer {
   static async erstelle(leinwand2d, assets) {
     const renderer = new Renderer(leinwand2d, assets);
     await renderer.#ladeFiguren();
+    renderer.naturModelle = await ladeNaturModelle(); // Gras & Co. (naturModell.js); fehlen sie, bleibt die Karte wie sie war
     return renderer;
   }
 
@@ -150,6 +161,7 @@ export class Renderer {
     this.szene.background = new THREE.Color(0x04060b);
     this.szene.fog = new THREE.Fog(0x04060b, 650, 1500);
     this.kamera3d = new THREE.PerspectiveCamera(38, 1, 10, 4000);
+    this.himmel = new Himmel(this.szene);
     this.kamera = new KameraAdapter(this);
     this.nachtsicht = false; // Admin: Dunkelheit aus
     this.letzteZeit = 0;
@@ -292,6 +304,11 @@ export class Renderer {
       this.szene.remove(this.karte.statisch, this.karte.beweglich);
       for (const teil of [this.karte.statisch, this.karte.beweglich]) teil.traverse((o) => o.geometry?.dispose());
     }
+    if (this.natur) {
+      this.szene.remove(this.natur.gruppe);
+      this.natur.freigeben();
+      this.natur = null;
+    }
     for (const b of this.fallendeBaeume) this.szene.remove(b.gruppe);
     this.fallendeBaeume.length = 0;
     for (const f of this.figuren.values()) this.szene.remove(f.gruppe);
@@ -321,6 +338,8 @@ export class Renderer {
       bodenMassstab: this.#bodenMassstab(),
     });
     this.szene.add(this.karte.statisch, this.karte.beweglich);
+    this.natur = this.naturModelle ? NaturSchicht.erzeuge(welt, this.naturModelle, (x, z) => this.#hy(x, z), this.istHandy) : null;
+    if (this.natur) this.szene.add(this.natur.gruppe);
     this.karte.setzeBaumDetail(QUALITAETS_STUFEN[this.stufe].baumDetail);
     this.#vorkompilieren();
     this.aufwaermen();
@@ -357,6 +376,7 @@ export class Renderer {
 
     this.karte.aktualisiere(dt, dunkel, fokus);
     this.karte.aktualisiereDaecher(fokus.x, fokus.y);
+    this.natur?.aktualisiere(fokus, this.welt.bauwerkeVersion);
     const tuerAbstand = this.karte.aktualisiereTuerSchimmer(fokus);
     this.blaetter?.aktualisiere(dt, fokus, jetzt, dunkel);
     this.#aktualisiereFahrzeuge(entitaeten, fokus);
@@ -1255,7 +1275,57 @@ export class Renderer {
     const reingezoomt = 1 + 0.9 * Math.max(0, 1 - this.zoom);
     this.szene.fog.near = nah * reingezoomt;
     this.szene.fog.far = Math.max((1500 + hell * 1500) * abstand * (1 - 0.62 * dicht), nah + kamAbstand * (0.5 + 0.3 * hell)) * reingezoomt;
+    this.#zeichneHimmel(hell, daemmerung, regen, nebel, abstand, kamAbstand);
     return dunkel;
+  }
+
+  /**
+   * Himmel nach Tageszeit & Wetter + Weltkante als Horizont: Die Kamera-Ferne wird knapp hinter den oberen Bildrand gelegt, die Welt
+   * verblasst per Nebel in die Horizontfarbe, darüber beginnt der Himmel (siehe himmel.js). Im Ego-Modus bleibt alles beim Alten.
+   */
+  #zeichneHimmel(hell, daemmerung, regen, nebel, abstand, kamAbstand) {
+    const ego = !!this.egoHaken;
+    this.himmel.sichtbar = !ego;
+    const kamera = this.kamera3d;
+    const ferne = ego ? 4000 : kamAbstand * HIMMEL_FERNE;
+    if (Math.abs(kamera.far - ferne) > 0.5) {
+      kamera.far = ferne;
+      kamera.updateProjectionMatrix();
+    }
+    if (ego) return;
+    // Nebel endet an der Kamera-Ferne (nie näher als vor der Figur): so ist die Weltkante unsichtbar
+    this.szene.fog.far = ferne;
+    this.szene.fog.near = Math.max(kamAbstand * 0.92, Math.min(this.szene.fog.near, ferne - kamAbstand * HIMMEL_DUNST));
+    // Wo auf dem Bildschirm schneidet die Bodenebene die Kamera-Ferne? (Tiefe = Ferne, Neigung der Kamera aus dem Versatz)
+    const hoeheUeberBoden = KAMERA_VERSATZ.y * abstand;
+    const neigung = Math.atan2(hoeheUeberBoden, KAMERA_VERSATZ.z * abstand + 20);
+    const kot = (ferne / hoeheUeberBoden - Math.sin(neigung)) / Math.cos(neigung);
+    const winkel = kot > 0 ? Math.atan(1 / kot) : Math.PI / 2;
+    const bildY = Math.tan(neigung - winkel) / Math.tan((kamera.fov * Math.PI) / 360);
+    const schnitt = Math.min(0.97, Math.max(0.55, 0.5 + 0.5 * bildY));
+    const stimmung = Math.max(regen, nebel);
+    _zenit.copy(NACHT.zenit).lerp(TAG.zenit, hell).lerp(DAEMMERUNG.zenit, daemmerung * 0.55);
+    _wolkenFarbe.copy(NACHT.wolken).lerp(TAG.wolken, hell).lerp(DAEMMERUNG.wolken, daemmerung * 0.6);
+    if (stimmung > 0.001) {
+      // Regen/Nebel: dunkelgrauer, dicht bewölkter Himmel (tagsüber am deutlichsten)
+      const grau = Math.min(1, 0.9 * regen + 0.55 * nebel);
+      _zenit.lerp(_wetterGrau.copy(REGEN_ZENIT).multiplyScalar(0.1 + 0.9 * hell), grau);
+      _wolkenFarbe.lerp(_wetterGrau.copy(REGEN_WOLKEN).multiplyScalar(0.12 + 0.88 * hell), grau);
+    }
+    const dunkel = 1 - hell;
+    const wolken = Math.min(1, 0.34 + 0.75 * regen + 0.5 * nebel) * (1 - 0.4 * dunkel);
+    this.gl.getDrawingBufferSize(_buffer);
+    this.himmel.setze({
+      horizont: this.szene.background,
+      zenit: _zenit,
+      sterne: Math.min(1, Math.max(0, (0.45 - hell) / 0.45)) * (1 - 0.8 * stimmung),
+      wolken,
+      wolkenFarbe: _wolkenFarbe,
+      schnitt,
+      zeit: performance.now() / 1000,
+      breite: _buffer.x,
+      hoehe: _buffer.y,
+    });
   }
 
   #blutMesh(fleck) {

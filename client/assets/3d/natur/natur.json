@@ -1,0 +1,28 @@
+{
+ "arten": {
+  "gras": {
+   "datei": "gras.glb",
+   "hoehe": 1.334,
+   "radius": 0.3685,
+   "dreiecke": 155
+  },
+  "gras_hoch": {
+   "datei": "gras_hoch.glb",
+   "hoehe": 1.873,
+   "radius": 0.4965,
+   "dreiecke": 326
+  },
+  "gras_wispy_a": {
+   "datei": "gras_wispy_a.glb",
+   "hoehe": 1.672,
+   "radius": 0.797,
+   "dreiecke": 622
+  },
+  "gras_wispy_b": {
+   "datei": "gras_wispy_b.glb",
+   "hoehe": 1.072,
+   "radius": 0.661,
+   "dreiecke": 494
+  }
+ }
+}
