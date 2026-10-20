@@ -1,3 +1,6 @@
+import { frageGemini } from '../kern/gemini.js';
+import { baueModellAnfrage, leseModellVorschlag, modellGesendet, MODELL_EBENEN } from '../kern/modellKi.js';
+import { ladeEinstellungen } from './geminiUi.js';
 import { KATEGORIEN } from '../kern/katalog.js';
 import { passtModell, verwendungen, loeschOps, ersetzOps, typAusModell, typIdFuer, benutzteModelle } from '../kern/bibliothek.js';
 import { groesseText } from '../kern/backup.js';
@@ -124,6 +127,33 @@ export function modelleUi({ zustand, panel, aktionen, layout, bibliothek }) {
     if (fertig.length === 1) bearbeiten(fertig[0].id);
   }
 
+  /** 9.8: KI-Vorschlag ins offene Formular eintragen */
+  async function kiVorschlag(box, m, knopf) {
+    const info = box.querySelector('.ki-modell-info');
+    const einst = ladeEinstellungen();
+    if (!einst.schluessel) return (info.textContent = 'Kein Gemini-Schlüssel – im 🤖 Helfer unter ⚙ eintragen.');
+    knopf.disabled = true;
+    info.textContent = '🤖 denkt nach …';
+    try {
+      const { text } = await frageGemini({ schluessel: einst.schluessel, modell: einst.modell, anfrage: baueModellAnfrage(m) });
+      const v = leseModellVorschlag(text);
+      const setze = (name, wert) => {
+        const el = box.querySelector(`[name="${name}"]`);
+        if (el && wert !== undefined) el.value = Array.isArray(wert) ? wert.join(', ') : String(wert);
+      };
+      for (const f of ['name', 'kategorie', 'ordner', 'tags', 'b', 'h', 'hoehe']) setze(f, v[f]);
+      info.textContent = `✓ Vorgeschlagen – prüfen und Speichern.${v.ebene ? ` Ebene: ${MODELL_EBENEN[v.ebene]}` : ''}${v.blockiert !== undefined ? ` · ${v.blockiert ? 'blockiert' : 'nicht blockierend'}` : ''} (gilt beim Anlegen des Typs)`;
+      pendingTyp.set(m.id, { ebene: v.ebene, blockiert: v.blockiert });
+    } catch (e) {
+      info.textContent = `⚠ ${e.message}`;
+    } finally {
+      knopf.disabled = false;
+    }
+  }
+  /** KI-Vorschläge für Ebene/Kollision, die erst beim Anlegen eines Typs zählen (aktionen.modellTypVorschlag) */
+  const pendingTyp = new Map();
+  aktionen.modellTypVorschlag = (id) => pendingTyp.get(id) ?? null;
+
   async function bearbeiten(id) {
     const m = bibliothek.meta(id);
     if (!m) return;
@@ -142,10 +172,13 @@ export function modelleUi({ zustand, panel, aktionen, layout, bibliothek }) {
       ...(m.animationen.length ? [{ name: 'leerlauf', label: 'Leerlauf-Animation', typ: 'auswahl', wert: m.leerlauf ?? '', optionen: [['', '– keine (still) –'], ...m.animationen.map((a) => [a, a])], hilfe: 'Standard für neu platzierte Objekte (im Spiel als Schleife); je Typ änderbar' }] : []),
     ];
     const kopf = `<div class="modell-kopf">${m.vorschau ? `<img src="${esc(m.vorschau)}" alt="">` : '<span class="symbol">🧊</span>'}<p class="leise">${m.dreiecke.toLocaleString('de-DE')} Dreiecke · ${groesseText(m.groesse)}${m.animationen.length ? ` · Animationen: ${esc(m.animationen.join(', '))}` : ''}${m.basis ? `<br>Version ${m.version} von „${esc(bibliothek.meta(m.basis)?.name ?? m.basis)}“` : ''}<br>${v.objekte ? `Benutzt: ${v.zonen.map((z) => `${esc(z.name)} (${z.objekte})`).join(', ')}` : 'In keiner Zone benutzt'}</p></div>`;
+    // 9.8: 🤖 Vorschlag – lokal gemessene Maße + Vorschaubild an die KI, Antwort füllt die Felder (nichts wird gespeichert, bis „Speichern“)
+    const kiKasten = `<div class="ki-modell"><button type="button" data-a="kiVorschlag">🤖 Vorschlag</button> <span class="leise">sendet nur: ${esc(modellGesendet(m).join(' · '))}</span><div class="ki-modell-info leise"></div></div>`;
     const w = await dialog({
       titel: `🧊 ${m.name}`,
-      html: kopf + felder.map(feldHtml).join(''),
+      html: kopf + kiKasten + felder.map(feldHtml).join(''),
       knoepfe: [{ text: '🗑 Löschen …', art: 'gefahr', wert: 'loeschen' }, { text: '🛠 Werkstatt', wert: 'werkstatt' }, { text: 'Abbrechen', wert: null }, { text: 'Speichern', art: 'akzent', wert: (b) => liesFelder(b, felder) }],
+      beiOeffnen: (b) => b.querySelector('[data-a=kiVorschlag]').addEventListener('click', (e) => kiVorschlag(b, m, e.target)),
     });
     if (w === 'loeschen') return loeschen(id);
     if (w === 'werkstatt') return aktionen.werkstatt(id);
@@ -197,7 +230,13 @@ export function modelleUi({ zustand, panel, aktionen, layout, bibliothek }) {
     let typId = [...k.s('typen')].find(([, t]) => t.asset === id)?.[0];
     if (!typId) {
       typId = typIdFuer(m.name, (x) => k.s('typen').has(x));
-      zustand.ausfuehren(`Modell „${m.name}“ in die Zone`, [{ s: 'typen', k: typId, neu: typAusModell(m) }]);
+      const typ = typAusModell(m);
+      // 9.8: KI-Vorschlag für Ebene/Kollision (aus dem 🤖-Knopf im Modell-Dialog)
+      const v = pendingTyp.get(id);
+      if (v?.blockiert !== undefined) typ.blockiert = v.blockiert;
+      if (v?.ebene === 'oben') typ.ebene = 'oben';
+      if (v?.ebene === 'boden') typ.blockiert = false;
+      zustand.ausfuehren(`Modell „${m.name}“ in die Zone`, [{ s: 'typen', k: typId, neu: typ }]);
     }
     aktionen.waehleKatalog(`eigen:${typId}`);
   };

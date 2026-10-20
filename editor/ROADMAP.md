@@ -138,9 +138,14 @@
   9.6 Zonen-Thema + neue zonenweite Aktion `bodenton`. 9.7 Namen vorschlagen + 🤖 Release-Notes im Veröffentlichen-Dialog
   (ohne eigenen Bestätigungsdialog, Hinweis daneben). Tests `tests/kiAufgaben.test.js`. Echte Gemini-API ungetestet (kein Schlüssel).
 
-Offen: 9.8, 9.9 laut Tabelle unten.
+- 9.8 fertig (2026-10-20): `editor/kern/modellKi.js` (baueModellAnfrage: nur Name/Maße/Dreiecke/Animationen + Vorschaubild als
+  inlineData, JSON-Antwort; leseModellVorschlag: Kategorie aus KATEGORIEN, Ordner ohne `..`, Tags ≤ 6, Maße begrenzt, ebene
+  moebel|oben|boden, blockiert). Modell-Dialog (öffnet nach dem Upload): „🤖 Vorschlag“ füllt Name/Kategorie/Ordner/Tags/Maße vor;
+  Ebene/Kollision gelten beim Anlegen des Typs (`aktionen.verwendeModell`, `pendingTyp`). Tests `tests/modellKi.test.js`.
 
-**Nächster Schritt: 9.8 Modell → Metadaten** (siehe Tabelle Phase 9).
+Offen: 9.9 laut Tabelle unten.
+
+**Nächster Schritt: 9.9 Abschluss** (siehe Tabelle Phase 9).
 
 **Danach:** Phase 9 laut Tabelle unten (KI).
 
@@ -246,7 +251,7 @@ Offen: 9.8, 9.9 laut Tabelle unten.
 | ☑ 9.5 | **Loot-Balance:** Loot-Tabellen/Dichte gegen Schwierigkeit (Zombie-Dichte, Horde, Tempo) → Vorschlagswerte als Tabelle → Übernehmen | M |
 | ☑ 9.6 | **Zonen-Themen:** „Mach diese Zone winterlich“ → gebündelt Bodenfarben, Typ-Texturen, Wetter-Werte, Musik → Vorschau → 1 Undo-Schritt | M |
 | ☑ 9.7 | **Beschriftung:** Namen für Zonen/Räume/Objekte, Release-Notes/Beschreibung aus der Änderungsübersicht (7.5) im Veröffentlichen-Dialog | S |
-| ☐ 9.8 | **Modell → Metadaten:** beim Upload lokal Maße/Dreiecke messen + Vorschaubild an die KI → Vorschlag Name, Kategorie, Größe, Kollisionsbox, Ebene, Tags (im Upload-Dialog vorausgefüllt) | M |
+| ☑ 9.8 | **Modell → Metadaten:** beim Upload lokal Maße/Dreiecke messen + Vorschaubild an die KI → Vorschlag Name, Kategorie, Größe, Kollisionsbox, Ebene, Tags (im Upload-Dialog vorausgefüllt) | M |
 | ☐ 9.9 | **Abschluss:** Sicherheitsprüfung (Schlüssel nie in Entwurf/Export/Backup/Log, Kontextgrenzen getestet), Version + Doku | S |
 
 ---

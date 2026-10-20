@@ -365,6 +365,8 @@ Vorschläge landen immer erst als **Vorschau** (Geister auf der Karte), Überneh
 - **🤖 im Reiter Prüfung:** je Fehler ein verständlicher Satz + Korrektur (gesendet wird nur die Umgebung des Fehlers).
 - **⚖ Loot-Balance:** Loot gegen Schwierigkeit – Tabelle + Vorschlagswerte (Zonen-Werte, Raum-Chancen).
 - **🎨 Zonen-Thema:** „winterlich“, „verregneter Herbst“ … → Bodentöne, Typ-Farben, Wetter, Musik-Ordner auf einmal.
+- **🤖 Vorschlag im Modell-Dialog** (öffnet nach dem Hochladen): schlägt Name, Kategorie, Ordner, Tags, Maße sowie Ebene und
+  Kollision vor – gesendet werden nur die gemessenen Maße, Dreiecke und das Vorschaubild, nie die Datei.
 - **🏷 Namen vorschlagen** für unbenannte Räume, Objekte, Übergänge, Loot-Zonen; im **🚀 Veröffentlichen**-Dialog schreibt
   **🤖 Release-Notes** eine kurze Beschreibung aus der Änderungsübersicht.
 
