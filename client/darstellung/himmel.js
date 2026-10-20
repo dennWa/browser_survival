@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 /**
- * Dynamischer Himmel als Bildschirm-Hintergrund (ein Vollbild-Dreieck, ein Draw-Call, kein Depth-Write).
+ * Dynamischer Himmel als Bildschirm-Hintergrund (ein Rechteck nur über der Himmelsfläche, ein Draw-Call, kein Depth-Write).
  *
  * Die Kamera schaut schräg nach unten – der echte Horizont liegt nie im Bild. Darum zeigt der Renderer den Himmel dort, wo die
  * Welt per Kamera-Ferne (camera.far) endet: oberer Bildrand, die Welt verblasst per Nebel in die Horizontfarbe (= Nebelfarbe),
@@ -12,8 +12,11 @@ import * as THREE from 'three';
  * beginnt der Himmel).
  */
 const VERTEX = /* glsl */ `
+  uniform float uSchnitt;
   void main() {
-    gl_Position = vec4(position.xy, 1.0, 1.0); // ganz hinten
+    // Nur die Himmelsfläche zeichnen (ab der Schnittlinie nach oben) – darunter deckt die Welt alles ab, dort Pixel sparen
+    float unten = clamp(uSchnitt * 2.0 - 1.0, -1.0, 1.0);
+    gl_Position = vec4(position.x, mix(unten, 1.0, position.y), 1.0, 1.0); // ganz hinten
   }
 `;
 
@@ -94,8 +97,8 @@ export class Himmel {
       uAufloesung: { value: new THREE.Vector2(1, 1) },
     };
     const geometrie = new THREE.BufferGeometry();
-    // ein Dreieck, das den ganzen Bildschirm abdeckt
-    geometrie.setAttribute('position', new THREE.BufferAttribute(new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]), 3));
+    // ein Rechteck (x −1…1, y 0…1 → im Shader auf Schnittlinie…oberen Rand gestreckt)
+    geometrie.setAttribute('position', new THREE.BufferAttribute(new Float32Array([-1, 0, 0, 1, 0, 0, 1, 1, 0, -1, 0, 0, 1, 1, 0, -1, 1, 0]), 3));
     this.mesh = new THREE.Mesh(
       geometrie,
       new THREE.ShaderMaterial({ uniforms: this.uniforms, vertexShader: VERTEX, fragmentShader: FRAGMENT, depthTest: false, depthWrite: false, fog: false }),

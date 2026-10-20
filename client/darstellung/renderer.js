@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { FBXLoader, SkeletonUtils } from '../vendor/three/addons.js';
 import { KartenModell, TUER_EBENE, TUER_SCHIMMER_WEITE } from './kartenModell.js';
 import { Himmel } from './himmel.js';
+import { strahlGegenWaende } from '../../gemeinsam/physik/strahl.js';
 import { NaturSchicht, ladeNaturModelle } from './naturModell.js';
 import { vereineGeometrien } from './geometrie.js';
 import { Fussspuren } from './fussspuren.js';
@@ -65,8 +66,10 @@ const TASCHENLAMPEN_ANSATZ = { vorn: 16, hoehe: 36 }; // Lichtkegel beginnt knap
 const LAMPEN_POOL = { handy: 5, desktop: 8 };
 const KEGEL_POOL = { handy: 1, desktop: 2 }; // Kegel-Lampen (Scheinwerfer, art 'kegel')
 /** Taschenlampe (Spieler): eher schmal und schwach – Nächte sollen düster bleiben (Nutzer-Wunsch, Editor 2.0 Schritt 2.1) */
-const TASCHENLAMPE = { winkel: 0.36, rand: 0.6, reichweite: 820, staerke: 260, staerkeNacht: 1500, kegelLaenge: 380 };
-const SCHEINWERFER = { winkel: 0.45, rand: 0.5, reichweite: 650, staerke: 500, staerkeNacht: 2600 };
+// Fokussierter Strahl: schmaler Kegel (~11°), 520 px Reichweite, weicher Rand (penumbra) und Abfall mit decay 1,5 statt hartem Schnitt.
+// Bei decay > 1 fällt das Licht schneller ab → Stärken entsprechend höher (≈ ×16 gegenüber decay 1 bei 250 px). Tagsüber aus.
+const TASCHENLAMPE = { winkel: 0.2, rand: 0.75, reichweite: 520, decay: 1.5, staerke: 0, staerkeNacht: 26000, kegelLaenge: 330 };
+const SCHEINWERFER = { decay: 1, winkel: 0.45, rand: 0.5, reichweite: 650, staerke: 500, staerkeNacht: 2600 };
 const MUENDUNGS_LICHTER = 2;
 const SITZ_TIEFE = 24; // so weit sinkt die Figur beim Sitzen am Feuer
 const SICHTWEITE = 1300; // weiter entfernte Figuren werden nicht animiert/gezeichnet
@@ -829,10 +832,14 @@ export class Renderer {
   }
 
   #neueTaschenlampe(mitSchatten) {
-    const spot = new THREE.SpotLight(0xffe4b8, 0, TASCHENLAMPE.reichweite, TASCHENLAMPE.winkel, TASCHENLAMPE.rand, 1);
+    const spot = new THREE.SpotLight(0xffe4b8, 0, TASCHENLAMPE.reichweite, TASCHENLAMPE.winkel, TASCHENLAMPE.rand, TASCHENLAMPE.decay);
+    // Schatten nur für die eigene Lampe (jede Schattenlampe = ein zusätzlicher Szenen-Durchgang); Wände, Häuser, Möbel, Bäume werfen und empfangen Schatten
     spot.castShadow = mitSchatten;
     spot.shadow.mapSize.set(this.istHandy ? 512 : 1024, this.istHandy ? 512 : 1024);
-    spot.shadow.bias = -0.0008;
+    spot.shadow.camera.near = 6;
+    spot.shadow.bias = -0.0006;
+    spot.shadow.normalBias = 0.6;
+    spot.shadow.radius = 3; // weiche Schattenkante
     this.szene.add(spot, spot.target);
     return spot;
   }
@@ -863,7 +870,7 @@ export class Renderer {
   /** Sichtbarer Lichtkegel (additiv, Spitze am Spieler, nach vorn ausblendend) – zeigt den Strahl der Taschenlampe in der Luft. */
   #neuerLichtKegel() {
     const laenge = TASCHENLAMPE.kegelLaenge;
-    const geometrie = new THREE.CylinderGeometry(0, laenge * Math.tan(TASCHENLAMPE.winkel), laenge, 24, 1, true).translate(0, -laenge / 2, 0).rotateZ(Math.PI / 2);
+    const geometrie = new THREE.CylinderGeometry(0, laenge * Math.tan(TASCHENLAMPE.winkel) * 0.75, laenge, 24, 1, true).translate(0, -laenge / 2, 0).rotateZ(Math.PI / 2);
     const pos = geometrie.attributes.position;
     const farben = new Float32Array(pos.count * 3);
     for (let i = 0; i < pos.count; i++) farben.fill(1 - pos.getX(i) / laenge, i * 3, i * 3 + 3);
@@ -1146,7 +1153,8 @@ export class Renderer {
         const ah = this.#hy(auto.x, auto.y);
         spot.position.set(auto.x + ax * (auto.laenge / 2 + 2), 22 + ah, auto.y + az * (auto.laenge / 2 + 2));
         spot.target.position.set(auto.x + ax * 380, this.#hy(auto.x + ax * 380, auto.y + az * 380), auto.y + az * 380);
-        Object.assign(spot, { angle: SCHEINWERFER.winkel, penumbra: SCHEINWERFER.rand, distance: SCHEINWERFER.reichweite });
+        Object.assign(spot, { angle: SCHEINWERFER.winkel, penumbra: SCHEINWERFER.rand, distance: SCHEINWERFER.reichweite, decay: SCHEINWERFER.decay });
+        spot.shadow.autoUpdate = false; // Scheinwerfer werfen keinen Schatten (Leistung)
         spot.intensity = this.nachtsicht ? 600 : SCHEINWERFER.staerke + SCHEINWERFER.staerkeNacht * dunkel;
         return;
       }
@@ -1155,21 +1163,27 @@ export class Renderer {
       // Der Kegel beginnt direkt vor der Brust (nicht mehr an der ausgestreckten Waffe): so liegt der Lichtkreis spürbar vorm Charakter.
       // Knapp außerhalb der Körpermitte, sonst verschluckt der eigene Schatten den Kegel.
       spot.position.set(s.x + vx * TASCHENLAMPEN_ANSATZ.vorn, TASCHENLAMPEN_ANSATZ.hoehe + this.#hy(s.x, s.y), s.y + vz * TASCHENLAMPEN_ANSATZ.vorn);
-      spot.target.position.set(s.x + vx * 420, this.#hy(s.x + vx * 420, s.y + vz * 420), s.y + vz * 420);
+      spot.target.position.set(s.x + vx * 260, this.#hy(s.x + vx * 260, s.y + vz * 260), s.y + vz * 260);
       // Schmaler, schwacher Kegel (düster); tagsüber sieht man ihn kaum
-      Object.assign(spot, { angle: TASCHENLAMPE.winkel, penumbra: TASCHENLAMPE.rand, distance: TASCHENLAMPE.reichweite });
-      spot.intensity = this.nachtsicht ? 400 : TASCHENLAMPE.staerke + TASCHENLAMPE.staerkeNacht * dunkel;
+      Object.assign(spot, { angle: TASCHENLAMPE.winkel, penumbra: TASCHENLAMPE.rand, distance: TASCHENLAMPE.reichweite, decay: TASCHENLAMPE.decay });
+      spot.intensity = this.nachtsicht ? 14000 : TASCHENLAMPE.staerke + TASCHENLAMPE.staerkeNacht * dunkel;
+      // Schattenkarte nur neu zeichnen, wenn der Strahl überhaupt sichtbar ist (nachts) – tagsüber spart das einen Szenen-Durchgang
+      spot.shadow.autoUpdate = spot.castShadow && spot.intensity > 500;
       if (dunkel > 0.05) {
-        const mitte = TASCHENLAMPEN_ANSATZ.vorn + 34;
-        schein.visible = true;
+        // Kegel und Bodenfleck enden an der ersten Wand (der echte Spot wird von der Schattenkarte begrenzt)
+        const frei = this.welt ? strahlGegenWaende(this.welt, s.x, s.y, s.blick, TASCHENLAMPE.kegelLaenge + TASCHENLAMPEN_ANSATZ.vorn).laenge - TASCHENLAMPEN_ANSATZ.vorn : TASCHENLAMPE.kegelLaenge;
+        const anteil = Math.max(0, Math.min(1, frei / TASCHENLAMPE.kegelLaenge));
+        const mitte = TASCHENLAMPEN_ANSATZ.vorn + 34 * Math.min(1, anteil * 4);
+        schein.visible = anteil > 0.03;
         schein.position.set(s.x + vx * mitte, 1.4 + this.#hy(s.x, s.y), s.y + vz * mitte);
         schein.rotation.y = -s.blick;
-        schein.scale.set(120, 1, 78);
+        schein.scale.set(120 * Math.min(1, anteil * 4), 1, 78 * Math.min(1, anteil * 4));
         schein.material.opacity = 0.34 * dunkel;
-        kegel.visible = true;
+        kegel.visible = anteil > 0.03;
+        kegel.scale.setScalar(anteil);
         kegel.position.set(s.x + vx * TASCHENLAMPEN_ANSATZ.vorn, 30 + this.#hy(s.x, s.y), s.y + vz * TASCHENLAMPEN_ANSATZ.vorn);
         kegel.rotation.y = -s.blick;
-        kegel.material.opacity = 0.16 * dunkel;
+        kegel.material.opacity = 0.05 * dunkel;
       }
     });
   }
@@ -1322,6 +1336,13 @@ export class Renderer {
     this.umgebung.intensity = 0.06 + hell * 1.24;
     this.szene.background.copy(NACHT.hintergrund).lerp(TAG.hintergrund, hell).lerp(DAEMMERUNG.hintergrund, daemmerung * 0.5);
     this.szene.fog.color.copy(this.szene.background);
+    // Sonnenschatten: nachts (Mond ≈ 0) keinen Szenen-Durchgang; Schattenkamera nur so groß wie der sichtbare Bereich (zoomabhängig)
+    this.mond.shadow.autoUpdate = this.mond.intensity > 0.25;
+    const schattenHalb = Math.round((560 * Math.max(0.9, this.zoom * this.fahrZoom)) / 20) * 20;
+    if (this.mond.shadow.camera.right !== schattenHalb) {
+      Object.assign(this.mond.shadow.camera, { left: -schattenHalb, right: schattenHalb, top: schattenHalb, bottom: -schattenHalb });
+      this.mond.shadow.camera.updateProjectionMatrix();
+    }
     const eigenLeuchten = NACHT_EIGENLEUCHTEN * dunkel;
     for (const m of this.spielerMaterialien) m.emissiveIntensity = eigenLeuchten;
     // Nebel wandert mit der Kamera (Zoom, Auto-Fahrt): sonst liegt beim Rauszoomen/Fahren alles hinter dem Nebel

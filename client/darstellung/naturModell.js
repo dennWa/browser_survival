@@ -21,6 +21,10 @@ const _v = new THREE.Vector3();
 const _s = new THREE.Vector3();
 const _achse = new THREE.Vector3(0, 1, 0);
 const _farbe = new THREE.Color();
+/** LOD-Abstände (px, zur Blockmitte) und Anteil der gezeichneten Büschel */
+const LOD_NAH2 = 240 ** 2;
+const LOD_MITTEL2 = 340 ** 2;
+const LOD_ANTEIL = [1, 0.5, 0.25];
 const NULL_MATRIX = new THREE.Matrix4().makeScale(0, 0, 0);
 
 /** Zufall aus Kachel + Kanal (0..1), deterministisch */
@@ -173,8 +177,10 @@ export class NaturSchicht {
         materialien.set(art, material);
       }
       const mesh = new THREE.InstancedMesh(modell.geometrie, material, instanzen.length);
-      mesh.receiveShadow = false; // dünne Halme: Schattenkarte würde nur Streifen (Akne) erzeugen und kostet Leistung
+      mesh.receiveShadow = true; // Halme werfen selbst keinen Schatten (keine Akne), empfangen aber Wand-/Baumschatten – Taschenlampe scheint nicht durch Wände
       mesh.castShadow = false;
+      // Zufällige Reihenfolge: so dünnt `mesh.count` (LOD, siehe aktualisiere) gleichmäßig aus statt Kachelreihen zu streichen
+      instanzen.sort((a, b) => streu(a.tx, a.ty, 99) - streu(b.tx, b.ty, 99) || a.matrix.elements[12] - b.matrix.elements[12]);
       instanzen.forEach((inst, i) => {
         mesh.setMatrixAt(i, inst.matrix);
         mesh.setColorAt(i, _farbe.setScalar(inst.farbe));
@@ -183,11 +189,12 @@ export class NaturSchicht {
         this.anKachel.get(idx).push({ mesh, index: i, matrix: inst.matrix });
       });
       mesh.instanceMatrix.needsUpdate = true;
+      mesh.userData.gesamt = instanzen.length;
       // fester Hüllkörper des Blocks (inkl. Gras-Höhe) fürs Frustum-Culling
       mesh.boundingSphere = new THREE.Sphere(new THREE.Vector3((Number(bx) + 0.5) * NATUR_BLOCK * g, 10, (Number(by) + 0.5) * NATUR_BLOCK * g), NATUR_BLOCK * g * 0.75 + 20);
       let b = blockGruppen.get(`${bx},${by}`);
       if (!b) {
-        b = { gruppe: new THREE.Group(), x: (Number(bx) + 0.5) * NATUR_BLOCK * g, z: (Number(by) + 0.5) * NATUR_BLOCK * g, sichtbar: true };
+        b = { stufe: 0, gruppe: new THREE.Group(), x: (Number(bx) + 0.5) * NATUR_BLOCK * g, z: (Number(by) + 0.5) * NATUR_BLOCK * g, sichtbar: true };
         blockGruppen.set(`${bx},${by}`, b);
         this.gruppe.add(b.gruppe);
       }
@@ -216,10 +223,18 @@ export class NaturSchicht {
   aktualisiere(fokus, bauwerkeVersion, ego = false) {
     const radius2 = ego ? this.blockRadiusEgo2 : this.blockRadius2;
     for (const b of this.bloecke) {
-      const sichtbar = (b.x - fokus.x) ** 2 + (b.z - fokus.y) ** 2 < radius2;
+      const d2 = (b.x - fokus.x) ** 2 + (b.z - fokus.y) ** 2;
+      const sichtbar = d2 < radius2;
       if (sichtbar !== b.sichtbar) {
         b.sichtbar = sichtbar;
         b.gruppe.visible = sichtbar;
+      }
+      if (!sichtbar) continue;
+      // LOD nach Abstand: nah volle Dichte, mittel gut die Hälfte, fern nur ein Viertel (Dreiecke sparen, kaum sichtbar)
+      const stufe = d2 < LOD_NAH2 ? 0 : d2 < LOD_MITTEL2 ? 1 : 2;
+      if (stufe !== b.stufe) {
+        b.stufe = stufe;
+        for (const mesh of b.gruppe.children) mesh.count = Math.ceil(mesh.userData.gesamt * LOD_ANTEIL[stufe]);
       }
     }
     if (bauwerkeVersion !== this.bauwerkeStand) {
