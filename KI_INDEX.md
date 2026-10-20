@@ -220,3 +220,10 @@ Zonen-Grundlage steht (2 Zonen, Waldweg groß mit See). Nächstes sinnvoll: Basi
 - **Credits eigener Dateien:** `client/assets/eigene/credits.json` [{paket,urheber,lizenz,url}] → `C:ui/credits.js` hängt sie an `atlas.lizenzen`. ⚠ `werkzeuge/assets/Credits` (alte Liste, Quaternius/Poly Pizza) steht NICHT im Spiel.
 - **Ordner `!verteilen` (Nutzer-Ablage, nicht committen):** Nutzer legt Dateien + `Credits.txt` hinein und sagt Bescheid. Ablauf: .glb → `client/assets/eigene/<name>.glb` (Name nicht `<karteId>_…`, sonst räumt `karte:editor` sie weg), Textur/Bild/Sound in den passenden Client-Ordner, Credits-Zeilen („Name by Autor [Lizenz] via Quelle“) → `credits.json`, Datei im Spiel einbauen (+ ggf. Karte), `!verteilen` leeren (Credits.txt bleibt).
 - Tests: `inhalte.test.js` PROZEDURAL enthält `tanne`; Karte `schneeland` läuft durch alle Karten-Tests.
+
+## 14 · Zoom-Limit, Ego-Sichtweite, Lampe (2026-10-21)
+- `renderer.js`: `ZOOM_MAX` 1,35 (alter gespeicherter Zoom wird gekappt). Ego-Sichtweite = `#egoSichtweite()` = Halbbreite des Draufsicht-Bildes am Boden bei `ZOOM_MAX` (`EGO_SICHT_FAKTOR` 1; 2 = ganzer Durchmesser), gesetzt in `#zeichneHimmel` (Ego-Zweig: `camera.far`, `fog.near/far`, Nebel/Regen verkürzen). ⚠ Kamera-Lerp läuft in Ego nicht (`egoHaken` → Position direkt): vorher schwankte `istAbstand` mit der Bildzeit → Nebel pulsierte („Ferne hüpft“). Messung Wald/niedrig: Ego 245→66 Draw-Calls, 77k→14k Dreiecke.
+- `TASCHENLAMPE`: Winkel 0,3 (breiter), Reichweite 480, `kegelLaenge` 300, `ziel` 180.
+- `clientSpiel`: `nacht` (Grillen) = 0 bei `welt.schnee`.
+- CLAUDE.md Regel 6: Internetzugriff für neue Texturen/Modelle erlaubt (Low-Poly-tauglich, klein, CC0/CC-BY + `credits.json`).
+- Messen im Browser-Pane: nur sichtbar (`mcp__ccd_view__show_pane preview`), sonst 30-FPS-Drossel/rAF steht; GPU-Zeit via `EXT_disjoint_timer_query_webgl2`.

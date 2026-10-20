@@ -7,6 +7,7 @@
 5. Spiellogik nur in `server/spiel/` (autoritativ, umgebungsfrei – keine `node:`-Importe, kein DOM).
 6. Grafiken nur über `werkzeuge/assets/baue_assets.py` + `npm run assets:3d` ändern (nie direkt in `client/assets/` oder `client/vendor/`). Nur CC0/CC-BY-Quellen, Credits-Dialog nicht entfernen.
    **Ausnahme (Nutzer-Entscheidung):** Eigene 3D-Modelle (`.glb`) aus dem Map-Editor landen über `npm run karte:editor` unverändert unter `client/assets/eigene/` – ohne Lizenzprüfung. Die Rechte liegen bei der hochladenden Person; Urheber/Lizenz sind optionale Felder am Typ.
+   **Internetzugriff erlaubt (Nutzer-Entscheidung):** Bei Wunsch nach neuen Texturen/Modellen/Sounds darfst du selbst im Internet suchen und Dateien herunterladen (CC0/CC-BY, Quelle + Lizenz in `client/assets/eigene/credits.json`). Passend zum Low-Poly-Stil wählen: kleine Texturen (typ. 256–512 px, keine 4K), niedrige Polygonzahl, kleine Dateien.
    Darstellung ist **nur 3D** (Three.js, `client/darstellung/renderer.js`) – kein 2D-Renderer mehr.
 7. Touch-Bedienung (Handy/Tablet) bei jeder neuen Aktion mitdenken.
 8. Vor jedem Commit: `npm test`.

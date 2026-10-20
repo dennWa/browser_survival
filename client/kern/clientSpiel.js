@@ -1146,8 +1146,8 @@ export class ClientSpiel {
     const aufhebbar = interaktion?.gegenstand ?? null;
     if (this.werkbankOffen && !this.#naheWerkbank()) this.werkbankUmschalten(false); // weggegangen → zu
     const uhr = tageszeit(this.serverZeit + (jetzt - this.zeitEmpfangen) / 1000, this.tageszeitDauer);
-    // Nachtgeräusche (Grillen) nur draußen-unabhängig nach Dunkelheit, in 10-%-Stufen (Ereignis nacht)
-    const nacht = Math.round((1 - (uhr.helligkeit ?? 1)) * 10) / 10;
+    // Nachtgeräusche (Grillen) nur draußen-unabhängig nach Dunkelheit, in 10-%-Stufen (Ereignis nacht); in Schneezonen keine Grillen
+    const nacht = this.welt.schnee ? 0 : Math.round((1 - (uhr.helligkeit ?? 1)) * 10) / 10;
     if (nacht !== this.letzteNachtStufe) {
       this.letzteNachtStufe = nacht;
       this.sound?.nacht(nacht);

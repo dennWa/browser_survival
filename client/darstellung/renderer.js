@@ -69,7 +69,7 @@ const KEGEL_POOL = { handy: 1, desktop: 2 }; // Kegel-Lampen (Scheinwerfer, art 
 /** Taschenlampe (Spieler): eher schmal und schwach – Nächte sollen düster bleiben (Nutzer-Wunsch, Editor 2.0 Schritt 2.1) */
 // Fokussierter Strahl: schmaler Kegel (~11°), 520 px Reichweite, weicher Rand (penumbra) und Abfall mit decay 1,5 statt hartem Schnitt.
 // Bei decay > 1 fällt das Licht schneller ab → Stärken entsprechend höher (≈ ×16 gegenüber decay 1 bei 250 px). Tagsüber aus.
-const TASCHENLAMPE = { winkel: 0.2, rand: 0.75, reichweite: 520, decay: 1.5, staerke: 0, staerkeNacht: 26000, kegelLaenge: 330, ziel: 195 }; // ziel = px vor dem Spieler (näher = Lichtkreis beginnt dichter an der Figur)
+const TASCHENLAMPE = { winkel: 0.3, rand: 0.75, reichweite: 480, decay: 1.5, staerke: 0, staerkeNacht: 26000, kegelLaenge: 300, ziel: 180 }; // ziel = px vor dem Spieler (näher = Lichtkreis beginnt dichter an der Figur)
 const SCHEINWERFER = { decay: 1, winkel: 0.45, rand: 0.5, reichweite: 650, staerke: 500, staerkeNacht: 2600 };
 const MUENDUNGS_LICHTER = 2;
 const SITZ_TIEFE = 24; // so weit sinkt die Figur beim Sitzen am Feuer
@@ -102,7 +102,9 @@ const GRAFIK_SCHLUESSEL = 'browserSurvival.grafik';
 const ADAPTIV_MAX_STUFE = 4; // im Profil "hoch" wird höchstens bis hier gespart (Schatten, Baum-Details) – Auflösung bleibt
 const AUFWAERM_MS = 6000; // so lange nach dem Betreten nicht messen (Shader, Texturen, erste Frames)
 const ZOOM_MIN = 0.5;
-const ZOOM_MAX = 1.9;
+const ZOOM_MAX = 1.35; // weiter raus geht nicht (Nutzer: war zu weit) – gilt auch als Sichtweite der Ich-Ansicht
+/** Ich-Ansicht sieht nicht weiter als die Draufsicht beim weitesten Rauszoomen: Halbbreite des Bildes am Boden (1 = Halbbreite, 2 = ganzer Durchmesser) */
+const EGO_SICHT_FAKTOR = 1;
 /** Lichtfarben für Tag, Nacht und Dämmerung (siehe #tageslicht) */
 const TAG = { sonne: new THREE.Color(0xfff1dc), himmel: new THREE.Color(0xbfd8ff), boden: new THREE.Color(0x4a4636), hintergrund: new THREE.Color(0x9cc3e4), zenit: new THREE.Color(0x2f78e0), wolken: new THREE.Color(0xffffff) };
 const NACHT = { sonne: new THREE.Color(0x8aa0d8), himmel: new THREE.Color(0x1b2238), boden: new THREE.Color(0x050505), hintergrund: new THREE.Color(0x02030a), zenit: new THREE.Color(0x000105), wolken: new THREE.Color(0x0b0e18) };
@@ -238,7 +240,7 @@ export class Renderer {
     this.zoom = 1;
     try {
       const z = Number(localStorage.getItem('browserSurvival.zoom'));
-      if (z >= ZOOM_MIN && z <= ZOOM_MAX) this.zoom = z;
+      if (z >= ZOOM_MIN) this.zoom = Math.min(z, ZOOM_MAX); // älteres, weiteres Zoom-Maximum wird gekappt
     } catch {
       // egal
     }
@@ -376,7 +378,9 @@ export class Renderer {
     this.kameraHoehe = (this.kameraHoehe ?? this.#hy(fokus.x, fokus.y)) + (this.#hy(fokus.x, fokus.y) - (this.kameraHoehe ?? 0)) * Math.min(1, dt * 6);
     _ziel.set(fokus.x, this.kameraHoehe, fokus.y);
     _kameraZiel.copy(this.kameraVersatz).multiplyScalar(this.fahrZoom).add(_ziel);
-    this.kamera3d.position.lerp(_kameraZiel, Math.min(1, dt * 8) || 1);
+    // Ich-Ansicht: Kamera nicht weich nachziehen (der Haken setzt sie ins Auge) – sonst schwankt istAbstand mit der Bildzeit und Nebel/Sichtweite pulsieren
+    if (this.egoHaken) this.kamera3d.position.copy(_kameraZiel);
+    else this.kamera3d.position.lerp(_kameraZiel, Math.min(1, dt * 8) || 1);
     this.kamera3d.lookAt(_ziel.x, _ziel.y, _ziel.z - 20);
     // Tatsächlicher Abstand (Kamera gleitet weich nach): Nebel/Ferne/Himmel daran koppeln, nicht an den Zielzoom –
     // sonst endet die Welt beim Reinzoomen kurz zu früh und der Himmel legt sich wie ein heller Schleier von oben drüber
@@ -1354,13 +1358,17 @@ export class Renderer {
     const ego = !!this.egoHaken;
     this.himmel.sichtbar = true;
     const kamera = this.kamera3d;
-    const ferne = ego ? 4000 : kamAbstand * HIMMEL_FERNE;
+    // Ego: feste Sichtweite (= was die Draufsicht beim weitesten Rauszoomen zeigt), dichter Nebel/Regen verkürzt sie
+    const egoSicht = ego ? this.#egoSichtweite() * (1 - 0.6 * Math.min(1, nebel + 0.35 * regen)) : 0;
+    const ferne = ego ? egoSicht * 1.02 : kamAbstand * HIMMEL_FERNE;
     if (Math.abs(kamera.far - ferne) > 0.5) {
       kamera.far = ferne;
       kamera.updateProjectionMatrix();
     }
     let schnitt;
     if (ego) {
+      this.szene.fog.near = egoSicht * 0.45;
+      this.szene.fog.far = egoSicht;
       // Ego: echter Horizont – Bildhöhe der Horizontlinie aus der Kameraneigung; der Himmel füllt alles darüber
       kamera.getWorldDirection(_blick);
       const neigung = Math.asin(Math.max(-1, Math.min(1, _blick.y)));
@@ -1498,6 +1506,13 @@ export class Renderer {
       const p = this.kamera.weltZuBildschirm(g.x, g.y, 12);
       zeichneItemName(ctx, g.menge > 1 ? `${itemDefinitionen[g.defId].name} ×${g.menge}` : itemDefinitionen[g.defId].name, p.x, p.y - 4);
     }
+  }
+
+  /** Sichtweite der Ich-Ansicht in px: Halbbreite des Draufsicht-Bildes am Boden bei ZOOM_MAX (Bildschirm-Seitenverhältnis, mindestens 1:1) */
+  #egoSichtweite() {
+    const abstand = KAMERA_VERSATZ.length() * (this.grundAbstand ?? 1) * ZOOM_MAX;
+    const halbHoehe = Math.tan((38 * Math.PI) / 360) * abstand;
+    return halbHoehe * Math.max(1, this.kamera3d.aspect) * EGO_SICHT_FAKTOR;
   }
 
   /** Kameraabstand = Bildschirmgröße × Zoom; Nebel wandert mit, damit man beim Rauszoomen nicht ins Graue schaut. */
