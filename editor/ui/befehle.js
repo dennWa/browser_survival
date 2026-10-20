@@ -1,8 +1,10 @@
 /**
  * Befehlsregister des Editors (Editor 2.0, Schritt 1.2): JEDE Aktion steht genau einmal hier –
  *   { id, name, symbol?, gruppe, kuerzel: ['Strg+Z', …], ausfuehren(ereignis?), verfuegbar?(), aktiv?(), hinweis?, inEingabe? }
- * Menüleiste, Schnellleiste, Werkzeugleiste, Kontextmenü und Tastatur lesen nur daraus (später auch Hilfe/Befehlspalette
- * und eigene Tastenkürzel, Schritt 7.1). Kürzel-Schreibweise: 'Strg+Umschalt+Alt+Taste' (Strg = Ctrl oder ⌘).
+ * Menüleiste, Schnellleiste, Werkzeugleiste, Kontextmenü, Tastatur, Hilfe und Befehlspalette (ui/hilfeUi.js) lesen nur daraus.
+ * Eigene Tastenkürzel (Schritt 7.1): `belegeTaste(id, k)` (nimmt die Taste anderen Befehlen weg), `zuruecksetzen(id?)`;
+ * gespeichert als { id: [kürzel] } über den eingespeisten `speicher` (Browser: localStorage `browserSurvival.editorKuerzel`).
+ * `standard` = Kürzel aus der Befehlsliste. Kürzel-Schreibweise: 'Strg+Umschalt+Alt+Taste' (Strg = Ctrl oder ⌘).
  *   Tastennamen: Buchstaben groß ('V'), Ziffern, Zeichen ('[', '?', '+'), sowie Entf, Rück, Esc, Enter, Tab, Leertaste,
  *   Links/Rechts/Hoch/Runter, F1–F12. Umschalt zählt nur bei Buchstaben/Sondertasten (bei '?' steckt es im Zeichen).
  */
@@ -49,17 +51,85 @@ export function kuerzelText(k) {
 }
 
 export class Befehle {
-  constructor({ beiNichtVerfuegbar = null } = {}) {
+  constructor({ beiNichtVerfuegbar = null, speicher = null } = {}) {
     /** id → Befehl */
     this.liste = new Map();
     this.beiNichtVerfuegbar = beiNichtVerfuegbar;
     this.hoerer = new Set();
+    this.speicher = speicher;
+    /** eigene Kürzel: id → [kürzel] (leere Liste = bewusst ohne Taste) */
+    this.eigene = { ...(speicher?.lies?.() ?? {}) };
   }
 
-  /** Befehle anmelden (spätere Anmeldung mit gleicher ID ersetzt) */
+  /** Befehle anmelden (spätere Anmeldung mit gleicher ID ersetzt); eigene Kürzel gelten sofort */
   registriere(...befehle) {
-    for (const b of befehle) this.liste.set(b.id, { gruppe: '', kuerzel: [], ...b });
+    for (const b of befehle) {
+      const standard = b.kuerzel ?? [];
+      const eigen = Array.isArray(this.eigene[b.id]) ? this.eigene[b.id] : null;
+      this.liste.set(b.id, { gruppe: '', ...b, standard, kuerzel: eigen ?? standard });
+    }
     this.melde();
+  }
+
+  /** Welcher andere Befehl hat dieses Kürzel? */
+  konflikt(kuerzel, ausser = null) {
+    for (const b of this.liste.values()) if (b.id !== ausser && b.kuerzel.includes(kuerzel)) return b;
+    return null;
+  }
+
+  #setze(id, kuerzel) {
+    const b = this.get(id);
+    if (!b) return;
+    b.kuerzel = kuerzel;
+    if (JSON.stringify(kuerzel) === JSON.stringify(b.standard)) delete this.eigene[id];
+    else this.eigene[id] = [...kuerzel];
+  }
+
+  #speichere() {
+    this.speicher?.schreibe?.({ ...this.eigene });
+    this.melde();
+  }
+
+  /**
+   * Taste einem Befehl geben (ersetzt seine bisherigen Kürzel). Hat ein anderer Befehl dieselbe Taste, verliert er sie.
+   * @returns der Befehl, dem die Taste weggenommen wurde (oder null)
+   */
+  belegeTaste(id, kuerzel) {
+    if (!this.get(id) || !kuerzel) return null;
+    const anderer = this.konflikt(kuerzel, id);
+    if (anderer) this.#setze(anderer.id, anderer.kuerzel.filter((k) => k !== kuerzel));
+    this.#setze(id, [kuerzel]);
+    this.#speichere();
+    return anderer;
+  }
+
+  /** Taste(n) eines Befehls entfernen */
+  entferneKuerzel(id) {
+    this.#setze(id, []);
+    this.#speichere();
+  }
+
+  /** Standard-Kürzel wiederherstellen (ohne id: alle). Nimmt die Tasten ggf. anderen eigenen Belegungen wieder weg. */
+  zuruecksetzen(id = null) {
+    const ids = id ? [id] : Object.keys(this.eigene);
+    for (const i of ids) {
+      const b = this.get(i);
+      if (!b) {
+        delete this.eigene[i];
+        continue;
+      }
+      for (const k of b.standard) {
+        const anderer = this.konflikt(k, i);
+        if (anderer && this.eigene[anderer.id]) this.#setze(anderer.id, anderer.kuerzel.filter((x) => x !== k));
+      }
+      this.#setze(i, [...b.standard]);
+    }
+    this.#speichere();
+  }
+
+  /** Hat der Befehl eigene (geänderte) Kürzel? */
+  geaendert(id) {
+    return Object.hasOwn(this.eigene, id);
   }
 
   get(id) {

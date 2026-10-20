@@ -9,6 +9,7 @@ import { EditorSpeicher } from './ui/speicher.js';
 import { Zustand } from './ui/zustand.js';
 import { Zeichner2D } from './ui/zeichner2d.js';
 import { Befehle, kuerzelText } from './ui/befehle.js';
+import { hilfeUi } from './ui/hilfeUi.js';
 import { meldeBefehleAn, menues, SCHNELLLEISTE, WERKZEUGLEISTE, kontextEintraege } from './ui/befehlsliste.js';
 import { Menueleiste, oeffneListe, listeOffen } from './ui/menue.js';
 import { Seitenleiste } from './ui/seitenleiste.js';
@@ -52,7 +53,28 @@ const leinwand = document.getElementById('leinwand2d');
 const zeichner = new Zeichner2D(leinwand, zustand);
 zeichner.ladeAtlas();
 
-const befehle = new Befehle({ beiNichtVerfuegbar: (b) => zustand.meldung(`„${b.name}“ geht gerade nicht${b.grund ? ` – ${b.grund}` : ''}`, 'fehler') });
+const KUERZEL_SPEICHER = 'browserSurvival.editorKuerzel'; // eigene Tastenkürzel (7.1), in der Backup-Whitelist
+const befehle = new Befehle({
+  beiNichtVerfuegbar: (b) => zustand.meldung(`„${b.name}“ geht gerade nicht${b.grund ? ` – ${b.grund}` : ''}`, 'fehler'),
+  speicher: {
+    lies: () => {
+      try {
+        return JSON.parse(localStorage.getItem(KUERZEL_SPEICHER) ?? 'null');
+      } catch {
+        return null;
+      }
+    },
+    schreibe: (o) => {
+      try {
+        if (Object.keys(o).length) localStorage.setItem(KUERZEL_SPEICHER, JSON.stringify(o));
+        else localStorage.removeItem(KUERZEL_SPEICHER);
+      } catch {
+        /* gesperrter Speicher → gilt nur bis zum Neuladen */
+      }
+    },
+  },
+});
+const { zeigeHilfe, zeigePalette } = hilfeUi({ befehle, zustand });
 /** Teile, die Aktionen/Befehle später brauchen (werden unten befüllt) */
 const teile = { befehle, zustand, zeichner };
 const aktionen = erstelleAktionen({ zustand, zeichner, leinwand, teile });
@@ -72,7 +94,7 @@ pruefungUi({ zustand, leiste: rechts, aktionen });
 zonenManagerUi({ zustand, leiste: rechts, zeichner, aktionen });
 lootUi({ zustand, aktionen });
 const datei = dateiAktionen({ zustand, zeichner, werkzeuge, aktionen, rechts, bibliothek, audioBibliothek });
-Object.assign(teile, { werkzeuge, assets, inspektor: insp, layout, links, rechts, datei, aktionen, schalteAnsicht, zeigeHilfe, kontextmenue });
+Object.assign(teile, { werkzeuge, assets, inspektor: insp, layout, links, rechts, datei, aktionen, schalteAnsicht, zeigeHilfe, zeigePalette, kontextmenue });
 
 // --- Module der Phasen 6–11 ---------------------------------------------------------------
 prefabUi({ zustand, panel: links, aktionen, layout });
@@ -162,28 +184,6 @@ function schalteAnsicht() {
 }
 
 // --- Hilfe: alle Befehle mit Kürzeln, durchsuchbar --------------------------------------------
-function zeigeHilfe() {
-  const gruppen = new Map();
-  for (const b of befehle.liste.values()) {
-    if (!gruppen.has(b.gruppe)) gruppen.set(b.gruppe, []);
-    gruppen.get(b.gruppe).push(b);
-  }
-  const html = `<input type="search" class="hilfe-suche" placeholder="Befehl oder Taste suchen …" style="width:100%">
-    <div class="hilfe-raster">${[...gruppen].map(([g, liste]) => `<section><h4>${esc(g)}</h4>${liste.map((b) => `<div class="hilfe-zeile" data-text="${esc(`${b.name} ${b.kuerzel.join(' ')} ${g}`.toLowerCase())}">${b.kuerzel.map((k) => `<kbd>${esc(kuerzelText(k))}</kbd>`).join(' ') || '<span class="leise">–</span>'} ${esc(b.symbol ?? '')} ${esc(b.name)}</div>`).join('')}</section>`).join('')}</div>
-    <p class="leise">Maus: Rad = Zoom (Umschalt = seitwärts) · Trackpad: 2 Finger = schwenken, Pinch = Zoom · Rechts-Ziehen = schwenken · Rechtsklick = Kontextmenü · Alt+Klick = Pipette · Alt beim Ziehen = fein (0,1). Touch: Ansehen, Schwenken, Zoomen überall; Bauen ist für Maus & Tastatur gebaut.</p>`;
-  dialog({
-    titel: '⌨ Tastenkürzel & Befehle',
-    html,
-    beiOeffnen: (b) => {
-      const suche = b.querySelector('.hilfe-suche');
-      suche.addEventListener('input', () => {
-        const q = suche.value.trim().toLowerCase();
-        b.querySelectorAll('.hilfe-zeile').forEach((z) => (z.hidden = !!q && !z.dataset.text.includes(q)));
-        b.querySelectorAll('.hilfe-raster section').forEach((s) => (s.hidden = ![...s.querySelectorAll('.hilfe-zeile')].some((z) => !z.hidden)));
-      });
-    },
-  });
-}
 
 // --- Statusleiste, Prüfung, Zonenliste -------------------------------------------------------
 const statusKoord = document.getElementById('status-koord');

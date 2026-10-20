@@ -869,8 +869,73 @@ kbd {
 }
 .hilfe-raster {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 4px 16px;
+}
+.hilfe {
+  min-width: min(760px, 86vw);
+}
+.hilfe-zeile {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 6px;
+  align-items: center;
+  padding: 2px 0;
+  font-size: 13px;
+}
+.hilfe-zeile .aktionen {
+  display: flex;
+  gap: 2px;
+  opacity: 0.35;
+}
+.hilfe-zeile:hover .aktionen,
+.hilfe-zeile.wartet .aktionen,
+.hilfe-zeile:focus-within .aktionen {
+  opacity: 1;
+}
+.hilfe-zeile .aktionen button {
+  min-height: 26px;
+  min-width: 26px;
+  padding: 0;
+}
+.hilfe-zeile.geaendert .tasten kbd {
+  border-color: var(--gelb);
+}
+.hilfe-zeile.wartet {
+  outline: 2px solid var(--blau);
+  border-radius: 4px;
+}
+@media (hover: none) {
+  .hilfe-zeile .aktionen {
+    opacity: 1;
+  }
+}
+.palette {
+  min-width: min(560px, 86vw);
+}
+.palette-suche {
+  width: 100%;
+  font-size: 15px;
+}
+.palette-liste {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  max-height: 55vh;
+  overflow: auto;
+}
+.palette-liste li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.palette-liste li.aktiv,
+.palette-liste li:hover {
+  background: var(--bg3);
+  outline: 1px solid var(--blau);
 }
 
 @media (max-width: 1380px) {

@@ -180,7 +180,21 @@ try {
   await seite.keyboard.press('?');
   await seite.fill('#dialog .hilfe-suche', 'duplizieren');
   pruefe((await seite.locator('#dialog .hilfe-zeile:visible').count()) >= 1 && (await seite.locator('#dialog .hilfe-zeile:visible').count()) < 5, 'Hilfe: Suche filtert die Befehle');
+  // 7.1: eigene Taste belegen (nächster Tastendruck), Konflikt, zurücksetzen
+  await seite.click('#dialog .hilfe-zeile[data-id="bearbeiten.duplizieren"] [data-k="belegen"]');
+  await seite.keyboard.press('Shift+Q');
+  await seite.waitForSelector('#dialog .hilfe-zeile.geaendert[data-id="bearbeiten.duplizieren"]');
+  pruefe(await seite.evaluate(() => window.mapEditor.befehle.finde('Umschalt+Q')?.id === 'bearbeiten.duplizieren' && JSON.parse(localStorage.getItem('browserSurvival.editorKuerzel'))['bearbeiten.duplizieren'][0] === 'Umschalt+Q'), 'Eigene Taste belegt und gespeichert');
+  await seite.click('#dialog .hilfe-zeile[data-id="bearbeiten.duplizieren"] [data-k="standard"]');
+  pruefe(await seite.evaluate(() => window.mapEditor.befehle.finde('Strg+D')?.id === 'bearbeiten.duplizieren' && !localStorage.getItem('browserSurvival.editorKuerzel')), 'Zurücksetzen stellt Strg+D wieder her');
   await seite.keyboard.press('Escape');
+  // Befehlspalette
+  await seite.keyboard.press('Control+k');
+  await seite.waitForSelector('#dialog .palette-suche');
+  await seite.fill('#dialog .palette-suche', 'ebenen ein');
+  await seite.keyboard.press('Enter');
+  await seite.waitForFunction(() => window.mapEditor.rechts.aktiv === 'Ebenen');
+  pruefe(true, 'Befehlspalette (Strg+K): suchen + Enter führt aus');
 
   schritt('Neu laden: Entwurf + Verlauf bleiben');
   await seite.waitForTimeout(1200);

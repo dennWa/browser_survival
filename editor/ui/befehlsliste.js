@@ -6,7 +6,7 @@ import { katalog } from '../kern/katalog.js';
  * Neue Funktion = hier einen Befehl anmelden (ID 'bereich.name') und ihn in MENUES/… eintragen – Tastatur, Menü, Tooltip
  * und Hilfe (?) kommen dann von selbst. Kürzel-Schreibweise siehe ui/befehle.js.
  *
- * t = { zustand, zeichner, aktionen, datei, werkzeuge, layout, links, rechts, assets, schalteAnsicht, zeigeHilfe }
+ * t = { zustand, zeichner, aktionen, datei, werkzeuge, layout, links, rechts, assets, schalteAnsicht, zeigeHilfe, zeigePalette }
  */
 export function meldeBefehleAn(befehle, t) {
   const { zustand: z, zeichner, aktionen: a, datei } = t;
@@ -113,7 +113,8 @@ export function meldeBefehleAn(befehle, t) {
     { id: 'ki.import', name: 'KI-Antwort importieren (mit Vorschau)…', symbol: '📥', gruppe: 'KI', verfuegbar: karte, ausfuehren: () => a.kiImport?.() },
 
     // --- Hilfe --------------------------------------------------------------------
-    { id: 'hilfe.kuerzel', name: 'Tastenkürzel & Befehle', symbol: '⌨', gruppe: 'Hilfe', kuerzel: ['?', 'F1'], ausfuehren: () => t.zeigeHilfe() },
+    { id: 'hilfe.kuerzel', name: 'Tastenkürzel & Befehle (anpassen)', symbol: '⌨', gruppe: 'Hilfe', kuerzel: ['?', 'F1'], ausfuehren: () => t.zeigeHilfe() },
+    { id: 'hilfe.palette', name: 'Befehlspalette (Befehl suchen & ausführen)', symbol: '🔎', gruppe: 'Hilfe', kuerzel: ['Strg+K'], inEingabe: true, ausfuehren: () => t.zeigePalette() },
     { id: 'hilfe.anleitung', name: 'Anleitung (LIESMICH)', symbol: '📖', gruppe: 'Hilfe', ausfuehren: () => window.open(new URL('LIESMICH.md', location.href).href, '_blank', 'noopener') },
   );
 }
@@ -147,7 +148,7 @@ export function menues(t) {
     { titel: 'Werkzeuge', eintraege: WERKZEUGLEISTE.filter((x) => x !== '-').concat(['-', 'werkzeug.kleiner', 'werkzeug.groesser']) },
     { titel: 'Zone', eintraege: ['zone.einstellungen', 'zone.groesse', '-', 'zone.uebersicht', 'zone.vorschlaege', 'zone.raeume', 'zone.prefabs', '-', 'zone.pruefung', 'zone.testen'] },
     { titel: 'KI', eintraege: ['ki.helfer', 'ki.ausschnitt', 'ki.import'] },
-    { titel: 'Hilfe', eintraege: ['hilfe.kuerzel', 'hilfe.anleitung'] },
+    { titel: 'Hilfe', eintraege: ['hilfe.palette', 'hilfe.kuerzel', 'hilfe.anleitung'] },
   ];
 }
 

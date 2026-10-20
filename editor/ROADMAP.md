@@ -71,9 +71,13 @@
 - 6.4 fertig (2026-10-20): Anzeigen `loot` (Taste O, Schnellleiste 🎁) und `lootDichte` (Umschalt+O, Heatmap aus
   `kern/lootZonenEditor.js lootDichte`). Phase 6 komplett; npm test 275, rauchtest:editor + rauchtest grün.
 
-**Nächster Schritt: Phase 7 – 7.1 Tastenkürzel anpassbar + Befehlspalette (Strg+K).** Plan: Kürzel-Overrides in localStorage
-`browserSurvival.editorKuerzel` (in die Backup-Whitelist), `befehle.js` liest sie beim Registrieren, Konflikterkennung im
-Hilfe-Dialog (Taste drücken zum Belegen, ✕ zurücksetzen), Befehlspalette = Hilfe-Liste mit Enter = ausführen.
+- 7.1 fertig (2026-10-20): eigene Tastenkürzel (`ui/befehle.js` belegeTaste/zuruecksetzen, localStorage
+  `browserSurvival.editorKuerzel`), Hilfe mit ⌨/✕/↺ + Befehlspalette Strg+K (`ui/hilfeUi.js`), Tests + Rauchtest.
+
+**Nächster Schritt: 7.2 Mehrfachauswahl – Ausrichten/Verteilen/Spiegeln.** Plan: reiner Kern `editor/kern/anordnen.js`
+(Rechteck je Element wie `bearbeiten.js`, ausrichten links/rechts/oben/unten/Mitte, verteilen mit gleichen Abständen,
+spiegeln waagerecht/senkrecht inkl. Kacheln im Auswahl-Rechteck und Drehungen), Befehle in `befehlsliste.js` +
+Inspektor bei Mehrfachauswahl, je 1 Undo-Schritt.
 
 **Danach:** Phasen 6–9 laut Tabellen unten (6 Zonen/Loot, 7 UX, 8 Testlauf, 9 KI).
 
@@ -156,7 +160,7 @@ Hilfe-Dialog (Taste drücken zum Belegen, ✕ zurücksetzen), Befehlspalette = H
 ## Phase 7 – UX, Bedienung & QoL
 | # | Schritt | Größe |
 |---|---|---|
-| ☐ 7.1 | **Tastenkürzel überall + Hilfe:** alle Befehle aus dem Register mit Kürzel, **anpassbar** (Konflikterkennung, Zurücksetzen, gespeichert), Hilfe-Übersicht mit **Suche** – zugleich Befehlspalette (Strg+K) | M |
+| ☑ 7.1 | **Tastenkürzel überall + Hilfe:** alle Befehle aus dem Register mit Kürzel, **anpassbar** (Konflikterkennung, Zurücksetzen, gespeichert), Hilfe-Übersicht mit **Suche** – zugleich Befehlspalette (Strg+K) | M |
 | ☐ 7.2 | **Mehrfachauswahl:** Ausrichten (links/rechts/oben/unten/Mitte), Verteilen (gleiche Abstände), Spiegeln (waagerecht/senkrecht, inkl. Kacheln und Drehungen) – je 1 Undo-Schritt | M |
 | ☐ 7.3 | **Messen & Ausrichten:** Maßband (Strecke, Pfadlänge, Winkel), Lineale mit herausziehbaren Hilfslinien, einstellbares Raster (Weite, Hauptlinien), Einrasten an Raster/Objektkanten/-mitten/Hilfslinien, 3D-Ausrichtungshilfen (Raster, Achsen-Gizmo, auf Gelände einrasten) | M |
 | ☐ 7.4 | **Bibliothek & Vorlagen:** Prefabs in Ordnern, Suche, automatische Vorschaubilder für eigene Prefabs/Objekte, Favoriten, Ziehen aus der Bibliothek auf die Karte (eine Bibliothek für Assets, Prefabs, Loot-Vorlagen, Audio) | M |

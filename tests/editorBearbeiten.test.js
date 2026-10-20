@@ -305,3 +305,36 @@ test('Ego-Zielen: Draufsicht trifft 2D, in der Ich-Perspektive muss man zum Ziel
   const d = 10 * 32; // Entfernung bis zum Ziel
   assert.ok(schuss(Math.atan2(96 + 30 - 54, d)), 'Ego, nach oben gezielt: Treffer');
 });
+
+test('Eigene Tastenkürzel (7.1): belegen nimmt die Taste weg, gespeichert, beim Neustart aktiv, zurücksetzen', () => {
+  let gespeichert = null;
+  const speicher = { lies: () => gespeichert, schreibe: (o) => (gespeichert = JSON.parse(JSON.stringify(o))) };
+  const liste = () => [
+    { id: 'a', name: 'A', kuerzel: ['V'], ausfuehren() {} },
+    { id: 'b', name: 'B', kuerzel: ['B'], ausfuehren() {} },
+    { id: 'c', name: 'C', ausfuehren() {} },
+  ];
+  const befehle = new Befehle({ speicher });
+  befehle.registriere(...liste());
+  assert.equal(befehle.konflikt('V', 'c').id, 'a');
+  const weg = befehle.belegeTaste('c', 'V');
+  assert.equal(weg.id, 'a', 'A verliert V');
+  assert.deepEqual(befehle.get('c').kuerzel, ['V']);
+  assert.deepEqual(befehle.get('a').kuerzel, []);
+  assert.equal(befehle.finde('V').id, 'c');
+  assert.deepEqual(gespeichert, { a: [], c: ['V'] });
+  // Neustart: eigene Kürzel gelten sofort
+  const neu = new Befehle({ speicher });
+  neu.registriere(...liste());
+  assert.equal(neu.finde('V').id, 'c');
+  assert.ok(neu.geaendert('a') && !neu.geaendert('b'));
+  // A zurücksetzen → bekommt V zurück, C verliert es wieder
+  neu.zuruecksetzen('a');
+  assert.deepEqual(neu.get('a').kuerzel, ['V']);
+  assert.deepEqual(neu.get('c').kuerzel, []);
+  neu.zuruecksetzen();
+  assert.deepEqual(gespeichert, {});
+  assert.deepEqual(neu.get('c').kuerzel, []);
+  neu.entferneKuerzel('b');
+  assert.equal(neu.finde('B'), null);
+});

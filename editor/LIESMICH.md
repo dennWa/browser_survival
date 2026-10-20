@@ -301,7 +301,10 @@ Danach `npm test`. Neue Zone mit Übergang? Die Nachbarzone braucht einen Überg
 
 ## Tastenkürzel
 
-`?` (oder F1) zeigt **alle** Befehle mit Kürzeln – mit Suchfeld. Wichtigste: V Auswahl · H Schwenken · B Pinsel · U Rechteck ·
+`?` (oder F1) zeigt **alle** Befehle mit Kürzeln – mit Suchfeld. **Eigene Tasten:** dort **⌨** an einem Befehl, dann die
+neue Taste drücken (Esc = abbrechen; hatte ein anderer Befehl die Taste, verliert er sie – Meldung), **✕** = Taste weg,
+**↺** = Standard, „Alle Tasten zurücksetzen“. Gilt für diesen Browser und steckt im Komplett-Backup.
+**Strg+K** öffnet die **Befehlspalette**: tippen, Pfeiltasten, Enter = ausführen. Wichtigste: V Auswahl · H Schwenken · B Pinsel · U Rechteck ·
 L Linie · G Füllen · E Radierer · I Pipette (oder Alt+Klick) · T Gelände · K Farbe · Z Zonengröße · R drehen · Strg+Z/Y ·
 Strg+C/X/V · Strg+D · Strg+A ganze Zone · Entf · Pfeile verschieben (Umschalt = 5) · F ganze Zone · 3 = 2D/3D · Tab Fokus ·
 Strg+F Assets suchen · Strg+J KI-Helfer · Strg+Enter testen · Strg+S speichern · O Loot ein/aus · Umschalt+O Loot-Dichte · Esc.

@@ -16,7 +16,7 @@ import { leseVorlagenDatei, VORLAGEN_FORMAT } from './lootVorlagen.js';
 export const BACKUP_FORMAT = 'browser-survival-editor-backup';
 export const BACKUP_VERSION = 1;
 /** localStorage-Schlüssel, die ins Backup dürfen (nichts Geheimes!) */
-export const EINSTELLUNGEN_WHITELIST = Object.freeze(['browserSurvival.editorEbenen', 'browserSurvival.editorLayout', 'browserSurvival.editorAssets']);
+export const EINSTELLUNGEN_WHITELIST = Object.freeze(['browserSurvival.editorEbenen', 'browserSurvival.editorLayout', 'browserSurvival.editorAssets', 'browserSurvival.editorKuerzel']);
 
 export function baueBackup({ entwuerfe = [], archiv = {}, lootVorlagen = {}, prefabs = {}, meta = {}, einstellungen = {}, bibliothek = [], audio = [], erstellt = new Date().toISOString() }) {
   const erlaubt = Object.fromEntries(Object.entries(einstellungen).filter(([k]) => EINSTELLUNGEN_WHITELIST.includes(k)));
