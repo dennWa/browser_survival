@@ -857,6 +857,40 @@ try {
     pruefe(codes.some((t) => t.includes('gibtsnicht')), `Prüfung meldet unbekanntes Item (${codes.length} Meldungen)`);
     await seite.keyboard.press('Control+z');
     await seite.screenshot({ path: path.join(AUSGABE, 'editor-16-lootzone.png') });
+
+    schritt('Phase 6.3/6.4: Loot-Vorlage speichern + verknüpfen + nachziehen, Loot per Taste O ausblenden, Dichte-Heatmap');
+    await seite.click('#rechts .loot-vorlage [data-v="speichern"]');
+    await seite.fill('#dialog [name="name"]', 'Rauchtest-Vorlage');
+    await seite.click('#dialog button:has-text("Speichern")');
+    await seite.waitForFunction((id) => window.mapEditor.zustand.karte.s('lootZonen').get(id).vorlage, lz.id);
+    const vid = await seite.evaluate((id) => window.mapEditor.zustand.karte.s('lootZonen').get(id).vorlage, lz.id);
+    // zweite Zone verknüpfen, dann Vorlage aus der ersten aktualisieren → zweite zieht nach
+    const zweite = await seite.evaluate((vorlage) => {
+      const z = window.mapEditor.zustand;
+      const nr = z.karte.naechsteId;
+      z.ausfuehren('Zweite Zone', [{ s: 'lootZonen', k: nr, neu: { name: 'Zwei', x: 10, y: 8, b: 3, h: 3, modus: 'gewicht', punkte: 2, ort: 'alle', eintraege: [{ id: 'apfel', gewicht: 1 }], vorlage } }]);
+      return nr;
+    }, vid);
+    await seite.evaluate((id) => {
+      const z = window.mapEditor.zustand;
+      const alt = z.karte.s('lootZonen').get(id);
+      z.ausfuehren('Chance ändern', [{ s: 'lootZonen', k: id, neu: { ...alt, eintraege: [{ id: 'verband', chance: 42 }] } }]);
+    }, lz.id);
+    await seite.evaluate((id) => window.mapEditor.zustand.waehle([{ s: 'lootZonen', k: id }]), lz.id);
+    await seite.waitForSelector('#rechts .loot-vorlage [data-v="aktualisieren"]');
+    await seite.click('#rechts .loot-vorlage [data-v="aktualisieren"]');
+    await seite.click('#dialog button:has-text("Aktualisieren")');
+    await seite.waitForFunction((n) => window.mapEditor.zustand.karte.s('lootZonen').get(n).eintraege[0]?.chance === 42, zweite);
+    pruefe(true, 'Vorlage aktualisiert → verknüpfte Zone zieht nach');
+    await seite.keyboard.press('Escape');
+    await seite.mouse.click(5, 450);
+    await seite.keyboard.press('o');
+    pruefe(!(await seite.evaluate(() => window.mapEditor.zustand.sichtbar('loot'))), 'Taste O blendet Loot aus');
+    await seite.keyboard.press('o');
+    await seite.keyboard.press('Shift+O');
+    pruefe(await seite.evaluate(() => window.mapEditor.zustand.sichtbar('lootDichte')), 'Umschalt+O zeigt die Dichte-Heatmap');
+    await seite.screenshot({ path: path.join(AUSGABE, 'editor-17-lootdichte.png') });
+    await seite.keyboard.press('Shift+O');
     await seite.keyboard.press('Escape');
   }
 

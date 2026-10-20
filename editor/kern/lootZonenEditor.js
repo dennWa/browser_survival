@@ -25,3 +25,41 @@ export function lootVorschau(karte, id, kachel = kachelPruefer(karte)) {
   if (!zone) return { zone: null, punkte: [], frei: 0, fehler };
   return { zone, punkte: punkteDerZone(zone, kachel, nr), frei: kandidaten(zone, kachel, nr).length, fehler };
 }
+
+/**
+ * Loot-Dichte für die Heatmap (Schritt 6.4): je Kachel die erwartete Zahl Gegenstände je Befüllung, weich verteilt
+ * (Radius `radius` Kacheln, linear abfallend). Quellen: Loot-Punkte der Räume (Chance je Raum, sonst `standardChance`) und
+ * Punkte der Loot-Zonen (1 − „nichts“). @returns { zellen: Map "x,y" → wert, max }
+ */
+export function lootDichte(karte, { standardChance = 0.7, radius = 3 } = {}) {
+  const quellen = [];
+  for (const [schl, m] of karte.s('marker')) {
+    if (m.art !== 'loot') continue;
+    const [x, y] = schl.split(',').map(Number);
+    quellen.push([x, y, karte.s('raeume').get(m.raum)?.spawnChance ?? standardChance]);
+  }
+  if (karte.s('lootZonen').size) {
+    const kachel = kachelPruefer(karte);
+    for (const id of karte.s('lootZonen').keys()) {
+      const v = lootVorschau(karte, id, kachel);
+      if (!v.zone) continue;
+      const p = v.zone.modus === 'chance' ? Math.min(1, v.zone.eintraege.reduce((s, e) => s + e.chance, 0) / 100) : (v.zone.spawnChance ?? standardChance);
+      for (const [x, y] of v.punkte) quellen.push([x, y, p]);
+    }
+  }
+  const zellen = new Map();
+  let max = 0;
+  for (const [qx, qy, p] of quellen)
+    for (let dy = -radius; dy <= radius; dy++)
+      for (let dx = -radius; dx <= radius; dx++) {
+        const x = qx + dx;
+        const y = qy + dy;
+        const d = Math.hypot(dx, dy);
+        if (d > radius || !karte.imFeld(x, y)) continue;
+        const k = `${x},${y}`;
+        const w = (zellen.get(k) ?? 0) + p * (1 - d / (radius + 1));
+        zellen.set(k, w);
+        if (w > max) max = w;
+      }
+  return { zellen, max, quellen: quellen.length };
+}

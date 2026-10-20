@@ -3,7 +3,9 @@ import { LOOT_TABELLEN } from '../../server/spiel/konfiguration/lootTabellen.js'
 import { STANDARD_KONFIGURATION } from '../../server/spiel/konfiguration/spielKonfiguration.js';
 import { LOOT_ORTE, MAX_PUNKTE, erwarteteAusbeute, standardMenge } from '../../server/spiel/karten/lootZonen.js';
 import { lootVorschau } from '../kern/lootZonenEditor.js';
-import { esc } from './dialoge.js';
+import { eingebauteVorlagen, vorlageAusZone, zoneMitVorlage, weichtAb, syncOps, loeseOps, verknuepfungen, passtVorlage, neueVorlagenId, vorlagenDatei, leseVorlagenDatei } from '../kern/lootVorlagen.js';
+import { dialog, formular, bestaetigen, esc } from './dialoge.js';
+import { herunterladen, dateiWaehlen } from './speicher.js';
 
 /**
  * Loot-Zonen im Inspektor (Editor 2.0, Schritt 6.2): `aktionen.lootZonenFelder(el, schl, wert, setze, { felder, knoepfe })`
@@ -11,6 +13,10 @@ import { esc } from './dialoge.js';
  * (nur Gewicht), Nachschub, Höchstzahl, Rechteck. Item-Liste: Item, Chance %/Gewicht, Menge von–bis, ✕; „＋ Item“,
  * „Tabelle übernehmen“ (vorhandene LOOT_TABELLEN). Darunter die erwartete Ausbeute je Befüllung (gleiche Regeln wie das Spiel).
  * Jede Änderung = 1 Undo-Schritt, immer vom aktuellen Stand der Karte aus (der Inspektor zeichnet verzögert neu).
+ * Vorlagen (6.3, kern/lootVorlagen.js): oben im Inspektor übernehmen (Kopie) / verknüpfen / lösen / als Vorlage speichern /
+ * Vorlage aus dieser Zone aktualisieren (zieht alle verknüpften Zonen des Projekts nach, je Zone 1 Undo-Schritt). Eigene Änderung
+ * an einer verknüpften Zone löst die Verknüpfung (Meldung). Verwaltung: `aktionen.lootVorlagen()` (Suche, Ordner, Umbenennen,
+ * Löschen, Import/Export). Eigene Vorlagen: Editor-Speicher meta/lootVorlagen (auch im Komplett-Backup).
  */
 const ITEMS = Object.entries(GEGENSTAENDE)
   .map(([id, g]) => [id, g.name ?? id])
@@ -18,12 +24,48 @@ const ITEMS = Object.entries(GEGENSTAENDE)
 const STANDARD = STANDARD_KONFIGURATION.loot;
 const prozent = (p) => `${(Math.round(p * 1000) / 10).toString().replace('.', ',')} %`;
 
+const SPEICHER = 'lootVorlagen';
+
 export function lootUi({ zustand, aktionen }) {
-  aktionen.lootZonenFelder = (el, schl, wert, setze, { felder }) => {
+  let eigene = {};
+  zustand.speicher.hole('meta', SPEICHER).then((v) => (eigene = v && typeof v === 'object' ? v : {}));
+  const alle = () => ({ ...eingebauteVorlagen(), ...eigene });
+  const speichere = async () => {
+    await zustand.speicher.setze('meta', SPEICHER, eigene);
+    zustand.melde('auswahl'); // Inspektor neu zeichnen
+  };
+  const karten = () => [...zustand.zonen.values()].map((e) => e.karte);
+  /** Vorlage geändert → alle verknüpften Zonen im Projekt nachziehen (je Zone 1 Undo-Schritt) */
+  const ziehNach = (id) => {
+    let n = 0;
+    for (const e of zustand.zonen.values()) {
+      const ops = syncOps(e.karte, id, alle()[id]);
+      if (ops.length) zustand.ausfuehren(`Vorlage „${alle()[id].name}“ übernommen`, ops, e.karte);
+      n += ops.length;
+    }
+    return n;
+  };
+  aktionen.lootVorlagenEigene = () => eigene; // für Backup/Wiederherstellen (ohne eingebaute)
+  aktionen.lootVorlagenSetzen = async (neu) => {
+    eigene = neu;
+    await zustand.speicher.setze('meta', SPEICHER, eigene);
+  };
+
+  aktionen.lootZonenFelder = (el, schl, wert, setze0, { felder }) => {
     const k = zustand.karte;
     const aktuell = () => k.s('lootZonen').get(schl) ?? wert;
     const z = wert;
     const chance = z.modus === 'chance';
+    // Eigene Änderungen an einer verknüpften Zone lösen die Verknüpfung (die Vorlage bleibt unverändert)
+    const setze = (text, neu) => {
+      const v = neu.vorlage ? alle()[neu.vorlage] : null;
+      if (v && weichtAb(neu, v)) {
+        delete neu.vorlage;
+        zustand.meldung(`Verknüpfung mit „${v.name}“ gelöst – die Zone hat jetzt eigene Werte (💾 „Vorlage aktualisieren“ hätte die Vorlage geändert)`);
+      }
+      setze0(text, neu);
+    };
+    el.append(vorlagenBox(schl, aktuell, setze0));
     felder(el, [
       { name: 'name', label: 'Name', typ: 'text', wert: z.name ?? '' },
       { name: 'modus', label: 'Wahrscheinlichkeit', typ: 'auswahl', wert: z.modus ?? 'gewicht', optionen: [['gewicht', 'Gewicht (relativ, + Spawn-Chance)'], ['chance', 'Exakte Chance je Item (%)']] },
@@ -116,5 +158,117 @@ export function lootUi({ zustand, aktionen }) {
         ${v.zone.max ? `<p class="leise">Höchstens ${v.zone.max} Gegenstände gleichzeitig.</p>` : ''}${v.fehler.length ? `<p style="color:var(--rot)">${esc(v.fehler.join(' · '))}</p>` : ''}${v.frei < v.zone.punkte ? `<p style="color:var(--gelb)">Nur ${v.frei} freie Kacheln für ${v.zone.punkte} Punkte.</p>` : ''}`;
     }
     el.append(aus);
+  };
+
+  /** Kasten „Vorlage“ oben im Inspektor */
+  function vorlagenBox(schl, aktuell, setze) {
+    const z = aktuell();
+    const box = document.createElement('div');
+    box.className = 'loot-vorlage';
+    const v = z.vorlage ? alle()[z.vorlage] : null;
+    const optionen = Object.entries(alle())
+      .sort(([, a], [, b]) => `${a.ordner}/${a.name}`.localeCompare(`${b.ordner}/${b.name}`, 'de'))
+      .map(([id, x]) => `<option value="${esc(id)}">${esc(x.ordner ? `${x.ordner} / ` : '')}${esc(x.name)}${x.eingebaut ? ' (Spiel)' : ''}</option>`)
+      .join('');
+    box.innerHTML = v
+      ? `<p>🔗 Verknüpft mit Vorlage <b>${esc(v.name)}</b>${v.eingebaut ? ' (Spiel-Tabelle)' : ''}</p><div class="knopfreihe"><button type="button" data-v="loesen">Verknüpfung lösen</button>${v.eingebaut ? '' : '<button type="button" data-v="aktualisieren" title="Vorlage auf den Stand dieser Zone bringen – alle verknüpften Zonen ziehen nach">💾 Vorlage aktualisieren</button>'}<button type="button" data-v="verwalten">📚</button></div>`
+      : `<div class="knopfreihe"><select data-v="wahl" aria-label="Loot-Vorlage"><option value="">Vorlage wählen …</option>${optionen}</select><button type="button" data-v="kopie" title="Werte übernehmen (Kopie, keine Verknüpfung)">Übernehmen</button><button type="button" data-v="verknuepfen" title="übernehmen und verknüpft lassen – Änderungen an der Vorlage kommen automatisch">🔗</button></div>
+         <div class="knopfreihe"><button type="button" data-v="speichern">💾 Als Vorlage speichern</button><button type="button" data-v="verwalten">📚 Vorlagen …</button></div>`;
+    const wahl = () => box.querySelector('[data-v="wahl"]')?.value;
+    box.querySelectorAll('button[data-v]').forEach((b) =>
+      b.addEventListener('click', async () => {
+        const was = b.dataset.v;
+        if (was === 'verwalten') return aktionen.lootVorlagen();
+        if (was === 'loesen') {
+          const neu = { ...aktuell() };
+          delete neu.vorlage;
+          return setze('Verknüpfung gelöst', neu);
+        }
+        if (was === 'kopie' || was === 'verknuepfen') {
+          const id = wahl();
+          if (!id) return zustand.meldung('Erst eine Vorlage wählen', 'fehler');
+          return setze(`Vorlage „${alle()[id].name}“`, zoneMitVorlage(aktuell(), alle()[id], was === 'verknuepfen' ? id : null));
+        }
+        if (was === 'speichern') {
+          const w = await formular('💾 Als Loot-Vorlage speichern', [
+            { name: 'name', label: 'Name', typ: 'text', wert: aktuell().name ?? '', pflicht: true },
+            { name: 'ordner', label: 'Ordner', typ: 'text', wert: '', hilfe: 'z. B. Medizin oder Waffen/Militär' },
+            { name: 'mitOrt', label: 'Punkte + innen/außen mitnehmen', typ: 'haken', wert: false },
+            { name: 'verknuepfen', label: 'Zone mit der Vorlage verknüpfen', typ: 'haken', wert: true },
+          ], { okText: 'Speichern', text: 'Gilt im ganzen Projekt (alle Zonen), auch im Komplett-Backup.' });
+          if (!w) return;
+          const id = neueVorlagenId(new Set(Object.keys(alle())));
+          eigene = { ...eigene, [id]: vorlageAusZone(aktuell(), { name: w.name, ordner: w.ordner ?? '', mitOrt: !!w.mitOrt }) };
+          await speichere();
+          if (w.verknuepfen) setze(`Mit Vorlage „${w.name}“ verknüpft`, { ...aktuell(), vorlage: id });
+          return zustand.meldung(`💾 Vorlage „${w.name}“ gespeichert`, 'ok');
+        }
+        if (was === 'aktualisieren') {
+          const id = aktuell().vorlage;
+          const n = verknuepfungen(karten(), id);
+          if (!(await bestaetigen('Vorlage aktualisieren', `„${esc(alle()[id].name)}“ auf den Stand dieser Zone bringen? ${n} verknüpfte Zone(n) im Projekt ziehen nach.`, { ok: 'Aktualisieren' }))) return;
+          eigene = { ...eigene, [id]: { ...vorlageAusZone(aktuell(), { name: alle()[id].name, ordner: alle()[id].ordner }) } };
+          await speichere();
+          zustand.meldung(`💾 Vorlage aktualisiert – ${ziehNach(id)} weitere Zone(n) nachgezogen`, 'ok');
+        }
+      }),
+    );
+    return box;
+  }
+
+  /** Verwaltung: Suche, Ordner, Umbenennen, Löschen (löst Verknüpfungen), Import/Export */
+  aktionen.lootVorlagen = async () => {
+    let suche = '';
+    const knoten = document.createElement('div');
+    knoten.className = 'loot-vorlagen';
+    const zeichne = () => {
+      const liste = Object.entries(alle()).filter(([, v]) => !suche || passtVorlage(v, suche)).sort(([, a], [, b]) => `${a.eingebaut ? 1 : 0}${a.ordner}/${a.name}`.localeCompare(`${b.eingebaut ? 1 : 0}${b.ordner}/${b.name}`, 'de'));
+      knoten.querySelector('.liste-vorlagen').innerHTML = liste.length
+        ? `<table><tbody>${liste
+            .map(([id, v]) => `<tr data-id="${esc(id)}"><td>${esc(v.ordner ? `${v.ordner} / ` : '')}<b>${esc(v.name)}</b>${v.eingebaut ? ' <span class="leise">Spiel</span>' : ''}<br><span class="leise klein">${v.eintraege.length} Items · ${v.modus === 'chance' ? 'Chance %' : 'Gewicht'} · ${verknuepfungen(karten(), id)} verknüpft</span></td><td>${v.eingebaut ? '' : '<button type="button" data-a="umbenennen" title="Name/Ordner">✎</button><button type="button" data-a="loeschen" class="gefahr" title="löschen">🗑</button>'}</td></tr>`)
+            .join('')}</tbody></table>`
+        : '<p class="leise">Nichts gefunden.</p>';
+      knoten.querySelectorAll('tr[data-id] button').forEach((b) => b.addEventListener('click', () => aktion(b.dataset.a, b.closest('tr').dataset.id)));
+    };
+    const aktion = async (was, id) => {
+      const v = eigene[id];
+      if (!v) return;
+      if (was === 'umbenennen') {
+        const w = await formular('✎ Vorlage', [{ name: 'name', label: 'Name', typ: 'text', wert: v.name, pflicht: true }, { name: 'ordner', label: 'Ordner', typ: 'text', wert: v.ordner }], { okText: 'Speichern' });
+        if (w) eigene = { ...eigene, [id]: { ...v, name: w.name, ordner: w.ordner ?? '' } };
+      } else if (was === 'loeschen') {
+        const n = verknuepfungen(karten(), id);
+        if (!(await bestaetigen('Vorlage löschen', `„${esc(v.name)}“ löschen?${n ? ` ${n} verknüpfte Zone(n) behalten ihre Werte, die Verknüpfung wird gelöst.` : ''}`, { ok: 'Löschen', gefahr: true }))) return aktionen.lootVorlagen();
+        for (const e of zustand.zonen.values()) {
+          const ops = loeseOps(e.karte, id);
+          if (ops.length) zustand.ausfuehren(`Vorlage „${v.name}“ gelöscht`, ops, e.karte);
+        }
+        const { [id]: _weg, ...rest } = eigene;
+        eigene = rest;
+      }
+      await speichere();
+      aktionen.lootVorlagen();
+    };
+    knoten.innerHTML = '<input type="search" placeholder="Vorlagen suchen … (Name, Ordner, Item)" aria-label="Vorlagen suchen"><div class="liste-vorlagen"></div>';
+    knoten.querySelector('input').addEventListener('input', (e) => {
+      suche = e.target.value;
+      zeichne();
+    });
+    knoten.querySelector('input').addEventListener('keydown', (e) => e.stopPropagation());
+    zeichne();
+    const w = await dialog({ titel: '📚 Loot-Vorlagen', knoten, knoepfe: [{ text: '⬆ Importieren …', wert: 'import' }, { text: '⬇ Exportieren', wert: 'export' }, { text: 'Schließen', art: 'akzent', wert: null }] });
+    if (w === 'export') herunterladen('loot-vorlagen.json', JSON.stringify(vorlagenDatei(eigene), null, 1));
+    if (w === 'import') {
+      const d = await dateiWaehlen('.json,application/json');
+      if (!d) return;
+      try {
+        const { vorlagen, anzahl } = leseVorlagenDatei(d.text, new Set(Object.keys(alle())));
+        eigene = { ...eigene, ...vorlagen };
+        await speichere();
+        zustand.meldung(`⬆ ${anzahl} Loot-Vorlage(n) importiert`, 'ok');
+      } catch (e) {
+        zustand.meldung(`Import fehlgeschlagen: ${e.message}`, 'fehler');
+      }
+    }
   };
 }

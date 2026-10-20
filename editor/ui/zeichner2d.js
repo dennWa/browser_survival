@@ -1,5 +1,5 @@
 import { eintragAnzeige } from '../kern/zonenManager.js';
-import { lootVorschau } from '../kern/lootZonenEditor.js';
+import { lootVorschau, lootDichte } from '../kern/lootZonenEditor.js';
 import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
 import { ausSchluessel } from '../kern/karte.js';
 import { kachelInfo, objektInfo } from '../kern/katalog.js';
@@ -238,6 +238,7 @@ export class Zeichner2D {
       this.#ebene(ctx, 'klaenge', () => this.#zeichneKlaenge(ctx, k));
       this.#zeichneAuswahlRechteck(ctx);
       this.#zeichneUeberlagerungen(ctx);
+      if (this.zustand.sichtbar('lootDichte')) this.#zeichneLootDichte(ctx, k);
       this.#zeichneVorschau(ctx);
       this.#zeichneZonenRand(ctx, k);
     }
@@ -425,7 +426,7 @@ export class Zeichner2D {
     // Loot-Zonen (6.2): gold gestrichelt; gewählt = Vorschau der Punkte (gleiche Regel wie das Spiel)
     for (const [id, z] of k.s('lootZonen')) {
       const a = eintragAnzeige(k, 'lootZonen', id);
-      if (a.aus) continue;
+      if (a.aus || !this.zustand.sichtbar('loot')) continue;
       const gew = this.zustand.istGewaehlt('lootZonen', id);
       const farbe = a.farbe ?? '#ffd23f';
       ctx.globalAlpha = this.dimm * (a.sperre ? 0.35 : 1);
@@ -656,9 +657,28 @@ export class Zeichner2D {
     }
   }
 
+  /** Loot-Dichte als Heatmap (6.4): gelb (wenig) → rot (viel), relativ zum Maximum der Zone; Ergebnis je Kartenversion zwischengespeichert */
+  #zeichneLootDichte(ctx, k) {
+    if (this.dichtePuffer?.version !== k.version || this.dichtePuffer?.karte !== k) this.dichtePuffer = { version: k.version, karte: k, ...lootDichte(k) };
+    const { zellen, max } = this.dichtePuffer;
+    if (!max) return;
+    ctx.save();
+    for (const [schl, w] of zellen) {
+      const [x, y] = ausSchluessel(schl);
+      const t = Math.min(1, w / max);
+      const rb = this.#rechteckBild(x, y, 1, 1);
+      if (!this.#sichtbar(rb)) continue;
+      ctx.fillStyle = `hsla(${Math.round(55 - 55 * t)}, 95%, 50%, ${(0.15 + 0.5 * t).toFixed(2)})`;
+      ctx.fillRect(rb.x, rb.y, rb.b + 0.5, rb.h + 0.5);
+    }
+    ctx.restore();
+  }
+
   #zeichneMarker(ctx, k) {
     const z = this.zoom;
+    const lootSichtbar = this.zustand.sichtbar('loot');
     for (const [schl, m] of k.s('marker')) {
+      if (m.art === 'loot' && !lootSichtbar) continue; // Schalter 🎁 (Taste O)
       const [x, y] = ausSchluessel(schl);
       const p = this.zuBild(x + 0.5, y + 0.5);
       if (p.x < LINEAL - z || p.y < LINEAL - z) continue;

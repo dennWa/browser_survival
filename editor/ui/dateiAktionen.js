@@ -186,7 +186,7 @@ export function dateiAktionen({ zustand, zeichner, werkzeuge, aktionen, rechts, 
           /* gesperrt oder kaputt → weglassen */
         }
       }
-      const b = baueBackup({ entwuerfe: [...zustand.zonen].map(([id, e]) => ({ id, entwurf: entwurfJson(e.karte, e.verlauf) })), archiv: await zustand.archiv(), prefabs, meta: { layout: zustand.layout, aktiv: zustand.aktivId }, einstellungen, bibliothek: bibliothek?.exportiere() ?? [], audio: audioBibliothek?.exportiere() ?? [] });
+      const b = baueBackup({ entwuerfe: [...zustand.zonen].map(([id, e]) => ({ id, entwurf: entwurfJson(e.karte, e.verlauf) })), archiv: await zustand.archiv(), lootVorlagen: (await zustand.speicher.hole('meta', 'lootVorlagen')) ?? {}, prefabs, meta: { layout: zustand.layout, aktiv: zustand.aktivId }, einstellungen, bibliothek: bibliothek?.exportiere() ?? [], audio: audioBibliothek?.exportiere() ?? [] });
       const text = JSON.stringify(b);
       herunterladen(backupDateiname(), text);
       zustand.meldung(`🛟 Komplett-Backup: ${b.entwuerfe.length} Zonen, ${Object.keys(prefabs).length} Prefabs, ${b.bibliothek.length} Modelle, ${b.audio.length} Audio (${groesseText(text.length)})`, 'ok');
@@ -224,6 +224,7 @@ export function dateiAktionen({ zustand, zeichner, werkzeuge, aktionen, rechts, 
       }
       if (w.prefabs) for (const [name, v] of Object.entries(b.prefabs)) await zustand.speicher.setze('prefabs', name, v);
       if (Object.keys(b.archiv).length) await zustand.speicher.setze('meta', 'archiv', { ...(await zustand.archiv()), ...b.archiv });
+      if (w.prefabs && Object.keys(b.lootVorlagen).length) await aktionen.lootVorlagenSetzen?.({ ...(aktionen.lootVorlagenEigene?.() ?? {}), ...b.lootVorlagen });
       if (w.einst) {
         Object.assign(zustand.layout, b.meta.layout);
         await zustand.speicher.setze('meta', 'layout', zustand.layout);

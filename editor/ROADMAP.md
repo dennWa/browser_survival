@@ -66,10 +66,14 @@
   `lootZonen`, Katalog `bereich:loot`, Inspektor `ui/lootUi.js` (Items mit Chance/Gewicht, Menge, Ausbeute), Punkt-Vorschau,
   Prüfung `loot-zone*`. Tests `tests/lootZonen.test.js`, Rauchtest „Phase 6.2“. Spiel-Rauchtest grün.
 
-**Nächster Schritt: 6.3 Loot-Vorlagen** – Plan: Vorlagen projektweit in `meta/lootVorlagen` (+ eingebaute = `LOOT_TABELLEN`,
-schreibgeschützt), Zone trägt immer die volle Item-Liste + `vorlage: <id>` (verknüpft); Vorlage ändern → alle verknüpften
-Zonen im Projekt nachziehen (je Zone 1 Undo-Schritt); eigene Änderung an einer verknüpften Zone löst die Verknüpfung;
-Import/Export als Datei, Backup-Feld `lootVorlagen`. Danach 6.4 (Loot ein-/ausblenden + Dichte-Heatmap als Anzeige).
+- 6.3 Loot-Vorlagen fertig (2026-10-20): `editor/kern/lootVorlagen.js` (eingebaut `spiel:<tabelle>`, eigene in `meta/lootVorlagen`,
+  verknüpfen/nachziehen/lösen, Datei), Kasten im Loot-Inspektor + Verwaltung (`aktionen.lootVorlagen`), Backup-Feld `lootVorlagen`.
+- 6.4 fertig (2026-10-20): Anzeigen `loot` (Taste O, Schnellleiste 🎁) und `lootDichte` (Umschalt+O, Heatmap aus
+  `kern/lootZonenEditor.js lootDichte`). Phase 6 komplett; npm test 275, rauchtest:editor + rauchtest grün.
+
+**Nächster Schritt: Phase 7 – 7.1 Tastenkürzel anpassbar + Befehlspalette (Strg+K).** Plan: Kürzel-Overrides in localStorage
+`browserSurvival.editorKuerzel` (in die Backup-Whitelist), `befehle.js` liest sie beim Registrieren, Konflikterkennung im
+Hilfe-Dialog (Taste drücken zum Belegen, ✕ zurücksetzen), Befehlspalette = Hilfe-Liste mit Enter = ausführen.
 
 **Danach:** Phasen 6–9 laut Tabellen unten (6 Zonen/Loot, 7 UX, 8 Testlauf, 9 KI).
 
@@ -146,8 +150,8 @@ Import/Export als Datei, Backup-Feld `lootVorlagen`. Danach 6.4 (Loot ein-/ausbl
 |---|---|---|
 | ☑ 6.1 | **Zonen-Manager:** Liste aller Bereichs-Zonen (Räume, Loot-, Tier-, Audio-Zonen, Übergänge) mit Auge (ausblenden), Sperre (ausgegraut, nicht anklickbar), Farbe, Umbenennen, Löschen, **Zwischenspeichern** (Ablage/Vorlage, später wieder einsetzen); Welt-Zonen (Karten) archivieren statt löschen, Löschen mit Bestätigung + Backup | M |
 | ☑ 6.2 | 🎮 **Loot-Zonen neu:** Bereich markieren (Rechteck/Pinsel) → Item-Liste mit **exakter Chance je Item** (oder Gewicht), Menge von–bis, Dichte bzw. Anzahl Punkte, nur innen/außen, Nachschub, Höchstzahl; Inspektor zeigt erwartete Ausbeute; Spiel: Lader erzeugt Loot-Punkte auf begehbaren Kacheln mit der Zonen-Tabelle, `lootSystem` würfelt daraus; Prüfung (unbekannte Items, Summe, keine Fläche) | L |
-| ☐ 6.3 | **Loot-Vorlagen:** Konfiguration als Vorlage speichern (Ordner, Suche), in anderen Zonen/Karten wiederverwenden (verknüpft oder als Kopie), Import/Export; vorhandene `LOOT_TABELLEN` als eingebaute Vorlagen | M |
-| ☐ 6.4 | **Loot ein-/ausblenden per Klick** (Schalter + Taste), optional Dichte-Heatmap | S |
+| ☑ 6.3 | **Loot-Vorlagen:** Konfiguration als Vorlage speichern (Ordner, Suche), in anderen Zonen/Karten wiederverwenden (verknüpft oder als Kopie), Import/Export; vorhandene `LOOT_TABELLEN` als eingebaute Vorlagen | M |
+| ☑ 6.4 | **Loot ein-/ausblenden per Klick** (Schalter + Taste), optional Dichte-Heatmap | S |
 
 ## Phase 7 – UX, Bedienung & QoL
 | # | Schritt | Größe |

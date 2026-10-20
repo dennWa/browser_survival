@@ -71,6 +71,14 @@ Koordinaten sind **Kacheln** (1 Kachel = 1 m = 32 px im Spiel), x nach rechts, y
   Die gewählte Zone zeigt ihre Punkte auf der Karte (genau dort liegt im Spiel Loot: freie Kacheln, nicht in Wänden, Wasser
   oder unter blockierenden Möbeln), darunter die **erwartete Ausbeute** je Befüllung. Die Prüfung meldet unbekannte Items,
   Chancen über 100 % und Zonen ohne freie Kachel.
+- **📚 Loot-Vorlagen:** oben im Loot-Inspektor eine Vorlage wählen → **Übernehmen** (Kopie) oder **🔗** (verknüpft: Änderungen
+  an der Vorlage kommen automatisch in alle verknüpften Zonen des Projekts). **💾 Als Vorlage speichern** legt die Einstellungen
+  der Zone als Vorlage ab (mit Ordner); bei verknüpften Zonen bringt **💾 Vorlage aktualisieren** die Vorlage auf den Stand
+  dieser Zone und zieht alle anderen nach. Ändert man eine verknüpfte Zone selbst, wird die Verknüpfung gelöst (Meldung).
+  Die Loot-Tabellen des Spiels stehen als eingebaute Vorlagen bereit. Verwaltung (Suche, Ordner, Umbenennen, Löschen,
+  Import/Export als Datei): Assets → Loot → „📚 Loot-Vorlagen“. Eigene Vorlagen stecken im Komplett-Backup.
+- **🎁 Loot ein-/ausblenden:** Knopf in der Schnellleiste oder Taste **O** (Loot-Punkte und Loot-Zonen). **Umschalt+O** zeigt
+  die **Loot-Dichte** als Heatmap (gelb = wenig, rot = viel; Raum-Loot und Loot-Zonen zusammen). Beides auch unter Ansicht.
 - **Tiere:** Hasen-Bereich aufziehen (Kategorie Tiere) – dann spawnen Hasen nur in diesen Bereichen, mit Anzahl und Respawn.
   Ohne Bereiche verteilt das Spiel sie wie bisher auf allen Rasen.
 - **Zonen-Werte** (Inspektor ohne Auswahl, aufklappbare Gruppen; Menü Zone → Zonen-Werte): Wetter (an/aus, Regen-Anteil, Dauer, Pausen), Zombies (Dichte, Respawn, Nacht-Horde,
@@ -296,7 +304,7 @@ Danach `npm test`. Neue Zone mit Übergang? Die Nachbarzone braucht einen Überg
 `?` (oder F1) zeigt **alle** Befehle mit Kürzeln – mit Suchfeld. Wichtigste: V Auswahl · H Schwenken · B Pinsel · U Rechteck ·
 L Linie · G Füllen · E Radierer · I Pipette (oder Alt+Klick) · T Gelände · K Farbe · Z Zonengröße · R drehen · Strg+Z/Y ·
 Strg+C/X/V · Strg+D · Strg+A ganze Zone · Entf · Pfeile verschieben (Umschalt = 5) · F ganze Zone · 3 = 2D/3D · Tab Fokus ·
-Strg+F Assets suchen · Strg+J KI-Helfer · Strg+Enter testen · Strg+S speichern · Esc.
+Strg+F Assets suchen · Strg+J KI-Helfer · Strg+Enter testen · Strg+S speichern · O Loot ein/aus · Umschalt+O Loot-Dichte · Esc.
 Trackpad: zwei Finger = schwenken, Pinch = zoomen.
 
 ## 🤖 KI-Helfer (Gemini)

@@ -73,7 +73,7 @@ export function meldeBefehleAn(befehle, t) {
     { id: 'ansicht.rechts', name: 'Rechte Seitenleiste (Inspektor, Ebenen, Prüfung)', symbol: '◨', gruppe: 'Ansicht', aktiv: () => t.layout.sichtbar('rechts'), ausfuehren: () => t.layout.umschalten('rechts') },
     { id: 'ansicht.fokus', name: 'Fokus-Modus (nur Karte)', symbol: '⛶', gruppe: 'Ansicht', kuerzel: ['Tab'], aktiv: () => t.layout.fokus, ausfuehren: () => t.layout.fokusUmschalten() },
     { id: 'ansicht.ebenen', name: 'Ebenen (ein-/ausblenden, sperren)', symbol: '🗂', gruppe: 'Ansicht', ausfuehren: () => t.layout.zeigeReiter('rechts', 'Ebenen') },
-    ...ANZEIGEN.map((anz) => ({ id: `ansicht.${anz.id}`, name: anz.name, gruppe: 'Ansicht', aktiv: () => z.sichtbar(anz.id), ausfuehren: () => z.setzeEbene(anz.id, 'sichtbar', !z.sichtbar(anz.id)) })),
+    ...ANZEIGEN.map((anz) => ({ id: `ansicht.${anz.id}`, name: anz.name, ...(anz.kurz ? { kurz: anz.kurz, symbol: anz.symbol } : {}), ...(anz.kuerzel ? { kuerzel: anz.kuerzel } : {}), gruppe: 'Ansicht', aktiv: () => z.sichtbar(anz.id), ausfuehren: () => z.setzeEbene(anz.id, 'sichtbar', !z.sichtbar(anz.id)) })),
     { id: 'ansicht.suche', name: 'Assets suchen', symbol: '🔎', gruppe: 'Ansicht', kuerzel: ['Strg+F'], ausfuehren: () => {
         t.layout.zeige('links');
         t.assets.fokusSuche();
@@ -151,7 +151,7 @@ export function menues(t) {
   ];
 }
 
-export const SCHNELLLEISTE = ['bearbeiten.rueckgaengig', 'bearbeiten.wiederholen', '-', 'ansicht.dreiD', 'zone.testen', 'datei.veroeffentlichen', '-', 'ki.helfer', 'ansicht.links', 'ansicht.rechts'];
+export const SCHNELLLEISTE = ['bearbeiten.rueckgaengig', 'bearbeiten.wiederholen', '-', 'ansicht.dreiD', 'ansicht.loot', 'zone.testen', 'datei.veroeffentlichen', '-', 'ki.helfer', 'ansicht.links', 'ansicht.rechts'];
 
 export const WERKZEUGLEISTE = ['werkzeug.auswahl', 'werkzeug.hand', '-', 'werkzeug.pinsel', 'werkzeug.rechteck', 'werkzeug.linie', 'werkzeug.fuellen', 'werkzeug.radierer', 'werkzeug.pipette', '-', 'werkzeug.terrain', 'werkzeug.farbe', '-', 'werkzeug.zone'];
 

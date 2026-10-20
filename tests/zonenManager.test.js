@@ -111,3 +111,10 @@ test('Komplett-Backup nimmt das Zonen-Archiv mit, kaputte Archiv-Einträge falle
   assert.deepEqual(b.archiv.zm.layout, { x: 3, y: 4 });
   assert.equal(leseBackup(JSON.stringify(baueBackup({}))).archiv && Object.keys(leseBackup(JSON.stringify(baueBackup({}))).archiv).length, 0);
 });
+
+test('Komplett-Backup nimmt eigene Loot-Vorlagen mit (6.3)', async () => {
+  const { baueBackup, leseBackup } = await import('../editor/kern/backup.js');
+  const b = leseBackup(JSON.stringify(baueBackup({ lootVorlagen: { v_abc: { name: 'Medizin', ordner: 'Sani', modus: 'chance', eintraege: [{ id: 'verband', chance: 40 }] }, kaputt: { name: 'x' } } })));
+  assert.deepEqual(Object.keys(b.lootVorlagen), ['v_abc']);
+  assert.equal(b.lootVorlagen.v_abc.ordner, 'Sani');
+});

@@ -1302,3 +1302,41 @@ img.ki-bild {
   min-height: 28px;
   padding: 0 6px;
 }
+.loot-vorlage {
+  border: 1px solid var(--rand);
+  border-radius: 6px;
+  padding: 6px;
+  margin: 4px 0 8px;
+  background: var(--bg3);
+}
+.loot-vorlage p {
+  margin: 0 0 4px;
+  font-size: 12px;
+}
+.loot-vorlage select {
+  flex: 1;
+  min-width: 0;
+}
+.loot-vorlagen {
+  min-width: min(520px, 82vw);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.loot-vorlagen .liste-vorlagen {
+  max-height: 55vh;
+  overflow: auto;
+}
+.loot-vorlagen table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.loot-vorlagen td {
+  padding: 4px;
+  border-bottom: 1px solid var(--rand);
+  vertical-align: top;
+}
+.loot-vorlagen td:last-child {
+  text-align: right;
+  white-space: nowrap;
+}

@@ -23,6 +23,8 @@ export const ANZEIGEN = Object.freeze([
   { id: 'innen', name: 'Innen/Außen (blau = innen, wie im Spiel)', standard: false },
   { id: 'steil', name: 'Steile Hänge (rot schraffiert)', standard: true },
   { id: 'nachbarn', name: 'Nachbarzonen am Rand', standard: true },
+  { id: 'loot', name: 'Loot anzeigen (Punkte & Loot-Zonen)', kurz: 'Loot', symbol: '🎁', kuerzel: ['O'], standard: true },
+  { id: 'lootDichte', name: 'Loot-Dichte (Heatmap)', kurz: 'Dichte', symbol: '🔥', kuerzel: ['Umschalt+O'], standard: false },
 ]);
 
 const SAMMLUNG_EBENE = {

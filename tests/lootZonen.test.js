@@ -93,3 +93,66 @@ test('Spiel: Lader legt Zonen-Punkte an (nicht in Wand/Tisch, nur innen), lootSy
   assert.equal(items.length, 3, 'max = 3 gleichzeitig');
   assert.ok(items.every((i) => i.defId === 'apfel' && i.menge === 2));
 });
+
+test('Loot-Vorlagen (6.3): eingebaut aus den Spiel-Tabellen, aus Zone speichern, verknüpfen, nachziehen, lösen, Datei', async () => {
+  const V = await import('../editor/kern/lootVorlagen.js');
+  const { EditorKarte } = await import('../editor/kern/karte.js');
+  const { nachDefinition } = await import('../editor/kern/format.js');
+  const eingebaut = V.eingebauteVorlagen();
+  assert.ok(eingebaut['spiel:lager'].eintraege.length > 3 && eingebaut['spiel:lager'].eingebaut);
+  const k = new EditorKarte({ id: 'v', breite: 20, hoehe: 20 });
+  const zone = L.neueLootZone({ x: 1, y: 1, b: 4, h: 4 }, { tabelle: 'apotheke' });
+  k.anwenden([{ s: 'lootZonen', k: 1, neu: zone }, { s: 'lootZonen', k: 2, neu: { ...zone, x: 10 } }]);
+  const v = V.vorlageAusZone({ ...zone, modus: 'chance', eintraege: [{ id: 'verband', chance: 60 }], max: 2 }, { name: 'Sanitäter', ordner: 'Medizin' });
+  assert.equal(v.ort, undefined, 'ohne Ort/Punkte');
+  // verknüpfen: Zone 1 und 2
+  k.anwenden([1, 2].map((n) => ({ s: 'lootZonen', k: n, neu: V.zoneMitVorlage(k.s('lootZonen').get(n), v, 'v_test') })));
+  assert.equal(k.s('lootZonen').get(1).modus, 'chance');
+  assert.equal(k.s('lootZonen').get(2).max, 2);
+  assert.equal(k.s('lootZonen').get(1).x, 1, 'Ort bleibt');
+  assert.equal(V.verknuepfungen([k], 'v_test'), 2);
+  // Vorlage ändern → beide Zonen nachziehen
+  const v2 = { ...v, eintraege: [{ id: 'apfel', chance: 30 }] };
+  const ops = V.syncOps(k, 'v_test', v2);
+  assert.equal(ops.length, 2);
+  k.anwenden(ops);
+  assert.deepEqual(k.s('lootZonen').get(2).eintraege, [{ id: 'apfel', chance: 30 }]);
+  assert.equal(V.syncOps(k, 'v_test', v2).length, 0, 'schon aktuell');
+  assert.ok(!V.weichtAb(k.s('lootZonen').get(1), v2));
+  assert.ok(V.weichtAb({ ...k.s('lootZonen').get(1), eintraege: [] }, v2));
+  // Spielformat: Items stecken in der Zone, `vorlage` stört den Lader nicht
+  const def = nachDefinition(k);
+  assert.ok(def.lootZonen.every((z) => z.eintraege[0].id === 'apfel'));
+  assert.ok(L.pruefeLootZone(def.lootZonen[0]).zone);
+  k.anwenden(V.loeseOps(k, 'v_test'));
+  assert.equal(V.verknuepfungen([k], 'v_test'), 0);
+  // Datei: nur eigene, Kollision → neue ID
+  const datei = JSON.parse(JSON.stringify(V.vorlagenDatei({ v_test: v2, ...eingebaut })));
+  assert.deepEqual(Object.keys(datei.vorlagen), ['v_test']);
+  const gelesen = V.leseVorlagenDatei(datei, new Set(['v_test']));
+  assert.equal(gelesen.anzahl, 1);
+  assert.notEqual(Object.keys(gelesen.vorlagen)[0], 'v_test');
+  assert.throws(() => V.leseVorlagenDatei({ format: 'x' }), /Keine Loot-Vorlagen/);
+  assert.ok(V.passtVorlage(v, 'sani medizin'));
+});
+
+test('Loot-Dichte (6.4): Raum-Loot-Punkte und Zonen-Punkte, weich verteilt, Maximum an der Quelle', async () => {
+  const { lootDichte } = await import('../editor/kern/lootZonenEditor.js');
+  const { EditorKarte, markerSchluessel } = await import('../editor/kern/karte.js');
+  const { ANZEIGEN, standardEbenen } = await import('../editor/kern/ebenen.js');
+  const k = new EditorKarte({ id: 'd', breite: 20, hoehe: 20 });
+  assert.equal(lootDichte(k).max, 0);
+  k.anwenden([
+    { s: 'raeume', k: 'a', neu: { name: 'Lager', lootTabelle: 'lager', spawnChance: 0.5 } },
+    { s: 'marker', k: markerSchluessel(3, 3), neu: { art: 'loot', raum: 'a' } },
+    { s: 'lootZonen', k: 1, neu: { name: 'Z', x: 10, y: 10, b: 2, h: 1, modus: 'chance', punkte: 2, ort: 'alle', eintraege: [{ id: 'apfel', chance: 80 }] } },
+  ]);
+  const d = lootDichte(k, { radius: 2 });
+  assert.equal(d.quellen, 3);
+  assert.equal(d.zellen.get('3,3'), 0.5, 'Raum-Chance an der Quelle');
+  assert.ok(d.zellen.get('4,3') < 0.5 && d.zellen.get('4,3') > 0);
+  assert.equal(d.zellen.get('8,3'), undefined, 'außerhalb des Radius nichts');
+  assert.ok(d.zellen.get('10,10') > 0.8, 'zwei Zonen-Punkte überlagern sich');
+  assert.ok(ANZEIGEN.some((a) => a.id === 'loot' && a.kuerzel.includes('O')));
+  assert.equal(standardEbenen().lootDichte.sichtbar, false);
+});
