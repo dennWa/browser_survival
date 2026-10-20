@@ -5,6 +5,7 @@ import { EBENEN, ebenenAus, ebeneFrei, ebeneVon, filtereGesperrt } from '../kern
 import { filtereGesperrteZonen, eintragAnzeige } from '../kern/zonenManager.js';
 
 const EBENEN_SPEICHER = 'browserSurvival.editorEbenen';
+const MESSEN_SPEICHER = 'browserSurvival.editorMessen';
 
 /**
  * Zustand des Editors (Browser): Projekt = mehrere Zonen-Entwürfe { karte, verlauf }, aktive Zone, Werkzeug, Auswahl,
@@ -30,6 +31,11 @@ export class Zustand {
     this.pinselGroesse = 1;
     this.drehung = 0; // für neue Objekte (Grad; im Free-Modus beliebig)
     this.frei = false; // Free-Modus (5.5): stufenlos platzieren/verschieben, freie Drehung
+    // Messen & Ausrichten (7.3): Einrasten an Kanten/Mitten/Hilfslinien, Raster-Weite + Hauptlinien (localStorage)
+    const messen = liesLokal(MESSEN_SPEICHER) ?? {};
+    this.einrasten = messen.einrasten ?? true;
+    this.rasterWeite = messen.rasterWeite ?? 1;
+    this.hauptlinien = messen.hauptlinien ?? 10;
     /** Auswahl: Map "s|k" → { s, k } */
     this.auswahl = new Map();
     this.auswahlRechteck = null; // { x, y, b, h } (Excel-artig, für Kopieren & Ausschnitt-Export)
@@ -312,6 +318,15 @@ export class Zustand {
     const vorher = this.auswahl.size;
     for (const [sk, { s, k }] of this.auswahl) if (!this.karte?.s(s).has(k)) this.auswahl.delete(sk);
     if (this.auswahl.size !== vorher) this.melde('auswahl');
+  }
+
+  /** Einrasten/Raster-Einstellungen (7.3) setzen und merken */
+  setzeMessen(teil) {
+    Object.assign(this, teil);
+    try {
+      localStorage.setItem(MESSEN_SPEICHER, JSON.stringify({ einrasten: this.einrasten, rasterWeite: this.rasterWeite, hauptlinien: this.hauptlinien }));
+    } catch {}
+    this.melde('ansicht');
   }
 
   setzeWerkzeug(werkzeug) {

@@ -1,3 +1,4 @@
+import { streckenInfo } from '../kern/messen.js';
 import { eintragAnzeige } from '../kern/zonenManager.js';
 import { lootVorschau, lootDichte } from '../kern/lootZonenEditor.js';
 import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
@@ -33,6 +34,9 @@ export class Zeichner2D {
     this.atlas = null; // { daten, bild } – Möbel-Draufsichten aus client/assets (optional)
     this.vorschau = null; // von den Werkzeugen gesetzt
     this.neuRechteck = null; // Zone neu aufziehen
+    this.massband = null; // 7.3: { punkte: [{x,y}], fertig }
+    this.fangLinien = null; // 7.3: [{ achse, wert }] beim Einrasten
+    this.hilfslinieZiehen = null; // 7.3: { achse, wert } beim Ziehen aus dem Lineal
     this.zonenGriffe = false;
     this.zonenVorschau = null; // { x, y, b, h } beim Größe ändern
     this.nachbarn = []; // [{ karte, dx, dy }] Nachbarzonen relativ (Phase 7)
@@ -241,6 +245,7 @@ export class Zeichner2D {
       if (this.zustand.sichtbar('lootDichte')) this.#zeichneLootDichte(ctx, k);
       this.#zeichneVorschau(ctx);
       this.#zeichneZonenRand(ctx, k);
+      this.#zeichneMessen(ctx, k);
     }
     if (this.neuRechteck) this.#rahmen(ctx, this.neuRechteck, '#4caf50', `${this.neuRechteck.b} × ${this.neuRechteck.h}`, true);
     this.#zeichneLineale(ctx);
@@ -281,21 +286,29 @@ export class Zeichner2D {
     const f = this.#sichtFenster(k);
     ctx.save();
     // Raster
-    if (this.zustand.sichtbar('raster') && z >= 8) {
-      ctx.strokeStyle = 'rgba(0,0,0,0.18)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      for (let x = f.x0; x <= f.x1 + 1; x++) {
-        const p = this.zuBild(x, f.y0);
-        ctx.moveTo(Math.round(p.x) + 0.5, p.y);
-        ctx.lineTo(Math.round(p.x) + 0.5, this.zuBild(x, f.y1 + 1).y);
+    // Raster (7.3: Weite + Hauptlinien einstellbar)
+    const w = this.zustand.rasterWeite ?? 1;
+    const haupt = (this.zustand.hauptlinien ?? 10) * w;
+    if (this.zustand.sichtbar('raster') && z * w >= 8) {
+      for (const hauptLauf of [false, true]) {
+        ctx.strokeStyle = hauptLauf ? 'rgba(0,0,0,0.38)' : 'rgba(0,0,0,0.18)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        const istHaupt = (v) => Math.abs(v / haupt - Math.round(v / haupt)) < 1e-6;
+        for (let x = Math.floor(f.x0 / w) * w; x <= f.x1 + 1; x += w) {
+          if (istHaupt(x) !== hauptLauf) continue;
+          const p = this.zuBild(x, f.y0);
+          ctx.moveTo(Math.round(p.x) + 0.5, p.y);
+          ctx.lineTo(Math.round(p.x) + 0.5, this.zuBild(x, f.y1 + 1).y);
+        }
+        for (let y = Math.floor(f.y0 / w) * w; y <= f.y1 + 1; y += w) {
+          if (istHaupt(y) !== hauptLauf) continue;
+          const p = this.zuBild(f.x0, y);
+          ctx.moveTo(p.x, Math.round(p.y) + 0.5);
+          ctx.lineTo(this.zuBild(f.x1 + 1, y).x, Math.round(p.y) + 0.5);
+        }
+        ctx.stroke();
       }
-      for (let y = f.y0; y <= f.y1 + 1; y++) {
-        const p = this.zuBild(f.x0, y);
-        ctx.moveTo(p.x, Math.round(p.y) + 0.5);
-        ctx.lineTo(this.zuBild(f.x1 + 1, y).x, Math.round(p.y) + 0.5);
-      }
-      ctx.stroke();
     }
     // Türen & Fenster erkennbar machen
     for (let y = f.y0; y <= f.y1; y++)
@@ -890,6 +903,55 @@ export class Zeichner2D {
     ctx.strokeText(text, x, y);
     ctx.fillStyle = farbe;
     ctx.fillText(text, x, y);
+    ctx.restore();
+  }
+
+  /** 7.3: Hilfslinien (cyan, gestrichelt), Fang-Linien (magenta), Maßband (gelb, mit Längen) */
+  #zeichneMessen(ctx, k) {
+    const { b, h } = this.groesse;
+    const senkrecht = (x, farbe, strich) => {
+      const p = this.zuBild(x, 0);
+      ctx.strokeStyle = farbe;
+      ctx.setLineDash(strich);
+      ctx.beginPath();
+      ctx.moveTo(Math.round(p.x) + 0.5, LINEAL);
+      ctx.lineTo(Math.round(p.x) + 0.5, h);
+      ctx.stroke();
+    };
+    const waagerecht = (y, farbe, strich) => {
+      const p = this.zuBild(0, y);
+      ctx.strokeStyle = farbe;
+      ctx.setLineDash(strich);
+      ctx.beginPath();
+      ctx.moveTo(LINEAL, Math.round(p.y) + 0.5);
+      ctx.lineTo(b, Math.round(p.y) + 0.5);
+      ctx.stroke();
+    };
+    const linie = (a, w, farbe, strich) => (a === 'x' ? senkrecht : waagerecht)(w, farbe, strich);
+    ctx.save();
+    ctx.lineWidth = 1;
+    if (this.zustand.sichtbar('hilfslinien')) {
+      const hl = k.werte.hilfslinien ?? {};
+      for (const a of ['x', 'y']) for (const w of hl[a] ?? []) linie(a, w, 'rgba(0,229,255,0.8)', [6, 4]);
+    }
+    if (this.hilfslinieZiehen) linie(this.hilfslinieZiehen.achse, this.hilfslinieZiehen.wert, '#00e5ff', []);
+    for (const l of this.fangLinien ?? []) linie(l.achse, l.wert, '#ff4fd8', []);
+    ctx.setLineDash([]);
+    const m = this.massband;
+    if (m?.punkte.length) {
+      const pkt = m.punkte.map((q) => this.zuBild(q.x, q.y));
+      if (!m.fertig && this.hover) pkt.push(this.zuBild(this.hover.x + 0.5, this.hover.y + 0.5));
+      ctx.strokeStyle = '#ffd54f';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      pkt.forEach((q, i) => (i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)));
+      ctx.stroke();
+      ctx.fillStyle = '#ffd54f';
+      for (const q of pkt.slice(0, m.punkte.length)) ctx.fillRect(q.x - 3, q.y - 3, 6, 6);
+      const info = streckenInfo(m.punkte);
+      info.segmente.forEach((sg, i) => this.#text(ctx, `${sg.laenge} m · ${sg.winkel}°`, (pkt[i].x + pkt[i + 1].x) / 2, (pkt[i].y + pkt[i + 1].y) / 2 - 8, '#ffd54f', 11));
+      if (info.segmente.length > 1) this.#text(ctx, `Σ ${info.gesamt} m`, pkt[m.punkte.length - 1].x, pkt[m.punkte.length - 1].y + 16, '#ffd54f', 12);
+    }
     ctx.restore();
   }
 

@@ -24,6 +24,7 @@ export const ANZEIGEN = Object.freeze([
   { id: 'steil', name: 'Steile Hänge (rot schraffiert)', standard: true },
   { id: 'nachbarn', name: 'Nachbarzonen am Rand', standard: true },
   { id: 'loot', name: 'Loot anzeigen (Punkte & Loot-Zonen)', kurz: 'Loot', symbol: '🎁', kuerzel: ['O'], standard: true },
+  { id: 'hilfslinien', name: 'Hilfslinien (aus dem Lineal ziehen)', kurz: 'Hilfsl.', symbol: '┼', kuerzel: ['Umschalt+H'], standard: true },
   { id: 'lootDichte', name: 'Loot-Dichte (Heatmap)', kurz: 'Dichte', symbol: '🔥', kuerzel: ['Umschalt+O'], standard: false },
 ]);
 

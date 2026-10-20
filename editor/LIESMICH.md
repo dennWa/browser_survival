@@ -309,6 +309,12 @@ Danach `npm test`. Neue Zone mit Übergang? Die Nachbarzone braucht einen Überg
 `?` (oder F1) zeigt **alle** Befehle mit Kürzeln – mit Suchfeld. **Eigene Tasten:** dort **⌨** an einem Befehl, dann die
 neue Taste drücken (Esc = abbrechen; hatte ein anderer Befehl die Taste, verliert er sie – Meldung), **✕** = Taste weg,
 **↺** = Standard, „Alle Tasten zurücksetzen“. Gilt für diesen Browser und steckt im Komplett-Backup.
+**Messen & Ausrichten:** 📏 Maßband (Taste M): Punkte klicken, Doppelklick oder Enter = fertig, Esc = löschen – zeigt jede
+Strecke in Metern mit Winkel und die Gesamtlänge. **Hilfslinien** aus dem oberen/linken Lineal in die Karte ziehen; mit dem
+Auswahl-Werkzeug verschieben, zurück ins Lineal = löschen (Umschalt+H blendet sie aus). 🧲 **Einrasten** (Umschalt+G):
+Objekte rasten beim Platzieren/Verschieben an Kanten und Mitten anderer Objekte und an Hilfslinien ein (Strg gedrückt = aus).
+Ansicht → „Raster-Weite wechseln“ (½ bis 8 Kacheln, kräftigere Hauptlinien). In 3D gibt es Raster und Achsen.
+
 **Strg+K** öffnet die **Befehlspalette**: tippen, Pfeiltasten, Enter = ausführen. Wichtigste: V Auswahl · H Schwenken · B Pinsel · U Rechteck ·
 L Linie · G Füllen · E Radierer · I Pipette (oder Alt+Klick) · T Gelände · K Farbe · Z Zonengröße · R drehen · Strg+Z/Y ·
 Strg+C/X/V · Strg+D · Strg+A ganze Zone · Entf · Pfeile verschieben (Umschalt = 5) · F ganze Zone · 3 = 2D/3D · Tab Fokus ·

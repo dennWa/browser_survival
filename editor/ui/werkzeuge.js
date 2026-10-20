@@ -12,6 +12,7 @@ import { objektInfo } from '../kern/katalog.js';
 import { neuerKlang } from '../../gemeinsam/audio/klanglandschaft.js';
 import { neueLootZone } from '../../server/spiel/karten/lootZonen.js';
 import { LINEAL } from './zeichner2d.js';
+import { streckenInfo, fangKandidaten, fange, hilfslinieOps } from '../kern/messen.js';
 import { STANDARD_KONFIGURATION } from '../../server/spiel/konfiguration/spielKonfiguration.js';
 
 /**
@@ -27,6 +28,9 @@ import { STANDARD_KONFIGURATION } from '../../server/spiel/konfiguration/spielKo
  *   terrain  Pinsel heben/senken/glätten/ebnen
  *   raumFuellen  Klick füllt den Raum (bis zu Wänden) als Raumfläche
  *   pipette  Kachel/Objekt unter der Maus in die Bauleiste übernehmen
+ *   messen   Maßband (7.3): Klicks = Punkte, Doppelklick/Enter = fertig, Esc = löschen (zeichner.massband, ändert die Karte nicht)
+ * Hilfslinien (7.3): aus dem Lineal ziehen / mit Auswahl anfassen, zurück ins Lineal = löschen. Einrasten (zustand.einrasten,
+ *   Strg = aus) beim Platzieren und Verschieben von Objekten an Kanten/Mitten/Hilfslinien (kern/messen.js).
  * Free-Modus (zustand.frei, Optionsleiste „Frei“, 5.5): Platzieren/Ziehen stufenlos (0,01), R dreht 15°, Alt+Rad dreht 5° (Umschalt
  *   15°; eine Rad-Folge = 1 Undo-Schritt), Drehgriff über einem einzeln gewählten Objekt (Umschalt = 15°-Raster).
  * Touch: Ansehen & Schwenken überall (1 Finger mit Hand-Werkzeug, 2 Finger immer = schwenken + zoomen). Malen/Bauen geht
@@ -124,8 +128,16 @@ export class Werkzeuge {
       return;
     }
     if (!this.karte) return;
+    // Hilfslinie aus dem Lineal ziehen (oben → waagerecht, links → senkrecht) bzw. vorhandene anfassen
+    const hl = p.px < LINEAL && p.py < LINEAL ? null : p.py < LINEAL ? { achse: 'y', alt: null } : p.px < LINEAL ? { achse: 'x', alt: null } : this.#hilfslinieBei(p);
+    if (hl) {
+      this.ziehen = { art: 'hilfslinie', ...hl };
+      this.z.hilfslinieZiehen = { achse: hl.achse, wert: hl.achse === 'x' ? p.wx : p.wy };
+      return;
+    }
     if (p.px < LINEAL || p.py < LINEAL) return;
     const w = zustand.werkzeug;
+    if (w === 'messen') return this.#messenKlick(p);
     if (e.altKey && ['malen', 'platzieren', 'farbe', 'radierer', 'terrain'].includes(w)) return this.#pipette(p);
     if (w === 'zone') return this.#zoneRunter(p);
     if (w === 'auswahl' && (this.#klangGriffRunter(p) || this.#drehGriffRunter(p))) return;
@@ -232,6 +244,10 @@ export class Werkzeuge {
       this.zustand.melde('auswahl');
     } else if (d.art === 'bereich') this.#bereichVorschau(d.start, p);
     else if (d.art === 'zone') this.#zoneZiehen(d, p);
+    else if (d.art === 'hilfslinie') {
+      this.z.hilfslinieZiehen = { achse: d.achse, wert: this.#hilfsWert(d.achse, p) };
+      this.z.anfordern();
+    }
   }
 
   #hoch(e, abgebrochen = false) {
@@ -265,7 +281,9 @@ export class Werkzeuge {
     if (d.art === 'rahmen') this.#rahmenFertig(d, p, e.shiftKey);
     if (d.art === 'bereich') this.#bereichFertig(d, p);
     if (d.art === 'zone') this.#zoneFertig();
+    if (d.art === 'hilfslinie') this.#hilfslinieFertig(d, p);
     this.z.vorschau = null;
+    this.z.fangLinien = null;
     this.z.anfordern();
   }
 
@@ -282,6 +300,8 @@ export class Werkzeuge {
     this.z.vorschau = null;
     this.z.zonenVorschau = null;
     this.z.neuRechteck = null;
+    this.z.hilfslinieZiehen = null;
+    this.z.fangLinien = null;
     this.ziehen = null;
     this.z.anfordern();
   }
@@ -290,6 +310,75 @@ export class Werkzeuge {
   abbrechen() {
     this.#abbrechen();
     this.neuModus = false;
+    this.massbandLeeren();
+  }
+
+  // --- Messen & Ausrichten (7.3) -----------------------------------------------------
+  /** Maßband: jeder Klick setzt einen Punkt (Umschalt = auf ganze Kacheln), Doppelklick/Enter beendet, Esc löscht */
+  #messenKlick(p) {
+    const m = this.z.massband;
+    const punkt = { x: Math.round(p.wx * 2) / 2, y: Math.round(p.wy * 2) / 2 };
+    if (!m || m.fertig) this.z.massband = { punkte: [punkt], fertig: false };
+    else {
+      const letzt = m.punkte.at(-1);
+      if (letzt.x === punkt.x && letzt.y === punkt.y) return this.massbandFertig(); // Doppelklick
+      m.punkte.push(punkt);
+    }
+    this.#massbandMelden();
+  }
+
+  massbandFertig() {
+    if (!this.z.massband) return;
+    this.z.massband.fertig = true;
+    this.#massbandMelden();
+  }
+
+  massbandLeeren() {
+    if (!this.z.massband) return;
+    this.z.massband = null;
+    this.z.anfordern();
+  }
+
+  #massbandMelden() {
+    const m = this.z.massband;
+    const i = streckenInfo(m.punkte);
+    const letzt = i.segmente.at(-1);
+    this.zustand.meldung(m.punkte.length < 2 ? 'Maßband: nächsten Punkt klicken (Doppelklick/Enter = fertig, Esc = löschen)' : `Maßband: ${i.gesamt} m gesamt · letzter Abschnitt ${letzt.laenge} m, ${letzt.winkel}°${m.fertig ? ' · fertig' : ''}`);
+    this.z.anfordern();
+  }
+
+  /** Hilfslinie nahe dem Zeiger (≤ 5 px) → { achse, alt } */
+  #hilfslinieBei(p) {
+    if (this.zustand.werkzeug !== 'auswahl' || !this.zustand.sichtbar('hilfslinien')) return null;
+    const h = this.karte.werte.hilfslinien ?? {};
+    const tol = 5 / this.z.zoom;
+    for (const v of h.x ?? []) if (Math.abs(p.wx - v) <= tol) return { achse: 'x', alt: v };
+    for (const v of h.y ?? []) if (Math.abs(p.wy - v) <= tol) return { achse: 'y', alt: v };
+    return null;
+  }
+
+  /** Hilfslinien rasten auf 0,5-Kacheln (Alt = frei) */
+  #hilfsWert(achse, p) {
+    const v = achse === 'x' ? p.wx : p.wy;
+    return this.zustand.frei ? Math.round(v * 100) / 100 : Math.round(v * 2) / 2;
+  }
+
+  #hilfslinieFertig(d, p) {
+    this.z.hilfslinieZiehen = null;
+    const imLineal = d.achse === 'x' ? p.px < LINEAL : p.py < LINEAL;
+    const neu = imLineal ? null : this.#hilfsWert(d.achse, p);
+    if (neu === d.alt || (neu === null && d.alt === null)) return;
+    if (neu !== null) this.zustand.setzeEbene?.('hilfslinien', 'sichtbar', true);
+    this.zustand.ausfuehren(neu === null ? 'Hilfslinie entfernen' : d.alt === null ? 'Hilfslinie' : 'Hilfslinie verschieben', hilfslinieOps(this.karte, d.achse, d.alt, neu));
+  }
+
+  /** Einrasten (an Objektkanten/-mitten + Hilfslinien), Strg hält es kurz aus */
+  #fang(o, ohne) {
+    this.z.fangLinien = null;
+    if (!this.zustand.einrasten || this.strg) return o;
+    const g = fange(o, fangKandidaten(this.karte, ohne), Math.max(0.1, 8 / this.z.zoom));
+    this.z.fangLinien = g.linien.length ? g.linien : null;
+    return { ...o, x: g.x, y: g.y };
   }
 
   #geste(id, vorher) {
@@ -365,8 +454,19 @@ export class Werkzeuge {
   /** Gewähltes um ganze Kacheln verschieben (Alt = 0,1-Schritte für Objekte, Free-Modus = stufenlos 0,01) */
   #bewege(d, p, fein) {
     const raster = this.zustand.frei ? 0.01 : fein ? 0.1 : 1;
-    const dx = Math.round((p.wx - d.start.wx) / raster) * raster;
-    const dy = Math.round((p.wy - d.start.wy) / raster) * raster;
+    let dx = Math.round((p.wx - d.start.wx) / raster) * raster;
+    let dy = Math.round((p.wy - d.start.wy) / raster) * raster;
+    // Einrasten: das zuerst gewählte Objekt bestimmt den Fang (alle bewegen sich gleich)
+    const gew = this.zustand.gewaehlte();
+    const erstes = gew.find((e) => e.s === 'objekte');
+    if (erstes && gew.length) {
+      const o = erstes.wert;
+      const sx0 = o.x - d.dx;
+      const sy0 = o.y - d.dy;
+      const g = this.#fang({ x: sx0 + dx, y: sy0 + dy, b: o.b, h: o.h }, new Set(gew.filter((e) => e.s === 'objekte').map((e) => e.k)));
+      dx = Math.round((g.x - sx0) * 1000) / 1000;
+      dy = Math.round((g.y - sy0) * 1000) / 1000;
+    }
     const sx = dx - d.dx;
     const sy = dy - d.dy;
     if (Math.abs(sx) < 1e-9 && Math.abs(sy) < 1e-9) return;
@@ -495,6 +595,7 @@ export class Werkzeuge {
       o.x = Math.round(p.wx - b / 2);
       o.y = Math.round(p.wy - h / 2);
     }
+    Object.assign(o, this.#fang(o));
     o.x = Math.round(o.x * 1000) / 1000;
     o.y = Math.round(o.y * 1000) / 1000;
     if (e.blockiert) o.blockiert = true;

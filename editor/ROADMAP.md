@@ -77,13 +77,15 @@
 - 7.2 fertig (2026-10-20): `editor/kern/anordnen.js` + Befehle `anordnen.*` (Menü, Kontextmenü, Inspektor), Tests + Rauchtest.
   Nebenbei behoben: Inspektor-Knöpfe, die die Auswahl ändern, liefen doppelt (`main.js` globaler Klick, jetzt `isConnected`).
 
-⏸ **Pausiert auf Nutzerwunsch (2026-10-20) – alles committet und gepusht, Tests grün (npm test 279, rauchtest:editor, rauchtest).**
-Offen danach: 7.3–7.6, Phase 8 (8.1–8.2), Phase 9 (9.1–9.9) laut Tabellen unten.
+- 7.3 fertig (2026-10-20): `editor/kern/messen.js` (streckenInfo, fangKandidaten, fange, hilfslinieOps) + Werkzeug 📏 Maßband (M,
+  Enter/Doppelklick fertig, Esc löscht), Hilfslinien aus den Linealen ziehen (`werte.hilfslinien`, Anzeige Umschalt+H, zurück
+  ins Lineal = löschen), Einrasten 🧲 (Umschalt+G, Strg hält aus) beim Platzieren/Verschieben von Objekten, Raster-Weite +
+  Hauptlinien (`messen.raster`, localStorage `browserSurvival.editorMessen`), 3D: GridHelper + AxesHelper. Tests + Rauchtest.
+  Noch nicht: „auf Gelände einrasten“ in 3D (Objekte stehen ohnehin auf Geländehöhe).
 
-**Nächster Schritt: 7.3 Messen & Ausrichten.** Plan: Maßband-Werkzeug (Strecke in Kacheln/m, Pfadlänge über mehrere Klicks,
-Winkel), einstellbares Raster (Weite 0,5/1/2/4, Hauptlinien alle N) in der Optionsleiste/Ansicht, Hilfslinien aus den Linealen
-ziehen (gespeichert je Zone in `werte.hilfslinien`, nur Editor), Einrasten an Raster/Objektkanten/-mitten/Hilfslinien beim
-Platzieren/Verschieben (umschaltbar), 3D: Raster + Achsen-Gizmo.
+Offen: 7.4–7.6, Phase 8 (8.1–8.2), Phase 9 (9.1–9.9) laut Tabellen unten.
+
+**Nächster Schritt: 7.4 Bibliothek & Vorlagen** (siehe Tabelle Phase 7).
 
 **Danach:** Phasen 6–9 laut Tabellen unten (6 Zonen/Loot, 7 UX, 8 Testlauf, 9 KI).
 
@@ -168,7 +170,7 @@ Platzieren/Verschieben (umschaltbar), 3D: Raster + Achsen-Gizmo.
 |---|---|---|
 | ☑ 7.1 | **Tastenkürzel überall + Hilfe:** alle Befehle aus dem Register mit Kürzel, **anpassbar** (Konflikterkennung, Zurücksetzen, gespeichert), Hilfe-Übersicht mit **Suche** – zugleich Befehlspalette (Strg+K) | M |
 | ☑ 7.2 | **Mehrfachauswahl:** Ausrichten (links/rechts/oben/unten/Mitte), Verteilen (gleiche Abstände), Spiegeln (waagerecht/senkrecht, inkl. Kacheln und Drehungen) – je 1 Undo-Schritt | M |
-| ☐ 7.3 | **Messen & Ausrichten:** Maßband (Strecke, Pfadlänge, Winkel), Lineale mit herausziehbaren Hilfslinien, einstellbares Raster (Weite, Hauptlinien), Einrasten an Raster/Objektkanten/-mitten/Hilfslinien, 3D-Ausrichtungshilfen (Raster, Achsen-Gizmo, auf Gelände einrasten) | M |
+| ☑ 7.3 | **Messen & Ausrichten:** Maßband (Strecke, Pfadlänge, Winkel), Lineale mit herausziehbaren Hilfslinien, einstellbares Raster (Weite, Hauptlinien), Einrasten an Raster/Objektkanten/-mitten/Hilfslinien, 3D-Ausrichtungshilfen (Raster, Achsen-Gizmo, auf Gelände einrasten) | M |
 | ☐ 7.4 | **Bibliothek & Vorlagen:** Prefabs in Ordnern, Suche, automatische Vorschaubilder für eigene Prefabs/Objekte, Favoriten, Ziehen aus der Bibliothek auf die Karte (eine Bibliothek für Assets, Prefabs, Loot-Vorlagen, Audio) | M |
 | ☐ 7.5 | **Versionskontrolle:** benannte Versionen (manuell + automatisch bei Export/Veröffentlichen), Versionsliste, **„Diff zu Version X“** (Liste + farbig auf der Karte), **„Wiederherstellungspunkt laden“** (als rückgängig machbarer Schritt), vor dem Veröffentlichen **Änderungsübersicht seit dem letzten Export** | L |
 | ☐ 7.6 | **Touch-Bauen:** Fadenkreuz-Cursor über dem Finger, **Lupe**, Snap-to-Grid, große **Griffe** (verschieben/drehen/skalieren), Bestätigen/Abbrechen-Knöpfe, Langdruck = Kontextmenü, Schubladen-Layout fürs Handy; hebt die bisherige „Touch-Ausnahme“ auf (Doku) | L |

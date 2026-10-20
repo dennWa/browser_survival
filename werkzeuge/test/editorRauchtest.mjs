@@ -214,6 +214,31 @@ try {
   for (let i = 0; i < 3; i++) await seite.keyboard.press('Control+z');
   pruefe(await seite.evaluate(({ schritte }) => window.mapEditor.zustand.verlauf.zurueck.length === schritte - 1, anordnenVorher), 'Ausrichten/Spiegeln je ein Undo-Schritt');
   await seite.keyboard.press('Escape');
+  // 7.3: Hilfslinie aus dem oberen Lineal ziehen (1 Undo-Schritt) + Maßband (M, zwei Klicks, Enter)
+  {
+    const box = await seite.locator('#leinwand2d').boundingBox();
+    const bild = (x, y) => seite.evaluate(([x, y]) => window.mapEditor.zeichner.zuBild(x, y), [x, y]);
+    const ziel = await bild(5, 5);
+    const vorher = await seite.evaluate(() => window.mapEditor.zustand.verlauf.zurueck.length);
+    await seite.mouse.move(box.x + ziel.x, box.y + 10);
+    await seite.mouse.down();
+    await seite.mouse.move(box.x + ziel.x, box.y + ziel.y, { steps: 4 });
+    await seite.mouse.up();
+    const hl = await seite.evaluate(() => window.mapEditor.zustand.karte.werte.hilfslinien);
+    pruefe(hl?.y?.length === 1 && Math.abs(hl.y[0] - 5) <= 0.5, `Hilfslinie aus dem Lineal gezogen (${JSON.stringify(hl)})`);
+    await seite.keyboard.press('m');
+    const a = await bild(2, 2);
+    const b = await bild(5, 6);
+    await seite.mouse.click(box.x + a.x, box.y + a.y);
+    await seite.mouse.click(box.x + b.x, box.y + b.y);
+    await seite.keyboard.press('Enter');
+    const mb = await seite.evaluate(() => window.mapEditor.zeichner.massband);
+    pruefe(mb?.fertig && mb.punkte.length === 2, `Maßband: 2 Punkte, fertig (${JSON.stringify(mb?.punkte)})`);
+    await seite.keyboard.press('Escape');
+    await seite.keyboard.press('v');
+    await seite.keyboard.press('Control+z');
+    pruefe(await seite.evaluate((v) => window.mapEditor.zustand.verlauf.zurueck.length === v && !window.mapEditor.zustand.karte.werte.hilfslinien, vorher), 'Hilfslinie: ein Undo-Schritt, Maßband ändert die Karte nicht');
+  }
 
   schritt('Neu laden: Entwurf + Verlauf bleiben');
   await seite.waitForTimeout(1200);

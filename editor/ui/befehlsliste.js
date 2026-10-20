@@ -96,6 +96,14 @@ export function meldeBefehleAn(befehle, t) {
     werkzeug('werkzeug.pipette', 'Pipette (auch Alt+Klick)', '💧', ['I'], 'pipette', () => z.werkzeug === 'pipette'),
     { ...werkzeug('werkzeug.terrain', 'Gelände formen', '⛰', ['T'], 'terrain', () => z.werkzeug === 'terrain'), ausfuehren: () => t.assets.waehleId(z.eintrag?.werkzeug?.startsWith('terrain') ? z.eintrag.id : 'werkzeug:terrain-heben') },
     { ...werkzeug('werkzeug.farbe', 'Boden bemalen', '🎨', ['K'], 'farbe', () => z.werkzeug === 'farbe'), ausfuehren: () => t.assets.waehleId(z.eintrag?.werkzeug?.startsWith('farbe') ? z.eintrag.id : 'werkzeug:farbe-pinsel') },
+    werkzeug('werkzeug.messen', 'Maßband (Klicks = Punkte, Doppelklick/Enter = fertig)', '📏', ['M'], 'messen', () => z.werkzeug === 'messen'),
+    { id: 'messen.fertig', name: 'Maßband beenden', gruppe: 'Werkzeuge', kuerzel: ['Enter'], verfuegbar: () => !!zeichner?.massband && !zeichner.massband.fertig, grund: 'kein Maßband aktiv', ausfuehren: () => t.werkzeuge.massbandFertig() },
+    { id: 'messen.einrasten', name: 'Einrasten an Kanten, Mitten & Hilfslinien (Strg hält aus)', symbol: '🧲', gruppe: 'Ansicht', kuerzel: ['Umschalt+G'], aktiv: () => z.einrasten, ausfuehren: () => z.setzeMessen({ einrasten: !z.einrasten }) },
+    { id: 'messen.raster', name: 'Raster-Weite wechseln (½ · 1 · 2 · 4 · 8)', symbol: '#', gruppe: 'Ansicht', ausfuehren: () => {
+        const stufen = [0.5, 1, 2, 4, 8];
+        z.setzeMessen({ rasterWeite: stufen[(stufen.indexOf(z.rasterWeite) + 1) % stufen.length] });
+        z.meldung(`Raster: alle ${z.rasterWeite} Kacheln, Hauptlinie alle ${z.hauptlinien}`);
+      } },
     werkzeug('werkzeug.zone', 'Zonengröße (Griffe)', '⤡', ['Z'], 'zone', () => z.werkzeug === 'zone'),
     { id: 'werkzeug.kleiner', name: 'Pinsel kleiner', gruppe: 'Werkzeuge', kuerzel: ['['], ausfuehren: () => a.pinselGroesse(-1) },
     { id: 'werkzeug.groesser', name: 'Pinsel größer', gruppe: 'Werkzeuge', kuerzel: [']'], ausfuehren: () => a.pinselGroesse(1) },
@@ -149,7 +157,7 @@ export function menues(t) {
   return [
     { titel: 'Datei', eintraege: ['datei.neu', 'datei.oeffnen', '-', 'datei.speichern', 'datei.herunterladen', 'datei.alleHerunterladen', '-', { ueberschrift: 'Export' }, 'datei.exportJson', 'datei.liesmich', 'ki.ausschnitt', '-', 'datei.veroeffentlichen', '-', { ueberschrift: 'Sicherung' }, 'datei.backup', 'datei.wiederherstellen', 'datei.speicherplatz', '-', 'datei.zoneEntfernen', 'datei.zumSpiel'] },
     { titel: 'Bearbeiten', eintraege: ['bearbeiten.rueckgaengig', 'bearbeiten.wiederholen', '-', 'bearbeiten.kopieren', 'bearbeiten.ausschneiden', 'bearbeiten.einfuegen', 'bearbeiten.duplizieren', 'bearbeiten.drehen', 'bearbeiten.loeschen', '-', 'bearbeiten.alles', 'bearbeiten.bereichLeeren', 'bearbeiten.alsPrefab', 'bearbeiten.werkstatt', 'bearbeiten.abbrechen', '-', { ueberschrift: 'Anordnen' }, 'anordnen.links', 'anordnen.mitteH', 'anordnen.rechts', 'anordnen.oben', 'anordnen.mitteV', 'anordnen.unten', 'anordnen.verteilenH', 'anordnen.verteilenV', 'anordnen.spiegelnH', 'anordnen.spiegelnV'] },
-    { titel: 'Ansicht', eintraege: ['ansicht.dreiD', 'ansicht.einpassen', 'ansicht.zoomRein', 'ansicht.zoomRaus', '-', 'ansicht.links', 'ansicht.rechts', 'ki.helfer', 'ansicht.fokus', '-', 'ansicht.ebenen', ...ANZEIGEN.map((a) => `ansicht.${a.id}`), '-', 'ansicht.suche'] },
+    { titel: 'Ansicht', eintraege: ['ansicht.dreiD', 'ansicht.einpassen', 'ansicht.zoomRein', 'ansicht.zoomRaus', '-', 'ansicht.links', 'ansicht.rechts', 'ki.helfer', 'ansicht.fokus', '-', 'ansicht.ebenen', ...ANZEIGEN.map((a) => `ansicht.${a.id}`), 'messen.einrasten', 'messen.raster', '-', 'ansicht.suche'] },
     { titel: 'Einfügen', eintraege: () => einfuegenEintraege(t) },
     { titel: 'Werkzeuge', eintraege: WERKZEUGLEISTE.filter((x) => x !== '-').concat(['-', 'werkzeug.kleiner', 'werkzeug.groesser']) },
     { titel: 'Zone', eintraege: ['zone.einstellungen', 'zone.groesse', '-', 'zone.uebersicht', 'zone.vorschlaege', 'zone.raeume', 'zone.prefabs', '-', 'zone.pruefung', 'zone.testen'] },
@@ -160,7 +168,7 @@ export function menues(t) {
 
 export const SCHNELLLEISTE = ['bearbeiten.rueckgaengig', 'bearbeiten.wiederholen', '-', 'ansicht.dreiD', 'ansicht.loot', 'zone.testen', 'datei.veroeffentlichen', '-', 'ki.helfer', 'ansicht.links', 'ansicht.rechts'];
 
-export const WERKZEUGLEISTE = ['werkzeug.auswahl', 'werkzeug.hand', '-', 'werkzeug.pinsel', 'werkzeug.rechteck', 'werkzeug.linie', 'werkzeug.fuellen', 'werkzeug.radierer', 'werkzeug.pipette', '-', 'werkzeug.terrain', 'werkzeug.farbe', '-', 'werkzeug.zone'];
+export const WERKZEUGLEISTE = ['werkzeug.auswahl', 'werkzeug.hand', '-', 'werkzeug.pinsel', 'werkzeug.rechteck', 'werkzeug.linie', 'werkzeug.fuellen', 'werkzeug.radierer', 'werkzeug.pipette', 'werkzeug.messen', '-', 'werkzeug.terrain', 'werkzeug.farbe', '-', 'werkzeug.zone'];
 
 /** Kontextmenü je nach Ziel (Rechtsklick auf Element / leere Fläche) */
 export function kontextEintraege(t, ziel) {

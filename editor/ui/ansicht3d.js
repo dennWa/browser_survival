@@ -159,6 +159,14 @@ export class Ansicht3D {
     this.#baueBauwerke(k);
     this.#baueMarker(k);
     if (this.zustand.sichtbar('klaenge')) this.#baueKlaenge(k);
+    if (this.zustand.sichtbar('raster')) {
+      // 7.3: Raster (Hauptlinien wie in 2D) + Achsen am Ursprung (rot = x, blau = y/Süden)
+      const n = Math.max(k.breite, k.hoehe);
+      const w = this.zustand.rasterWeite ?? 1;
+      const gitter = new THREE.GridHelper(n, Math.max(1, Math.round(n / w)), 0x666f80, 0x2c323d);
+      gitter.position.set(n / 2, 0.03, n / 2);
+      this.welt.add(gitter, new THREE.AxesHelper(Math.min(10, n / 4)));
+    }
     this.#markiereAuswahl();
     this.anfordern();
   }
