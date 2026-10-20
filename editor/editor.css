@@ -1936,3 +1936,21 @@ img.ki-bild {
     left: 52px;
   }
 }
+
+/* Wiedergabe läuft: Knopf leuchtet (⏸ statt ▶) – Phase 10 Nachbesserung */
+.audiozentrale button.laeuft {
+  background: #2e6b31;
+  border-color: var(--akzent);
+  box-shadow: 0 0 0 2px #4caf5055, 0 0 10px #4caf5066;
+  animation: az-puls 1.4s ease-in-out infinite;
+}
+@keyframes az-puls {
+  50% {
+    box-shadow: 0 0 0 2px #4caf5033, 0 0 4px #4caf5033;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .audiozentrale button.laeuft {
+    animation: none;
+  }
+}

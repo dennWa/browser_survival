@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { behandleEditorApi } from '../../werkzeuge/editor/api.mjs';
 
 /**
  * Minimaler HTTP-Server für die Spieldateien (kein Express nötig).
@@ -26,10 +27,19 @@ const MIME_TYPEN = {
   '.ico': 'image/x-icon',
 };
 
+/**
+ * Editor-API (Map-Editor speichert Audio/Musik direkt ins Projekt): nur für Anfragen vom EIGENEN Rechner (Gegenstelle
+ * 127.0.0.1, kein Proxy-Kopf, Host localhost) – auf einem öffentlichen Server (Render …) antwortet sie nie. Abschalten: EDITOR_API=0.
+ */
+const EDITOR_API = process.env.EDITOR_API !== '0';
+
 export function erstelleStatischenServer(wurzel) {
   const erlaubteOrdner = FREIGEGEBEN.map((ordner) => path.join(wurzel, ordner) + path.sep);
 
   return createServer(async (anfrage, antwort) => {
+    if (EDITOR_API && anfrage.url?.startsWith('/api/editor/')) {
+      if (await behandleEditorApi(anfrage, antwort, new URL(anfrage.url, 'http://localhost'), { wurzel, nurLoopback: true })) return;
+    }
     if (anfrage.method !== 'GET' && anfrage.method !== 'HEAD') {
       antwort.writeHead(405).end();
       return;

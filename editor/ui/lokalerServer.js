@@ -5,7 +5,7 @@
  *   pruefeLokalenServer() → { verbunden, ordner }   (einmal, Ergebnis gemerkt; `neu: true` fragt erneut)
  *   schreibeDatei(pfad, daten) · loescheDatei(pfad) · listeDateien(ordner) → werfen Error mit deutschem Text
  */
-export const LOKAL_HINWEIS = 'Speichern in den Projektordner geht nur lokal: Editor lokal starten mit „npm run editor:lokal“ und http://localhost:8090/editor/ öffnen.';
+export const LOKAL_HINWEIS = 'Speichern ins Projekt geht nur auf deinem eigenen Rechner: Spiel/Editor über „Spiel starten.bat“ bzw. „npm start“ (oder „npm run editor:lokal“) starten und über http://localhost:… öffnen – nicht über GitHub Pages.';
 const KOPF = { 'X-Editor': '1' };
 let status = null;
 let laufend = null; // gleichzeitige Aufrufe teilen sich EINE Anfrage (sonst bekam der zweite den Platzhalter „nicht verbunden“)

@@ -89,3 +89,27 @@ test('Server: schreiben, Index neu, löschen, fremder Ursprung abgelehnt', async
     rmSync(wurzel, { recursive: true, force: true });
   }
 });
+
+test('Spielserver: Editor-API nur vom eigenen Rechner, nie über Proxy/fremden Host', async () => {
+  const { erstelleStatischenServer } = await import('../server/node/statischerServer.js');
+  const wurzel = mkdtempSync(path.join(tmpdir(), 'spielserver-'));
+  mkdirSync(path.join(wurzel, 'client/audio/eigene'), { recursive: true });
+  mkdirSync(path.join(wurzel, 'client/musik'), { recursive: true });
+  const server = erstelleStatischenServer(wurzel);
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const basis = `http://127.0.0.1:${server.address().port}`;
+  const kopf = { 'X-Editor': '1' };
+  try {
+    assert.equal((await fetch(`${basis}/api/editor/status`, { headers: kopf })).status, 200);
+    const r = await fetch(`${basis}/api/editor/datei?pfad=client/musik/test.ogg`, { method: 'PUT', headers: kopf, body: 'x' });
+    assert.equal((await r.json()).ok, true);
+    assert.ok(existsSync(path.join(wurzel, 'client/musik/test.ogg')));
+    // über einen Proxy (X-Forwarded-For) → nein, auch mit passendem Host
+    assert.equal((await fetch(`${basis}/api/editor/status`, { headers: { ...kopf, 'X-Forwarded-For': '8.8.8.8' } })).status, 403);
+    // Ohne Editor-Kopf → nein
+    assert.equal((await fetch(`${basis}/api/editor/status`)).status, 403);
+  } finally {
+    server.close();
+    rmSync(wurzel, { recursive: true, force: true });
+  }
+});

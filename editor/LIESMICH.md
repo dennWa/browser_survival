@@ -325,7 +325,7 @@ Veröffentlichen-Dialog listet die Änderungen seit dem letzten Export.
 
 ## 🖥 Lokaler Editor-Server (direkt in den Projektordner speichern)
 
-- Start: `npm run editor:lokal` → **http://localhost:8090/editor/** öffnen (das Spiel liegt unter `/client/`).
+- Geht beim **normalen Start** (`Spiel starten.bat` bzw. `npm start`, dann http://localhost:8080/editor/) – oder mit `npm run editor:lokal` (Port 8090). Nur vom eigenen Rechner.
 - Nur dann darf der Editor Dateien im Projekt schreiben und löschen – und nur in diesen Ordnern: `client/audio/eigene/`,
   `client/audio/karten/`, `client/musik/`, `client/assets/eigene/`, `server/spiel/karten/`. Alles andere bleibt tabu.
 - Die Indexe (`eigene.json`, `musik.json`) baut der Server nach jeder Änderung selbst neu (wie `npm run sounds` / `musik:index`).

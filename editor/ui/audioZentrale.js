@@ -65,6 +65,7 @@ class AudioZentrale {
     this.stimme = null;
     this.synth = null;
     this.synthTimer = null;
+    this.laeuft = null; // Marke dessen, was gerade klingt: Eintrags-ID | 'datei:<pfad>' | 'vor' | 'vorSchleife' (→ Knöpfe zeigen ⏸)
     this.bearbeitung = null;
     this.handy = matchMedia('(max-width: 900px)').matches;
     this.#baue();
@@ -119,7 +120,7 @@ class AudioZentrale {
     this.elListe.addEventListener('click', (e) => {
       const zeile = e.target.closest('[data-id]');
       if (!zeile) return;
-      if (e.target.closest('[data-a=spiele]')) return this.spiele(zeile.dataset.id);
+      if (e.target.closest('[data-a=spiele]')) return this.laeuft === zeile.dataset.id ? this.stoppe() : this.spiele(zeile.dataset.id);
       this.waehle(zeile.dataset.id);
     });
     // Datei auf eine Zeile ziehen = als Ersatz für diesen Eintrag hochladen
@@ -160,7 +161,7 @@ class AudioZentrale {
       this.wiederholen();
     } else if (e.key === ' ' && !inFeld && this.gewaehlt) {
       e.preventDefault();
-      this.stimme || this.synthTimer ? this.stoppe() : this.bearbeitung ? this.vorhoeren() : this.spiele(this.gewaehlt);
+      this.laeuft ? this.stoppe() : this.bearbeitung ? this.vorhoeren() : this.spiele(this.gewaehlt);
     }
     // Fenster ist modal: keine Editor-Kürzel dahinter (Tippen in Feldern bleibt Standardverhalten)
     e.stopImmediatePropagation();
@@ -292,6 +293,7 @@ class AudioZentrale {
     }
     this.elListe.innerHTML = html;
     this.elListe.querySelector('.gewaehlt')?.scrollIntoView({ block: 'nearest' });
+    this.#marke(this.laeuft);
   }
 
   #aktualisiereZeilen() {
@@ -325,7 +327,7 @@ class AudioZentrale {
     ziel.innerHTML = e.dateien.length
       ? e.dateien.map((p, i) => {
           const inf = this.info.get(p) ?? {};
-          return `<li><button type="button" data-a="datei" data-i="${i}" title="Diese Datei anhören">▶</button> <code>${esc(p)}</code> <span class="leise">${dauerText(inf.dauer)} · ${Number.isFinite(inf.groesse) && inf.groesse ? groesseText(inf.groesse) : '?'}${inf.fehlt ? ' · ⚠ fehlt' : ''}</span></li>`;
+          return `<li><button type="button" data-a="datei" data-i="${i}" data-marke="datei:${esc(p)}" title="Diese Datei anhören">▶</button> <code>${esc(p)}</code> <span class="leise">${dauerText(inf.dauer)} · ${Number.isFinite(inf.groesse) && inf.groesse ? groesseText(inf.groesse) : '?'}${inf.fehlt ? ' · ⚠ fehlt' : ''}</span></li>`;
         }).join('')
       : `<li class="leise">${e.quelle === 'synth' ? 'Keine Datei – der Ton wird im Spiel erzeugt (client/audio/sound.js).' : e.art === 'musikOrdner' ? '' : 'Keine Datei.'}</li>`;
   }
@@ -354,14 +356,14 @@ class AudioZentrale {
     this.#infoZeile();
     this.#bindeDetail(e);
     if (this.bearbeitung) this.#zeichneWerkbank();
+    this.#marke(this.laeuft);
   }
 
   #ereignisHtml(e) {
     const loop = e.loop;
     return `<div class="az-block">
       <div class="knopfreihe">
-        <button type="button" data-a="anhoeren" class="akzent">▶ Anhören${e.varianten > 1 ? ' (zufällige Variante)' : ''}</button>
-        <button type="button" data-a="stopp">■ Stopp</button>
+        <button type="button" data-a="anhoeren" class="akzent" data-text="▶ Anhören${e.varianten > 1 ? ' (zufällige Variante)' : ''}">▶ Anhören${e.varianten > 1 ? ' (zufällige Variante)' : ''}</button>
         ${e.dateien.length ? '<button type="button" data-a="bearbeiten" title="Vorhandene Datei kürzen/anpassen und als eigene Datei speichern">✂ Datei bearbeiten</button>' : ''}
         ${e.quelle === 'eigen' || e.geaendert ? '<button type="button" data-a="original" class="gefahr" title="Eigene Dateien + Einstellungen entfernen">↺ Original</button>' : ''}
       </div>
@@ -375,13 +377,13 @@ class AudioZentrale {
   #ordnerHtml(e) {
     return `<div class="az-block">
       <label class="haken"><input type="checkbox" data-f="reihe"${e.zufall ? '' : ' checked'}> der Reihe nach spielen (sonst zufällig)</label>
-      <ol class="az-titel">${e.titel.map((d, i) => `<li><button type="button" data-a="titelSpielen" data-i="${i}">▶</button> <span>${esc(d)}</span> <span class="fueller"></span><button type="button" data-a="hoch" data-i="${i}" title="Nach oben"${i ? '' : ' disabled'}>↑</button><button type="button" data-a="runter" data-i="${i}" title="Nach unten"${i < e.titel.length - 1 ? '' : ' disabled'}>↓</button><button type="button" data-a="titelWeg" data-i="${i}" class="gefahr" title="Titel entfernen">🗑</button></li>`).join('') || '<li class="leise">Noch keine Titel – unten hochladen. Ohne Titel bleibt es hier still.</li>'}</ol>
+      <ol class="az-titel">${e.titel.map((d, i) => `<li><button type="button" data-a="titelSpielen" data-i="${i}" data-marke="datei:client/musik/${esc(e.ordner)}/${esc(d)}" title="Anhören">▶</button> <span>${esc(d)}</span> <span class="fueller"></span><button type="button" data-a="hoch" data-i="${i}" title="Nach oben"${i ? '' : ' disabled'}>↑</button><button type="button" data-a="runter" data-i="${i}" title="Nach unten"${i < e.titel.length - 1 ? '' : ' disabled'}>↓</button><button type="button" data-a="titelWeg" data-i="${i}" class="gefahr" title="Titel entfernen">🗑</button></li>`).join('') || '<li class="leise">Noch keine Titel – unten hochladen. Ohne Titel bleibt es hier still.</li>'}</ol>
     </div>`;
   }
 
   #titelHtml(e) {
     return `<div class="az-block"><div class="knopfreihe">
-      <button type="button" data-a="anhoeren" class="akzent">▶ Anhören</button><button type="button" data-a="stopp">■ Stopp</button>
+      <button type="button" data-a="anhoeren" class="akzent" data-text="▶ Anhören">▶ Anhören</button>
       <button type="button" data-a="bearbeiten">✂ Bearbeiten</button>
       <button type="button" data-a="hoch"${e.position ? '' : ' disabled'}>↑ früher</button><button type="button" data-a="runter">↓ später</button>
       <button type="button" data-a="titelWeg" class="gefahr">🗑 Entfernen</button>
@@ -389,7 +391,7 @@ class AudioZentrale {
   }
 
   #kartenklangHtml(e) {
-    return `<div class="az-block"><div class="knopfreihe"><button type="button" data-a="anhoeren" class="akzent">▶ Anhören</button><button type="button" data-a="stopp">■ Stopp</button><button type="button" data-a="bearbeiten">✂ Bearbeiten</button></div>
+    return `<div class="az-block"><div class="knopfreihe"><button type="button" data-a="anhoeren" class="akzent" data-text="▶ Anhören">▶ Anhören</button><button type="button" data-a="bearbeiten">✂ Bearbeiten</button></div>
       <p class="leise">Gehört zur Klanglandschaft der Karte (Position, Radius, Auslöser: im Editor die Karte öffnen → Klang wählen → Inspektor).</p></div>`;
   }
 
@@ -402,14 +404,14 @@ class AudioZentrale {
     const d = this.elDetail;
     const knopf = (a, f) => d.querySelectorAll(`[data-a=${a}]`).forEach((b) => b.addEventListener('click', () => f(Number(b.dataset.i))));
     knopf('zurueck', () => this.el.classList.remove('detail-offen'));
-    knopf('anhoeren', () => this.spiele(e.id));
-    knopf('stopp', () => this.stoppe());
-    knopf('datei', (i) => this.#spieleDatei(e.dateien[i], e));
+    knopf('anhoeren', () => (this.laeuft === e.id ? this.stoppe() : this.spiele(e.id)));
+    const datei = (pfad) => (this.laeuft === `datei:${pfad}` ? this.stoppe() : this.#spieleDatei(pfad, e, `datei:${pfad}`));
+    knopf('datei', (i) => datei(e.dateien[i]));
     knopf('hochladen', () => this.elDatei.click());
     knopf('bearbeiten', () => this.bearbeiteVorhandene(e));
     knopf('original', () => this.original(e));
     knopf('einstellungen', () => this.speichereEinstellungen(e));
-    knopf('titelSpielen', (i) => this.#spieleDatei(`client/musik/${e.ordner}/${e.titel[i]}`, e));
+    knopf('titelSpielen', (i) => datei(`client/musik/${e.ordner}/${e.titel[i]}`));
     knopf('hoch', (i) => this.#verschiebeTitel(e, Number.isNaN(i) ? e.position : i, -1));
     knopf('runter', (i) => this.#verschiebeTitel(e, Number.isNaN(i) ? e.position : i, 1));
     knopf('titelWeg', (i) => this.#titelEntfernen(e, Number.isNaN(i) ? e.position : i));
@@ -454,8 +456,36 @@ class AudioZentrale {
     return this.puffer.get(pfad);
   }
 
-  /** AudioBuffer abspielen (eine Stimme), optional Schleife */
-  #spielePuffer(puffer, { pegel = 1, rate = 1, loop = false } = {}) {
+  /** Was klingt gerade? → alle Knöpfe passend umschalten (▶ Anhören ⇄ ⏸ Stoppen, leuchtend solange es läuft) */
+  #marke(m) {
+    this.laeuft = m;
+    if (!this.el.isConnected) return;
+    for (const b of this.el.querySelectorAll('[data-a=spiele]')) {
+      const an = !!m && b.closest('[data-id]')?.dataset.id === m;
+      b.textContent = an ? '⏸' : '▶';
+      b.classList.toggle('laeuft', an);
+      b.title = an ? 'Stoppen (Leertaste)' : 'Anhören (Leertaste)';
+    }
+    for (const b of this.el.querySelectorAll('[data-a=anhoeren]')) {
+      const an = !!m && m === this.gewaehlt;
+      b.textContent = an ? '⏸ Stoppen' : b.dataset.text;
+      b.classList.toggle('laeuft', an);
+    }
+    for (const b of this.el.querySelectorAll('[data-marke]')) {
+      const an = !!m && b.dataset.marke === m;
+      b.textContent = an ? '⏸' : '▶';
+      b.classList.toggle('laeuft', an);
+    }
+    for (const [a, aus, an] of [['vor', '▶ Vorhören', '⏸ Stoppen'], ['vorSchleife', '🔁 In Schleife', '⏸ Stoppen']]) {
+      const b = this.el.querySelector(`.az-werkbank [data-a=${a}]`);
+      if (!b) continue;
+      b.textContent = m === a ? an : aus;
+      b.classList.toggle('laeuft', m === a);
+    }
+  }
+
+  /** AudioBuffer abspielen (eine Stimme), optional Schleife; `marke` = was die Knöpfe als „läuft“ zeigen */
+  #spielePuffer(puffer, { pegel = 1, rate = 1, loop = false, marke = null } = {}) {
     this.stoppe();
     const ctx = this.#kontext();
     const q = ctx.createBufferSource();
@@ -467,15 +497,20 @@ class AudioZentrale {
     q.connect(g).connect(ctx.destination);
     q.start(ctx.currentTime + 0.02);
     const stimme = { q, g };
-    q.onended = () => this.stimme === stimme && (this.stimme = null);
+    q.onended = () => {
+      if (this.stimme !== stimme) return;
+      this.stimme = null;
+      this.#marke(null);
+    };
     this.stimme = stimme;
+    this.#marke(marke);
   }
 
-  async #spieleDatei(pfad, e = null) {
+  async #spieleDatei(pfad, e = null, marke = e?.id ?? null) {
     try {
       const puffer = await this.#puffer(pfad);
       const s = e?.streuung ?? 0;
-      this.#spielePuffer(puffer, { pegel: e?.pegel ?? 1, rate: 1 + (Math.random() * 2 - 1) * s, loop: !!e?.loop });
+      this.#spielePuffer(puffer, { pegel: e?.pegel ?? 1, rate: 1 + (Math.random() * 2 - 1) * s, loop: !!e?.loop, marke });
     } catch (fehler) {
       this.zustand.meldung(`Abspielen nicht möglich: ${fehler.message}`, 'fehler');
     }
@@ -503,8 +538,11 @@ class AudioZentrale {
       this.synthStopp = () => clearInterval(lauf);
     } else {
       s.spiele(n, { lautstaerke: pegel, tonhoehe: 1 + (Math.random() * 2 - 1) * e.streuung });
+      this.#marke(e.id);
+      this.synthTimer = setTimeout(() => this.stoppe(), 1500); // Kurzgeräusch: nach ~1,5 s wieder ▶ (Rezept-Länge unbekannt)
       return;
     }
+    this.#marke(e.id);
     this.synthTimer = setTimeout(() => this.stoppe(), 7000);
   }
 
@@ -527,6 +565,7 @@ class AudioZentrale {
       this.synth?.stoppeAtmosphaere();
       this.synth?.motor(null);
     }
+    this.#marke(null);
   }
 
   // --- Hochladen & Bearbeiten ------------------------------------------------------------------------------------------
@@ -620,7 +659,7 @@ class AudioZentrale {
 
   vorhoeren(schleife = false) {
     if (!this.bearbeitung) return;
-    this.#spielePuffer(this.#alsPuffer(this.#ergebnis()), { pegel: this.eintrag()?.pegel ?? 1, loop: schleife });
+    this.#spielePuffer(this.#alsPuffer(this.#ergebnis()), { pegel: this.eintrag()?.pegel ?? 1, loop: schleife, marke: schleife ? 'vorSchleife' : 'vor' });
   }
 
   #zeichneWerkbank() {
@@ -647,7 +686,7 @@ class AudioZentrale {
         <label class="az-ueberblend">Loop-Übergang <input type="number" step="10" min="0" max="3000" data-f="ueberblendung"> ms</label>
       </div>
       <div class="knopfreihe">
-        <button type="button" data-a="vor" class="akzent">▶ Vorhören</button><button type="button" data-a="vorSchleife">🔁 In Schleife</button><button type="button" data-a="stopp">■</button>
+        <button type="button" data-a="vor" class="akzent">▶ Vorhören</button><button type="button" data-a="vorSchleife">🔁 In Schleife</button>
         <button type="button" data-a="undo" title="Rückgängig (Strg+Z)">↶</button><button type="button" data-a="redo" title="Wiederholen (Strg+Y)">↷</button>
         <button type="button" data-a="zuruecksetzen" title="Alle Änderungen zurück">⟲ Zurücksetzen</button>
       </div>
@@ -655,9 +694,8 @@ class AudioZentrale {
       <div class="knopfreihe az-ziele">${ziele}<button type="button" data-a="abbrechen">Abbrechen</button></div>`;
     const wb = this.elDetail.querySelector('.az-werkbank');
     const k = (a, f) => wb.querySelector(`[data-a=${a}]`)?.addEventListener('click', f);
-    k('vor', () => this.vorhoeren(false));
-    k('vorSchleife', () => this.vorhoeren(true));
-    k('stopp', () => this.stoppe());
+    k('vor', () => (this.laeuft === 'vor' ? this.stoppe() : this.vorhoeren(false)));
+    k('vorSchleife', () => (this.laeuft === 'vorSchleife' ? this.stoppe() : this.vorhoeren(true)));
     k('undo', () => this.rueckgaengig());
     k('redo', () => this.wiederholen());
     k('zuruecksetzen', () => this.setze({ ...STANDARD_BEARBEITUNG, loop: w.loop }));
