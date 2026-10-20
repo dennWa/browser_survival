@@ -34,18 +34,26 @@ export function pruefeLokalenServer({ neu = false } = {}) {
 }
 
 async function frageStatus() {
-  const ergebnis = { verbunden: false, ordner: [] };
+  const ergebnis = { verbunden: false, ordner: [], grund: '' };
   if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) return (status = ergebnis);
   try {
     const steuerung = new AbortController();
     const t = setTimeout(() => steuerung.abort(), 4000);
     const r = await fetch(api('status'), { headers: KOPF, signal: steuerung.signal, cache: 'no-store' });
     clearTimeout(t);
+    if (r.status === 404) ergebnis.grund = 'Der laufende Server kennt die Editor-API noch nicht (alter Stand) – bitte beenden und „Spiel starten.bat“ / „npm start“ neu starten.';
+    else if (r.status === 403) ergebnis.grund = 'Der Server lehnt die Anfrage ab (Proxy/VPN/anderer Host?) – öffne die Seite direkt über http://localhost:…';
     const d = await antwortLesen(r);
     return (status = { verbunden: true, ordner: d.ordner ?? [], version: d.version });
   } catch {
     return (status = ergebnis); // kein lokaler Editor-Server (z. B. Spielserver npm start)
   }
+}
+
+/** Beim Speichern frisch prüfen (ein früheres „nicht verbunden“ darf nicht hängenbleiben); gibt den Hinweistext zurück, falls nicht verbunden */
+export async function speicherHinweis() {
+  const s = await pruefeLokalenServer({ neu: true });
+  return s.verbunden ? '' : s.grund ? `${s.grund}\n\n${LOKAL_HINWEIS}` : LOKAL_HINWEIS;
 }
 
 export function istVerbunden() {

@@ -5,7 +5,7 @@ import { STANDARD_BEARBEITUNG, pruefeBearbeitung, bearbeite, istUnveraendert, er
 import { audioFormat, istAudio } from '../kern/bibliothek.js';
 import { groesseText } from '../kern/backup.js';
 import { kodiere, kannOpus } from './audioKodierer.js';
-import { pruefeLokalenServer, istVerbunden, schreibeDatei, loescheDatei, LOKAL_HINWEIS } from './lokalerServer.js';
+import { pruefeLokalenServer, speicherHinweis, istVerbunden, schreibeDatei, loescheDatei, LOKAL_HINWEIS } from './lokalerServer.js';
 import { dialog, bestaetigen, esc } from './dialoge.js';
 
 /**
@@ -881,8 +881,9 @@ class AudioZentrale {
       const { bytes, endung, hinweis } = await this.#datei();
       const ziel = zielPfad(e, { endung, ersetzen, name: b.titelName });
       if (ziel.fehler) throw new Error(ziel.fehler);
-      if (!istVerbunden()) {
-        await this.#ohneServer(bytes, ziel.pfad);
+      const hinweis0 = await speicherHinweis();
+      if (hinweis0) {
+        await this.#ohneServer(bytes, ziel.pfad, hinweis0);
         return;
       }
       await schreibeDatei(ziel.pfad, bytes);
@@ -911,11 +912,11 @@ class AudioZentrale {
   }
 
   /** Ohne lokalen Server: Hinweis + fertige Datei zum Herunterladen anbieten */
-  async #ohneServer(bytes, pfad) {
+  async #ohneServer(bytes, pfad, text = LOKAL_HINWEIS) {
     const name = pfad.split('/').at(-1);
     const ok = await dialog({
       titel: '🌐 Speichern geht nur lokal',
-      html: `<p>${esc(LOKAL_HINWEIS)}</p><p class="leise">Alternativ: fertige Datei herunterladen und selbst nach <code>${esc(pfad)}</code> legen, dann <code>npm run sounds</code> bzw. <code>npm run musik:index</code>.</p>`,
+      html: `<p>${esc(text).replace(/\n\n/g, '</p><p>')}</p><p class="leise">Alternativ: fertige Datei herunterladen und selbst nach <code>${esc(pfad)}</code> legen, dann <code>npm run sounds</code> bzw. <code>npm run musik:index</code>.</p>`,
       knoepfe: [{ text: 'Schließen', wert: false }, { text: `⬇ ${name} (${groesseText(bytes.length)})`, wert: true, art: 'akzent' }],
     });
     if (!ok) return;
@@ -927,8 +928,9 @@ class AudioZentrale {
   }
 
   async #nurLokal() {
-    if (istVerbunden()) return true;
-    await dialog({ titel: '🌐 Speichern geht nur lokal', html: `<p>${esc(LOKAL_HINWEIS)}</p>` });
+    const text = await speicherHinweis();
+    if (!text) return true;
+    await dialog({ titel: '🌐 Speichern geht nur lokal', html: `<p>${esc(text).replace(/\n\n/g, '</p><p>')}</p>` });
     return false;
   }
 
