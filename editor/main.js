@@ -175,6 +175,8 @@ function aktualisiereKnoepfe() {
   }
 }
 for (const ev of ['werkzeug', 'zone', 'karte', 'auswahl', 'ansicht', 'eintrag']) zustand.bei(ev, aktualisiereKnoepfe);
+// Ende eines Strichs/Griff-Zugs (Undo-Gruppe zu) meldet kein Ereignis → ↶/↷ danach nachziehen
+for (const ev of ['pointerup', 'pointercancel']) leinwand.addEventListener(ev, () => setTimeout(aktualisiereKnoepfe));
 befehle.bei(aktualisiereKnoepfe);
 
 function kontextmenue(x, y, ziel) {
@@ -317,7 +319,7 @@ async function starten() {
     if (zustand.hatUngespeichertes && zustand.speicherZustand.art === 'fehler') e.preventDefault();
   });
 }
-starten();
+const bereit = starten();
 
-// Für Konsole & automatische Tests
-window.mapEditor = { zustand, bibliothek, audioBibliothek, zeichner, teile, aktionen, befehle, werkzeuge, touch, layout, links, rechts, assets, datei, oeffneDatei: datei.oeffneDatei, oeffneSpielzone: datei.oeffneSpielzone, markerSchluessel, pruefeMarker, kopiere, dreheVorlage };
+// Für Konsole & automatische Tests (`bereit` = Start fertig: Entwürfe geladen, Werkzeug gesetzt)
+window.mapEditor = { bereit, zustand, bibliothek, audioBibliothek, zeichner, teile, aktionen, befehle, werkzeuge, touch, layout, links, rechts, assets, datei, oeffneDatei: datei.oeffneDatei, oeffneSpielzone: datei.oeffneSpielzone, markerSchluessel, pruefeMarker, kopiere, dreheVorlage };

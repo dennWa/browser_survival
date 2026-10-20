@@ -341,6 +341,9 @@ export class Zustand {
     this.setzeSpeicher('ungespeichert');
     clearTimeout(this.#speicherTimer);
     this.#speicherTimer = setTimeout(async () => {
+      // Laufender Strich/Zug (offene Verlaufsgruppe): später speichern – speichereJetzt schließt die Gruppe, ein langsamer
+      // Zug zerfiele sonst in viele Undo-Schritte
+      if ([...this.#ungespeichert].some((z) => this.zonen.get(z)?.verlauf.offen)) return this.#planeSpeichern(id);
       for (const z of [...this.#ungespeichert]) if (this.zonen.has(z)) await this.speichereJetzt(z);
     }, 800);
   }

@@ -63,6 +63,7 @@ try {
   schritt('Editor öffnen');
   await seite.goto(`${basis}/editor/`);
   await seite.waitForFunction(() => window.mapEditor, null, { timeout: 15000 });
+  await seite.evaluate(() => window.mapEditor.bereit);
   await seite.evaluate(async () => {
     // sauberer Start: alte Entwürfe weg
     for (const id of [...window.mapEditor.zustand.zonen.keys()]) await window.mapEditor.zustand.entferneZone(id);
@@ -734,7 +735,8 @@ try {
   pruefe(nachGriff.drehung === 120 && nachGriff.b === vorGriff.h && nachGriff.h === vorGriff.b, `Drehgriff: 15°-Raster, längs → quer tauscht b/h (${JSON.stringify({ d: nachGriff.drehung, b: nachGriff.b, h: nachGriff.h })})`);
   await seite.screenshot({ path: path.join(AUSGABE, 'editor-20-frei.png') });
   await seite.keyboard.press('Control+z');
-  pruefe((await freiTisch()).drehung === 35, 'Undo: Griff-Zug = 1 Schritt');
+  const nachGriffUndo = await freiTisch();
+  pruefe(nachGriffUndo.drehung === 35, `Undo: Griff-Zug = 1 Schritt (${nachGriffUndo.drehung}° · ${await seite.evaluate(() => JSON.stringify({ fokus: document.activeElement?.tagName + (document.activeElement?.dataset?.o ? ':' + document.activeElement.dataset.o : ''), z: window.mapEditor.zustand.verlauf.zurueck.slice(-3).map((e) => e.name), m: document.getElementById('status-meldung').textContent }))})`);
   const freiKollision = await seite.evaluate(async (o) => {
     const { Welt } = await import('/gemeinsam/welt/welt.js');
     const { bedeckteKacheln } = await import('/gemeinsam/welt/drehung.js');
@@ -793,6 +795,7 @@ try {
     await seite.evaluate(() => window.mapEditor.zustand.aktiviere('waldweg'));
     await seite.evaluate(() => window.mapEditor.zeichner.springeZu(40, 16, 18));
     await seite.keyboard.press('v');
+    await seite.waitForTimeout(250); // Optionsleiste baut nach dem Werkzeugwechsel neu (kann die Karte verschieben)
     await ziehe([30, 10], [50, 22]);
     const rechteck = await seite.evaluate(() => window.mapEditor.zustand.auswahlRechteck);
     pruefe(rechteck?.x === 30 && rechteck?.b === 21, `Bereich markiert (${JSON.stringify(rechteck)})`);
@@ -1011,6 +1014,7 @@ try {
     h.on('pageerror', (e) => fehler.push(`Seitenfehler (Handy): ${e.message}`));
     await h.goto(`${basis}/editor/`);
     await h.waitForFunction(() => window.mapEditor, null, { timeout: 15000 });
+    await h.evaluate(() => window.mapEditor.bereit);
     await h.evaluate(() => window.mapEditor.oeffneSpielzone('waldweg'));
     await h.evaluate(() => window.mapEditor.aktionen.werkzeug('hand'));
     const vorher = await h.evaluate(() => ({ ...window.mapEditor.zeichner.kamera }));
@@ -1099,6 +1103,7 @@ try {
     pruefe(await h.locator('.menue-liste [data-befehl="bearbeiten.duplizieren"]').count() === 1, 'Langdruck öffnet das Kontextmenü');
     pruefe((await objZahl()) === vorObj + 1, 'Langdruck hat nichts verschoben/gesetzt');
     await h.keyboard.press('Escape');
+    pruefe(await h.locator('.menue-liste').count() === 0, 'Esc schließt das Kontextmenü');
     // Pinsel: Strich mit dem Finger 2 Kacheln unter der Zielreihe → gemalt wird in der Reihe am Fadenkreuz
     const mal = await h.evaluate(([x, y]) => {
       const m = window.mapEditor;

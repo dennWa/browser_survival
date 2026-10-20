@@ -100,6 +100,10 @@ document.addEventListener('pointerdown', (e) => {
   if (offen && !offen.element.contains(e.target) && !e.target.closest?.('.menue-titel')) schliesseListe();
 }, true);
 window.addEventListener('blur', () => schliesseListe());
+// Esc schließt auch, wenn der Fokus nicht in der Liste steht (z. B. Kontextmenü per Langdruck am Handy)
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && offen && !offen.element.contains(document.activeElement)) schliesseListe();
+});
 window.addEventListener('resize', () => schliesseListe());
 
 /** Menüleiste: menues = [{ titel, eintraege }] */

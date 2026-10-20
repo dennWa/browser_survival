@@ -100,9 +100,10 @@
   Finger-Ereignisse in `werkzeuge.js` ab: Fadenkreuz 64 px über dem Finger + Lupe, Platzieren → Geist + ✓/⟳/✕, Langdruck =
   Kontextmenü, Griffe ✥/⟳/⤡), Handy-Leiste `#handy-leiste` (Schubladen, ↶ ↷, ⋯), größere Trefferflächen (`pointer: coarse`).
   Touch-Ausnahme in LIESMICH/Manifest aufgehoben. Tests `tests/touchBauen.test.js`, Rauchtest-Schritt „Touch-Bauen (7.6)“.
-  ⚠ Rauchtest lief lokal nicht (Playwright auf dem Windows-Rechner nicht installiert) – der Ablauf wurde stattdessen im
-  eingebauten Browser mit simulierten Touch-Pointer-Events geprüft (Geist/✓, Skalier-Griff + Undo, Langdruck, Pinsel am
-  Fadenkreuz: alles ok). Bei nächster Gelegenheit `npm run rauchtest:editor` laufen lassen.
+  Rauchtest (Windows, Playwright global installiert) grün, 129 Prüfungen. Dabei behoben: Autosave schloss eine laufende
+  Undo-Gruppe (langsame Striche/Züge zerfielen in viele Schritte), Optionsleiste brach beim Rahmenziehen um und ließ die
+  Karte springen (jetzt einzeilig, scrollt), ↶/↷ blieben nach Strichende veraltet, Esc schloss Kontextmenüs ohne Fokus
+  nicht; Rauchtest wartet auf `mapEditor.bereit`.
   Phase 7 komplett.
 
 Offen: Phase 8 (8.1–8.2), Phase 9 (9.1–9.9) laut Tabellen unten.

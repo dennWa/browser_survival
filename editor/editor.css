@@ -353,9 +353,12 @@ input[type='checkbox'] {
   min-width: 0;
   min-height: 0;
 }
+/* Einzeilig: bricht die Leiste um (z. B. Auswahl-Infos beim Rahmenziehen), springt sonst die ganze Karte nach unten */
 #optionen {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
   gap: 4px 10px;
   align-items: center;
   padding: 4px 8px;
@@ -365,6 +368,7 @@ input[type='checkbox'] {
   font-size: 13px;
 }
 .opt-gruppe {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 4px;
