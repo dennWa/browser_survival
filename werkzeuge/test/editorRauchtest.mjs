@@ -264,6 +264,33 @@ try {
     pruefe((await seite.evaluate(() => window.mapEditor.zustand.karte.s('objekte').size)) === vorher.obj, 'Ablegen rückgängig gemacht');
     await seite.keyboard.press('Escape');
   }
+  // 7.5: Version (automatisch wie beim Export), Änderung, Diff auf der Karte, Wiederherstellungspunkt = 1 Undo-Schritt
+  {
+    await seite.evaluate(() => window.mapEditor.aktionen.versionAuto('export'));
+    const vorher = await seite.evaluate(() => {
+      const z = window.mapEditor.zustand;
+      const nr = z.karte.naechsteId;
+      z.ausfuehren('Kiste', [{ s: 'objekte', k: nr, neu: { typ: 'kiste', x: 8, y: 8, b: 1, h: 1, blockiert: true } }]);
+      return { obj: z.karte.s('objekte').size - 1, n: z.verlauf.zurueck.length };
+    });
+    await seite.evaluate(() => window.mapEditor.aktionen.versionen());
+    await seite.waitForSelector('#rechts button[data-v="diff"]');
+    await seite.click('#rechts button[data-v="diff"]');
+    const diff = await seite.evaluate(() => window.mapEditor.zeichner.ueberlagerungen.map((u) => u.farbe));
+    pruefe(diff.includes('#4caf50'), `Diff zur Version: neue Kiste grün markiert (${diff.length})`);
+    const seit = await seite.evaluate(() => window.mapEditor.aktionen.aenderungenSeitExport().then((x) => x?.zeilen));
+    pruefe(seit?.some((z) => z.startsWith('Objekte: +1')), `Änderungen seit dem letzten Export (${JSON.stringify(seit)})`);
+    await seite.waitForTimeout(400);
+    await seite.click('#rechts button[data-v="laden"]');
+    await seite.click('#dialog button.akzent');
+    await seite.waitForFunction((n) => window.mapEditor.zustand.karte.s('objekte').size === n, vorher.obj);
+    pruefe(await seite.evaluate((v) => window.mapEditor.zustand.verlauf.zurueck.length === v.n + 1, vorher), 'Wiederherstellungspunkt geladen = 1 Undo-Schritt');
+    await seite.evaluate(() => document.activeElement?.blur());
+    await seite.keyboard.press('Control+z');
+    await seite.keyboard.press('Control+z');
+    pruefe((await seite.evaluate(() => window.mapEditor.zustand.karte.s('objekte').size)) === vorher.obj, 'Versionstest rückgängig gemacht');
+    await seite.keyboard.press('Escape');
+  }
 
   schritt('Neu laden: Entwurf + Verlauf bleiben');
   await seite.waitForTimeout(1200);

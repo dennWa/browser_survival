@@ -4,11 +4,12 @@
  * 'fluechtig' und das UI warnt („bitte als Datei speichern“).
  *
  * Bereiche: 'entwuerfe' (Zonen-ID → Entwurf-JSON), 'prefabs' (Name → Vorlage), 'meta' (Schlüssel → Wert),
- *          'assets' (Modell-ID → { meta, blob } bzw. ohne IndexedDB { meta, daten: Data-URL }; ui/bibliothek.js), 'audio' (dasselbe für Klänge)
+ *          'assets' (Modell-ID → { meta, blob } bzw. ohne IndexedDB { meta, daten: Data-URL }; ui/bibliothek.js), 'audio' (dasselbe für Klänge),
+ *          'versionen' (Zonen-ID → Versionsliste, ui/versionenUi.js)
  */
 const DB_NAME = 'browserSurvivalEditor';
-const BEREICHE = ['entwuerfe', 'prefabs', 'meta', 'assets', 'audio'];
-const DB_VERSION = 3; // 2 = Bereich 'assets' (Phase 3), 3 = 'audio' (Phase 4)
+const BEREICHE = ['entwuerfe', 'prefabs', 'meta', 'assets', 'audio', 'versionen'];
+const DB_VERSION = 4; // 2 = Bereich 'assets' (Phase 3), 3 = 'audio' (Phase 4), 4 = 'versionen' (7.5)
 const LS_PRAEFIX = 'browserSurvivalEditor.';
 
 export class EditorSpeicher {

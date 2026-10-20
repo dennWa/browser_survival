@@ -204,7 +204,12 @@ Flackern, Lichtform (Punkt/Kegel). Die 2D-Ansicht zeigt Radius bzw. Kegel. Die P
   3D-Formate: **.glb**, **.gltf** (alles eingebettet), **.obj** und **.fbx** (werden in .glb umgewandelt – externe Texturen fehlen
   dann). Der Editor prüft die Datei (Signatur, Probe-Laden), misst **Maße** (1 m = 1 Kachel), zählt **Dreiecke/Animationen**, macht
   ein **Vorschaubild** und warnt bei sehr großen Dateien (> 3 MB) oder vielen Dreiecken (> 60 000). Grenze: 8 MB.
-- **Bibliothek:** Modelle liegen **einmal im Projekt** (alle Zonen), nicht in jeder Karte. Ordner, Tags (Suche mit `#tag`),
+- **Versionen (Reiter 🕓 Versionen, Datei → Version speichern):** benannte Stände der Zone; beim Export und Veröffentlichen
+entsteht automatisch eine Version. **Δ Diff** markiert alle Änderungen bis jetzt auf der Karte (grün neu, rot entfernt, gelb
+geändert), **↺ Laden** setzt die Zone auf den Stand zurück (der jetzige Stand wird vorher gesichert, Strg+Z geht). Der
+Veröffentlichen-Dialog listet die Änderungen seit dem letzten Export.
+
+**Bibliothek:** Modelle liegen **einmal im Projekt** (alle Zonen), nicht in jeder Karte. Ordner, Tags (Suche mit `#tag`),
   Kategorie (Gruppe im Asset-Browser), Lizenz/Urheber/Quelle: **✎** an der Karte. Modelle stehen auch im **🧱 Asset-Browser**.
 - **Platzieren:** Modell anklicken → Klick auf die Karte setzt es (R dreht). Beim ersten Mal legt der Editor in der Zone einen Typ
   an (Größe aus den Maßen, im Inspektor über „✎ Typ bearbeiten“ änderbar).

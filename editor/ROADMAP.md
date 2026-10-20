@@ -89,9 +89,15 @@
   auf die Karte (HTML-Drag `application/x-editor-asset`, main.js drop → `assets.ablegen`). Ereignis 'vorlagen'. Tests + Rauchtest.
   Touch: Ziehen gibt es nur mit Maus; am Handy weiter antippen → auf die Karte tippen (7.6 Touch-Bauen).
 
-Offen: 7.5–7.6, Phase 8 (8.1–8.2), Phase 9 (9.1–9.9) laut Tabellen unten.
+- 7.5 fertig (2026-10-20): `editor/kern/versionen.js` (neueVersion, fuegeHinzu – max. 20 automatische, vergleiche – Diff
+  mit Zusammenfassung + Markierungen, wiederherstellenOps, letzteExportVersion) + Reiter „🕓 Versionen“ (`ui/versionenUi.js`):
+  speichern/umbenennen/löschen, Δ Diff farbig auf der Karte (`zeichner.ueberlagerungen`), ↺ Laden = 1 Undo-Schritt (vorher
+  automatische Sicherung), automatisch bei Export/Veröffentlichen, Änderungsübersicht im Veröffentlichen-Dialog.
+  Speicher-Bereich 'versionen' (IndexedDB DB_VERSION 4). Nicht im Komplett-Backup (Größe). Tests + Rauchtest.
 
-**Nächster Schritt: 7.5 Versionskontrolle** (siehe Tabelle Phase 7).
+Offen: 7.6, Phase 8 (8.1–8.2), Phase 9 (9.1–9.9) laut Tabellen unten.
+
+**Nächster Schritt: 7.6 Touch-Bauen** (siehe Tabelle Phase 7).
 
 **Danach:** Phasen 6–9 laut Tabellen unten (6 Zonen/Loot, 7 UX, 8 Testlauf, 9 KI).
 
@@ -178,7 +184,7 @@ Offen: 7.5–7.6, Phase 8 (8.1–8.2), Phase 9 (9.1–9.9) laut Tabellen unten.
 | ☑ 7.2 | **Mehrfachauswahl:** Ausrichten (links/rechts/oben/unten/Mitte), Verteilen (gleiche Abstände), Spiegeln (waagerecht/senkrecht, inkl. Kacheln und Drehungen) – je 1 Undo-Schritt | M |
 | ☑ 7.3 | **Messen & Ausrichten:** Maßband (Strecke, Pfadlänge, Winkel), Lineale mit herausziehbaren Hilfslinien, einstellbares Raster (Weite, Hauptlinien), Einrasten an Raster/Objektkanten/-mitten/Hilfslinien, 3D-Ausrichtungshilfen (Raster, Achsen-Gizmo, auf Gelände einrasten) | M |
 | ☑ 7.4 | **Bibliothek & Vorlagen:** Prefabs in Ordnern, Suche, automatische Vorschaubilder für eigene Prefabs/Objekte, Favoriten, Ziehen aus der Bibliothek auf die Karte (eine Bibliothek für Assets, Prefabs, Loot-Vorlagen, Audio) | M |
-| ☐ 7.5 | **Versionskontrolle:** benannte Versionen (manuell + automatisch bei Export/Veröffentlichen), Versionsliste, **„Diff zu Version X“** (Liste + farbig auf der Karte), **„Wiederherstellungspunkt laden“** (als rückgängig machbarer Schritt), vor dem Veröffentlichen **Änderungsübersicht seit dem letzten Export** | L |
+| ☑ 7.5 | **Versionskontrolle:** benannte Versionen (manuell + automatisch bei Export/Veröffentlichen), Versionsliste, **„Diff zu Version X“** (Liste + farbig auf der Karte), **„Wiederherstellungspunkt laden“** (als rückgängig machbarer Schritt), vor dem Veröffentlichen **Änderungsübersicht seit dem letzten Export** | L |
 | ☐ 7.6 | **Touch-Bauen:** Fadenkreuz-Cursor über dem Finger, **Lupe**, Snap-to-Grid, große **Griffe** (verschieben/drehen/skalieren), Bestätigen/Abbrechen-Knöpfe, Langdruck = Kontextmenü, Schubladen-Layout fürs Handy; hebt die bisherige „Touch-Ausnahme“ auf (Doku) | L |
 
 ## Phase 8 – Testlauf & Debugging

@@ -125,6 +125,7 @@ export function dateiAktionen({ zustand, zeichner, werkzeuge, aktionen, rechts, 
 
     exportJson() {
       const k = zustand.karte;
+      if (k) aktionen.versionAuto?.('export');
       if (k) herunterladen(`${k.id}.karte.json`, JSON.stringify(exportJson(k), null, 1));
     },
 
@@ -157,14 +158,18 @@ export function dateiAktionen({ zustand, zeichner, werkzeuge, aktionen, rechts, 
       }
       const v = veroeffentlichung(k);
       const neu = !KARTEN[k.id];
+      const seit = await aktionen.aenderungenSeitExport?.(); // 7.5: Änderungsübersicht seit dem letzten Export
+      const aenderungen = seit ? `<p><b>Änderungen seit „${esc(seit.version.name)}“ (${esc(new Date(seit.version.zeit).toLocaleString('de-DE'))}):</b></p>${seit.zeilen.length ? `<ul class="aenderungen">${seit.zeilen.map((z) => `<li>${esc(z)}</li>`).join('')}</ul>` : '<p class="leise">keine</p>'}` : '<p class="leise">Erster Export dieser Zone (noch keine Version zum Vergleichen).</p>';
       const w = await dialog({
         titel: `🚀 Veröffentlichen: ${v.dateiname}`,
         html: `<p>Zwei Wege ins Spiel (der Editor selbst ändert nie Repo-Dateien):</p>
           <ol><li><b>Empfohlen:</b> <code>${esc(k.id)}.karte.json</code> herunterladen und im Repo <code>npm run karte:editor -- ${esc(k.id)}.karte.json</code> ausführen → schreibt <code>server/spiel/karten/${esc(v.dateiname)}</code>${neu ? ' und trägt die Zone in KARTEN ein' : ''}.</li>
           <li>Von Hand: <code>${esc(v.dateiname)}</code> nach <code>server/spiel/karten/</code> legen${neu ? `; in <code>kartenLader.js</code> ergänzen:<pre>${esc(v.importZeile)}\n…\nexport const KARTEN = Object.freeze({\n…\n${esc(v.kartenZeile)}\n});</pre>` : ' (Zone ist schon in KARTEN eingetragen).'}</li></ol>
+          ${aenderungen}
           <p>Danach <code>npm test</code>. ${probleme.length ? `<br>⚠ ${probleme.length} Warnungen (siehe Prüfung).` : ''}</p>`,
         knoepfe: [{ text: 'Schließen', wert: null }, { text: `${v.dateiname} laden`, wert: 'js' }, { text: `${k.id}.karte.json laden`, wert: 'json', art: 'akzent' }],
       });
+      if (w) await aktionen.versionAuto?.('veroeffentlichen');
       if (w === 'js') herunterladen(v.dateiname, v.quelltext, 'text/javascript');
       if (w === 'json') herunterladen(`${k.id}.karte.json`, JSON.stringify(exportJson(k), null, 1));
     },

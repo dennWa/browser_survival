@@ -32,6 +32,7 @@ import { Bibliothek, AUDIO } from './ui/bibliothek.js';
 import { modelleUi } from './ui/modelleUi.js';
 import { audioUi } from './ui/audioUi.js';
 import { zonenManagerUi } from './ui/zonenManagerUi.js';
+import { versionenUi } from './ui/versionenUi.js';
 import { lootUi } from './ui/lootUi.js';
 import { Ansicht3D, webglVerfuegbar } from './ui/ansicht3d.js';
 import { dialog, esc, istDialogOffen } from './ui/dialoge.js';
@@ -40,7 +41,7 @@ import { dialog, esc, istDialogOffen } from './ui/dialoge.js';
  * Einstieg des Map-Editors (editor/index.html). Läuft ohne Server, ohne Account – nur im Browser.
  * Aufbau (Editor 2.0): Zustand (Projekt/Zonen/Verlauf/Ebenen) · Zeichner2D + Werkzeuge · Befehlsregister (ui/befehle.js,
  * alle Befehle in ui/befehlsliste.js) → Menüleiste, Schnellleiste, Werkzeugleiste, Kontextmenü, Tastatur ·
- * Seitenleisten links (Assets, Modelle, Audio, Prefabs, Zonen, Räume) / rechts (Inspektor, Ebenen, Prüfung) / KI-Helfer · Optionsleiste.
+ * Seitenleisten links (Assets, Modelle, Audio, Prefabs, Zonen, Räume) / rechts (Inspektor, Ebenen, Prüfung, Bereiche, Versionen 7.5) / KI-Helfer · Optionsleiste.
  * Spielcode wird nur GELESEN. Geschrieben wird nur lokal (IndexedDB) bzw. per Download.
  */
 const speicher = new EditorSpeicher();
@@ -92,6 +93,7 @@ const insp = inspektor({ zustand, leiste: rechts, aktionen, befehle });
 ebenenUi({ zustand, leiste: rechts });
 pruefungUi({ zustand, leiste: rechts, aktionen });
 zonenManagerUi({ zustand, leiste: rechts, zeichner, aktionen });
+versionenUi({ zustand, leiste: rechts, zeichner, aktionen });
 lootUi({ zustand, aktionen });
 const datei = dateiAktionen({ zustand, zeichner, werkzeuge, aktionen, rechts, bibliothek, audioBibliothek });
 // 7.4: Assets/Prefabs aus der Bibliothek auf die Karte ziehen

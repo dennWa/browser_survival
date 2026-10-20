@@ -25,6 +25,8 @@ export function meldeBefehleAn(befehle, t) {
     // --- Datei ---------------------------------------------------------------------
     { id: 'datei.neu', name: 'Neue Zone…', symbol: '➕', gruppe: 'Datei', kuerzel: ['Alt+N'], ausfuehren: () => datei.neu() },
     { id: 'datei.oeffnen', name: 'Öffnen…', symbol: '📂', gruppe: 'Datei', kuerzel: ['Strg+O'], ausfuehren: () => datei.oeffnen() },
+    { id: 'datei.version', name: 'Version speichern (benannt)…', symbol: '🕓', gruppe: 'Datei', verfuegbar: karte, ausfuehren: () => a.versionSpeichern() },
+    { id: 'datei.versionen', name: 'Versionen (Diff, Wiederherstellen)', symbol: '🕓', gruppe: 'Datei', verfuegbar: karte, ausfuehren: () => a.versionen() },
     { id: 'datei.speichern', name: 'Speichern (lokal im Browser)', symbol: '💾', gruppe: 'Datei', kuerzel: ['Strg+S'], inEingabe: true, verfuegbar: karte, ausfuehren: () => datei.speichern() },
     { id: 'datei.herunterladen', name: 'Entwurf als Datei herunterladen', symbol: '⬇', gruppe: 'Datei', kuerzel: ['Strg+Umschalt+S'], inEingabe: true, verfuegbar: karte, ausfuehren: () => datei.herunterladen() },
     { id: 'datei.alleHerunterladen', name: 'Alle Entwürfe des Projekts herunterladen', symbol: '🗂', gruppe: 'Datei', verfuegbar: () => z.zonen.size > 0, ausfuehren: () => datei.alleHerunterladen() },
@@ -155,7 +157,7 @@ function einfuegenEintraege(t) {
 
 export function menues(t) {
   return [
-    { titel: 'Datei', eintraege: ['datei.neu', 'datei.oeffnen', '-', 'datei.speichern', 'datei.herunterladen', 'datei.alleHerunterladen', '-', { ueberschrift: 'Export' }, 'datei.exportJson', 'datei.liesmich', 'ki.ausschnitt', '-', 'datei.veroeffentlichen', '-', { ueberschrift: 'Sicherung' }, 'datei.backup', 'datei.wiederherstellen', 'datei.speicherplatz', '-', 'datei.zoneEntfernen', 'datei.zumSpiel'] },
+    { titel: 'Datei', eintraege: ['datei.neu', 'datei.oeffnen', '-', 'datei.speichern', 'datei.herunterladen', 'datei.alleHerunterladen', 'datei.version', 'datei.versionen', '-', { ueberschrift: 'Export' }, 'datei.exportJson', 'datei.liesmich', 'ki.ausschnitt', '-', 'datei.veroeffentlichen', '-', { ueberschrift: 'Sicherung' }, 'datei.backup', 'datei.wiederherstellen', 'datei.speicherplatz', '-', 'datei.zoneEntfernen', 'datei.zumSpiel'] },
     { titel: 'Bearbeiten', eintraege: ['bearbeiten.rueckgaengig', 'bearbeiten.wiederholen', '-', 'bearbeiten.kopieren', 'bearbeiten.ausschneiden', 'bearbeiten.einfuegen', 'bearbeiten.duplizieren', 'bearbeiten.drehen', 'bearbeiten.loeschen', '-', 'bearbeiten.alles', 'bearbeiten.bereichLeeren', 'bearbeiten.alsPrefab', 'bearbeiten.werkstatt', 'bearbeiten.abbrechen', '-', { ueberschrift: 'Anordnen' }, 'anordnen.links', 'anordnen.mitteH', 'anordnen.rechts', 'anordnen.oben', 'anordnen.mitteV', 'anordnen.unten', 'anordnen.verteilenH', 'anordnen.verteilenV', 'anordnen.spiegelnH', 'anordnen.spiegelnV'] },
     { titel: 'Ansicht', eintraege: ['ansicht.dreiD', 'ansicht.einpassen', 'ansicht.zoomRein', 'ansicht.zoomRaus', '-', 'ansicht.links', 'ansicht.rechts', 'ki.helfer', 'ansicht.fokus', '-', 'ansicht.ebenen', ...ANZEIGEN.map((a) => `ansicht.${a.id}`), 'messen.einrasten', 'messen.raster', '-', 'ansicht.suche'] },
     { titel: 'Einfügen', eintraege: () => einfuegenEintraege(t) },
