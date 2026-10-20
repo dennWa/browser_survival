@@ -76,6 +76,7 @@ export class InventarFenster {
   }
 
   zeige(offen = !this.offen) {
+    if (offen !== this.offen) this.beiUmschalten?.(offen); // Sound inventar_auf/_zu (main.js)
     this.el.hidden = !offen;
     if (!offen) this.#abbrechen();
     else if (this.#daten) this.#zeichne();

@@ -13,10 +13,14 @@ Hier kannst du eigene Soundeffekte ablegen. Sie ersetzen automatisch die mitgeli
    100 = Originallautstärke, 0 = stumm, über 100 = lauter (bis 300). Gilt auch für mitgelieferte Sounds (ohne eigene Datei).
 5. `npm run sounds` ausführen (baut `eigene.json`, prüft Tippfehler), dann committen und pushen.
 
-Eigene Dateien werden unverändert abgespielt (keine zufällige Tonhöhe); Entfernung und Stereo-Position wirken weiter.
+Eigene Dateien werden unverändert abgespielt (Tonhöhe nur mit „Streuung“ aus `einstellungen.json`); Entfernung und Stereo wirken weiter.
 Tipp: kurze Dateien (< 3 s), Lautstärke der Aufnahme selbst eher normalisiert.
 
 ## Ereignisse
 {{EREIGNISSE}}
 
-Nicht hier: Zonen-Musik (`client/musik/`), Wind/Regen/Motor (laufende Geräusche, noch nicht ersetzbar).
+Dauergeräusche (Wind, Regen, Nacht, Motor) sind Schleifen: Datei so schneiden, dass Ende und Anfang zusammenpassen –
+am einfachsten in der **🎵 Audio-Zentrale** des Map-Editors (Loop mit Überblendung). Nicht hier: Musik (`client/musik/`).
+
+**Am bequemsten:** Map-Editor lokal starten (`npm run editor:lokal`) → 🎵 Audio-Zentrale: anhören, ersetzen, kürzen, Lautstärke –
+Dateien, `einstellungen.json` und Index landen dann automatisch hier.

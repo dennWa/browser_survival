@@ -158,6 +158,11 @@ unten (lokaler Editor-Server) bzw. neue Wünsche.
   `werkzeuge/audio/indexBauen.mjs` (+ `client/audio/musikIndex.js`: Reihenfolge/Zufall, Ordner `hauptmenue`), Editor-Client
   `editor/ui/lokalerServer.js` (Erkennung beim Start, Befehl `datei.lokal`). Tests `tests/lokalerServer.test.js`.
 
+- 10.2 fertig (2026-10-20) 🎮: `EREIGNISSE` neu gruppiert (`SOUND_GRUPPEN`, 3. Feld {loop, stumm}, `LOOP_EREIGNISSE`), neue
+  Ereignisse wind/regen/nacht/motor (Schleifen aus eigener Datei, sonst Synthese; Grillen neu), hase_flucht/hase_tod, taschenlampe,
+  inventar_auf/_zu, ui_klick/ui_fehler; `sound.js` Streuung/Pegel je Ereignis, `quelleVon`, `SYNTH_EREIGNISSE`; Hauptmenü-Musik
+  (`client/musik/hauptmenue/`), Musik der Reihe nach (`_optionen.zufall`). Spieldateien vermerkt in KI_INDEX §13.
+
 **Phase 10 läuft** (Audio-Zentrale) – nächster Schritt siehe Tabelle Phase 10 (erster ☐). Rauchtest für Phase 10 gesammelt am Ende.
 
 ## Ausgangslage (Analyse 2026-10-19)
@@ -271,7 +276,7 @@ unten (lokaler Editor-Server) bzw. neue Wünsche.
 | # | Schritt | Größe |
 |---|---|---|
 | ☑ 10.1 | **Lokaler Editor-Server** `npm run editor:lokal` (nur 127.0.0.1): liefert Spiel + Editor aus, Schreib-/Lösch-API NUR in freigegebenen Ordnern (`client/audio/eigene/`, `client/audio/karten/`, `client/musik/`, `client/assets/eigene/`, `server/spiel/karten/`), strenge Pfadprüfung (kein `..`, keine Laufwerke/Backslashes, Endungs-Whitelist, Host/Origin-Prüfung), Indexe (`eigene.json`, `musik.json`) nach jeder Änderung neu; Editor erkennt den Server, sonst Hinweis „Editor lokal starten mit npm run editor:lokal“ | M |
-| ☐ 10.2 | 🎮 **Alle Geräusche als Ereignisse:** `EREIGNISSE` neu gruppiert (Musik · Atmosphäre & Wetter · Tiere · Waffen & Kampf · Zombies · Fahrzeuge · Bauen/Handwerk/Arbeit · Inventar & Items · Oberfläche/Menüs), neue Ereignisse für bisher fest verdrahtete Geräusche (Wind, Regen, Nacht, Motor als Schleifen; Hase flieht/stirbt; Klick, Inventar auf/zu; Hauptmenü-Musik), `sound.js` spielt Schleifen aus eigenen Dateien, Einstellungen je Ereignis (`einstellungen.json`: Pegel, Tonhöhen-Streuung, Loop) im Index | M |
+| ☑ 10.2 | 🎮 **Alle Geräusche als Ereignisse:** `EREIGNISSE` neu gruppiert (Musik · Atmosphäre & Wetter · Tiere · Waffen & Kampf · Zombies · Fahrzeuge · Bauen/Handwerk/Arbeit · Inventar & Items · Oberfläche/Menüs), neue Ereignisse für bisher fest verdrahtete Geräusche (Wind, Regen, Nacht, Motor als Schleifen; Hase flieht/stirbt; Klick, Inventar auf/zu; Hauptmenü-Musik), `sound.js` spielt Schleifen aus eigenen Dateien, Einstellungen je Ereignis (`einstellungen.json`: Pegel, Tonhöhen-Streuung, Loop) im Index | M |
 | ☐ 10.3 | **Audio-Zentrale – Übersicht:** eigenes Vollbild-Fenster (Menü Ansicht/Schnellleiste/🔊-Reiter), Katalog `kern/audioKatalog.js` (alle Ereignisse + Samples + eigene + Musik-Ordner + Karten-Klänge), je Eintrag Name, Zuordnung/Wann, Quelle (synthetisch/Sample/eigene Datei), Dauer, Größe, Pegel, Varianten; Suche, Filter (geändert, synthetisch, fehlend), ▶ Anhören; Handy-Layout | L |
 | ☐ 10.4 | **Ersetzen & Hochladen:** Datei per Knopf/Drag & Drop (.mp3 .ogg .wav .m4a .flac, Probe-Dekodierung) als Ersatz oder zusätzliche Variante, „↺ Original“ (eigene Dateien entfernen), Musik: Titel je Ordner hinzufügen, Reihenfolge, entfernen, Zufall/der Reihe nach | M |
 | ☐ 10.5 | **Bearbeiten:** Wellenform mit Start/Ende ziehen, Fade-In/-Out, Lautstärke + Normalisieren, Loop mit weicher Überblendung, Tonhöhen-Streuung, Vorhören (auch in Schleife), Undo; gespeichert wird NUR die bearbeitete Fassung, kompakt als Ogg/Opus (WebCodecs, sonst WAV mit Hinweis), Warnung bei großen Dateien | L |

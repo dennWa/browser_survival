@@ -553,7 +553,7 @@ export class ClientSpiel {
     const ziel = this.#platzierungsZiel();
     if (!ziel) return;
     if (!ziel.ok) {
-      this.sound?.spiele('leer', { tonhoehe: 0.7 });
+      this.sound?.spiele('ui_fehler');
       this.hud.meldung(ziel.grund ?? 'Hier nicht');
       return;
     }
@@ -654,7 +654,7 @@ export class ClientSpiel {
   /** Taschenlampe an/aus – aus = Zombies bemerken einen erst aus der Nähe. */
   licht() {
     if (this.spielerDaten?.tot) return;
-    this.sound?.spiele('leer', { tonhoehe: 1.6, lautstaerke: 0.6 }); // Klick
+    this.sound?.spiele('taschenlampe', { lautstaerke: 0.6 }); // Klick
     this.#aktion(AKTIONEN.LICHT);
   }
 
@@ -893,6 +893,7 @@ export class ClientSpiel {
     if (!tot && !this.schlaeft) wendeEingabeAn(this.lokal, eingabe, this.welt, this.physik, TICK_DAUER_S);
     this.#zombieStoehnen();
     this.#feuerKnistern();
+    this.#tierGeraeusche();
     this.sound?.motor(this.lokal.fahrzeug ? this.lokal.fahrzeug.tempo : null);
 
     this.offeneEingaben.push(eingabe);
@@ -950,7 +951,7 @@ export class ClientSpiel {
         this.#kampfInDerNaehe(e);
         break;
       case 'tod':
-        if (e.ziel !== 'tier') this.sound.spiele(e.ziel === 'zombie' ? 'zombie_tod' : 'spieler_tod', { x: e.x, y: e.y }); // Hasen fallen lautlos um
+        this.sound.spiele(e.ziel === 'tier' ? 'hase_tod' : e.ziel === 'zombie' ? 'zombie_tod' : 'spieler_tod', { x: e.x, y: e.y }); // hase_tod: ohne eigene Datei lautlos
         break;
       case 'nahkampf':
         this.sound.spiele('nahkampf', { x: e.x, y: e.y });
@@ -1066,6 +1067,25 @@ export class ClientSpiel {
     if (feuer) this.sound.spiele('knistern', { x: (feuer.tx + 0.5) * g, y: (feuer.ty + 0.5) * g, lautstaerke: 0.8 });
   }
 
+  /** Hasen, die gerade erschrecken (ruhend → flucht), hoppeln hörbar davon (Phase 10.2, Ereignis hase_flucht). */
+  #tierGeraeusche() {
+    const letzter = this.schnappschuesse[this.schnappschuesse.length - 1];
+    if (!this.sound || !letzter || letzter === this.#tierSchnappschuss) return;
+    this.#tierSchnappschuss = letzter;
+    const neu = new Map();
+    for (const t of letzter.entitaeten.values()) {
+      if (t.typ !== 'tier') continue;
+      neu.set(t.id, t.zustand);
+      if (t.zustand === 'flucht' && this.#tierZustand.get(t.id) && this.#tierZustand.get(t.id) !== 'flucht' && Math.hypot(t.x - this.lokal.x, t.y - this.lokal.y) < 700) {
+        this.sound.spiele('hase_flucht', { x: t.x, y: t.y });
+      }
+    }
+    this.#tierZustand = neu;
+  }
+
+  #tierZustand = new Map();
+  #tierSchnappschuss = null;
+
   /** Zombies in der Nähe stöhnen ab und zu – Richtung und Entfernung hört man. */
   #zombieStoehnen() {
     const jetzt = performance.now();
@@ -1124,6 +1144,12 @@ export class ClientSpiel {
     const aufhebbar = interaktion?.gegenstand ?? null;
     if (this.werkbankOffen && !this.#naheWerkbank()) this.werkbankUmschalten(false); // weggegangen → zu
     const uhr = tageszeit(this.serverZeit + (jetzt - this.zeitEmpfangen) / 1000, this.tageszeitDauer);
+    // Nachtgeräusche (Grillen) nur draußen-unabhängig nach Dunkelheit, in 10-%-Stufen (Ereignis nacht)
+    const nacht = Math.round((1 - (uhr.helligkeit ?? 1)) * 10) / 10;
+    if (nacht !== this.letzteNachtStufe) {
+      this.letzteNachtStufe = nacht;
+      this.sound?.nacht(nacht);
+    }
     if (this.klaenge.eintraege.length) this.#klaengeAktualisieren(jetzt, uhr, andere);
 
     if (this.platzierung) this.renderer.zeigeVorschau({ typ: this.platzierung.typ, ...this.#platzierungsZiel() });

@@ -4,8 +4,21 @@
  * tests/eigeneSounds.test.js und (nur EREIGNISSE-Namen) vom Client.
  */
 
-/** Ereignis → [Gruppe, Beschreibung]. Reihenfolge = Reihenfolge in der README. Neue Sound-Ereignisse hier eintragen! */
+/** Hauptgruppen (Reihenfolge = Audio-Zentrale/README). Musik + Karten-Klänge kommen nicht aus EREIGNISSE (Ordner/Karten). */
+export const SOUND_GRUPPEN = Object.freeze(['Atmosphäre & Wetter', 'Tiere', 'Waffen & Kampf', 'Zombies', 'Fahrzeuge', 'Bauen, Handwerk & Arbeit', 'Inventar & Items', 'Oberfläche & Menüs']);
+
+/**
+ * Ereignis → [Gruppe, wann es ertönt, { loop?: Dauergeräusch (läuft als Schleife), stumm?: ohne eigene Datei kein Ton }].
+ * Reihenfolge = Reihenfolge in README/Audio-Zentrale. Neue Sound-Ereignisse hier eintragen (+ Rezept in sound.js)!
+ */
 export const EREIGNISSE = {
+  // Atmosphäre & Wetter (Schleifen, Bus „Wind & Regen“)
+  wind: ['Atmosphäre & Wetter', 'Wind draußen (immer, Schleife; Regler „Wind & Regen“)', { loop: true }],
+  regen: ['Atmosphäre & Wetter', 'Regen (Schleife, Lautstärke folgt der Regenstärke)', { loop: true }],
+  nacht: ['Atmosphäre & Wetter', 'Nachtgeräusche – Grillen (Schleife, nur nachts)', { loop: true }],
+  // Tiere
+  hase_flucht: ['Tiere', 'Hase erschrickt und hoppelt davon'],
+  hase_tod: ['Tiere', 'Hase wird erlegt (ohne eigene Datei lautlos)', { stumm: true }],
   // Waffen & Kampf
   pistole: ['Waffen & Kampf', 'Pistolenschuss'],
   schrotflinte: ['Waffen & Kampf', 'Schrotflintenschuss'],
@@ -14,53 +27,61 @@ export const EREIGNISSE = {
   nahkampf: ['Waffen & Kampf', 'Schlag / Hieb in die Luft'],
   treffer_zombie: ['Waffen & Kampf', 'Zombie wird getroffen'],
   treffer_spieler: ['Waffen & Kampf', 'Spieler wird getroffen'],
-  // Zombies & Tod
-  zombie_stoehnen: ['Zombies & Tod', 'Zombie ruhend / schlurfend (Stöhnen)'],
-  zombie_angriff: ['Zombies & Tod', 'Zombie greift an'],
-  zombie_tod: ['Zombies & Tod', 'Zombie stirbt'],
-  spieler_tod: ['Zombies & Tod', 'Spieler stirbt'],
-  // Sammeln & Bauen
-  hack_holz: ['Sammeln & Bauen', 'Axt trifft Baum (jeder Hieb)'],
-  baum_faellt: ['Sammeln & Bauen', 'Baum fällt um (Holzfällen fertig)'],
-  hack_stein: ['Sammeln & Bauen', 'Spitzhacke trifft Eisenerz'],
-  stein_bricht: ['Sammeln & Bauen', 'Eisenerz ist abgebaut'],
-  hack_felsen: ['Sammeln & Bauen', 'Spitzhacke trifft Fels/Stein'],
-  felsen_bricht: ['Sammeln & Bauen', 'Fels/Stein ist abgebaut'],
-  aufheben: ['Sammeln & Bauen', 'Item aufheben (leises Rascheln)'],
-  beute: ['Sammeln & Bauen', 'Beute / Kiste durchsucht'],
-  gebaut: ['Sammeln & Bauen', 'Bauwerk platziert'],
-  werkeln: ['Sammeln & Bauen', 'Herstellen / Basteln / Reparieren'],
-  graben: ['Sammeln & Bauen', 'Beet anlegen / Hacke / Rasen abtragen'],
-  // Türen
-  tuer_auf: ['Türen', 'Tür öffnen'],
-  tuer_zu: ['Türen', 'Tür schließen'],
-  tuer_schlag: ['Türen', 'Zombie schlägt auf Tür'],
-  tuer_bricht: ['Türen', 'Tür bricht auf'],
+  spieler_tod: ['Waffen & Kampf', 'Spieler stirbt'],
+  // Zombies
+  zombie_stoehnen: ['Zombies', 'Zombie ruhend / schlurfend (Stöhnen, zufällig in der Nähe)'],
+  zombie_angriff: ['Zombies', 'Zombie jagt / greift an'],
+  zombie_tod: ['Zombies', 'Zombie stirbt'],
+  tuer_schlag: ['Zombies', 'Zombie schlägt auf Tür'],
+  tuer_bricht: ['Zombies', 'Tür bricht auf'],
   // Fahrzeuge
+  motor: ['Fahrzeuge', 'Motor beim Fahren (Schleife, Tonhöhe folgt dem Tempo)', { loop: true }],
   autotuer: ['Fahrzeuge', 'Ein-/Aussteigen'],
   aufprall: ['Fahrzeuge', 'Auto kracht gegen Hindernis'],
   fahrzeug_schaden: ['Fahrzeuge', 'Auto nimmt Schaden'],
   fahrzeug_kaputt: ['Fahrzeuge', 'Auto geht kaputt'],
-  // Essen, Feuer, Angeln, Fallen
-  essen: ['Essen, Feuer, Angeln, Fallen', 'Essen'],
-  trinken: ['Essen, Feuer, Angeln, Fallen', 'Trinken'],
-  heilen: ['Essen, Feuer, Angeln, Fallen', 'Heilen (Verband/Medizin)'],
-  feuer_an: ['Essen, Feuer, Angeln, Fallen', 'Lagerfeuer anzünden'],
-  feuer_aus: ['Essen, Feuer, Angeln, Fallen', 'Lagerfeuer erlischt'],
-  knistern: ['Essen, Feuer, Angeln, Fallen', 'Feuer knistert in der Nähe (zufällig)'],
-  holz_nachlegen: ['Essen, Feuer, Angeln, Fallen', 'Holz ins Feuer legen'],
-  brutzel: ['Essen, Feuer, Angeln, Fallen', 'Essen wird gekocht (Start)'],
-  brutzeln: ['Essen, Feuer, Angeln, Fallen', 'Essen brutzelt (Dauergeräusch am Feuer)'],
-  fertig: ['Essen, Feuer, Angeln, Fallen', 'Essen ist gar'],
-  verbrannt: ['Essen, Feuer, Angeln, Fallen', 'Essen ist verkohlt'],
-  angel_wurf: ['Essen, Feuer, Angeln, Fallen', 'Angel auswerfen'],
-  angel_biss: ['Essen, Feuer, Angeln, Fallen', 'Fisch beißt an'],
-  gefangen: ['Essen, Feuer, Angeln, Fallen', 'Fisch gefangen'],
-  falle_auf: ['Essen, Feuer, Angeln, Fallen', 'Falle gespannt'],
-  falle_zu: ['Essen, Feuer, Angeln, Fallen', 'Falle schnappt zu'],
-  // Sonstiges
-  level_auf: ['Sonstiges', 'Level-Aufstieg'],
+  // Bauen, Handwerk & Arbeit
+  hack_holz: ['Bauen, Handwerk & Arbeit', 'Axt trifft Baum (jeder Hieb)'],
+  baum_faellt: ['Bauen, Handwerk & Arbeit', 'Baum fällt um (Holzfällen fertig)'],
+  hack_stein: ['Bauen, Handwerk & Arbeit', 'Spitzhacke trifft Eisenerz'],
+  stein_bricht: ['Bauen, Handwerk & Arbeit', 'Eisenerz ist abgebaut'],
+  hack_felsen: ['Bauen, Handwerk & Arbeit', 'Spitzhacke trifft Fels/Stein'],
+  felsen_bricht: ['Bauen, Handwerk & Arbeit', 'Fels/Stein ist abgebaut'],
+  gebaut: ['Bauen, Handwerk & Arbeit', 'Bauwerk platziert'],
+  werkeln: ['Bauen, Handwerk & Arbeit', 'Herstellen / Basteln / Reparieren'],
+  graben: ['Bauen, Handwerk & Arbeit', 'Beet anlegen / Hacke / Rasen abtragen'],
+  tuer_auf: ['Bauen, Handwerk & Arbeit', 'Tür öffnen'],
+  tuer_zu: ['Bauen, Handwerk & Arbeit', 'Tür schließen'],
+  feuer_an: ['Bauen, Handwerk & Arbeit', 'Lagerfeuer anzünden'],
+  feuer_aus: ['Bauen, Handwerk & Arbeit', 'Lagerfeuer erlischt'],
+  knistern: ['Bauen, Handwerk & Arbeit', 'Feuer knistert in der Nähe (zufällig)'],
+  holz_nachlegen: ['Bauen, Handwerk & Arbeit', 'Holz ins Feuer legen'],
+  brutzel: ['Bauen, Handwerk & Arbeit', 'Essen wird gekocht (Start)'],
+  brutzeln: ['Bauen, Handwerk & Arbeit', 'Essen brutzelt (Dauergeräusch am Feuer)'],
+  fertig: ['Bauen, Handwerk & Arbeit', 'Essen ist gar'],
+  verbrannt: ['Bauen, Handwerk & Arbeit', 'Essen ist verkohlt'],
+  angel_wurf: ['Bauen, Handwerk & Arbeit', 'Angel auswerfen'],
+  angel_biss: ['Bauen, Handwerk & Arbeit', 'Fisch beißt an'],
+  gefangen: ['Bauen, Handwerk & Arbeit', 'Fisch gefangen'],
+  falle_auf: ['Bauen, Handwerk & Arbeit', 'Falle gespannt'],
+  falle_zu: ['Bauen, Handwerk & Arbeit', 'Falle schnappt zu'],
+  // Inventar & Items
+  aufheben: ['Inventar & Items', 'Item aufheben (leises Rascheln)'],
+  beute: ['Inventar & Items', 'Beute / Kiste durchsucht'],
+  essen: ['Inventar & Items', 'Essen'],
+  trinken: ['Inventar & Items', 'Trinken'],
+  heilen: ['Inventar & Items', 'Heilen (Verband/Medizin)'],
+  taschenlampe: ['Inventar & Items', 'Taschenlampe an/aus (L)'],
+  inventar_auf: ['Inventar & Items', 'Inventar öffnen (Tab)'],
+  inventar_zu: ['Inventar & Items', 'Inventar schließen'],
+  // Oberfläche & Menüs
+  ui_klick: ['Oberfläche & Menüs', 'Klick auf einen Knopf (Login, Menüs, HUD)'],
+  ui_fehler: ['Oberfläche & Menüs', 'Geht hier nicht (z. B. Bauen an falscher Stelle)'],
+  level_auf: ['Oberfläche & Menüs', 'Level-Aufstieg'],
 };
+
+/** Dauergeräusche (Schleifen) */
+export const LOOP_EREIGNISSE = Object.freeze(Object.keys(EREIGNISSE).filter((n) => EREIGNISSE[n][2]?.loop));
 
 export const ENDUNGEN = ['ogg', 'mp3', 'wav', 'm4a', 'webm', 'opus', 'flac'];
 const DATEI = new RegExp(`^(.+?)(?:_(\\d+))?\\.(${ENDUNGEN.join('|')})$`, 'i');

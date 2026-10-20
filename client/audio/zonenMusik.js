@@ -5,11 +5,16 @@
  *   client/musik/alle/*                              Stücke für JEDE Zone (laufen, wenn die Zone keine eigenen hat – oder zusätzlich, siehe unten)
  *   client/musik/musik.json                          Index { "stadtrand": ["a.mp3"], … } – erzeugt `npm run musik:index`
  *
+ *   client/musik/hauptmenue/*                         Login-Bildschirm/Hauptmenü (ohne "alle")
+ *   client/musik/einstellungen.json                   Reihenfolge + Zufall je Ordner (Audio-Zentrale) → musik.json `_optionen`
+ *
  * Browser dürfen keine Ordner auflisten (auch GitHub Pages nicht) – darum der Index. Nach dem Ablegen neuer
  * Dateien einmal `npm run musik:index` ausführen, dann alles committen. Ohne Dateien bleibt es still.
  * Ablauf: Zonenwechsel → sanft ausblenden → zufälliges Stück der neuen Zone einblenden → danach das nächste (nie
  * dasselbe zweimal hintereinander). Lautstärke: Regler "Musik" in den Einstellungen (Sound-Kanal `musik`).
  */
+import { MUSIK_HAUPTMENUE } from './musikIndex.js';
+
 const INDEX = new URL('../musik/musik.json', import.meta.url);
 const PAUSE_ZWISCHEN_STUECKEN_MS = 4000;
 
@@ -38,9 +43,15 @@ export class ZonenMusik {
   /** Stücke für eine Zone: ihr eigener Ordner + "alle". */
   async stuecke(zone) {
     const index = this.#index ?? (await this.#ladeIndex());
-    const eigene = (index[zone] ?? []).map((datei) => `${zone}/${datei}`);
-    const alle = (index.alle ?? []).map((datei) => `alle/${datei}`);
+    const eigene = (Array.isArray(index[zone]) ? index[zone] : []).map((datei) => `${zone}/${datei}`);
+    if (zone === MUSIK_HAUPTMENUE) return eigene; // Hauptmenü: nur eigene Stücke
+    const alle = (Array.isArray(index.alle) ? index.alle : []).map((datei) => `alle/${datei}`);
     return [...eigene, ...alle];
+  }
+
+  /** Zufällig (Standard) oder der Reihe nach (einstellungen.json `zufall: false`)? */
+  #zufaellig(zone) {
+    return this.#index?._optionen?.[zone]?.zufall !== false;
   }
 
   /** Neue Zone betreten (oder Spiel starten). Gleiche Zone nochmal = nichts tun. */
@@ -66,8 +77,12 @@ export class ZonenMusik {
 
   async #naechstes(liste) {
     const zone = this.#zone;
-    const kandidaten = liste.length > 1 ? liste.filter((s) => s !== this.#letztes) : liste;
-    const stueck = kandidaten[Math.floor(Math.random() * kandidaten.length)];
+    let stueck;
+    if (!this.#zufaellig(zone)) stueck = liste[(liste.indexOf(this.#letztes) + 1) % liste.length];
+    else {
+      const kandidaten = liste.length > 1 ? liste.filter((s) => s !== this.#letztes) : liste;
+      stueck = kandidaten[Math.floor(Math.random() * kandidaten.length)];
+    }
     this.#letztes = stueck;
     const lauf = this.#sound.spieleMusik(new URL(`../musik/${stueck.split('/').map(encodeURIComponent).join('/')}`, import.meta.url).href);
     if (!lauf) {

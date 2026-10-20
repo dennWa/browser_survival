@@ -13,10 +13,25 @@ Hier kannst du eigene Soundeffekte ablegen. Sie ersetzen automatisch die mitgeli
    100 = Originallautstärke, 0 = stumm, über 100 = lauter (bis 300). Gilt auch für mitgelieferte Sounds (ohne eigene Datei).
 5. `npm run sounds` ausführen (baut `eigene.json`, prüft Tippfehler), dann committen und pushen.
 
-Eigene Dateien werden unverändert abgespielt (keine zufällige Tonhöhe); Entfernung und Stereo-Position wirken weiter.
+Eigene Dateien werden unverändert abgespielt (Tonhöhe nur mit „Streuung“ aus `einstellungen.json`); Entfernung und Stereo wirken weiter.
 Tipp: kurze Dateien (< 3 s), Lautstärke der Aufnahme selbst eher normalisiert.
 
 ## Ereignisse
+
+### Atmosphäre & Wetter
+
+| Dateiname (ohne Endung) | Wann? |
+|---|---|
+| `wind` | Wind draußen (immer, Schleife; Regler „Wind & Regen“) |
+| `regen` | Regen (Schleife, Lautstärke folgt der Regenstärke) |
+| `nacht` | Nachtgeräusche – Grillen (Schleife, nur nachts) |
+
+### Tiere
+
+| Dateiname (ohne Endung) | Wann? |
+|---|---|
+| `hase_flucht` | Hase erschrickt und hoppelt davon |
+| `hase_tod` | Hase wird erlegt (ohne eigene Datei lautlos) |
 
 ### Waffen & Kampf
 
@@ -29,17 +44,29 @@ Tipp: kurze Dateien (< 3 s), Lautstärke der Aufnahme selbst eher normalisiert.
 | `nahkampf` | Schlag / Hieb in die Luft |
 | `treffer_zombie` | Zombie wird getroffen |
 | `treffer_spieler` | Spieler wird getroffen |
+| `spieler_tod` | Spieler stirbt |
 
-### Zombies & Tod
+### Zombies
 
 | Dateiname (ohne Endung) | Wann? |
 |---|---|
-| `zombie_stoehnen` | Zombie ruhend / schlurfend (Stöhnen) |
-| `zombie_angriff` | Zombie greift an |
+| `zombie_stoehnen` | Zombie ruhend / schlurfend (Stöhnen, zufällig in der Nähe) |
+| `zombie_angriff` | Zombie jagt / greift an |
 | `zombie_tod` | Zombie stirbt |
-| `spieler_tod` | Spieler stirbt |
+| `tuer_schlag` | Zombie schlägt auf Tür |
+| `tuer_bricht` | Tür bricht auf |
 
-### Sammeln & Bauen
+### Fahrzeuge
+
+| Dateiname (ohne Endung) | Wann? |
+|---|---|
+| `motor` | Motor beim Fahren (Schleife, Tonhöhe folgt dem Tempo) |
+| `autotuer` | Ein-/Aussteigen |
+| `aufprall` | Auto kracht gegen Hindernis |
+| `fahrzeug_schaden` | Auto nimmt Schaden |
+| `fahrzeug_kaputt` | Auto geht kaputt |
+
+### Bauen, Handwerk & Arbeit
 
 | Dateiname (ohne Endung) | Wann? |
 |---|---|
@@ -49,37 +76,11 @@ Tipp: kurze Dateien (< 3 s), Lautstärke der Aufnahme selbst eher normalisiert.
 | `stein_bricht` | Eisenerz ist abgebaut |
 | `hack_felsen` | Spitzhacke trifft Fels/Stein |
 | `felsen_bricht` | Fels/Stein ist abgebaut |
-| `aufheben` | Item aufheben (leises Rascheln) |
-| `beute` | Beute / Kiste durchsucht |
 | `gebaut` | Bauwerk platziert |
 | `werkeln` | Herstellen / Basteln / Reparieren |
 | `graben` | Beet anlegen / Hacke / Rasen abtragen |
-
-### Türen
-
-| Dateiname (ohne Endung) | Wann? |
-|---|---|
 | `tuer_auf` | Tür öffnen |
 | `tuer_zu` | Tür schließen |
-| `tuer_schlag` | Zombie schlägt auf Tür |
-| `tuer_bricht` | Tür bricht auf |
-
-### Fahrzeuge
-
-| Dateiname (ohne Endung) | Wann? |
-|---|---|
-| `autotuer` | Ein-/Aussteigen |
-| `aufprall` | Auto kracht gegen Hindernis |
-| `fahrzeug_schaden` | Auto nimmt Schaden |
-| `fahrzeug_kaputt` | Auto geht kaputt |
-
-### Essen, Feuer, Angeln, Fallen
-
-| Dateiname (ohne Endung) | Wann? |
-|---|---|
-| `essen` | Essen |
-| `trinken` | Trinken |
-| `heilen` | Heilen (Verband/Medizin) |
 | `feuer_an` | Lagerfeuer anzünden |
 | `feuer_aus` | Lagerfeuer erlischt |
 | `knistern` | Feuer knistert in der Nähe (zufällig) |
@@ -94,10 +95,29 @@ Tipp: kurze Dateien (< 3 s), Lautstärke der Aufnahme selbst eher normalisiert.
 | `falle_auf` | Falle gespannt |
 | `falle_zu` | Falle schnappt zu |
 
-### Sonstiges
+### Inventar & Items
 
 | Dateiname (ohne Endung) | Wann? |
 |---|---|
+| `aufheben` | Item aufheben (leises Rascheln) |
+| `beute` | Beute / Kiste durchsucht |
+| `essen` | Essen |
+| `trinken` | Trinken |
+| `heilen` | Heilen (Verband/Medizin) |
+| `taschenlampe` | Taschenlampe an/aus (L) |
+| `inventar_auf` | Inventar öffnen (Tab) |
+| `inventar_zu` | Inventar schließen |
+
+### Oberfläche & Menüs
+
+| Dateiname (ohne Endung) | Wann? |
+|---|---|
+| `ui_klick` | Klick auf einen Knopf (Login, Menüs, HUD) |
+| `ui_fehler` | Geht hier nicht (z. B. Bauen an falscher Stelle) |
 | `level_auf` | Level-Aufstieg |
 
-Nicht hier: Zonen-Musik (`client/musik/`), Wind/Regen/Motor (laufende Geräusche, noch nicht ersetzbar).
+Dauergeräusche (Wind, Regen, Nacht, Motor) sind Schleifen: Datei so schneiden, dass Ende und Anfang zusammenpassen –
+am einfachsten in der **🎵 Audio-Zentrale** des Map-Editors (Loop mit Überblendung). Nicht hier: Musik (`client/musik/`).
+
+**Am bequemsten:** Map-Editor lokal starten (`npm run editor:lokal`) → 🎵 Audio-Zentrale: anhören, ersetzen, kürzen, Lautstärke –
+Dateien, `einstellungen.json` und Index landen dann automatisch hier.

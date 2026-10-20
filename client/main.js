@@ -47,6 +47,19 @@ const login = new LoginBildschirm(document, SERVER_LISTE);
 const hud = new Hud(document, { debug: DEBUG_START });
 const sound = new Sound();
 const musik = new ZonenMusik(sound); // Zonen-Musik aus client/musik/<zone>/ (läuft über Zonenwechsel weiter)
+// Phase 10.2 (Audio-Zentrale): Klick-Sound für Knöpfe (nicht für Aktionsknöpfe im Spiel), Inventar auf/zu, Hauptmenü-Musik
+document.addEventListener('click', (e) => {
+  const knopf = e.target.closest?.('button');
+  if (knopf && !knopf.id.startsWith('knopf-') && knopf.id !== 'hud-licht') sound.spiele('ui_klick');
+}, true);
+hud.inventar.beiUmschalten = (offen) => sound.spiele(offen ? 'inventar_auf' : 'inventar_zu');
+/** Hauptmenü-Musik (client/musik/hauptmenue/) – Browser spielen Ton erst nach der ersten Berührung/Taste */
+const hauptmenueMusik = () => {
+  if (aktuellesSpiel || new URLSearchParams(location.search).has('editorTest')) return;
+  sound.entsperren();
+  musik.setzeZone('hauptmenue');
+};
+for (const art of ['pointerdown', 'keydown']) window.addEventListener(art, hauptmenueMusik, { once: true, passive: true });
 hud.zeigeTon(sound.stumm);
 hud.einstellungen.verbinde({ sound, renderer: () => renderer });
 hud.einstellungen.verbindeHandy({ hud, touch: eingabe.touch });
@@ -130,6 +143,7 @@ window.browserSurvival = {
   get server() {
     return lokalerServer();
   },
+  sound, // Tests/Audio-Zentrale: sound.quelleVon('wind') → 'eigen' | 'sample' | 'synth'
   ...konsolenHelfer({ spiel: () => aktuellesSpiel, server: () => lokalerServer() }),
 };
 document.getElementById('credits-knopf').addEventListener('click', () => zeigeCredits(document, assets));
@@ -180,6 +194,7 @@ async function spielStarten(verbindung, anmeldeDaten, benutzername, { zone = nul
   const trennAbmelden = verbindung.beiTrennung((grund) => (getrennt = grund ?? 'Verbindung verloren'));
   const zurueckZumLogin = (grund) => {
     aktuellesSpiel = null;
+    setTimeout(() => !aktuellesSpiel && musik.setzeZone('hauptmenue'), 0); // nach dem Stoppen der Zonen-Musik
     eingabe.aktiv = false;
     versteckeLaden();
     hud.verbergen();

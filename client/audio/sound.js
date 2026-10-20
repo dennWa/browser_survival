@@ -1,6 +1,8 @@
 /**
  * Sound-System: Geräusche = eigene Dateien (audio/eigene, Vorrang) > echte Samples (audio/samples) > Web-Audio-Synthese (REZEPTE).
- * Lautstärke je Ereignis: eigene/lautstaerke.txt (via npm run sounds → eigene.json). Ereignisliste: eigeneSounds.js.
+ * Lautstärke je Ereignis: eigene/lautstaerke.txt bzw. eigene/einstellungen.json (Audio-Zentrale) → eigene.json. Ereignisliste: eigeneSounds.js.
+ * Dauergeräusche (Phase 10.2): wind, regen, nacht, motor laufen als Schleife – aus der eigenen Datei, sonst synthetisch.
+ * Einstellungen je Ereignis: lautstaerke (Faktor, alle Quellen), streuung (± Tonhöhe je Abspielen), loop.
  *
  * Räumlicher Klang: Lautstärke nimmt mit der Entfernung zum Hörer (eigener Spieler) ab,
  * links/rechts per Stereo-Panning.
@@ -41,7 +43,9 @@ export class Sound {
   #hoerer = { x: 0, y: 0 };
   #proben = {}; // Name → [AudioBuffer] (echte Aufnahmen aus audio/samples, siehe werkzeuge/assets/baue_sounds.py)
   #eigene = {}; // Name → [AudioBuffer] (eigene Dateien aus audio/eigene, haben Vorrang vor #proben und Synthese)
-  #eigenePegel = {}; // Name → Faktor aus eigene/lautstaerke.txt (gilt für alle Quellen)
+  #eigenePegel = {}; // Name → Faktor aus eigene/lautstaerke.txt / einstellungen.json (gilt für alle Quellen)
+  #streuung = {}; // Name → ± Tonhöhe (0..0,5) aus einstellungen.json
+  #nacht = null;
   #letzteEigene = {}; // Name → zuletzt gespielter Index (keine direkte Wiederholung)
 
   constructor() {
@@ -134,14 +138,18 @@ export class Sound {
     fetch(new URL('eigene.json', eigeneBasis))
       .then((r) => (r.ok ? r.json() : {}))
       .then((index) => {
-        for (const [name, { dateien = [], lautstaerke = 1 }] of Object.entries(index)) {
+        for (const [name, { dateien = [], lautstaerke = 1, streuung = 0 }] of Object.entries(index)) {
           this.#eigenePegel[name] = lautstaerke;
+          if (streuung > 0) this.#streuung[name] = streuung;
           if (!REZEPTE[name] && !dateien.length) console.warn(`[Sound] Unbekanntes Ereignis "${name}" in eigene/lautstaerke.txt`);
           for (const datei of dateien) {
             fetch(new URL(datei, eigeneBasis))
               .then((r) => r.arrayBuffer())
               .then((daten) => this.#ctx.decodeAudioData(daten))
-              .then((puffer) => (this.#eigene[name] ??= []).push(puffer))
+              .then((puffer) => {
+                (this.#eigene[name] ??= []).push(puffer);
+                this.#schleifeNeu(name);
+              })
               .catch(() => console.warn(`[Sound] eigene/${datei} nicht ladbar`));
           }
         }
@@ -168,6 +176,44 @@ export class Sound {
     return { ctx, bus: (name) => (name === 'musik' ? this.#musikBus : name === 'atmosphaere' ? this.#atmoBus : this.#effekte) };
   }
 
+  /** Woher kommt der Ton eines Ereignisses gerade? 'eigen' | 'sample' | 'synth' | null (für Tests/Audio-Zentrale) */
+  quelleVon(name) {
+    if (this.#eigene[name]?.length) return 'eigen';
+    if (this.#proben[name]?.length) return 'sample';
+    return REZEPTE[name] || SCHLEIFEN_SYNTH.has(name) ? 'synth' : null;
+  }
+
+  /** Eigene Datei für eine laufende Schleife nachgeladen → mit der Datei neu starten */
+  #schleifeNeu(name) {
+    if (name === 'wind' && this.#wind?.synth) {
+      this.stoppeAtmosphaere({ ohneRegen: true });
+      this.starteAtmosphaere();
+    } else if (name === 'regen' && this.#regen?.synth) {
+      const st = this.#regenStaerke;
+      this.#regen.quelle.stop();
+      this.#regen = null;
+      this.regen(st);
+    } else if (name === 'nacht' && this.#nacht?.synth) {
+      const st = this.#nachtStaerke;
+      this.#nacht.quelle.stop();
+      this.#nacht = null;
+      this.nacht(st);
+    } else if (name === 'motor' && this.#motor?.synth) {
+      this.#motor.knoten.forEach((k) => k.stop());
+      this.#motor = null; // nächster motor(tempo)-Aufruf baut die Datei-Schleife
+    }
+  }
+
+  /** Schleifen-Quelle aus der eigenen Datei (Datei ist schon nahtlos geschnitten, z. B. in der Audio-Zentrale) */
+  #eigeneSchleife(name) {
+    const puffer = this.#eigene[name];
+    if (!puffer?.length) return null;
+    const quelle = this.#ctx.createBufferSource();
+    quelle.buffer = puffer[Math.floor(Math.random() * puffer.length)];
+    quelle.loop = true;
+    return quelle;
+  }
+
   setzeHoerer(x, y) {
     this.#hoerer.x = x;
     this.#hoerer.y = y;
@@ -185,6 +231,8 @@ export class Sound {
     if (!ctx || (!rezept && !proben && !eigene) || ctx.state !== 'running') return;
 
     let gain = lautstaerke * (this.#eigenePegel[name] ?? 1);
+    const streuung = this.#streuung[name] ?? 0;
+    const zufallsTon = () => 1 + (Math.random() * 2 - 1) * streuung;
     let pan = 0;
     if (x !== undefined) {
       const dx = x - this.#hoerer.x;
@@ -208,27 +256,28 @@ export class Sound {
     ziel.connect(this.#effekte);
     let dauer;
     if (eigene?.length) {
-      // Eigene Datei: unverändert (Tonhöhe 1), zufällige Variante, nie zweimal dieselbe hintereinander
+      // Eigene Datei: unverändert (Tonhöhe 1, außer Streuung), zufällige Variante, nie zweimal dieselbe hintereinander
       let i = Math.floor(Math.random() * eigene.length);
       if (eigene.length > 1 && i === this.#letzteEigene[name]) i = (i + 1 + Math.floor(Math.random() * (eigene.length - 1))) % eigene.length;
       this.#letzteEigene[name] = i;
       const quelle = ctx.createBufferSource();
       quelle.buffer = eigene[i];
+      if (streuung) quelle.playbackRate.value = zufallsTon();
       quelle.connect(lautstaerkeKnoten);
       quelle.start(ctx.currentTime + VORLAUF);
-      dauer = quelle.buffer.duration;
+      dauer = quelle.buffer.duration / quelle.playbackRate.value;
     } else if (proben?.length) {
       // Echte Aufnahme: zufällige Variante, Tonhöhe leicht gestreut (kein Maschinengewehr-Effekt bei Wiederholung)
       const quelle = ctx.createBufferSource();
       quelle.buffer = proben[Math.floor(Math.random() * proben.length)];
-      quelle.playbackRate.value = tonhoehe * (0.94 + Math.random() * 0.12);
+      quelle.playbackRate.value = tonhoehe * (streuung ? zufallsTon() : 0.94 + Math.random() * 0.12);
       const pegel = ctx.createGain();
       pegel.gain.value = PROBEN_PEGEL[name] ?? 1;
       quelle.connect(pegel).connect(lautstaerkeKnoten);
       quelle.start(ctx.currentTime + VORLAUF);
       dauer = quelle.buffer.duration / quelle.playbackRate.value;
     } else {
-      dauer = rezept({ ctx, ausgang: lautstaerkeKnoten, t: ctx.currentTime + VORLAUF, rauschen: this.#rauschen, tonhoehe });
+      dauer = rezept({ ctx, ausgang: lautstaerkeKnoten, t: ctx.currentTime + VORLAUF, rauschen: this.#rauschen, tonhoehe: tonhoehe * (streuung ? zufallsTon() : 1) });
     }
     setTimeout(() => ziel.disconnect(), (dauer + 0.5) * 1000);
   }
@@ -240,6 +289,7 @@ export class Sound {
   motor(tempo) {
     const ctx = this.#ctx;
     if (!ctx || ctx.state !== 'running') return;
+    const pegel = this.#eigenePegel.motor ?? 1;
     if (tempo === null) {
       if (!this.#motor) return;
       const { knoten, gain } = this.#motor;
@@ -247,6 +297,15 @@ export class Sound {
       setTimeout(() => knoten.forEach((k) => k.stop()), 800);
       this.#motor = null;
       return;
+    }
+    if (!this.#motor && this.#eigene.motor?.length) {
+      // Eigene Motor-Schleife: Tonhöhe und Lautstärke folgen dem Tempo
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      const quelle = this.#eigeneSchleife('motor');
+      quelle.connect(gain).connect(this.#effekte);
+      quelle.start();
+      this.#motor = { knoten: [quelle], gain, quelle };
     }
     if (!this.#motor) {
       const gain = ctx.createGain();
@@ -277,14 +336,19 @@ export class Sound {
       ton.connect(tonPegel).connect(huelle);
       huelle.connect(gain).connect(this.#effekte);
       for (const k of [rauschen, ton, takt]) k.start();
-      this.#motor = { knoten: [rauschen, ton, takt], gain, filter, ton, takt };
+      this.#motor = { knoten: [rauschen, ton, takt], gain, filter, ton, takt, synth: true };
     }
     const anteil = Math.min(1, Math.abs(tempo) / 340);
     const t = ctx.currentTime;
+    if (this.#motor.quelle) {
+      this.#motor.quelle.playbackRate.setTargetAtTime(0.75 + anteil * 0.8, t, 0.12);
+      this.#motor.gain.gain.setTargetAtTime((0.25 + anteil * 0.35) * pegel, t, 0.15);
+      return;
+    }
     this.#motor.ton.frequency.setTargetAtTime(46 + anteil * 54, t, 0.12);
     this.#motor.takt.frequency.setTargetAtTime(7 + anteil * 17, t, 0.12);
     this.#motor.filter.frequency.setTargetAtTime(150 + anteil * 260, t, 0.15);
-    this.#motor.gain.gain.setTargetAtTime(0.1 + anteil * 0.16, t, 0.15);
+    this.#motor.gain.gain.setTargetAtTime((0.1 + anteil * 0.16) * pegel, t, 0.15);
   }
 
   /**
@@ -294,6 +358,16 @@ export class Sound {
   starteAtmosphaere() {
     const ctx = this.#ctx;
     if (!ctx || this.#wind) return;
+    const pegel = this.#eigenePegel.wind ?? 1;
+    const eigen = this.#eigeneSchleife('wind');
+    if (eigen) {
+      const g = ctx.createGain();
+      g.gain.value = 0.5 * pegel;
+      eigen.connect(g).connect(this.#atmoBus);
+      eigen.start();
+      this.#wind = Object.assign([eigen], { synth: false });
+      return;
+    }
     const quelle = ctx.createBufferSource();
     quelle.buffer = erzeugeWind(ctx);
     quelle.loop = true;
@@ -302,7 +376,7 @@ export class Sound {
     filter.frequency.value = 520;
     filter.Q.value = 0.7;
     const gain = ctx.createGain();
-    gain.gain.value = 0.22; // Wind bewusst leise (war 0.55)
+    gain.gain.value = 0.22 * pegel; // Wind bewusst leise (war 0.55)
     const lfo = ctx.createOscillator(); // Böen: Klangfarbe …
     lfo.frequency.value = 0.09;
     const lfoFilter = ctx.createGain();
@@ -321,13 +395,15 @@ export class Sound {
     quelle.connect(filter).connect(gain).connect(this.#atmoBus);
     brummen.connect(brummGain).connect(this.#atmoBus);
     for (const knoten of [quelle, lfo, lfo2, brummen]) knoten.start();
-    this.#wind = [quelle, lfo, lfo2, brummen];
+    this.#wind = Object.assign([quelle, lfo, lfo2, brummen], { synth: true });
   }
 
-  stoppeAtmosphaere() {
+  stoppeAtmosphaere({ ohneRegen = false } = {}) {
     for (const knoten of this.#wind ?? []) knoten.stop();
     this.#wind = null;
+    if (ohneRegen) return;
     this.regen(0);
+    this.nacht(0);
   }
 
   /**
@@ -336,7 +412,18 @@ export class Sound {
    */
   regen(staerke) {
     const ctx = this.#ctx;
+    this.#regenStaerke = Math.max(0, staerke);
     if (!ctx || ctx.state !== 'running') return;
+    if (!this.#regen && staerke > 0) {
+      const eigen = this.#eigeneSchleife('regen');
+      if (eigen) {
+        const gain = ctx.createGain();
+        gain.gain.value = 0;
+        eigen.connect(gain).connect(this.#atmoBus);
+        eigen.start();
+        this.#regen = { quelle: eigen, gain, faktor: 0.6 };
+      }
+    }
     if (!this.#regen) {
       if (staerke <= 0) return;
       const quelle = ctx.createBufferSource();
@@ -352,14 +439,47 @@ export class Sound {
       gain.gain.value = 0;
       quelle.connect(hoch).connect(tief).connect(gain).connect(this.#atmoBus);
       quelle.start();
-      this.#regen = { quelle, gain };
+      this.#regen = { quelle, gain, faktor: 0.16, synth: true };
     }
-    const ziel = Math.max(0, Math.min(1, staerke)) * 0.16;
+    const ziel = Math.max(0, Math.min(1, staerke)) * this.#regen.faktor * (this.#eigenePegel.regen ?? 1);
     this.#regen.gain.gain.setTargetAtTime(ziel, ctx.currentTime, 1.5);
     if (staerke <= 0) {
       const alt = this.#regen;
       this.#regen = null;
       setTimeout(() => alt.quelle.stop(), 6000);
+    }
+  }
+
+  #regenStaerke = 0;
+  #nachtStaerke = 0;
+
+  /**
+   * Nachtgeräusche (Grillen, Atmosphäre-Bus): staerke 0 = Tag … 1 = tiefe Nacht; blendet langsam ein/aus.
+   * Eigene Datei `nacht` hat Vorrang, sonst eine synthetische Grillen-Schleife.
+   */
+  nacht(staerke) {
+    const ctx = this.#ctx;
+    this.#nachtStaerke = Math.max(0, staerke);
+    if (!ctx || ctx.state !== 'running') return;
+    if (!this.#nacht) {
+      if (staerke <= 0) return;
+      const eigen = this.#eigeneSchleife('nacht');
+      const quelle = eigen ?? ctx.createBufferSource();
+      if (!eigen) {
+        quelle.buffer = erzeugeGrillen(ctx);
+        quelle.loop = true;
+      }
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      quelle.connect(gain).connect(this.#atmoBus);
+      quelle.start();
+      this.#nacht = { quelle, gain, faktor: eigen ? 0.5 : 0.09, synth: !eigen };
+    }
+    this.#nacht.gain.gain.setTargetAtTime(Math.min(1, staerke) * this.#nacht.faktor * (this.#eigenePegel.nacht ?? 1), ctx.currentTime, 2);
+    if (staerke <= 0) {
+      const alt = this.#nacht;
+      this.#nacht = null;
+      setTimeout(() => alt.quelle.stop(), 8000);
     }
   }
 
@@ -549,6 +669,32 @@ const REZEPTE = {
     rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.9, typ: 'highpass', frequenz: 3500, lautstaerke: 0.22, anschlag: 0.1 });
     return 0.95;
   },
+  // Oberfläche, Inventar, Tiere (Phase 10.2)
+  ui_klick: ({ ctx, ausgang, t }) => {
+    klick(ctx, ausgang, t, 2600, 0.06);
+    return 0.05;
+  },
+  ui_fehler: ({ ctx, ausgang, t }) => {
+    klick(ctx, ausgang, t, 1540, 0.25);
+    return 0.05;
+  },
+  taschenlampe: ({ ctx, ausgang, t }) => {
+    klick(ctx, ausgang, t, 3500, 0.15);
+    return 0.05;
+  },
+  inventar_auf: ({ ctx, ausgang, t, rauschen }) => {
+    rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.14, typ: 'bandpass', frequenz: 1400, lautstaerke: 0.12, anschlag: 0.02 }); // Rucksack-Rascheln
+    return 0.18;
+  },
+  inventar_zu: ({ ctx, ausgang, t, rauschen }) => {
+    rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.1, typ: 'bandpass', frequenz: 1000, lautstaerke: 0.1, anschlag: 0.01 });
+    return 0.14;
+  },
+  hase_flucht: ({ ctx, ausgang, t, rauschen }) => {
+    // drei schnelle, dumpfe Hoppel-Tapser im Gras
+    for (let i = 0; i < 3; i++) rauschStoss(ctx, ausgang, rauschen, t + i * 0.11, { dauer: 0.05, typ: 'lowpass', frequenz: 700, lautstaerke: 0.25, anschlag: 0.003 });
+    return 0.4;
+  },
   level_auf: ({ ctx, ausgang, t }) => {
     [523, 659, 784, 1047].forEach((f, i) => ton(ctx, ausgang, t + i * 0.09, { typ: 'triangle', von: f, bis: f, dauer: 0.22, lautstaerke: 0.22 }));
     return 0.6;
@@ -675,6 +821,11 @@ const REZEPTE = {
   },
 };
 
+/** Schleifen ohne Rezept (laufen über eigene Methoden: starteAtmosphaere, regen, nacht, motor) */
+const SCHLEIFEN_SYNTH = new Set(['wind', 'regen', 'nacht', 'motor']);
+/** Ereignisse mit synthetischem Standard (für die Audio-Zentrale: alles andere ist ohne Datei stumm) */
+export const SYNTH_EREIGNISSE = Object.freeze([...Object.keys(REZEPTE), ...SCHLEIFEN_SYNTH]);
+
 function schuss({ ctx, ausgang, t, rauschen, tonhoehe }, { dauer, hell, dumpf, druck, lautstaerke }) {
   const filter = ctx.createBiquadFilter();
   filter.type = 'lowpass';
@@ -794,5 +945,32 @@ function erzeugeWind(ctx) {
     spitze = Math.max(spitze, Math.abs(daten[i]));
   }
   for (let i = 0; i < laenge; i++) daten[i] /= spitze * 1.2;
+  return puffer;
+}
+
+/** 8 s Grillen-Zirpen (Nacht): kurze, hohe Pulsgruppen von drei Grillen in versetztem Takt, nahtlos schleifbar. */
+function erzeugeGrillen(ctx) {
+  const rate = ctx.sampleRate;
+  const laenge = rate * 8;
+  const puffer = ctx.createBuffer(1, laenge, rate);
+  const d = puffer.getChannelData(0);
+  const grillen = [
+    { f: 4300, takt: 0.62, versatz: 0.0, laut: 0.5 },
+    { f: 4750, takt: 0.8, versatz: 0.31, laut: 0.35 },
+    { f: 3900, takt: 1.0, versatz: 0.55, laut: 0.25 },
+  ];
+  for (const g of grillen) {
+    const takt = 8 / Math.round(8 / g.takt); // passt ganzzahlig in 8 s → Schleife ohne Sprung
+    for (let start = g.versatz; start < 8; start += takt) {
+      for (let p = 0; p < 3; p++) {
+        const s0 = Math.floor((start + p * 0.045) * rate);
+        const n = Math.floor(0.025 * rate);
+        for (let i = 0; i < n; i++) {
+          const k = (s0 + i) % laenge;
+          d[k] += Math.sin((2 * Math.PI * g.f * (s0 + i)) / rate) * Math.sin((Math.PI * i) / n) * g.laut;
+        }
+      }
+    }
+  }
   return puffer;
 }

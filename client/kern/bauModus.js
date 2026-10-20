@@ -180,7 +180,7 @@ export class BauModus {
     const z = this.ziel;
     if (!z) return;
     if (!z.ok) {
-      this.sound?.spiele('leer', { tonhoehe: 0.7 });
+      this.sound?.spiele('ui_fehler');
       if (z.grund) this.hud.meldung(z.grund);
       return;
     }
