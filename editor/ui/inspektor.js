@@ -126,6 +126,9 @@ export function inspektor({ zustand, leiste, aktionen, befehle }) {
         if (wert === '') return;
         z.ausfuehren(`${name} für ${objekte.length} Objekte`, objekte.map(({ k: id, wert: o }) => ({ s: 'objekte', k: id, neu: name === 'blockiert' ? setzeOptional(o, 'blockiert', wert === 'ja' ? true : undefined) : setzeOptional(o, 'ebene', wert === 'moebel' ? undefined : wert) })));
       });
+    el.insertAdjacentHTML('beforeend', '<h4>Anordnen</h4>');
+    knoepfe(el, ['anordnen.links', 'anordnen.mitteH', 'anordnen.rechts', 'anordnen.oben', 'anordnen.mitteV', 'anordnen.unten']);
+    knoepfe(el, ['anordnen.verteilenH', 'anordnen.verteilenV', 'anordnen.spiegelnH', 'anordnen.spiegelnV']);
     knoepfe(el, ['bearbeiten.duplizieren', 'bearbeiten.drehen', 'bearbeiten.kopieren', 'bearbeiten.alsPrefab', 'bearbeiten.loeschen']);
   }
 

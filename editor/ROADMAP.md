@@ -74,10 +74,13 @@
 - 7.1 fertig (2026-10-20): eigene Tastenkürzel (`ui/befehle.js` belegeTaste/zuruecksetzen, localStorage
   `browserSurvival.editorKuerzel`), Hilfe mit ⌨/✕/↺ + Befehlspalette Strg+K (`ui/hilfeUi.js`), Tests + Rauchtest.
 
-**Nächster Schritt: 7.2 Mehrfachauswahl – Ausrichten/Verteilen/Spiegeln.** Plan: reiner Kern `editor/kern/anordnen.js`
-(Rechteck je Element wie `bearbeiten.js`, ausrichten links/rechts/oben/unten/Mitte, verteilen mit gleichen Abständen,
-spiegeln waagerecht/senkrecht inkl. Kacheln im Auswahl-Rechteck und Drehungen), Befehle in `befehlsliste.js` +
-Inspektor bei Mehrfachauswahl, je 1 Undo-Schritt.
+- 7.2 fertig (2026-10-20): `editor/kern/anordnen.js` + Befehle `anordnen.*` (Menü, Kontextmenü, Inspektor), Tests + Rauchtest.
+  Nebenbei behoben: Inspektor-Knöpfe, die die Auswahl ändern, liefen doppelt (`main.js` globaler Klick, jetzt `isConnected`).
+
+**Nächster Schritt: 7.3 Messen & Ausrichten.** Plan: Maßband-Werkzeug (Strecke in Kacheln/m, Pfadlänge über mehrere Klicks,
+Winkel), einstellbares Raster (Weite 0,5/1/2/4, Hauptlinien alle N) in der Optionsleiste/Ansicht, Hilfslinien aus den Linealen
+ziehen (gespeichert je Zone in `werte.hilfslinien`, nur Editor), Einrasten an Raster/Objektkanten/-mitten/Hilfslinien beim
+Platzieren/Verschieben (umschaltbar), 3D: Raster + Achsen-Gizmo.
 
 **Danach:** Phasen 6–9 laut Tabellen unten (6 Zonen/Loot, 7 UX, 8 Testlauf, 9 KI).
 
@@ -161,7 +164,7 @@ Inspektor bei Mehrfachauswahl, je 1 Undo-Schritt.
 | # | Schritt | Größe |
 |---|---|---|
 | ☑ 7.1 | **Tastenkürzel überall + Hilfe:** alle Befehle aus dem Register mit Kürzel, **anpassbar** (Konflikterkennung, Zurücksetzen, gespeichert), Hilfe-Übersicht mit **Suche** – zugleich Befehlspalette (Strg+K) | M |
-| ☐ 7.2 | **Mehrfachauswahl:** Ausrichten (links/rechts/oben/unten/Mitte), Verteilen (gleiche Abstände), Spiegeln (waagerecht/senkrecht, inkl. Kacheln und Drehungen) – je 1 Undo-Schritt | M |
+| ☑ 7.2 | **Mehrfachauswahl:** Ausrichten (links/rechts/oben/unten/Mitte), Verteilen (gleiche Abstände), Spiegeln (waagerecht/senkrecht, inkl. Kacheln und Drehungen) – je 1 Undo-Schritt | M |
 | ☐ 7.3 | **Messen & Ausrichten:** Maßband (Strecke, Pfadlänge, Winkel), Lineale mit herausziehbaren Hilfslinien, einstellbares Raster (Weite, Hauptlinien), Einrasten an Raster/Objektkanten/-mitten/Hilfslinien, 3D-Ausrichtungshilfen (Raster, Achsen-Gizmo, auf Gelände einrasten) | M |
 | ☐ 7.4 | **Bibliothek & Vorlagen:** Prefabs in Ordnern, Suche, automatische Vorschaubilder für eigene Prefabs/Objekte, Favoriten, Ziehen aus der Bibliothek auf die Karte (eine Bibliothek für Assets, Prefabs, Loot-Vorlagen, Audio) | M |
 | ☐ 7.5 | **Versionskontrolle:** benannte Versionen (manuell + automatisch bei Export/Veröffentlichen), Versionsliste, **„Diff zu Version X“** (Liste + farbig auf der Karte), **„Wiederherstellungspunkt laden“** (als rückgängig machbarer Schritt), vor dem Veröffentlichen **Änderungsübersicht seit dem letzten Export** | L |

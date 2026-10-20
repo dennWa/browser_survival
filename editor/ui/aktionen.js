@@ -1,6 +1,7 @@
 import { LOOT_TABELLEN } from '../../server/spiel/konfiguration/lootTabellen.js';
 import { kopiere, loescheOps, einfuegeOps } from '../kern/auswahl.js';
 import { verschiebeOps, dupliziereOps } from '../kern/bearbeiten.js';
+import { ausrichtenOps, verteilenOps, spiegelnOps, rahmenVon } from '../kern/anordnen.js';
 import { groesseAendern, neueZone, ZONEN_ID_MUSTER } from '../kern/zone.js';
 import { katalog } from '../kern/katalog.js';
 import { formular, bestaetigen, esc } from './dialoge.js';
@@ -114,6 +115,22 @@ export function erstelleAktionen({ zustand, zeichner, leinwand, teile }) {
       if (uebersprungen) zustand.meldung(`${uebersprungen} Element(e) nicht dupliziert (kein freier Platz daneben)`, 'fehler');
     },
     drehen: () => teile.werkzeuge.drehe(),
+    /** Mehrfachauswahl anordnen (7.2): art 'ausrichten' (links/rechts/oben/unten/mitteH/mitteV), 'verteilen' (h/v), 'spiegeln' (h/v) */
+    anordnen(art, wie) {
+      const k = zustand.karte;
+      const gew = zustand.gewaehlte();
+      // Spiegeln: das markierte Rechteck (mit seinen Kacheln) zählt nur, wenn die gewählten Elemente darin liegen
+      const r = zustand.auswahlRechteck;
+      const imRechteck = r && gew.every((e) => {
+        const b = rahmenVon(e.s, e.k, e.wert);
+        return !b || (b.x >= r.x && b.y >= r.y && b.x + b.b <= r.x + r.b && b.y + b.h <= r.y + r.h);
+      });
+      const erg = art === 'ausrichten' ? ausrichtenOps(k, gew, wie) : art === 'verteilen' ? verteilenOps(k, gew, wie) : spiegelnOps(k, gew, wie, imRechteck ? r : null);
+      if (erg.grund) return zustand.meldung(erg.grund, 'fehler');
+      const name = { ausrichten: 'Ausrichten', verteilen: 'Verteilen', spiegeln: 'Spiegeln' }[art];
+      if (erg.ops.length) zustand.ausfuehren(`${name} (${wie})`, erg.ops);
+      if (erg.neueAuswahl.length) zustand.waehle(erg.neueAuswahl);
+    },
     /** Gewähltes löschen – ohne Auswahl den markierten Bereich leeren */
     auswahlLoeschen() {
       const ops = zustand.gewaehlte().map(({ s, k }) => ({ s, k, neu: null }));

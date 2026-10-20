@@ -56,6 +56,11 @@ Koordinaten sind **Kacheln** (1 Kachel = 1 m = 32 px im Spiel), x nach rechts, y
   Objekte bleiben in der Zone (Rand-Meldung); Drehen bleibt im Raster (viermal drehen = Ausgangslage).
 - **Eigenschaften** im Inspektor (rechts): Typ, Name, x/y/b/h, Drehung (90er-Raster oder frei, z. B. 95°), blockiert, Ebene
   (Möbel/Boden/Krone/Licht), Größe (Bäume/Steine), Licht (Radius, Farbe, Stärke, Flackern, Mast), Farbe/Textur.
+- **Anordnen** (mehrere gewählt – Inspektor, Menü Bearbeiten → Anordnen oder Rechtsklick): **ausrichten** links/Mitte/rechts,
+  oben/Mitte/unten (am gemeinsamen Rahmen), **verteilen** waagerecht/senkrecht (ab 3 Elementen gleiche Abstände, die äußeren
+  bleiben stehen), **spiegeln** links⇄rechts bzw. oben⇄unten – Drehungen und Lampen-Richtungen spiegeln mit. Liegt die Auswahl in
+  einem markierten Bereich (oder ist nur ein Bereich markiert), werden auch dessen **Kacheln, Höhen und Bemalung** gespiegelt.
+  Jede Aktion ist ein Undo-Schritt; Tasten dafür lassen sich in der Hilfe (⌨) frei belegen.
 - **Rückgängig/Wiederholen** (Strg+Z / Strg+Y) ist unbegrenzt und bleibt über Sitzungen erhalten (steht im Entwurf).
 
 ## Spawns, Loot, Tiere, Wetter (pro Zone)

@@ -148,7 +148,9 @@ baueLeiste(document.getElementById('werkzeuge'), WERKZEUGLEISTE, false);
 // Knöpfe mit data-befehl in Leisten und auf der Fläche führen ihren Befehl aus (Seitenleisten/Optionsleiste binden selbst)
 document.body.addEventListener('click', (e) => {
   const k = e.target.closest('button[data-befehl]');
-  if (k && !k.closest('.menue-liste, #optionen, .seitenleiste')) befehle.fuehreAus(k.dataset.befehl);
+  // isConnected: hat der Knopf-eigene Handler (Inspektor, Menü …) die Leiste schon neu gezeichnet, hängt der Knopf nicht mehr
+  // im Dokument – closest() fände dann seine Leiste nicht und der Befehl liefe doppelt (z. B. Duplizieren, Spiegeln)
+  if (k && k.isConnected && !k.closest('.menue-liste, #optionen, .seitenleiste')) befehle.fuehreAus(k.dataset.befehl);
 });
 /** Aktiv/verfügbar-Zustand aller Befehlsknöpfe nachziehen */
 function aktualisiereKnoepfe() {

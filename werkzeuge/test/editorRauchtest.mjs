@@ -195,6 +195,25 @@ try {
   await seite.keyboard.press('Enter');
   await seite.waitForFunction(() => window.mapEditor.rechts.aktiv === 'Ebenen');
   pruefe(true, 'Befehlspalette (Strg+K): suchen + Enter führt aus');
+  // 7.2: Mehrfachauswahl ausrichten + spiegeln (je 1 Undo-Schritt)
+  const anordnenVorher = await seite.evaluate(() => {
+    const z = window.mapEditor.zustand;
+    const nr = z.karte.naechsteId;
+    z.ausfuehren('Zwei Kisten', [{ s: 'objekte', k: nr, neu: { typ: 'kiste', x: 2, y: 2, b: 1, h: 1, blockiert: true } }, { s: 'objekte', k: nr + 1, neu: { typ: 'kiste', x: 6, y: 4, b: 1, h: 1, blockiert: true } }]);
+    z.waehle([{ s: 'objekte', k: nr }, { s: 'objekte', k: nr + 1 }]);
+    return { nr, schritte: z.verlauf.zurueck.length };
+  });
+  await seite.click('#rechts [data-reiter="Inspektor"]');
+  await seite.click('#rechts button[data-befehl="anordnen.oben"]');
+  const ausgerichtet = await seite.evaluate(({ nr }) => [window.mapEditor.zustand.karte.s('objekte').get(nr).y, window.mapEditor.zustand.karte.s('objekte').get(nr + 1).y], anordnenVorher);
+  pruefe(ausgerichtet[0] === 2 && ausgerichtet[1] === 2, `Mehrfachauswahl oben ausgerichtet (${ausgerichtet})`);
+  await seite.waitForTimeout(400); // Inspektor zeichnet nach der Änderung kurz verzögert neu
+  await seite.click('#rechts button[data-befehl="anordnen.spiegelnH"]');
+  const gespiegelt = await seite.evaluate(({ nr }) => [window.mapEditor.zustand.karte.s('objekte').get(nr).x, window.mapEditor.zustand.karte.s('objekte').get(nr + 1).x], anordnenVorher);
+  pruefe(gespiegelt[0] === 6 && gespiegelt[1] === 2, `Waagerecht gespiegelt (${gespiegelt})`);
+  for (let i = 0; i < 3; i++) await seite.keyboard.press('Control+z');
+  pruefe(await seite.evaluate(({ schritte }) => window.mapEditor.zustand.verlauf.zurueck.length === schritte - 1, anordnenVorher), 'Ausrichten/Spiegeln je ein Undo-Schritt');
+  await seite.keyboard.press('Escape');
 
   schritt('Neu laden: Entwurf + Verlauf bleiben');
   await seite.waitForTimeout(1200);
