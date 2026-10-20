@@ -278,6 +278,7 @@ export class Daecher {
     if (!gb.mesh) {
       gb.mesh = new THREE.Mesh(new THREE.BufferGeometry(), this.material);
       gb.mesh.castShadow = true;
+      gb.mesh.renderOrder = -1; // Dächer zuerst: Böden/Möbel darunter fallen dann schon im Tiefentest raus (spart Pixel-Beleuchtung)
       gb.mesh.receiveShadow = true;
       this.gruppe.add(gb.mesh);
     }
