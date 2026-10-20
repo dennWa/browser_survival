@@ -16,6 +16,14 @@ const ZIEH_SCHWELLE = 7; // px Bewegung, ab der aus einem Klick ein Ziehen wird
 /** Haltbarkeits-Balken (Axt, Hacke …) am Platz: siehe ui/haltbarkeit.js */
 import { setzeHaltbarkeit } from './haltbarkeit.js';
 
+/** Beschriftung der Schnellleisten-Plätze: 1–9, Platz 10 = Taste 0 */
+export function slotBeschriftung(slot) {
+  return String((slot + 1) % 10);
+}
+
+/** Zwei Klicks/Tipps innerhalb dieser Zeit (ms) auf denselben Platz = Doppelklick */
+const DOPPELKLICK_MS = 380;
+
 export class InventarFenster {
   #aktionen = {};
   #slots = []; // { knopf, icon, menge, defId }
@@ -23,6 +31,7 @@ export class InventarFenster {
   #itemDefinitionen = {};
   #ziehen = null; // { slot, startX, startY, aktiv, geist, pointerId }
   #ueber = null; // Platz unter der Maus (für Q)
+  #letzterKlick = { slot: -1, zeit: 0 }; // für Doppelklick
 
   constructor(dokument, { zeichneIcon }) {
     this.dokument = dokument;
@@ -87,7 +96,7 @@ export class InventarFenster {
     const icon = Object.assign(d.createElement('canvas'), { className: 'slot-icon', width: ICON * 2, height: ICON * 2 });
     const menge = Object.assign(d.createElement('span'), { className: 'slot-menge' });
     knopf.append(icon);
-    if (slot < HOTBAR_PLAETZE) knopf.append(Object.assign(d.createElement('span'), { className: 'slot-nummer', textContent: String(slot + 1) }));
+    if (slot < HOTBAR_PLAETZE) knopf.append(Object.assign(d.createElement('span'), { className: 'slot-nummer', textContent: slotBeschriftung(slot) }));
     knopf.append(menge);
     const ziel = slot < HOTBAR_PLAETZE ? this.raster.schnell : slot < INVENTAR_PLAETZE ? this.raster.tasche : this.raster.rucksack;
     ziel.append(knopf);
@@ -135,9 +144,18 @@ export class InventarFenster {
     const z = this.#ziehen;
     if (!z || e.pointerId !== z.pointerId) return;
     if (!z.aktiv) {
-      // Nur geklickt/angetippt → benutzen
+      // Nur geklickt/angetippt → benutzen; Doppelklick auf Essen/Trinken/Medizin → sofort verbrauchen
       this.#ziehen = null;
-      this.#aktionen.benutzen?.(z.slot);
+      const jetzt = performance.now();
+      const def = this.#itemDefinitionen[this.#daten?.inventar[z.slot]?.defId];
+      const verbrauchbar = def && (def.kategorie === 'nahrung' || def.kategorie === 'getraenk' || def.kategorie === 'medizin');
+      if (verbrauchbar && this.#letzterKlick.slot === z.slot && jetzt - this.#letzterKlick.zeit < DOPPELKLICK_MS) {
+        this.#letzterKlick = { slot: -1, zeit: 0 };
+        this.#aktionen.konsumieren?.(z.slot);
+      } else {
+        this.#letzterKlick = { slot: z.slot, zeit: jetzt };
+        this.#aktionen.benutzen?.(z.slot);
+      }
       this.#zeigeInfo(z.slot);
       return;
     }

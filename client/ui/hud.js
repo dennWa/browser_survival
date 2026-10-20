@@ -1,4 +1,6 @@
 import { HOTBAR_PLAETZE } from '../../gemeinsam/konstanten.js';
+import { FAHRZEUG_MAX_KMH } from '../../gemeinsam/physik/fahrzeug.js';
+import { slotBeschriftung } from './inventarFenster.js';
 import { WerkbankMenue } from './werkbankMenue.js';
 import { EntwicklerFenster } from './entwicklerFenster.js';
 import { InventarFenster } from './inventarFenster.js';
@@ -11,7 +13,7 @@ import { BauMenue } from './bauMenue.js';
 
 /**
  * HUD (Head-Up-Display) über dem Spiel:
- *   Statuszeile, Balken (Leben/Hunger/Durst), Schnellleiste (Inventar 1–8), Munition,
+ *   Statuszeile, Balken (Leben/Hunger/Durst), Schnellleiste (Inventar 1–0, 10 Plätze), Munition,
  *   Aufheben-Knopf, Nachladen-Knopf (Touch), Taschenlampen-Knopf, Meldungen,
  *   Todesbildschirm (mit "Sofort wiederbeleben"), Admin-Menü (nur Admins), Debug (F3).
  *
@@ -56,6 +58,8 @@ export class Hud {
   #letztesFps = 0;
   #letzterAngelText = '';
   #letzteAutoAnzeige = '';
+  #letzterTacho = -1;
+  #tachoGebaut = false;
 
   constructor(dokument, { debug = false } = {}) {
     this.dokument = dokument;
@@ -104,6 +108,7 @@ export class Hud {
       kofferraum: el('hud-kofferraum'),
       angeln: el('hud-angeln'),
       auto: el('hud-auto'),
+      tacho: el('hud-tacho'),
       angelKnopf: el('knopf-angel'),
       adminZu: el('admin-zu'),
       werte: el('hud-werte'),
@@ -171,6 +176,7 @@ export class Hud {
     this.inventar = new InventarFenster(dokument, { zeichneIcon: (canvas, defId) => this.zeichneIcon(canvas, defId) });
     this.inventar.beiAktionen({
       benutzen: (slot) => this.#aktionen.benutzen?.(slot),
+      konsumieren: (slot) => this.#aktionen.konsumieren?.(slot),
       tauschen: (von, nach) => this.#aktionen.tauschen?.(von, nach),
       ablegen: (slot) => this.#aktionen.ablegen?.(slot),
       rucksackAblegen: () => this.#aktionen.rucksackAblegen?.(),
@@ -237,7 +243,7 @@ export class Hud {
     this.el.vollbild.hidden = !istTouch || !document.fullscreenEnabled;
     this.el.hilfe.textContent = istTouch
       ? 'Links: laufen · Rechts: zielen, ganz drücken = Angriff'
-      : 'WASD laufen · Maus zielen · Klick/Leertaste Angriff · E benutzen · F Feuer · R nachladen · L Lampe · Tab Inventar · U Fähigkeiten · Q wegwerfen · B bauen · K Karte · T Chat · I Spieler · 1–8 Schnellleiste';
+      : 'WASD laufen · Maus zielen · Klick/Leertaste Angriff · E benutzen · F Feuer · R nachladen · L Lampe · Tab Inventar · U Fähigkeiten · Q wegwerfen · B bauen · K Karte · T Chat · I Spieler · 1–0 Schnellleiste';
     this.#letzterHinweis = null;
     this.#letzterTuerHinweis = null;
     this.#letzteUhr = '';
@@ -265,6 +271,8 @@ export class Hud {
     this.el.minikarte.hidden = true;
     this.el.angeln.hidden = true;
     this.el.auto.hidden = true;
+    this.el.tacho.hidden = true;
+    this.#letzterTacho = -1;
     this.zeigeAutoLauf(false);
     this.chatSchliessen();
     this.el.chatLog.replaceChildren();
@@ -359,6 +367,43 @@ export class Hud {
   /** Banner "Auto-Lauf" (mit Stopp-Knopf für Touch). */
   zeigeAutoLauf(an) {
     this.dokument.getElementById('hud-autolauf').hidden = !an;
+  }
+
+  /**
+   * Tacho: Geschwindigkeit in km/h (null = nicht im Auto → ausblenden). Skala 0 … FAHRZEUG_MAX_KMH, Nadel dreht von −90° bis +90°.
+   * Aktualisiert nur bei geänderter ganzer Zahl.
+   */
+  zeigeTacho(kmh) {
+    const tacho = this.el.tacho;
+    if (kmh === null) {
+      if (!tacho.hidden) tacho.hidden = true;
+      this.#letzterTacho = -1;
+      return;
+    }
+    const ganz = Math.round(Math.min(FAHRZEUG_MAX_KMH, Math.max(0, kmh)));
+    if (!tacho.hidden && ganz === this.#letzterTacho) return;
+    if (!this.#tachoGebaut) this.#baueTacho();
+    tacho.hidden = false;
+    this.#letzterTacho = ganz;
+    this.dokument.getElementById('hud-tacho-wert').textContent = String(ganz);
+    tacho.querySelector('.tacho-nadel').style.transform = `rotate(${-90 + (ganz / FAHRZEUG_MAX_KMH) * 180}deg)`;
+  }
+
+  /** Skalenstriche (alle 10 km/h) einmal in die SVG zeichnen. */
+  #baueTacho() {
+    this.#tachoGebaut = true;
+    const g = this.el.tacho.querySelector('.tacho-striche');
+    const ns = 'http://www.w3.org/2000/svg';
+    for (let v = 0; v <= FAHRZEUG_MAX_KMH; v += 10) {
+      const w = Math.PI * (1 - v / FAHRZEUG_MAX_KMH); // π (links) … 0 (rechts)
+      const linie = this.dokument.createElementNS(ns, 'line');
+      const aussen = v % 20 === 0 ? 38 : 41;
+      linie.setAttribute('x1', (60 + Math.cos(w) * aussen).toFixed(1));
+      linie.setAttribute('y1', (62 - Math.sin(w) * aussen).toFixed(1));
+      linie.setAttribute('x2', (60 + Math.cos(w) * 46).toFixed(1));
+      linie.setAttribute('y2', (62 - Math.sin(w) * 46).toFixed(1));
+      g.append(linie);
+    }
   }
 
   /** Haltbarkeit des eigenen Autos (null = nicht im Auto). */
@@ -521,7 +566,7 @@ export class Hud {
       const knopf = Object.assign(this.dokument.createElement('button'), { type: 'button', className: 'slot' });
       knopf.dataset.slot = slot; // Ablageziel beim Ziehen aus dem Inventar-Fenster
       const icon = Object.assign(this.dokument.createElement('canvas'), { className: 'slot-icon', width: ICON_GROESSE * 2, height: ICON_GROESSE * 2 });
-      const nummer = Object.assign(this.dokument.createElement('span'), { className: 'slot-nummer', textContent: String(slot + 1) });
+      const nummer = Object.assign(this.dokument.createElement('span'), { className: 'slot-nummer', textContent: slotBeschriftung(slot) });
       const menge = Object.assign(this.dokument.createElement('span'), { className: 'slot-menge' });
       knopf.append(icon, nummer, menge);
       this.el.hotbar.append(knopf);

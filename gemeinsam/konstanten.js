@@ -20,9 +20,9 @@ export const MAX_EINGABE_PUFFER = 8;
 /** Größe einer Kachel (Tile) in Weltpixeln. */
 export const KACHEL_GROESSE = 32;
 
-/** Schnellleiste (Tasten 1–8) = die ersten Inventarplätze. */
-export const HOTBAR_PLAETZE = 8;
-/** Grund-Inventar: Schnellleiste + Tasche (8). Ein Rucksack hängt weitere Plätze hinten an. */
+/** Schnellleiste (Tasten 1–9 und 0 für Platz 10) = die ersten Inventarplätze. */
+export const HOTBAR_PLAETZE = 10;
+/** Grund-Inventar: Schnellleiste (10) + Tasche (6). Ein Rucksack hängt weitere Plätze hinten an. */
 export const INVENTAR_PLAETZE = 16;
 /** Obergrenze inkl. größtem Rucksack (für die Prüfung von Slot-Nummern). */
 export const INVENTAR_MAX = 32;

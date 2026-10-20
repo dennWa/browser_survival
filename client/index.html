@@ -100,6 +100,16 @@
       <!-- Angeln: Hinweis Linksklick / Biss -->
       <div id="hud-angeln" hidden></div>
       <!-- Auto-Haltbarkeit (nur im Auto) -->
+      <!-- Tacho (nur im Auto): Halbkreis-Skala 0–70 km/h mit Nadel, Zahl darunter -->
+      <div id="hud-tacho" hidden title="Geschwindigkeit">
+        <svg viewBox="0 0 120 70" aria-hidden="true">
+          <path class="tacho-bogen" d="M 12 62 A 48 48 0 0 1 108 62" />
+          <path class="tacho-rot" d="M 103.2 41.2 A 48 48 0 0 1 108 62" />
+          <g class="tacho-striche"></g>
+          <g class="tacho-nadel"><line x1="60" y1="62" x2="60" y2="22" /><circle cx="60" cy="62" r="4" /></g>
+        </svg>
+        <div class="tacho-zahl"><b id="hud-tacho-wert">0</b><small>km/h</small></div>
+      </div>
       <div id="hud-auto" hidden><span>🚗</span><div class="balken"><div class="fuellung"></div></div><span id="hud-auto-text"></span></div>
       <div id="hud-arbeit" hidden>
         <span id="hud-arbeit-text"></span>
@@ -202,7 +212,7 @@
         <h2>🎒 Inventar</h2>
         <button id="inventar-schliessen" type="button" aria-label="Schließen">✕</button>
       </div>
-      <h3 class="inv-titel">Schnellleiste <small>Tasten 1–8</small></h3>
+      <h3 class="inv-titel">Schnellleiste <small>Tasten 1–9, 0 · Doppelklick auf Essen/Trinken = sofort verbrauchen</small></h3>
       <div id="inventar-schnell" class="inv-raster"></div>
       <h3 class="inv-titel">Tasche</h3>
       <div id="inventar-tasche" class="inv-raster"></div>

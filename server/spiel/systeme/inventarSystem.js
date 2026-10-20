@@ -67,6 +67,17 @@ export function verarbeiteAktionen(spielWelt) {
         case AKTIONEN.BENUTZEN:
           benutzen(spielWelt, spieler, aktion.slot);
           break;
+        case AKTIONEN.KONSUMIEREN:
+          // Doppelklick im Inventar: sofort essen/trinken/heilen (gleiche Abklingzeit wie der Linksklick aus der Hand)
+          if (spieler.angriffsAbklingzeit <= 0 && spieler.inventar[aktion.slot] && konsumiere(spielWelt, spieler, aktion.slot)) {
+            spieler.angriffsAbklingzeit = 0.8;
+            // Der erste Klick des Doppelklicks hat das Item in die Hand genommen (BENUTZEN) – nach dem Verzehr bleibt die Hand leer
+            if (spieler.ausgeruestet === aktion.slot) {
+              spieler.ausgeruestet = null;
+              aktualisiereAusruestung(spieler);
+            }
+          }
+          break;
         case AKTIONEN.ABLEGEN:
           ablegen(spielWelt, spieler, aktion.slot, aktion.einzeln === true);
           break;

@@ -813,7 +813,7 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
 .inv-titel { margin: 10px 0 6px; font-size: 0.85rem; font-weight: 600; letter-spacing: 0.04em; color: var(--text-gedimmt); display: flex; align-items: center; gap: 10px; }
 .inv-titel small { font-weight: 400; opacity: 0.7; }
 .inv-titel button { padding: 2px 10px; font-size: 0.75rem; color: var(--text); background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 10px; }
-.inv-raster { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
+.inv-raster { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; } /* Schnellleiste hat 10 Plätze – Tasche/Rucksack bleiben in derselben Spaltenbreite */
 .inv-raster .slot { width: 100%; height: auto; aspect-ratio: 1; touch-action: none; }
 #inventar-schnell .slot { border-color: rgba(232, 195, 90, 0.35); }
 #inventar-rucksack-bereich.leer .inv-titel { opacity: 0.6; }
@@ -824,7 +824,9 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
 .slot.drop-ziel { border-color: #b9e08f !important; box-shadow: 0 0 10px rgba(185, 224, 143, 0.6); }
 #inventar.fallen-lassen { border-color: #d64541; box-shadow: 0 0 0 3px rgba(214, 69, 65, 0.35), 0 20px 60px rgba(0, 0, 0, 0.6); }
 .inv-geist { position: fixed; left: 0; top: 0; width: 56px; height: 56px; z-index: 50; pointer-events: none; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.7)); }
-@media (max-width: 520px) { .inv-raster { gap: 4px; } }
+@media (max-width: 520px) { .inv-raster { gap: 3px; } }
+/* Schmale Handys hochkant: 10 Schnellleisten-Plätze müssen in die Breite passen */
+@media (max-width: 520px) { #hotbar { gap: 2px; } #hotbar .slot { width: calc((100vw - 32px) / 10 - 2px); height: calc((100vw - 32px) / 10 - 2px); max-width: 40px; max-height: 40px; border-width: 1px; } .slot-nummer { font-size: 0.5rem; left: 2px; } }
 /* Handy quer: Inventar kompakt, damit Schnellleiste + Tasche + Rucksack ohne Scrollen passen */
 @media (max-height: 500px) {
   #inventar { width: min(420px, calc(100vw - 24px)); padding: 8px 12px; }
@@ -1068,6 +1070,35 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
 #hud-auto .balken { width: 110px; height: 8px; }
 #hud-auto .fuellung { background: linear-gradient(90deg, #d4a017, #7cd16b); }
 #hud-auto.kritisch .fuellung { background: #e74c3c; }
+
+/* Tacho (Auto): rechts über der Schnellleiste, Nadel dreht über CSS-Transform */
+#hud-tacho {
+  position: absolute;
+  right: calc(16px + env(safe-area-inset-right));
+  bottom: calc(150px + env(safe-area-inset-bottom)); /* über dem Hilfe-Kasten unten rechts */
+  width: 132px;
+  padding: 6px 8px 4px;
+  background: rgba(10, 12, 16, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  text-align: center;
+  pointer-events: none;
+}
+#hud-tacho svg { width: 100%; display: block; overflow: visible; }
+#hud-tacho .tacho-bogen { fill: none; stroke: rgba(255, 255, 255, 0.28); stroke-width: 5; stroke-linecap: round; }
+#hud-tacho .tacho-rot { fill: none; stroke: #e0553f; stroke-width: 5; stroke-linecap: round; }
+#hud-tacho .tacho-striche line { stroke: rgba(255, 255, 255, 0.55); stroke-width: 1.4; }
+#hud-tacho .tacho-nadel { transform-origin: 60px 62px; transform: rotate(-90deg); transition: transform 0.12s linear; }
+#hud-tacho .tacho-nadel line { stroke: #f2d36b; stroke-width: 2.4; stroke-linecap: round; }
+#hud-tacho .tacho-nadel circle { fill: #f2d36b; }
+#hud-tacho .tacho-zahl { margin-top: 4px; line-height: 1; }
+#hud-tacho .tacho-zahl b { font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+#hud-tacho .tacho-zahl small { margin-left: 4px; font-size: 0.65rem; color: var(--text-gedimmt); }
+@media (max-width: 700px), (max-height: 500px) {
+  #hud-tacho { width: 96px; bottom: calc(66px + env(safe-area-inset-bottom)); padding: 3px 5px 2px; }
+  #hud-tacho .tacho-zahl { margin-top: 2px; }
+  #hud-tacho .tacho-zahl b { font-size: 1.1rem; }
+}
 
 #kiste {
   position: fixed;

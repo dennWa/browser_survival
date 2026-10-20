@@ -82,13 +82,20 @@ export const STANDARD_KONFIGURATION = Object.freeze({
       normal: { gewicht: 6, xp: 10 },
       laeufer: { gewicht: 2, xp: 12, leben: 35, jagdGeschwindigkeit: 103, angriffsSchaden: 8, angriffsAbklingzeit: 0.7, groesse: 0.92 },
       // Boss (große Zombies): halten viel aus, teilen mehr aus; waffenChance = Wahrscheinlichkeit auf Waffe + Munition
-      brocken: { gewicht: 1, xp: 40, leben: 420, jagdGeschwindigkeit: 56, angriffsSchaden: 40, angriffsAbklingzeit: 1.5, radius: 15, groesse: 1.3, rueckstossFaktor: 0.15, waffenChance: 0.5 },
+      // Brocken: selten (gewicht) und exakt 10 Pistolentreffer stark (Pistole 25 Schaden → 250 Leben; Schüsse ignorieren Skills)
+      brocken: { gewicht: 0.2, xp: 40, leben: 250, jagdGeschwindigkeit: 56, angriffsSchaden: 40, angriffsAbklingzeit: 1.5, radius: 15, groesse: 1.3, rueckstossFaktor: 0.15, waffenChance: 0.5 },
     },
   },
   /** Autos: so viele Zombie-Schläge halten sie aus (ein normaler Zombie = 1 Schlag, Boss mehr); Überfahren kostet nur wenig. */
   fahrzeug: {
     haltbarkeit: 10,
     ueberfahrSchaden: 0.5, // pro überfahrenem Zombie (verhindert endloses Zombie-Farmen mit dem Auto)
+    /**
+     * Aufprall an Wand/anderem Fahrzeug ab 10 km/h (gemeinsam/physik/fahrzeug.js AUFPRALL_MIN_KMH): Schaden am eigenen Auto,
+     * linear von `min` (bei 10 km/h) bis `max` (bei 70 km/h); Entlangschrammen nur `schrammFaktor` davon; `pause` Sekunden Ruhe zwischen zwei Aufprällen.
+     */
+    aufprallSchaden: { min: 0.5, max: 5, schrammFaktor: 0.25, pause: 0.5 },
+    laterneNachwachsen: 600, // Sekunden, bis eine umgefahrene Straßenlaterne wieder steht (Bäume: ressourcen.holz.nachwachsen)
   },
   /** Kleintiere (Hasen): Anzahl je 1000 Gras-Kacheln der Karte, scheu, geben 1× Fleisch. */
   tiere: {

@@ -13,3 +13,4 @@ Alle Grafiken stammen aus frei nutzbaren Paketen. Bei **CC-BY** ist die Namensne
 | [Impact Sounds / RPG Audio](https://kenney.nl/assets/impact-sounds) | Kenney (kenney.nl) | CC0 | Geräusche: Hacken, Treffer, Türen (client/audio/samples) |
 | [Zombie-Sounds & Gunshot Sounds](https://opengameart.org/content/zombies-sound-pack) | artisticdude, ianzazz, Tabasco (opengameart.org) | CC0 | Geräusche: Zombies, Pistole, Schrotflinte |
 | [Glitch Food & Drink Items](https://opengameart.org/content/glitch-food-drink-items-svg) | Tiny Speck (Glitch) | CC0 | Essen & Getränke, Holz |
+| [Gras-Modelle (Grass, Tall Grass, Grass Wispy)](https://github.com/dennwa/browser_survival) | vom Projektinhaber bereitgestellt – Urheber/Lizenz bitte ergänzen | Lizenz offen | 3D-Gras auf der Karte (client/assets/3d/natur) |

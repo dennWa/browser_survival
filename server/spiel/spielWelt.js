@@ -85,6 +85,7 @@ export class SpielWelt {
     this.tuerLeben = new Map(); // Tür-ID → verbleibende Lebenspunkte (nur angeschlagene Türen)
     this.tuerHaltOffen = new Map(); // Tür-ID → Sekunden, die eine aufgebrochene Tür noch offen bleibt
     this.ressourcenNachwuchs = new Map(); // Ressourcen-ID → Sekunden bis zum Nachwachsen
+    this.laternenNachwuchs = new Map(); // Laternen-ID (welt.laternen) → Sekunden bis die umgefahrene Laterne wieder steht
     if (konfiguration.welt.tuerenGeschlossen) for (const t of this.welt.tueren) this.welt.setzeTuer(t.id, false);
     /** Sekunden seit Tagesbeginn (siehe gemeinsam/tageszeit.js) und Tageszähler */
     this.zeit = konfiguration.welt.startZeit ?? 0;

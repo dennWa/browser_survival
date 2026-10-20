@@ -8,7 +8,7 @@ import { AKTIONEN, NACHRICHT } from '../../gemeinsam/protokoll.js';
 import { Welt } from '../../gemeinsam/welt/welt.js';
 import { wendeEingabeAn } from '../../gemeinsam/physik/bewegung.js';
 import { sichtlinieFrei } from '../../gemeinsam/physik/strahl.js';
-import { EINSTIEG_ABSTAND, FAHRZEUG_MODELLE, abstandZumFahrzeug, fahrzeugKacheln } from '../../gemeinsam/physik/fahrzeug.js';
+import { EINSTIEG_ABSTAND, FAHRZEUG_MODELLE, abstandZumFahrzeug, fahrzeugKacheln, tempoZuKmh } from '../../gemeinsam/physik/fahrzeug.js';
 import { lerp, lerpWinkel } from '../../gemeinsam/mathe.js';
 import { INTERPOLATIONS_VERZOEGERUNG_MS, PING_INTERVALL_MS } from '../konfiguration.js';
 import { Effekte } from '../darstellung/effekte.js';
@@ -71,6 +71,7 @@ export class ClientSpiel {
     this.klangZeit = { zoneSeit: performance.now(), kampf: -Infinity, letzte: null };
     if (anmeldeDaten.tueren) this.welt.uebernimmOffeneTueren(anmeldeDaten.tueren);
     if (anmeldeDaten.abgebaut) this.welt.uebernimmAbgebaute(anmeldeDaten.abgebaut);
+    if (anmeldeDaten.laternen) this.welt.uebernimmLaternen(anmeldeDaten.laternen);
     if (anmeldeDaten.bauwerke) this.welt.uebernimmBauwerke(anmeldeDaten.bauwerke);
     /** Platzier-Modus (Bauwerk-Item bzw. Erdfeld mit der Hacke): { slot, defId, typ, name, art?: 'feld' } oder null */
     this.platzierung = null;
@@ -118,6 +119,7 @@ export class ClientSpiel {
     this.effekte = new Effekte();
     this.effekte.beiEreignis = (e) => {
       if (e.typ === 'abgebaut' && e.art === 'holz') this.renderer.baumFaellt(e); // Baum kippt um
+      if (e.typ === 'laterneUmgefahren') this.renderer.laterneFaellt(e); // Straßenlaterne knickt um
       this.#ereignisSound(e);
     };
     this.letztesStoehnen = 0;
@@ -612,6 +614,12 @@ export class ClientSpiel {
     this.#aktion(AKTIONEN.NACHLADEN);
   }
 
+  /** Doppelklick im Inventar auf Essen/Trinken/Medizin: sofort verbrauchen (Server prüft Kategorie & Abklingzeit). */
+  konsumieren(slot) {
+    if (this.spielerDaten?.tot) return;
+    this.#aktion(AKTIONEN.KONSUMIEREN, slot);
+  }
+
   benutzen(slot) {
     if (this.bau.beiWaffenwahl(slot)) return; // Hammer ist schon in der Hand – nicht abrüsten
     this.letzterSlot = slot;
@@ -718,6 +726,7 @@ export class ClientSpiel {
         break;
       case NACHRICHT.RESSOURCEN:
         this.welt.uebernimmAbgebaute(n.abgebaut);
+        this.welt.uebernimmLaternen(n.laternen ?? []);
         break;
       case NACHRICHT.BAUWERKE:
         this.welt.uebernimmBauwerke(n.liste);
@@ -966,6 +975,9 @@ export class ClientSpiel {
       case 'fahrzeug':
         this.sound.spiele('autotuer', { x: e.x, y: e.y });
         break;
+      case 'laterneUmgefahren':
+        this.sound.spiele('aufprall', { x: e.x, y: e.y, lautstaerke: 0.6 });
+        break;
       case 'aufprall':
         this.sound.spiele('aufprall', { x: e.x, y: e.y, lautstaerke: Math.min(1, e.tempo / 250) });
         break;
@@ -1157,6 +1169,7 @@ export class ClientSpiel {
   #oberflaecheAktualisieren(eigen, jetzt) {
     this.hud.zeigeKofferraumKnopf(!this.spielerDaten?.tot && (!!this.lokal.fahrzeug || !!this.#naheFahrzeug()));
     this.hud.zeigeAuto(this.lokal.fahrzeug && this.eigeneDaten?.fahrzeug ? this.eigeneDaten.fahrzeug : null);
+    this.hud.zeigeTacho(this.lokal.fahrzeug && !this.spielerDaten?.tot ? tempoZuKmh(this.lokal.fahrzeug.tempo) : null);
     const angel = this.#angelZustand(jetzt);
     const touch = this.eingabe.touch.istTouchGeraet;
     this.hud.zeigeAngelKnopf(touch ? angel : null);

@@ -1,10 +1,11 @@
-import { EINSTIEG_ABSTAND, abstandZumFahrzeug, ausstiegsPunkt, fahrzeugKacheln } from '../../../gemeinsam/physik/fahrzeug.js';
+import { AUFPRALL_MIN_KMH, EINSTIEG_ABSTAND, FAHRZEUG_MAX_KMH, abstandZumFahrzeug, ausstiegsPunkt, fahrzeugKacheln, kmhZuTempo } from '../../../gemeinsam/physik/fahrzeug.js';
 import { fuegeSchadenZu, toeten } from './kampfSystem.js';
 
 /**
  * Fahrzeuge: AKTION 'fahrzeug' = einsteigen (nächstes freies Auto in Reichweite) bzw. aussteigen.
  * Gefahren wird über die normalen Eingaben (gemeinsam/physik/bewegung.js → fahre), damit die Vorhersage passt.
- * Pro Tick: belegte Kacheln aktualisieren (Kollision für alle), Zombies anfahren, verwaiste Autos anhalten.
+ * Pro Tick: belegte Kacheln aktualisieren (Kollision für alle), Zombies anfahren, verwaiste Autos anhalten,
+ * Aufprall-Schaden (Wand/Fahrzeug ≥ 10 km/h), Bäume & Straßenlaternen umfahren (≥ 10 km/h).
  */
 const ANFAHR_MIN_TEMPO = 55; // px/s – langsamer schiebt das Auto Zombies nur
 const ANFAHR_SCHADEN = 0.42; // Schaden pro px/s Tempo (Vollgas ≈ 140)
@@ -99,14 +100,82 @@ export function aktualisiereFahrzeuge(spielWelt, dt) {
       if (rest - dt <= 0) fz.treffer.delete(id);
       else fz.treffer.set(id, rest - dt);
     }
+    fz.aufprallPause = Math.max(0, (fz.aufprallPause ?? 0) - dt);
     if (fz.kaputt) {
       fz.tempo = 0;
+      fz.aufprall = null;
       continue;
+    }
+    if (fz.aufprall) {
+      verarbeiteAufprall(spielWelt, fz);
+      fz.aufprall = null;
+    }
+    if (Math.abs(fz.tempo) >= kmhZuTempo(AUFPRALL_MIN_KMH)) {
+      fahreHindernisseUm(spielWelt, fz);
+      if (fz.kaputt) continue;
     }
     if (Math.abs(fz.tempo) >= ANFAHR_MIN_TEMPO) {
       fahreZombiesAn(spielWelt, fz);
       fahreTiereUeber(spielWelt, fz);
     }
+  }
+  laternenNachwachsen(spielWelt, dt);
+}
+
+/**
+ * Aufprall an Wand/anderem Fahrzeug (fahre() hat `fz.aufprall = { kmh, schramm }` gemerkt): ab 10 km/h Schaden am eigenen Auto,
+ * linear mit dem Tempo; Entlangschrammen nur anteilig; dazwischen Pause (kein Dauerschaden beim Anliegen an der Wand).
+ */
+function verarbeiteAufprall(spielWelt, fz) {
+  if (fz.aufprallPause > 0) return;
+  const k = spielWelt.konfiguration.fahrzeug.aufprallSchaden;
+  const { kmh, schramm } = fz.aufprall;
+  const anteil = Math.min(1, Math.max(0, (kmh - AUFPRALL_MIN_KMH) / (FAHRZEUG_MAX_KMH - AUFPRALL_MIN_KMH)));
+  const schaden = (k.min + (k.max - k.min) * anteil) * (schramm ? k.schrammFaktor : 1);
+  fz.aufprallPause = k.pause;
+  const vorn = fz.laenge / 2;
+  spielWelt.ereignis({ typ: 'aufprall', x: fz.x + Math.cos(fz.winkel) * vorn * Math.sign(fz.tempo || 1), y: fz.y + Math.sin(fz.winkel) * vorn * Math.sign(fz.tempo || 1), tempo: Math.abs(fz.tempo) });
+  schlageFahrzeug(spielWelt, fz, schaden);
+}
+
+/** Bäume & Straßenlaternen unter dem Fahrzeug bei ≥ 10 km/h: umgefahren (Baum kippt wie beim Fällen, Laterne knickt um); Auto wird etwas langsamer, nimmt aber keinen Schaden. */
+function fahreHindernisseUm(spielWelt, fz) {
+  const welt = spielWelt.welt;
+  const kandidaten = welt.umfahrbareImKreis(fz.x, fz.y, fz.laenge / 2 + 8);
+  if (kandidaten.length === 0) return;
+  const fahrer = fz.fahrerId !== null ? spielWelt.holen(fz.fahrerId) : null;
+  for (const h of kandidaten) {
+    if (abstandZumFahrzeug(fz, h.x, h.y) > h.radius + 2) continue;
+    if (h.typ === 'baum') {
+      welt.setzeRessource(h.id, false);
+      spielWelt.ressourcenNachwuchs.set(h.id, spielWelt.konfiguration.ressourcen.holz.nachwachsen);
+      spielWelt.ereignis({ typ: 'abgebaut', art: 'holz', x: h.x, y: h.y, id: h.id, von: fahrer?.id ?? null, sx: fz.x, sy: fz.y, fahrzeug: true });
+      fz.tempo *= 0.93;
+    } else {
+      welt.setzeLaterne(h.id, false);
+      spielWelt.laternenNachwuchs.set(h.id, spielWelt.konfiguration.fahrzeug.laterneNachwachsen);
+      spielWelt.ereignis({ typ: 'laterneUmgefahren', id: h.id, x: h.x, y: h.y, sx: fz.x, sy: fz.y });
+      fz.tempo *= 0.97;
+    }
+  }
+}
+
+/** Umgefahrene Laternen werden nach einiger Zeit wieder aufgestellt – nicht, solange ein Fahrzeug daneben steht. */
+function laternenNachwachsen(spielWelt, dt) {
+  for (const [id, rest] of spielWelt.laternenNachwuchs) {
+    const neu = rest - dt;
+    if (neu > 0) {
+      spielWelt.laternenNachwuchs.set(id, neu);
+      continue;
+    }
+    const l = spielWelt.welt.laternen[id];
+    const belegt = spielWelt.alleVomTyp('fahrzeug').some((fz) => abstandZumFahrzeug(fz, l.x, l.y) < 24);
+    if (belegt) {
+      spielWelt.laternenNachwuchs.set(id, 5);
+      continue;
+    }
+    spielWelt.laternenNachwuchs.delete(id);
+    spielWelt.welt.setzeLaterne(id, true);
   }
 }
 
@@ -129,7 +198,7 @@ function fahreZombiesAn(spielWelt, fz) {
     fz.treffer.set(z.id, 0.6);
     const schaden = Math.abs(fz.tempo) * ANFAHR_SCHADEN;
     spielWelt.ereignis({ typ: 'aufprall', x: z.x, y: z.y, tempo: Math.abs(fz.tempo) });
-    fuegeSchadenZu(spielWelt, z, schaden, fahrer, fz.winkel + (fz.tempo < 0 ? Math.PI : 0));
+    fuegeSchadenZu(spielWelt, z, schaden, fahrer, fz.winkel + (fz.tempo < 0 ? Math.PI : 0), { ohneXp: true }); // Roadkill bringt 0 XP
     fz.tempo *= 0.8;
     schlageFahrzeug(spielWelt, fz, spielWelt.konfiguration.fahrzeug.ueberfahrSchaden);
     if (fz.kaputt) return;

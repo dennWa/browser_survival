@@ -484,6 +484,7 @@ export class SpielServer {
     if (n.art === AKTIONEN.FELD && !(Number.isInteger(n.tx) && Number.isInteger(n.ty))) return;
     if (n.art === AKTIONEN.BAUEN && !(Object.hasOwn(BAUTEILE, n.teil) && Number.isInteger(n.tx) && Number.isInteger(n.ty))) return;
     if (n.art === AKTIONEN.ABREISSEN && !(Number.isInteger(n.tx) && Number.isInteger(n.ty) && (n.ebene === undefined || EBENEN.includes(n.ebene)))) return;
+    if (n.art === AKTIONEN.KONSUMIEREN && slot === null) return;
     if ((n.art === AKTIONEN.KISTE_LEGEN || n.art === AKTIONEN.KISTE_NEHMEN || n.art === AKTIONEN.STATION_LEGEN || n.art === AKTIONEN.STATION_NEHMEN) && slot === null) return;
     if (n.art === AKTIONEN.FELD_ENTFERNEN && !(Number.isInteger(n.tx) && Number.isInteger(n.ty))) return;
     if (n.art === AKTIONEN.ADMIN && !GUELTIGE_ADMIN_BEFEHLE.has(n.befehl)) return;

@@ -87,7 +87,8 @@ test('Zombies anfahren: Schaden je nach Tempo; im Auto beißen sie nicht', () =>
   const leben = spieler.leben;
   fahre(welt, spieler, 0, -1, 2.5);
   assert.equal(welt.holen(z.id), undefined, 'umgefahren');
-  assert.equal(spieler.xp, 10, 'XP für den Fahrer');
+  assert.equal(spieler.xp, 0, 'Roadkill bringt 0 XP');
+  assert.equal(spieler.statistik.zombies, 1, 'der Kill zählt trotzdem in der Statistik');
   assert.equal(spieler.leben, leben, 'keine Bisse im Auto');
 });
 

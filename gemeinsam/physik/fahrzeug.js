@@ -20,6 +20,21 @@ export const FAHRZEUG = Object.freeze({
   abprallen: 0.25, // Anteil des Tempos, der beim Aufprall übrig bleibt (rückwärts)
 });
 
+/** Anzeige-Höchstgeschwindigkeit (Tacho): FAHRZEUG.max entspricht 70 km/h */
+export const FAHRZEUG_MAX_KMH = 70;
+/** ab diesem Tempo wirken Aufprälle (Schaden am eigenen Auto) und Bäume/Laternen werden umgefahren */
+export const AUFPRALL_MIN_KMH = 10;
+
+/** px/s → km/h (für Tacho & Aufprall-Schwelle) */
+export function tempoZuKmh(tempo) {
+  return (Math.abs(tempo) * FAHRZEUG_MAX_KMH) / FAHRZEUG.max;
+}
+
+/** km/h → px/s */
+export function kmhZuTempo(kmh) {
+  return (kmh * FAHRZEUG.max) / FAHRZEUG_MAX_KMH;
+}
+
 /** So nah (px, zum Fahrzeugrand) muss man stehen, um einzusteigen. */
 export const EINSTIEG_ABSTAND = 34;
 
@@ -56,7 +71,11 @@ export function fahrzeugAusObjekt(o, g) {
   };
 }
 
-/** Ein Schritt Fahren. @returns { aufprall: true/false } */
+/**
+ * Ein Schritt Fahren. @returns { aufprall: true/false }
+ * Zusätzlich merkt sich `fz.aufprall = { kmh, schramm }` (stärkster Aufprall seit dem Abholen durch den Server – der setzt es zurück):
+ * Wand/anderes Fahrzeug getroffen, kmh = Tempo davor, schramm = nur an der Wand entlanggeschrammt.
+ */
 export function fahre(fz, eingabe, welt, dt) {
   const gas = Number.isFinite(eingabe.y) ? Math.max(-1, Math.min(1, -eingabe.y)) : 0;
   const lenken = Number.isFinite(eingabe.x) ? Math.max(-1, Math.min(1, eingabe.x)) : 0;
@@ -81,13 +100,22 @@ export function fahre(fz, eingabe, welt, dt) {
   const dx = Math.cos(fz.winkel) * fz.tempo * dt;
   const dy = Math.sin(fz.winkel) * fz.tempo * dt;
   if (dx === 0 && dy === 0) return { aufprall: false };
+  const kmh = tempoZuKmh(fz.tempo);
+  const merkeAufprall = (schramm) => {
+    if (kmh < AUFPRALL_MIN_KMH) return;
+    if (!fz.aufprall || kmh > fz.aufprall.kmh) fz.aufprall = { kmh, schramm };
+    else if (!schramm) fz.aufprall.schramm = false;
+  };
   // Erst ganz, sonst einzeln je Achse (an Wänden entlangschrammen), sonst Aufprall
   for (const [mx, my] of [[dx, dy], [dx, 0], [0, dy]]) {
     if (mx === 0 && my === 0) continue;
     if (passt(fz, fz.x + mx, fz.y + my, welt)) {
       fz.x += mx;
       fz.y += my;
-      if (mx !== dx || my !== dy) fz.tempo *= 0.96; // schrammen bremst
+      if (mx !== dx || my !== dy) {
+        fz.tempo *= 0.96; // schrammen bremst
+        merkeAufprall(true);
+      }
       return { aufprall: mx !== dx || my !== dy };
     }
   }
@@ -97,13 +125,18 @@ export function fahre(fz, eingabe, welt, dt) {
     fz.y += dy * 0.5;
     return { aufprall: true };
   }
+  merkeAufprall(false);
   fz.tempo = -fz.tempo * p.abprallen;
   return { aufprall: true };
 }
 
-/** Passt das Fahrzeug an Position (x, y)? Drei Kreise entlang der Längsachse. */
+/**
+ * Passt das Fahrzeug an Position (x, y)? Drei Kreise entlang der Längsachse.
+ * Baumstämme und Lampenmasten blockieren nur unter AUFPRALL_MIN_KMH – schneller werden sie umgefahren (der Server fällt sie, fahrzeugSystem).
+ */
 export function passt(fz, x, y, welt, winkel = fz.winkel) {
   const r = fz.breite / 2;
+  const hindernisseBlockieren = tempoZuKmh(fz.tempo) < AUFPRALL_MIN_KMH && typeof welt.umfahrbareImKreis === 'function';
   const versatz = fz.laenge / 2 - r;
   const g = welt.kachelGroesse;
   for (const s of [-versatz, 0, versatz]) {
@@ -119,6 +152,7 @@ export function passt(fz, x, y, welt, winkel = fz.winkel) {
         if ((cx - nx) ** 2 + (cy - ny) ** 2 < r2 * r2) return false;
       }
     }
+    if (hindernisseBlockieren && welt.umfahrbareImKreis(cx, cy, r2).length > 0) return false;
   }
   return true;
 }

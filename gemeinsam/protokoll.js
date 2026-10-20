@@ -52,7 +52,7 @@ export const NACHRICHT = Object.freeze({
   GEGENSTAENDE: 'gegenstaende',
   /** { offen: [Tür-IDs] } – Türzustand, nur wenn er sich geändert hat (IDs: Welt.tueren) */
   TUEREN: 'tueren',
-  /** { abgebaut: [Ressourcen-IDs] } – gefällte Bäume / abgebaute Steine, nur bei Änderung (IDs: Welt.ressourcen) */
+  /** { abgebaut: [Ressourcen-IDs], laternen: [Laternen-IDs] } – gefällte Bäume / abgebaute Steine / umgefahrene Straßenlaternen, nur bei Änderung (IDs: Welt.ressourcen bzw. Welt.laternen) */
   RESSOURCEN: 'ressourcen',
   /** { liste: [Bauwerke] } – alle gebauten Dinge (gemeinsam/welt/bauwerke.js), nur bei Änderung */
   BAUWERKE: 'bauwerke',
@@ -73,10 +73,11 @@ export const NACHRICHT = Object.freeze({
   SYSTEM: 'system',
 });
 
-/** Erlaubte Aktionen (Nachricht AKTION). slot/ziel = Inventarplatz 0..(Inventargröße-1), Schnellleiste = 0..7 */
+/** Erlaubte Aktionen (Nachricht AKTION). slot/ziel = Inventarplatz 0..(Inventargröße-1), Schnellleiste = 0..9 */
 export const AKTIONEN = Object.freeze({
   AUFHEBEN: 'aufheben', // nächsten Gegenstand in Reichweite aufheben
   BENUTZEN: 'benutzen', // Item in die Hand nehmen/wegstecken (Waffe, Essen, Holz, Samen, Hacke …); Linksklick verbraucht bzw. nutzt es
+  KONSUMIEREN: 'konsumieren', // { slot } Essen/Trinken/Medizin direkt aus dem Inventar verbrauchen (Doppelklick), ohne es in die Hand zu nehmen
   ABLEGEN: 'ablegen', // { slot, einzeln? } ganzen Stapel (einzeln: nur 1 Stück) auf den Boden legen
   TAUSCHEN: 'tauschen', // { slot, ziel } Inventarplätze tauschen bzw. gleiche Stapel zusammenlegen (Drag & Drop)
   RUCKSACK_ABLEGEN: 'rucksackAblegen', // Rucksack auf den Boden legen (Inhalt wandert ins Inventar oder fällt mit)
@@ -135,9 +136,10 @@ export const ADMIN_BEFEHLE = Object.freeze({
  *   tuerSchlag { id, x, y }                  Zombie hämmert gegen eine Tür
  *   tuerVerstaerkt { id, x, y }              Bretter an eine Tür genagelt
  *   hack      { art, x, y }                  ein Axt-/Spitzhackenschlag (art: 'holz' | 'stein')
- *   abgebaut  { art, x, y }                  Baum fällt / Stein zerbricht
+ *   abgebaut  { art, x, y, id, sx, sy, fahrzeug? }  Baum fällt / Stein zerbricht (fahrzeug: vom Auto umgefahren)
  *   hergestellt { von, rezept }              an der Werkbank gebaut
- *   fahrzeugSchaden { id, x, y, leben }      Zombie-Schlag/überfahrener Zombie auf ein Auto
+ *   fahrzeugSchaden { id, x, y, leben }      Zombie-Schlag/überfahrener Zombie/Aufprall auf ein Auto
+ *   laterneUmgefahren { id, x, y, sx, sy }   Straßenlaterne von einem Fahrzeug (≥ 10 km/h) umgefahren; sx/sy = Fahrzeug (Fallrichtung weg davon)
  *   fahrzeugKaputt { id, x, y }              Auto zerstört → Wrack
  *   angelWurf / angelBiss / gefangen { von, x, y, anzahl? }  Angeln (Pose ausgeworfen / Biss / Fang)
  *   bossBeute { x, y }                       Boss-Zombie hat Waffe + Munition fallen lassen

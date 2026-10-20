@@ -112,6 +112,7 @@ export class KartenModell {
       t.fluegel.rotation.y = t.winkel;
     }
     if (this.abgebautStand !== this.welt.ressourcenVersion) this.#zeigeRessourcen();
+    if (this.laternenStand !== this.welt.ressourcenVersion) this.#zeigeLaternen();
     if (this.wasser) {
       // Wellen ziehen langsam; nachts blasser (der Wellen-Glanz leuchtet nicht)
       this.wasser.textur.offset.x = (this.wasser.textur.offset.x + dt * 0.035) % 1;
@@ -417,8 +418,10 @@ export class KartenModell {
       }));
     const material = new THREE.MeshBasicMaterial({ transparent: true, opacity: 1, depthWrite: false });
     this.lampenGluehen = new THREE.InstancedMesh(new THREE.SphereGeometry(3.5, 8, 6), material, Math.max(1, this.lampenListe.length));
+    this.gluehMatrizen = [];
     this.lampenListe.forEach((l, i) => {
-      this.lampenGluehen.setMatrixAt(i, _matrix.makeTranslation(l.x, l.y, l.z));
+      this.gluehMatrizen.push(_matrix.makeTranslation(l.x, l.y, l.z).clone());
+      this.lampenGluehen.setMatrixAt(i, _matrix);
       this.lampenGluehen.setColorAt(i, l.farbe.clone().multiplyScalar(1.3));
     });
     this.lampenGluehen.count = this.lampenListe.length;
@@ -426,6 +429,7 @@ export class KartenModell {
     // Lichtschein am Boden (additiv, günstig): Kreis für Punkt-Lampen, gestreckter Fleck in Leuchtrichtung für Kegel-Lampen
     const schein = new THREE.MeshBasicMaterial({ map: lichtscheinTextur(), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
     this.lampenSchein = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), schein, Math.max(1, this.lampenListe.length));
+    this.scheinMatrizen = [];
     this.lampenListe.forEach((l, i) => {
       const r = l.reichweite * 0.9;
       if (l.objekt.art === 'kegel') {
@@ -436,6 +440,7 @@ export class KartenModell {
         const sz = l.z + Math.sin(w) * lang * 0.45;
         _matrix.compose(_vektor.set(sx, 1.2 + this.hy(sx, sz), sz), _quat.setFromAxisAngle(_achseY, -w), _skala.set(lang, 1, breit));
       } else _matrix.compose(_vektor.set(l.x, 1.2 + this.hy(l.x, l.z), l.z), _quat.identity(), _skala.set(r * 2, 1, r * 2));
+      this.scheinMatrizen.push(_matrix.clone());
       this.lampenSchein.setMatrixAt(i, _matrix);
       this.lampenSchein.setColorAt(i, l.farbe.clone().multiplyScalar(l.objekt.staerke ?? 0.8));
     });
@@ -443,24 +448,58 @@ export class KartenModell {
     this.lampenSchein.visible = false;
     this.lampenSchein.renderOrder = 1;
     this.statisch.add(this.lampenSchein);
-    // Straßenlaternen (mast): dünner dunkler Mast mit Kopf unter dem Glühen – ein zusammengefasstes Mesh
-    const masten = this.lampenListe.filter((l) => l.objekt.mast);
-    if (masten.length > 0) {
+    // Straßenlaternen (mast): ein InstancedMesh (eine Instanz je Laterne) – so lässt sich jede einzeln ausblenden, wenn ein Auto sie umfährt
+    this.mastInstanzen = this.lampenListe.map((l, i) => ({ l, i })).filter(({ l }) => l.objekt.mast);
+    this.lampenListe.forEach((l) => (l.laterneId = null));
+    this.mastInstanzen.forEach(({ l }, nr) => (l.laterneId = nr)); // gleiche Reihenfolge wie welt.laternen
+    if (this.mastInstanzen.length > 0) {
       const eisen = new THREE.Color(0x2b2f35).convertSRGBToLinear();
-      const teile = [];
-      for (const l of masten) {
-        const b = this.hy(l.x, l.z);
-        const h = LATERNEN_LICHTHOEHE; // Lichtpunkt; der Mast endet knapp darüber
-        teile.push({ geometrie: new THREE.CylinderGeometry(1.8, 3, h - 2, 8), matrix: matrixAus(l.x, (h - 2) / 2 + b, l.z, 0), farbe: eisen });
-        teile.push({ geometrie: new THREE.CylinderGeometry(4, 4, 6, 8), matrix: matrixAus(l.x, 3 + b, l.z, 0), farbe: eisen }); // Sockel
-        teile.push({ geometrie: new THREE.CylinderGeometry(7, 4.5, 6, 8), matrix: matrixAus(l.x, h - 4 + b, l.z, 0), farbe: eisen }); // Lampenschale
-        teile.push({ geometrie: new THREE.CylinderGeometry(8, 8, 1.6, 8), matrix: matrixAus(l.x, h + 4.5 + b, l.z, 0), farbe: eisen }); // Dach
-      }
-      const mesh = new THREE.Mesh(vereineGeometrien(teile, { mitFarbe: true }), this.mitSchnitt(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.4 }))); // Masten: Höhe steckt schon in den Matrizen
-      mesh.castShadow = true;
-      einfrieren(mesh);
-      this.statisch.add(mesh);
+      const h = LATERNEN_LICHTHOEHE; // Lichtpunkt; der Mast endet knapp darüber
+      const teile = [
+        { geometrie: new THREE.CylinderGeometry(1.8, 3, h - 2, 8), matrix: matrixAus(0, (h - 2) / 2, 0, 0), farbe: eisen },
+        { geometrie: new THREE.CylinderGeometry(4, 4, 6, 8), matrix: matrixAus(0, 3, 0, 0), farbe: eisen }, // Sockel
+        { geometrie: new THREE.CylinderGeometry(7, 4.5, 6, 8), matrix: matrixAus(0, h - 4, 0, 0), farbe: eisen }, // Lampenschale
+        { geometrie: new THREE.CylinderGeometry(8, 8, 1.6, 8), matrix: matrixAus(0, h + 4.5, 0, 0), farbe: eisen }, // Dach
+      ];
+      this.mastGeometrie = vereineGeometrien(teile, { mitFarbe: true });
+      this.mastMaterial = this.mitSchnitt(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.4 }));
+      this.mastMesh = new THREE.InstancedMesh(this.mastGeometrie, this.mastMaterial, this.mastInstanzen.length);
+      this.mastMatrizen = this.mastInstanzen.map(({ l }) => new THREE.Matrix4().makeTranslation(l.x, this.hy(l.x, l.z), l.z));
+      this.mastMatrizen.forEach((m, k) => this.mastMesh.setMatrixAt(k, m));
+      this.mastMesh.castShadow = true;
+      this.mastMesh.frustumCulled = false;
+      this.mastMesh.instanceMatrix.needsUpdate = true;
+      this.statisch.add(this.mastMesh);
     }
+    this.laternenStand = -1;
+  }
+
+  /** Umgefahrene Laternen ausblenden (Mast, Glühen, Bodenschein, Licht aus dem Pool) bzw. nach dem Nachwachsen wieder zeigen. */
+  #zeigeLaternen() {
+    this.laternenStand = this.welt.ressourcenVersion;
+    if (!this.mastMesh) return;
+    for (const { l, i } of this.mastInstanzen) {
+      const weg = this.welt.laternenUmgefahren.has(l.laterneId);
+      l.aus = weg;
+      this.mastMesh.setMatrixAt(l.laterneId, weg ? NULL_MATRIX : this.mastMatrizen[l.laterneId]);
+      this.lampenGluehen.setMatrixAt(i, weg ? NULL_MATRIX : this.gluehMatrizen[i]);
+      this.lampenSchein.setMatrixAt(i, weg ? NULL_MATRIX : this.scheinMatrizen[i]);
+    }
+    this.mastMesh.instanceMatrix.needsUpdate = true;
+    this.lampenGluehen.instanceMatrix.needsUpdate = true;
+    this.lampenSchein.instanceMatrix.needsUpdate = true;
+  }
+
+  /** Mast einer Laterne als eigene Gruppe (für die Umkipp-Animation) – oder null. */
+  laterneKopie(id) {
+    const l = this.mastInstanzen?.[id]?.l;
+    if (!l) return null;
+    const gruppe = new THREE.Group();
+    const mesh = new THREE.Mesh(this.mastGeometrie, this.mastMaterial);
+    mesh.castShadow = true;
+    gruppe.add(mesh);
+    gruppe.position.set(l.x, this.hy(l.x, l.z), l.z);
+    return gruppe;
   }
 
   /** Türflügel mit Scharnier: pro Tür-Kachel ein Flügel; Doppeltüren öffnen auseinander. */

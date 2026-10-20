@@ -85,6 +85,7 @@ hud.beiAktionen({
   nachladen: () => aktuellesSpiel?.nachladen(),
   angeln: () => aktuellesSpiel?.angeln(),
   benutzen: (slot) => aktuellesSpiel?.benutzen(slot),
+  konsumieren: (slot) => aktuellesSpiel?.konsumieren(slot),
   ablegen: (slot) => aktuellesSpiel?.ablegen(slot),
   tauschen: (von, nach) => aktuellesSpiel?.tauschen(von, nach),
   rucksackAblegen: () => aktuellesSpiel?.rucksackAblegen(),

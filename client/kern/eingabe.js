@@ -36,7 +36,7 @@ export const TASTEN = Object.freeze({
 });
 
 /** Schnellleiste: Taste n benutzt/rüstet Inventarplatz n-1 aus. */
-const SLOT_TASTEN = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8'];
+const SLOT_TASTEN = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9', 'Digit0']; // 0 = Platz 10
 
 /** Ab diesem Ausschlag des rechten Touch-Sticks wird angegriffen (Zielen + Feuern mit einem Daumen). */
 const TOUCH_FEUER_SCHWELLE = 0.85;
@@ -126,7 +126,7 @@ export class Eingabe {
     return TASTEN.sprint.some((c) => this.#gedrueckt.has(c)) || this.touch.sprint();
   }
 
-  /** fn(slotIndex) bei Tasten 1–8 */
+  /** fn(slotIndex) bei Tasten 1–9 und 0 (= Platz 10) */
   beiSlotTaste(fn) {
     this.#slotHoerer.push(fn);
   }

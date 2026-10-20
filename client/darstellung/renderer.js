@@ -91,7 +91,7 @@ const QUALITAETS_STUFEN = [
 export const GRAFIK_PROFILE = Object.freeze({
   hoch: { name: 'Hoch', beschreibung: 'volle Auflösung, Schatten, Texturen', stufe: null, adaptiv: true, aufloesung: null, texturen: 1, sonnenschatten: true },
   mittel: { name: 'Mittel', beschreibung: 'etwas weichere Schatten & Texturen', stufe: 3, adaptiv: false, aufloesung: 1.25, texturen: 0.6, sonnenschatten: true },
-  niedrig: { name: 'Niedrig', beschreibung: 'beste Leistung für schwache Geräte', stufe: 6, adaptiv: false, aufloesung: 0.8, texturen: 0.4, sonnenschatten: false },
+  niedrig: { name: 'Niedrig', beschreibung: 'beste Leistung für schwache Geräte (ohne 3D-Gras)', stufe: 6, adaptiv: false, aufloesung: 0.8, texturen: 0.4, sonnenschatten: false, natur: false },
 });
 const GRAFIK_SCHLUESSEL = 'browserSurvival.grafik';
 const ADAPTIV_MAX_STUFE = 4; // im Profil "hoch" wird höchstens bis hier gespart (Schatten, Baum-Details) – Auflösung bleibt
@@ -203,6 +203,7 @@ export class Renderer {
     this.#baueEffektObjekte();
     this.fussspuren = new Fussspuren(this.szene);
     this.fallendeBaeume = []; // { gruppe, achse, zeit }
+    this.fallendeLaternen = []; // { gruppe, achse, zeit } – von Autos umgefahrene Straßenlaternen
     this.bauwerke = new Map(); // Bauwerk-ID → { gruppe, aktualisiere, typ }
     this.bauwerkeStand = -1;
     this.feuerLampen = []; // brennende Lagerfeuer als Lampen für den Lampen-Pool
@@ -311,6 +312,8 @@ export class Renderer {
     }
     for (const b of this.fallendeBaeume) this.szene.remove(b.gruppe);
     this.fallendeBaeume.length = 0;
+    for (const l of this.fallendeLaternen) this.szene.remove(l.gruppe);
+    this.fallendeLaternen.length = 0;
     for (const f of this.figuren.values()) this.szene.remove(f.gruppe);
     this.figuren.clear();
     for (const m of this.items.values()) this.szene.remove(m);
@@ -339,7 +342,10 @@ export class Renderer {
     });
     this.szene.add(this.karte.statisch, this.karte.beweglich);
     this.natur = this.naturModelle ? NaturSchicht.erzeuge(welt, this.naturModelle, (x, z) => this.#hy(x, z), this.istHandy) : null;
-    if (this.natur) this.szene.add(this.natur.gruppe);
+    if (this.natur) {
+      this.natur.gruppe.visible = GRAFIK_PROFILE[this.grafik].natur !== false;
+      this.szene.add(this.natur.gruppe);
+    }
     this.karte.setzeBaumDetail(QUALITAETS_STUFEN[this.stufe].baumDetail);
     this.#vorkompilieren();
     this.aufwaermen();
@@ -388,6 +394,7 @@ export class Renderer {
     this.#aktualisiereItems(gegenstaende, markiertId, jetzt);
     this.#aktualisiereZielRing(entitaeten, zielId, jetzt);
     this.#aktualisiereFallendeBaeume(dt);
+    this.#aktualisiereFallendeLaternen(dt);
     this.#aktualisiereBauwerke(jetzt, fokus);
     this.gebietRing.animiere(jetzt);
     this.gebietVorschau.animiere(jetzt);
@@ -466,6 +473,41 @@ export class Renderer {
     this.szene.add(gruppe);
     // Drehachse senkrecht zur Fallrichtung (rechte Hand: Spitze kippt Richtung +dx/+dz)
     this.fallendeBaeume.push({ gruppe, achse: new THREE.Vector3(dz, 0, -dx), zeit: 0 });
+  }
+
+  /**
+   * Umgefahrene Straßenlaterne knickt weg vom Fahrzeug (sx/sy) um: schnell fallen, kurz federn, liegen bleiben, dann versinken.
+   * Der Mast selbst ist in der Karte schon ausgeblendet (kartenModell #zeigeLaternen).
+   */
+  laterneFaellt({ id, x, y, sx, sy }) {
+    const gruppe = this.karte?.laterneKopie(id);
+    if (!gruppe) return;
+    let dx = x - (sx ?? x - 1);
+    let dz = y - (sy ?? y);
+    const laenge = Math.hypot(dx, dz) || 1;
+    dx /= laenge;
+    dz /= laenge;
+    this.szene.add(gruppe);
+    this.fallendeLaternen.push({ gruppe, achse: new THREE.Vector3(dz, 0, -dx), zeit: 0 });
+  }
+
+  #aktualisiereFallendeLaternen(dt) {
+    for (let i = this.fallendeLaternen.length - 1; i >= 0; i--) {
+      const l = this.fallendeLaternen[i];
+      l.zeit += dt;
+      const t = l.zeit;
+      // 0–0,45 s kippen (immer schneller), danach zweimal federn
+      const winkel = t < 0.45 ? (Math.PI / 2 - 0.05) * (t / 0.45) ** 2 : Math.PI / 2 - 0.05 + Math.abs(Math.sin((t - 0.45) * 12)) * 0.12 * Math.exp(-(t - 0.45) * 5) * -1;
+      l.gruppe.quaternion.setFromAxisAngle(l.achse, Math.min(Math.PI / 2, Math.max(0, winkel)));
+      if (t > 2.2) {
+        const rest = Math.max(0, 1 - (t - 2.2) / 0.8);
+        l.gruppe.scale.setScalar(rest);
+      }
+      if (t > 3.1) {
+        this.szene.remove(l.gruppe);
+        this.fallendeLaternen.splice(i, 1);
+      }
+    }
   }
 
   /** Autos: ein Mesh pro Fahrzeug, Position/Drehung jedes Frame (Front = +z → Drehung wie bei Figuren). */
@@ -902,6 +944,7 @@ export class Renderer {
     const profil = GRAFIK_PROFILE[name];
     this.#setzeStufe(this.#startStufe());
     this.mond.castShadow = profil.sonnenschatten;
+    if (this.natur) this.natur.gruppe.visible = profil.natur !== false; // Gras nur in den Profilen hoch/mittel
     this.karte?.setzeBodenMassstab(this.#bodenMassstab());
     this.messung = { frames: 0, zeit: 0, seit: 0 };
     this.guteFenster = 0;
@@ -1117,8 +1160,8 @@ export class Renderer {
     if (!this.naechsteLampen || jetzt - this.lampenSortiert > 250) {
       this.lampenSortiert = jetzt;
       const abstand = (a, b) => Math.hypot(a.x - fokus.x, a.z - fokus.y) - Math.hypot(b.x - fokus.x, b.z - fokus.y);
-      this.naechsteLampen = lampen.filter((l) => l.objekt.art !== 'kegel').sort(abstand).slice(0, this.lampenPool.length);
-      this.naechsteKegel = lampen.filter((l) => l.objekt.art === 'kegel').sort(abstand).slice(0, this.kegelPool.length);
+      this.naechsteLampen = lampen.filter((l) => l.objekt.art !== 'kegel' && !l.aus).sort(abstand).slice(0, this.lampenPool.length);
+      this.naechsteKegel = lampen.filter((l) => l.objekt.art === 'kegel' && !l.aus).sort(abstand).slice(0, this.kegelPool.length);
     }
     this.kegelPool.forEach((licht, i) => {
       const lampe = this.naechsteKegel[i];

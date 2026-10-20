@@ -148,7 +148,7 @@ function radiusVon(spielWelt, entitaet) {
 /**
  * Schaden zufügen. @param quelle Angreifer (oder null) · @param winkel Trefferrichtung (für Blut & Rückstoß)
  */
-export function fuegeSchadenZu(spielWelt, ziel, menge, quelle, winkel = 0) {
+export function fuegeSchadenZu(spielWelt, ziel, menge, quelle, winkel = 0, optionen = {}) {
   if (ziel.tot || ziel.leben <= 0 || ziel.gottmodus) return;
   if (ziel.fahrzeug && quelle?.typ === 'zombie') {
     // Im Auto ist man vor Bissen sicher – dafür leidet das Auto (Boss-Schläge zählen mehr)
@@ -170,17 +170,20 @@ export function fuegeSchadenZu(spielWelt, ziel, menge, quelle, winkel = 0) {
       ziel.letztesZielY = quelle.y;
     }
   }
-  if (ziel.leben <= 0) toeten(spielWelt, ziel, quelle);
+  if (ziel.leben <= 0) toeten(spielWelt, ziel, quelle, optionen);
 }
 
-/** @param quelle Wer getötet hat (Spieler bekommt XP) – null z. B. bei Admin-Befehlen */
-export function toeten(spielWelt, ziel, quelle = null) {
+/**
+ * @param quelle Wer getötet hat (Spieler bekommt XP) – null z. B. bei Admin-Befehlen
+ * @param optionen { ohneXp } – true: kein XP (Roadkill mit dem Fahrzeug); die Statistik zählt den Kill trotzdem
+ */
+export function toeten(spielWelt, ziel, quelle = null, optionen = {}) {
   spielWelt.ereignis({ typ: 'tod', id: ziel.id, x: ziel.x, y: ziel.y, ziel: ziel.typ });
   if (ziel.typ === 'zombie') {
     // XP je nach Variante (Brocken 15, Läufer 12 …), sonst level.xpProZombie – immer der aktuelle Wert (Developer-Modus)
     const k = spielWelt.konfiguration;
     if (quelle?.typ === 'spieler') {
-      gibXp(spielWelt, quelle, k.zombie.varianten?.[ziel.variante]?.xp ?? k.level.xpProZombie);
+      if (!optionen.ohneXp) gibXp(spielWelt, quelle, k.zombie.varianten?.[ziel.variante]?.xp ?? k.level.xpProZombie);
       quelle.statistik.zombies++;
     }
     spielWelt.entfernen(ziel.id);

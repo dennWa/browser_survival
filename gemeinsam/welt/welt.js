@@ -4,6 +4,10 @@ import { blockiertBauwerk, ebeneVon, sichtBlockiertBauwerk } from './bauwerke.js
 import { hoeheAn } from './gelaende.js';
 import { bedeckteKacheln, huelle } from './drehung.js';
 
+/** Kollisionsradius (px) eines Baumstamms bzw. Lampenmasts für Fahrzeuge – nur der Stamm, nicht die Krone */
+const STAMM_RADIUS = 7;
+const LATERNEN_RADIUS = 4;
+
 /**
  * Laufzeit-Abbild einer Karte: Kachelabfragen und Kollision.
  * Wird auf dem Server (autoritativ) und im Client (Vorhersage + Darstellung) aus denselben
@@ -53,6 +57,11 @@ export class Welt {
       for (const index of bedeckteKacheln(r.objekt, this.breite)) this.ressourceAnKachel.set(index, r.id);
     }
     this.abgebaut = new Set();
+    /** Straßenlaternen (Objekt `licht` mit `mast`): [{ id, x, y, radius, objekt }] – Fahrzeuge können sie ab UMFAHR_MIN_KMH umfahren (laternenUmgefahren) */
+    this.laternen = findeLaternen(this);
+    this.laternenUmgefahren = new Set();
+    /** Kachelindex → stehende Hindernisse, die ein Auto bei Tempo umfährt (Bäume + Laternen): [{ typ, id, x, y, radius }] – nur Fußabdruck des Stamms/Masts */
+    this.umfahrbarAnKachel = baueUmfahrbare(this);
     this.ressourcenVersion = 0; // steigt bei jeder Änderung (Renderer muss nur dann neu zeichnen)
     /** Von Spielern gebaute Dinge (gemeinsam/welt/bauwerke.js): id → Bauwerk */
     this.bauwerke = new Map();
@@ -185,6 +194,40 @@ export class Welt {
       }
     }
     return beste;
+  }
+
+  istLaterneDa(id) {
+    return !this.laternenUmgefahren.has(id);
+  }
+
+  setzeLaterne(id, steht) {
+    if (steht) this.laternenUmgefahren.delete(id);
+    else this.laternenUmgefahren.add(id);
+    this.ressourcenVersion++;
+  }
+
+  /** Laternen-Zustand aus einer ID-Liste übernehmen (Client). */
+  uebernimmLaternen(ids) {
+    this.laternenUmgefahren = new Set(ids);
+    this.ressourcenVersion++;
+  }
+
+  /** Stehende umfahrbare Hindernisse (Baumstamm, Lampenmast), die den Kreis (cx, cy, r) berühren. */
+  umfahrbareImKreis(cx, cy, r) {
+    if (this.umfahrbarAnKachel.size === 0) return [];
+    const g = this.kachelGroesse;
+    let treffer = null;
+    for (let ty = Math.floor((cy - r) / g) - 1; ty <= Math.floor((cy + r) / g) + 1; ty++) {
+      for (let tx = Math.floor((cx - r) / g) - 1; tx <= Math.floor((cx + r) / g) + 1; tx++) {
+        const liste = this.umfahrbarAnKachel.get(ty * this.breite + tx);
+        if (!liste) continue;
+        for (const h of liste) {
+          if ((h.typ === 'baum' ? this.abgebaut.has(h.id) : this.laternenUmgefahren.has(h.id)) || Math.hypot(h.x - cx, h.y - cy) > h.radius + r) continue;
+          (treffer ??= []).push(h);
+        }
+      }
+    }
+    return treffer ?? [];
   }
 
   /** Zustand aus einer Liste abgebauter IDs übernehmen (Client: Nachricht vom Server). */
@@ -396,6 +439,30 @@ function findeRessourcen(welt) {
     liste.push({ id: liste.length, typ: o.typ, art: def.art, werkzeug: def.werkzeug, groesse: o.groesse ?? 'klein', x: (o.x + o.b / 2) * g, y: (o.y + o.h / 2) * g, radius: gross ? def.radius * 1.2 : def.radius, objekt: o });
   }
   return liste;
+}
+
+function findeLaternen(welt) {
+  const g = welt.kachelGroesse;
+  const liste = [];
+  for (const o of welt.objekte) {
+    if (o.typ !== 'licht' || !o.mast) continue;
+    liste.push({ id: liste.length, x: (o.x + 0.5) * g, y: (o.y + 0.5) * g, radius: LATERNEN_RADIUS, objekt: o });
+  }
+  return liste;
+}
+
+/** Baumstämme (Ressourcen Baum) und Lampenmasten nach Kachel sortiert, für die Fahrzeug-Kollision */
+function baueUmfahrbare(welt) {
+  const karte = new Map();
+  const g = welt.kachelGroesse;
+  const trage = (h) => {
+    const index = Math.floor(h.y / g) * welt.breite + Math.floor(h.x / g);
+    if (!karte.has(index)) karte.set(index, []);
+    karte.get(index).push(h);
+  };
+  for (const r of welt.ressourcen) if (r.art === 'holz') trage({ typ: 'baum', id: r.id, x: r.x, y: r.y, radius: r.groesse === 'gross' ? STAMM_RADIUS * 1.25 : STAMM_RADIUS });
+  for (const l of welt.laternen) trage({ typ: 'laterne', id: l.id, x: l.x, y: l.y, radius: l.radius });
+  return karte;
 }
 
 /** Gruppen zusammenhängender Tür-Kacheln (waagerecht oder senkrecht nebeneinander) → Türen mit fester ID. */
