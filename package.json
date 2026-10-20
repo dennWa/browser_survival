@@ -19,7 +19,8 @@
     "rauchtest": "node werkzeuge/test/rauchtest.mjs",
     "test": "node --test \"tests/**/*.test.js\"",
     "karte:editor": "node werkzeuge/karten/editorImport.mjs",
-    "rauchtest:editor": "node werkzeuge/test/editorRauchtest.mjs"
+    "rauchtest:editor": "node werkzeuge/test/editorRauchtest.mjs",
+    "editor:lokal": "node werkzeuge/editor/lokalerServer.mjs"
   },
   "dependencies": {
     "ws": "^8.22.0"
@@ -27,5 +28,8 @@
   "devDependencies": {
     "esbuild": "^0.25.10",
     "three": "^0.186.1"
+  },
+  "allowScripts": {
+    "esbuild@0.25.10": true
   }
 }

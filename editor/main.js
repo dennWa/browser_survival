@@ -38,6 +38,7 @@ import { versionenUi } from './ui/versionenUi.js';
 import { lootUi } from './ui/lootUi.js';
 import { Ansicht3D, webglVerfuegbar } from './ui/ansicht3d.js';
 import { dialog, esc, istDialogOffen } from './ui/dialoge.js';
+import { pruefeLokalenServer, LOKAL_HINWEIS } from './ui/lokalerServer.js';
 
 /**
  * Einstieg des Map-Editors (editor/index.html). Läuft ohne Server, ohne Account – nur im Browser.
@@ -200,6 +201,17 @@ window.addEventListener('keydown', (e) => {
   befehle.behandleTaste(e, { inEingabe });
 });
 
+aktionen.lokalerServer = async () => {
+  const s = await pruefeLokalenServer({ neu: true });
+  zustand.lokal = s;
+  await dialog({
+    titel: s.verbunden ? '🖥 Lokaler Editor-Server verbunden' : '🌐 Ohne lokalen Server',
+    html: s.verbunden
+      ? `<p>Der Editor darf in diese Projektordner schreiben und löschen:</p><ul class="liste">${s.ordner.map((o) => `<li><code>${esc(o)}</code></li>`).join('')}</ul><p class="leise">Indexe (eigene.json, musik.json) werden nach jeder Änderung neu gebaut. Danach committen und pushen.</p>`
+      : `<p>${esc(LOKAL_HINWEIS)}</p><p class="leise">Ohne Server kannst du alles anhören und ausprobieren – gespeichert wird nichts im Projekt.</p>`,
+  });
+};
+
 // --- 2D/3D ----------------------------------------------------------------------------------
 function schalteAnsicht() {
   if (!teile.ansicht3d) return zustand.meldung('3D-Ansicht nicht verfügbar (WebGL?)', 'fehler');
@@ -315,6 +327,13 @@ async function starten() {
     zustand.meldung(`${n} Entwurf/Entwürfe geladen`, 'ok');
   } else zustand.meldung('Willkommen! Datei → Neue Zone (Rechteck aufziehen) oder Öffnen (Zone aus dem Spiel als Vorlage)');
   test.nachStart(); // Rückkehr aus dem Test im Spiel
+  // Phase 10.1: lokaler Editor-Server (npm run editor:lokal) → darf in Projektordner schreiben
+  pruefeLokalenServer().then((s) => {
+    zustand.lokal = s;
+    document.body.classList.toggle('lokal-verbunden', s.verbunden);
+    if (s.verbunden) zustand.meldung('🖥 Lokaler Editor-Server verbunden – Audio/Musik werden direkt in die Projektordner gespeichert', 'ok');
+    befehle.melde();
+  });
   window.addEventListener('beforeunload', (e) => {
     zustand.speichereAlle();
     // Noch nicht gespeichert (z. B. Fehler)? Browser fragt nach

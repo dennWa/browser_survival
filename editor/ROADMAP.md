@@ -152,7 +152,13 @@
 (`npm run rauchtest:editor` – Phase-11-Schritt mockt ```json-Antworten, der Rückweg wird weiter gelesen). Danach: „Später“-Liste
 unten (lokaler Editor-Server) bzw. neue Wünsche.
 
-**Danach:** Phase 9 laut Tabelle unten (KI).
+- 10.1 fertig (2026-10-20): Lokaler Editor-Server `werkzeuge/editor/lokalerServer.mjs` (`npm run editor:lokal`, Port 8090,
+  nur 127.0.0.1; Spiel + Editor ausliefern; API status/liste/datei PUT+DELETE nur mit `X-Editor: 1` + lokalem Host/Origin),
+  Pfadprüfung `werkzeuge/editor/pfade.mjs` (SCHREIB_ORDNER, Endungen, Tiefe, geschützte Dateien), Index-Bau gemeinsam
+  `werkzeuge/audio/indexBauen.mjs` (+ `client/audio/musikIndex.js`: Reihenfolge/Zufall, Ordner `hauptmenue`), Editor-Client
+  `editor/ui/lokalerServer.js` (Erkennung beim Start, Befehl `datei.lokal`). Tests `tests/lokalerServer.test.js`.
+
+**Phase 10 läuft** (Audio-Zentrale) – nächster Schritt siehe Tabelle Phase 10 (erster ☐). Rauchtest für Phase 10 gesammelt am Ende.
 
 ## Ausgangslage (Analyse 2026-10-19)
 - Editor v0.14: Phasen 0–11 fertig, ~10 000 Zeilen in `editor/`, 210 Tests grün, Rauchtest grün.
@@ -259,17 +265,30 @@ unten (lokaler Editor-Server) bzw. neue Wünsche.
 | ☑ 9.8 | **Modell → Metadaten:** beim Upload lokal Maße/Dreiecke messen + Vorschaubild an die KI → Vorschlag Name, Kategorie, Größe, Kollisionsbox, Ebene, Tags (im Upload-Dialog vorausgefüllt) | M |
 | ☑ 9.9 | **Abschluss:** Sicherheitsprüfung (Schlüssel nie in Entwurf/Export/Backup/Log, Kontextgrenzen getestet), Version + Doku | S |
 
+## Phase 10 – Audio-Zentrale & lokaler Editor-Server (Lastenheft 2026-10-20)
+> Ein Ort für ALLE Sounds und ALLE Musik des Spiels: sehen, anhören, ersetzen, bearbeiten – Änderungen landen über den lokalen
+> Editor-Server direkt in den Projektordnern. Online (GitHub Pages) nur Anhören/Ausprobieren. Hebt Entscheidung F3 auf (Nutzer).
+| # | Schritt | Größe |
+|---|---|---|
+| ☑ 10.1 | **Lokaler Editor-Server** `npm run editor:lokal` (nur 127.0.0.1): liefert Spiel + Editor aus, Schreib-/Lösch-API NUR in freigegebenen Ordnern (`client/audio/eigene/`, `client/audio/karten/`, `client/musik/`, `client/assets/eigene/`, `server/spiel/karten/`), strenge Pfadprüfung (kein `..`, keine Laufwerke/Backslashes, Endungs-Whitelist, Host/Origin-Prüfung), Indexe (`eigene.json`, `musik.json`) nach jeder Änderung neu; Editor erkennt den Server, sonst Hinweis „Editor lokal starten mit npm run editor:lokal“ | M |
+| ☐ 10.2 | 🎮 **Alle Geräusche als Ereignisse:** `EREIGNISSE` neu gruppiert (Musik · Atmosphäre & Wetter · Tiere · Waffen & Kampf · Zombies · Fahrzeuge · Bauen/Handwerk/Arbeit · Inventar & Items · Oberfläche/Menüs), neue Ereignisse für bisher fest verdrahtete Geräusche (Wind, Regen, Nacht, Motor als Schleifen; Hase flieht/stirbt; Klick, Inventar auf/zu; Hauptmenü-Musik), `sound.js` spielt Schleifen aus eigenen Dateien, Einstellungen je Ereignis (`einstellungen.json`: Pegel, Tonhöhen-Streuung, Loop) im Index | M |
+| ☐ 10.3 | **Audio-Zentrale – Übersicht:** eigenes Vollbild-Fenster (Menü Ansicht/Schnellleiste/🔊-Reiter), Katalog `kern/audioKatalog.js` (alle Ereignisse + Samples + eigene + Musik-Ordner + Karten-Klänge), je Eintrag Name, Zuordnung/Wann, Quelle (synthetisch/Sample/eigene Datei), Dauer, Größe, Pegel, Varianten; Suche, Filter (geändert, synthetisch, fehlend), ▶ Anhören; Handy-Layout | L |
+| ☐ 10.4 | **Ersetzen & Hochladen:** Datei per Knopf/Drag & Drop (.mp3 .ogg .wav .m4a .flac, Probe-Dekodierung) als Ersatz oder zusätzliche Variante, „↺ Original“ (eigene Dateien entfernen), Musik: Titel je Ordner hinzufügen, Reihenfolge, entfernen, Zufall/der Reihe nach | M |
+| ☐ 10.5 | **Bearbeiten:** Wellenform mit Start/Ende ziehen, Fade-In/-Out, Lautstärke + Normalisieren, Loop mit weicher Überblendung, Tonhöhen-Streuung, Vorhören (auch in Schleife), Undo; gespeichert wird NUR die bearbeitete Fassung, kompakt als Ogg/Opus (WebCodecs, sonst WAV mit Hinweis), Warnung bei großen Dateien | L |
+| ☐ 10.6 | 🎮 **Spiel & Abschluss:** Spiel nutzt eigene Dateien/Einstellungen (eigene > Samples > Synthese, Loops ohne Knacken, Regler gelten), Hauptmenü-Musik, Musik-Reihenfolge; Tests (Katalog, Pfadprüfung, Schnitt, Ogg, Index) + Rauchtest-Schritt (WAV hochladen → kürzen → speichern → Datei gekürzt im Ordner → Spiel spielt sie) | M |
+| ☐ 10.7 | **Aufräumen (Nutzerwunsch):** Werkzeugleiste mit Text + Symbol statt nichtssagender Icons, linke Seitenleiste übersichtlicher (weniger Reiter, Asset-Gruppen als Chips statt langer Liste), Testen ohne Spawn → Rückfrage „Spawn in die Kartenmitte?“ → OK setzt ihn | M |
+
 ---
 
 ## Entscheidungen (Nutzer, 2026-10-19)
 - F1 Git: **direkt auf `main`** (CLAUDE.md gilt).
 - F2 Licht: **nur der Sichtkegel-Schleier** fliegt raus. Taschenlampe bleibt, aber **kleinerer, schwächerer, realistischer Kegel** (düsterer). Autoscheinwerfer bleiben.
-- F3 Repo-Dateien: **vorerst wie gehabt** (Editor schreibt nie ins Repo; Aufräumen beim `npm run karte:editor`). Ein **lokaler Editor-Server** (direkt ins Repo schreiben/löschen) kommt **später** – nicht jetzt.
+- F3 Repo-Dateien: ~~vorerst wie gehabt~~ → 2026-10-20 aufgehoben: lokaler Editor-Server (Phase 10). Früher: (Editor schreibt nie ins Repo; Aufräumen beim `npm run karte:editor`). Ein **lokaler Editor-Server** (direkt ins Repo schreiben/löschen) kommt **später** – nicht jetzt.
 - F4 Terrain: Höhen sichtbar + begehbar + Klippen blockieren. **Top-Down:** Treffer bleiben 2D (wer rechts oben auf der Klippe steht, wird beim Zielen nach rechts getroffen). **Ego-Ansicht:** man muss **nach oben zielen** (Neigung zählt) → Teil von 2.5.
 - F5 **Durcharbeiten** ohne Halt, zwischendurch testen (Tests + Screenshots).
 
 ## Später (nicht im aktuellen Umfang)
-- Lokaler Editor-Server (`npm run editor:lokal`): Modelle/Sounds direkt ins Repo schreiben und löschen, Veröffentlichen ohne Download.
+- ~~Lokaler Editor-Server~~ → Phase 10.
 
 ## Fehlerliste (1.1, Browser-Suche mit Grenzfällen)
 | # | Fehler | Stand |

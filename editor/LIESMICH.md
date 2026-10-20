@@ -292,6 +292,16 @@ Veröffentlichen-Dialog listet die Änderungen seit dem letzten Export.
 - **Löschen:** ✎ → 🗑. Ist die Datei benutzt, zeigt der Editor wo und bietet **Mitlöschen** oder **Ersetzen** (Position, Schnitt und
   Auslöser bleiben). Die Ebene **🔊 Klänge** blendet alle Klänge auf der Karte aus oder sperrt sie.
 
+## 🖥 Lokaler Editor-Server (direkt in den Projektordner speichern)
+
+- Start: `npm run editor:lokal` → **http://localhost:8090/editor/** öffnen (das Spiel liegt unter `/client/`).
+- Nur dann darf der Editor Dateien im Projekt schreiben und löschen – und nur in diesen Ordnern: `client/audio/eigene/`,
+  `client/audio/karten/`, `client/musik/`, `client/assets/eigene/`, `server/spiel/karten/`. Alles andere bleibt tabu.
+- Die Indexe (`eigene.json`, `musik.json`) baut der Server nach jeder Änderung selbst neu (wie `npm run sounds` / `musik:index`).
+- Ob der Server verbunden ist: Meldung beim Start, **Datei → Lokaler Editor-Server**. Online (GitHub Pages) kann man alles
+  anhören und ausprobieren, gespeichert wird aber nichts im Projekt.
+- Danach wie immer: `npm test`, committen, pushen.
+
 ## Speichern und Sichern
 
 - **Automatisch:** jede Änderung landet nach ~1 s im Browser (IndexedDB, sonst localStorage) – für **alle** geänderten Zonen.

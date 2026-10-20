@@ -37,6 +37,7 @@ export function meldeBefehleAn(befehle, t) {
     { id: 'datei.wiederherstellen', name: 'Backup wiederherstellen…', symbol: '♻', gruppe: 'Datei', ausfuehren: () => datei.wiederherstellen() },
     { id: 'datei.speicherplatz', name: 'Speicherplatz & Status…', symbol: '💽', gruppe: 'Datei', ausfuehren: () => datei.speicherplatz() },
     { id: 'datei.zoneEntfernen', name: 'Zone aus dem Projekt entfernen…', symbol: '🗑', gruppe: 'Datei', verfuegbar: karte, ausfuehren: () => datei.zoneEntfernen() },
+    { id: 'datei.lokal', name: 'Lokaler Editor-Server (Projektordner)…', symbol: '🖥', gruppe: 'Datei', ausfuehren: () => a.lokalerServer?.() },
     { id: 'datei.zumSpiel', name: 'Zurück zum Spiel', symbol: '🧟', gruppe: 'Datei', ausfuehren: () => (location.href = new URL('../client/', location.href).href) },
 
     // --- Bearbeiten ---------------------------------------------------------------
@@ -163,7 +164,7 @@ function einfuegenEintraege(t) {
 
 export function menues(t) {
   return [
-    { titel: 'Datei', eintraege: ['datei.neu', 'datei.oeffnen', '-', 'datei.speichern', 'datei.herunterladen', 'datei.alleHerunterladen', 'datei.version', 'datei.versionen', '-', { ueberschrift: 'Export' }, 'datei.exportJson', 'datei.liesmich', 'ki.ausschnitt', '-', 'datei.veroeffentlichen', '-', { ueberschrift: 'Sicherung' }, 'datei.backup', 'datei.wiederherstellen', 'datei.speicherplatz', '-', 'datei.zoneEntfernen', 'datei.zumSpiel'] },
+    { titel: 'Datei', eintraege: ['datei.neu', 'datei.oeffnen', '-', 'datei.speichern', 'datei.herunterladen', 'datei.alleHerunterladen', 'datei.version', 'datei.versionen', '-', { ueberschrift: 'Export' }, 'datei.exportJson', 'datei.liesmich', 'ki.ausschnitt', '-', 'datei.veroeffentlichen', '-', { ueberschrift: 'Sicherung' }, 'datei.backup', 'datei.wiederherstellen', 'datei.speicherplatz', 'datei.lokal', '-', 'datei.zoneEntfernen', 'datei.zumSpiel'] },
     { titel: 'Bearbeiten', eintraege: ['bearbeiten.rueckgaengig', 'bearbeiten.wiederholen', '-', 'bearbeiten.kopieren', 'bearbeiten.ausschneiden', 'bearbeiten.einfuegen', 'bearbeiten.duplizieren', 'bearbeiten.drehen', 'bearbeiten.loeschen', '-', 'bearbeiten.alles', 'bearbeiten.bereichLeeren', 'bearbeiten.alsPrefab', 'bearbeiten.werkstatt', 'bearbeiten.abbrechen', '-', { ueberschrift: 'Anordnen' }, 'anordnen.links', 'anordnen.mitteH', 'anordnen.rechts', 'anordnen.oben', 'anordnen.mitteV', 'anordnen.unten', 'anordnen.verteilenH', 'anordnen.verteilenV', 'anordnen.spiegelnH', 'anordnen.spiegelnV'] },
     { titel: 'Ansicht', eintraege: ['ansicht.dreiD', 'ansicht.einpassen', 'ansicht.zoomRein', 'ansicht.zoomRaus', '-', 'ansicht.links', 'ansicht.rechts', 'ki.helfer', 'ansicht.fokus', '-', 'ansicht.ebenen', ...ANZEIGEN.map((a) => `ansicht.${a.id}`), 'messen.einrasten', 'messen.raster', '-', 'ansicht.suche'] },
     { titel: 'Einfügen', eintraege: () => einfuegenEintraege(t) },

@@ -1,22 +1,17 @@
 #!/usr/bin/env node
 /**
- * Erzeugt client/musik/musik.json aus den Unterordnern von client/musik/ (ein Ordner pro Zone + "alle").
+ * Erzeugt client/musik/musik.json aus den Unterordnern von client/musik/ (ein Ordner pro Zone + "alle" + "hauptmenue")
+ * und client/musik/einstellungen.json (Reihenfolge/Zufall, schreibt die Audio-Zentrale).
  *   npm run musik:index
  * Danach committen (die Datei und die Musikdateien). Siehe client/musik/README.md.
  */
-import { readdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { musikOrdner } from '../../client/audio/musikIndex.js';
+import { schreibeMusikIndex } from '../audio/indexBauen.mjs';
 
-const ORDNER = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../client/musik');
-const ENDUNGEN = new Set(['.mp3', '.ogg', '.wav', '.m4a', '.flac', '.opus']);
-const index = {};
-for (const eintrag of readdirSync(ORDNER).sort()) {
-  const pfad = path.join(ORDNER, eintrag);
-  if (!statSync(pfad).isDirectory()) continue;
-  const dateien = readdirSync(pfad).filter((d) => ENDUNGEN.has(path.extname(d).toLowerCase())).sort();
-  index[eintrag] = dateien;
-  console.log(`  ${eintrag}/: ${dateien.length} Stück(e)`);
-}
-writeFileSync(path.join(ORDNER, 'musik.json'), `${JSON.stringify(index, null, 2)}\n`);
+const WURZEL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const { index, warnungen } = schreibeMusikIndex(WURZEL);
+for (const ordner of musikOrdner(index)) console.log(`  ${ordner}/: ${index[ordner].length} Stück(e)`);
+for (const w of warnungen) console.warn(`  ⚠ ${w}`);
 console.log('client/musik/musik.json geschrieben');

@@ -89,12 +89,38 @@ export function parseLautstaerke(text, warnungen = []) {
   return ergebnis;
 }
 
+/** Grenzen der Einstellungen je Ereignis (einstellungen.json, Audio-Zentrale) */
+export const PEGEL_MAX = 3;
+export const STREUUNG_MAX = 0.5;
+
 /**
- * Baut den Index für den Client: { ereignis: { dateien: [...], lautstaerke: 0..3 } }.
- * Nur Ereignisse mit eigenen Dateien ODER eigener Lautstärke tauchen auf.
+ * einstellungen.json säubern: { ereignis: { lautstaerke: 0..3 (Faktor), streuung: 0..0.5 (± Tonhöhe), loop: bool } }.
+ * Unbrauchbare Werte fliegen raus (Warnung).
+ */
+export function pruefeSoundEinstellungen(roh, warnungen = []) {
+  const aus = {};
+  if (!roh || typeof roh !== 'object' || Array.isArray(roh)) return aus;
+  for (const [name, e] of Object.entries(roh)) {
+    if (!/^[a-z0-9_]{1,40}$/.test(name) || !e || typeof e !== 'object') {
+      warnungen.push(`einstellungen.json: Eintrag "${name}" ignoriert`);
+      continue;
+    }
+    const r = {};
+    if (Number.isFinite(e.lautstaerke) && e.lautstaerke >= 0) r.lautstaerke = Math.min(PEGEL_MAX, e.lautstaerke);
+    if (Number.isFinite(e.streuung) && e.streuung > 0) r.streuung = Math.min(STREUUNG_MAX, e.streuung);
+    if (typeof e.loop === 'boolean') r.loop = e.loop;
+    if (Object.keys(r).length) aus[name] = r;
+  }
+  return aus;
+}
+
+/**
+ * Baut den Index für den Client: { ereignis: { dateien: [...], lautstaerke: 0..3, streuung?, loop? } }.
+ * Nur Ereignisse mit eigenen Dateien ODER eigenen Einstellungen tauchen auf. `einstellungen` (einstellungen.json,
+ * schreibt die Audio-Zentrale) hat Vorrang vor lautstaerke.txt.
  * Unbekannte Namen → Warnung (Tippfehler!), werden aber trotzdem aufgenommen.
  */
-export function baueIndex(dateinamen, lautstaerkeText = '') {
+export function baueIndex(dateinamen, lautstaerkeText = '', einstellungen = {}) {
   const warnungen = [];
   const index = {};
   const eintrag = (name) => (index[name] ??= { dateien: [], lautstaerke: 1 });
@@ -105,6 +131,9 @@ export function baueIndex(dateinamen, lautstaerkeText = '') {
   }
   for (const [name, wert] of Object.entries(parseLautstaerke(lautstaerkeText, warnungen))) {
     eintrag(name).lautstaerke = wert / 100;
+  }
+  for (const [name, e] of Object.entries(pruefeSoundEinstellungen(einstellungen, warnungen))) {
+    Object.assign(eintrag(name), e);
   }
   for (const name of Object.keys(index)) {
     if (!(name in EREIGNISSE)) warnungen.push(`Unbekanntes Ereignis "${name}" – Tippfehler? (Liste: eigene/README.md)`);
