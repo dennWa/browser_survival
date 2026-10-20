@@ -8,31 +8,32 @@
  *
  * Felder (Nachbearbeitung siehe nachbearbeitung.js):
  *   nachbearbeitung  EffectComposer an/aus (aus = direkt auf den Bildschirm wie früher, beste Bildrate)
- *   ssao             Umgebungsverdeckung (GTAO) – 1 = volle, 0.5 = halbe Auflösung, 0 = aus
+ *   ssao             Umgebungsverdeckung (GTAO) – 1 = CSS-Auflösung, 0.5 = halbe, 0 = aus (adaptiv in „hoch“ zuerst gespart)
  *   bloom            Leuchten um helle Lichter (Laternen, Feuer, Taschenlampe)
  *   schattenRadius   Weichheit der Schattenkanten (PCF mit Vogel-Disk; r186 kennt kein PCFSoftShadowMap mehr – PCF IST weich)
- *   msaa             Kantenglättung im Composer-Puffer (Samples; Handy immer 0)
+ *   fxaa             billige Kantenglättung nach dem Tonemapping (KEIN MSAA im Composer – zu teuer, siehe nachbearbeitung.js)
  *   belichtung       toneMappingExposure (ACES Filmic)
- *   stufe/adaptiv/aufloesung/texturen/sonnenschatten/natur – Leistungsregler wie bisher (renderer.js, QUALITAETS_STUFEN)
+ *   aufloesung       Obergrenze Pixelverhältnis („hoch“ 1,5: Nachbearbeitung auf Retina sonst 4× Pixel)
+ *   stufe/adaptiv/texturen/sonnenschatten/natur – Leistungsregler wie bisher (renderer.js, QUALITAETS_STUFEN)
  */
 export const GRAFIK_PROFILE = Object.freeze({
   hoch: Object.freeze({
     name: 'Hoch',
     beschreibung: 'volle Auflösung, Schatten, Texturen, Umgebungsverdeckung & Leuchten',
-    stufe: null, adaptiv: true, aufloesung: null, texturen: 1, sonnenschatten: true,
-    nachbearbeitung: true, ssao: 1, bloom: true, schattenRadius: 4, msaa: 4, belichtung: 1.05,
+    stufe: null, adaptiv: true, aufloesung: 1.5, texturen: 1, sonnenschatten: true,
+    nachbearbeitung: true, ssao: 1, bloom: true, schattenRadius: 4, fxaa: true, belichtung: 1.05,
   }),
   mittel: Object.freeze({
     name: 'Mittel',
     beschreibung: 'weiche Schatten & Leuchten, Umgebungsverdeckung in halber Auflösung',
     stufe: 3, adaptiv: false, aufloesung: 1.25, texturen: 0.6, sonnenschatten: true,
-    nachbearbeitung: true, ssao: 0.5, bloom: true, schattenRadius: 3, msaa: 2, belichtung: 1.05,
+    nachbearbeitung: true, ssao: 0.5, bloom: true, schattenRadius: 3, fxaa: true, belichtung: 1.05,
   }),
   niedrig: Object.freeze({
     name: 'Niedrig',
     beschreibung: 'beste Leistung für schwache Geräte (ohne 3D-Gras & Nachbearbeitung)',
     stufe: 6, adaptiv: false, aufloesung: 0.8, texturen: 0.4, sonnenschatten: false, natur: false,
-    nachbearbeitung: false, ssao: 0, bloom: false, schattenRadius: 1, msaa: 0, belichtung: 1.05,
+    nachbearbeitung: false, ssao: 0, bloom: false, schattenRadius: 1, fxaa: false, belichtung: 1.05,
   }),
 });
 

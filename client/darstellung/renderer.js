@@ -84,17 +84,17 @@ const SITZ_TIEFE = 24; // so weit sinkt die Figur beim Sitzen am Feuer
 const SICHTWEITE = 1300; // weiter entfernte Figuren werden nicht animiert/gezeichnet
 /**
  * Qualitätsstufen, von schön (0) nach sparsam. aufloesung = Obergrenze fürs Pixelverhältnis (null = Gerät),
- * schatten = Größe der Schattenkarte, baumDetail = Umrisse + Schatten der Bäume, ao = Umgebungsverdeckung darf laufen
- * (adaptiv im Profil „hoch“: ab Stufe 3 wird GTAO als Erstes gespart; im Profil „mittel“ entscheidet GRAFIK_EINSTELLUNGEN.ssao).
+ * schatten = Größe der Schattenkarte, baumDetail = Umrisse + Schatten der Bäume, ao/bloom = Effekt darf laufen
+ * (adaptiv im Profil „hoch“: ab Stufe 3 wird GTAO als Erstes gespart, ab Stufe 4 Bloom; im Profil „mittel“ entscheidet GRAFIK_EINSTELLUNGEN.ssao).
  */
 const QUALITAETS_STUFEN = [
-  { aufloesung: null, schatten: 2048, baumDetail: true, ao: true },
-  { aufloesung: 1.5, schatten: 2048, baumDetail: true, ao: true },
-  { aufloesung: 1, schatten: 2048, baumDetail: true, ao: true },
-  { aufloesung: 1, schatten: 1024, baumDetail: true, ao: false },
-  { aufloesung: 1, schatten: 1024, baumDetail: false, ao: false },
-  { aufloesung: 0.9, schatten: 1024, baumDetail: false, ao: false },
-  { aufloesung: 0.8, schatten: 1024, baumDetail: false, ao: false },
+  { aufloesung: null, schatten: 2048, baumDetail: true, ao: true, bloom: true },
+  { aufloesung: 1.5, schatten: 2048, baumDetail: true, ao: true, bloom: true },
+  { aufloesung: 1, schatten: 2048, baumDetail: true, ao: true, bloom: true },
+  { aufloesung: 1, schatten: 1024, baumDetail: true, ao: false, bloom: true },
+  { aufloesung: 1, schatten: 1024, baumDetail: false, ao: false, bloom: false },
+  { aufloesung: 0.9, schatten: 1024, baumDetail: false, ao: false, bloom: false },
+  { aufloesung: 0.8, schatten: 1024, baumDetail: false, ao: false, bloom: false },
 ];
 /** Grafik-Presets: grafikEinstellungen.js (hier re-exportiert für einstellungen.js) */
 export { GRAFIK_PROFILE };
@@ -939,10 +939,10 @@ export class Renderer {
     return GRAFIK_EINSTELLUNGEN.stufe ?? (this.istHandy ? 2 : 0);
   }
 
-  /** Pixelverhältnis: im Profil "hoch" immer volle Geräteauflösung (nie automatisch unscharf), sonst die Profil-Grenze. */
+  /** Pixelverhältnis: feste Profil-Grenze (hoch 1,5 · mittel 1,25 · niedrig 0,8), Handy höchstens 1,25 – nie automatisch unscharf. */
   #stufenAufloesung() {
     const grenze = GRAFIK_EINSTELLUNGEN.aufloesung;
-    return Math.min(this.aufloesungMax, grenze ?? (this.istHandy ? 1.25 : 2));
+    return Math.min(this.aufloesungMax, grenze ?? 2, this.istHandy ? 1.25 : 2); // Handy nie über 1,25
   }
 
   #bodenMassstab() {
@@ -965,7 +965,7 @@ export class Renderer {
 
   /**
    * Einzelnen Grafik-Schalter überschreiben (grafikEinstellungen.js), z. B. setzeGrafikOption('ssao', 0), ('bloom', false),
-   * ('schattenRadius', 2), ('belichtung', 1.2) – wirkt sofort, bis zum nächsten setzeGrafik(). @returns aktuelle Einstellungen
+   * ('schattenRadius', 2), ('fxaa', false), ('belichtung', 1.2) – wirkt sofort, bis zum nächsten setzeGrafik(). @returns aktuelle Einstellungen
    */
   setzeGrafikOption(feld, wert) {
     if (!(feld in GRAFIK_EINSTELLUNGEN) || feld === 'profil') return GRAFIK_EINSTELLUNGEN;
@@ -988,15 +988,15 @@ export class Renderer {
 
   /**
    * Belichtung, Schattenweichheit und Nachbearbeitung nach GRAFIK_EINSTELLUNGEN + Qualitätsstufe (ao) einstellen.
-   * Der Composer wird nur neu gebaut, wenn sich SSAO/Bloom/MSAA ändern (sonst nur Größe).
+   * Der Composer wird nur neu gebaut, wenn sich SSAO/Bloom/FXAA ändern (sonst nur Größe).
    */
   #wendeGrafikAn() {
     const e = GRAFIK_EINSTELLUNGEN;
     this.gl.toneMappingExposure = e.belichtung;
     this.mond.shadow.radius = e.schattenRadius;
     for (const spot of this.taschenlampen) spot.shadow.radius = e.schattenRadius;
-    const aoErlaubt = this.stufe <= this.#startStufe() || QUALITAETS_STUFEN[this.stufe].ao; // adaptiv: GTAO wird zuerst gespart
-    const optionen = { ssao: aoErlaubt ? e.ssao : 0, bloom: !!e.bloom, msaa: this.istHandy ? 0 : e.msaa };
+    const stufe = this.stufe <= this.#startStufe() ? null : QUALITAETS_STUFEN[this.stufe]; // adaptiv: erst GTAO, dann Bloom sparen
+    const optionen = { ssao: stufe && !stufe.ao ? 0 : e.ssao, bloom: !!e.bloom && (!stufe || stufe.bloom), fxaa: !!e.fxaa };
     if (!e.nachbearbeitung) {
       this.nachbearbeitung?.freigeben();
       this.nachbearbeitung = null;

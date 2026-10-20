@@ -9,7 +9,7 @@ import { fuegeZumInventarHinzu, legeAufBoden } from '../../server/spiel/systeme/
  *   browserSurvival.ich()               eigene Spieler-Entität auf dem Server (zum Ändern: .leben = 1 …)
  *   browserSurvival.welt()              die SpielWelt der eigenen Zone
  *   browserSurvival.zone('waldweg')     sofort in eine andere Zone wechseln (Ankunft optional: zone('waldweg', 'sued'))
- *   browserSurvival.grafik('ssao', 0)   Grafik-Schalter live (ssao 0|0.5|1, bloom, schattenRadius, belichtung, msaa, nachbearbeitung);
+ *   browserSurvival.grafik('ssao', 0)   Grafik-Schalter live (ssao 0|0.5|1, bloom, schattenRadius, belichtung, fxaa, nachbearbeitung);
  *                                       grafik('mittel') = Preset, grafik() = aktuelle Werte (grafikEinstellungen.js, auch online)
  * Auch genutzt von den Playwright-Skripten in werkzeuge/test/.
  */
