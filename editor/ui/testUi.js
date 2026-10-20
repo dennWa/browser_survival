@@ -13,7 +13,7 @@ import { markerSchluessel } from '../kern/karte.js';
  * Phase 10.7: Fehlt nur der Spieler-Start, fragt der Editor „Spawn in die Mitte der Karte?“ → OK setzt ihn (1 Undo-Schritt) und testet.
  */
 export function testUi({ zustand, aktionen, layout, projektZonen }) {
-  aktionen.testen = async () => {
+  aktionen.testen = async ({ vonAudio = false } = {}) => {
     const k = zustand.karte;
     if (!k) return zustand.meldung('Erst eine Zone öffnen', 'fehler');
     let liste = validiere(k, { zonen: projektZonen() });
@@ -71,7 +71,7 @@ export function testUi({ zustand, aktionen, layout, projektZonen }) {
       });
       if (!weiter) return;
     }
-    location.href = new URL('../client/?editorTest=1', location.href).href;
+    location.href = new URL(`../client/?editorTest=1${vonAudio ? '&vonAudio=1' : ''}`, location.href).href;
   };
 
   /** Nach dem Zurückkommen aus dem Test: getestete Zone öffnen */

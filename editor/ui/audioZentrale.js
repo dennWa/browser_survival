@@ -35,7 +35,7 @@ export const aktiveZentrale = () => offen;
 export function audioZentraleUi({ zustand, aktionen }) {
   aktionen.audioZentrale = (id = null) => {
     if (offen) return offen.waehle(id);
-    offen = new AudioZentrale({ zustand, startId: id, beiZu: () => (offen = null) });
+    offen = new AudioZentrale({ zustand, aktionen, startId: id, beiZu: () => (offen = null) });
     return offen;
   };
 }
@@ -50,8 +50,9 @@ async function liesJson(pfad, ersatz = {}) {
 }
 
 class AudioZentrale {
-  constructor({ zustand, startId, beiZu }) {
+  constructor({ zustand, aktionen, startId, beiZu }) {
     this.zustand = zustand;
+    this.aktionen = aktionen;
     this.beiZu = beiZu;
     this.katalog = [];
     this.daten = null;
@@ -104,6 +105,12 @@ class AudioZentrale {
     el.querySelector('[data-a=spielStart]').addEventListener('click', async () => {
       this.stoppe();
       await this.zustand.speichereAlle?.();
+      // Ist im Editor eine Zone offen, testet das Spiel genau diese (Prüfung/Spawn-Frage wie bei ▶ Testen); sonst normale Spielwelt
+      if (this.zustand.karte && this.aktionen?.testen) {
+        const testen = this.aktionen.testen;
+        this.schliesse(); // Prüf-/Rückfrage-Dialoge des Tests liegen sonst hinter der Zentrale
+        return testen({ vonAudio: true });
+      }
       location.href = new URL('../client/?vonAudio=1', location.href).href;
     });
     const suche = el.querySelector('.az-suche');
@@ -375,9 +382,7 @@ class AudioZentrale {
       </div>
       <h4>Im Spiel</h4>
       <label class="az-regler">Pegel <input type="range" min="0" max="300" step="5" value="${Math.round(e.pegel * 100)}" data-f="pegel"> <output>${prozent(e.pegel)}</output></label>
-      ${loop ? '' : `<label class="az-regler" title="Jedes Abspielen klingt minimal anders – gut für kurze, oft wiederholte Sounds">Tonhöhen-Streuung ± <input type="range" min="0" max="50" step="1" value="${Math.round(e.streuung * 100)}" data-f="streuung"> <output>${Math.round(e.streuung * 100)} %</output></label>
-      <label class="az-zeit" title="Ton setzt erst nach dieser Zeit ein – z. B. wenn die Animation gerade erst anfängt und der Schlag später kommt">Ton startet später: <input type="number" min="0" max="5" step="0.05" value="${e.verzoegerung || 0}" data-f="verzoegerung"> s</label>
-      <label class="az-zeit" title="Ton wird nach dieser Zeit weich abgeschnitten – z. B. wenn die Animation kürzer ist als die Datei. 0 = ganze Datei spielen">Ton endet nach: <input type="number" min="0" max="120" step="0.1" value="${e.maxDauer || 0}" data-f="maxDauer"> s <span class="leise">(0 = ganze Datei)</span></label>`}
+      ${loop ? '' : `<label class="az-regler" title="Jedes Abspielen klingt minimal anders – gut für kurze, oft wiederholte Sounds">Tonhöhen-Streuung ± <input type="range" min="0" max="50" step="1" value="${Math.round(e.streuung * 100)}" data-f="streuung"> <output>${Math.round(e.streuung * 100)} %</output></label>`}
       <div class="knopfreihe"><button type="button" data-a="einstellungen">💾 Einstellungen speichern</button><span class="leise">gilt für alle Quellen (auch Synthese/Samples)</span></div>
     </div>`;
   }
@@ -544,7 +549,7 @@ class AudioZentrale {
   /** „Ton startet später“ / „Ton endet nach“ (Sekunden) wie in den Feldern eingestellt (auch ungespeichert) */
   #zeitWerte(e) {
     const f = (n, std) => {
-      const r = e && this.elDetail?.querySelector(`[data-f=${n}]`);
+      const r = e && this.elDetail?.querySelector(`[data-t=${n}]`);
       const v = r ? Number(r.value) : std;
       return Number.isFinite(v) && v > 0 ? v : 0;
     };
@@ -702,7 +707,7 @@ class AudioZentrale {
 
   vorhoeren(schleife = false) {
     if (!this.bearbeitung) return;
-    this.#spielePuffer(this.#alsPuffer(this.#ergebnis()), { pegel: this.eintrag()?.pegel ?? 1, loop: schleife, marke: schleife ? 'vorSchleife' : 'vor' });
+    this.#spielePuffer(this.#alsPuffer(this.#ergebnis()), { ...this.#zeitWerte(this.eintrag()), pegel: this.#reglerPegel(this.eintrag()), loop: schleife, marke: schleife ? 'vorSchleife' : 'vor' });
   }
 
   #zeichneWerkbank() {
@@ -715,6 +720,15 @@ class AudioZentrale {
         : e.art === 'musikOrdner'
           ? `<label>Titel-Name <input type="text" data-f="titelName" value="${esc(b.titelName)}" maxlength="60"></label><button type="button" data-a="titel" class="akzent">✔ Als Titel hinzufügen</button>`
           : `<button type="button" data-a="ersatz" class="akzent">✔ Ersetzen</button>`;
+    const takt =
+      e.art === 'ereignis' && !e.loop
+        ? `<div class="az-takt">
+        <h5>⏱ Takt zur Animation <span class="leise">(wirkt im Spiel, wird mit „Zeiten speichern“ übernommen)</span></h5>
+        <label title="Ton setzt erst nach dieser Zeit ein – z. B. wenn die Animation gerade erst anfängt und der Schlag später kommt">Ton startet später <input type="number" min="0" max="5" step="0.05" value="${e.verzoegerung || 0}" data-t="verzoegerung"> s</label>
+        <label title="Ton wird nach dieser Zeit weich abgeschnitten – z. B. wenn die Animation kürzer ist als der Ton. 0 = ganzer Ton">Ton endet nach <input type="number" min="0" max="120" step="0.1" value="${e.maxDauer || 0}" data-t="maxDauer"> s <span class="leise">(0 = ganz)</span></label>
+        <button type="button" data-a="zeitSpeichern">💾 Zeiten speichern</button>
+      </div>`
+        : '';
     this.elDetail.querySelector('.az-werkbank').innerHTML = `
       <h4>✂ Bearbeiten: <span class="leise">${esc(b.name)} · ${dauerText(b.quelle.dauer)} · ${b.quelle.kanaele.length > 1 ? 'Stereo' : 'Mono'}</span></h4>
       <div class="az-welle"><canvas></canvas><span class="az-zeit"></span></div>
@@ -727,7 +741,7 @@ class AudioZentrale {
         <label class="haken"><input type="checkbox" data-f="normalisieren"> Normalisieren (lauteste Stelle −1 dB)</label>
         <label class="haken"><input type="checkbox" data-f="loop"> 🔁 Loop (nahtlose Schleife)</label>
         <label class="az-ueberblend">Loop-Übergang <input type="number" step="10" min="0" max="3000" data-f="ueberblendung"> ms</label>
-      </div>
+      </div>${takt}
       <div class="knopfreihe">
         <button type="button" data-a="vor" class="akzent">▶ Vorhören</button><button type="button" data-a="vorSchleife">🔁 In Schleife</button>
         <button type="button" data-a="undo" title="Rückgängig (Strg+Z)">↶</button><button type="button" data-a="redo" title="Wiederholen (Strg+Y)">↷</button>
@@ -747,6 +761,8 @@ class AudioZentrale {
       this.stoppe();
       this.#zeichneDetail();
     });
+    k('zeitSpeichern', () => this.speichereEinstellungen(e));
+    for (const f of wb.querySelectorAll('[data-t]')) f.addEventListener('keydown', (ev) => ev.stopPropagation());
     k('ersatz', () => this.uebernehmen({ ersetzen: true }));
     k('variante', () => this.uebernehmen({ ersetzen: false }));
     k('titel', () => this.uebernehmen({ ersetzen: false }));

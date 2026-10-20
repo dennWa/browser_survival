@@ -329,9 +329,10 @@ async function starten() {
     zeichner.einpassen();
     zustand.meldung(`${n} Entwurf/Entwürfe geladen`, 'ok');
   } else zustand.meldung('Willkommen! Datei → Neue Zone (Rechteck aufziehen) oder Öffnen (Zone aus dem Spiel als Vorlage)');
-  test.nachStart(); // Rückkehr aus dem Test im Spiel
-  if (new URLSearchParams(location.search).has('audio')) {
-    history.replaceState(null, '', location.pathname); // Rückkehr aus dem Spiel (Audio-Zentrale ▶ Spiel starten)
+  const zurueckZurAudio = new URLSearchParams(location.search).has('audio'); // Rückkehr aus dem Spiel (Audio-Zentrale ▶ Spiel starten)
+  test.nachStart(); // Rückkehr aus dem Test im Spiel (räumt die Adresse auf)
+  if (zurueckZurAudio) {
+    history.replaceState(null, '', location.pathname);
     aktionen.audioZentrale?.();
   }
   // Phase 10.1: lokaler Editor-Server (npm run editor:lokal) → darf in Projektordner schreiben

@@ -44,8 +44,9 @@ export function zeigeTestBanner(dokument, test) {
   const name = test.karten[test.start].name ?? test.start;
   banner.innerHTML = `<span>🧪 Editor-Test: ${String(name).replace(/[<>&]/g, '')}</span>`;
   const zurueck = dokument.createElement('a');
-  zurueck.href = `../editor/?vonTest=${encodeURIComponent(test.start)}`;
-  zurueck.textContent = '⟵ Zurück zum Editor';
+  const vonAudio = new URLSearchParams(location.search).has('vonAudio'); // Start aus der Audio-Zentrale → dorthin zurück
+  zurueck.href = `../editor/?vonTest=${encodeURIComponent(test.start)}${vonAudio ? '&audio=1' : ''}`;
+  zurueck.textContent = vonAudio ? '⟵ Zurück zur Audio-Zentrale' : '⟵ Zurück zum Editor';
   zurueck.style.cssText = 'color:#fff;background:#2e6b31;padding:6px 10px;border-radius:6px;text-decoration:none;min-height:30px;display:inline-flex;align-items:center';
   banner.append(zurueck);
   dokument.body.append(banner);
