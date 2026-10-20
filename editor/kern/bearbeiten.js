@@ -214,7 +214,7 @@ export function dupliziereOps(karte, gewaehlte) {
       else if (wert.art === 'bereich') Object.assign(neu, { x: wert.x + versatz(wert.x, wert.b, karte.breite), y: wert.y + versatz(wert.y, wert.h, karte.hoehe) });
       ops.push({ s, k: id, neu });
       neueAuswahl.push({ s, k: id++ });
-    } else if (s === 'objekte' || s === 'tierBereiche' || s === 'raumFlaechen' || s === 'uebergaenge') {
+    } else if (s === 'objekte' || s === 'tierBereiche' || s === 'raumFlaechen' || s === 'uebergaenge' || s === 'lootZonen') {
       const b = wert.b ?? 1;
       const h = wert.h ?? 1;
       ops.push({ s, k: id, neu: { ...kopie(wert), x: r3(wert.x + versatz(wert.x, b, karte.breite)), y: r3(wert.y + versatz(wert.y, h, karte.hoehe)) } });

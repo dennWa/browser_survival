@@ -30,6 +30,8 @@ import { eigeneUi } from './ui/eigeneUi.js';
 import { Bibliothek, AUDIO } from './ui/bibliothek.js';
 import { modelleUi } from './ui/modelleUi.js';
 import { audioUi } from './ui/audioUi.js';
+import { zonenManagerUi } from './ui/zonenManagerUi.js';
+import { lootUi } from './ui/lootUi.js';
 import { Ansicht3D, webglVerfuegbar } from './ui/ansicht3d.js';
 import { dialog, esc, istDialogOffen } from './ui/dialoge.js';
 
@@ -67,6 +69,8 @@ audioUi({ zustand, panel: links, aktionen, layout, audioBibliothek });
 const insp = inspektor({ zustand, leiste: rechts, aktionen, befehle });
 ebenenUi({ zustand, leiste: rechts });
 pruefungUi({ zustand, leiste: rechts, aktionen });
+zonenManagerUi({ zustand, leiste: rechts, zeichner, aktionen });
+lootUi({ zustand, aktionen });
 const datei = dateiAktionen({ zustand, zeichner, werkzeuge, aktionen, rechts, bibliothek, audioBibliothek });
 Object.assign(teile, { werkzeuge, assets, inspektor: insp, layout, links, rechts, datei, aktionen, schalteAnsicht, zeigeHilfe, kontextmenue });
 

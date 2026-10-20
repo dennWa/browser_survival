@@ -1,7 +1,7 @@
 import { nachbarn, vorschlaegeFuerPaar, vorschlagOps, layoutAusUebergaengen, GEGENSEITE } from '../kern/zonenVerbund.js';
 import { validiere } from '../kern/validierung.js';
 import { kachelBild } from './zeichner2d.js';
-import { dialog, bestaetigen, esc } from './dialoge.js';
+import { dialog, esc } from './dialoge.js';
 
 /**
  * Zonen verbinden (Phase 7): Reiter „🗺 Zonen“ (linke Seitenleiste) mit Weltkarte aller Zonen des Projekts (ziehen = anordnen, Klick = öffnen),
@@ -102,16 +102,25 @@ export function zonenUi({ zustand, panel, aktionen, befehle, layout, zeichner, p
         zustand.aktiviere(id);
         zeichner.einpassen();
       });
-      const weg = Object.assign(document.createElement('button'), { textContent: '🗑', title: 'Aus dem Projekt entfernen', className: 'gefahr' });
+      const weg = Object.assign(document.createElement('button'), { textContent: '🗄', title: 'Archivieren oder löschen', className: 'gefahr' });
       weg.style.float = 'right';
-      weg.addEventListener('click', async (e) => {
+      weg.dataset.archivieren = id;
+      weg.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (await bestaetigen('Zone entfernen', `„${esc(k.name)}“ (${esc(id)}) aus dem Projekt entfernen? Der lokale Entwurf wird gelöscht (vorher 💾 speichern).`, { ok: 'Entfernen', gefahr: true })) zustand.entferneZone(id);
+        aktionen.zoneEntfernen?.(id);
       });
       li.prepend(weg);
       ul.append(li);
     }
     el.append(ul);
+    // Archiv (Schritt 6.1): archivierte Zonen zurückholen oder endgültig löschen (mit Sicherung)
+    const archivEl = document.createElement('div');
+    el.append(archivEl);
+    zustand.archiv().then((archiv) => {
+      const eintraege = Object.entries(archiv);
+      archivEl.innerHTML = `<h4>🗄 Archiv <span class="leise">${eintraege.length}</span></h4>${eintraege.length ? `<ul class="zonen-liste ablage-liste">${eintraege.map(([id, a]) => `<li data-archiv="${esc(id)}"><span class="name">${esc(a.name)}<span class="leise klein"> ${esc(id)} · ${a.archiviert ? new Date(a.archiviert).toLocaleDateString('de-DE') : ''}</span></span><button type="button" data-a="zurueck" class="akzent" title="wieder ins Projekt">♻ Zurück</button><button type="button" data-a="loeschen" class="gefahr" title="endgültig löschen (Sicherung wird geladen)">🗑</button></li>`).join('')}</ul>` : '<p class="leise">leer – 🗄 an einer Zone archiviert sie (statt sie zu löschen)</p>'}`;
+      archivEl.querySelectorAll('[data-archiv] button').forEach((b) => b.addEventListener('click', () => (b.dataset.a === 'zurueck' ? aktionen.archivZurueck?.(b.closest('[data-archiv]').dataset.archiv) : aktionen.archivLoeschen?.(b.closest('[data-archiv]').dataset.archiv))));
+    });
   }, { ereignisse: ['zone'], ohneKarte: true });
 
   function zeichneWeltkarte(leinwand, zonen) {

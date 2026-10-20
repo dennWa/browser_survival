@@ -58,7 +58,18 @@
   Tests `tests/drehung.test.js`, Rauchtest „Phase 5.5“. Alles grün (npm test 253, rauchtest:editor, rauchtest).
   Doku komplett (LIESMICH „Free-Modus“, Manifest-Changelog, KI_INDEX).
 
-**Nächster Schritt: Phase 6 – 6.1 Zonen-Manager** (in Arbeit ab 2026-10-20).
+- 6.1 Zonen-Manager fertig (2026-10-20): `editor/kern/zonenManager.js` (Bereichs-Zonen, Anzeige je Zone in `werte.zonenAnzeige`,
+  Umbenennen, Löschen, Ablage/Einsetzen, Sperre filtert Ops), Reiter „▭ Bereiche“ (`ui/zonenManagerUi.js`), Zonen archivieren statt
+  löschen (`zustand.archiviereZone` …, Archiv im Reiter 🗺 Zonen und im Backup), Löschen nur mit automatischer Sicherung.
+  Reiterleisten brechen jetzt um (vorher unsichtbar gescrollt). Tests `tests/zonenManager.test.js`, Rauchtest „Phase 6.1“.
+- 6.2 Loot-Zonen fertig (2026-10-20): Regeln `server/spiel/karten/lootZonen.js`, Lader/`lootSystem` (Spiel), Editor-Sammlung
+  `lootZonen`, Katalog `bereich:loot`, Inspektor `ui/lootUi.js` (Items mit Chance/Gewicht, Menge, Ausbeute), Punkt-Vorschau,
+  Prüfung `loot-zone*`. Tests `tests/lootZonen.test.js`, Rauchtest „Phase 6.2“. Spiel-Rauchtest grün.
+
+**Nächster Schritt: 6.3 Loot-Vorlagen** – Plan: Vorlagen projektweit in `meta/lootVorlagen` (+ eingebaute = `LOOT_TABELLEN`,
+schreibgeschützt), Zone trägt immer die volle Item-Liste + `vorlage: <id>` (verknüpft); Vorlage ändern → alle verknüpften
+Zonen im Projekt nachziehen (je Zone 1 Undo-Schritt); eigene Änderung an einer verknüpften Zone löst die Verknüpfung;
+Import/Export als Datei, Backup-Feld `lootVorlagen`. Danach 6.4 (Loot ein-/ausblenden + Dichte-Heatmap als Anzeige).
 
 **Danach:** Phasen 6–9 laut Tabellen unten (6 Zonen/Loot, 7 UX, 8 Testlauf, 9 KI).
 
@@ -133,8 +144,8 @@
 ## Phase 6 – Zonen- & Loot-System
 | # | Schritt | Größe |
 |---|---|---|
-| ☐ 6.1 | **Zonen-Manager:** Liste aller Bereichs-Zonen (Räume, Loot-, Tier-, Audio-Zonen, Übergänge) mit Auge (ausblenden), Sperre (ausgegraut, nicht anklickbar), Farbe, Umbenennen, Löschen, **Zwischenspeichern** (Ablage/Vorlage, später wieder einsetzen); Welt-Zonen (Karten) archivieren statt löschen, Löschen mit Bestätigung + Backup | M |
-| ☐ 6.2 | 🎮 **Loot-Zonen neu:** Bereich markieren (Rechteck/Pinsel) → Item-Liste mit **exakter Chance je Item** (oder Gewicht), Menge von–bis, Dichte bzw. Anzahl Punkte, nur innen/außen, Nachschub, Höchstzahl; Inspektor zeigt erwartete Ausbeute; Spiel: Lader erzeugt Loot-Punkte auf begehbaren Kacheln mit der Zonen-Tabelle, `lootSystem` würfelt daraus; Prüfung (unbekannte Items, Summe, keine Fläche) | L |
+| ☑ 6.1 | **Zonen-Manager:** Liste aller Bereichs-Zonen (Räume, Loot-, Tier-, Audio-Zonen, Übergänge) mit Auge (ausblenden), Sperre (ausgegraut, nicht anklickbar), Farbe, Umbenennen, Löschen, **Zwischenspeichern** (Ablage/Vorlage, später wieder einsetzen); Welt-Zonen (Karten) archivieren statt löschen, Löschen mit Bestätigung + Backup | M |
+| ☑ 6.2 | 🎮 **Loot-Zonen neu:** Bereich markieren (Rechteck/Pinsel) → Item-Liste mit **exakter Chance je Item** (oder Gewicht), Menge von–bis, Dichte bzw. Anzahl Punkte, nur innen/außen, Nachschub, Höchstzahl; Inspektor zeigt erwartete Ausbeute; Spiel: Lader erzeugt Loot-Punkte auf begehbaren Kacheln mit der Zonen-Tabelle, `lootSystem` würfelt daraus; Prüfung (unbekannte Items, Summe, keine Fläche) | L |
 | ☐ 6.3 | **Loot-Vorlagen:** Konfiguration als Vorlage speichern (Ordner, Suche), in anderen Zonen/Karten wiederverwenden (verknüpft oder als Kopie), Import/Export; vorhandene `LOOT_TABELLEN` als eingebaute Vorlagen | M |
 | ☐ 6.4 | **Loot ein-/ausblenden per Klick** (Schalter + Taste), optional Dichte-Heatmap | S |
 

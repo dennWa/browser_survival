@@ -1,6 +1,7 @@
 import { GEGENSTAENDE } from '../konfiguration/gegenstaende.js';
 import { LOOT_TABELLEN } from '../konfiguration/lootTabellen.js';
 import { erzeugeGegenstand } from '../entitaeten/gegenstand.js';
+import { wuerfleAusZone } from '../karten/lootZonen.js';
 
 /**
  * Loot: Startverteilung auf die Loot-Punkte der Karte, Nachschub an geplünderten Punkten,
@@ -68,8 +69,26 @@ export function lasseBossLootFallen(spielWelt, x, y) {
 
 /** @returns true, wenn ein Gegenstand erzeugt wurde */
 function wuerfleLoot(spielWelt, punkt, index) {
+  if (punkt.lootZone) return wuerfleZonenLoot(spielWelt, punkt, index);
   if (spielWelt.zufall.zahl() >= (punkt.spawnChance ?? spielWelt.konfiguration.loot.spawnChance)) return false;
   const gegenstand = erzeugeAusTabelle(spielWelt, punkt.lootTabelle, punkt.x, punkt.y);
+  spielWelt.lootZustand[index].gegenstandId = gegenstand.id;
+  return true;
+}
+
+/**
+ * Loot-Zone (Map-Editor 6.2): exakte Chance oder Gewicht je Item, eigene Menge; `max` begrenzt, wie viele Gegenstände
+ * der Zone gleichzeitig liegen.
+ */
+function wuerfleZonenLoot(spielWelt, punkt, index) {
+  const zone = punkt.lootZone;
+  if (zone.max) {
+    const liegen = spielWelt.karte.lootPunkte.filter((p, i) => p.lootZone === zone && spielWelt.lootZustand[i]?.gegenstandId !== null && spielWelt.holen(spielWelt.lootZustand[i].gegenstandId)).length;
+    if (liegen >= zone.max) return false;
+  }
+  const wahl = wuerfleAusZone(zone, spielWelt.zufall, spielWelt.konfiguration.loot.spawnChance);
+  if (!wahl) return false;
+  const gegenstand = erzeugeItem(spielWelt, wahl.id, punkt.x, punkt.y, wahl.menge);
   spielWelt.lootZustand[index].gegenstandId = gegenstand.id;
   return true;
 }
@@ -79,9 +98,13 @@ function erzeugeAusTabelle(spielWelt, tabellenName, x, y) {
   const tabelle = LOOT_TABELLEN[tabellenName];
   if (!tabelle) throw new Error(`Unbekannte Loot-Tabelle: "${tabellenName}"`);
   const { id: defId } = zufall.gewichteteAuswahl(tabelle);
+  const spanne = GEGENSTAENDE[defId].mengeBeimFund;
+  return erzeugeItem(spielWelt, defId, x, y, spanne ? zufall.ganzzahl(spanne[0], spanne[1]) : 1);
+}
+
+function erzeugeItem(spielWelt, defId, x, y, menge) {
+  const { zufall } = spielWelt;
   const def = GEGENSTAENDE[defId];
-  const spanne = def.mengeBeimFund;
-  const menge = spanne ? zufall.ganzzahl(spanne[0], spanne[1]) : 1;
   // Gefundene Schusswaffen sind teilweise geladen
   const magazin = def.kategorie === 'fernkampf' ? zufall.ganzzahl(0, Math.ceil(def.magazin / 2)) : undefined;
   return spielWelt.hinzufuegen(erzeugeGegenstand({ id: spielWelt.neueId(), defId, x, y, menge, magazin }));

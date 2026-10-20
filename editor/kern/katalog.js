@@ -14,7 +14,7 @@ import { KACHEL_FARBEN } from '../../client/darstellung/farben.js';
  *   art 'objekt'   → typ, b, h, blockiert, ebene, extra (Standardfelder, z. B. Licht)
  *   art 'bauwerk'  → typ (BAUWERKE), drehbar
  *   art 'marker'   → marker: 'start' | 'zombie' | 'loot' | 'ankunft' (+ horde)
- *   art 'bereich'  → sammlung (tierBereiche | raumFlaechen | uebergaenge)
+ *   art 'bereich'  → sammlung (tierBereiche | raumFlaechen | uebergaenge | lootZonen)
  *   art 'werkzeug' → werkzeug (terrain-heben …, wetter-panel)
  *   art 'klang'    → klangArt punkt|bereich, audio (Datei der Audio-Bibliothek; Einträge kommen aus ui/assetBrowser.js)
  */
@@ -159,6 +159,7 @@ export function katalog() {
     { id: 'marker:horde', art: 'marker', marker: 'zombie', horde: true, name: 'Horden-Spawnpunkt (nachts)', kategorie: 'Spawns', symbol: '🌙', farbe: '#8a2be2' },
     { id: 'marker:ankunft', art: 'marker', marker: 'ankunft', name: 'Ankunftspunkt', kategorie: 'Zonen', symbol: '📍', farbe: '#2b8cff' },
     { id: 'marker:loot', art: 'marker', marker: 'loot', name: 'Loot-Punkt (Raum wählen)', kategorie: 'Loot', symbol: '🎁', farbe: '#ffd23f' },
+    { id: 'bereich:loot', art: 'bereich', sammlung: 'lootZonen', name: 'Loot-Zone (Bereich)', kategorie: 'Loot', symbol: '🎁', farbe: '#ffd23f' },
     { id: 'bereich:tier', art: 'bereich', sammlung: 'tierBereiche', name: 'Hasen-Bereich', kategorie: 'Tiere', symbol: '🐇', farbe: '#c8a27a' },
     { id: 'bereich:raum', art: 'bereich', sammlung: 'raumFlaechen', name: 'Raum markieren (Rechteck)', kategorie: 'Räume', symbol: '▭', farbe: '#ffb84d' },
     { id: 'werkzeug:raumfuellen', art: 'werkzeug', werkzeug: 'raumFuellen', name: 'Raum markieren (Füllen)', kategorie: 'Räume', symbol: '🪣', farbe: '#ffb84d' },

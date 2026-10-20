@@ -17,7 +17,7 @@ Start: im Anmeldebildschirm des Spiels auf **🗺 Map-Editor** (oder direkt `…
 | **Seitenleiste links** | 🧱 **Assets** (Suche, ★ Favoriten, 🕘 Zuletzt, 7 Gruppen: Gelände · Bauen · Natur · Einrichtung · Gameplay · Zonen & Logik · Eigene) · 📦 Modelle · 🏠 Prefabs · 🗺 Zonen · 🚪 Räume |
 | **Optionsleiste** (über der Karte) | Einstellungen des aktiven Werkzeugs: Pinselgröße, Mal-Modus, Drehung, „mehrfach setzen“, Farbe, Stärke + Bedienhinweis |
 | **Fläche** | Lineale oben/links mit Kachelnummern; Koordinate, Kachel und Objekt unter der Maus stehen unten in der Statusleiste |
-| **Seitenleiste rechts** | **Inspektor** (Auswahl – oder ohne Auswahl: Zone mit Name, ID, Größe, Zonen-Werte) · **Ebenen** (👁 ein-/ausblenden, 🔒 sperren) · **Prüfung** |
+| **Seitenleiste rechts** | **Inspektor** (Auswahl – oder ohne Auswahl: Zone mit Name, ID, Größe, Zonen-Werte) · **Ebenen** (👁 ein-/ausblenden, 🔒 sperren) · **Prüfung** · **▭ Bereiche** (Zonen-Manager) |
 | **KI-Seitenleiste** | 🤖 Gemini-Helfer (Strg+J), ein-/ausklappbar |
 
 Seitenleisten lassen sich ein-/ausklappen (◧ ◨) und an der Innenkante in der Breite ziehen (Doppelklick = Standard).
@@ -64,6 +64,13 @@ Koordinaten sind **Kacheln** (1 Kachel = 1 m = 32 px im Spiel), x nach rechts, y
   (nachts kommt die Horde nur dort, wenn es welche gibt). Am gewählten Zombie-Spawn im Inspektor: **Anzahl**, **Respawn**, Horde.
 - **Loot:** Loot-Punkte gehören zu einem **Raum** (Buchstabe a–z) mit Loot-Tabelle aus `lootTabellen.js`. Im Inspektor: Tabelle,
   **Loot-Chance** (liegt dort etwas?) und **Nachschub** (Sekunden) je Raum; die Wahrscheinlichkeiten der Tabelle stehen darunter.
+- **🎁 Loot-Zonen** (Assets → Loot → „Loot-Zone (Bereich)“, Rechteck ziehen): eigene Item-Liste statt Raum-Tabelle.
+  Im Inspektor: **Wahrscheinlichkeit** als *Gewicht* (relativ, plus Spawn-Chance je Punkt) oder *exakte Chance je Item in %*
+  (Rest bis 100 % = nichts), **Menge von–bis** je Item, **Loot-Punkte** (Anzahl), **Wo** (überall / nur innen / nur außen),
+  **Nachschub** (s) und **Höchstens gleichzeitig**. „Tabelle übernehmen“ setzt eine Spiel-Tabelle als Startliste.
+  Die gewählte Zone zeigt ihre Punkte auf der Karte (genau dort liegt im Spiel Loot: freie Kacheln, nicht in Wänden, Wasser
+  oder unter blockierenden Möbeln), darunter die **erwartete Ausbeute** je Befüllung. Die Prüfung meldet unbekannte Items,
+  Chancen über 100 % und Zonen ohne freie Kachel.
 - **Tiere:** Hasen-Bereich aufziehen (Kategorie Tiere) – dann spawnen Hasen nur in diesen Bereichen, mit Anzahl und Respawn.
   Ohne Bereiche verteilt das Spiel sie wie bisher auf allen Rasen.
 - **Zonen-Werte** (Inspektor ohne Auswahl, aufklappbare Gruppen; Menü Zone → Zonen-Werte): Wetter (an/aus, Regen-Anteil, Dauer, Pausen), Zombies (Dichte, Respawn, Nacht-Horde,
@@ -92,6 +99,21 @@ Koordinaten sind **Kacheln** (1 Kachel = 1 m = 32 px im Spiel), x nach rechts, y
   zuerst) und legt Übergang + Rückweg + Ankunftspunkte (3 Kacheln landeinwärts) in beiden Zonen an.
 - Von Hand: Assets → Zonen & Logik → „Übergang (am Rand)“ aufziehen (oder Menü Einfügen), Zielzone und Ankunft wählen; im Inspektor „📍 Ankunft in
   der Zielzone setzen“. Die Prüfung meldet: Ziel fehlt, Ankunft fehlt/liegt im Übergang (Ping-Pong), kein Rückweg.
+
+- **Zone entfernen** (🗄 in der Liste oder Datei → Zone entfernen): **Archivieren** ist der Standard – die Zone verschwindet
+  aus dem Projekt, bleibt aber mit Verlauf erhalten (Reiter Zonen → **🗄 Archiv** → ♻ Zurück; das Archiv steckt auch im
+  Komplett-Backup). **Endgültig löschen** fragt nach und lädt vorher automatisch eine Sicherung (`<zone>.entwurf.json`).
+
+## ▭ Bereiche (Zonen-Manager)
+
+Reiter **▭ Bereiche** (rechts) listet alle Bereichs-Zonen der aktiven Zone: Räume (alle Flächen eines Raums zusammen),
+Loot-Zonen, Tier-Bereiche, Klänge und Übergänge. Je Zeile:
+- **👁** ein-/ausblenden · **🔒** sperren (ausgegraut, nicht anklickbar, wird bei Änderungen ausgelassen) · **Farbe** (nur im Editor)
+- **Name** anklicken = auswählen und hinspringen · **✎** umbenennen (bei Räumen der Raumname)
+- **📥** in die **Ablage** legen (zwischenspeichern) → unten „📤 Einsetzen“ setzt sie wieder ein, auch in einer anderen Zone
+  (an der gespeicherten Stelle, notfalls in die Zone geschoben; Räume bekommen bei Namenskonflikt einen freien Buchstaben)
+- **🗑** löschen (Räume: nur die Flächen, Name/Loot-Tabelle bleiben im Reiter Räume)
+Alles ist rückgängig machbar (Strg+Z). Die Einstellungen gehören zum Entwurf, nicht zur Spielkarte.
 
 ## Mit einer KI arbeiten (Export / Import)
 

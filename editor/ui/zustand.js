@@ -2,6 +2,7 @@ import { Verlauf } from '../kern/verlauf.js';
 import { entwurfJson, ladeDatei } from '../kern/format.js';
 import { ID_SAMMLUNGEN } from '../kern/karte.js';
 import { EBENEN, ebenenAus, ebeneFrei, ebeneVon, filtereGesperrt } from '../kern/ebenen.js';
+import { filtereGesperrteZonen, eintragAnzeige } from '../kern/zonenManager.js';
 
 const EBENEN_SPEICHER = 'browserSurvival.editorEbenen';
 
@@ -125,6 +126,45 @@ export class Zustand {
     this.melde('zone');
   }
 
+  // --- Archiv (Schritt 6.1): Zonen archivieren statt löschen ------------------------------------
+  // meta/archiv = { id: { name, archiviert, layout, entwurf } } – liegt im Editor-Speicher und im Komplett-Backup.
+
+  async archiv() {
+    return (await this.speicher.hole('meta', 'archiv')) ?? {};
+  }
+
+  /** Zone ins Archiv legen (Entwurf + Verlauf + Weltposition bleiben erhalten) und aus dem Projekt nehmen */
+  async archiviereZone(id) {
+    const e = this.zonen.get(id);
+    if (!e) return false;
+    const archiv = await this.archiv();
+    archiv[id] = { name: e.karte.name, archiviert: new Date().toISOString(), layout: this.layout[id] ?? null, entwurf: entwurfJson(e.karte, e.verlauf) };
+    if (!(await this.speicher.setze('meta', 'archiv', archiv))) return false;
+    await this.entferneZone(id);
+    return true;
+  }
+
+  /** Zone aus dem Archiv zurückholen. @returns Fehlertext oder null */
+  async holeAusArchiv(id) {
+    const archiv = await this.archiv();
+    const a = archiv[id];
+    if (!a) return 'Nicht im Archiv';
+    if (this.zonen.has(id)) return `Im Projekt gibt es schon eine Zone „${id}“ – erst umbenennen oder archivieren`;
+    const { karte, verlauf } = ladeDatei(a.entwurf);
+    if (a.layout) this.layout[id] = a.layout;
+    this.fuegeZoneHinzu(karte, verlauf);
+    delete archiv[id];
+    await this.speicher.setze('meta', 'archiv', archiv);
+    return null;
+  }
+
+  async loescheAusArchiv(id) {
+    const archiv = await this.archiv();
+    delete archiv[id];
+    await this.speicher.setze('meta', 'archiv', archiv);
+    this.melde('zone');
+  }
+
   /** Zone umbenennen (ID ändern) – Entwurf wird unter neuer ID gespeichert, Übergänge anderer Zonen nachgezogen */
   async benenneZoneUm(altId, neuId) {
     const e = this.zonen.get(altId);
@@ -153,27 +193,36 @@ export class Zustand {
   ausfuehren(name, ops, karte = this.karte, { alleEbenen = false } = {}) {
     if (!karte) return [];
     const z = [...this.zonen.values()].find((e) => e.karte === karte);
-    return z.verlauf.ausfuehren(karte, name, alleEbenen ? ops : this.#ohneGesperrte(ops));
+    return z.verlauf.ausfuehren(karte, name, alleEbenen ? ops : this.#ohneGesperrte(ops, karte));
   }
 
   /** Laufende Änderung (Pinselstrich, Ziehen) in die offene Verlaufsgruppe sammeln (verlauf.beginne/beende) */
   sammle(ops) {
     const k = this.karte;
     if (!k) return [];
-    const fertig = k.anwenden(this.#ohneGesperrte(ops));
+    const fertig = k.anwenden(this.#ohneGesperrte(ops, k));
     this.verlauf.sammle(fertig);
     return fertig;
   }
 
   #gesperrtGemeldet = 0;
-  #ohneGesperrte(ops) {
+  #ohneGesperrte(ops, karte = this.karte) {
     const { ops: frei, ausgelassen } = filtereGesperrt(this.ebenen, ops);
     const namen = Object.keys(ausgelassen);
-    if (namen.length && performance.now() - this.#gesperrtGemeldet > 1500) {
+    // einzelne gesperrte Bereichs-Zonen (Zonen-Manager, Schritt 6.1)
+    const zonen = filtereGesperrteZonen(karte, frei);
+    if ((namen.length || zonen.ausgelassen) && performance.now() - this.#gesperrtGemeldet > 1500) {
       this.#gesperrtGemeldet = performance.now();
-      this.meldung(`🔒 Ebene ${namen.map((id) => `„${EBENEN.find((e) => e.id === id)?.name ?? id}“`).join(', ')} gesperrt oder ausgeblendet – Änderung ausgelassen (Reiter Ebenen)`, 'fehler');
+      if (namen.length) this.meldung(`🔒 Ebene ${namen.map((id) => `„${EBENEN.find((e) => e.id === id)?.name ?? id}“`).join(', ')} gesperrt oder ausgeblendet – Änderung ausgelassen (Reiter Ebenen)`, 'fehler');
+      else this.meldung('🔒 Zone gesperrt – Änderung ausgelassen (Reiter ▭ Bereiche)', 'fehler');
     }
-    return frei;
+    return zonen.ops;
+  }
+
+  /** Bereichs-Zone eines Eintrags anklickbar? (nicht ausgeblendet/gesperrt im Zonen-Manager) */
+  zoneFrei(s, k, karte = this.karte) {
+    const a = karte ? eintragAnzeige(karte, s, k) : null;
+    return !a || (!a.aus && !a.sperre);
   }
 
   // --- Ebenen ------------------------------------------------------------------

@@ -1,3 +1,5 @@
+import { eintragAnzeige } from '../kern/zonenManager.js';
+import { lootVorschau } from '../kern/lootZonenEditor.js';
 import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
 import { ausSchluessel } from '../kern/karte.js';
 import { kachelInfo, objektInfo } from '../kern/katalog.js';
@@ -386,13 +388,17 @@ export class Zeichner2D {
     ctx.save();
     for (const [id, r] of k.s('raumFlaechen')) {
       const rb = this.#rechteckBild(r.x, r.y, r.b, r.h);
-      if (!this.#sichtbar(rb)) continue;
-      ctx.fillStyle = this.zustand.istGewaehlt('raumFlaechen', id) ? 'rgba(255,184,77,0.45)' : 'rgba(255,184,77,0.18)';
+      const a = eintragAnzeige(k, 'raumFlaechen', id);
+      if (a.aus || !this.#sichtbar(rb)) continue;
+      ctx.globalAlpha = this.dimm * (a.sperre ? 0.35 : 1);
+      ctx.fillStyle = `${a.farbe ?? '#ffb84d'}${this.zustand.istGewaehlt('raumFlaechen', id) ? '73' : '2e'}`;
       ctx.fillRect(rb.x, rb.y, rb.b, rb.h);
     }
+    ctx.globalAlpha = this.dimm;
     // Raumnamen: einmal je Raum (Mitte der Flächen)
     const raeume = new Map();
-    for (const [, r] of k.s('raumFlaechen')) {
+    for (const [id, r] of k.s('raumFlaechen')) {
+      if (eintragAnzeige(k, 'raumFlaechen', id).aus) continue;
       const e = raeume.get(r.raum) ?? { x: 0, y: 0, n: 0 };
       e.x += (r.x + r.b / 2) * r.b * r.h;
       e.y += (r.y + r.h / 2) * r.b * r.h;
@@ -405,13 +411,43 @@ export class Zeichner2D {
         this.#text(ctx, `${raum}: ${k.s('raeume').get(raum)?.name ?? '?'}`, p.x, p.y, '#ffd9a0');
       }
     for (const [id, t] of k.s('tierBereiche')) {
+      const a = eintragAnzeige(k, 'tierBereiche', id);
+      if (a.aus) continue;
+      ctx.globalAlpha = this.dimm * (a.sperre ? 0.35 : 1);
       const rb = this.#rechteckBild(t.x, t.y, t.b, t.h);
       ctx.setLineDash([6, 4]);
-      ctx.strokeStyle = this.zustand.istGewaehlt('tierBereiche', id) ? '#fff' : '#c8a27a';
+      ctx.strokeStyle = this.zustand.istGewaehlt('tierBereiche', id) ? '#fff' : (a.farbe ?? '#c8a27a');
       ctx.lineWidth = 2;
       ctx.strokeRect(rb.x, rb.y, rb.b, rb.h);
       ctx.setLineDash([]);
       if (this.zoom >= 5) this.#text(ctx, `🐇 ×${t.anzahl}`, rb.x + rb.b / 2, rb.y + 10, '#f3dcc0');
+    }
+    // Loot-Zonen (6.2): gold gestrichelt; gewählt = Vorschau der Punkte (gleiche Regel wie das Spiel)
+    for (const [id, z] of k.s('lootZonen')) {
+      const a = eintragAnzeige(k, 'lootZonen', id);
+      if (a.aus) continue;
+      const gew = this.zustand.istGewaehlt('lootZonen', id);
+      const farbe = a.farbe ?? '#ffd23f';
+      ctx.globalAlpha = this.dimm * (a.sperre ? 0.35 : 1);
+      const rb = this.#rechteckBild(z.x, z.y, z.b, z.h);
+      ctx.fillStyle = `${farbe}${gew ? '30' : '14'}`;
+      ctx.fillRect(rb.x, rb.y, rb.b, rb.h);
+      ctx.setLineDash([4, 3]);
+      ctx.strokeStyle = gew ? '#fff' : farbe;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(rb.x, rb.y, rb.b, rb.h);
+      ctx.setLineDash([]);
+      if (gew) {
+        const v = lootVorschau(k, id);
+        ctx.fillStyle = farbe;
+        for (const [x, y] of v.punkte) {
+          const p = this.zuBild(x + 0.5, y + 0.5);
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, Math.max(2.5, this.zoom * 0.18), 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      if (this.zoom >= 5) this.#text(ctx, `🎁 ${z.name ?? 'Loot'} · ${z.punkte ?? '?'} Punkte`, rb.x + rb.b / 2, rb.y + 10, '#ffe9a0');
     }
     ctx.restore();
   }
@@ -424,13 +460,16 @@ export class Zeichner2D {
     const z = this.zoom;
     const globale = [];
     for (const [id, c] of k.s('klaenge')) {
+      const a = eintragAnzeige(k, 'klaenge', id);
+      if (a.aus) continue;
       const gew = this.zustand.istGewaehlt('klaenge', id);
-      const farbe = gew ? '#ffffff' : '#7fd6ff';
+      const farbe = gew ? '#ffffff' : (a.farbe ?? '#7fd6ff');
       if (c.art === 'global') {
         globale.push(c);
         continue;
       }
       ctx.save();
+      ctx.globalAlpha = this.dimm * (a.sperre ? 0.35 : 1);
       if (c.art === 'punkt') {
         const p = this.zuBild(c.x, c.y);
         ctx.fillStyle = 'rgba(127,214,255,0.13)';
@@ -651,13 +690,18 @@ export class Zeichner2D {
 
   #zeichneUebergaenge(ctx, k) {
     for (const [id, u] of k.s('uebergaenge')) {
+      const a = eintragAnzeige(k, 'uebergaenge', id);
+      if (a.aus) continue;
+      ctx.save();
+      ctx.globalAlpha = this.dimm * (a.sperre ? 0.35 : 1);
       const r = this.#rechteckBild(u.x, u.y, u.b, u.h);
-      ctx.fillStyle = 'rgba(43,140,255,0.3)';
+      ctx.fillStyle = `${a.farbe ?? '#2b8cff'}4d`;
       ctx.fillRect(r.x, r.y, r.b, r.h);
-      ctx.strokeStyle = this.zustand.istGewaehlt('uebergaenge', id) ? '#fff' : '#2b8cff';
+      ctx.strokeStyle = this.zustand.istGewaehlt('uebergaenge', id) ? '#fff' : (a.farbe ?? '#2b8cff');
       ctx.lineWidth = 2;
       ctx.strokeRect(r.x + 1, r.y + 1, r.b - 2, r.h - 2);
       this.#text(ctx, `→ ${u.ziel || '?'} (${u.ankunft || '?'})`, r.x + r.b / 2, r.y + r.h / 2, '#cfe4ff');
+      ctx.restore();
     }
   }
 

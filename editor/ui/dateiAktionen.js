@@ -132,6 +132,21 @@ export function dateiAktionen({ zustand, zeichner, werkzeuge, aktionen, rechts, 
       herunterladen('LIESMICH.txt', `${LIESMICH_TEXT.join('\n\n')}\n\nKI-Änderungen zurückgeben (Aktionsliste):\n${AKTIONEN_ANLEITUNG.map((z) => `  ${z}`).join('\n')}\n`, 'text/plain');
     },
 
+    /** Archiv-Eintrag zurückholen bzw. endgültig löschen (Sicherung wird vorher geladen) */
+    async archivZurueck(id) {
+      const fehler = await zustand.holeAusArchiv(id);
+      if (fehler) return zustand.meldung(fehler, 'fehler');
+      zeichner.einpassen();
+      zustand.meldung(`♻ „${id}“ aus dem Archiv zurückgeholt`, 'ok');
+    },
+
+    async archivLoeschen(id) {
+      const a = (await zustand.archiv())[id];
+      if (!a || !(await bestaetigen('Aus dem Archiv löschen', `„${esc(a.name)}“ (${esc(id)}) endgültig löschen? Die Sicherung wird vorher heruntergeladen.`, { ok: 'Löschen', gefahr: true }))) return;
+      herunterladen(`${id}.entwurf.json`, JSON.stringify(a.entwurf));
+      await zustand.loescheAusArchiv(id);
+    },
+
     async veroeffentlichen() {
       const k = zustand.karte;
       if (!k) return;
@@ -171,7 +186,7 @@ export function dateiAktionen({ zustand, zeichner, werkzeuge, aktionen, rechts, 
           /* gesperrt oder kaputt → weglassen */
         }
       }
-      const b = baueBackup({ entwuerfe: [...zustand.zonen].map(([id, e]) => ({ id, entwurf: entwurfJson(e.karte, e.verlauf) })), prefabs, meta: { layout: zustand.layout, aktiv: zustand.aktivId }, einstellungen, bibliothek: bibliothek?.exportiere() ?? [], audio: audioBibliothek?.exportiere() ?? [] });
+      const b = baueBackup({ entwuerfe: [...zustand.zonen].map(([id, e]) => ({ id, entwurf: entwurfJson(e.karte, e.verlauf) })), archiv: await zustand.archiv(), prefabs, meta: { layout: zustand.layout, aktiv: zustand.aktivId }, einstellungen, bibliothek: bibliothek?.exportiere() ?? [], audio: audioBibliothek?.exportiere() ?? [] });
       const text = JSON.stringify(b);
       herunterladen(backupDateiname(), text);
       zustand.meldung(`🛟 Komplett-Backup: ${b.entwuerfe.length} Zonen, ${Object.keys(prefabs).length} Prefabs, ${b.bibliothek.length} Modelle, ${b.audio.length} Audio (${groesseText(text.length)})`, 'ok');
@@ -208,6 +223,7 @@ export function dateiAktionen({ zustand, zeichner, werkzeuge, aktionen, rechts, 
         n++;
       }
       if (w.prefabs) for (const [name, v] of Object.entries(b.prefabs)) await zustand.speicher.setze('prefabs', name, v);
+      if (Object.keys(b.archiv).length) await zustand.speicher.setze('meta', 'archiv', { ...(await zustand.archiv()), ...b.archiv });
       if (w.einst) {
         Object.assign(zustand.layout, b.meta.layout);
         await zustand.speicher.setze('meta', 'layout', zustand.layout);
@@ -239,11 +255,33 @@ export function dateiAktionen({ zustand, zeichner, werkzeuge, aktionen, rechts, 
       }).then((x) => x === 'backup' && datei.backup());
     },
 
-    async zoneEntfernen() {
-      const k = zustand.karte;
-      if (!k) return;
-      if (await bestaetigen('Zone entfernen', `„${esc(k.name)}“ (${esc(k.id)}) aus dem Projekt entfernen? Der lokale Entwurf wird gelöscht (vorher sichern: Datei → Komplett-Backup oder Entwurf herunterladen).`, { ok: 'Entfernen', gefahr: true })) await zustand.entferneZone(k.id);
+    /**
+     * Zone entfernen (Schritt 6.1): Archivieren ist der Standard (Entwurf + Verlauf bleiben, jederzeit zurückholbar);
+     * endgültiges Löschen nur mit Bestätigung und lädt vorher automatisch eine Sicherung (Entwurf-Datei mit Modellen/Audio).
+     */
+    async zoneEntfernen(id = zustand.aktivId) {
+      const e = zustand.zonen.get(id);
+      if (!e) return;
+      const k = e.karte;
+      const w = await dialog({
+        titel: `🗄 „${k.name}“ entfernen`,
+        html: `<p><b>Archivieren</b> nimmt die Zone aus dem Projekt, behält sie aber mit Verlauf (Reiter 🗺 Zonen → Archiv → ♻ zurückholen, auch im Komplett-Backup).</p><p class="leise">Endgültig löschen lädt vorher eine Sicherung (${esc(id)}.entwurf.json) herunter.</p>`,
+        knoepfe: [{ text: 'Abbrechen', wert: null }, { text: '🗑 Sicherung laden & endgültig löschen', art: 'gefahr', wert: 'loeschen' }, { text: '🗄 Archivieren', art: 'akzent', wert: 'archiv' }],
+      });
+      if (w === 'archiv') {
+        if (await zustand.archiviereZone(id)) zustand.meldung(`🗄 „${k.name}“ archiviert – zurückholen im Reiter 🗺 Zonen`, 'ok');
+        else zustand.meldung('Archivieren fehlgeschlagen (Speicher?) – Zone bleibt im Projekt', 'fehler');
+      } else if (w === 'loeschen') {
+        if (!(await bestaetigen('Endgültig löschen?', `„${esc(k.name)}“ (${esc(id)}) wirklich löschen? Die Sicherung wird jetzt heruntergeladen.`, { ok: 'Löschen', gefahr: true }))) return;
+        await zustand.speichereJetzt(id);
+        herunterladen(`${id}.entwurf.json`, JSON.stringify(entwurfDatei(k, e.verlauf)));
+        await zustand.entferneZone(id);
+        zustand.meldung(`🗑 „${k.name}“ gelöscht (Sicherung heruntergeladen)`, 'ok');
+      }
     },
   };
+  aktionen.zoneEntfernen = (id) => datei.zoneEntfernen(id);
+  aktionen.archivZurueck = (id) => datei.archivZurueck(id);
+  aktionen.archivLoeschen = (id) => datei.archivLoeschen(id);
   return datei;
 }

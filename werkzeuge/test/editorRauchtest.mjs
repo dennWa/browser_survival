@@ -778,6 +778,89 @@ try {
   }
 
   if (!nurBis) {
+    schritt('Phase 6.1: Zonen-Manager – ausblenden/sperren je Zone, Farbe, Undo, Ablage + Einsetzen, Zone archivieren + zurückholen');
+    const zm = (code, arg) => seite.evaluate(code, arg);
+    await zm(() => {
+      const z = window.mapEditor.zustand;
+      z.ausfuehren('Hasen für den Test', [{ s: 'tierBereiche', k: z.karte.naechsteId, neu: { x: 1, y: 1, b: 3, h: 3, art: 'hase', anzahl: 1 } }]);
+    });
+    await seite.click('#rechts [data-reiter="▭ Bereiche"]');
+    await seite.waitForSelector('#rechts .zonen-liste [data-schl^="tierBereiche|"]');
+    const tierSchl = await seite.getAttribute('#rechts .zonen-liste [data-schl^="tierBereiche|"]', 'data-schl');
+    const tierId = Number(tierSchl.split('|')[1]);
+    // Schalter klicken, bis die Liste den neuen Zustand zeigt (der Reiter zeichnet nach Kartenänderungen verzögert neu)
+    const schalte = async (feld, ziel) => {
+      for (let i = 0; i < 3; i++) {
+        await seite.click(`#rechts [data-schl="${tierSchl}"] [data-z="${feld}"]`);
+        if (await seite.waitForSelector(`#rechts [data-schl="${tierSchl}"] [data-z="${feld}"][aria-pressed="${ziel}"]`, { timeout: 2000 }).then(() => true).catch(() => false)) return;
+      }
+    };
+    await schalte('aus', 'false');
+    pruefe(!(await zm((id) => window.mapEditor.zustand.zoneFrei('tierBereiche', id), tierId)), 'Zone ausgeblendet → nicht anklickbar');
+    await seite.keyboard.press('Control+z');
+    pruefe(await zm((id) => window.mapEditor.zustand.zoneFrei('tierBereiche', id), tierId), 'Ausblenden ist rückgängig machbar');
+    await seite.waitForSelector(`#rechts [data-schl="${tierSchl}"] [data-z="aus"][aria-pressed="true"]`);
+    await schalte('sperre', 'true');
+    const gesperrt = await zm((id) => {
+      const z = window.mapEditor.zustand;
+      z.ausfuehren('Versuch', [{ s: 'tierBereiche', k: id, neu: null }]);
+      return z.karte.s('tierBereiche').has(id);
+    }, tierId);
+    pruefe(gesperrt, 'Gesperrte Zone bleibt bei Änderungen unverändert');
+    await schalte('sperre', 'false');
+    await seite.locator(`#rechts [data-schl="${tierSchl}"] input[data-z="farbe"]`).evaluate((f) => {
+      f.value = '#ff00aa';
+      f.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    pruefe((await zm(() => window.mapEditor.zustand.karte.werte.zonenAnzeige)) && JSON.stringify(await zm(() => window.mapEditor.zustand.karte.werte.zonenAnzeige)).includes('#ff00aa'), 'Zonen-Farbe gespeichert');
+    await seite.click(`#rechts [data-schl="${tierSchl}"] [data-z="ablage"]`);
+    await seite.click(`#rechts [data-schl="${tierSchl}"] [data-z="loeschen"]`);
+    await seite.click('#dialog button:has-text("Löschen")');
+    pruefe((await zm(() => window.mapEditor.zustand.karte.s('tierBereiche').size)) === 0, 'Zone gelöscht');
+    await seite.click('#rechts .ablage-liste [data-a="einsetzen"]');
+    pruefe((await zm(() => window.mapEditor.zustand.karte.s('tierBereiche').size)) === 1, 'Aus der Ablage wieder eingesetzt');
+    await seite.screenshot({ path: path.join(AUSGABE, 'editor-15-bereiche.png') });
+    // Welt-Zone archivieren statt löschen und zurückholen
+    await zm(() => {
+      window.mapEditor.aktionen.zoneEntfernen('waldweg'); // nicht abwarten: wartet auf die Dialog-Antwort
+    });
+    await seite.click('#dialog button:has-text("Archivieren")');
+    await seite.waitForFunction(() => !window.mapEditor.zustand.zonen.has('waldweg'));
+    pruefe((await zm(async () => Object.keys(await window.mapEditor.zustand.archiv()))).includes('waldweg'), 'Zone archiviert (nicht gelöscht)');
+    await seite.click('#links [data-reiter="🗺 Zonen"]');
+    await seite.click('#links [data-archiv="waldweg"] [data-a="zurueck"]');
+    await seite.waitForFunction(() => window.mapEditor.zustand.zonen.has('waldweg'));
+    pruefe((await zm(async () => Object.keys(await window.mapEditor.zustand.archiv()).length)) === 0, 'Zone aus dem Archiv zurückgeholt');
+    await zm(() => window.mapEditor.zustand.aktiviere('testzone'));
+    await seite.click('#links [data-reiter="🧱 Assets"]');
+  }
+
+  if (!nurBis) {
+    schritt('Phase 6.2: Loot-Zone ziehen, Item-Chancen, erwartete Ausbeute, Prüfung');
+    await seite.evaluate(() => window.mapEditor.zeichner.einpassen());
+    await asset('bereich:loot');
+    await ziehe([1, 1], [5, 3]);
+    const lz = await seite.evaluate(() => [...window.mapEditor.zustand.karte.s('lootZonen')].map(([id, z]) => ({ id, b: z.b, h: z.h, n: z.eintraege.length }))[0]);
+    pruefe(lz && lz.b === 5 && lz.h === 3 && lz.n > 0, `Loot-Zone gezogen mit Startliste (${JSON.stringify(lz)})`);
+    await seite.click('#rechts [data-reiter="Inspektor"]');
+    await seite.waitForSelector('#rechts .loot-ausbeute table');
+    await seite.selectOption('#rechts [name="modus"]', 'chance');
+    await seite.waitForFunction((id) => window.mapEditor.zustand.karte.s('lootZonen').get(id).modus === 'chance', lz.id);
+    const summe = await seite.evaluate((id) => window.mapEditor.zustand.karte.s('lootZonen').get(id).eintraege.reduce((s, e) => s + e.chance, 0), lz.id);
+    pruefe(Math.abs(summe - 100) < 1, `Wechsel auf exakte Chancen ergibt ~100 % (${summe})`);
+    await seite.evaluate((id) => {
+      const z = window.mapEditor.zustand;
+      const alt = z.karte.s('lootZonen').get(id);
+      z.ausfuehren('Test', [{ s: 'lootZonen', k: id, neu: { ...alt, eintraege: [...alt.eintraege, { id: 'gibtsnicht', chance: 50 }] } }]);
+    }, lz.id);
+    const codes = await seite.evaluate(async () => (await import('/editor/kern/validierung.js')).validiere(window.mapEditor.zustand.karte).filter((p) => p.code.startsWith('loot-zone')).map((p) => p.text));
+    pruefe(codes.some((t) => t.includes('gibtsnicht')), `Prüfung meldet unbekanntes Item (${codes.length} Meldungen)`);
+    await seite.keyboard.press('Control+z');
+    await seite.screenshot({ path: path.join(AUSGABE, 'editor-16-lootzone.png') });
+    await seite.keyboard.press('Escape');
+  }
+
+  if (!nurBis) {
     schritt('Touch (Handy): Ansehen + Schwenken mit dem Finger');
     const handy = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
     const h = await handy.newPage();

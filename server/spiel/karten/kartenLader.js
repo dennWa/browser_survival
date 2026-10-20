@@ -3,6 +3,7 @@ import { KACHELN, MARKER, istKachel, istLootMarker } from '../../../gemeinsam/we
 import { BAUWERKE } from '../../../gemeinsam/welt/bauwerke.js';
 import { liesHoehen, klippenFuesse } from '../../../gemeinsam/welt/gelaende.js';
 import { pruefeKlang } from '../../../gemeinsam/audio/klanglandschaft.js';
+import { pruefeLootZone, punkteDerZone } from './lootZonen.js';
 import { pruefeZonenEinstellungen } from './zonenEinstellungen.js';
 import { STADTRAND } from './stadtrand.js';
 import { WALDWEG } from './waldweg.js';
@@ -38,6 +39,7 @@ export const KARTEN = Object.freeze({
  *   tierBereiche [{ x, y, b, h, art, anzahl, respawnZeit? }] → Hasen nur dort (tierSystem)
  *   einstellungen → Zonen-Werte (zonenEinstellungen.js), musik → daten.musik (Client: Musik-Ordner)
  *   klaenge → daten.klaenge (Klanglandschaft, gemeinsam/audio/klanglandschaft.js; nur mit Datei/eingebetteten Daten)
+ *   lootZonen → zusätzliche lootPunkte mit `lootZone` (Regeln: lootZonen.js; nur Server, der Client sieht nur die Items)
  *   bemalung { '#rrggbb': [[x, y, b, h]] } → daten.bemalung (nur Optik: Client malt es in die Bodentextur)
  */
 export function ladeKarte(id) {
@@ -147,6 +149,23 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE, { au
   const tierBereiche = (Array.isArray(definition.tierBereiche) ? definition.tierBereiche : [])
     .filter((t) => imFeld(t?.x, t?.y) && Number.isInteger(t.b) && Number.isInteger(t.h) && t.b > 0 && t.h > 0 && imFeld(t.x + t.b - 1, t.y + t.h - 1) && Number.isInteger(t.anzahl) && t.anzahl >= 0)
     .map((t) => ({ x: t.x, y: t.y, b: t.b, h: t.h, art: 'hase', anzahl: Math.min(t.anzahl, 100), ...(t.respawnZeit > 0 ? { respawnZeit: t.respawnZeit } : {}) }));
+  // Loot-Zonen (Map-Editor 6.2): Punkte fest verteilt auf freien Kacheln (keine Wand/Wasser, kein blockierendes Möbel,
+  // kein Klippenfuß), je nach Zone nur innen/außen; der Punkt trägt die Zone (lootSystem würfelt daraus)
+  (Array.isArray(definition.lootZonen) ? definition.lootZonen : []).forEach((roh, nr) => {
+    const { zone } = pruefeLootZone(roh, { breite, hoehe });
+    if (!zone) return;
+    const belegt = (x, y) => objekte.some((o) => o.blockiert && o.ebene !== 'oben' && x + 0.5 > o.x && x + 0.5 < o.x + o.b && y + 0.5 > o.y && y + 0.5 < o.y + o.h);
+    const kachel = (x, y) => {
+      const k = KACHELN[kacheln[y]?.[x]];
+      return { frei: !!k && !k.blockiert && !k.wasser && !belegt(x, y), innen: !!k?.innen };
+    };
+    for (const [x, y] of punkteDerZone(zone, kachel, nr)) {
+      const punkt = { x: mitte(x), y: mitte(y), lootZone: zone, zoneNr: nr };
+      if (zone.respawnZeit) punkt.respawnZeit = zone.respawnZeit;
+      lootPunkte.push(punkt);
+    }
+  });
+
   const daten = { id: definition.id, name: definition.name, breite, hoehe, kachelGroesse, kacheln, raeume, objekte, uebergaenge };
   if (hoehen) daten.hoehen = hoehen;
   const typen = pruefeTypen(definition.typen);

@@ -10,6 +10,7 @@ import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
 import { ebeneVon } from '../kern/ebenen.js';
 import { objektInfo } from '../kern/katalog.js';
 import { neuerKlang } from '../../gemeinsam/audio/klanglandschaft.js';
+import { neueLootZone } from '../../server/spiel/karten/lootZonen.js';
 import { LINEAL } from './zeichner2d.js';
 import { STANDARD_KONFIGURATION } from '../../server/spiel/konfiguration/spielKonfiguration.js';
 
@@ -325,10 +326,12 @@ export class Werkzeuge {
     }
     if (treffer || krone) return treffer ?? krone;
     // Klänge: Punkt = Symbol/innerer Kreis, Bereich = Rechteck (nach den anderen Bereichen)
-    if (frei('klaenge')) for (const [id, c] of k.s('klaenge')) if (c.art === 'punkt' && Math.hypot(p.wx - c.x, p.wy - c.y) <= Math.max(0.7, Math.min(c.innen, 2))) return { s: 'klaenge', k: id };
-    for (const s of ['uebergaenge', 'tierBereiche', 'raumFlaechen'])
-      if (frei(s)) for (const [id, r] of k.s(s)) if (p.wx >= r.x && p.wx < r.x + r.b && p.wy >= r.y && p.wy < r.y + r.h) return { s, k: id };
-    if (frei('klaenge')) for (const [id, c] of k.s('klaenge')) if (c.art === 'bereich' && p.wx >= c.x && p.wx < c.x + c.b && p.wy >= c.y && p.wy < c.y + c.h) return { s: 'klaenge', k: id };
+    // Bereichs-Zonen: ausgeblendete/gesperrte (Zonen-Manager) sind nicht anklickbar
+    const zf = (s, id) => this.zustand.zoneFrei(s, id);
+    if (frei('klaenge')) for (const [id, c] of k.s('klaenge')) if (c.art === 'punkt' && zf('klaenge', id) && Math.hypot(p.wx - c.x, p.wy - c.y) <= Math.max(0.7, Math.min(c.innen, 2))) return { s: 'klaenge', k: id };
+    for (const s of ['uebergaenge', 'lootZonen', 'tierBereiche', 'raumFlaechen'])
+      if (frei(s)) for (const [id, r] of k.s(s)) if (zf(s, id) && p.wx >= r.x && p.wx < r.x + r.b && p.wy >= r.y && p.wy < r.y + r.h) return { s, k: id };
+    if (frei('klaenge')) for (const [id, c] of k.s('klaenge')) if (c.art === 'bereich' && zf('klaenge', id) && p.wx >= c.x && p.wx < c.x + c.b && p.wy >= c.y && p.wy < c.y + c.h) return { s: 'klaenge', k: id };
     return null;
   }
 
@@ -353,8 +356,9 @@ export class Werkzeuge {
     for (const s of ['objekte', 'bauwerke', 'tierBereiche', 'raumFlaechen', 'marker']) for (const k of e[s]) liste.push({ s, k });
     for (const [id, u] of this.karte.s('uebergaenge')) if (u.x >= r.x && u.y >= r.y && u.x + u.b <= r.x + r.b && u.y + u.h <= r.y + r.h) liste.push({ s: 'uebergaenge', k: id });
     for (const [n, a] of this.karte.s('ankuenfte')) if (a.x >= r.x && a.y >= r.y && a.x < r.x + r.b && a.y < r.y + r.h) liste.push({ s: 'ankuenfte', k: n });
+    for (const [id, z] of this.karte.s('lootZonen')) if (z.x >= r.x && z.y >= r.y && z.x + z.b <= r.x + r.b && z.y + z.h <= r.y + r.h) liste.push({ s: 'lootZonen', k: id });
     for (const [id, c] of this.karte.s('klaenge')) if (c.art === 'punkt' && c.x >= r.x && c.y >= r.y && c.x <= r.x + r.b && c.y <= r.y + r.h) liste.push({ s: 'klaenge', k: id });
-    this.zustand.waehle(liste.filter(({ s }) => this.zustand.ebeneFrei(ebeneVon(s))), umschalt);
+    this.zustand.waehle(liste.filter(({ s, k }) => this.zustand.ebeneFrei(ebeneVon(s)) && this.zustand.zoneFrei(s, k)), umschalt);
     this.zustand.meldung(`Bereich x ${r.x}–${r.x + r.b - 1}, y ${r.y}–${r.y + r.h - 1} (${r.b} × ${r.h}) · ${liste.length} Elemente – Strg+C kopiert, Export → Ausschnitt`);
   }
 
@@ -718,6 +722,12 @@ export class Werkzeuge {
     const pr = pruefeBereich(this.karte, e.sammlung, r);
     if (!pr.ok) return this.zustand.meldung(pr.grund, 'fehler');
     if (e.sammlung === 'uebergaenge') return this.aktionen.uebergangAnlegen(r);
+    if (e.sammlung === 'lootZonen') {
+      const nr = this.karte.naechsteId;
+      this.zustand.ausfuehren('Loot-Zone', [{ s: 'lootZonen', k: nr, neu: neueLootZone(r, { name: `Loot-Zone ${this.karte.s('lootZonen').size + 1}` }) }]);
+      this.zustand.waehle([{ s: 'lootZonen', k: nr }]);
+      return this.zustand.meldung('🎁 Loot-Zone angelegt (Startliste „Lager“) – Items, Chancen und Punkte im Inspektor', 'ok');
+    }
     if (e.sammlung === 'raumFlaechen') return this.aktionen.raumFlaecheAnlegen([r]);
     const id = this.karte.naechsteId;
     // Standard wie im Spiel: hasenProTausend je 1000 Kacheln (Zonen-Wert oder global), mindestens 1

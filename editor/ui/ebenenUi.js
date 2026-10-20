@@ -21,6 +21,7 @@ export function ebenenUi({ zustand, leiste }) {
         bauwerke: k.s('bauwerke').size,
         marker: k.s('marker').size + k.s('ankuenfte').size,
         uebergaenge: k.s('uebergaenge').size,
+        klaenge: k.s('klaenge').size,
       };
       el.innerHTML = `<p class="leise">👁 = sichtbar · 🔒 = gesperrt (ausgegraut, nicht anklickbar, wird nicht verändert)</p>
         <ul class="ebenen-liste">${[...EBENEN].reverse().map((e) => {

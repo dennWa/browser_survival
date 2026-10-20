@@ -16,6 +16,7 @@
  *     typen         Typ-ID  → eigener Objekttyp { name, kategorie, b, h, blockiert, ebene, farbe?, bild?, modus? }
  *     texturen      Typ-ID  → { farbe?, muster? }              (Bemalung pro Typ; pro Objekt: objekt.farbe/textur)
  *     bemalung      "x,y"   → '#rrggbb'                          (Farbe auf dem Boden, Phase 10 – Spiel malt sie in die Bodentextur)
+ *     lootZonen     Zahl-ID → Loot-Zone { name, x, y, b, h, modus, eintraege, punkte, ort, … } (6.2, server/spiel/karten/lootZonen.js)
  *     klaenge       Zahl-ID → Klang { name, audio, art punkt|bereich|global, … } (Editor 2.0 Phase 4, gemeinsam/audio/klanglandschaft.js)
  *   werte       { id, name, musik?, einstellungen: { wetter, zombie, tiere, loot } } (freie JSON-Werte, Pfad-Zugriff)
  *
@@ -28,9 +29,9 @@
  *   { s: 'raster', neu: { breite, hoehe, zellen, hoehen } }   ganzes Raster tauschen (Größe ändern)
  * `anwenden` trägt `alt` selbst ein und lässt No-ops weg; `umkehren(ops)` liefert die Gegenoperationen.
  */
-export const SAMMLUNGEN = Object.freeze(['objekte', 'uebergaenge', 'bauwerke', 'tierBereiche', 'raumFlaechen', 'marker', 'raeume', 'ankuenfte', 'typen', 'texturen', 'bemalung', 'klaenge']);
+export const SAMMLUNGEN = Object.freeze(['objekte', 'uebergaenge', 'bauwerke', 'tierBereiche', 'raumFlaechen', 'marker', 'raeume', 'ankuenfte', 'typen', 'texturen', 'bemalung', 'klaenge', 'lootZonen']);
 /** Sammlungen mit Zahl-IDs (neue Einträge bekommen naechsteId) */
-export const ID_SAMMLUNGEN = Object.freeze(['objekte', 'uebergaenge', 'bauwerke', 'tierBereiche', 'raumFlaechen', 'klaenge']);
+export const ID_SAMMLUNGEN = Object.freeze(['objekte', 'uebergaenge', 'bauwerke', 'tierBereiche', 'raumFlaechen', 'klaenge', 'lootZonen']);
 
 /** Tiefe Kopie (nur JSON-Daten). */
 export const kopie = (v) => (v === undefined ? undefined : JSON.parse(JSON.stringify(v)));

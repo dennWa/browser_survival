@@ -9,14 +9,14 @@ import { leseBibliotheksExport, leseAudioExport } from './bibliothek.js';
  *   { format: 'browser-survival-editor-backup', formatVersion: 1, erstellt, entwuerfe: [{ id, entwurf }], prefabs: { name: vorlage },
  *     meta: { layout, aktiv }, einstellungen: { schluessel: wert }, bibliothek: [{ …Meta, daten: Data-URL }] }
  * `bibliothek` (Phase 3) = 3D-Modelle, `audio` (Phase 4) = Klang-Dateien der Projekt-Bibliothek (kern/bibliothek.js);
- * ältere Backups haben sie nicht.
+ * ältere Backups haben sie nicht. `archiv` (Schritt 6.1) = archivierte Zonen { id: { name, archiviert, layout, entwurf } }.
  */
 export const BACKUP_FORMAT = 'browser-survival-editor-backup';
 export const BACKUP_VERSION = 1;
 /** localStorage-Schlüssel, die ins Backup dürfen (nichts Geheimes!) */
 export const EINSTELLUNGEN_WHITELIST = Object.freeze(['browserSurvival.editorEbenen', 'browserSurvival.editorLayout', 'browserSurvival.editorAssets']);
 
-export function baueBackup({ entwuerfe = [], prefabs = {}, meta = {}, einstellungen = {}, bibliothek = [], audio = [], erstellt = new Date().toISOString() }) {
+export function baueBackup({ entwuerfe = [], archiv = {}, prefabs = {}, meta = {}, einstellungen = {}, bibliothek = [], audio = [], erstellt = new Date().toISOString() }) {
   const erlaubt = Object.fromEntries(Object.entries(einstellungen).filter(([k]) => EINSTELLUNGEN_WHITELIST.includes(k)));
   return {
     format: BACKUP_FORMAT,
@@ -28,6 +28,7 @@ export function baueBackup({ entwuerfe = [], prefabs = {}, meta = {}, einstellun
     einstellungen: erlaubt,
     bibliothek,
     audio,
+    archiv,
   };
 }
 
@@ -60,7 +61,7 @@ export function leseBackup(eingabe) {
   for (const [name, v] of Object.entries(j.prefabs && typeof j.prefabs === 'object' ? j.prefabs : {})) if (v && Array.isArray(v.zellen) && v.b > 0 && v.h > 0) prefabs[name] = v;
   const einstellungen = Object.fromEntries(Object.entries(j.einstellungen && typeof j.einstellungen === 'object' ? j.einstellungen : {}).filter(([k]) => EINSTELLUNGEN_WHITELIST.includes(k)));
   const layout = j.meta?.layout && typeof j.meta.layout === 'object' ? j.meta.layout : {};
-  return { erstellt: j.erstellt ?? null, entwuerfe, fehlerhaft, prefabs, meta: { layout, aktiv: typeof j.meta?.aktiv === 'string' ? j.meta.aktiv : null }, einstellungen, bibliothek: leseBibliotheksExport(j.bibliothek), audio: leseAudioExport(j.audio) };
+  return { erstellt: j.erstellt ?? null, entwuerfe, fehlerhaft, prefabs, meta: { layout, aktiv: typeof j.meta?.aktiv === 'string' ? j.meta.aktiv : null }, einstellungen, bibliothek: leseBibliotheksExport(j.bibliothek), audio: leseAudioExport(j.audio), archiv: leseArchiv(j.archiv) };
 }
 
 /** Dateiname mit Zeitstempel: editor-backup-2026-10-19-1432.json */
@@ -80,4 +81,18 @@ export function groesseText(bytes) {
     i++;
   }
   return `${w.toFixed(i && w < 10 ? 1 : 0).replace('.', ',')} ${einheiten[i]}`;
+}
+
+/** Archiv aus einem Backup: nur Einträge mit lesbarem Entwurf (kaputte fallen weg) */
+function leseArchiv(roh) {
+  const aus = {};
+  for (const [id, a] of Object.entries(roh && typeof roh === 'object' ? roh : {})) {
+    try {
+      ladeDatei(a.entwurf);
+      aus[id] = { name: String(a.name ?? id), archiviert: a.archiviert ?? null, layout: a.layout ?? null, entwurf: a.entwurf };
+    } catch {
+      /* beschädigt → weglassen */
+    }
+  }
+  return aus;
 }

@@ -84,7 +84,7 @@ export function inspektor({ zustand, leiste, aktionen, befehle }) {
     if (gew.length === 0) return zone(el, k);
     if (gew.length > 1) return mehrere(el, gew);
     const { s, k: schl, wert } = gew[0];
-    const titel = { objekte: () => `${objektInfo(wert.typ, k).name} (${wert.typ})`, marker: () => markerTitel(wert), ankuenfte: () => `Ankunftspunkt „${schl}“`, uebergaenge: () => `Übergang → ${wert.ziel}`, bauwerke: () => `Bauwerk ${BAUWERKE[wert.typ]?.name ?? wert.typ}`, tierBereiche: () => 'Hasen-Bereich', raumFlaechen: () => `Raumfläche (${wert.raum})`, klaenge: () => `🔊 ${wert.name}` }[s]?.() ?? s;
+    const titel = { objekte: () => `${objektInfo(wert.typ, k).name} (${wert.typ})`, marker: () => markerTitel(wert), ankuenfte: () => `Ankunftspunkt „${schl}“`, uebergaenge: () => `Übergang → ${wert.ziel}`, bauwerke: () => `Bauwerk ${BAUWERKE[wert.typ]?.name ?? wert.typ}`, tierBereiche: () => 'Hasen-Bereich', raumFlaechen: () => `Raumfläche (${wert.raum})`, klaenge: () => `🔊 ${wert.name}`, lootZonen: () => `🎁 ${wert.name ?? 'Loot-Zone'}` }[s]?.() ?? s;
     el.innerHTML = `<h3>${esc(titel)}</h3>`;
     const setze = (name, neu) => z.ausfuehren(`${titel}: ${name}`, [{ s, k: schl, neu }]);
     if (s === 'objekte') objektFelder(el, wert, setze);
@@ -110,6 +110,7 @@ export function inspektor({ zustand, leiste, aktionen, befehle }) {
       ], (name, v) => (rechteckOk(k, { ...wert, [name]: v }, name) ? setze(name, setzeOptional(wert, name, v)) : z.meldung('Bereich muss ganz in der Zone liegen', 'fehler')));
     } else if (s === 'raumFlaechen') raumFelder(el, wert.raum, (raum) => setze('raum', { ...wert, raum }));
     else if (s === 'klaenge') aktionen.klangFelder?.(el, schl, wert, setze, { felder, knoepfe }); // ui/audioUi.js
+    else if (s === 'lootZonen') aktionen.lootZonenFelder?.(el, schl, wert, setze, { felder, knoepfe }); // ui/lootUi.js
     knoepfe(el, ['bearbeiten.duplizieren', 'bearbeiten.drehen', 'bearbeiten.loeschen']);
   }
 

@@ -37,6 +37,7 @@ const SAMMLUNG_EBENE = {
   tierBereiche: 'bereiche',
   uebergaenge: 'uebergaenge',
   klaenge: 'klaenge',
+  lootZonen: 'marker',
 };
 
 /** Ebene einer Sammlung bzw. Operationsart ('kachel', 'objekte' …) oder null */

@@ -4,6 +4,7 @@ import { BAUWERKE } from '../../gemeinsam/welt/bauwerke.js';
 import { KACHEL_GROESSE } from '../../gemeinsam/konstanten.js';
 import { nachDefinition } from './format.js';
 import { hatModell, hatAudio } from './bibliothek.js';
+import { kachelPruefer, lootVorschau } from './lootZonenEditor.js';
 import { ausSchluessel } from './karte.js';
 import { istBekannterTyp } from './katalog.js';
 import { ZONEN_ID_MUSTER } from './zone.js';
@@ -63,6 +64,17 @@ export function validiere(karte, { zonen = null, mitErreichbarkeit = true } = {}
   // Nächte sind dunkel (Editor 2.0, 2.1): Licht gibt es nur an Lampen, Laternen, Scheinwerfern und Lagerfeuern
   const hatLicht = [...karte.s('objekte').values()].some((o) => o.typ === 'licht') || [...karte.s('bauwerke').values()].some((b) => b.typ === 'lagerfeuer');
   if (!hatLicht && karte.breite * karte.hoehe > 0) warnung('kein-licht', 'Keine Lichtquelle: nachts ist die Zone stockdunkel (nur Taschenlampe) – Lampe, Laterne, Scheinwerfer oder Lagerfeuer setzen');
+  // Loot-Zonen (6.2): gleiche Regeln wie der Spiel-Lader
+  if (karte.s('lootZonen').size) {
+    const kachel = kachelPruefer(karte);
+    for (const [id, z] of karte.s('lootZonen')) {
+      const v = lootVorschau(karte, id, kachel);
+      const name = `Loot-Zone „${z.name ?? id}“`;
+      for (const f of v.fehler) (f === 'keine Items' ? warnung : fehler)('loot-zone', `${name}: ${f}`, z.x, z.y);
+      if (v.zone && v.frei === 0) fehler('loot-zone-flaeche', `${name}: keine freie Kachel${v.zone.ort !== 'alle' ? ` (${v.zone.ort})` : ''} – Punkte haben keinen Platz`, z.x, z.y);
+      else if (v.zone && v.frei < v.zone.punkte) warnung('loot-zone-punkte', `${name}: nur ${v.frei} freie Kacheln für ${v.zone.punkte} Punkte`, z.x, z.y);
+    }
+  }
   // Klänge (Phase 4): Datei muss da sein, Punkt/Bereich in der Zone, sinnvolle Radien; höchstens eine Karten-Musik ersetzt den Ordner
   let ersetzend = 0;
   for (const [, c] of karte.s('klaenge')) {

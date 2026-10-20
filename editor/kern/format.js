@@ -30,6 +30,7 @@ export const FARBE = /^#[0-9a-fA-F]{6}$/;
  *   terrain       { hoehen: ["0 0 1 …", …], steil: [[x,y],…] } Höhen je Kachel (m); Klippenfüße blockiert (gemeinsam/welt/gelaende.js)
  *   typen         { typId: { name, kategorie, b, h, blockiert, ebene, farbe?, bild?, modus?, asset?, glb? } }  eigene Objekttypen
  *                 (asset = ID in der Projekt-Bibliothek, kern/bibliothek.js; Export bettet das Modell als glb ein)
+ *   lootZonen     [{ name, x, y, b, h, modus, eintraege, punkte, ort, … }]  Loot-Zonen (6.2, server/spiel/karten/lootZonen.js)
  *   klaenge       [{ id, name, audio|daten|datei, art, … }]   Klanglandschaft (Phase 4, gemeinsam/audio/klanglandschaft.js)
  *   texturen      { typId: { farbe?, muster? } }              Bemalung pro Typ
  *   bemalung      { '#rrggbb': [[x, y, b, h], …] }           Farbe auf dem Boden (Rechtecke je Farbe)
@@ -104,6 +105,7 @@ export function ausDefinition(def) {
   for (const b of def.bauwerke ?? []) karte.s('bauwerke').set(karte.neueId(), kopie(b));
   for (const t of def.tierBereiche ?? []) karte.s('tierBereiche').set(karte.neueId(), kopie(t));
   for (const r of def.raumFlaechen ?? []) karte.s('raumFlaechen').set(karte.neueId(), kopie(r));
+  for (const z of Array.isArray(def.lootZonen) ? def.lootZonen : []) if (z && typeof z === 'object') karte.s('lootZonen').set(karte.neueId(), kopie(z));
   for (const roh of Array.isArray(def.klaenge) ? def.klaenge : []) {
     const k = pruefeKlang(roh, { breite: karte.breite, hoehe: karte.hoehe });
     if (!k) {
@@ -174,6 +176,7 @@ export function nachDefinition(karte) {
   if (karte.s('bauwerke').size) def.bauwerke = [...karte.s('bauwerke').values()].map(kopie);
   if (karte.s('tierBereiche').size) def.tierBereiche = [...karte.s('tierBereiche').values()].map(kopie);
   if (karte.s('raumFlaechen').size) def.raumFlaechen = [...karte.s('raumFlaechen').values()].map(kopie);
+  if (karte.s('lootZonen').size) def.lootZonen = [...karte.s('lootZonen').values()].map(kopie);
   if (karte.s('klaenge').size) def.klaenge = [...karte.s('klaenge')].map(([id, k]) => mitAudio({ id, ...kopie(k) })); // Bibliotheks-Audio → daten eingebettet
   const einstellungen = bereinigeLeere(kopie(karte.werte.einstellungen ?? {}));
   if (Object.keys(einstellungen).length) def.einstellungen = einstellungen;
