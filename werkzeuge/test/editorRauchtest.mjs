@@ -239,6 +239,31 @@ try {
     await seite.keyboard.press('Control+z');
     pruefe(await seite.evaluate((v) => window.mapEditor.zustand.verlauf.zurueck.length === v && !window.mapEditor.zustand.karte.werte.hilfslinien, vorher), 'Hilfslinie: ein Undo-Schritt, Maßband ändert die Karte nicht');
   }
+  // 7.4: Bibliothek – Prefabs im Asset-Browser (Vorschaubild, Suche) und per Ziehen auf der Karte ablegen
+  {
+    await seite.evaluate(() => window.mapEditor.layout.zeigeReiter('links', '🧱 Assets'));
+    await seite.fill('.asset-suche', 'wohnhaus');
+    const treffer = await seite.locator('.asset-liste button.asset[data-id^="prefab:"]').count();
+    const bild = await seite.locator('.asset-liste button.asset[data-id^="prefab:"] img.vorschau').count();
+    pruefe(treffer >= 1 && bild >= 1, `Prefab „Wohnhaus“ in der Asset-Suche mit Vorschaubild (${treffer}/${bild})`);
+    const id = await seite.locator('.asset-liste button.asset[data-id^="prefab:"]').first().getAttribute('data-id');
+    await seite.fill('.asset-suche', '');
+    const vorher = await seite.evaluate(() => ({ n: window.mapEditor.zustand.verlauf.zurueck.length, obj: window.mapEditor.zustand.karte.s('objekte').size }));
+    await seite.evaluate((id) => {
+      const lw = document.getElementById('leinwand2d');
+      const p = window.mapEditor.zeichner.zuBild(15, 12);
+      const r = lw.getBoundingClientRect();
+      const dt = new DataTransfer();
+      dt.setData('application/x-editor-asset', id);
+      lw.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, clientX: r.left + p.x, clientY: r.top + p.y, bubbles: true, cancelable: true }));
+    }, id);
+    const nachher = await seite.evaluate(() => ({ n: window.mapEditor.zustand.verlauf.zurueck.length, obj: window.mapEditor.zustand.karte.s('objekte').size }));
+    pruefe(nachher.n === vorher.n + 1 && nachher.obj > vorher.obj, `Prefab auf die Karte gezogen = 1 Undo-Schritt (${JSON.stringify([vorher, nachher])})`);
+    await seite.evaluate(() => document.activeElement?.blur());
+    await seite.keyboard.press('Control+z');
+    pruefe((await seite.evaluate(() => window.mapEditor.zustand.karte.s('objekte').size)) === vorher.obj, 'Ablegen rückgängig gemacht');
+    await seite.keyboard.press('Escape');
+  }
 
   schritt('Neu laden: Entwurf + Verlauf bleiben');
   await seite.waitForTimeout(1200);

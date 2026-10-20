@@ -1,6 +1,7 @@
 import { GRUPPEN, KATEGORIEN, eintraegeDerKategorie, katalog, katalogEintrag, eigeneEintraege, passtZurSuche } from '../kern/katalog.js';
 import { istWandEintrag } from '../kern/wand.js';
 import { esc } from './dialoge.js';
+import { lootVorlagenEintraege } from '../kern/bibliothekVorlagen.js';
 
 /**
  * Asset-Browser (linke Seitenleiste, Reiter „Assets“, Editor 2.0 Schritt 1.3) – ersetzt Kategorie-Spalte + Bauleiste:
@@ -12,6 +13,9 @@ import { esc } from './dialoge.js';
  * 3D-Modelle der Projekt-Bibliothek (Phase 3) erscheinen als `bib:<id>` in ihrer Kategorie (mit Vorschaubild); Wählen legt
  * den Typ in der Zone an (aktionen.verwendeModell). Zonen-Typen, die auf ein vorhandenes Bibliotheks-Modell zeigen, werden
  * dafür nicht doppelt gezeigt. Bild → 3D und Grafik-Antrag sind ausgeblendet (Schritt 3.2, Code bleibt in eigeneUi.js).
+ * 7.4 Bibliothek: Prefabs (`prefab:…`, art 'prefab', Vorschaubild aus prefabUi) als Gruppe „🏠 Prefabs“ + in Suche/Favoriten,
+ * eigene Loot-Vorlagen in der Suche (öffnen die Verwaltung). Einträge lassen sich auf die Karte ziehen (HTML-Drag
+ * 'application/x-editor-asset' → `ablegen(id, ereignis)`: Prefab wird dort eingefügt, Objekt/Bauwerk/Marker gesetzt).
  * Audio-Dateien (Phase 4) erscheinen in „Klänge“ als `klang:punkt:<id>` (art 'klang') → aktionen.klangSetzen (ui/audioUi.js).
  */
 const SPEICHER = 'browserSurvival.editorAssets';
@@ -78,6 +82,10 @@ export class AssetBrowser {
       }
       this.waehle(eintrag);
     });
+    this.liste.addEventListener('dragstart', (e) => {
+      const knopf = e.target.closest?.('button.asset[draggable]');
+      if (knopf) e.dataTransfer.setData('application/x-editor-asset', knopf.dataset.id);
+    });
     this.liste.addEventListener('toggle', (e) => {
       const name = e.target.dataset?.gruppe;
       if (!name) return;
@@ -87,7 +95,7 @@ export class AssetBrowser {
     leiste.registriere('🧱 Assets', () => {
       if (leiste.el.firstChild !== this.wurzel) leiste.el.replaceChildren(this.wurzel);
       this.zeichneListe();
-    }, { ereignisse: ['zone', 'eintrag', 'bibliothek'], ohneKarte: true });
+    }, { ereignisse: ['zone', 'eintrag', 'bibliothek', 'vorlagen'], ohneKarte: true });
     zustand.bei('karte', (ops) => ops.some((o) => o.s === 'raeume' || o.s === 'typen') && leiste.aktiv === '🧱 Assets' && this.zeichneListe());
   }
 
@@ -106,7 +114,12 @@ export class AssetBrowser {
   /** Alle wählbaren Einträge (fest + eigene + Modelle + Zusatz) */
   #alle() {
     const k = this.zustand.karte;
-    return KATEGORIEN.flatMap((kat) => this.#derKategorie(kat, k));
+    return [...KATEGORIEN.flatMap((kat) => this.#derKategorie(kat, k)), ...this.#vorlagen()];
+  }
+
+  /** 7.4: Prefabs + eigene Loot-Vorlagen */
+  #vorlagen() {
+    return [...(this.aktionen.prefabEintraege?.() ?? []), ...lootVorlagenEintraege(this.aktionen.lootVorlagenEigene?.() ?? {})];
   }
 
   #eintrag(id) {
@@ -115,11 +128,11 @@ export class AssetBrowser {
 
   #kachel(e) {
     const aktiv = this.zustand.eintrag?.id === e.id;
-    const bild = e.vorschau ?? (e.eigen ? this.bibliothek?.meta(this.zustand.karte?.s('typen').get(e.typ)?.asset)?.vorschau : null);
+    const bild = e.art === 'prefab' ? this.aktionen.prefabVorschau?.(e.vorlage) : e.vorschau ?? (e.eigen ? this.bibliothek?.meta(this.zustand.karte?.s('typen').get(e.typ)?.asset)?.vorschau : null);
     const vorschau = e.art === 'kachel' ? `<span class="farbe" style="background:${esc(e.farbe)}"></span>` : bild ? `<img class="vorschau" src="${esc(bild)}" alt="">` : `<span class="symbol">${esc(e.symbol ?? '▪')}</span>`;
     const masse = e.b ? ` (${e.b} × ${e.h}${e.blockiert ? ', blockiert' : ''})` : '';
     const stern = e.art === 'aktion' ? '' : `<span class="stern${this.favoriten.has(e.id) ? ' an' : ''}" title="Favorit">${this.favoriten.has(e.id) ? '★' : '☆'}</span>`;
-    return `<button type="button" class="asset${aktiv ? ' aktiv' : ''}" data-id="${esc(e.id)}" title="${esc(e.name + masse)}">${vorschau}<span class="name">${esc(e.name)}</span>${stern}</button>`;
+    return `<button type="button" class="asset${aktiv ? ' aktiv' : ''}"${e.art === 'aktion' ? '' : ' draggable="true"'} data-id="${esc(e.id)}" title="${esc(e.name + masse)}">${vorschau}<span class="name">${esc(e.name)}</span>${stern}</button>`;
   }
 
   zeichneListe() {
@@ -161,6 +174,8 @@ export class AssetBrowser {
         }
         teile.push(`<details class="asset-gruppe" data-gruppe="${esc(g.name)}"${this.zu.has(g.name) ? '' : ' open'}><summary>${esc(g.symbol)} ${esc(g.name)} <span class="leise">${n}</span></summary>${inhalt}</details>`);
       }
+      const prefabs = this.aktionen.prefabEintraege?.() ?? [];
+      if (prefabs.length) teile.push(`<details class="asset-gruppe" data-gruppe="Prefabs"${this.zu.has('Prefabs') ? '' : ' open'}><summary>🏠 Prefabs <span class="leise">${prefabs.length}</span></summary><div class="asset-raster">${prefabs.map((e) => this.#kachel(e)).join('')}</div></details>`);
     }
     this.liste.innerHTML = teile.join('');
   }
@@ -169,6 +184,12 @@ export class AssetBrowser {
   waehle(e) {
     const z = this.zustand;
     if (e.art === 'aktion') return this.aktionen[e.aktion]?.();
+    if (e.art === 'prefab') {
+      if (!z.karte) return z.meldung('Erst eine Zone öffnen', 'fehler');
+      this.zuletzt = [e.id, ...this.zuletzt.filter((id) => id !== e.id)].slice(0, ZULETZT_MAX);
+      this.#speichere();
+      return this.aktionen.einfuegen(e.vorlage);
+    }
     if (e.art === 'klang') {
       this.zuletzt = [e.id, ...this.zuletzt.filter((id) => id !== e.id)].slice(0, ZULETZT_MAX);
       this.#speichere();
@@ -207,6 +228,19 @@ export class AssetBrowser {
     this.#speichere();
     z.meldung(`${e.name} gewählt${istWandEintrag(e) ? ' – Maustaste halten und ziehen (Strg = Raum-Umriss, Umschalt = frei)' : e.art === 'objekt' ? ' – Klick setzt, R dreht, Umschalt = mehrere' : ''}`);
     if (this.leiste.aktiv === '🧱 Assets') this.zeichneListe();
+  }
+
+  /** 7.4: Eintrag auf die Karte gezogen → dort einfügen/setzen (ereignis = Drop-Ereignis mit clientX/Y) */
+  ablegen(id, ereignis) {
+    const z = this.zustand;
+    const e = this.#eintrag(id);
+    if (!e || !z.karte) return;
+    if (z.ansicht === '3d') return z.meldung('Ablegen geht nur in 2D – Taste 3 schaltet um', 'fehler');
+    const p = this.aktionen.kartenPunkt?.(ereignis);
+    if (!p) return;
+    if (e.art === 'prefab') return this.aktionen.einfuegenBei(e.vorlage, p.tx - Math.floor(e.vorlage.b / 2), p.ty - Math.floor(e.vorlage.h / 2));
+    this.waehle(e);
+    if (z.werkzeug === 'platzieren' && z.eintrag?.id === e.id) this.aktionen.platziereBei?.(ereignis);
   }
 
   /** Eintrag per ID wählen (Pipette, Menü „Einfügen“, Räume-Reiter) – mit Zusatzfeldern (z. B. Raum) */

@@ -89,6 +89,15 @@ export class Werkzeuge {
     return this.zustand.karte;
   }
 
+  /** 7.4: Karten-Punkt eines (Drop-)Ereignisses bzw. Platzieren dort */
+  kartenPunkt(e) {
+    return this.#pos(e);
+  }
+
+  platziereBei(e) {
+    this.#platziere(this.#pos(e), false);
+  }
+
   #pos(e) {
     const r = this.leinwand.getBoundingClientRect();
     const px = e.clientX - r.left;

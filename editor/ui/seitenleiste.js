@@ -6,7 +6,7 @@
  *   zeige(name) · zeichne() · reiter (Map) · aktiv · el
  * `beschriftung` = Funktion für den Reiter-Text (z. B. Prüfung mit Fehlerzähler) – wird bei jedem Ereignis aktualisiert.
  */
-const ALLE_EREIGNISSE = ['karte', 'auswahl', 'zone', 'werkzeug', 'pruefung', 'ebenen', 'eintrag', 'bibliothek'];
+const ALLE_EREIGNISSE = ['karte', 'auswahl', 'zone', 'werkzeug', 'pruefung', 'ebenen', 'eintrag', 'bibliothek', 'vorlagen'];
 
 export class Seitenleiste {
   constructor({ wurzel, zustand }) {

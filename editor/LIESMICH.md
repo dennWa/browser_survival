@@ -309,6 +309,10 @@ Danach `npm test`. Neue Zone mit Übergang? Die Nachbarzone braucht einen Überg
 `?` (oder F1) zeigt **alle** Befehle mit Kürzeln – mit Suchfeld. **Eigene Tasten:** dort **⌨** an einem Befehl, dann die
 neue Taste drücken (Esc = abbrechen; hatte ein anderer Befehl die Taste, verliert er sie – Meldung), **✕** = Taste weg,
 **↺** = Standard, „Alle Tasten zurücksetzen“. Gilt für diesen Browser und steckt im Komplett-Backup.
+**Bibliothek:** Im Asset-Browser stehen auch alle **🏠 Prefabs** (mit automatischem Vorschaubild) und – über die Suche – deine
+Loot-Vorlagen; ☆ macht sie zu Favoriten. Assets und Prefabs lassen sich mit der Maus direkt **auf die Karte ziehen**. Im
+Prefab-Reiter: Suche, Ordner, ✎ benennt um / verschiebt in einen Ordner. Am Handy: antippen, dann auf die Karte tippen.
+
 **Messen & Ausrichten:** 📏 Maßband (Taste M): Punkte klicken, Doppelklick oder Enter = fertig, Esc = löschen – zeigt jede
 Strecke in Metern mit Winkel und die Gesamtlänge. **Hilfslinien** aus dem oberen/linken Lineal in die Karte ziehen; mit dem
 Auswahl-Werkzeug verschieben, zurück ins Lineal = löschen (Umschalt+H blendet sie aus). 🧲 **Einrasten** (Umschalt+G):

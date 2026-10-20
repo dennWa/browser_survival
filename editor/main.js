@@ -94,6 +94,16 @@ pruefungUi({ zustand, leiste: rechts, aktionen });
 zonenManagerUi({ zustand, leiste: rechts, zeichner, aktionen });
 lootUi({ zustand, aktionen });
 const datei = dateiAktionen({ zustand, zeichner, werkzeuge, aktionen, rechts, bibliothek, audioBibliothek });
+// 7.4: Assets/Prefabs aus der Bibliothek auf die Karte ziehen
+aktionen.kartenPunkt = (e) => werkzeuge.kartenPunkt(e);
+aktionen.platziereBei = (e) => werkzeuge.platziereBei(e);
+leinwand.addEventListener('dragover', (e) => e.dataTransfer.types.includes('application/x-editor-asset') && e.preventDefault());
+leinwand.addEventListener('drop', (e) => {
+  const id = e.dataTransfer.getData('application/x-editor-asset');
+  if (!id) return;
+  e.preventDefault();
+  assets.ablegen(id, e);
+});
 Object.assign(teile, { werkzeuge, assets, inspektor: insp, layout, links, rechts, datei, aktionen, schalteAnsicht, zeigeHilfe, zeigePalette, kontextmenue });
 
 // --- Module der Phasen 6–11 ---------------------------------------------------------------
