@@ -51,3 +51,14 @@ test('Musik-Index: Reihenfolge, Zufall, Hauptmenü', async () => {
   assert.deepEqual(musikOrdner(i), ['hauptmenue', 'stadtrand']);
   assert.deepEqual(sortiereMusik(['t10.ogg', 't2.ogg']), ['t2.ogg', 't10.ogg']);
 });
+
+test('dateiPegel: Pegel je einzelner Datei wird geprüft, gerundet und durchgereicht', async () => {
+  const { pruefeSoundEinstellungen, baueIndex } = await import('../client/audio/eigeneSounds.js');
+  const { setzeSoundEinstellung } = await import('../editor/kern/audioKatalog.js');
+  const ok = pruefeSoundEinstellungen({ schritt_gras: { dateiPegel: { 'schritt_gras_2.wav': 1.4, 'schritt_gras_3.wav': 1, 'x/../y.wav': 2, 'a.wav': -1, 'b.wav': 99 } } });
+  assert.deepEqual(ok.schritt_gras.dateiPegel, { 'schritt_gras_2.wav': 1.4, 'b.wav': 3 });
+  const neu = setzeSoundEinstellung({}, 'schritt_gras', { dateiPegel: { 'schritt_gras_0.wav': 0.555, 'schritt_gras_1.wav': 1 } });
+  assert.deepEqual(neu.schritt_gras.dateiPegel, { 'schritt_gras_0.wav': 0.56 });
+  const { index } = baueIndex(['schritt_gras_0.wav'], '', neu);
+  assert.equal(index.schritt_gras.dateiPegel['schritt_gras_0.wav'], 0.56);
+});

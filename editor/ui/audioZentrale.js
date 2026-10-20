@@ -389,7 +389,12 @@ class AudioZentrale {
     ziel.innerHTML = e.dateien.length
       ? e.dateien.map((p, i) => {
           const inf = this.info.get(p) ?? {};
-          return `<li><button type="button" data-a="datei" data-i="${i}" data-marke="datei:${esc(p)}" title="Diese Datei anhören">▶</button> <code>${esc(p)}</code> <span class="leise">${dauerText(inf.dauer)} · ${Number.isFinite(inf.groesse) && inf.groesse ? groesseText(inf.groesse) : '?'}${inf.fehlt ? ' · ⚠ fehlt' : ''}</span></li>`;
+          const name = p.split('/').at(-1);
+          const dp = e.dateiPegel?.[name] ?? 1;
+          const regler = e.art === 'ereignis' && e.quelle === 'eigen' && e.dateien.length > 1
+            ? ` <input type="range" class="az-datei-regler" data-datei="${esc(name)}" min="0" max="300" step="5" value="${Math.round(dp * 100)}" title="Lautstärke nur dieser Variante: ${Math.round(dp * 100)} %"><output class="leise">${Math.round(dp * 100)} %</output>`
+            : '';
+          return `<li><button type="button" data-a="datei" data-i="${i}" data-marke="datei:${esc(p)}" title="Diese Datei anhören">▶</button> <code>${esc(p)}</code>${regler} <span class="leise">${dauerText(inf.dauer)} · ${Number.isFinite(inf.groesse) && inf.groesse ? groesseText(inf.groesse) : '?'}${inf.fehlt ? ' · ⚠ fehlt' : ''}</span></li>`;
         }).join('')
       : `<li class="leise">${e.quelle === 'synth' ? 'Keine Datei – der Ton wird im Spiel erzeugt (client/audio/sound.js).' : e.art === 'musikOrdner' ? '' : 'Keine Datei.'}</li>`;
   }
@@ -469,6 +474,13 @@ class AudioZentrale {
     knopf('anhoeren', () => (this.laeuft === e.id ? this.stoppe() : this.spiele(e.id)));
     const datei = (pfad) => (this.laeuft === `datei:${pfad}` ? this.stoppe() : this.#spieleDatei(pfad, e, `datei:${pfad}`));
     knopf('datei', (i) => datei(e.dateien[i]));
+    for (const r of d.querySelectorAll('.az-datei-regler')) {
+      r.addEventListener('input', () => {
+        r.nextElementSibling.textContent = `${r.value} %`;
+        r.title = `Lautstärke nur dieser Variante: ${r.value} %`;
+      });
+      r.addEventListener('change', () => this.#speichereDateiPegel(e)); // beim Loslassen speichern
+    }
     knopf('hochladen', () => this.elDatei.click());
     knopf('bearbeiten', () => this.bearbeiteVorhandene(e));
     knopf('original', () => this.original(e));
@@ -579,11 +591,31 @@ class AudioZentrale {
     this.#marke(marke);
   }
 
+  /** Pegel je Datei wie an den kleinen Reglern eingestellt (1 = unverändert) */
+  #dateiPegel(pfad) {
+    const r = [...(this.elDetail?.querySelectorAll('.az-datei-regler') ?? [])].find((x) => x.dataset.datei === pfad.split('/').at(-1));
+    return r ? Number(r.value) / 100 : 1;
+  }
+
+  /** Alle kleinen Datei-Regler → einstellungen.json (dateiPegel), still, danach neu laden */
+  async #speichereDateiPegel(e) {
+    if (!(await this.#nurLokal())) return;
+    const dateiPegel = {};
+    for (const r of this.elDetail.querySelectorAll('.az-datei-regler')) dateiPegel[r.dataset.datei] = Number(r.value) / 100;
+    try {
+      await schreibeDatei('client/audio/eigene/einstellungen.json', setzeSoundEinstellung(this.daten.einstellungen, e.ereignis, { dateiPegel }));
+      this.zustand.meldung(`✓ Datei-Lautstärke gespeichert – ${e.name} (im Spiel nach Neuladen aktiv)`, 'ok');
+      await this.neuLaden();
+    } catch (f) {
+      this.zustand.meldung(`Speichern fehlgeschlagen: ${f.message}`, 'fehler');
+    }
+  }
+
   async #spieleDatei(pfad, e = null, marke = e?.id ?? null) {
     try {
       const puffer = await this.#puffer(pfad);
       const s = e?.streuung ?? 0;
-      this.#spielePuffer(puffer, { ...this.#zeitWerte(e), pegel: this.#reglerPegel(e), rate: 1 + (Math.random() * 2 - 1) * s, loop: !!e?.loop, marke });
+      this.#spielePuffer(puffer, { ...this.#zeitWerte(e), pegel: this.#reglerPegel(e) * this.#dateiPegel(pfad), rate: 1 + (Math.random() * 2 - 1) * s, loop: !!e?.loop, marke });
     } catch (fehler) {
       this.zustand.meldung(`Abspielen nicht möglich: ${fehler.message}`, 'fehler');
     }

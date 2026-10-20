@@ -1760,6 +1760,10 @@ img.ki-bild {
   margin: 0;
   word-break: break-word;
 }
+.az-datei-regler {
+  width: 70px;
+  flex: none;
+}
 .az-dateien li,
 .az-titel li {
   display: flex;

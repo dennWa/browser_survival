@@ -142,7 +142,7 @@ export class Sound {
     fetch(new URL('eigene.json', eigeneBasis))
       .then((r) => (r.ok ? r.json() : {}))
       .then((index) => {
-        for (const [name, { dateien = [], lautstaerke = 1, streuung = 0, verzoegerung = 0, maxDauer = 0, einmal = false }] of Object.entries(index)) {
+        for (const [name, { dateien = [], lautstaerke = 1, streuung = 0, verzoegerung = 0, maxDauer = 0, einmal = false, dateiPegel = {} }] of Object.entries(index)) {
           this.#eigenePegel[name] = lautstaerke;
           if (streuung > 0) this.#streuung[name] = streuung;
           if (verzoegerung > 0 || maxDauer > 0 || einmal) this.#zeit[name] = { verzoegerung, maxDauer, einmal };
@@ -152,6 +152,7 @@ export class Sound {
               .then((r) => r.arrayBuffer())
               .then((daten) => this.#ctx.decodeAudioData(daten))
               .then((puffer) => {
+                if (dateiPegel[datei] !== undefined) this.#dateiPegel.set(puffer, dateiPegel[datei]);
                 (this.#eigene[name] ??= []).push(puffer);
                 this.#schleifeNeu(name);
               })
@@ -162,6 +163,7 @@ export class Sound {
       .catch(() => {});
   }
   #probenGeladen = false;
+  #dateiPegel = new Map(); // Puffer → Pegel dieser einzelnen Datei (einstellungen.json dateiPegel)
 
   /** @returns neuer Zustand (true = stumm) */
   umschalten() {
@@ -278,7 +280,12 @@ export class Sound {
       const quelle = ctx.createBufferSource();
       quelle.buffer = eigene[i];
       if (streuung) quelle.playbackRate.value = zufallsTon();
-      quelle.connect(lautstaerkeKnoten);
+      const dateiGain = this.#dateiPegel.get(eigene[i]);
+      if (dateiGain !== undefined) {
+        const dateiKnoten = ctx.createGain();
+        dateiKnoten.gain.value = dateiGain;
+        quelle.connect(dateiKnoten).connect(lautstaerkeKnoten);
+      } else quelle.connect(lautstaerkeKnoten);
       quelle.start(beginn);
       kuerze(quelle);
       dauer = quelle.buffer.duration / quelle.playbackRate.value;

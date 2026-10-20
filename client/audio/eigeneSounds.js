@@ -136,6 +136,11 @@ export function pruefeSoundEinstellungen(roh, warnungen = []) {
     if (Number.isFinite(e.verzoegerung) && e.verzoegerung > 0) r.verzoegerung = Math.min(VERZOEGERUNG_MAX, e.verzoegerung);
     if (Number.isFinite(e.maxDauer) && e.maxDauer > 0) r.maxDauer = Math.min(MAX_DAUER_MAX, e.maxDauer);
     if (e.einmal === true) r.einmal = true;
+    if (e.dateiPegel && typeof e.dateiPegel === 'object' && !Array.isArray(e.dateiPegel)) {
+      const dp = {};
+      for (const [datei, w] of Object.entries(e.dateiPegel)) if (/^[\w. -]{1,80}$/.test(datei) && Number.isFinite(w) && w >= 0 && Math.abs(w - 1) > 0.001) dp[datei] = Math.min(PEGEL_MAX, w);
+      if (Object.keys(dp).length) r.dateiPegel = dp; // Pegel je einzelner Datei (Variante), 1 = unverändert
+    }
     if (typeof e.loop === 'boolean') r.loop = e.loop;
     if (Object.keys(r).length) aus[name] = r;
   }

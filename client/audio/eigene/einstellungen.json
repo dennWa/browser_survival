@@ -17,5 +17,9 @@
   },
   "schritt_schnee": {
     "lautstaerke": 0.3
+  },
+  "schritt_gras": {
+    "lautstaerke": 0.5,
+    "streuung": 0.08
   }
 }

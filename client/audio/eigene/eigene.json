@@ -14,6 +14,12 @@
     "lautstaerke": 1,
     "verzoegerung": 0.2
   },
+  "pistole": {
+    "dateien": [
+      "pistole.ogg"
+    ],
+    "lautstaerke": 1
+  },
   "regen": {
     "dateien": [
       "regen.ogg"
@@ -29,7 +35,8 @@
       "schritt_gras_4.wav",
       "schritt_gras_5.wav"
     ],
-    "lautstaerke": 1
+    "lautstaerke": 0.5,
+    "streuung": 0.08
   },
   "wind": {
     "dateien": [],
