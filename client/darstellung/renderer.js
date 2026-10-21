@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { FBXLoader, SkeletonUtils } from '../vendor/three/addons.js';
+import { FBXLoader, GLTFLoader, SkeletonUtils } from '../vendor/three/addons.js';
 import { Welt } from '../../gemeinsam/welt/welt.js';
 import { KartenModell, TUER_EBENE, TUER_SCHIMMER_WEITE } from './kartenModell.js';
 import { Himmel } from './himmel.js';
@@ -33,6 +33,8 @@ import { BlaetterEffekt } from './blaetterEffekt.js';
  * v0.11 Basisbau: Böden/Wände/Dächer als instanzierte Schicht (basisbauModelle.js → BasisbauSchicht), Bau-Hologramm (zeigeVorschau mit
  *   drehung, 'abriss'-Markierung, 'flagge'), roter Baugebiet-Ring (zeigeGebiet, nur Besitzer) + Flaggen-Ring (zeigeGebietVorschau).
  *
+ * Spieler-Figur: „Survivor“ (survivor.glb, Blender; Clips stehen/joggen/rennen/hacken/sterben; #neueSurvivorFigur) – Zombies: Kenney-FBX.
+ *
  * Ebenen: WebGL-Canvas (#spielflaeche3d) liegt UNTER dem 2D-Canvas (#spielflaeche). Das 2D-Canvas bleibt
  * durchsichtig, empfängt Maus/Touch und zeigt Namen & Lebensbalken. Vignette und Schadensblitz sind CSS.
  *
@@ -49,6 +51,10 @@ import { BlaetterEffekt } from './blaetterEffekt.js';
  */
 const ASSETS = new URL('../assets/', import.meta.url);
 const FIGUR_HOEHE = 64;
+// Spieler-Figur „Survivor“ (Blender, werkzeuge/assets/survivor): eigenes Skelett mit Clips stehen/joggen/rennen/hacken/sterben
+const SURVIVOR = { modell: '3d/survivor.glb', skins: { mann: '3d/skins/survivorMann.webp', frau: '3d/skins/survivorFrau.webp' } };
+const SPRINT_TEMPO = 215; // px/s: darüber „rennen“ (Fallback, falls `sprintet` fehlt); darunter joggen
+const HACK_ARBEIT = new Set(['holz', 'stein', 'eisenerz']);
 const SCHNITT_RADIUS = 0; // 0 = aus: kein Durchschauen durch Wände mehr (verdeckte Figur zeigt stattdessen die Silhouette)
 const SCHNITT_HOEHE = 10; // bis zu dieser Höhe bleiben aufgeschnittene Wände als Sockel stehen
 const ZIELHOEHE = 36; // Mausstrahl trifft diese Höhe (Brust) → Zielen fühlt sich richtig an
@@ -836,6 +842,7 @@ export class Renderer {
     this.basisModell = modell;
     const lader = new THREE.TextureLoader();
     this.skins = {};
+    await this.#ladeSurvivor(lader);
     await Promise.all(
       Object.entries(info.skins).map(async ([name, pfad]) => {
         const textur = await lader.loadAsync(new URL(pfad, ASSETS).href);
@@ -844,6 +851,28 @@ export class Renderer {
         this.skins[name] = textur;
       }),
     );
+  }
+
+  /** Survivor-Figur (GLB) + zwei Texturen laden; fehlt sie, bleibt die alte Kenney-Figur. */
+  async #ladeSurvivor(lader) {
+    this.survivor = null;
+    try {
+      const gltf = await new GLTFLoader().loadAsync(new URL(SURVIVOR.modell, ASSETS).href);
+      const texturen = {};
+      await Promise.all(
+        Object.entries(SURVIVOR.skins).map(async ([name, pfad]) => {
+          const textur = await lader.loadAsync(new URL(pfad, ASSETS).href);
+          textur.colorSpace = THREE.SRGBColorSpace;
+          textur.flipY = false; // glTF-UV-Konvention
+          texturen[name] = textur;
+        }),
+      );
+      const hoehe = new THREE.Box3().setFromObject(gltf.scene).getSize(new THREE.Vector3()).y;
+      const clips = Object.fromEntries(gltf.animations.map((c) => [c.name, c]));
+      this.survivor = { modell: gltf.scene, clips, texturen, massstab: FIGUR_HOEHE / hoehe, materialien: {} };
+    } catch (fehler) {
+      console.warn('Survivor-Modell nicht geladen – benutze die Standardfigur', fehler);
+    }
   }
 
   /**
@@ -891,7 +920,7 @@ export class Renderer {
       probe.add(kopie);
     }
     this.gl.compile(this.szene, this.kamera3d);
-    for (const t of [this.karte.bodenTextur, ...Object.values(this.skins)]) this.gl.initTexture(t);
+    for (const t of [this.karte.bodenTextur, ...Object.values(this.skins), ...Object.values(this.survivor?.texturen ?? {})]) this.gl.initTexture(t);
     this.gl.render(this.szene, this.kamera3d); // auch Schatten-Shader & Uploads einmal anstoßen
     this.szene.remove(probe);
   }
@@ -1107,7 +1136,8 @@ export class Renderer {
         this.figuren.set(e.id, f);
       }
       const nah = Math.abs(e.x - fokus.x) < SICHTWEITE && Math.abs(e.y - fokus.y) < SICHTWEITE;
-      f.gruppe.visible = !e.tot && nah && !e.fahrzeug && !e.fahrzeugId; // im Auto sieht man die Figur nicht
+      // Tote Spieler (Survivor) bleiben liegen, bis sie wiederbelebt werden; alte Figuren/Zombies verschwinden sofort
+      f.gruppe.visible = (!e.tot || f.survivor) && nah && !e.fahrzeug && !e.fahrzeugId; // im Auto sieht man die Figur nicht
       if (!f.gruppe.visible) continue;
       const schlaeft = e.arbeit === 'schlafen' && e.arbeitOrt;
       if (schlaeft) {
@@ -1122,19 +1152,36 @@ export class Renderer {
       }
 
       const tempo = e.geschwindigkeit ?? 0;
-      const name = tempo > 12 ? 'rennen' : 'stehen';
+      let name;
       let zeitfaktor = 1;
-      if (name === 'rennen') zeitfaktor = e.typ === 'zombie' ? Math.max(0.5, tempo / 140) : Math.max(0.6, tempo / 170);
+      if (f.survivor) {
+        // Survivor: sterben (einmalig, bleibt liegen) > hacken > rennen (Sprint) > joggen > stehen
+        if (e.tot) name = 'sterben';
+        else if (HACK_ARBEIT.has(e.arbeit)) name = 'hacken';
+        else if (tempo > 12) name = e.sprintet || tempo > SPRINT_TEMPO ? 'rennen' : 'joggen';
+        else name = 'stehen';
+        if (name === 'joggen') zeitfaktor = Math.max(0.6, Math.min(1.6, tempo / 150));
+        else if (name === 'rennen') zeitfaktor = Math.max(0.7, Math.min(1.5, tempo / 240));
+      } else {
+        name = tempo > 12 ? 'rennen' : 'stehen';
+        if (name === 'rennen') zeitfaktor = e.typ === 'zombie' ? Math.max(0.5, tempo / 140) : Math.max(0.6, tempo / 170);
+      }
       if (f.aktuell !== name) {
         const neu = f.aktionen[name];
-        neu.reset().fadeIn(0.15).play();
-        f.aktionen[f.aktuell]?.fadeOut(0.15);
+        if (name === 'sterben') {
+          neu.reset().fadeIn(0.08).play();
+          // Schon beim ersten Sehen tot (Beitritt/Wiedereintritt): gleich liegend zeigen statt noch einmal zu fallen
+          if (f.gesehenAlsLebend === undefined) neu.time = neu.getClip().duration;
+        } else neu.reset().fadeIn(0.15).play();
+        f.aktionen[f.aktuell]?.fadeOut(name === 'sterben' ? 0.08 : 0.15);
         f.aktuell = name;
       }
+      if (f.survivor) f.gesehenAlsLebend = !e.tot;
       f.aktionen[name].timeScale = zeitfaktor;
       if (!!e.rucksack !== !!f.rucksack) this.#setzeRucksack(f, !!e.rucksack);
       f.mixer.update(dt);
-      if (!schlaeft) aktualisiereHaltung(f, e, jetzt);
+      if (f.waffe) f.waffe.visible = !e.tot;
+      if (!schlaeft && !e.tot) aktualisiereHaltung(f, e, jetzt);
     }
     for (const [id, f] of this.figuren) {
       if (gesehen.has(id)) continue;
@@ -1199,7 +1246,54 @@ export class Renderer {
     figur.rucksack = mesh;
   }
 
+  /** Spieler-Material des Survivors (je Variante geteilt; nachts schwaches Eigenleuchten wie bei den alten Skins). */
+  #survivorMaterial(variante) {
+    const sv = this.survivor;
+    if (!sv.materialien[variante]) {
+      const textur = sv.texturen[variante] ?? sv.texturen.mann;
+      const material = new THREE.MeshStandardMaterial({ map: textur, roughness: 0.8 });
+      material.emissiveMap = textur;
+      material.emissive.setRGB(1, 1, 1);
+      material.emissiveIntensity = 0;
+      this.spielerMaterialien.push(material);
+      sv.materialien[variante] = material;
+    }
+    return sv.materialien[variante];
+  }
+
+  #neueSurvivorFigur(e) {
+    const sv = this.survivor;
+    const koerper = e.aussehen?.koerper ?? AUSSEHEN.koerper.standard;
+    const variante = koerper === 'frau' ? 'frau' : 'mann';
+    const modell = SkeletonUtils.clone(sv.modell);
+    const material = this.#survivorMaterial(variante);
+    modell.traverse((teil) => {
+      if (!teil.isMesh) return;
+      teil.material = material;
+      teil.castShadow = true;
+      teil.frustumCulled = false; // Pose weicht stark von der Ruhepose ab (Sterben) – Hüllkörper unzuverlässig
+      if (teil.name === 'Haar_Mann') teil.visible = variante === 'mann';
+      if (teil.name === 'Haar_Frau') teil.visible = variante === 'frau';
+    });
+    modell.scale.setScalar(sv.massstab * (e.groesse ?? 1));
+    const gruppe = new THREE.Group();
+    gruppe.add(modell);
+    this.szene.add(gruppe);
+    const mixer = new THREE.AnimationMixer(modell);
+    const aktionen = {};
+    for (const [name, clip] of Object.entries(sv.clips)) aktionen[name] = mixer.clipAction(clip);
+    aktionen.sterben.setLoop(THREE.LoopOnce, 1);
+    aktionen.sterben.clampWhenFinished = true;
+    aktionen.stehen.play();
+    mixer.setTime(Math.random() * 2);
+    const figur = { gruppe, mixer, aktionen, aktuell: 'stehen', koerper, survivor: true, tot: false };
+    richteFigurEin(figur, modell);
+    figur.klipHacken = !!(figur.knochen.rechts && figur.knochen.links);
+    return figur;
+  }
+
   #neueFigur(e) {
+    if (e.typ === 'spieler' && this.survivor) return this.#neueSurvivorFigur(e);
     const modell = SkeletonUtils.clone(this.basisModell);
     const material = this.#figurMaterial(e);
     modell.traverse((teil) => {

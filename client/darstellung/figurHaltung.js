@@ -6,6 +6,9 @@ import { erzeugeWaffe, haltungFuer, waffenModellName } from './waffenModelle.js'
  * Nach mixer.update() werden Ober- und Unterarme in eine Zielrichtung gedreht (Zielen, Schlagen,
  * Rückstoß, Nachladen), und das Waffenmodell sitzt in der Hand.
  *
+ * Survivor (client/assets/3d/survivor.glb): Beim Holz-/Steinabbau macht der Clip „hacken“ den Schlag (figur.klipHacken) – hier
+ * wird nur das Werkzeug zwischen die Hände gelegt (platziereHackwerkzeug).
+ *
  * Richtungen sind im Raum der Figur angegeben: +z = Blickrichtung, +y = oben,
  * -x = rechte Körperseite (die Kenney-Figur schaut im Modell nach +z, rechter Arm liegt bei -x).
  */
@@ -79,6 +82,12 @@ export function aktualisiereHaltung(figur, e, jetzt) {
   }
   setzeWaffe(figur, waffenName);
 
+  // Survivor: den Schlag macht der Clip „hacken“ (Blender) – hier nur das Werkzeug in die Hände legen
+  if (haltungsName === 'hacken' && figur.klipHacken) {
+    platziereHackwerkzeug(figur);
+    return;
+  }
+
   const basis = HALTUNGEN[haltungsName];
   const pose = { rechts: basis.rechts?.map((r) => r.clone()) ?? null, links: basis.links?.map((r) => r.clone()) ?? null };
   if (haltungsName === 'hacken') (e.arbeit === 'holz' ? seitSchwung : hackSchwung)(pose, (jetzt % HACK_TAKT_MS) / HACK_TAKT_MS);
@@ -108,6 +117,7 @@ export function aktualisiereHaltung(figur, e, jetzt) {
 
   // Waffe in die Hand: Position = Hand, Richtung = Unterarm (Schusswaffen: genau in Blickrichtung)
   if (figur.waffe) {
+    figur.waffe.scale.setScalar(1);
     const seite = basis.hand ?? 'rechts';
     const [, unterarm, hand, finger] = figur.knochen[seite];
     const handPos = hand.getWorldPosition(_a);
@@ -142,6 +152,38 @@ export function aktualisiereHaltung(figur, e, jetzt) {
     figur.hatMuendung = !!muendung;
     if (muendung) figur.muendung.copy(muendung).applyMatrix4(figur.waffe.matrixWorld);
   }
+}
+
+const HACK_WERKZEUG_GROESSE = 1.5; // Axt/Spitzhacke wirken zum Schwingen mit zwei Händen sonst zu klein
+
+/**
+ * Clip „hacken“: Stiel liegt zwischen unterer (links) und oberer Hand (rechts), der Kopf sitzt am oberen Ende;
+ * die Schneide steht senkrecht zum Stiel in der Schwungebene (Stiel um 90° gedreht: Ausholen → vorn-oben, Treffer → hinten-unten).
+ */
+function platziereHackwerkzeug(figur) {
+  if (!figur.waffe) return;
+  const gruppe = figur.gruppe;
+  gruppe.updateMatrixWorld(true);
+  const griff = (seite, ziel) => {
+    const [, , hand, finger] = figur.knochen[seite];
+    ziel.copy(gruppe.worldToLocal(hand.getWorldPosition(_a))).lerp(gruppe.worldToLocal(finger.getWorldPosition(_b)), 0.5);
+    return ziel;
+  };
+  const oben = griff('rechts', _c);
+  const unten = griff('links', _d);
+  const stiel = _e.copy(oben).sub(unten);
+  if (stiel.lengthSq() < 1e-4) stiel.copy(VORNE);
+  stiel.normalize();
+  const kante = _f.set(0, -stiel.z, stiel.y);
+  kante.addScaledVector(stiel, -kante.dot(stiel));
+  if (kante.lengthSq() < 1e-4) kante.set(0, 1, 0);
+  kante.normalize();
+  const quer = _g.copy(kante).cross(stiel);
+  figur.waffe.position.copy(oben);
+  figur.waffe.quaternion.setFromRotationMatrix(_basis.makeBasis(quer, kante, stiel));
+  figur.waffe.scale.setScalar(HACK_WERKZEUG_GROESSE);
+  figur.waffe.updateMatrixWorld(true);
+  figur.hatMuendung = false;
 }
 
 /** 0..1 während einer Aktion (Schuss, Schlag, Nachladen …), sonst null. Startet bei jeder neuen Aktion neu. */

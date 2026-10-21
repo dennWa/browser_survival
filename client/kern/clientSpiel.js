@@ -1126,6 +1126,7 @@ export class ClientSpiel {
       geschwindigkeit: Math.hypot(dx, dy) / TICK_DAUER_S,
       bewegungsWinkel: Math.atan2(dy, dx),
       istEigener: true,
+      sprintet: this.lokal.sprintet ?? this.eigeneDaten?.sprintet, // Vorhersage statt verzögertem Serverwert (Lauf-Animation)
     };
     if (this.karte.offen) this.karte.mitspieler = this.#mitspieler();
     if (!this.spielerDaten?.tot) this.karte.aktualisiere(eigen, jetzt);
