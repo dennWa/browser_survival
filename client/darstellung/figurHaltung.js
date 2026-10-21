@@ -6,16 +6,21 @@ import { erzeugeWaffe, haltungFuer, waffenModellName } from './waffenModelle.js'
  * Nach mixer.update() werden Ober- und Unterarme in eine Zielrichtung gedreht (Zielen, Schlagen,
  * Rückstoß, Nachladen), und das Waffenmodell sitzt in der Hand.
  *
- * Survivor (client/assets/3d/survivor.glb): Beim Holz-/Steinabbau macht der Clip „hacken“ den Schlag (figur.klipHacken) – hier
+ * Spielerfiguren (client/assets/3d/figur_mann|frau.glb): Beim Holz-/Steinabbau macht der Clip „hacken“ den Schlag (figur.klipHacken) – hier
  * wird nur das Werkzeug zwischen die Hände gelegt (platziereHackwerkzeug).
  *
  * Richtungen sind im Raum der Figur angegeben: +z = Blickrichtung, +y = oben,
  * -x = rechte Körperseite (die Kenney-Figur schaut im Modell nach +z, rechter Arm liegt bei -x).
  */
-const ARM_KNOCHEN = {
-  rechts: ['RightArm', 'RightForeArm', 'RightHand', 'RightHandIndex1'],
-  links: ['LeftArm', 'LeftForeArm', 'LeftHand', 'LeftHandIndex1'],
-};
+// Knochennamen je Skelett: Kenney (Zombies) und Quaternius (Spielerfiguren; der GLTFLoader entfernt die Punkte aus „UpperArm.R“)
+const ARM_KNOCHEN = [
+  { rechts: ['RightArm', 'RightForeArm', 'RightHand', 'RightHandIndex1'], links: ['LeftArm', 'LeftForeArm', 'LeftHand', 'LeftHandIndex1'] },
+  { rechts: ['UpperArmR', 'LowerArmR', 'WristR', 'Middle1R'], links: ['UpperArmL', 'LowerArmL', 'WristL', 'Middle1L'] },
+];
+const BEIN_KNOCHEN = [
+  { rechts: ['RightUpLeg', 'RightLeg', 'RightFoot'], links: ['LeftUpLeg', 'LeftLeg', 'LeftFoot'] },
+  { rechts: ['UpperLegR', 'LowerLegR', 'FootR'], links: ['UpperLegL', 'LowerLegL', 'FootL'] },
+];
 const v = (x, y, z) => new THREE.Vector3(x, y, z).normalize();
 const VORNE = new THREE.Vector3(0, 0, 1);
 
@@ -39,16 +44,19 @@ const HACK_TAKT_MS = 850; // ein Schlag
 
 /** Bereitet eine frisch geklonte Figur vor: Knochen merken. */
 export function richteFigurEin(figur, modell) {
-  figur.knochen = {};
-  for (const [seite, namen] of Object.entries(ARM_KNOCHEN)) {
-    const k = namen.map((n) => modell.getObjectByName(n));
-    if (k.every(Boolean)) figur.knochen[seite] = k;
-  }
-  figur.beine = {};
-  for (const [seite, namen] of Object.entries({ rechts: ['RightUpLeg', 'RightLeg', 'RightFoot'], links: ['LeftUpLeg', 'LeftLeg', 'LeftFoot'] })) {
-    const k = namen.map((n) => modell.getObjectByName(n));
-    if (k.every(Boolean)) figur.beine[seite] = k;
-  }
+  const waehle = (satz) => {
+    const gefunden = {};
+    for (const namen of satz) {
+      for (const [seite, liste] of Object.entries(namen)) {
+        const k = liste.map((n) => modell.getObjectByName(n));
+        if (k.every(Boolean)) gefunden[seite] = k;
+      }
+      if (Object.keys(gefunden).length) break;
+    }
+    return gefunden;
+  };
+  figur.knochen = waehle(ARM_KNOCHEN);
+  figur.beine = waehle(BEIN_KNOCHEN);
   figur.waffe = null;
   figur.waffenName = null;
   figur.aktionSchluessel = null;

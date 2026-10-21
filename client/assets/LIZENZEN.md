@@ -14,4 +14,4 @@ Alle Grafiken stammen aus frei nutzbaren Paketen. Bei **CC-BY** ist die Namensne
 | [Zombie-Sounds & Gunshot Sounds](https://opengameart.org/content/zombies-sound-pack) | artisticdude, ianzazz, Tabasco (opengameart.org) | CC0 | Geräusche: Zombies, Pistole, Schrotflinte |
 | [Glitch Food & Drink Items](https://opengameart.org/content/glitch-food-drink-items-svg) | Tiny Speck (Glitch) | CC0 | Essen & Getränke, Holz |
 | [Stylized Nature MegaKit (Gras)](https://quaternius.com/packs/stylizednaturemegakit.html) | Quaternius (quaternius.com) | CC0 | 3D-Gras auf der Karte (client/assets/3d/natur) |
-| Survivor-Spielerfigur (Modell, Animationen, Texturen) | selbst erstellt mit Blender/Python (werkzeuge/assets/survivor) | CC0 | Spieler-Figur (client/assets/3d/survivor.glb, skins/survivor*.webp) |
+| Adventurer Man / Woman (Spielerfiguren) | Quaternius (quaternius.com), Pipeline werkzeuge/assets/figuren | CC0 | Spieler-Figur (client/assets/3d/figur_mann.glb, figur_frau.glb) |
