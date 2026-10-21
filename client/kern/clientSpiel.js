@@ -412,6 +412,12 @@ export class ClientSpiel {
   }
 
   /** Im Feuer-Menü: hinsetzen – das Menü geht dabei zu. */
+  /** Ä / 🪑: überall hinsetzen bzw. aufstehen (am brennenden Lagerfeuer: Feuer-Sitzen) */
+  sitzen() {
+    if (this.spielerDaten?.tot || this.lokal.fahrzeug) return;
+    this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.SITZEN });
+  }
+
   stationSitzen() {
     this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.STATION_SITZEN });
     this.stationSchliessen();
@@ -818,6 +824,7 @@ export class ClientSpiel {
     this.lokal.fahrzeug = eigene.fahrzeug ? { ...eigene.fahrzeug, x: eigene.x, y: eigene.y } : null;
     this.lokal.ausdauer = eigene.ausdauer;
     this.lokal.erschoepft = eigene.erschoepft;
+    if (eigene.gleit) [this.lokal.gleitX, this.lokal.gleitY] = eigene.gleit; // Rutschen auf Eis
     this.lokal.fliegen = eigene.fliegen === true; // Admin-Flugmodus (gleiche Physik wie der Server)
     this.schlaeft = eigene.arbeit === 'schlafen'; // im Bett festgehalten: Server wendet keine Eingaben an
     if (eigene.tot || this.schlaeft) {
@@ -967,7 +974,7 @@ export class ClientSpiel {
         break;
       case 'hack':
         // Holz: Hacken · Eisenerz: heller Klang (Sample) · Stein: dumpfes Pochen (kein Metallklang)
-        this.sound.spiele(e.art === 'holz' ? 'hack_holz' : e.art === 'eisenerz' ? 'hack_stein' : 'hack_felsen', { x: e.x, y: e.y, tonhoehe: 0.9 + Math.random() * 0.2 });
+        this.sound.spiele(e.art === 'holz' || e.art === 'zerlegen' ? 'hack_holz' : e.art === 'eisenerz' ? 'hack_stein' : 'hack_felsen', { x: e.x, y: e.y, tonhoehe: 0.9 + Math.random() * 0.2 });
         break;
       case 'abgebaut':
         this.sound.spiele(e.art === 'holz' ? 'baum_faellt' : e.art === 'eisenerz' ? 'stein_bricht' : 'felsen_bricht', { x: e.x, y: e.y });

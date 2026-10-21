@@ -1,4 +1,4 @@
-import { brecheArbeitAb } from './arbeitSystem.js';
+import { brecheArbeitAb, starteZerlegen, ZERLEGE_WERKZEUGE } from './arbeitSystem.js';
 import { strahlGegenWaende, strahlTrifftKreis } from '../../../gemeinsam/physik/strahl.js';
 import { bewegeKoerper } from '../../../gemeinsam/physik/bewegung.js';
 import { NAHKAMPF_KEGEL, STANDARD_AUSRUESTUNG } from '../konfiguration/gegenstaende.js';
@@ -8,7 +8,7 @@ import { staerkeFaktor } from '../../../gemeinsam/spieler/skills.js';
 import { aussteigen, schlageFahrzeug } from './fahrzeugSystem.js';
 import { behandleAngelKlick, brecheAngelnAb } from './angelSystem.js';
 import { planeTierRespawn } from './tierSystem.js';
-import { schuereFeuer } from './stationSystem.js';
+import { schuereFeuer, sitztAmFeuer } from './stationSystem.js';
 import { lasseBossLootFallen, lasseZombieLootFallen } from './lootSystem.js';
 
 /**
@@ -39,6 +39,11 @@ export function aktualisiereKampf(spielWelt, dt) {
     } else if (def.ausruestung === 'hacke') {
       // Hacke in der Hand: Linksklick legt ein Ackerfeld an (Client schickt AKTION feld), kein Nahkampf
       spieler.angriffsAbklingzeit = 0.2;
+    } else if (ZERLEGE_WERKZEUGE.has(eintrag?.defId) && starteZerlegen(spielWelt, spieler, eintrag.defId)) {
+      // Axt/Spitzhacke/Hammer vor eigenem Lagerfeuer/Werkbank/Ofen/Falle: Linksklick baut es ab (5 s), statt zu schlagen
+      spieler.angriffsAbklingzeit = 0.5;
+    } else if (spieler.arbeit?.art === 'zerlegen') {
+      spieler.angriffsAbklingzeit = 0.2; // während des Zerlegens kein Nahkampf
     } else if (def.kategorie === 'nahkampf') nahkampf(spielWelt, spieler, def);
     // sonstiges in der Hand (Angel): Linksklick ist kein Angriff (Auswerfen läuft über behandleAngelKlick)
   }
@@ -244,7 +249,8 @@ export function raeumeZombiesWeg(spielWelt, x, y, radius) {
 /** Lärm (Schüsse, Kampf) lockt Zombies im Umkreis an – auch ohne Sichtkontakt. */
 export function alarmiereZombies(spielWelt, x, y, radius, quelleId) {
   // Wände schlucken den Lärm: Wer drinnen ist, wird von Zombies draußen nicht gehört
-  if (spielWelt.holen(quelleId)?.arbeit?.art === 'sitzen') return;
+  const quelle = spielWelt.holen(quelleId);
+  if (quelle && sitztAmFeuer(quelle)) return;
   const quelleInnen = spielWelt.welt.istInnen(x, y);
   for (const z of spielWelt.alleVomTyp('zombie')) {
     if (z.zustand !== 'ruhend' && z.zielId !== null) continue;

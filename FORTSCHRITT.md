@@ -25,18 +25,18 @@
 > Blender-Clips (gehen, sitzen, spitzhacke, hacke, abbauen, nahkampf) baut ein Subagent in `werkzeuge/assets/figuren/` → `client/assets/3d/figur_*.glb`; Einbau in Renderer/Haltung macht die Hauptsitzung.
 | # | Punkt | Status | Vermerk |
 |---|---|---|---|
-| 2.1 | Sitz-Animation neu (Blender), Taste „ä“ überall, Lagerfeuer im Sitzen nutzbar | ⬜ | |
-| 2.2 | Leerer Quickslot wählbar (Hand leer) | ⬜ | |
-| 2.3 | Ruhehaltung lässig; Waffe/Pistole(10 s)/Nahkampf beidhändig/Messer einhändig/Lampe | ⬜ | |
+| 2.1 | Sitz-Animation neu (Blender), Taste „ä“ überall, Lagerfeuer im Sitzen nutzbar | 🔄 | AKTION `sitzen` (Ä = `Quote`, Touch 🪑 `#hud-sitzen`), `stationSystem.setzeHin/sitztAmFeuer`, Tarnung+Heilung nur am Feuer, Linksklick steht nicht auf; Renderer nutzt Clip `sitzen` sobald da – Clip vom Blender-Agent offen |
+| 2.2 | Leerer Quickslot wählbar (Hand leer) | ✅ | inventarSystem `benutzen` leerer Platz → `ausgeruestet = null` |
+| 2.3 | Ruhehaltung lässig; Waffe/Pistole(10 s)/Nahkampf beidhändig/Messer einhändig/Lampe | 🔄 | figurHaltung: `locker`, `pistoleUnten` + `anschlag` (PISTOLE_OBEN_MS 10 s), `nahkampf` beidhändig, `messer` einhändig, Lampe nur nachts+an; Rauchtest offen |
 | 2.4 | Abbau-Animationen passend zu Händen/Werkzeug | ⬜ | |
-| 2.5 | Hacke: kurzer Schlag beim Feld anlegen/entfernen | ⬜ | |
-| 2.6 | Platzierte Objekte mit Axt/Spitzhacke/Hammer abbauen (5 s) | ⬜ | |
+| 2.5 | Hacke: kurzer Schlag beim Feld anlegen/entfernen | 🔄 | Server `setzeAktion('hacke', 0,6)`; Renderer Clip `hacke` (LoopOnce) bzw. prozedural |
+| 2.6 | Platzierte Objekte mit Axt/Spitzhacke/Hammer abbauen (5 s) | ✅ | Linksklick mit Werkzeug vor eigenem Lagerfeuer/Werkbank/Ofen/Falle → arbeit `zerlegen` (arbeitSystem `starteZerlegen/zerlegeWeiter`), Item zurück, Inhalt fällt; Clip `abbauen` sobald da; Tests `tests/runde18.test.js` |
 | 2.E | Phase-Ende | ⬜ | |
 
 ## Phase 3 – Weltmechaniken & Sounds
 | # | Punkt | Status | Vermerk |
 |---|---|---|---|
-| 3.1 | Eis begehbar mit Rutschen, kein Angeln auf Eis | ⬜ | |
+| 3.1 | Eis begehbar mit Rutschen, kein Angeln auf Eis | ✅ | `welt.istBlockiert` (schnee+wasser=frei), `welt.istEis`, bewegung.js `EIS_GRIFF` 2,2 + `gleitX/Y` (Netz `gleit` exakt, clientSpiel übernimmt), wasser.js `istOffenesWasser` für wurfZiel; Test in runde18 |
 | 3.2 | Angeln nur mit Angel in der Hand, Dauer ×2 | ⬜ | |
 | 3.3 | Auto bremst an Laternen | ⬜ | |
 | 3.4 | Vogelgezwitscher (Tag, draußen) | ⬜ | |
@@ -44,6 +44,7 @@
 | 3.E | Phase-Ende | ⬜ | |
 
 ## Phase 4 – Performance & nahtlose Zonen
+> Nutzer (2026-10-22): Phase 4 erst GANZ ZUM SCHLUSS (nach 5–7) – vorher dem Nutzer Bescheid geben, er stellt den Aufwand um.
 | # | Punkt | Status | Vermerk |
 |---|---|---|---|
 | 4.1 | Render-Culling Sichtradius + Puffer (Messung vorher/nachher) | ⬜ | |
@@ -86,3 +87,13 @@
 
 ## Entscheidungen / Defaults (kurz)
 - (wird beim Arbeiten ergänzt)
+
+## ⏸ SICHERUNGSPUNKT 2026-10-22 (Limit fast leer) – HIER WEITERMACHEN
+- Commit „Runde 18 Zwischenstand Phase 2/3“ enthält Phase-2-Server/Client + Eis. Phase 1 ist committed + gepusht.
+- **Laufende Subagenten (Ergebnisse evtl. verloren, ggf. neu starten):**
+  - Blender-Agent: Clips `gehen, sitzen, spitzhacke, hacke, abbauen, nahkampf` in `werkzeuge/assets/figuren/figuren_bauen.py` → `client/assets/3d/figur_*.glb` (`npm run assets:figuren`). Prüfen: Clipnamen in den GLBs (node, JSON-Chunk). Renderer nutzt sie schon automatisch (Fallback, wenn fehlen). Danach `GEH_TEMPO` (renderer.js, Platzhalter 55) an Fußtempo des Walk-Clips anpassen; Sitz-Hüfthöhe prüfen (mit Clip KEIN `SITZ_TIEFE`).
+  - Editor-Agent: Phase 6 (ohne 6.2) + Phase 7 in `editor/**` – uncommittete Editor-Änderungen liegen im Arbeitsbaum (nicht von mir committet!). Prüfen mit `git status`/`npm test`, Rauchtest `npm run rauchtest:editor -- --schnell`, dann committen.
+- **Offen Phase 2:** Rauchtest (Haltungen Pistole unten/10 s, Nahkampf beidhändig, Messer, Lampe nur nachts; Sitzen mit Ä; Zerlegen per Linksklick; Hacken-Schlag).
+- **Offen Phase 3:** 3.2 Angeln nur mit Angel IN DER HAND (angelSystem `behandleAngelKlick`: `spieler.inventar.some(angel)` → ausgerüsteter Slot prüfen; Client-Hinweis `#angelWinkel` in clientSpiel ebenso) + Dauer ×2 (`konfiguration.angeln` wartenMin/Max 6/18, bissMin/Max bleiben); 3.3 Auto an Laternen bremsen (`G:physik/fahrzeug.js` / `fahreHindernisseUm` → Tempo z. B. ×0,6 beim Umfahren); 3.4 Vogelgezwitscher (clientSpiel: Tag + draußen + nicht Schnee? → Ereignis `vogel` in `eigeneSounds.EREIGNISSE` + Synth-Rezept in `sound.js`, zufällig alle 8–25 s); 3.5 Sound-Platzhalter `magen_knurren, durst, schaden_mann, schaden_frau, keuchen, donner, automatikgewehr` (EREIGNISSE + Rezept; auslösen: Hunger<20, Durst<20, eigener Schaden je Körper, Ausdauer leer, Gewitter/Regen zufällig, Automatikwaffe-Schuss falls vorhanden).
+- **Dann:** Phase 5 (wartet auf Dateien in `!verteilen`), Phase 6/7 (Editor-Agent einsammeln + 6.2 weicher Rasenrand in `client/darstellung/bodenTextur.js`), **Phase 4 erst ganz zum Schluss und vorher Nutzer Bescheid geben** (Aufwand umstellen).
+- Commits: `git -c user.name=Claude -c user.email=noreply@anthropic.com commit …` (keine Git-Identität gesetzt), nur eigene Dateien adden.

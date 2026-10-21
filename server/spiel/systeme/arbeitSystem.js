@@ -6,6 +6,7 @@ import { gibXp } from './levelSystem.js';
 import { GEGENSTAENDE } from '../konfiguration/gegenstaende.js';
 import { sammelFaktor } from '../../../gemeinsam/spieler/skills.js';
 import { aktualisiereBauwerke } from './bauSystem.js';
+import { BAUWERKE } from '../../../gemeinsam/welt/bauwerke.js';
 
 /**
  * Arbeiten, die Zeit brauchen: Bäume fällen / Steine abbauen (Werkzeug nötig, nutzt sich ab) und Schlafen im Bett; Sitzen am Feuer (start: stationSystem).
@@ -72,7 +73,9 @@ export function aktualisiereArbeit(spielWelt, dt) {
     if (!a) continue;
     // Wer im Bett liegt, bleibt liegen, bis er ausgeschlafen hat – nur Schaden weckt (fuegeSchadenZu → brecheArbeitAb)
     const schlaeft = a.art === 'schlafen';
-    if (spieler.tot || (!schlaeft && (spieler.angriff || Math.hypot(spieler.x - a.x, spieler.y - a.y) > ABBRUCH_WEG))) {
+    // Sitzen/Zerlegen: Linksklick (Holz nachlegen, Werkzeug-Schläge) beendet die Arbeit nicht – nur Bewegung
+    const klickErlaubt = a.art === 'sitzen' || a.art === 'zerlegen';
+    if (spieler.tot || (!schlaeft && ((spieler.angriff && !klickErlaubt) || Math.hypot(spieler.x - a.x, spieler.y - a.y) > ABBRUCH_WEG))) {
       spieler.arbeit = null;
       continue;
     }
@@ -81,13 +84,18 @@ export function aktualisiereArbeit(spielWelt, dt) {
       continue;
     }
     if (a.art === 'sitzen') {
+      if (a.bauwerkId == null) continue; // einfach hingesetzt (Taste Ä): keine Heilung, keine Tarnung
       const feuer = spielWelt.welt.bauwerke.get(a.bauwerkId);
       if (!feuer?.brennt) {
-        spieler.arbeit = null;
+        a.bauwerkId = null; // bleibt sitzen, nur ohne Feuer
         spielWelt.melde(spieler.id, 'Das Feuer ist erloschen');
         continue;
       }
       spieler.leben = Math.min(spieler.maxLeben, spieler.leben + SITZ_HEILUNG * dt);
+      continue;
+    }
+    if (a.art === 'zerlegen') {
+      zerlegeWeiter(spielWelt, spieler, a, dt);
       continue;
     }
     if (!spielWelt.welt.istRessourceDa(a.ressourceId)) {
@@ -234,4 +242,63 @@ function aktualisiereNachwachsen(spielWelt, dt) {
 function naechstesBett(welt, x, y) {
   const treffer = welt.naechstesObjekt(x, y, BETT_REICHWEITE, (o) => o.typ.startsWith('bett'));
   return treffer && { x: treffer.x, y: treffer.y, laengs: treffer.objekt.h >= treffer.objekt.b };
+}
+
+// ---------------------------------------------------------------------------
+// Zerlegen (Runde 18): selbst aufgestellte Objekte (Lagerfeuer, Werkbank, Schmelzofen, Falle) mit Axt, Spitzhacke oder
+// Hammer in der Hand per Linksklick abbauen – 5 s Arbeit, danach liegt das Objekt als Item wieder im Inventar.
+
+export const ZERLEGE_WERKZEUGE = new Set(['axt', 'spitzhacke', 'hammer']);
+export const ZERLEGE_DAUER = 5;
+const ZERLEGE_REICHWEITE = 64; // px von der Kachelmitte
+const ZERLEGE_KEGEL = Math.PI / 3; // ±60° vor der Figur
+const ZERLEGE_TAKT = 1; // Sekunden zwischen zwei Schlag-Geräuschen
+
+/** Zerlegbares Bauwerk vor dem Spieler (eigenes, aufgestelltes Item-Bauwerk) oder null. */
+export function zerlegbaresVor(spielWelt, spieler) {
+  const g = spielWelt.welt.kachelGroesse;
+  return spielWelt.welt.naechstesBauwerk(spieler.x, spieler.y, ZERLEGE_REICHWEITE, (b) => {
+    if (!BAUWERKE[b.typ]?.item || b.besitzer !== spieler.name) return false;
+    const w = Math.atan2((b.ty + 0.5) * g - spieler.y, (b.tx + 0.5) * g - spieler.x);
+    return Math.abs(Math.atan2(Math.sin(w - spieler.blick), Math.cos(w - spieler.blick))) <= ZERLEGE_KEGEL;
+  });
+}
+
+/** Startet das Zerlegen (Linksklick mit Werkzeug, kampfSystem). @returns true, wenn ein Objekt vor einem stand */
+export function starteZerlegen(spielWelt, spieler, werkzeug) {
+  if (spieler.arbeit || !ZERLEGE_WERKZEUGE.has(werkzeug)) return false;
+  const b = zerlegbaresVor(spielWelt, spieler);
+  if (!b) return false;
+  spieler.arbeit = { art: 'zerlegen', dauer: ZERLEGE_DAUER, rest: ZERLEGE_DAUER, x: spieler.x, y: spieler.y, bauwerkId: b.id, werkzeug, naechsterSchlag: 0.4 };
+  spielWelt.melde(spieler.id, `${BAUWERKE[b.typ].name} wird abgebaut …`);
+  return true;
+}
+
+function zerlegeWeiter(spielWelt, spieler, a, dt) {
+  const welt = spielWelt.welt;
+  const b = welt.bauwerke.get(a.bauwerkId);
+  const g = welt.kachelGroesse;
+  if (!b || spieler.inventar[spieler.ausgeruestet ?? -1]?.defId !== a.werkzeug) {
+    spieler.arbeit = null;
+    return;
+  }
+  const x = (b.tx + 0.5) * g;
+  const y = (b.ty + 0.5) * g;
+  spieler.blick = Math.atan2(y - spieler.y, x - spieler.x);
+  a.naechsterSchlag -= dt;
+  if (a.naechsterSchlag <= 0) {
+    a.naechsterSchlag += ZERLEGE_TAKT;
+    spielWelt.ereignis({ typ: 'hack', art: 'zerlegen', x, y });
+  }
+  a.rest -= dt;
+  if (a.rest > 0) return;
+  spieler.arbeit = null;
+  // Inhalt (Koch-/Ofenplätze) fällt auf den Boden, das Objekt selbst geht ins Inventar
+  for (const p of b.plaetze ?? []) if (p) legeAufBoden(spielWelt, { defId: p.defId, menge: 1 }, x, y);
+  welt.entferneBauwerk(b.id);
+  const item = BAUWERKE[b.typ].item;
+  if (fuegeZumInventarHinzu(spieler, item, 1) > 0) legeAufBoden(spielWelt, { defId: item, menge: 1 }, spieler.x, spieler.y);
+  if (a.werkzeug !== 'hammer') nutzeWerkzeug(spielWelt, spieler, a.werkzeug);
+  spielWelt.ereignis({ typ: 'gebaut', bauwerk: b.typ, x, y, von: spieler.id });
+  spielWelt.melde(spieler.id, `${BAUWERKE[b.typ].name} abgebaut`);
 }

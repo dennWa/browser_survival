@@ -100,6 +100,7 @@ export function legeFeldAn(spielWelt, spieler, tx, ty) {
   for (const k of kacheln) welt.setzeBauwerk({ id: spielWelt.neueBauwerkId(), typ: 'beet', tx: k.tx, ty: k.ty, besitzer: spieler.name, pflanze: null, wachstum: 0 });
   nutzeWerkzeug(spielWelt, spieler, 'hacke');
   const g = welt.kachelGroesse;
+  hackeSchlag(spielWelt, spieler, tx, ty);
   spielWelt.ereignis({ typ: 'gebaut', bauwerk: 'beet', x: (tx + 0.5) * g, y: (ty + 0.5) * g, von: spieler.id });
 }
 
@@ -114,7 +115,16 @@ export function entferneFeld(spielWelt, spieler, tx, ty) {
   if (fremdesGebiet(spielWelt, spieler, tx, ty)) return;
   welt.entferneBauwerk(beet.id);
   const g = welt.kachelGroesse;
+  hackeSchlag(spielWelt, spieler, tx, ty);
   spielWelt.ereignis({ typ: 'gebaut', bauwerk: 'beet', x: (tx + 0.5) * g, y: (ty + 0.5) * g, von: spieler.id });
+}
+
+/** Kurzer Hacken-Schlag (nur Animation, kein Schaden): Figur dreht sich zur Kachel, Aktion 'hacke' (Clip „hacke“ im Renderer). */
+export const HACKE_ANIMATION = 0.6;
+function hackeSchlag(spielWelt, spieler, tx, ty) {
+  const g = spielWelt.welt.kachelGroesse;
+  spieler.blick = Math.atan2((ty + 0.5) * g - spieler.y, (tx + 0.5) * g - spieler.x);
+  spielWelt.setzeAktion(spieler, 'hacke', HACKE_ANIMATION);
 }
 
 /** F am Lagerfeuer: anzünden (nur mit Feuerzeug) bzw. löschen. @returns true, wenn ein Feuer in Reichweite war */

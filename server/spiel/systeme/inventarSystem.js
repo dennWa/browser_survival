@@ -13,7 +13,7 @@ import { setzeSkillpunkt } from './levelSystem.js';
 import { fahrzeugAktion } from './fahrzeugSystem.js';
 import { legeInKiste, nimmAusKiste, oeffneKofferraum, schliesseKiste } from './kistenSystem.js';
 import { entferneFeld, legeFeldAn } from './bauSystem.js';
-import { legeInStation, nimmAusStation, schliesseStation, setzeAmFeuer } from './stationSystem.js';
+import { legeInStation, nimmAusStation, schliesseStation, setzeAmFeuer, setzeHin } from './stationSystem.js';
 import { baue, reisseAb } from './basisbauSystem.js';
 
 /**
@@ -107,6 +107,9 @@ export function verarbeiteAktionen(spielWelt) {
           break;
         case AKTIONEN.STATION_SITZEN:
           setzeAmFeuer(spielWelt, spieler);
+          break;
+        case AKTIONEN.SITZEN:
+          setzeHin(spielWelt, spieler);
           break;
         case AKTIONEN.BAUEN:
           baue(spielWelt, spieler, aktion);
@@ -253,7 +256,15 @@ function aufheben(spielWelt, spieler) {
 
 function benutzen(spielWelt, spieler, slot) {
   const eintrag = spieler.inventar[slot];
-  if (!eintrag) return;
+  if (!eintrag) {
+    // Leerer Platz gewählt (Runde 18): nichts mehr in der Hand
+    if (spieler.ausgeruestet !== null) {
+      spieler.ausgeruestet = null;
+      spieler.nachladenRest = 0;
+      aktualisiereAusruestung(spieler);
+    }
+    return;
+  }
   const def = GEGENSTAENDE[eintrag.defId];
   switch (def.kategorie) {
     case 'nahrung':

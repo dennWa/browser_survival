@@ -106,6 +106,7 @@ export function spielerZuNetzwerk(s) {
     // Ausdauer exakt (nicht gerundet): der eigene Client rechnet damit die Sprint-Vorhersage nach
     ausdauer: s.ausdauer,
     erschoepft: s.erschoepft,
+    gleit: s.aufEis ? [s.gleitX, s.gleitY] : undefined, // Eis-Schwung exakt (Vorhersage rutscht genauso)
     boostRest: Math.round(s.boostRest * 1000) / 1000,
     sprintet: s.sprintet,
     lichtAn: s.lichtAn,
@@ -156,7 +157,7 @@ export function spielerDatenPrivat(s, konfiguration, spielWelt = null) {
     spawn: s.spawn, // Respawn-Bett { karte, tx, ty } oder null
     // Fortschritt in 5-%-Schritten (sonst würde jeder Tick neue Daten schicken)
     arbeit: s.arbeit
-      ? { art: s.arbeit.art, fortschritt: Math.round((1 - s.arbeit.rest / s.arbeit.dauer) * 20) / 20, wartet: s.arbeit.fertig === true }
+      ? { art: s.arbeit.art, fortschritt: Math.round((1 - s.arbeit.rest / s.arbeit.dauer) * 20) / 20, wartet: s.arbeit.fertig === true, amFeuer: s.arbeit.art === 'sitzen' && s.arbeit.bauwerkId != null }
       : null,
   };
 }

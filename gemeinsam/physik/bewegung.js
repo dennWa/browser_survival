@@ -10,6 +10,8 @@ import { normalisiere, begrenze } from '../mathe.js';
 const EPSILON = 0.001;
 export const FLUG_TEMPO = 480; // px/s im Admin-Flugmodus (Gehen 80, Rennen 150)
 const FLUG_SPRINT = 3;
+/** Eis: so schnell (Anteil pro Sekunde) passt sich die Geschwindigkeit dem Wunsch an – klein = rutschiger */
+export const EIS_GRIFF = 2.2;
 
 /** Macht aus einer (evtl. manipulierten) Eingabe einen gültigen Richtungsvektor mit Länge ≤ 1. */
 export function richtungAusEingabe(eingabe) {
@@ -51,8 +53,26 @@ export function wendeEingabeAn(koerper, eingabe, welt, parameter, dt) {
   // Gangarten (Runde 18): ohne Shift gehen; Shift = rennen (kostet Ausdauer); Shift ohne Ausdauer = joggen
   const faktor = sprintet ? parameter.sprintFaktor : willSprinten ? (parameter.joggFaktor ?? 1) : 1;
   // tempoFaktor: Skill "Schnelligkeit" (Server setzt ihn am Spieler, der Client übernimmt ihn für die Vorhersage)
-  const weg = parameter.geschwindigkeit * (koerper.tempoFaktor ?? 1) * faktor * dt;
-  bewegeKoerper(koerper, richtung.x * weg, richtung.y * weg, parameter.radius, welt);
+  const tempo = parameter.geschwindigkeit * (koerper.tempoFaktor ?? 1) * faktor;
+  if (welt.istEis?.(koerper.x, koerper.y)) {
+    // Eis (Runde 18): Die Geschwindigkeit folgt dem Wunsch nur träge → beim Anhalten und bei schnellen Seitwärts-Drehungen rutscht man weiter
+    const griff = Math.min(1, EIS_GRIFF * dt);
+    koerper.gleitX = (koerper.gleitX ?? 0) + (richtung.x * tempo - (koerper.gleitX ?? 0)) * griff;
+    koerper.gleitY = (koerper.gleitY ?? 0) + (richtung.y * tempo - (koerper.gleitY ?? 0)) * griff;
+    const vorX = koerper.x;
+    const vorY = koerper.y;
+    bewegeKoerper(koerper, koerper.gleitX * dt, koerper.gleitY * dt, parameter.radius, welt);
+    // An der Bande (Wand/Ufer) bleibt nur die tatsächliche Bewegung übrig
+    koerper.gleitX = (koerper.x - vorX) / dt;
+    koerper.gleitY = (koerper.y - vorY) / dt;
+    if (Math.abs(koerper.gleitX) < 0.5 && Math.abs(koerper.gleitY) < 0.5) koerper.gleitX = koerper.gleitY = 0;
+    koerper.aufEis = true;
+  } else {
+    koerper.gleitX = richtung.x * tempo; // Schwung, mit dem man aufs Eis kommt
+    koerper.gleitY = richtung.y * tempo;
+    koerper.aufEis = false;
+    bewegeKoerper(koerper, richtung.x * tempo * dt, richtung.y * tempo * dt, parameter.radius, welt);
+  }
   if (Number.isFinite(eingabe.blick)) koerper.blick = eingabe.blick;
   koerper.sprintet = sprintet;
   return sprintet;

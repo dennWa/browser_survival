@@ -26,6 +26,7 @@ export const TASTEN = Object.freeze({
   chat: ['KeyT'], // Chat-Eingabe öffnen
   spielerliste: ['KeyI'], // Spieler-Info: wer ist online (Level, Kills, überlebte Zeit)
   kofferraum: ['KeyG'], // Kofferraum des Autos öffnen (daneben stehen oder drinsitzen)
+  sitzen: ['Quote'], // Ä (deutsche Tastatur; physisch die '-Taste): hinsetzen/aufstehen – überall, am Lagerfeuer heilend
   tuer: ['KeyF'], // Lagerfeuer an/aus (Name historisch)
   nachladen: ['KeyR'],
   licht: ['KeyL'], // Taschenlampe an/aus

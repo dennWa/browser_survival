@@ -15,7 +15,7 @@ import { erzeugeFrisur } from './haarModell.js';
 import { AUSSEHEN, skinFuer } from '../../gemeinsam/spieler/aussehen.js';
 import { itemGeometrie, ITEM_MATERIAL, rucksackTeile } from './itemModelle.js';
 import { zeichneBeschriftung, zeichneItemName, zeichneSprechblase } from './beschriftung.js';
-import { richteFigurEin, aktualisiereHaltung } from './figurHaltung.js';
+import { richteFigurEin, aktualisiereHaltung, ARBEIT_KLIP } from './figurHaltung.js';
 import { erzeugeWaffe, WAFFEN_NAMEN } from './waffenModelle.js';
 import { erzeugeTier } from './tierModelle.js';
 import { erzeugeAngel } from './angelModell.js';
@@ -54,6 +54,9 @@ const FIGUR_HOEHE = 64;
 // Spieler-Figuren (Quaternius „Adventurer“, werkzeuge/assets/figuren): je ein GLB mit Clips stehen/laufen/hacken/sterben
 const SURVIVOR = { mann: '3d/figur_mann.glb', frau: '3d/figur_frau.glb' };
 const LAUF_TEMPO = 100; // px/s, bei denen der Clip „laufen“ mit timeScale 1 passt (Fußgeschwindigkeit des Run-Clips)
+const GEH_TEMPO = 55; // px/s, bei denen der Clip „gehen“ (Walk) mit timeScale 1 passt
+const GEH_GRENZE = 100; // darunter Geh-Clip (Gehen 80 px/s), darüber Lauf-Clip (Joggen 115, Rennen 150)
+const SCHLAG_KLIPS = new Set(['hacken', 'spitzhacke', 'abbauen', 'hacke']); // Clips, die ein Werkzeug schwingen (figurHaltung legt es in die Hände)
 const HACK_ARBEIT = new Set(['holz', 'stein', 'eisenerz']);
 const SCHNITT_RADIUS = 0; // 0 = aus: kein Durchschauen durch Wände mehr (verdeckte Figur zeigt stattdessen die Silhouette)
 const SCHNITT_HOEHE = 10; // bis zu dieser Höhe bleiben aufgeschnittene Wände als Sockel stehen
@@ -517,6 +520,7 @@ export class Renderer {
     BAUM_WIND.uWindStufe.value = this.wetterEffekt.windStufe;
     BAUM_WIND.uWindZeit.value = this.wetterEffekt.windZeit % 600;
     const dunkel = this.#tageslicht(tageszeit, _ziel);
+    this.dunkel = this.nachtsicht ? 1 - (tageszeit?.helligkeit ?? 1) : dunkel; // für Haltungen (Lampe nur nachts vorn)
 
     this.karte.aktualisiere(dt, dunkel, fokus);
     if (this.nachbarn.length) this.#aktualisiereNachbarn(dt, dunkel, fokus);
@@ -1181,7 +1185,9 @@ export class Renderer {
         f.gruppe.position.set(e.arbeitOrt.x - (laengs ? 0 : 30), 20 + this.#hy(e.arbeitOrt.x, e.arbeitOrt.y), e.arbeitOrt.y + (laengs ? 30 : 0));
         f.gruppe.rotation.set(-Math.PI / 2, laengs ? 0 : -Math.PI / 2, 0, 'YXZ');
       } else {
-        f.gruppe.position.set(e.x, this.#hy(e.x, e.y) + (e.arbeit === 'sitzen' ? -SITZ_TIEFE : e.fliegen ? 34 + Math.sin(jetzt / 260) * 3 : 0), e.y); // Flugmodus (Admin): schwebt; Gelände-Höhe darunter
+        // Sitzen: mit eigenem Clip senkt der Clip die Hüfte selbst, sonst wird die Figur abgesenkt (prozedurale Beine)
+        const sitzTiefe = e.arbeit === 'sitzen' && !f.aktionen?.sitzen ? SITZ_TIEFE : 0;
+        f.gruppe.position.set(e.x, this.#hy(e.x, e.y) - sitzTiefe + (e.fliegen ? 34 + Math.sin(jetzt / 260) * 3 : 0), e.y); // Flugmodus (Admin): schwebt; Gelände-Höhe darunter
         f.gruppe.rotation.set(0, Math.PI / 2 - e.blick, 0, 'YXZ');
       }
 
@@ -1189,11 +1195,23 @@ export class Renderer {
       let name;
       let zeitfaktor = 1;
       if (f.survivor) {
-        // Spielerfigur: sterben (einmalig, bleibt liegen) > hacken > laufen (Tempo über timeScale) > stehen
+        // Spielerfigur: sterben (einmalig, bleibt liegen) > sitzen > Werkzeug-Clip (hacken/spitzhacke/abbauen) > Hacken-Schlag (einmal)
+        // > gehen/laufen (Tempo über timeScale) > stehen. Fehlt ein Clip, gilt der nächstbeste (hacken bzw. prozedural).
+        const k = f.aktionen;
+        const arbeitsKlip = ARBEIT_KLIP[e.arbeit];
         if (e.tot) name = 'sterben';
-        else if (HACK_ARBEIT.has(e.arbeit)) name = 'hacken';
-        else name = tempo > 12 ? 'laufen' : 'stehen';
+        else if (e.arbeit === 'sitzen' && k.sitzen) name = 'sitzen';
+        else if (arbeitsKlip && k[arbeitsKlip]) name = arbeitsKlip;
+        else if (arbeitsKlip && (HACK_ARBEIT.has(e.arbeit) || e.arbeit === 'zerlegen')) name = 'hacken';
+        else if (e.aktion === 'hacke' && !e.arbeit && k.hacke) name = 'hacke';
+        else if (tempo > 12) name = k.gehen && tempo < GEH_GRENZE ? 'gehen' : 'laufen';
+        else name = 'stehen';
         if (name === 'laufen') zeitfaktor = Math.max(0.6, Math.min(2.4, tempo / LAUF_TEMPO));
+        if (name === 'gehen') zeitfaktor = Math.max(0.5, Math.min(2, tempo / GEH_TEMPO));
+        f.schlagKlip = SCHLAG_KLIPS.has(name);
+        // Hacken-Schlag: jeder neue Schlag (neuer aktionTick) startet den Einmal-Clip von vorn
+        if (name === 'hacke' && f.aktuell === 'hacke' && f.hackeTick !== e.aktionTick) k.hacke.reset().play();
+        if (name === 'hacke') f.hackeTick = e.aktionTick;
       } else {
         name = tempo > 12 ? 'rennen' : 'stehen';
         if (name === 'rennen') zeitfaktor = e.typ === 'zombie' ? Math.max(0.5, tempo / 140) : Math.max(0.6, tempo / 170);
@@ -1213,7 +1231,7 @@ export class Renderer {
       if (!!e.rucksack !== !!f.rucksack) this.#setzeRucksack(f, !!e.rucksack);
       f.mixer.update(dt);
       if (f.waffe) f.waffe.visible = !e.tot;
-      if (!schlaeft && !e.tot) aktualisiereHaltung(f, e, jetzt);
+      if (!schlaeft && !e.tot) aktualisiereHaltung(f, e, jetzt, this.dunkel ?? 0);
     }
     for (const [id, f] of this.figuren) {
       if (gesehen.has(id)) continue;
@@ -1309,11 +1327,20 @@ export class Renderer {
     for (const [name, clip] of Object.entries(sv.clips)) aktionen[name] = mixer.clipAction(clip);
     aktionen.sterben.setLoop(THREE.LoopOnce, 1);
     aktionen.sterben.clampWhenFinished = true;
+    if (aktionen.hacke) {
+      aktionen.hacke.setLoop(THREE.LoopOnce, 1); // Feld anlegen: ein einzelner Schlag
+      aktionen.hacke.clampWhenFinished = true;
+    }
+    if (aktionen.nahkampf) {
+      aktionen.nahkampf.setLoop(THREE.LoopOnce, 1);
+      aktionen.nahkampf.clampWhenFinished = true;
+    }
     aktionen.stehen.play();
     mixer.setTime(Math.random() * 2);
     const figur = { gruppe, mixer, aktionen, aktuell: 'stehen', koerper, survivor: true, tot: false };
     richteFigurEin(figur, modell);
     figur.klipHacken = !!(figur.knochen.rechts && figur.knochen.links);
+    figur.klips = new Set(Object.keys(aktionen));
     return figur;
   }
 

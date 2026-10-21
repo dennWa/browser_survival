@@ -136,6 +136,31 @@ export function setzeAmFeuer(spielWelt, spieler) {
   spielWelt.melde(spieler.id, '🔥 Du sitzt am Feuer – hier ist es ruhig');
 }
 
+/**
+ * AKTION sitzen (Taste Ä, Runde 18): überall hinsetzen bzw. wieder aufstehen. Liegt ein brennendes Lagerfeuer in
+ * SITZ_ABSTAND, setzt man sich ans Feuer (Blick zum Feuer, heilt, Zombies übersehen einen) – Kochen/Nachlegen geht im Sitzen.
+ */
+export function setzeHin(spielWelt, spieler) {
+  if (spieler.arbeit?.art === 'sitzen') {
+    spieler.arbeit = null;
+    return;
+  }
+  if (spieler.tot || spieler.fahrzeug || spieler.fliegen || spieler.arbeit) return;
+  const g = spielWelt.welt.kachelGroesse;
+  const feuer = spielWelt.welt.naechstesBauwerk(spieler.x, spieler.y, SITZ_ABSTAND, (b) => b.typ === 'lagerfeuer' && b.brennt);
+  spieler.arbeit = { art: 'sitzen', dauer: 1e6, rest: 1e6, x: spieler.x, y: spieler.y, bauwerkId: feuer?.id ?? null };
+  spieler.nachladenRest = 0;
+  if (feuer) {
+    spieler.blick = Math.atan2((feuer.ty + 0.5) * g - spieler.y, (feuer.tx + 0.5) * g - spieler.x);
+    spielWelt.melde(spieler.id, '🔥 Du sitzt am Feuer – hier ist es ruhig');
+  }
+}
+
+/** Sitzt der Spieler an einem (brennenden) Lagerfeuer? Nur dann übersehen ihn die Zombies. */
+export function sitztAmFeuer(spieler) {
+  return spieler.arbeit?.art === 'sitzen' && spieler.arbeit.bauwerkId != null;
+}
+
 /** Holz in der Hand, Linksklick aufs Lagerfeuer: +brennDauer (stapelt bis brennMax). @returns true, wenn ein Feuer getroffen wurde */
 export function schuereFeuer(spielWelt, spieler, slot) {
   const b = spielWelt.welt.naechstesBauwerk(spieler.x, spieler.y, BAUWERK_REICHWEITE, (x) => x.typ === 'lagerfeuer');

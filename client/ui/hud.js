@@ -106,6 +106,7 @@ export class Hud {
       minikarte: el('minikarte'),
       feld: el('hud-feld'),
       kofferraum: el('hud-kofferraum'),
+      sitzen: el('hud-sitzen'),
       angeln: el('hud-angeln'),
       auto: el('hud-auto'),
       tacho: el('hud-tacho'),
@@ -132,6 +133,7 @@ export class Hud {
     this.el.karte.addEventListener('click', () => this.#aktionen.karte?.());
     this.el.feld.addEventListener('click', () => this.#aktionen.feld?.());
     this.el.kofferraum.addEventListener('click', () => this.#aktionen.kofferraum?.());
+    this.el.sitzen.addEventListener('click', () => this.#aktionen.sitzen?.());
     el('autolauf-stopp').addEventListener('click', () => this.#aktionen.autoLaufStopp?.());
     try {
       this.#minikarteAn = localStorage.getItem(MINIKARTE_SCHLUESSEL) !== 'aus';
@@ -676,14 +678,14 @@ export class Hud {
   /** Fortschrittsbalken für Abbauen/Schlafen. */
   #zeigeArbeit(arbeit) {
     this.el.schlafblende.classList.toggle('an', arbeit?.art === 'schlafen');
-    const schluessel = arbeit ? `${arbeit.art}${arbeit.fortschritt}${arbeit.wartet}` : '';
+    const schluessel = arbeit ? `${arbeit.art}${arbeit.fortschritt}${arbeit.wartet}${arbeit.amFeuer}` : '';
     if (schluessel === this.#letzteArbeit) return;
     this.#letzteArbeit = schluessel;
     this.el.arbeit.hidden = !arbeit;
     if (!arbeit) return;
     const text = arbeit.wartet
       ? '💤 Warte, bis alle schlafen …'
-      : ({ angeln: '🎣 …', holz: '🪓 Baum fällen …', stein: '⛏ Stein abbauen …', eisenerz: '⛏ Eisenerz abbauen …', kochen: '🍳 Braten …', schlafen: '💤 Schlafen …', sitzen: '🔥 Am Feuer … (bewegen = aufstehen)' }[arbeit.art] ?? '…');
+      : ({ angeln: '🎣 …', holz: '🪓 Baum fällen …', stein: '⛏ Stein abbauen …', eisenerz: '⛏ Eisenerz abbauen …', kochen: '🍳 Braten …', schlafen: '💤 Schlafen …', sitzen: arbeit.amFeuer ? '🔥 Am Feuer … (bewegen/Ä = aufstehen)' : '🪑 Sitzt … (bewegen/Ä = aufstehen)', zerlegen: '🔨 Abbauen …' }[arbeit.art] ?? '…');
     this.el.arbeitText.textContent = text;
     this.el.arbeit.classList.toggle('ohne-balken', arbeit.art === 'sitzen');
     this.el.arbeit.querySelector('.fuellung').style.width = `${Math.round(arbeit.fortschritt * 100)}%`;

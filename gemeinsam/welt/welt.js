@@ -366,7 +366,14 @@ export class Welt {
       const id = this.ressourceAnKachel.get(ty * this.breite + tx);
       if (id !== undefined && !this.abgebaut.has(id)) return true;
     }
+    if (this.schnee && KACHELN[zeichen]?.wasser) return false; // Schneezone: Wasser ist zugefroren → begehbar (rutschig, kein Angeln)
     return KACHELN[zeichen]?.blockiert ?? true;
+  }
+
+  /** Steht man hier auf Eis? (zugefrorenes Wasser in einer Schneezone – Rutschen, siehe physik/bewegung.js) */
+  istEis(x, y) {
+    if (!this.schnee) return false;
+    return KACHELN[this.kachelAn(Math.floor(x / this.kachelGroesse), Math.floor(y / this.kachelGroesse))]?.wasser === true;
   }
 
   /** Wie istBlockiert, aber nur die Karte selbst (Kachel, Möbel, Bäume/Steine, Türen) – ohne Spielerbauten. Für Flagge, Boden und Dach. */

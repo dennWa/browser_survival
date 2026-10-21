@@ -83,6 +83,7 @@ eingabe.beiTaste('chat', () => aktuellesSpiel && hud.chatOeffnen());
 eingabe.beiTaste('spielerliste', () => aktuellesSpiel && hud.spielerlisteUmschalten(aktuellesSpiel.spielerStatistik()));
 eingabe.beiTaste('nachladen', () => aktuellesSpiel?.nachladen());
 eingabe.beiTaste('kofferraum', () => aktuellesSpiel?.kofferraum());
+eingabe.beiTaste('sitzen', () => aktuellesSpiel?.sitzen());
 eingabe.beiTaste('bauen', () => aktuellesSpiel?.bauUmschalten(eingabe.sprint())); // Umschalt+B (Admin): Flugmodus
 eingabe.beiTaste('abriss', () => aktuellesSpiel?.bauAbriss());
 eingabe.beiTaste('gebiet', () => aktuellesSpiel?.bauGebiet());
@@ -121,6 +122,7 @@ hud.beiAktionen({
   tuer: () => aktuellesSpiel?.tuer(),
   interagieren: () => aktuellesSpiel?.interagieren(),
   kofferraum: () => aktuellesSpiel?.kofferraum(),
+  sitzen: () => aktuellesSpiel?.sitzen(),
   karte: () => aktuellesSpiel?.karteUmschalten(),
   chat: (text) => aktuellesSpiel?.chat(text),
   spielerliste: () => aktuellesSpiel && hud.spielerlisteUmschalten(aktuellesSpiel.spielerStatistik()),

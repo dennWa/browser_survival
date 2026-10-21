@@ -1,3 +1,4 @@
+import { sitztAmFeuer } from './stationSystem.js';
 import { bewegeKoerper } from '../../../gemeinsam/physik/bewegung.js';
 import { sichtlinieFrei, wegFrei } from '../../../gemeinsam/physik/strahl.js';
 import { lerpWinkel } from '../../../gemeinsam/mathe.js';
@@ -136,7 +137,7 @@ function waehleZiel(spielWelt, z, lebendeSpieler, k) {
   let bester = null;
   let bestAbstand = Infinity;
   for (const s of lebendeSpieler) {
-    if (s.arbeit?.art === 'sitzen') continue; // wer am Lagerfeuer sitzt, fällt nicht auf (es sei denn, der Zombie jagt schon)
+    if (sitztAmFeuer(s)) continue; // wer am Lagerfeuer sitzt, fällt nicht auf (es sei denn, der Zombie jagt schon)
     const abstand = Math.hypot(s.x - z.x, s.y - z.y);
     // Im Dunkeln (Taschenlampe aus) fällt man erst aus der Nähe auf
     const bemerkRadius = !spielWelt.istNacht ? k.aggroRadius : k.aggroRadius * (s.lichtAn ? k.nachtLichtFaktor : k.dunkelFaktor);
@@ -285,7 +286,7 @@ function wittere(spielWelt, z, lebendeSpieler, dt) {
   for (const s of lebendeSpieler) {
     const abstand = Math.hypot(s.x - z.x, s.y - z.y);
     if (spielWelt.welt.istInnen(s.x, s.y) && !spielWelt.welt.istInnen(z.x, z.y)) continue; // drinnen = nicht zu wittern
-    if (s.arbeit?.art === 'sitzen') continue;
+    if (sitztAmFeuer(s)) continue;
     if (abstand < bestAbstand) {
       bester = s;
       bestAbstand = abstand;
