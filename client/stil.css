@@ -368,12 +368,20 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
 .slot[data-haltbar]::after { content: ''; position: absolute; left: 5px; bottom: 3px; height: 3px; width: calc((100% - 10px) * var(--hf, 1)); background: #7cd16b; border-radius: 2px; pointer-events: none; }
 .slot[data-haltbar='mittel']::after { background: #e0b030; }
 .slot[data-haltbar='niedrig']::after { background: #e74c3c; }
-.slot-menge { position: absolute; right: 4px; bottom: 1px; font-size: 0.72rem; font-weight: 700; text-shadow: 0 1px 2px #000; pointer-events: none; }
+/* Menge (Stapel, Schuss im Magazin): weiß mit dunkler Umrandung – auf jedem Icon lesbar (Runde 18) */
+.slot-menge {
+  position: absolute; right: 3px; bottom: 1px; font-size: 0.78rem; font-weight: 800; line-height: 1; color: #fff;
+  -webkit-text-stroke: 0.6px rgba(0, 0, 0, 0.85); paint-order: stroke fill;
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 1px 3px rgba(0, 0, 0, 0.9);
+  font-variant-numeric: tabular-nums; pointer-events: none;
+}
 
 #hud-munition {
   padding: 3px 12px;
   font-size: 0.95rem;
   font-weight: 700;
+  color: #fff;
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
   font-variant-numeric: tabular-nums;
   background: rgba(0, 0, 0, 0.55);
   border-radius: 6px;
@@ -1075,7 +1083,7 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
 #hud-tacho {
   position: absolute;
   right: calc(16px + env(safe-area-inset-right));
-  bottom: calc(150px + env(safe-area-inset-bottom)); /* über dem Hilfe-Kasten unten rechts */
+  bottom: calc(150px + env(safe-area-inset-bottom)); /* über der Schnellleiste/Touch-Knöpfen */
   width: 132px;
   padding: 6px 8px 4px;
   background: rgba(10, 12, 16, 0.72);

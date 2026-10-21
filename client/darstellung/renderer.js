@@ -14,7 +14,7 @@ import { FAHRZEUG_MODELLE } from '../../gemeinsam/physik/fahrzeug.js';
 import { erzeugeFrisur } from './haarModell.js';
 import { AUSSEHEN, skinFuer } from '../../gemeinsam/spieler/aussehen.js';
 import { itemGeometrie, ITEM_MATERIAL, rucksackTeile } from './itemModelle.js';
-import { zeichneBeschriftung, zeichneItemName } from './beschriftung.js';
+import { zeichneBeschriftung, zeichneItemName, zeichneSprechblase } from './beschriftung.js';
 import { richteFigurEin, aktualisiereHaltung } from './figurHaltung.js';
 import { erzeugeWaffe, WAFFEN_NAMEN } from './waffenModelle.js';
 import { erzeugeTier } from './tierModelle.js';
@@ -67,7 +67,9 @@ const _buffer = new THREE.Vector2();
 const _blick = new THREE.Vector3();
 const _wolkenFarbe = new THREE.Color();
 const MAX_TASCHENLAMPEN = 3;
-const NACHT_EIGENLEUCHTEN = 0.2; // Emissive-Stärke der Spieler-Figur bei voller Dunkelheit (nur Orientierung, kein echtes Licht)
+const NACHT_MOND = 0.13; // Mondlicht bei voller Dunkelheit (vorher 0,07)
+const NACHT_UMGEBUNG = 0.12; // Himmelslicht bei voller Dunkelheit (vorher 0,06)
+const NACHT_EIGENLEUCHTEN = 0.4; // (Runde 18: 0,2 → 0,4, eigene Figur bleibt nachts erkennbar) Emissive-Stärke der Spieler-Figur bei voller Dunkelheit (nur Orientierung, kein echtes Licht)
 const TASCHENLAMPEN_ANSATZ = { vorn: 16, hoehe: 36 }; // Lichtkegel beginnt knapp vor der Brust (px vor der Körpermitte, Höhe über Boden)
 // So viele Kartenlampen leuchten gleichzeitig echt (die nächsten); jede echte Lichtquelle kostet in jedem Pixel → klein halten,
 // die übrigen Lampen zeigen nachts nur ihren Lichtschein am Boden (kartenModell.js)
@@ -76,11 +78,14 @@ const KEGEL_POOL = { handy: 1, desktop: 2 }; // Kegel-Lampen (Scheinwerfer, art 
 /** Taschenlampe (Spieler): eher schmal und schwach – Nächte sollen düster bleiben (Nutzer-Wunsch, Editor 2.0 Schritt 2.1) */
 // Fokussierter Strahl: schmaler Kegel (~11°), 520 px Reichweite, weicher Rand (penumbra) und Abfall mit decay 1,5 statt hartem Schnitt.
 // Bei decay > 1 fällt das Licht schneller ab → Stärken entsprechend höher (≈ ×16 gegenüber decay 1 bei 250 px). Tagsüber aus.
-const TASCHENLAMPE = { winkel: 0.4, rand: 0.75, reichweite: 450, decay: 1.5, staerke: 0, staerkeNacht: 26000, kegelLaenge: 280, ziel: 170 }; // ziel = px vor dem Spieler (näher = Lichtkreis beginnt dichter an der Figur)
+// Runde 18: kürzer und breiter, Rand sehr weich (penumbra 0,95) – der Lichtfleck läuft zu den Seiten aus statt hart abzuschneiden
+const TASCHENLAMPE = { winkel: 0.56, rand: 0.95, reichweite: 330, decay: 1.5, staerke: 0, staerkeNacht: 26000, kegelLaenge: 200, ziel: 120 }; // ziel = px vor dem Spieler (näher = Lichtkreis beginnt dichter an der Figur)
 const SCHEINWERFER = { decay: 1, winkel: 0.45, rand: 0.5, reichweite: 650, staerke: 500, staerkeNacht: 2600 };
 const MUENDUNGS_LICHTER = 2;
 const SITZ_TIEFE = 24; // so weit sinkt die Figur beim Sitzen am Feuer
 const SICHTWEITE = 1300; // weiter entfernte Figuren werden nicht animiert/gezeichnet
+const SPRECHBLASE_MS = 4000; // Chat-Sprechblase: Grunddauer + 60 ms je Zeichen …
+const SPRECHBLASE_MAX_MS = 10000; // … höchstens so lange
 /**
  * Qualitätsstufen, von schön (0) nach sparsam. aufloesung = Obergrenze fürs Pixelverhältnis (null = Gerät),
  * schatten = Größe der Schattenkarte, baumDetail = Umrisse + Schatten der Bäume.
@@ -112,13 +117,14 @@ const NACHBAR_BAU_WEITE = 1500; // px: so nah an der Nachbarkarte wird sie (unsi
 const NACHBAR_FREI_WEITE = 2400; // px: weiter weg wird sie wieder freigegeben
 const NACHBAR_BUDGET_MS = 5; // so viel Rechenzeit pro Bild für den Aufbau einer Nachbarkarte
 const NACHBAR_TIEFE = -0.8; // Nachbarkarte liegt knapp unter dem Boden der aktiven Karte
-const ZOOM_MIN = 0.5;
-const ZOOM_MAX = 1.35; // weiter raus geht nicht (Nutzer: war zu weit) – gilt auch als Sichtweite der Ich-Ansicht
+const ZOOM_MIN = 0.32; // so nah kommt die Kamera an die Figur (Runde 18: näher als vorher 0,5)
+const ZOOM_MAX = 1.12; // weiter raus geht nicht (Runde 18: 1,35 war noch zu weit)
+const EGO_SICHT_ZOOM = 1.35; // Sichtweite der Ich-Ansicht = Draufsicht bei diesem Zoom (unabhängig vom Zoom-Limit)
 /** Ich-Ansicht sieht nicht weiter als die Draufsicht beim weitesten Rauszoomen: Halbbreite des Bildes am Boden (1 = Halbbreite, 2 = ganzer Durchmesser) */
 const EGO_SICHT_FAKTOR = 1;
 /** Lichtfarben für Tag, Nacht und Dämmerung (siehe #tageslicht) */
 const TAG = { sonne: new THREE.Color(0xfff1dc), himmel: new THREE.Color(0xbfd8ff), boden: new THREE.Color(0x4a4636), hintergrund: new THREE.Color(0x9cc3e4), zenit: new THREE.Color(0x2f78e0), wolken: new THREE.Color(0xffffff) };
-const NACHT = { sonne: new THREE.Color(0x8aa0d8), himmel: new THREE.Color(0x1b2238), boden: new THREE.Color(0x050505), hintergrund: new THREE.Color(0x02030a), zenit: new THREE.Color(0x000105), wolken: new THREE.Color(0x0b0e18) };
+const NACHT = { sonne: new THREE.Color(0x8aa0d8), himmel: new THREE.Color(0x1f2842), boden: new THREE.Color(0x0a0b0e), hintergrund: new THREE.Color(0x02030a), zenit: new THREE.Color(0x000105), wolken: new THREE.Color(0x0b0e18) };
 const DAEMMERUNG = { sonne: new THREE.Color(0xff9a4d), hintergrund: new THREE.Color(0xe08a5a), zenit: new THREE.Color(0x5a5aa8), wolken: new THREE.Color(0xffb48a) };
 /** Himmel (himmel.js): Die Welt endet per Kamera-Ferne (Vielfaches des Kameraabstands) – darüber, am oberen Bildrand, beginnt der Himmel. */
 const HIMMEL_FERNE = 1.36; // Welt endet erst knapp über dem oberen Bildrand – der Himmel verdeckt das Spielfeld nicht
@@ -223,6 +229,7 @@ export class Renderer {
     this.fussspuren = new Fussspuren(this.szene);
     this.nachbarn = []; // Nachbarzonen mit nahtlosem Übergang: { id, versatz, daten|welt, modell|null }
     this.fallendeBaeume = []; // { gruppe, achse, zeit }
+    this.sprechblasen = new Map(); // Spielername → { text, bis } (Chat über dem Kopf)
     this.fallendeLaternen = []; // { gruppe, achse, zeit } – von Autos umgefahrene Straßenlaternen
     this.bauwerke = new Map(); // Bauwerk-ID → { gruppe, aktualisiere, typ }
     this.bauwerkeStand = -1;
@@ -295,7 +302,7 @@ export class Renderer {
 
   /** Touch-Knopf 🔍: normal → weiter weg → näher dran → normal … */
   naechsteZoomStufe() {
-    const stufen = [1, 1.35, 0.75];
+    const stufen = [1, ZOOM_MAX, 0.6];
     const i = stufen.findIndex((z) => Math.abs(z - this.zoom) < 0.05);
     this.zoomen(stufen[(i + 1) % stufen.length] / this.zoom);
   }
@@ -486,12 +493,20 @@ export class Renderer {
     // Kamera folgt weich dem eigenen Spieler (im Auto etwas weiter weg – man ist schneller)
     this.fahrZoom += ((fokus.fahrzeugId ? 1.3 : 1) - this.fahrZoom) * Math.min(1, dt * 2);
     // Gelände (Editor 2.0, 2.5): Kamera folgt auch der Höhe – weich, damit Rampen nicht ruckeln
-    this.kameraHoehe = (this.kameraHoehe ?? this.#hy(fokus.x, fokus.y)) + (this.#hy(fokus.x, fokus.y) - (this.kameraHoehe ?? 0)) * Math.min(1, dt * 6);
-    _ziel.set(fokus.x, this.kameraHoehe, fokus.y);
+    // ⚠ Ein einziger ungültiger Fokus (NaN, z. B. kurz beim Respawn) machte Kamera/Höhe dauerhaft NaN → schwarzes Bild, Figur weg
+    // (Runde 18: „nach dem Respawn in der Nacht sieht man nichts mehr“). Ungültige Werte nie in die weichen Nachführ-Größen übernehmen.
+    if (Number.isFinite(fokus.x) && Number.isFinite(fokus.y)) this.letzterFokus = { x: fokus.x, y: fokus.y };
+    const fx = this.letzterFokus?.x ?? 0;
+    const fy = this.letzterFokus?.y ?? 0;
+    const bodenY = this.#hy(fx, fy);
+    if (!Number.isFinite(this.kameraHoehe)) this.kameraHoehe = bodenY;
+    this.kameraHoehe += (bodenY - this.kameraHoehe) * Math.min(1, dt * 6);
+    _ziel.set(fx, this.kameraHoehe, fy);
     _kameraZiel.copy(this.kameraVersatz).multiplyScalar(this.fahrZoom).add(_ziel);
+    const kp = this.kamera3d.position;
     // Ich-Ansicht: Kamera nicht weich nachziehen (der Haken setzt sie ins Auge) – sonst schwankt istAbstand mit der Bildzeit und Nebel/Sichtweite pulsieren
-    if (this.egoHaken) this.kamera3d.position.copy(_kameraZiel);
-    else this.kamera3d.position.lerp(_kameraZiel, Math.min(1, dt * 8) || 1);
+    if (this.egoHaken || !Number.isFinite(kp.x + kp.y + kp.z)) kp.copy(_kameraZiel);
+    else kp.lerp(_kameraZiel, Math.min(1, dt * 8) || 1);
     this.kamera3d.lookAt(_ziel.x, _ziel.y, _ziel.z - 20);
     // Tatsächlicher Abstand (Kamera gleitet weich nach): Nebel/Ferne/Himmel daran koppeln, nicht an den Zielzoom –
     // sonst endet die Welt beim Reinzoomen kurz zu früh und der Himmel legt sich wie ein heller Schleier von oben drüber
@@ -987,18 +1002,40 @@ export class Renderer {
     return spot;
   }
 
-  /** Sichtbarer Lichtkegel (additiv, Spitze am Spieler, nach vorn ausblendend) – zeigt den Strahl der Taschenlampe in der Luft. */
+  /**
+   * Sichtbarer Lichtkegel (additiv, Spitze am Spieler, nach vorn ausblendend) – zeigt den Strahl der Taschenlampe in der Luft.
+   * Weiche Seiten (Runde 18): Der Shader blendet Flächen aus, die man flach (am Rand des Kegels) sieht → kein harter Umriss.
+   */
   #neuerLichtKegel() {
     const laenge = TASCHENLAMPE.kegelLaenge;
-    const geometrie = new THREE.CylinderGeometry(0, laenge * Math.tan(TASCHENLAMPE.winkel) * 0.75, laenge, 24, 1, true).translate(0, -laenge / 2, 0).rotateZ(Math.PI / 2);
+    const geometrie = new THREE.CylinderGeometry(0, laenge * Math.tan(TASCHENLAMPE.winkel) * 0.75, laenge, 32, 4, true).translate(0, -laenge / 2, 0).rotateZ(Math.PI / 2);
     const pos = geometrie.attributes.position;
-    const farben = new Float32Array(pos.count * 3);
-    for (let i = 0; i < pos.count; i++) farben.fill(1 - pos.getX(i) / laenge, i * 3, i * 3 + 3);
-    geometrie.setAttribute('color', new THREE.BufferAttribute(farben, 3));
-    const mesh = new THREE.Mesh(
-      geometrie,
-      new THREE.MeshBasicMaterial({ color: 0xffe9b8, vertexColors: true, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, fog: false }),
-    );
+    const anteil = new Float32Array(pos.count);
+    for (let i = 0; i < pos.count; i++) {
+      const t = pos.getX(i) / laenge; // 0 = Lampe, 1 = Ende
+      anteil[i] = (1 - t) * Math.min(1, t / 0.15); // vorn sanft einblenden, nach hinten auslaufen
+    }
+    geometrie.setAttribute('laengsAnteil', new THREE.BufferAttribute(anteil, 1));
+    const material = new THREE.ShaderMaterial({
+      uniforms: { farbe: { value: new THREE.Color(0xffe9b8) }, deckkraft: { value: 0 } },
+      vertexShader: `attribute float laengsAnteil;
+        varying float vAnteil; varying vec3 vNormale; varying vec3 vSicht;
+        void main() {
+          vAnteil = laengsAnteil;
+          vec4 mv = modelViewMatrix * vec4(position, 1.0);
+          vNormale = normalize(normalMatrix * normal);
+          vSicht = normalize(-mv.xyz);
+          gl_Position = projectionMatrix * mv;
+        }`,
+      fragmentShader: `uniform vec3 farbe; uniform float deckkraft;
+        varying float vAnteil; varying vec3 vNormale; varying vec3 vSicht;
+        void main() {
+          float rand = pow(abs(dot(normalize(vNormale), normalize(vSicht))), 1.8);
+          gl_FragColor = vec4(farbe, deckkraft * vAnteil * rand);
+        }`,
+      transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
+    });
+    const mesh = new THREE.Mesh(geometrie, material);
     mesh.visible = false;
     mesh.frustumCulled = false;
     this.szene.add(mesh);
@@ -1351,7 +1388,7 @@ export class Renderer {
         kegel.scale.setScalar(anteil);
         kegel.position.set(s.x + vx * TASCHENLAMPEN_ANSATZ.vorn, 30 + this.#hy(s.x, s.y), s.y + vz * TASCHENLAMPEN_ANSATZ.vorn);
         kegel.rotation.y = -s.blick;
-        kegel.material.opacity = 0.05 * dunkel;
+        kegel.material.uniforms.deckkraft.value = 0.09 * dunkel;
       }
     });
   }
@@ -1498,10 +1535,11 @@ export class Renderer {
     // Farben mischen: Nacht (blau) → Dämmerung (orange) → Tag (warm-weiß)
     const daemmerung = Math.max(0, 1 - Math.abs(hell - 0.35) / 0.35) * (tageszeit?.istNacht ? 0 : 1);
     this.mond.color.copy(NACHT.sonne).lerp(TAG.sonne, hell).lerp(DAEMMERUNG.sonne, daemmerung * 0.6);
-    this.mond.intensity = 0.07 + hell * 2.93; // Nächte sind dunkel: Licht gibt es nur an Lampen, Feuern, Taschenlampe und Scheinwerfern (Editor 2.0, 2.1)
+    // Nächte sind dunkel: Licht gibt es v. a. an Lampen, Feuern, Taschenlampe und Scheinwerfern (Editor 2.0, 2.1) – Runde 18: minimal heller, Umrisse/Hindernisse bleiben erkennbar
+    this.mond.intensity = NACHT_MOND + hell * (3 - NACHT_MOND);
     this.umgebung.color.copy(NACHT.himmel).lerp(TAG.himmel, hell);
     this.umgebung.groundColor.copy(NACHT.boden).lerp(TAG.boden, hell);
-    this.umgebung.intensity = 0.06 + hell * 1.24;
+    this.umgebung.intensity = NACHT_UMGEBUNG + hell * (1.3 - NACHT_UMGEBUNG);
     this.szene.background.copy(NACHT.hintergrund).lerp(TAG.hintergrund, hell).lerp(DAEMMERUNG.hintergrund, daemmerung * 0.5);
     this.szene.fog.color.copy(this.szene.background);
     // Sonnenschatten: nachts (Mond ≈ 0) keinen Szenen-Durchgang; Schattenkamera nur so groß wie der sichtbare Bereich (zoomabhängig)
@@ -1522,14 +1560,16 @@ export class Renderer {
     if (stimmung > 0.001) {
       this.mond.intensity *= 1 - 0.4 * regen * hell - 0.25 * nebel * hell;
       this.umgebung.intensity *= 1 - 0.18 * regen;
-      _wetterGrau.setRGB(0.6, 0.64, 0.7).multiplyScalar(0.12 + 0.88 * hell);
+      // ⚠ Runde 18: nachts muss das Regengrau so dunkel sein wie die Szene – sonst „verschluckt“ heller Nebel alles (Figur weg,
+      // „nach dem Respawn sieht man nichts mehr“ war nachts bei Regen/Nebel)
+      _wetterGrau.setRGB(0.6, 0.64, 0.7).multiplyScalar(0.02 + 0.98 * hell * hell);
       this.szene.background.lerp(_wetterGrau, 0.7 * stimmung);
       this.szene.fog.color.copy(this.szene.background);
     }
     const dicht = Math.min(1, nebel + 0.35 * regen);
     // Dichter Nebel darf kräftig sein, aber nie die Figur selbst verschlucken (Top-Down: Kamera ~677 px × Zoom entfernt)
     const kamAbstand = KAMERA_VERSATZ.length() * abstand;
-    const nah = Math.max((650 + hell * 600) * abstand * (1 - 0.82 * dicht), kamAbstand * 0.92);
+    const nah = Math.max((650 + hell * 600) * abstand * (1 - 0.82 * dicht), kamAbstand * 1.04); // Nebel beginnt erst hinter der Figur
     // Reingezoomt (< 1) schaut man auf einen kleinen Ausschnitt: Nebel weiter nach hinten schieben, sonst liegt ein grauer Schleier über dem oberen Bildrand
     const reingezoomt = 1 + 0.9 * Math.max(0, 1 - istZoom);
     this.szene.fog.near = nah * reingezoomt;
@@ -1663,14 +1703,26 @@ export class Renderer {
   }
 
   /** 2D-Ebene über der 3D-Szene: Namen, Lebensbalken und kleine Item-Namen am Boden (Vignette & Schaden sind CSS). */
+  /** Chat-Sprechblase über dem Spieler mit diesem Namen (Runde 18); Anzeigedauer nach Textlänge. */
+  zeigeSprechblase(name, text, jetzt = performance.now()) {
+    if (!name || !text) return;
+    const dauer = Math.min(SPRECHBLASE_MAX_MS, SPRECHBLASE_MS + String(text).length * 60);
+    this.sprechblasen.set(name, { text, bis: jetzt + dauer });
+  }
+
   #zeichneOverlay(entitaeten, fokus, gegenstaende = [], itemDefinitionen = {}) {
     const ctx = this.octx;
+    const jetzt = this.letzteZeit;
     const zuZeichnen = [];
+    const blasen = [];
+    for (const [name, b] of this.sprechblasen) if (b.bis <= jetzt) this.sprechblasen.delete(name);
     for (const e of entitaeten) {
       if (e.tot || (e.typ !== 'spieler' && e.typ !== 'zombie')) continue;
       if (Math.abs(e.x - fokus.x) > SICHTWEITE || Math.abs(e.y - fokus.y) > SICHTWEITE) continue;
       const braucht = e.typ === 'spieler' ? !e.istEigener : e.leben < e.maxLeben;
       if (braucht) zuZeichnen.push(e);
+      const blase = e.typ === 'spieler' && !this.egoHaken ? this.sprechblasen.get(e.name) : null;
+      if (blase) blasen.push({ e, blase });
     }
     const beschriftet = [];
     if (!this.egoHaken) {
@@ -1680,8 +1732,8 @@ export class Renderer {
         if (itemDefinitionen[g.defId]?.name && this.karte.istEinsehbar(g.x, g.y)) beschriftet.push(g);
       }
     }
-    if (zuZeichnen.length === 0 && beschriftet.length === 0 && !this.overlayBenutzt) return;
-    this.overlayBenutzt = zuZeichnen.length > 0 || beschriftet.length > 0;
+    if (zuZeichnen.length === 0 && beschriftet.length === 0 && blasen.length === 0 && !this.overlayBenutzt) return;
+    this.overlayBenutzt = zuZeichnen.length > 0 || beschriftet.length > 0 || blasen.length > 0;
     const dpr = this.overlay.width / Math.max(1, this.kamera.breite);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, this.overlay.width, this.overlay.height);
@@ -1694,11 +1746,16 @@ export class Renderer {
       const p = this.kamera.weltZuBildschirm(g.x, g.y, 12);
       zeichneItemName(ctx, g.menge > 1 ? `${itemDefinitionen[g.defId].name} ×${g.menge}` : itemDefinitionen[g.defId].name, p.x, p.y - 4);
     }
+    for (const { e, blase } of blasen) {
+      const kopf = this.kamera.weltZuBildschirm(e.x, e.y, FIGUR_HOEHE * (e.groesse ?? 1) + 8);
+      const ueberName = e.istEigener ? 4 : 18; // fremde Spieler: über Name + Lebensbalken
+      zeichneSprechblase(ctx, blase.text, kopf.x, kopf.y - ueberName, Math.min(1, (blase.bis - jetzt) / 500));
+    }
   }
 
-  /** Sichtweite der Ich-Ansicht in px: Halbbreite des Draufsicht-Bildes am Boden bei ZOOM_MAX (Bildschirm-Seitenverhältnis, mindestens 1:1) */
+  /** Sichtweite der Ich-Ansicht in px: Halbbreite des Draufsicht-Bildes am Boden bei EGO_SICHT_ZOOM (Bildschirm-Seitenverhältnis, mindestens 1:1) */
   #egoSichtweite() {
-    const abstand = KAMERA_VERSATZ.length() * (this.grundAbstand ?? 1) * ZOOM_MAX;
+    const abstand = KAMERA_VERSATZ.length() * (this.grundAbstand ?? 1) * EGO_SICHT_ZOOM;
     const halbHoehe = Math.tan((38 * Math.PI) / 360) * abstand;
     return halbHoehe * Math.max(1, this.kamera3d.aspect) * EGO_SICHT_FAKTOR;
   }

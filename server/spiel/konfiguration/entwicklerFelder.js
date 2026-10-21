@@ -19,7 +19,8 @@ export const ENTWICKLER_FELDER = [
   // --- Spieler ---
   { pfad: 'spieler.leben', name: 'Lebenspunkte', gruppe: 'Spieler', min: 10, max: 1000, schritt: 10 },
   { pfad: 'spieler.geschwindigkeit', name: 'Laufgeschwindigkeit', gruppe: 'Spieler', min: 50, max: 400, schritt: 5, einheit: 'px/s' },
-  { pfad: 'spieler.sprintFaktor', name: 'Sprint-Faktor', gruppe: 'Spieler', min: 1, max: 3, schritt: 0.1, einheit: '×' },
+  { pfad: 'spieler.sprintFaktor', name: 'Renn-Faktor (Shift)', gruppe: 'Spieler', min: 1, max: 3, schritt: 0.05, einheit: '×' },
+  { pfad: 'spieler.joggFaktor', name: 'Jogg-Faktor (Shift ohne Ausdauer)', gruppe: 'Spieler', min: 1, max: 3, schritt: 0.05, einheit: '×' },
   { pfad: 'spieler.ausdauerMax', name: 'Ausdauer', gruppe: 'Spieler', min: 20, max: 500, schritt: 10 },
   { pfad: 'spieler.ausdauerVerbrauch', name: 'Ausdauer-Verbrauch', gruppe: 'Spieler', min: 0, max: 100, schritt: 1, einheit: '/s' },
   { pfad: 'spieler.hungerProMinute', name: 'Hunger pro Minute', gruppe: 'Spieler', min: 0, max: 50, schritt: 0.5 },

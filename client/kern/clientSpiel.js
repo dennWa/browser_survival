@@ -313,8 +313,7 @@ export class ClientSpiel {
       this.zielZombieId = null;
       return false;
     }
-    this.zielZombieId = bester.id;
-    this.hud.meldung('🎯 Ziel erfasst');
+    this.zielZombieId = bester.id; // roter Zielring reicht als Rückmeldung (Runde 18: keine Meldung mehr)
     return true;
   }
 
@@ -710,6 +709,7 @@ export class ClientSpiel {
         break;
       case NACHRICHT.CHAT:
         this.hud.chatNachricht(n);
+        if (!n.system && n.von) this.renderer.zeigeSprechblase(n.von, n.text); // Sprechblase über dem Kopf (nur sichtbar, wenn in dieser Zone)
         break;
       case NACHRICHT.DEV_WERTE:
         this.hud.entwickler.setzeWerte(n.felder, n.ueberschreibungen);
@@ -1237,10 +1237,10 @@ export class ClientSpiel {
     const letzter = this.schnappschuesse[this.schnappschuesse.length - 1];
     if (!letzter) return [];
     const punkte = [];
+    // Runde 18: nur Mitspieler – Zombies und Tiere erscheinen nicht mehr auf der Minikarte
     for (const e of letzter.entitaeten.values()) {
-      if (e.id === this.eigeneId || e.tot) continue;
-      const art = e.typ === 'zombie' ? 'zombie' : e.typ === 'spieler' ? 'spieler' : e.typ === 'tier' ? 'tier' : null;
-      if (art) punkte.push({ x: e.x, y: e.y, art });
+      if (e.id === this.eigeneId || e.tot || e.typ !== 'spieler') continue;
+      punkte.push({ x: e.x, y: e.y, art: 'spieler' });
     }
     return punkte;
   }

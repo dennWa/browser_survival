@@ -8,7 +8,7 @@ import { normalisiere, begrenze } from '../mathe.js';
  */
 
 const EPSILON = 0.001;
-export const FLUG_TEMPO = 480; // px/s im Admin-Flugmodus (Laufen: 150)
+export const FLUG_TEMPO = 480; // px/s im Admin-Flugmodus (Gehen 80, Rennen 150)
 const FLUG_SPRINT = 3;
 
 /** Macht aus einer (evtl. manipulierten) Eingabe einen gültigen Richtungsvektor mit Länge ≤ 1. */
@@ -20,7 +20,7 @@ export function richtungAusEingabe(eingabe) {
 
 /**
  * Wendet eine Eingabe auf einen Körper an ({ x, y, blick, ausdauer?, erschoepft? }).
- * @param parameter { geschwindigkeit (px/s), radius (px), optional Sprint: sprintFaktor, ausdauerMax,
+ * @param parameter { geschwindigkeit (px/s, Gehen), radius (px), optional Sprint: sprintFaktor (Rennen), joggFaktor (Shift ohne Ausdauer), ausdauerMax,
  *                    ausdauerVerbrauch (/s), ausdauerRegeneration (/s), sprintMinimum }
  * @param dt Zeitschritt in Sekunden (immer TICK_DAUER_S → deterministisch)
  * @returns true, wenn in diesem Schritt gesprintet wurde
@@ -48,8 +48,10 @@ export function wendeEingabeAn(koerper, eingabe, welt, parameter, dt) {
   }
   const willSprinten = eingabe.sprint === true && Math.hypot(richtung.x, richtung.y) > 0.1;
   const sprintet = aktualisiereAusdauer(koerper, willSprinten, parameter, dt);
+  // Gangarten (Runde 18): ohne Shift gehen; Shift = rennen (kostet Ausdauer); Shift ohne Ausdauer = joggen
+  const faktor = sprintet ? parameter.sprintFaktor : willSprinten ? (parameter.joggFaktor ?? 1) : 1;
   // tempoFaktor: Skill "Schnelligkeit" (Server setzt ihn am Spieler, der Client übernimmt ihn für die Vorhersage)
-  const weg = parameter.geschwindigkeit * (koerper.tempoFaktor ?? 1) * (sprintet ? parameter.sprintFaktor : 1) * dt;
+  const weg = parameter.geschwindigkeit * (koerper.tempoFaktor ?? 1) * faktor * dt;
   bewegeKoerper(koerper, richtung.x * weg, richtung.y * weg, parameter.radius, welt);
   if (Number.isFinite(eingabe.blick)) koerper.blick = eingabe.blick;
   koerper.sprintet = sprintet;

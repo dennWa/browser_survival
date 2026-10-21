@@ -241,9 +241,7 @@ export class Hud {
     this.el.fps.hidden = false;
     this.el.minikarte.hidden = !this.#minikarteAn;
     this.el.vollbild.hidden = !istTouch || !document.fullscreenEnabled;
-    this.el.hilfe.textContent = istTouch
-      ? 'Links: laufen · Rechts: zielen, ganz drücken = Angriff'
-      : 'WASD laufen · Maus zielen · Klick/Leertaste Angriff · E benutzen · F Feuer · R nachladen · L Lampe · Tab Inventar · U Fähigkeiten · Q wegwerfen · B bauen · K Karte · T Chat · I Spieler · 1–0 Schnellleiste';
+    this.el.hilfe.hidden = true; // Runde 18: Tasten-Hilfe unten rechts entfernt (Nutzer-Wunsch) – Tasten stehen in der Anleitung/README
     this.#letzterHinweis = null;
     this.#letzterTuerHinweis = null;
     this.#letzteUhr = '';

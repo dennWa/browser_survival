@@ -185,9 +185,9 @@ export class SpielWelt {
 
   /** Bewegungsparameter für Spieler – gehen beim Login auch an den Client (für die Vorhersage). */
   physikParameter() {
-    const { geschwindigkeit, radius, sprintFaktor, ausdauerMax, ausdauerVerbrauch, ausdauerRegeneration, sprintMinimum } =
+    const { geschwindigkeit, radius, sprintFaktor, joggFaktor, ausdauerMax, ausdauerVerbrauch, ausdauerRegeneration, sprintMinimum } =
       this.konfiguration.spieler;
-    return { geschwindigkeit, radius, sprintFaktor, ausdauerMax, ausdauerVerbrauch, ausdauerRegeneration, sprintMinimum };
+    return { geschwindigkeit, radius, sprintFaktor, joggFaktor, ausdauerMax, ausdauerVerbrauch, ausdauerRegeneration, sprintMinimum };
   }
 
   /** Zombie an einem Spawnpunkt der Karte erzeugen (Variante zufällig nach Gewicht). */

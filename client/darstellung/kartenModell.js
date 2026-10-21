@@ -23,7 +23,7 @@ import { eigenesModellUrl, ladeEigenesModell, eigenesModellInhalt, leerlaufMisch
 export const WANDHOEHE = 84;
 export const TUER_HOEHE = WANDHOEHE - 14;
 /** Höhe des Lichtpunkts einer Straßenlaterne – deutlich über der Figur (64 px) */
-export const LATERNEN_LICHTHOEHE = 150;
+export const LATERNEN_LICHTHOEHE = 124; // Runde 18: Laternen etwas kleiner (vorher 150)
 const TUER_DREHTEMPO = 9;
 /** Höhe (Weltpixel) der Möbel-Quader */
 const MOEBEL_HOEHE = {
@@ -169,7 +169,7 @@ export class KartenModell {
     this.daecher?.aktualisiere(x, y);
   }
 
-  /** Wände des Raums, in dem die Figur steht, werden weich durchsichtig (wandDurchsicht.js). an = false → alles dicht (Ego-Modus). */
+  /** Wände des eigenen Raums, die die Figur verdecken (südlich, nah), werden weich durchsichtig (wandDurchsicht.js). an = false → alles dicht (Ego-Modus). */
   aktualisiereDurchsicht(dt, x, y, an = true) {
     this.durchsicht?.aktualisiere(dt, x, y, an);
   }
@@ -351,7 +351,7 @@ export class KartenModell {
     this.durchsicht = null;
     if (!this.daecher || !this.wandDaten) return;
     const { wand, teile, instanzVon, seite, oben } = this.wandDaten;
-    this.durchsicht = new WandDurchsicht({ wand, teile, instanzVon, daecher: this.daecher, g: this.g, seite, oben, mitSchnitt: this.mitSchnitt });
+    this.durchsicht = new WandDurchsicht({ wand, teile, instanzVon, daecher: this.daecher, g: this.g, breite: this.welt.breite, seite, oben, mitSchnitt: this.mitSchnitt });
     this.statisch.add(this.durchsicht.gruppe);
   }
 
@@ -511,10 +511,10 @@ export class KartenModell {
       const eisen = new THREE.Color(0x2b2f35).convertSRGBToLinear();
       const h = LATERNEN_LICHTHOEHE; // Lichtpunkt; der Mast endet knapp darüber
       const teile = [
-        { geometrie: new THREE.CylinderGeometry(1.8, 3, h - 2, 8), matrix: matrixAus(0, (h - 2) / 2, 0, 0), farbe: eisen },
-        { geometrie: new THREE.CylinderGeometry(4, 4, 6, 8), matrix: matrixAus(0, 3, 0, 0), farbe: eisen }, // Sockel
-        { geometrie: new THREE.CylinderGeometry(7, 4.5, 6, 8), matrix: matrixAus(0, h - 4, 0, 0), farbe: eisen }, // Lampenschale
-        { geometrie: new THREE.CylinderGeometry(8, 8, 1.6, 8), matrix: matrixAus(0, h + 4.5, 0, 0), farbe: eisen }, // Dach
+        { geometrie: new THREE.CylinderGeometry(1.5, 2.5, h - 2, 8), matrix: matrixAus(0, (h - 2) / 2, 0, 0), farbe: eisen },
+        { geometrie: new THREE.CylinderGeometry(3.4, 3.4, 5, 8), matrix: matrixAus(0, 2.5, 0, 0), farbe: eisen }, // Sockel
+        { geometrie: new THREE.CylinderGeometry(5.8, 3.8, 5, 8), matrix: matrixAus(0, h - 3.5, 0, 0), farbe: eisen }, // Lampenschale
+        { geometrie: new THREE.CylinderGeometry(6.6, 6.6, 1.4, 8), matrix: matrixAus(0, h + 3.8, 0, 0), farbe: eisen }, // Dach
       ];
       this.mastGeometrie = vereineGeometrien(teile, { mitFarbe: true });
       this.mastMaterial = this.mitSchnitt(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.4 }));

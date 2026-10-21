@@ -328,13 +328,17 @@ test('Sprinten ist schneller, verbraucht Ausdauer und erschöpft', () => {
   assert.ok(rennend.x - gehend.x > 20, 'Sprinter sollte deutlich weiter sein');
   assert.ok(rennend.ausdauer < p.ausdauerMax);
 
-  // Bis zur Erschöpfung sprinten → danach nur noch normales Tempo
+  // Bis zur Erschöpfung sprinten → mit gehaltenem Shift nur noch joggen, ohne Shift gehen
   const k = { x: mitte(2), y: mitte(1), blick: 0, ausdauer: 1, erschoepft: false };
   for (let i = 0; i < 5; i++) wendeEingabeAn(k, { x: 0, y: 1, sprint: true }, welt.welt, p, TICK_DAUER_S);
   assert.equal(k.erschoepft, true);
-  const vorher = k.y;
+  let vorher = k.y;
   wendeEingabeAn(k, { x: 0, y: 1, sprint: true }, welt.welt, p, TICK_DAUER_S);
-  assert.ok(Math.abs(k.y - vorher - p.geschwindigkeit * TICK_DAUER_S) < 0.001, 'Erschöpft: nur normales Tempo');
+  assert.ok(Math.abs(k.y - vorher - p.geschwindigkeit * p.joggFaktor * TICK_DAUER_S) < 0.001, 'Erschöpft + Shift: joggen');
+  vorher = k.y;
+  wendeEingabeAn(k, { x: 0, y: 1 }, welt.welt, p, TICK_DAUER_S);
+  assert.ok(Math.abs(k.y - vorher - p.geschwindigkeit * TICK_DAUER_S) < 0.001, 'ohne Shift: gehen');
+  assert.ok(p.geschwindigkeit < p.geschwindigkeit * p.joggFaktor && p.joggFaktor < p.sprintFaktor, 'Gehen < Joggen < Rennen');
 });
 
 test('Server und Client rechnen Sprint identisch (Vorhersage bleibt synchron)', () => {

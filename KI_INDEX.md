@@ -7,7 +7,7 @@
 - Code DE, Bezeichner ohne Umlaute; Vanilla ESM, kein Build; Node ≥20 + `ws`; Three.js nur 3D (`C:darstellung/renderer.js`).
 - Spiellogik NUR `S:` (autoritativ, umgebungsfrei: kein `node:`, kein DOM). `G:` = von beiden importiert → ebenfalls umgebungsfrei.
 - Grafik nur via `werkzeuge/assets/baue_assets.py` + `npm run assets:3d` (danach `git checkout client/assets/3d/animationen.json`, falls nur Rauschen). Nur CC0/CC-BY; Credits-Dialog bleibt. Ausnahme: Editor-Modelle `.glb` → `client/assets/eigene/` (keine Sperre, Nutzer-Entscheidung; Editor warnt bei fehlender Lizenz; `schreibeEigeneModelle` schreibt Urheber/Lizenz nach `client/assets/eigene/LIZENZEN.md`).
-- Touch für jede neue Aktion (HUD-Knopf, `.nur-touch`). Vor Commit `npm test`. Manifest + Changelog pflegen. Antwortende: Spiel-Link.
+- Touch für jede neue Aktion (HUD-Knopf, `.nur-touch`). Vor Commit `npm test`. Manifest + Changelog pflegen. (Runde 18: Nutzer will KEINEN Spiel-Link mehr am Antwortende.)
 - ⚠ `server/daten/konten.json`, `einstellungen.json`, `spielstaende/` nie committen (gitignored).
 
 - **Übergabe/Plan Editor 2.0:** `editor/ROADMAP.md` Abschnitt „🔁 Übergabe“ (Stand, nächster Schritt) – nach jeder Phase aktualisieren.
@@ -245,3 +245,11 @@ Zonen-Grundlage steht (2 Zonen, Waldweg groß mit See). Nächstes sinnvoll: Basi
 - **Renderer** (`#ladeSurvivor` lädt beide GLBs, `this.survivor = {mann, frau}`; `#neueSurvivorFigur`, `#survivorMaterial` klont Materialien je Variante + Nacht-Eigenleuchten in Grundfarbe; `#aktualisiereFiguren`): Clipwahl `tot→sterben` (LoopOnce, clamp, Leiche bleibt sichtbar bis Wiederbelebung; Waffe aus) > `arbeit` holz/stein/eisenerz → `hacken` > Tempo>12 → `laufen` (timeScale = Tempo/`LAUF_TEMPO` 100, 0,6…2,4) > `stehen`. `frustumCulled=false`. Höhe auf `FIGUR_HOEHE` 64 skaliert (Bounding-Box).
 - **figurHaltung.js:** `figur.klipHacken`: bei Arbeit Werkzeug nur platzieren (`platziereHackwerkzeug`); sonst prozedurale Arm-Haltungen (Zielen, Lampe …) über dem Clip. Tote Figuren: keine Haltung.
 - Offen/Ideen: Hack-Pose Füße leicht nach außen; Frisur/Haarfarbe/Kleidung nicht wählbar (nur Mann/Frau); Zombies ebenfalls tauschen; Walk-Clip ungenutzt (Original enthält 20 weitere Clips: Punch, Roll, Wave, Gun_Shoot …).
+
+## 17 · Runde 18 (2026-10-22, Fortschritt in `FORTSCHRITT.md` – zuerst lesen!)
+- **Phase 1:** `renderer.js` `ZOOM_MIN` 0,32/`ZOOM_MAX` 1,12, Ego-Sicht `EGO_SICHT_ZOOM` 1,35 (entkoppelt). Gangarten in `G:physik/bewegung.js wendeEingabeAn`: Faktor = sprintet ? `sprintFaktor` : Shift gehalten ? `joggFaktor` : 1 (K: geschwindigkeit 80, sprintFaktor 1,875 → 150, joggFaktor 1,4375 → 115; `physikParameter` liefert `joggFaktor` an den Client ⚠ neue Bewegungsparameter immer dort mitgeben, sonst Vorhersage ≠ Server). Zombie `jagdGeschwindigkeit` 120/Läufer 135/Brocken 90, `nachtTempoFaktor` 1,1.
+- `TASCHENLAMPE` {winkel 0,56, rand 0,95, reichweite 330, kegelLaenge 200, ziel 120}; sichtbarer Kegel = `ShaderMaterial` (Attribut `laengsAnteil`, Uniform `deckkraft`; Rand-Ausblendung über |n·v|). Laternen `LATERNEN_LICHTHOEHE` 124.
+- Nacht: `NACHT_MOND` 0,13 / `NACHT_UMGEBUNG` 0,12 / `NACHT_EIGENLEUCHTEN` 0,4. ⚠ **Nachts + Regen/Nebel**: `_wetterGrau` × (0,02 + 0,98·hell²) (sonst heller Nebel über dunkler Szene = „nichts sichtbar“, war der Respawn-Bug) und `fog.near ≥ kamAbstand·1,04` (Figur nie im Nebel). `zeichne`: `letzterFokus` + NaN-Schutz für `kameraHoehe`/Kameraposition.
+- **Wand-Durchsicht** jetzt je Kachel: `wandDurchsicht.js verdecktFigur(dtx,dty)` (`DURCHSICHT_NAH` vorn 4/seitlich 3; nur Hüllkacheln des eigenen Raums südlich der Figur), Mesh mit Vertex-Alpha (Farbattribut 4 Werte, `bereiche` je Kachel), Neubau nur bei Kachel-/Raumwechsel bzw. Ende einer Ausblendung. Konstruktor braucht `breite`.
+- Chat-Sprechblase: `renderer.zeigeSprechblase(name, text)` ← `clientSpiel` CHAT; gezeichnet im Overlay (`beschriftung.js zeichneSprechblase/blasenZeilen`), auch über der eigenen Figur. Minikarte nur Mitspieler. `#hud-hilfe` versteckt. `.slot-menge` weiß + Kontur.
+

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { durchsichtFlaechen, durchsichtDeckkraft, DURCHSICHT_SEITE, DURCHSICHT_OBEN } from '../client/darstellung/wandDurchsicht.js';
+import { durchsichtFlaechen, durchsichtDeckkraft, verdecktFigur, DURCHSICHT_SEITE, DURCHSICHT_OBEN, DURCHSICHT_NAH } from '../client/darstellung/wandDurchsicht.js';
 
 const G = 32;
 const stueck = (tx, tz, unten = 0, hoehe = 84) => ({ x: tx * G + G / 2, z: tz * G + G / 2, unten, hoehe });
@@ -47,4 +47,21 @@ test('Wand-Durchsicht: Deckkraft blendet von dicht (0) zu durchsichtig (1)', () 
   const voll = durchsichtDeckkraft(1);
   assert.ok(Math.abs(voll.seite - DURCHSICHT_SEITE) < 1e-9 && Math.abs(voll.oben - DURCHSICHT_OBEN) < 1e-9);
   assert.ok(voll.oben > voll.seite); // Oberkante bleibt kräftiger
+});
+
+test('Wand-Durchsicht (Runde 18): nur nahe Wände südlich der Figur (zur Kamera hin) werden durchsichtig', () => {
+  assert.equal(verdecktFigur(0, 1), true, 'direkt südlich');
+  assert.equal(verdecktFigur(2, 2), true, 'schräg vorn');
+  assert.equal(verdecktFigur(0, DURCHSICHT_NAH.vorn), true);
+  assert.equal(verdecktFigur(0, DURCHSICHT_NAH.vorn + 1), false, 'zu weit weg');
+  assert.equal(verdecktFigur(0, -1), false, 'Nordwand bleibt dicht');
+  assert.equal(verdecktFigur(1, 0), false, 'Wand daneben bleibt dicht');
+  assert.equal(verdecktFigur(DURCHSICHT_NAH.seitlich + 3, 1), false, 'seitlich zu weit');
+});
+
+test('Wand-Durchsicht: Teilmenge mit Nachbarn – Fläche zum Nachbarn fällt auch im Eckbereich je Kachel weg', () => {
+  const a = stueck(3, 3);
+  const b = stueck(4, 3);
+  assert.equal(dreiecke(durchsichtFlaechen([a], G, [a, b]).seite), 6);
+  assert.equal(dreiecke(durchsichtFlaechen([a], G).seite), 8);
 });

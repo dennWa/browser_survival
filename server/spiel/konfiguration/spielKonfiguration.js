@@ -25,7 +25,7 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     startZeit: 30, // Sekunden nach Tagesbeginn beim Serverstart (kurz nach Sonnenaufgang)
   },
   spieler: {
-    geschwindigkeit: 150, // Pixel pro Sekunde
+    geschwindigkeit: 80, // Pixel pro Sekunde beim Gehen (Standard ohne Shift; Runde 18: vorher 150 = jetziges Rennen)
     radius: 12,
     leben: 100,
     hungerProMinute: 4, // Sättigung 100 → 0 in 25 min
@@ -37,7 +37,8 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     todesZombieRadius: 480, // px: beim Tod verschwinden alle Zombies in diesem Umkreis (kommen später regulär wieder)
     startHunger: 85,
     startDurst: 85,
-    sprintFaktor: 1.6, // Sprint = 1,6 × Gehgeschwindigkeit
+    sprintFaktor: 1.875, // Rennen (Shift + Ausdauer) = 1,875 × Gehen = 150 px/s
+    joggFaktor: 1.4375, // Shift gehalten, aber Ausdauer leer/erschöpft → Joggen = 115 px/s
     ausdauerMax: 100,
     ausdauerVerbrauch: 22, // pro Sekunde Sprint (≈ 4,5 s am Stück)
     ausdauerRegeneration: 14, // pro Sekunde ohne Sprint
@@ -56,13 +57,13 @@ export const STANDARD_KONFIGURATION = Object.freeze({
   },
   zombie: {
     geschwindigkeit: 54, // Grundtempo (Umherschlurfen = knapp halbes Grundtempo)
-    jagdGeschwindigkeit: 76, // beim Verfolgen (Spieler: 150 → man kann entkommen)
+    jagdGeschwindigkeit: 120, // beim Verfolgen: ≈ 20 % langsamer als Rennen (150) – schneller als Gehen (80)/Joggen (115)
     radius: 13,
     leben: 60,
     aggroRadius: 170, // ab dieser Entfernung (px) wird ein sichtbarer Spieler bemerkt
     dunkelFaktor: 0.45, // Nachts mit Taschenlampe aus → Spieler wird erst ab aggroRadius × dunkelFaktor bemerkt
     nachtLichtFaktor: 1.2, // Nachts mit Taschenlampe an → leuchtet wie ein Leuchtturm
-    nachtTempoFaktor: 1.2, // nachts jagen Zombies schneller
+    nachtTempoFaktor: 1.1, // nachts jagen Zombies schneller (bleiben unter dem Renn-Tempo)
     nachtHorde: 8, // zusätzliche Zombies, die bei Einbruch der Nacht auftauchen (verschwinden morgens)
     verlierRadius: 520, // weiter weg → Zombie gibt auf
     hoerRadius: 400, // Schüsse in diesem Umkreis locken Zombies an
@@ -80,10 +81,10 @@ export const STANDARD_KONFIGURATION = Object.freeze({
      */
     varianten: {
       normal: { gewicht: 6, xp: 10 },
-      laeufer: { gewicht: 2, xp: 12, leben: 35, jagdGeschwindigkeit: 103, angriffsSchaden: 8, angriffsAbklingzeit: 0.7, groesse: 0.92 },
+      laeufer: { gewicht: 2, xp: 12, leben: 35, jagdGeschwindigkeit: 135, angriffsSchaden: 8, angriffsAbklingzeit: 0.7, groesse: 0.92 },
       // Boss (große Zombies): halten viel aus, teilen mehr aus; waffenChance = Wahrscheinlichkeit auf Waffe + Munition
       // Brocken: selten (gewicht) und exakt 10 Pistolentreffer stark (Pistole 25 Schaden → 250 Leben; Schüsse ignorieren Skills)
-      brocken: { gewicht: 0.2, xp: 40, leben: 250, jagdGeschwindigkeit: 56, angriffsSchaden: 40, angriffsAbklingzeit: 1.5, radius: 15, groesse: 1.3, rueckstossFaktor: 0.15, waffenChance: 0.5 },
+      brocken: { gewicht: 0.2, xp: 40, leben: 250, jagdGeschwindigkeit: 90, angriffsSchaden: 40, angriffsAbklingzeit: 1.5, radius: 15, groesse: 1.3, rueckstossFaktor: 0.15, waffenChance: 0.5 },
     },
   },
   /** Autos: so viele Zombie-Schläge halten sie aus (ein normaler Zombie = 1 Schlag, Boss mehr); Überfahren kostet nur wenig. */
@@ -103,7 +104,7 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     hasenProTausend: 2,
     hasenMax: 12,
     hasenLeben: 10,
-    hasenTempo: 125, // Fluchttempo (Spieler 150)
+    hasenTempo: 125, // Fluchttempo (Spieler: Gehen 80, Rennen 150)
     hasenScheuRadius: 150,
     hasenRespawn: 150,
   },
