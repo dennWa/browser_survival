@@ -20,6 +20,7 @@ export const AUSSCHNITT_VERSION = 1;
 export const AKTIONEN_ANLEITUNG = [
   'Antworte mit einer JSON-Liste von Aktionen (nur Koordinaten INNERHALB des Bereichs sind erlaubt). Beispiele:',
   '{"aktion":"setze","typ":"baum","x":23,"y":14}  – Objekt setzen (typ aus objektTypen; Größe/Kollision kommen aus dem Katalog, b/h/drehung/blockiert optional)',
+  '{"aktion":"modell","modell":"wolf","x":23,"y":14,"hoehe":0.9,"drehung":90}  – 3D-Modell aus dem Spielordner (Liste spielordnerModelle im Kontext; "hoehe" = Zielhöhe in m, Fußabdruck skaliert mit; Mensch ≈ 1.8 m, Hund ≈ 0.6, Baum 4–8; "blockiert":false für Deko)',
   '{"aktion":"entferne","id":17}  oder  {"aktion":"entferne","typ":"stein","x":30,"y":12}  – Objekt entfernen',
   '{"aktion":"aendere","id":17,"x":24,"y":15,"drehung":90}  – Objekt verschieben/drehen/Eigenschaften ändern',
   '{"aktion":"kachel","x":20,"y":10,"zeichen":"="}  oder mit "b"/"h" für ein Rechteck – Boden setzen (Zeichen siehe legende)',

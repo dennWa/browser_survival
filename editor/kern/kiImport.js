@@ -10,6 +10,7 @@ import { ZONEN_EINSTELLUNGEN, pruefeZonenEinstellungen } from '../../server/spie
 import { neueLootZone, pruefeLootZone } from '../../server/spiel/karten/lootZonen.js';
 import { einfuegeOps } from './auswahl.js';
 import { eingebautePrefabs } from './prefabs.js';
+import { spielordnerTyp } from './spielordner.js';
 
 /**
  * Import von KI-Änderungen (Phase 8). Ablauf:
@@ -47,6 +48,7 @@ const SYNONYME = {
   name: 'name', benenne: 'name', umbenennen: 'name',
   prefab: 'prefab', vorlage: 'prefab',
   bodenton: 'bodenton', bodenfarbe: 'bodenton',
+  modell: 'modell', model: 'modell', spielordner: 'modell',
 };
 /** Leerer Bereich: jede Aktion mit Ort ist darin ungültig */
 const KEIN_BEREICH = Object.freeze({ x0: 0, y0: 0, x1: -1, y1: -1 });
@@ -221,7 +223,7 @@ export function pruefeAenderungen(karte, { aktionen, meta = {}, warnungen = [] }
     };
     if (!a || typeof a !== 'object' || Array.isArray(a)) return ungueltig('keine Aktion (Objekt erwartet)');
     const art = SYNONYME[String(a.aktion ?? (a.typ ? 'setze' : '')).toLowerCase()];
-    if (!art) return ungueltig(`unbekannte Aktion „${a.aktion}“ (erlaubt: setze, entferne, aendere, kachel, linie, marker, bauwerk, raum, hoehe, typtextur, bemale, bodenton, wert, lootzone, name, prefab)`);
+    if (!art) return ungueltig(`unbekannte Aktion „${a.aktion}“ (erlaubt: setze, modell, entferne, aendere, kachel, linie, marker, bauwerk, raum, hoehe, typtextur, bemale, bodenton, wert, lootzone, name, prefab)`);
 
     if (art === 'setze') {
       if (typeof a.typ !== 'string') return ungueltig('Feld "typ" fehlt');
@@ -241,6 +243,25 @@ export function pruefeAenderungen(karte, { aktionen, meta = {}, warnungen = [] }
       if (!pr.ok) return ungueltig(`${o.typ} bei ${o.x}|${o.y}: ${pr.grund}`, Math.floor(o.x), Math.floor(o.y));
       const id = sim.naechsteId;
       return fertig('neu', `＋ ${objektInfo(o.typ, karte).name} (${o.typ}) bei ${o.x}|${o.y}${fremd.length ? ` – ignoriert: ${fremd.join(', ')}` : ''}`, [{ s: 'objekte', k: id, neu: o }], Math.floor(o.x), Math.floor(o.y), { rechteck: o });
+    }
+
+    if (art === 'modell') {
+      // Spielordner-Modell (kern/spielordner.js): legt bei Bedarf den Typ `sf_<name>_<dm>` mit `glbDatei` an und setzt das Objekt
+      const name = a.modell ?? a.datei ?? a.name;
+      if (typeof name !== 'string') return ungueltig('Feld "modell" (Dateiname ohne .glb) fehlt');
+      if (!zahl(a.x) || !zahl(a.y)) return ungueltig(`x/y fehlen für Modell ${name}`);
+      const sf = spielordnerTyp(name, zahl(a.hoehe) ? a.hoehe : null);
+      if (!sf) return ungueltig(`unbekanntes Modell „${name}“ (Liste: spielordnerModelle im Kontext)`, Math.floor(a.x), Math.floor(a.y));
+      const o = { typ: sf.typId, x: r3(a.x), y: r3(a.y), b: sf.b, h: sf.h, blockiert: true };
+      // Größe nur über "hoehe" (gleichmäßige Skalierung): b/h/typ aus der Aktion zählen nicht
+      const { aktion, modell, datei, name: _n, hoehe: _h, b: _b, h: _hh, typ: _t, ...rest } = a;
+      const fremd = uebernimmFelder(o, rest);
+      if (!objektDrin(o)) return ungueltig(`${name} bei ${o.x}|${o.y} liegt außerhalb des Bereichs (${bereichText(b)})`, Math.floor(o.x), Math.floor(o.y));
+      const pr = pruefeObjekt(sim, o);
+      if (!pr.ok) return ungueltig(`${name} bei ${o.x}|${o.y}: ${pr.grund}`, Math.floor(o.x), Math.floor(o.y));
+      const ops = sim.s('typen').has(sf.typId) ? [] : [{ s: 'typen', k: sf.typId, neu: sf.typ }];
+      ops.push({ s: 'objekte', k: sim.naechsteId, neu: o });
+      return fertig('neu', `＋ Modell ${sf.typ.name} (${sf.hoehe} m hoch, ${sf.b}×${sf.h}) bei ${o.x}|${o.y}${fremd.length ? ` – ignoriert: ${fremd.join(', ')}` : ''}`, ops, Math.floor(o.x), Math.floor(o.y), { rechteck: o });
     }
 
     if (art === 'entferne') {

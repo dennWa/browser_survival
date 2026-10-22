@@ -61,7 +61,17 @@ export function eigenesModellInhalt(szene, { b, h, hoehe, einheit = 1, farbe = n
     t.material = Array.isArray(t.material) ? t.material.map(kopie) : kopie(t.material);
     if (id !== null) t.userData = { s: 'objekte', k: id };
   });
-  const box = new THREE.Box3().setFromObject(modell);
+  // Skelett-Modelle: erst alle Knochen-Matrizen berechnen und die (gecachte) Skinning-Box verwerfen, sonst wird in Ruhepose
+  // mit veralteten Knochen gemessen (Modell erscheint 100× zu klein/unsichtbar). Skinning-Meshes nie wegschneiden (Box stimmt nicht).
+  modell.updateMatrixWorld(true);
+  modell.traverse((t) => {
+    if (!t.isSkinnedMesh) return;
+    t.boundingBox = null;
+    t.boundingSphere = null;
+    t.skeleton.update();
+    t.frustumCulled = false;
+  });
+  const box = new THREE.Box3().setFromObject(modell, skelett);
   const groesse = box.getSize(new THREE.Vector3());
   const mitte = box.getCenter(new THREE.Vector3());
   const s = Math.min((b * 0.96 * einheit) / (groesse.x || 1), (h * 0.96 * einheit) / (groesse.z || 1), (hoehe * einheit) / (groesse.y || 1));

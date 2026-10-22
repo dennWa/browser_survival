@@ -1,3 +1,4 @@
+import { ladeSpielordner } from '../kern/spielordner.js';
 import { frageGemini, ohneJsonBloecke, markierungTeile, aussenRechteck, STANDARD_MODELL, BEKANNTE_MODELLE } from '../kern/gemini.js';
 import { kiAnfrage, kiErgebnis } from '../kern/kiPipeline.js';
 import { bereichText } from '../kern/ausschnitt.js';
@@ -24,6 +25,8 @@ const VORSCHLAEGE = [
 ];
 
 export function geminiUi({ zustand, panel, aktionen, pruefeText }) {
+  // Spielordner-Katalog (Modelle + Maße) für Kontext und KI-Aktion „modell“; ohne Katalog (kein Spielserver) läuft alles wie bisher
+  ladeSpielordner(new URL('../client/assets/eigene/', location.href)).catch(() => {});
   const auswahlBereich = () => aktionen.auswahlBereich();
   const speicher = ladeEinstellungen();
   const verlauf = []; // { rolle, text }

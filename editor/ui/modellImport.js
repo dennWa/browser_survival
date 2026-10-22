@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GLTFLoader, OBJLoader, FBXLoader, GLTFExporter } from '../../client/vendor/three/addons.js';
+import { GLTFLoader, OBJLoader, FBXLoader, GLTFExporter, SkeletonUtils } from '../../client/vendor/three/addons.js';
 import { istGlb, glbInfo, gltfZuGlb, modellFormat, masseAusGroesse, MODELL_MAX_MB } from '../kern/bibliothek.js';
 
 /**
@@ -12,6 +12,19 @@ import { istGlb, glbInfo, gltfZuGlb, modellFormat, masseAusGroesse, MODELL_MAX_M
  */
 export const DATEI_ANNAHME = '.glb,.gltf,.obj,.fbx,model/gltf-binary,model/gltf+json';
 const VORSCHAU_PX = 96;
+
+/** Größe eines geladenen Modells (Ruhepose). Skelett-Modelle: Knochen-Matrizen erst berechnen, sonst falsche (100× kleine) Maße. */
+export function messeModell(szene) {
+  szene.updateMatrixWorld(true);
+  let skelett = false;
+  szene.traverse((t) => {
+    if (!t.isSkinnedMesh) return;
+    skelett = true;
+    t.boundingBox = null;
+    t.skeleton.update();
+  });
+  return new THREE.Box3().setFromObject(szene, skelett).getSize(new THREE.Vector3());
+}
 
 export async function leseModellDatei(datei) {
   const format = modellFormat(datei.name);
@@ -47,7 +60,7 @@ export async function leseModellDatei(datei) {
   } catch (e) {
     throw new Error(`Modell lässt sich nicht laden: ${e.message ?? e}`);
   }
-  const groesse = new THREE.Box3().setFromObject(szene).getSize(new THREE.Vector3());
+  const groesse = messeModell(szene);
   if (!(groesse.x > 0 || groesse.y > 0 || groesse.z > 0)) throw new Error('Modell hat keine sichtbare Größe');
   const masse = masseAusGroesse(groesse);
   if (Math.max(groesse.x, groesse.y, groesse.z) > 60) warnungen.push(`Sehr groß (${groesse.x.toFixed(0)} × ${groesse.z.toFixed(0)} m) – vielleicht in cm exportiert? Maße im Dialog anpassen`);
@@ -68,11 +81,15 @@ export function vorschauBild(szene, px = VORSCHAU_PX) {
     const sonne = new THREE.DirectionalLight(0xffffff, 1.6);
     sonne.position.set(3, 5, 4);
     welt.add(sonne);
-    const modell = szene.clone(true);
+    let skelett = false;
+    szene.traverse((t) => (skelett ||= !!t.isSkinnedMesh));
+    const modell = skelett ? SkeletonUtils.clone(szene) : szene.clone(true);
     welt.add(modell);
-    const box = new THREE.Box3().setFromObject(modell);
+    const groesse = messeModell(modell);
+    const box = new THREE.Box3().setFromObject(modell, skelett);
     const mitte = box.getCenter(new THREE.Vector3());
-    const radius = box.getSize(new THREE.Vector3()).length() / 2 || 1;
+    const radius = groesse.length() / 2 || 1;
+    modell.traverse((t) => t.isSkinnedMesh && (t.frustumCulled = false));
     const kamera = new THREE.PerspectiveCamera(35, 1, radius / 100, radius * 100);
     const abstand = radius / Math.sin((35 / 2) * (Math.PI / 180)) * 1.05;
     kamera.position.copy(mitte).add(new THREE.Vector3(0.75, 0.6, 1).normalize().multiplyScalar(abstand));

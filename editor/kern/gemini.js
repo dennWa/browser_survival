@@ -2,6 +2,7 @@ import { ausschnitt, ausschnittText, bereichText } from './ausschnitt.js';
 import { katalog, objektInfo } from './katalog.js';
 import { leseKiAntwort } from './kiImport.js';
 import { kopie } from './karte.js';
+import { spielordnerKontext } from './spielordner.js';
 import { ZONEN_EINSTELLUNGEN } from '../../server/spiel/karten/zonenEinstellungen.js';
 import { LOOT_TABELLEN } from '../../server/spiel/konfiguration/lootTabellen.js';
 
@@ -92,7 +93,7 @@ export const SYSTEM_TEXT = [
   'Du hilfst beim Gestalten von Zonen: Layout, Dekoration, Spawns/Loot-Verteilung, Farben und Texturen. Antworte auf Deutsch, kurz und konkret, gern mit einem Augenzwinkern.',
   'Du siehst nur den mitgelieferten Kontext (Zonen-Überblick, markierter Bereich, ausgewählte Objekte). Rate nicht, was du nicht siehst – frag nach oder bitte darum, einen Bereich zu markieren.',
   'Wenn der Nutzer etwas geändert haben will, erkläre kurz, was du tust, und hänge GENAU EINEN ```json-Block mit der Aktionsliste an (erste Aktion: die "bereich"-Aktion aus dem Kontext, falls dort eine steht – sonst keine erfinden).',
-  'Nutze nur Objekttypen aus "objektTypen", nur Kachelzeichen aus der Legende, nur Koordinaten INNERHALB des Bereichs. Ohne Bereich im Kontext nur Aktionen ohne Ort (wert, raum, name, typtextur, bodenton – Format siehe Kontext), sonst Tipps.',
+  'Nutze nur Objekttypen aus "objektTypen" (oder 3D-Modelle aus "spielordnerModelle" per Aktion "modell" – wähle eine sinnvolle Zielhöhe "hoehe", die Originalmaße sind oft viel zu groß/klein), nur Kachelzeichen aus der Legende, nur Koordinaten INNERHALB des Bereichs. Ohne Bereich im Kontext nur Aktionen ohne Ort (wert, raum, name, typtextur, bodenton – Format siehe Kontext), sonst Tipps.',
   'Bei reinen Fragen oder Ideen: nur Text, kein JSON. Die Änderungen werden vom Nutzer in einer Vorschau geprüft – du musst nichts "bestätigen".',
 ].join('\n');
 
@@ -142,6 +143,8 @@ export function zonenStatistik(karte, { prefabs = [] } = {}) {
     `Typ-Texturen gesetzt: ${[...karte.s('texturen')].map(([t, v]) => `${t}=${JSON.stringify(v)}`).join(', ') || 'keine'}.`,
     `objektTypen: ${typListe(karte)}`,
   ];
+  const modelle = spielordnerKontext();
+  if (modelle) zeilen.push(`spielordnerModelle (Aktion "modell", Originalmaß Breite x Tiefe x Höhe in m – du legst die Zielhöhe "hoehe" fest, 1 Kachel = 1 m, Mensch ≈ 1.8): ${modelle}`);
   if (prefabs.length) zeilen.push(`prefabs: ${prefabs.map((p) => `${p.name} ${p.vorlage.b}×${p.vorlage.h}`).join(', ')}`);
   return zeilen.join('\n');
 }
