@@ -1,4 +1,4 @@
-import { frageGemini, ohneJsonBloecke, STANDARD_MODELL, BEKANNTE_MODELLE } from '../kern/gemini.js';
+import { frageGemini, ohneJsonBloecke, markierungTeile, aussenRechteck, STANDARD_MODELL, BEKANNTE_MODELLE } from '../kern/gemini.js';
 import { kiAnfrage, kiErgebnis } from '../kern/kiPipeline.js';
 import { bereichText } from '../kern/ausschnitt.js';
 import { dialog, esc } from './dialoge.js';
@@ -11,6 +11,9 @@ import { dialog, esc } from './dialoge.js';
  * Das DOM des Chats wird einmal gebaut und bei jedem Reiterwechsel nur wieder eingehängt (Panel zeichnet sonst bei Kartenänderung neu).
  * 9.1: läuft über kern/kiPipeline.js (Kontext-Baukasten ohne ganze Karte, strukturierte JSON-Antworten, Vorschau → 1 Undo-Schritt);
  * „👁 Das wird gesendet“ zeigt vor dem Senden genau, welche Teile (und den vollen Text) an Google gehen.
+ * Runde 18 (7.1/7.2): kein Größenlimit (nur Hinweis `gross`); „⬚ Bereich für die KI markieren“ = Werkzeug `kiMarkieren`
+ * (aktionen.kiMarkieren → zustand.kiBereich, darf über die Zone ragen, Vorrang vor dem ⬚-Rahmen, gilt nur in seiner Zone);
+ * ragt sie hinaus → Knöpfe „⤢ Zone bis dorthin vergrößern“ (aktionen.kiZoneErweitern) / „➕ Neue Zone dort“ (kiNeueZoneDort).
  */
 const SPEICHER = 'browserSurvival.editorGemini';
 const VORSCHLAEGE = [
@@ -31,6 +34,8 @@ export function geminiUi({ zustand, panel, aktionen, pruefeText }) {
   wurzel.innerHTML = `
     <div class="helfer-kopf"><span class="helfer-status leise"></span><button data-a="einst" title="API-Schlüssel &amp; Modell">⚙</button><button data-a="neu" title="Neues Gespräch">🗑</button></div>
     <div class="helfer-kontext leise"><span></span> <button type="button" data-a="gesendet" title="Genau ansehen, was an Gemini geht">👁 Das wird gesendet</button></div>
+    <div class="helfer-markierung knopfreihe"><button type="button" data-a="markieren" title="Rechteck auf der Karte aufziehen – darf auch neben der Zone liegen (Maus oder Finger)">⬚ Bereich für die KI markieren</button><button type="button" data-a="markierungWeg" title="KI-Markierung entfernen" hidden>✕ Markierung</button></div>
+    <div class="helfer-aussen leise" hidden></div>
     <div class="helfer-optionen leise"><label><input type="checkbox" name="bereich" checked> Bereich/Zone mitschicken</label><label><input type="checkbox" name="auswahl" checked> Auswahl mitschicken</label></div>
     <div class="helfer-vorschlaege"></div>
     <div class="helfer-chat" aria-live="polite"></div>
@@ -51,13 +56,26 @@ export function geminiUi({ zustand, panel, aktionen, pruefeText }) {
 
   const kontextOptionen = () => ({ mitBereich: el('[name=bereich]').checked, mitAuswahl: el('[name=auswahl]').checked });
   const prefabs = () => aktionen.eigenePrefabs?.() ?? [];
-  const bereite = (frage = '') => kiAnfrage({ karte: zustand.karte, frage, verlauf, rechteck: auswahlBereich(), auswahl: ausgewaehlteElemente(), prefabs: prefabs(), ...kontextOptionen() });
+  // 7.2: KI-Markierung aus dem Chat (darf über die Zone hinausragen) hat Vorrang vor dem ⬚-Rahmen der Auswahl
+  const rechteck = () => aktionen.kiRechteck?.() ?? auswahlBereich();
+  const bereite = (frage = '') => kiAnfrage({ karte: zustand.karte, frage, verlauf, rechteck: rechteck(), auswahl: ausgewaehlteElemente(), prefabs: prefabs(), ...kontextOptionen() });
 
   function zeigeKontext() {
     const ziel = el('.helfer-kontext span');
+    el('[data-a=markierungWeg]').hidden = !zustand.kiBereich;
+    const aussen = el('.helfer-aussen');
+    aussen.hidden = true;
     if (!zustand.karte) return (ziel.textContent = 'Keine Zone geöffnet.');
     const k = bereite().kontext;
-    ziel.textContent = `Die KI sieht: Statistik + ${k.beschreibung}${k.objekte ? ` · ${k.objekte} ausgewählt` : ''} · ~${Math.round(k.zeichen / 1000)}k Zeichen${k.zuGross ? ' · ⚠ Bereich zu groß, bitte kleiner markieren (⬚)' : ''}`;
+    // 7.1: kein Limit mehr – große Bereiche nur als Hinweis
+    ziel.textContent = `Die KI sieht: Statistik + ${k.beschreibung}${k.objekte ? ` · ${k.objekte} ausgewählt` : ''} · ~${Math.round(k.zeichen / 1000)}k Zeichen${k.gross ? ' · ⚠ großer Bereich: dauert länger, kostet mehr' : ''}`;
+    // 7.2: Markierung ragt aus der Zone → Zone dorthin vergrößern oder neue Zone daneben
+    const m = k.markierung;
+    if (m?.ragtHinaus && zustand.kiBereich) {
+      aussen.hidden = false;
+      const seiten = Object.entries(m.aussen).filter(([, v]) => v > 0).map(([s, v]) => `${v} ${s}`).join(', ');
+      aussen.innerHTML = `${m.ganzAussen ? 'Markierung liegt <b>neben</b> der Zone' : `Markierung ragt <b>über die Zone</b> (${esc(seiten)})`} – die KI kann dort nur planen. <span class="knopfreihe">${m.ganzAussen ? '' : '<button type="button" data-a="erweitern" title="Zone bis zur Markierung vergrößern (Ränder wachsen, nichts geht verloren)">⤢ Zone bis dorthin vergrößern</button>'}<button type="button" data-a="neueZoneDort" title="Neue Zone an dieser Stelle der Weltanordnung (ohne Überlappung)">➕ Neue Zone dort</button></span>`;
+    }
   }
 
   /** „Das wird gesendet“: Teile-Liste + der komplette Kontext-Text */
@@ -141,6 +159,15 @@ export function geminiUi({ zustand, panel, aktionen, pruefeText }) {
     else if (a === 'gesendet') zeigeGesendet();
     else if (a === 'senden') senden();
     else if (a === 'stopp') laeuft?.abort();
+    else if (a === 'markieren') aktionen.kiMarkieren?.();
+    else if (a === 'markierungWeg') aktionen.kiMarkierungWeg?.();
+    else if (a === 'erweitern' || a === 'neueZoneDort') {
+      const r = zustand.kiBereich;
+      if (!r || !zustand.karte) return;
+      const m = markierungTeile(zustand.karte, r);
+      if (a === 'erweitern') aktionen.kiZoneErweitern?.(m.aussen);
+      else aktionen.kiNeueZoneDort?.(aussenRechteck(zustand.karte, r, m));
+    }
     else if (a === 'neu') {
       verlauf.length = 0;
       chat.innerHTML = '';
@@ -154,7 +181,17 @@ export function geminiUi({ zustand, panel, aktionen, pruefeText }) {
     e.stopPropagation(); // Editor-Tastenkürzel (Werkzeuge) nicht beim Tippen auslösen
   });
   wurzel.addEventListener('change', zeigeKontext);
-  for (const ev of ['auswahl', 'zone', 'karte']) zustand.bei(ev, () => !panel.wurzel.hidden && zeigeKontext());
+  // KI-Markierung gilt für die Zone, in der sie gezogen wurde
+  zustand.bei('zone', () => {
+    if (zustand.kiBereich) zustand.kiBereich = null;
+  });
+  // gebündelt: beim Aufziehen der KI-Markierung kommt jedes Zeigerereignis an (Ausschnitt bauen kostet bei großen Bereichen)
+  let kontextTimer = 0;
+  const planeKontext = () => {
+    clearTimeout(kontextTimer);
+    kontextTimer = setTimeout(() => !panel.wurzel.hidden && zeigeKontext(), 120);
+  };
+  for (const ev of ['auswahl', 'zone', 'karte', 'kiBereich']) zustand.bei(ev, planeKontext);
 
   panel.registriere('🤖 Helfer', () => {
     if (panel.el.firstChild !== wurzel) panel.el.replaceChildren(wurzel);

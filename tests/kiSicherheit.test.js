@@ -10,7 +10,7 @@ import { EINSTELLUNGEN_WHITELIST, baueBackup } from '../editor/kern/backup.js';
 import { entwurfJson, exportJson, ausDefinition } from '../editor/kern/format.js';
 import { Verlauf } from '../editor/kern/verlauf.js';
 import { frageGeminiBild } from '../editor/kern/gemini.js';
-import { kiAnfrage } from '../editor/kern/kiPipeline.js';
+import { kiAnfrage, KI_AUFGABEN } from '../editor/kern/kiPipeline.js';
 import { leseKiAntwort, pruefeAenderungen } from '../editor/kern/kiImport.js';
 
 const SCHLUESSEL = 'AIzaTESTSCHLUESSEL0815';
@@ -59,13 +59,14 @@ test('Bildmodell: Schlüssel-Stopp auch dort', async () => {
   assert.equal(gesendet, 0);
 });
 
-test('Kontextgrenze: auch große Zonen und alle Aufgaben senden höchstens Markierung (≤ 2500 Kacheln) + Statistik', () => {
+test('Kontextgrenze: ohne Markierung nie Kacheln; Markierung geht ohne Limit mit (Runde 18 7.1) – nur bei Aufgaben mit Bereich', () => {
   const { karte } = ausDefinition({ id: 'g', name: 'Groß', kacheln: Array.from({ length: 120 }, (_, y) => (y === 5 ? 'S' : ',').padEnd(160, ',')), objekte: [] });
   for (const aufgabe of ['helfer', 'textZuKarte', 'luecken', 'fehler', 'lootBalance', 'thema', 'beschriftung']) {
     const ohne = kiAnfrage({ aufgabe, karte, frage: 'x' });
     assert.ok(!ohne.kontext.text.includes('## Kacheln'), `${aufgabe}: ohne Markierung kein Raster`);
+    assert.ok(ohne.kontext.zeichen < 20000, `${aufgabe}: ${ohne.kontext.zeichen} Zeichen`);
     const riesig = kiAnfrage({ aufgabe, karte, frage: 'x', rechteck: { x: 0, y: 0, b: 160, h: 120 } });
-    assert.ok(!riesig.kontext.text.includes('## Kacheln'), `${aufgabe}: zu große Markierung wird nicht gesendet`);
-    assert.ok(riesig.kontext.zeichen < 20000, `${aufgabe}: ${riesig.kontext.zeichen} Zeichen`);
+    // Aufgaben ohne Bereich (Loot-Balance, Thema, Beschriftung) schicken auch bei Markierung keine Kacheln
+    assert.equal(riesig.kontext.text.includes('## Kacheln'), KI_AUFGABEN[aufgabe].bereich, aufgabe);
   }
 });

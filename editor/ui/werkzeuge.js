@@ -1,5 +1,5 @@
 import { drehLage, enthaelt } from '../../gemeinsam/welt/drehung.js';
-import { linie, rasteEin, rechteck, rechteckAus, pinsel, fuellen, kachelOps, nurImFeld, alsRechtecke } from '../kern/raster.js';
+import { linie, rasteEin, rechteck, rechteckAus, pinsel, pinselStrich, fuellen, kachelOps, nurImFeld, alsRechtecke } from '../kern/raster.js';
 import { markerSchluessel, ausSchluessel, kopie } from '../kern/karte.js';
 import { pruefeObjekt, pruefeMarker, pruefeBauwerk, pruefeBereich } from '../kern/platzierung.js';
 import { terrainHeben, terrainGlaetten, terrainEbnen, terrainPlateau, rampe } from '../kern/terrain.js';
@@ -15,6 +15,7 @@ import { LINEAL } from './zeichner2d.js';
 import { streckenInfo, fangKandidaten, fange, hilfslinieOps } from '../kern/messen.js';
 import { STANDARD_KONFIGURATION } from '../../server/spiel/konfiguration/spielKonfiguration.js';
 import { touchRaster } from '../kern/touchBauen.js';
+import { rasteZoneEin, konflikte } from '../kern/weltLayout.js';
 
 /**
  * Maus/Touch auf der 2D-Fläche → Werkzeuge. Werkzeuge:
@@ -103,6 +104,33 @@ export class Werkzeuge {
     this.#platziere(this.#pos(e), false);
   }
 
+  /** 6.6: Punkt in Kachelkoordinaten (z. B. Bodentreffer der 3D-Ansicht) wie einen Zeigerpunkt behandeln */
+  punktAn(wx, wy) {
+    const b = this.z.zuBild(wx, wy);
+    return { px: b.x, py: b.y, wx, wy, tx: Math.floor(wx), ty: Math.floor(wy) };
+  }
+
+  /** 6.6: an Kachelkoordinate setzen (3D) – gleiche Regeln wie ein Klick in 2D; Wand-Bauwerke setzen 1 Kachel */
+  platziereAn(wx, wy, umschalt = false) {
+    const p = this.punktAn(wx, wy);
+    this.letzteHover = p;
+    this.#platziere(p, umschalt || this.zustand.mehrfach);
+    if (this.ziehen?.art === 'wand') {
+      const d = this.ziehen;
+      this.ziehen = null;
+      this.#wandFertig(d, p, false);
+      this.z.vorschau = null;
+    }
+  }
+
+  /** 6.6: Vorschau an Kachelkoordinate (3D-Geist) → { rechtecke, gueltig, text } | null */
+  vorschauAn(wx, wy) {
+    const p = this.punktAn(wx, wy);
+    this.letzteHover = p;
+    this.#hoverVorschau(p, false);
+    return this.z.vorschau;
+  }
+
   /** 7.6: von ui/touchBauen.js aufbereitete Finger-Ereignisse (Fadenkreuz-Versatz, verzögerter Start) */
   runterRoh(e) {
     this.#runter(e);
@@ -178,6 +206,12 @@ export class Werkzeuge {
     if (p.px < LINEAL || p.py < LINEAL) return;
     const w = zustand.werkzeug;
     if (w === 'messen') return this.#messenKlick(p);
+    if (w === 'kiMarkieren') {
+      // 7.2: Rechteck für die KI – darf neben/außerhalb der Zone liegen
+      this.ziehen = { art: 'kiBereich', start: p, vorher: zustand.kiBereich ?? null };
+      this.#kiBereichZiehen(this.ziehen, p);
+      return;
+    }
     if (e.altKey && ['malen', 'platzieren', 'farbe', 'radierer', 'terrain'].includes(w)) return this.#pipette(p);
     if (w === 'zone') return this.#zoneRunter(p);
     if (w === 'auswahl' && (this.#klangGriffRunter(p) || this.#drehGriffRunter(p))) return;
@@ -218,6 +252,7 @@ export class Werkzeuge {
         this.zustand.ausfuehren('Farbe füllen', punkte.map(({ x, y }) => ({ s: 'bemalung', k: markerSchluessel(x, y), neu: this.zustand.farbe })));
         return;
       }
+      this.#strichNr++;
       this.zustand.verlauf.beginne(modus === 'farbeEntfernen' ? 'Farbe entfernen' : 'Farbe malen');
       this.ziehen = { art: 'farbe', letzte: p };
       this.#male(p, p);
@@ -263,7 +298,7 @@ export class Werkzeuge {
     if (!this.karte) return;
     if (!d) return this.#hoverVorschau(p, e.shiftKey);
     if (d.art === 'pinsel') {
-      const neu = linie(d.letzte.tx, d.letzte.ty, p.tx, p.ty).flatMap(({ x, y }) => pinsel(x, y, this.zustand.pinselGroesse));
+      const neu = pinselStrich({ x: d.letzte.tx, y: d.letzte.ty }, { x: p.tx, y: p.ty }, this.pinselOpts());
       this.zustand.ausfuehren('Malen', kachelOps(this.karte, neu, this.zustand.eintrag.zeichen));
       d.letzte = p;
     } else if (d.art === 'form') this.#formVorschau(d, p, e.shiftKey);
@@ -285,6 +320,8 @@ export class Werkzeuge {
       this.zustand.melde('auswahl');
     } else if (d.art === 'bereich') this.#bereichVorschau(d.start, p);
     else if (d.art === 'zone') this.#zoneZiehen(d, p);
+    else if (d.art === 'zoneLage') this.#zoneLageZiehen(d, p);
+    else if (d.art === 'kiBereich') this.#kiBereichZiehen(d, p);
     else if (d.art === 'hilfslinie') {
       this.z.hilfslinieZiehen = { achse: d.achse, wert: this.#hilfsWert(d.achse, p) };
       this.z.anfordern();
@@ -310,6 +347,7 @@ export class Werkzeuge {
     if (d.art === 'neu') {
       const r = this.z.neuRechteck;
       this.z.neuRechteck = null;
+      this.z.weltZonenZeigen = false;
       this.neuModus = false;
       if (r && r.b >= 4 && r.h >= 4) this.aktionen.neueZone(r);
       else this.zustand.meldung('Rechteck zu klein (mindestens 4 × 4) – nochmal aufziehen', 'fehler');
@@ -323,6 +361,8 @@ export class Werkzeuge {
     if (d.art === 'rahmen') this.#rahmenFertig(d, p, e.shiftKey);
     if (d.art === 'bereich') this.#bereichFertig(d, p);
     if (d.art === 'zone') this.#zoneFertig();
+    if (d.art === 'zoneLage') this.#zoneLageFertig(d);
+    if (d.art === 'kiBereich') this.#kiBereichFertig(d, p);
     if (d.art === 'hilfslinie') this.#hilfslinieFertig(d, p);
     this.z.vorschau = null;
     this.z.fangLinien = null;
@@ -339,9 +379,16 @@ export class Werkzeuge {
   #abbrechen(d = this.ziehen) {
     if (!d) return;
     if (['pinsel', 'radieren', 'terrain', 'bewegen', 'farbe', 'klangRadius', 'drehgriff'].includes(d.art)) this.zustand.verlauf.beende();
+    if (d.art === 'kiBereich') {
+      // 7.2: Esc mitten im Aufziehen → vorige KI-Markierung zurück
+      this.zustand.kiBereich = d.vorher;
+      this.zustand.melde('kiBereich');
+    }
     this.z.vorschau = null;
     this.z.zonenVorschau = null;
+    this.z.zonenLage = null;
     this.z.neuRechteck = null;
+    this.z.weltZonenZeigen = false;
     this.z.hilfslinieZiehen = null;
     this.z.fangLinien = null;
     this.ziehen = null;
@@ -533,13 +580,28 @@ export class Werkzeuge {
       return;
     }
     if (modus === 'pinsel') {
+      // Boden-Pinsel (6.1): ein Strich = eine Verlaufsgruppe = 1 Undo-Schritt; neue Saat je Strich (ausgefranster Rand)
+      this.#strichNr++;
       this.zustand.verlauf.beginne(`Malen: ${e.name}`);
       this.ziehen = { art: 'pinsel', letzte: p };
-      this.zustand.ausfuehren('Malen', kachelOps(this.karte, pinsel(p.tx, p.ty, this.zustand.pinselGroesse), e.zeichen));
+      this.zustand.ausfuehren('Malen', kachelOps(this.karte, this.#pinselBei(p), e.zeichen));
       return;
     }
     this.ziehen = { art: 'form', start: p };
     this.#formVorschau(this.ziehen, p, umschalt);
+  }
+
+  #strichNr = 0;
+
+  /** Pinsel-Einstellungen (Größe, Form rund/eckig, ausgefranster Rand) für raster.pinsel/pinselStrich */
+  pinselOpts() {
+    const z = this.zustand;
+    return { groesse: z.pinselGroesse, rund: z.pinselForm === 'rund', streuung: z.pinselStreuung ?? 0, saat: this.#strichNr };
+  }
+
+  #pinselBei(p) {
+    const o = this.pinselOpts();
+    return pinsel(p.tx, p.ty, o.groesse, o.rund, o);
   }
 
   #formPunkte(d, p, umschalt) {
@@ -558,7 +620,7 @@ export class Werkzeuge {
     }
     // Linie (frei, Umschalt = einrasten)
     const ende = umschalt ? rasteEin(d.start.tx, d.start.ty, p.tx, p.ty) : { x: p.tx, y: p.ty };
-    return linie(d.start.tx, d.start.ty, ende.x, ende.y).flatMap(({ x, y }) => pinsel(x, y, this.zustand.pinselGroesse));
+    return pinselStrich({ x: d.start.tx, y: d.start.ty }, ende, { ...this.pinselOpts(), streuung: 0 });
   }
 
   #formVorschau(d, p, umschalt) {
@@ -607,7 +669,7 @@ export class Werkzeuge {
 
   #radiere(von, bis) {
     const k = this.karte;
-    const punkte = nurImFeld(k, linie(von.tx, von.ty, bis.tx, bis.ty).flatMap(({ x, y }) => pinsel(x, y, this.zustand.pinselGroesse)));
+    const punkte = nurImFeld(k, pinselStrich({ x: von.tx, y: von.ty }, { x: bis.tx, y: bis.ty }, { ...this.pinselOpts(), streuung: 0 }));
     const ops = this.zustand.ebeneFrei('boden') ? kachelOps(k, punkte, ',') : [];
     const menge = new Set(punkte.map(({ x, y }) => `${x},${y}`));
     for (const { x, y } of punkte) if (k.markerAn(x, y)) ops.push({ s: 'marker', k: markerSchluessel(x, y), neu: null });
@@ -675,9 +737,12 @@ export class Werkzeuge {
         v = { kreis: { x: p.tx + 0.5, y: p.ty + 0.5, r: std.aussen }, rechtecke: [{ x: p.tx, y: p.ty, b: 1, h: 1 }], gueltig: true, text: `🔊 ${e.name} (hörbar ${std.aussen} Kacheln)`, textX: p.tx + 0.5, textY: p.ty };
       }
     } else if ((w === 'malen' && zustand.malModus === 'pinsel') || w === 'radierer') {
-      v = { kacheln: nurImFeld(this.karte, pinsel(p.tx, p.ty, zustand.pinselGroesse)), farbe: w === 'radierer' ? 'rgba(255,80,80,0.5)' : e?.farbe };
+      // Vorschau = Pinselform ohne Ausfransen (der Rand wird erst beim Malen gewürfelt)
+      const o = { ...this.pinselOpts(), streuung: 0 };
+      v = { kacheln: nurImFeld(this.karte, pinsel(p.tx, p.ty, o.groesse, o.rund)), farbe: w === 'radierer' ? 'rgba(255,80,80,0.5)' : e?.farbe };
     } else if (w === 'farbe' && zustand.eintrag?.werkzeug !== 'farbeFuellen') {
-      v = { kacheln: nurImFeld(this.karte, pinsel(p.tx, p.ty, zustand.pinselGroesse)), farbe: zustand.eintrag?.werkzeug === 'farbeEntfernen' ? 'rgba(255,255,255,0.4)' : zustand.farbe };
+      const o = this.pinselOpts();
+      v = { kacheln: nurImFeld(this.karte, pinsel(p.tx, p.ty, o.groesse, o.rund)), farbe: zustand.eintrag?.werkzeug === 'farbeEntfernen' ? 'rgba(255,255,255,0.4)' : zustand.farbe };
     } else if (w === 'terrain') v = { kreis: { x: p.tx + 0.5, y: p.ty + 0.5, r: zustand.pinselGroesse / 2 + 0.5 } };
     else if (w === 'einfuegen' && zustand.einfuegeVorlage) {
       const vl = zustand.einfuegeVorlage;
@@ -685,11 +750,17 @@ export class Werkzeuge {
       const drin = r.x >= 0 && r.y >= 0 && r.x + r.b <= this.karte.breite && r.y + r.h <= this.karte.hoehe;
       const kacheln = [];
       for (let y = 0; y < vl.h; y++) for (let x = 0; x < vl.b; x++) if (vl.zellen[y * vl.b + x] && vl.zellen[y * vl.b + x] !== ',') kacheln.push({ x: r.x + x, y: r.y + y });
-      v = { rechtecke: [r], kacheln, gueltig: drin, text: `${vl.name ?? 'Einfügen'} ${r.b} × ${r.h}${drin ? '' : ' – ragt hinaus (Teile fallen weg)'} · R dreht`, textX: r.x + r.b / 2, textY: r.y };
+      // 6.5: kopierte Einzel-Elemente – Umrisse der Elemente statt des ganzen Rahmens
+      const teile = vl.nurElemente
+        ? [...(vl.objekte ?? []), ...(vl.lootZonen ?? []), ...(vl.tierBereiche ?? []), ...(vl.raumFlaechen ?? [])].map((o) => ({ x: r.x + o.x, y: r.y + o.y, b: o.b ?? 1, h: o.h ?? 1 }))
+            .concat((vl.bauwerke ?? []).map((b) => ({ x: r.x + b.tx, y: r.y + b.ty, b: 1, h: 1 })), (vl.marker ?? []).map(([dx, dy]) => ({ x: r.x + dx, y: r.y + dy, b: 1, h: 1 })))
+        : [r];
+      v = { rechtecke: teile.length ? teile : [r], kacheln, gueltig: drin, text: `${vl.name ?? (vl.nurElemente ? `${teile.length} Element(e)` : 'Einfügen')} ${r.b} × ${r.h}${drin ? '' : ' – ragt hinaus (Teile fallen weg)'} · R dreht`, textX: r.x + r.b / 2, textY: r.y };
     }
     else if (w === 'zone') {
       const g = this.#griffBei(p);
-      this.leinwand.style.cursor = g ? (['l', 'r'].includes(g.id) ? 'ew-resize' : ['o', 'u'].includes(g.id) ? 'ns-resize' : g.id === 'lo' || g.id === 'ru' ? 'nwse-resize' : 'nesw-resize') : 'default';
+      const drin = p.wx >= 0 && p.wy >= 0 && p.wx < this.karte.breite && p.wy < this.karte.hoehe;
+      this.leinwand.style.cursor = g ? (['l', 'r'].includes(g.id) ? 'ew-resize' : ['o', 'u'].includes(g.id) ? 'ns-resize' : g.id === 'lo' || g.id === 'ru' ? 'nwse-resize' : 'nesw-resize') : drin ? 'move' : 'default';
     }
     if (umschalt !== undefined && v !== this.z.vorschau) {
       this.z.vorschau = v;
@@ -918,7 +989,7 @@ export class Werkzeuge {
   #male(von, bis) {
     const k = this.karte;
     const entfernen = this.zustand.eintrag?.werkzeug === 'farbeEntfernen';
-    const punkte = nurImFeld(k, linie(von.tx, von.ty, bis.tx, bis.ty).flatMap(({ x, y }) => pinsel(x, y, this.zustand.pinselGroesse)));
+    const punkte = nurImFeld(k, pinselStrich({ x: von.tx, y: von.ty }, { x: bis.tx, y: bis.ty }, entfernen ? { ...this.pinselOpts(), streuung: 0 } : this.pinselOpts()));
     this.zustand.sammle(punkte.map(({ x, y }) => ({ s: 'bemalung', k: markerSchluessel(x, y), neu: entfernen ? null : this.zustand.farbe })));
   }
 
@@ -977,7 +1048,15 @@ export class Werkzeuge {
 
   #zoneRunter(p) {
     const g = this.#griffBei(p);
-    if (!g) return;
+    if (!g) {
+      // 6.4: in die Zone fassen = ganze Zone in der Weltanordnung verschieben (rastet an anderen Zonen ein, Überlappung rot)
+      if (p.wx >= 0 && p.wy >= 0 && p.wx < this.karte.breite && p.wy < this.karte.hoehe && this.zustand.layout[this.karte.id]) {
+        this.ziehen = { art: 'zoneLage', start: p, dx: 0, dy: 0 };
+        this.z.zonenLage = { dx: 0, dy: 0, konflikte: [] };
+        this.z.anfordern();
+      }
+      return;
+    }
     this.ziehen = { art: 'zone', griff: g.id };
     this.z.zonenVorschau = { x: 0, y: 0, b: this.karte.breite, h: this.karte.hoehe };
   }
@@ -991,7 +1070,9 @@ export class Werkzeuge {
     if (d.griff.includes('r')) r.x1 = Math.max(gx, r.x0 + 4);
     if (d.griff.includes('o')) r.y0 = Math.min(gy, r.y1 - 4);
     if (d.griff.includes('u')) r.y1 = Math.max(gy, r.y0 + 4);
-    this.z.zonenVorschau = { x: r.x0, y: r.y0, b: r.x1 - r.x0, h: r.y1 - r.y0, verkleinert: r.x0 > 0 || r.y0 > 0 || r.x1 < k.breite || r.y1 < k.hoehe };
+    const lage = this.zustand.layout[k.id];
+    const konflikte = lage ? this.zustand.zonenKonflikte(k.id, { pos: { x: lage.x + r.x0, y: lage.y + r.y0 }, b: r.x1 - r.x0, h: r.y1 - r.y0 }) : [];
+    this.z.zonenVorschau = { x: r.x0, y: r.y0, b: r.x1 - r.x0, h: r.y1 - r.y0, verkleinert: r.x0 > 0 || r.y0 > 0 || r.x1 < k.breite || r.y1 < k.hoehe, konflikte };
     this.z.anfordern();
   }
 
@@ -1001,6 +1082,45 @@ export class Werkzeuge {
     const k = this.karte;
     if (!v || (v.x === 0 && v.y === 0 && v.b === k.breite && v.h === k.hoehe)) return;
     this.aktionen.zoneGroesse({ links: -v.x, oben: -v.y, rechts: v.x + v.b - k.breite, unten: v.y + v.h - k.hoehe });
+  }
+
+  // --- 7.2: Bereich für die KI markieren (zustand.kiBereich, Zonen-Koordinaten, auch außerhalb) ---------------------
+  #kiBereichZiehen(d, p) {
+    this.zustand.kiBereich = rechteckAus(d.start.tx, d.start.ty, p.tx, p.ty);
+    this.zustand.melde('kiBereich');
+    this.z.anfordern();
+  }
+
+  #kiBereichFertig(d, p) {
+    this.#kiBereichZiehen(d, p);
+    this.aktionen.kiBereichFertig?.(this.zustand.kiBereich);
+  }
+
+  /** 6.4: Zone verschieben – Vorschau (eingerastet an Kanten anderer Zonen) */
+  #zoneLageZiehen(d, p) {
+    const k = this.karte;
+    const lage = this.zustand.layout[k.id];
+    const groessen = new Map([...this.zustand.zonen].map(([id, e]) => [id, e.karte]));
+    const roh = { x: lage.x + Math.round(p.wx - d.start.wx), y: lage.y + Math.round(p.wy - d.start.wy) };
+    const ziel = this.strg ? roh : rasteZoneEin(this.zustand.layout, groessen, k.id, roh, Math.max(1, Math.round(10 / this.z.zoom)));
+    d.dx = ziel.x - lage.x;
+    d.dy = ziel.y - lage.y;
+    this.z.zonenLage = { dx: d.dx, dy: d.dy, konflikte: konflikte(this.zustand.layout, groessen, k.id, ziel) };
+    this.z.anfordern();
+  }
+
+  #zoneLageFertig(d) {
+    this.z.zonenLage = null;
+    const k = this.karte;
+    if (!d.dx && !d.dy) return this.z.anfordern();
+    const lage = this.zustand.layout[k.id];
+    const erg = this.zustand.setzeZonenLage(k.id, { x: lage.x + d.dx, y: lage.y + d.dy });
+    if (!erg.ok) return this.zustand.meldung(`Zone nicht verschoben: ${erg.grund} – Zonen dürfen sich nicht überlappen (Kante an Kante geht)`, 'fehler');
+    // Ansicht bleibt an derselben Weltstelle stehen → die Zone erscheint dort, wo sie losgelassen wurde
+    this.z.kamera.x -= d.dx;
+    this.z.kamera.y -= d.dy;
+    this.z.anfordern();
+    this.zustand.meldung(`✥ „${k.name}“ verschoben (Weltlage ${lage.x + d.dx}|${lage.y + d.dy}) – Strg+Z gilt hier nicht, einfach zurückziehen`, 'ok');
   }
 }
 

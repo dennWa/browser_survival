@@ -953,7 +953,7 @@ export class ClientSpiel {
     if (!this.sound) return;
     switch (e.typ) {
       case 'feuer':
-        this.sound.spiele(e.waffe === 'schrotflinte' ? 'schrotflinte' : 'pistole', { x: e.x, y: e.y });
+        this.sound.spiele(e.waffe === 'schrotflinte' || e.waffe === 'automatikgewehr' ? e.waffe : 'pistole', { x: e.x, y: e.y });
         this.#kampfInDerNaehe(e);
         break;
       case 'treffer':
@@ -1067,7 +1067,49 @@ export class ClientSpiel {
     else if (daten.leben > vorher.leben + 5 && !vorher.tot) this.sound.spiele('heilen');
     else if (anzahl(daten) > anzahl(vorher) && !daten.nachladen) this.sound.spiele('aufheben');
     if (daten.nachladen && !vorher.nachladen) this.sound.spiele('nachladen');
+    // Runde 18: eigener Schaden → Aufschrei je Figur (höchstens alle 0,7 s)
+    const jetzt = performance.now();
+    if (daten.leben < vorher.leben - 0.5 && !daten.tot && jetzt - (this.letzterSchadenTon ?? 0) > 700) {
+      this.letzterSchadenTon = jetzt;
+      this.sound.spiele(this.eigeneDaten?.aussehen?.koerper === 'frau' ? 'schaden_frau' : 'schaden_mann');
+    }
   }
+
+  /**
+   * Runde 18: Körper- und Umgebungsgeräusche – Magenknurren/Durst (< 20 %), Keuchen (Ausdauer leer),
+   * Vogelgezwitscher (Tag, draußen, kein Niederschlag, keine Schneezone), Donner (starker Regen).
+   */
+  #umweltGeraeusche(jetzt, uhr) {
+    const d = this.spielerDaten;
+    if (!this.sound || !d || d.tot) return;
+    const faellig = (schluessel, minS, maxS) => {
+      const naechste = this.geraeuschUhr[schluessel];
+      if (naechste === undefined) {
+        this.geraeuschUhr[schluessel] = jetzt + (minS + Math.random() * (maxS - minS)) * 1000;
+        return false;
+      }
+      if (jetzt < naechste) return false;
+      this.geraeuschUhr[schluessel] = jetzt + (minS + Math.random() * (maxS - minS)) * 1000;
+      return true;
+    };
+    if (d.hunger >= 20) delete this.geraeuschUhr.hunger;
+    else if (faellig('hunger', 20, 45)) this.sound.spiele('magen_knurren');
+    if (d.durst >= 20) delete this.geraeuschUhr.durst;
+    else if (faellig('durst', 20, 45)) this.sound.spiele('durst');
+    if (this.lokal.erschoepft && !this.warErschoepft) this.sound.spiele('keuchen');
+    this.warErschoepft = !!this.lokal.erschoepft;
+    const draussen = !this.lokal.fahrzeug && !this.welt.istInnen(this.lokal.x, this.lokal.y);
+    const vogelWetter = this.wetter === 'klar' || this.wetter === 'nebel';
+    if (draussen && vogelWetter && !this.welt.schnee && (uhr.helligkeit ?? 1) > 0.6 && faellig('vogel', 8, 25)) {
+      // irgendwo in 150–400 px Entfernung, damit es räumlich klingt
+      const w = Math.random() * Math.PI * 2;
+      const r = 150 + Math.random() * 250;
+      this.sound.spiele('vogel', { x: this.lokal.x + Math.cos(w) * r, y: this.lokal.y + Math.sin(w) * r, tonhoehe: 0.85 + Math.random() * 0.3 });
+    }
+    if ((this.renderer.wetterEffekt?.regen ?? 0) > 0.5 && this.wetter === 'regen' && faellig('donner', 25, 70)) this.sound.spiele('donner', { lautstaerke: 0.5 + Math.random() * 0.5 });
+  }
+
+  geraeuschUhr = {};
 
   /** Brennende Lagerfeuer in der Nähe knistern (zufällig, räumlich). */
   #feuerKnistern() {
@@ -1162,6 +1204,7 @@ export class ClientSpiel {
       this.sound?.nacht(nacht);
     }
     if (this.klaenge.eintraege.length) this.#klaengeAktualisieren(jetzt, uhr, andere);
+    this.#umweltGeraeusche(jetzt, uhr);
 
     if (this.platzierung) this.renderer.zeigeVorschau({ typ: this.platzierung.typ, ...this.#platzierungsZiel() });
     else if (!this.bau.aktiv) {
@@ -1286,7 +1329,8 @@ export class ClientSpiel {
     if (!d || d.tot || this.lokal.fahrzeug) return null;
     const a = this.eigeneDaten?.angeln;
     if (a) return a.phase === 'biss' ? 'biss' : 'einholen';
-    if (this.platzierung || this.bau.aktiv || !d.inventar.some((e) => e?.defId === 'angel')) return null;
+    // Runde 18: nur mit der Angel in der Hand (wie Server angelSystem.hatAngelInDerHand)
+    if (this.platzierung || this.bau.aktiv || d.ausgeruestet == null || d.inventar[d.ausgeruestet]?.defId !== 'angel') return null;
     return this.#angelWinkel(jetzt) !== null ? 'auswerfen' : null;
   }
 

@@ -5,8 +5,10 @@ import { WerkstattVerlauf, neueVersionMeta, bodenVersatz, drehpunktVersatz, vers
 import { vorschauBild } from './modellImport.js';
 import { Texturwerk } from './werkstattMalen.js';
 import { Animationswerk } from './werkstattAnimation.js';
+import { Knochenwerk } from './werkstattKnochen.js';
 import { werkstattKi } from './werkstattKi.js';
 import { dialog, bestaetigen, esc, feldHtml, istDialogOffen } from './dialoge.js';
+import { istTextEingabe } from './befehle.js';
 
 /**
  * Modell-Werkstatt (Editor 2.0, Schritt 5.1): großes Fenster über dem Editor für ein Modell der Bibliothek.
@@ -78,6 +80,7 @@ class Werkstatt {
     this.#baueSzene();
     this.texturwerk = new Texturwerk(this);
     this.animwerk = new Animationswerk(this);
+    this.knochenwerk = new Knochenwerk(this); // 6.7: Knochen anlegen/ketten/binden, Anzeige, Baumliste
     this.#tasten = (e) => this.#taste(e);
     window.addEventListener('keydown', this.#tasten, true);
     window.addEventListener('keyup', this.#tasten, true);
@@ -121,7 +124,8 @@ class Werkstatt {
         <aside class="werkstatt-seite">
           <h4>Maße</h4><p class="werkstatt-info"></p>
           <h4>Auswahl: <span data-auswahl></span></h4><div class="werkstatt-werte"></div>
-          <h4>Teile</h4><div class="werkstatt-teile"></div>
+          <h4>Aufbau (Teile & Knochen)</h4><div class="werkstatt-teile werkstatt-baum"></div>
+          <h4>🦴 Knochen</h4><div class="werkstatt-knochenfeld"></div>
           <h4>Animation & Gelenke</h4><div class="werkstatt-animation"></div>
           <h4>Materialien</h4><div class="werkstatt-materialien"></div><div class="werkstatt-material"></div>
         </aside>
@@ -155,8 +159,17 @@ class Werkstatt {
       const uuid = e.target.closest('[data-material]')?.dataset.material;
       if (uuid) this.texturwerk.waehleMaterial(this.materialien().find((m) => m.uuid === uuid));
     });
-    // Teile: Name = wählen, 👁 = ein/aus
+    // Knochen-Feld (6.7)
+    const kf = w.querySelector('.werkstatt-knochenfeld');
+    kf.addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-k]');
+      if (b) this.knochenwerk.klick(b);
+    });
+    kf.addEventListener('change', (e) => e.target.dataset.k && this.knochenwerk.aenderung(e.target));
+    // Baum: Name = wählen (Teile, Knochen, Knoten), 👁 = Teil ein/aus
     w.querySelector('.werkstatt-teile').addEventListener('click', (e) => {
+      const knoten = e.target.closest('[data-knoten]');
+      if (knoten) return this.waehle(this.objekte[Number(knoten.dataset.knoten)] ?? this.modell);
       const z = e.target.closest('[data-teil]');
       if (!z) return;
       const nr = Number(z.dataset.teil);
@@ -221,6 +234,7 @@ class Werkstatt {
     if (this.#bild) return;
     this.#bild = requestAnimationFrame(() => {
       this.#bild = 0;
+      this.knochenwerk?.vorZeichnen(); // Knochen-Overlay an die aktuelle (auch animierte) Lage
       this.renderer.render(this.szene, this.kamera);
     });
   }
@@ -287,7 +301,22 @@ class Werkstatt {
    * dazukamen (Aufkleber), fehlen in älteren Ständen → beim Wiederherstellen ausgeblendet (= nicht exportiert).
    */
   stand() {
-    return { knoten: this.knotenStand(), material: this.texturwerk.stand(), animation: this.animwerk.stand() };
+    return { knoten: this.knotenStand(), meta: this.knotenMeta(), material: this.texturwerk.stand(), animation: this.animwerk.stand() };
+  }
+
+  /** 6.7: Name + Knochen-Länge je Knoten (Umbenennen/Länge sind rückgängig machbar) */
+  knotenMeta() {
+    return this.objekte.map((o) => [o.name, o.userData.knochen ? Number(o.userData.knochen.laenge) : null]);
+  }
+
+  setzeKnotenMeta(meta) {
+    if (!Array.isArray(meta)) return;
+    this.objekte.forEach((o, i) => {
+      const m = meta[i];
+      if (!m) return;
+      o.name = m[0];
+      if (m[1] !== null && o.userData.knochen) o.userData.knochen = { ...o.userData.knochen, laenge: m[1] };
+    });
   }
 
   /** [x,y,z, qx,qy,qz,qw, sx,sy,sz, sichtbar, Eltern-Nr. (-1 = Wurzel)] je Knoten */
@@ -313,8 +342,12 @@ class Werkstatt {
 
   #setzeStand(s) {
     this.setzeKnoten(s.knoten);
+    this.setzeKnotenMeta(s.meta);
     this.texturwerk.setzeStand(s.material);
     this.animwerk.setzeStand(s.animation);
+    // gewähltes Objekt gelöscht/ausgeblendet (Undo eines neuen Knochens) → ganzes Modell
+    if (this.gewaehlt !== this.modell && (!this.gewaehlt.visible || !istIn(this.gewaehlt, this.modell))) this.waehle(this.modell);
+    this.knochenwerk?.aktualisiere();
     this.aktualisiere();
     this.zeigeListen();
   }
@@ -464,9 +497,13 @@ class Werkstatt {
   zeigeListen() {
     const zeile = (nr, name, sichtbar, aktiv, extra = '') =>
       `<div class="werkstatt-zeile${aktiv ? ' aktiv' : ''}" data-teil="${nr}"><button type="button" class="name">${esc(name)}</button>${extra}${nr >= 0 ? `<button type="button" data-auge title="ein-/ausblenden">${sichtbar ? '👁' : '🚫'}</button>` : ''}</div>`;
-    this.el.querySelector('.werkstatt-teile').innerHTML =
-      zeile(-1, '🧊 Ganzes Modell', true, this.gewaehlt === this.modell) +
-      this.teile.map((t, i) => zeile(i, teilName(t, i), t.visible, this.gewaehlt === t, `<span class="leise klein">${Math.round((t.geometry?.index?.count ?? t.geometry?.attributes.position?.count ?? 0) / 3)} ▲</span>`)).join('');
+    // 6.7: Baum mit Knochen/Gelenken (Knochenwerk); ohne Knochenwerk (Aufbau-Phase) die flache Teile-Liste
+    this.el.querySelector('.werkstatt-teile').innerHTML = this.knochenwerk
+      ? this.knochenwerk.baum()
+      : zeile(-1, '🧊 Ganzes Modell', true, this.gewaehlt === this.modell) +
+        this.teile.map((t, i) => zeile(i, teilName(t, i), t.visible, this.gewaehlt === t, `<span class="leise klein">${Math.round((t.geometry?.index?.count ?? t.geometry?.attributes.position?.count ?? 0) / 3)} ▲</span>`)).join('');
+    const kf = this.el.querySelector('.werkstatt-knochenfeld');
+    if (kf) kf.innerHTML = this.knochenwerk?.feld() ?? '';
     const nutzung = new Map();
     for (const t of this.teile) for (const m of [t.material].flat()) if (m) nutzung.set(m.uuid, (nutzung.get(m.uuid) ?? 0) + 1);
     this.el.querySelector('.werkstatt-materialien').innerHTML =
@@ -482,8 +519,8 @@ class Werkstatt {
   // ------------------------------------------------------------------ Tastatur
   #taste(e) {
     if (istDialogOffen()) return; // Rückfrage-Dialog über der Werkstatt bekommt die Tasten
-    e.stopPropagation(); // nichts an den Editor
-    const inEingabe = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName) && document.activeElement.type !== 'checkbox';
+    e.stopPropagation(); // nichts an den Editor (Browser-Standard wie Strg+C/V in Feldern bleibt: kein preventDefault)
+    const inEingabe = istTextEingabe(document.activeElement);
     if (e.key === 'Shift') {
       const an = e.type === 'keydown';
       this.gizmo.setTranslationSnap(an ? RASTER.verschieben : null);
@@ -558,6 +595,7 @@ class Werkstatt {
     cancelAnimationFrame(this.#bild);
     this.texturwerk.ende();
     this.animwerk.ende();
+    this.knochenwerk?.ende(); // Overlay aus der Szene (wird nicht exportiert), Geometrien frei
     this.gizmo.detach();
     this.gizmo.dispose();
     this.orbit.dispose();
@@ -574,3 +612,8 @@ class Werkstatt {
 }
 
 const teilName = (t, i) => t.name || `Teil ${i + 1}`;
+/** Hängt o (irgendwo) unter wurzel? */
+const istIn = (o, wurzel) => {
+  for (let x = o; x; x = x.parent) if (x === wurzel) return true;
+  return false;
+};

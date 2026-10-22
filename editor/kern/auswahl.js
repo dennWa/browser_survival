@@ -6,8 +6,13 @@ import { ID_SAMMLUNGEN, markerSchluessel, ausSchluessel, kopie } from './karte.j
  *   { b, h, zellen: (Zeichen|null)[], hoehen: number[]|null, objekte: [...], bauwerke, tierBereiche, raumFlaechen,
  *     marker: [[dx, dy, m]], name? }
  * Ein Element gehört zur Auswahl, wenn sein MITTELPUNKT im Rechteck liegt.
+ * Feedback 6.5: `kopiereElemente(karte, gewaehlte)` = nur die gewählten Elemente (Objekte, Bauwerke, Marker, Bereiche,
+ *   Loot-Zonen, Klänge) OHNE Kacheln → Vorlage mit `nurElemente: true` (alle zellen null); `einfuegeOps` löscht dann im
+ *   Zielbereich nichts (kein Stempeln) und überschreibt keinen Boden. Übergänge/Ankünfte (Namen eindeutig) werden übersprungen.
  */
-const MIT_RECHTECK = ['objekte', 'tierBereiche', 'raumFlaechen'];
+const MIT_RECHTECK = ['objekte', 'tierBereiche', 'raumFlaechen', 'lootZonen'];
+/** Sammlungen, die `kopiereElemente` mitnimmt (Rechteck-Elemente mit x/y/b/h) */
+const ELEMENT_RECHTECK = ['objekte', 'tierBereiche', 'raumFlaechen', 'lootZonen'];
 
 function mitte(s, o) {
   if (s === 'bauwerke') return { x: o.tx + 0.5, y: o.ty + 0.5 };
@@ -64,6 +69,43 @@ export function kopiere(karte, r, { nurKacheln = false, name = null } = {}) {
   return v;
 }
 
+/**
+ * Nur die gewählten Elemente als Vorlage (Strg+C auf Objekte, 6.5) – ohne Kacheln/Höhen/Bemalung.
+ * gewaehlte = [{ s, k, wert }] (zustand.gewaehlte()). Lage relativ zur linken oberen Ecke des Rahmens (ganze Kacheln,
+ * Bruch-Positionen im Free-Modus bleiben erhalten). @returns Vorlage | null (nichts Kopierbares) – `uebersprungen` = Anzahl
+ */
+export function kopiereElemente(karte, gewaehlte, { name = null } = {}) {
+  const rahmen = [];
+  for (const { s, k, wert: w } of gewaehlte) {
+    if (ELEMENT_RECHTECK.includes(s)) rahmen.push({ x: w.x, y: w.y, b: w.b ?? 1, h: w.h ?? 1 });
+    else if (s === 'bauwerke') rahmen.push({ x: w.tx, y: w.ty, b: 1, h: 1 });
+    else if (s === 'marker') {
+      const [x, y] = ausSchluessel(k);
+      rahmen.push({ x, y, b: 1, h: 1 });
+    } else if (s === 'klaenge' && w.art === 'punkt') rahmen.push({ x: w.x - 0.5, y: w.y - 0.5, b: 1, h: 1 });
+    else if (s === 'klaenge' && w.art === 'bereich') rahmen.push({ x: w.x, y: w.y, b: w.b, h: w.h });
+  }
+  if (!rahmen.length) return null;
+  const x0 = Math.floor(Math.min(...rahmen.map((r) => r.x)));
+  const y0 = Math.floor(Math.min(...rahmen.map((r) => r.y)));
+  const b = Math.max(1, Math.ceil(Math.max(...rahmen.map((r) => r.x + r.b))) - x0);
+  const h = Math.max(1, Math.ceil(Math.max(...rahmen.map((r) => r.y + r.h))) - y0);
+  const v = { b, h, zellen: new Array(b * h).fill(null), hoehen: null, objekte: [], bauwerke: [], tierBereiche: [], raumFlaechen: [], lootZonen: [], klaenge: [], marker: [], bemalung: [], raeume: {}, nurElemente: true, uebersprungen: 0 };
+  if (name) v.name = name;
+  const r3 = (z) => Math.round(z * 1000) / 1000;
+  for (const { s, k, wert: w } of gewaehlte) {
+    if (ELEMENT_RECHTECK.includes(s)) v[s].push({ ...kopie(w), x: r3(w.x - x0), y: r3(w.y - y0) });
+    else if (s === 'bauwerke') v.bauwerke.push({ ...kopie(w), tx: w.tx - x0, ty: w.ty - y0 });
+    else if (s === 'marker') {
+      const [x, y] = ausSchluessel(k);
+      v.marker.push([x - x0, y - y0, kopie(w)]);
+    } else if (s === 'klaenge' && w.art !== 'global') v.klaenge.push({ ...kopie(w), x: r3(w.x - x0), y: r3(w.y - y0) });
+    else v.uebersprungen++;
+  }
+  for (const raum of [...v.marker.map(([, , m]) => m.raum), ...v.raumFlaechen.map((r) => r.raum)]) if (raum && karte.s('raeume').has(raum)) v.raeume[raum] = kopie(karte.s('raeume').get(raum));
+  return v;
+}
+
 /** Raum-Buchstaben der Vorlage → Buchstaben der Zielkarte (+ Operationen für neue Räume) */
 export function raumZuordnung(karte, raeume = {}) {
   const zuordnung = {};
@@ -115,11 +157,12 @@ export function loescheOps(karte, r, { fuellung = ',', elemente = true } = {}) {
  */
 export function einfuegeOps(karte, v, x, y, { ersetzen = true } = {}) {
   const { zuordnung, ops } = raumZuordnung(karte, v.raeume);
-  // Stempeln: was im Zielbereich steht (Objekte, Marker, Bauwerke, Bereiche), weicht der Vorlage
-  if (ersetzen) ops.unshift(...loescheOps(karte, { x, y, b: v.b, h: v.h }, { fuellung: null }));
+  // Stempeln: was im Zielbereich steht (Objekte, Marker, Bauwerke, Bereiche), weicht der Vorlage – nicht bei kopierten
+  // Einzel-Elementen (6.5: die kommen dazu, Boden und Nachbarn bleiben)
+  if (ersetzen && !v.nurElemente) ops.unshift(...loescheOps(karte, { x, y, b: v.b, h: v.h }, { fuellung: null }));
   const raumNeu = (r) => (r && v.raeume && Object.hasOwn(v.raeume, r) ? (zuordnung[r] ?? null) : r);
   let weggelassen = 0;
-  const neueIds = Object.fromEntries(ID_SAMMLUNGEN.map((s) => [s, []]));
+  const neueIds = Object.fromEntries([...ID_SAMMLUNGEN, 'marker'].map((s) => [s, []]));
   for (let dy = 0; dy < v.h; dy++)
     for (let dx = 0; dx < v.b; dx++) {
       const z = v.zellen[dy * v.b + dx];
@@ -150,6 +193,16 @@ export function einfuegeOps(karte, v, x, y, { ersetzen = true } = {}) {
     neueIds.bauwerke.push(naechste);
     ops.push({ s: 'bauwerke', k: naechste++, neu });
   }
+  for (const c of v.klaenge ?? []) {
+    const neu = { ...kopie(c), x: Math.round((c.x + x) * 1000) / 1000, y: Math.round((c.y + y) * 1000) / 1000 };
+    const ok = c.art === 'bereich' ? drin({ x: neu.x, y: neu.y, b: neu.b, h: neu.h }) : neu.x >= 0 && neu.y >= 0 && neu.x <= karte.breite && neu.y <= karte.hoehe;
+    if (!ok) {
+      weggelassen++;
+      continue;
+    }
+    neueIds.klaenge.push(naechste);
+    ops.push({ s: 'klaenge', k: naechste++, neu });
+  }
   for (const [dx, dy, f] of v.bemalung ?? []) if (karte.imFeld(x + dx, y + dy)) ops.push({ s: 'bemalung', k: markerSchluessel(x + dx, y + dy), neu: f });
   for (const [dx, dy, m] of v.marker ?? []) {
     const neu = kopie(m);
@@ -159,6 +212,7 @@ export function einfuegeOps(karte, v, x, y, { ersetzen = true } = {}) {
       continue;
     }
     ops.push({ s: 'marker', k: markerSchluessel(x + dx, y + dy), neu });
+    neueIds.marker.push(markerSchluessel(x + dx, y + dy));
   }
   return { ops, weggelassen, neueIds };
 }
@@ -178,6 +232,9 @@ export function dreheVorlage(v) {
   n.objekte = (v.objekte ?? []).map((o) => ({ ...dreheRechteck(o), drehung: ((o.drehung ?? 0) + 90) % 360 }));
   n.tierBereiche = (v.tierBereiche ?? []).map(dreheRechteck);
   n.raumFlaechen = (v.raumFlaechen ?? []).map(dreheRechteck);
+  if (v.lootZonen) n.lootZonen = v.lootZonen.map(dreheRechteck);
+  // Punkt-Klang: (x, y) → (h − y, x); Ambiente-Bereich wie ein Rechteck
+  if (v.klaenge) n.klaenge = v.klaenge.map((c) => (c.art === 'bereich' ? dreheRechteck(c) : { ...c, x: Math.round((h - c.y) * 1000) / 1000, y: c.x }));
   n.bauwerke = (v.bauwerke ?? []).map((bw) => ({ ...bw, tx: h - 1 - bw.ty, ty: bw.tx, drehung: bw.drehung ? 0 : 1 })); // Ausrichtung kippt immer (auch ohne gesetztes Feld)
   n.marker = (v.marker ?? []).map(([x, y, m]) => [h - 1 - y, x, m]);
   n.bemalung = (v.bemalung ?? []).map(([x, y, f]) => [h - 1 - y, x, f]);

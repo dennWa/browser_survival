@@ -7,6 +7,7 @@ import { groesseText } from '../kern/backup.js';
 import { kodiere, kannOpus } from './audioKodierer.js';
 import { pruefeLokalenServer, speicherHinweis, istVerbunden, schreibeDatei, loescheDatei, LOKAL_HINWEIS } from './lokalerServer.js';
 import { dialog, bestaetigen, esc } from './dialoge.js';
+import { istTextEingabe } from './befehle.js';
 
 /**
  * 🎵 Audio-Zentrale (Editor Phase 10.3–10.5): eigenes Vollbild-Fenster mit ALLEN Sounds und ALLER Musik des Spiels.
@@ -181,7 +182,8 @@ class AudioZentrale {
 
   #taste(e) {
     if (document.getElementById('dialog-hintergrund')?.hidden === false) return;
-    const inFeld = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName) && document.activeElement.type !== 'range' && document.activeElement.type !== 'checkbox';
+    // Text-/Zahlfelder: Browser-Standard (Strg+C/V/X/A/Z) – die Zentrale fängt dort nichts ab (6.5)
+    const inFeld = istTextEingabe(document.activeElement) && document.activeElement.type !== 'range';
     if (e.key === 'Escape') {
       e.preventDefault();
       if (this.handy && this.el.classList.contains('detail-offen')) this.el.classList.remove('detail-offen');

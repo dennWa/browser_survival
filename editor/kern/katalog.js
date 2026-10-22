@@ -128,7 +128,9 @@ export function katalog() {
   const liste = [];
   for (const [zeichen, k] of Object.entries(KACHELN)) {
     const [kategorie, name] = KACHEL_KATEGORIE[zeichen] ?? ['Böden', k.name];
-    liste.push({ id: `kachel:${zeichen}`, art: 'kachel', zeichen, name, kategorie, symbol: KACHEL_SYMBOL[zeichen] ?? '▪', farbe: KACHEL_FARBEN[k.name] ?? '#888', blockiert: !!k.blockiert, innen: !!k.innen });
+    // 6.1: jede Nicht-Mauer-Kachel ist ein Boden-Pinsel (Suche „pinsel“/„boden“ findet sie alle)
+    const tags = kategorie === 'Mauern' ? [] : ['pinsel', 'boden', 'malen'];
+    liste.push({ id: `kachel:${zeichen}`, art: 'kachel', zeichen, name, kategorie, symbol: KACHEL_SYMBOL[zeichen] ?? '▪', farbe: KACHEL_FARBEN[k.name] ?? '#888', blockiert: !!k.blockiert, innen: !!k.innen, tags });
   }
   for (const [id, t] of Object.entries(OBJEKT_TYPEN)) {
     const eintrag = objektEintrag(t.typ ?? id, t, `objekt:${id}`);

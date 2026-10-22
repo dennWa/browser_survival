@@ -49,7 +49,7 @@ export function meldeBefehleAn(befehle, t) {
     { id: 'bearbeiten.ausschneiden', name: 'Ausschneiden', symbol: '✂', gruppe: 'Bearbeiten', kuerzel: ['Strg+X'], verfuegbar: bereichOderAuswahl, ausfuehren: () => a.ausschneiden() },
     { id: 'bearbeiten.einfuegen', name: 'Einfügen (an der Maus)', kurz: 'Einfügen', symbol: '📥', gruppe: 'Bearbeiten', kuerzel: ['Strg+V'], verfuegbar: () => !!z.zwischenablage && karte(), ausfuehren: () => a.einfuegen() },
     { id: 'bearbeiten.duplizieren', name: 'Duplizieren', symbol: '⧉', gruppe: 'Bearbeiten', kuerzel: ['Strg+D'], verfuegbar: gewaehlt, ausfuehren: () => a.duplizieren() },
-    { id: 'bearbeiten.drehen', name: 'Drehen 90°', kurz: 'Drehen', symbol: '⟳', gruppe: 'Bearbeiten', kuerzel: ['R'], verfuegbar: in2d, ausfuehren: () => a.drehen() },
+    { id: 'bearbeiten.drehen', name: 'Drehen 90°', kurz: 'Drehen', symbol: '⟳', gruppe: 'Bearbeiten', kuerzel: ['R'], verfuegbar: karte, ausfuehren: () => a.drehen() },
     // --- Anordnen (7.2): je 1 Undo-Schritt; Tasten frei belegbar (Hilfe → ⌨) --------------------------------
     ...[['links', 'Links ausrichten', '⇤', 'Links'], ['mitteH', 'Waagerecht mittig ausrichten', '↔', 'Mitte'], ['rechts', 'Rechts ausrichten', '⇥', 'Rechts'], ['oben', 'Oben ausrichten', '⤒', 'Oben'], ['mitteV', 'Senkrecht mittig ausrichten', '↕', 'Mitte'], ['unten', 'Unten ausrichten', '⤓', 'Unten']].map(([wie, name, symbol, kurz]) => ({ id: `anordnen.${wie}`, name, kurz, symbol, gruppe: 'Anordnen', verfuegbar: () => in2d() && z.gewaehlte().length >= 2, grund: 'mindestens 2 Elemente wählen', ausfuehren: () => a.anordnen('ausrichten', wie) })),
     { id: 'anordnen.verteilenH', name: 'Waagerecht verteilen (gleiche Abstände)', kurz: 'Verteilen', symbol: '⇹', gruppe: 'Anordnen', verfuegbar: () => in2d() && z.gewaehlte().length >= 3, grund: 'mindestens 3 Elemente wählen', ausfuehren: () => a.anordnen('verteilen', 'h') },
@@ -103,19 +103,21 @@ export function meldeBefehleAn(befehle, t) {
     { ...werkzeug('werkzeug.terrain', 'Gelände formen', '⛰', ['T'], 'terrain', () => z.werkzeug === 'terrain'), ausfuehren: () => t.assets.waehleId(z.eintrag?.werkzeug?.startsWith('terrain') ? z.eintrag.id : 'werkzeug:terrain-heben') },
     { ...werkzeug('werkzeug.farbe', 'Boden bemalen', '🎨', ['K'], 'farbe', () => z.werkzeug === 'farbe'), ausfuehren: () => t.assets.waehleId(z.eintrag?.werkzeug?.startsWith('farbe') ? z.eintrag.id : 'werkzeug:farbe-pinsel') },
     werkzeug('werkzeug.messen', 'Maßband (Klicks = Punkte, Doppelklick/Enter = fertig)', '📏', ['M'], 'messen', () => z.werkzeug === 'messen'),
-    { id: 'messen.fertig', name: 'Maßband beenden', gruppe: 'Werkzeuge', kuerzel: ['Enter'], verfuegbar: () => !!zeichner?.massband && !zeichner.massband.fertig, grund: 'kein Maßband aktiv', ausfuehren: () => t.werkzeuge.massbandFertig() },
+    // leise: ohne laufende Messung bleibt Enter beim Browser (Knöpfe, Felder) – früher meldete jedes Enter „geht gerade nicht“
+    { id: 'messen.fertig', name: 'Maßband beenden', gruppe: 'Werkzeuge', kuerzel: ['Enter'], leise: true, verfuegbar: () => z.werkzeug === 'messen' && !!zeichner?.massband && !zeichner.massband.fertig, grund: 'kein Maßband aktiv', ausfuehren: () => t.werkzeuge.massbandFertig() },
     { id: 'messen.einrasten', name: 'Einrasten an Kanten, Mitten & Hilfslinien (Strg hält aus)', symbol: '🧲', gruppe: 'Ansicht', kuerzel: ['Umschalt+G'], aktiv: () => z.einrasten, ausfuehren: () => z.setzeMessen({ einrasten: !z.einrasten }) },
     { id: 'messen.raster', name: 'Raster-Weite wechseln (½ · 1 · 2 · 4 · 8)', symbol: '#', gruppe: 'Ansicht', ausfuehren: () => {
         const stufen = [0.5, 1, 2, 4, 8];
         z.setzeMessen({ rasterWeite: stufen[(stufen.indexOf(z.rasterWeite) + 1) % stufen.length] });
         z.meldung(`Raster: alle ${z.rasterWeite} Kacheln, Hauptlinie alle ${z.hauptlinien}`);
       } },
-    werkzeug('werkzeug.zone', 'Zonengröße (Griffe)', '⤡', ['Z'], 'zone', () => z.werkzeug === 'zone'),
+    werkzeug('werkzeug.zone', 'Zone: Größe (Griffe) & Lage (hineinfassen und ziehen)', '⤡', ['Z'], 'zone', () => z.werkzeug === 'zone'),
     { id: 'werkzeug.kleiner', name: 'Pinsel kleiner', gruppe: 'Werkzeuge', kuerzel: ['['], ausfuehren: () => a.pinselGroesse(-1) },
     { id: 'werkzeug.groesser', name: 'Pinsel größer', gruppe: 'Werkzeuge', kuerzel: [']'], ausfuehren: () => a.pinselGroesse(1) },
 
     // --- Zone ---------------------------------------------------------------------
     { id: 'zone.groesse', name: 'Größe ändern…', symbol: '⤡', gruppe: 'Zone', verfuegbar: karte, ausfuehren: () => a.groesseDialog() },
+    { id: 'zone.lage', name: 'Lage in der Weltanordnung (verschieben)…', kurz: 'Lage', symbol: '✥', gruppe: 'Zone', verfuegbar: karte, ausfuehren: () => a.zoneLage() },
     { id: 'zone.einstellungen', name: 'Zonen-Werte (Wetter, Zombies, Loot, Tiere)', symbol: '⚙', gruppe: 'Zone', verfuegbar: karte, ausfuehren: () => {
         t.layout.zeige('rechts');
         a.zonenEinstellungen();
@@ -130,6 +132,9 @@ export function meldeBefehleAn(befehle, t) {
 
     // --- KI -----------------------------------------------------------------------
     { id: 'ki.helfer', name: 'KI-Helfer (Gemini-Chat)', kurz: 'Helfer', symbol: '🤖', gruppe: 'KI', kuerzel: ['Strg+J'], aktiv: () => t.layout.sichtbar('ki'), ausfuehren: () => t.layout.umschalten('ki') },
+    // 7.2: Bereich für den KI-Helfer – auch neben/über die Zone hinaus
+    { id: 'ki.markieren', name: 'Bereich für die KI markieren (auch außerhalb der Zone)', kurz: 'KI-Bereich', symbol: '⬚', gruppe: 'KI', verfuegbar: karte, aktiv: () => z.werkzeug === 'kiMarkieren', ausfuehren: () => a.kiMarkieren?.() },
+    { id: 'ki.markierungWeg', name: 'KI-Markierung entfernen', symbol: '✕', gruppe: 'KI', verfuegbar: () => !!z.kiBereich, grund: 'keine KI-Markierung', ausfuehren: () => a.kiMarkierungWeg?.() },
     { id: 'ki.ausschnitt', name: 'Ausschnitt für KI…', kurz: 'KI-Ausschnitt', symbol: '🤖', gruppe: 'KI', verfuegbar: karte, ausfuehren: () => a.ausschnittExport?.() },
     { id: 'ki.import', name: 'KI-Antwort importieren (mit Vorschau)…', symbol: '📥', gruppe: 'KI', verfuegbar: karte, ausfuehren: () => a.kiImport?.() },
     { id: 'ki.textZuKarte', name: 'Text zu Karte…', kurz: 'Text→Karte', symbol: '🗺', gruppe: 'KI', verfuegbar: karte, ausfuehren: () => a.textZuKarte?.() },
@@ -172,8 +177,8 @@ export function menues(t) {
     { titel: 'Ansicht', eintraege: ['ansicht.dreiD', 'ansicht.einpassen', 'ansicht.zoomRein', 'ansicht.zoomRaus', '-', 'ansicht.links', 'ansicht.rechts', 'ki.helfer', 'ansicht.fokus', '-', 'ansicht.ebenen', ...ANZEIGEN.map((a) => `ansicht.${a.id}`), 'messen.einrasten', 'messen.raster', '-', 'audio.zentrale', 'ansicht.suche'] },
     { titel: 'Einfügen', eintraege: () => einfuegenEintraege(t) },
     { titel: 'Werkzeuge', eintraege: WERKZEUGLEISTE.filter((x) => x !== '-').concat(['-', 'werkzeug.kleiner', 'werkzeug.groesser']) },
-    { titel: 'Zone', eintraege: ['zone.einstellungen', 'zone.groesse', '-', 'zone.uebersicht', 'zone.vorschlaege', 'zone.raeume', 'zone.prefabs', '-', 'zone.pruefung', 'zone.autoFix', 'zone.testen'] },
-    { titel: 'KI', eintraege: ['ki.helfer', '-', 'ki.textZuKarte', 'ki.luecken', 'ki.lootBalance', 'ki.thema', 'ki.beschriftung', '-', 'ki.ausschnitt', 'ki.import'] },
+    { titel: 'Zone', eintraege: ['zone.einstellungen', 'zone.groesse', 'zone.lage', '-', 'zone.uebersicht', 'zone.vorschlaege', 'zone.raeume', 'zone.prefabs', '-', 'zone.pruefung', 'zone.autoFix', 'zone.testen'] },
+    { titel: 'KI', eintraege: ['ki.helfer', 'ki.markieren', 'ki.markierungWeg', '-', 'ki.textZuKarte', 'ki.luecken', 'ki.lootBalance', 'ki.thema', 'ki.beschriftung', '-', 'ki.ausschnitt', 'ki.import'] },
     { titel: 'Hilfe', eintraege: ['hilfe.palette', 'hilfe.kuerzel', 'hilfe.anleitung'] },
   ];
 }

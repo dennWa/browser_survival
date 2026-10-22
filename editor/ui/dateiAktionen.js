@@ -6,6 +6,7 @@ import { veroeffentlichung } from '../kern/veroeffentlichen.js';
 import { AKTIONEN_ANLEITUNG } from '../kern/ausschnitt.js';
 import { baueBackup, leseBackup, backupDateiname, groesseText, EINSTELLUNGEN_WHITELIST } from '../kern/backup.js';
 import { benutzteModelle, benutzteAudios } from '../kern/bibliothek.js';
+import { MAX_GROESSE } from '../kern/zone.js';
 import { herunterladen, dateiWaehlen } from './speicher.js';
 import { dialog, schliesse, bestaetigen, esc } from './dialoge.js';
 
@@ -40,16 +41,30 @@ export function dateiAktionen({ zustand, zeichner, werkzeuge, aktionen, rechts, 
       return m;
     },
 
+    /**
+     * Neue Zone (6.4): wird an die vorhandenen Zonen ANGEFÜGT. Wer die aktuelle Zone nicht mehr im Projekt haben will,
+     * archiviert sie hier gleich mit (Häkchen) – sie liegt dann im Archiv (🗺 Zonen → 🗄 Archiv → ♻ zurückholen).
+     */
     async neu() {
+      const k = zustand.karte;
       const w = await dialog({
-        titel: 'Neue Zone',
-        html: '<p>Ziehe ein Rechteck auf der Fläche auf (die Zone wird mit Rasen gefüllt) – oder gib die Größe direkt ein.</p>',
-        knoepfe: [{ text: 'Abbrechen', wert: null }, { text: 'Größe eingeben', wert: 'zahlen' }, { text: '▭ Rechteck aufziehen', wert: 'ziehen', art: 'akzent' }],
+        titel: '➕ Neue Zone',
+        html: `<p>Die neue Zone wird dem Projekt <b>hinzugefügt</b> – ${zustand.zonen.size ? `die ${zustand.zonen.size} vorhandene${zustand.zonen.size === 1 ? '' : 'n'} Zone${zustand.zonen.size === 1 ? '' : 'n'} bleiben erhalten und liegen daneben in der Weltanordnung (🗺 Zonen).` : 'sie ist die erste Zone.'}</p>
+          <p><b>▭ Rechteck aufziehen</b>: an der gewünschten Stelle neben der aktuellen Zone (ohne Überlappung). <b>Größe eingeben</b>: bis ${MAX_GROESSE.toLocaleString('de-DE')} × ${MAX_GROESSE.toLocaleString('de-DE')} Kacheln, kommt direkt daneben.</p>
+          ${k ? `<label class="feld" style="grid-template-columns:24px 1fr"><input type="checkbox" name="archiv"><span>„${esc(k.name)}“ vorher <b>archivieren</b> (aus dem Projekt nehmen, später im Reiter 🗺 Zonen → 🗄 Archiv → ♻ zurückholen)</span></label>` : ''}`,
+        knoepfe: [{ text: 'Abbrechen', wert: null }, { text: 'Größe eingeben', wert: (b) => ({ art: 'zahlen', archiv: !!b.querySelector('[name=archiv]')?.checked }) }, { text: '▭ Rechteck aufziehen', wert: (b) => ({ art: 'ziehen', archiv: !!b.querySelector('[name=archiv]')?.checked }), art: 'akzent' }],
       });
-      if (w === 'zahlen') aktionen.neueZone(null);
-      if (w === 'ziehen') {
+      if (!w) return;
+      if (w.archiv && k) {
+        if (!(await zustand.archiviereZone(k.id))) return zustand.meldung('Archivieren fehlgeschlagen (Speicher?) – nichts angelegt', 'fehler');
+        zustand.meldung(`🗄 „${k.name}“ archiviert – zurückholen im Reiter 🗺 Zonen`, 'ok');
+      }
+      if (w.art === 'zahlen') aktionen.neueZone(null);
+      if (w.art === 'ziehen') {
         werkzeuge.neuModus = true;
-        zustand.meldung('Rechteck aufziehen (mindestens 4 × 4) – Esc bricht ab');
+        zeichner.weltZonenZeigen = true;
+        zeichner.anfordern();
+        zustand.meldung('Rechteck aufziehen (mindestens 4 × 4) – gern neben der Zone; Überlappung wird vermieden · Esc bricht ab');
       }
     },
 

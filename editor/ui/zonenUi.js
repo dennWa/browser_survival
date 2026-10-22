@@ -1,5 +1,7 @@
 import { nachbarn, vorschlaegeFuerPaar, vorschlagOps, layoutAusUebergaengen, GEGENSEITE } from '../kern/zonenVerbund.js';
 import { validiere } from '../kern/validierung.js';
+import { istGrosseZone } from '../kern/zone.js';
+import { konflikte } from '../kern/weltLayout.js';
 import { kachelBild } from './zeichner2d.js';
 import { dialog, esc } from './dialoge.js';
 
@@ -20,10 +22,17 @@ export function zonenUi({ zustand, panel, aktionen, befehle, layout, zeichner, p
       const andere = n.a === id ? n.b : n.a;
       return { karte: zustand.zonen.get(andere).karte, dx: zustand.layout[andere].x - p.x, dy: zustand.layout[andere].y - p.y };
     });
+    // 6.4: alle anderen Zonen als Umriss (Zone-Werkzeug, Neue Zone, KI-Markieren)
+    zeichner.weltZonen = !p ? [] : [...zustand.zonen].filter(([z]) => z !== id && zustand.layout[z]).map(([z, e]) => ({ id: z, name: e.karte.name, x: zustand.layout[z].x - p.x, y: zustand.layout[z].y - p.y, b: e.karte.breite, h: e.karte.hoehe }));
     zeichner.anfordern();
   };
   zustand.bei('zone', aktualisiereNachbarn);
   zustand.bei('karte', (ops) => ops.some((o) => o.s === 'raster') && aktualisiereNachbarn());
+  // Lage geändert (Verschieben, Größe links/oben, Undo) → Nachbarn + Weltkarte neu
+  zustand.bei('layout', () => {
+    aktualisiereNachbarn();
+    if (panel.aktiv === REITER) panel.zeichne();
+  });
 
   const layoutGeaendert = () => {
     zustand.speicher.setze('meta', 'layout', zustand.layout);
@@ -64,7 +73,7 @@ export function zonenUi({ zustand, panel, aktionen, befehle, layout, zeichner, p
   panel.registriere(REITER, () => {
     const el = panel.el;
     const zonen = zonenMap();
-    el.innerHTML = '<p class="leise">Weltkarte: Zone ziehen = anordnen (Kante an Kante = Nachbarn), Klick = öffnen. Blaue Linien = Übergänge.</p>';
+    el.innerHTML = '<p class="leise">Weltkarte: Zone ziehen = verschieben (Kante an Kante = Nachbarn, überlappen geht nicht – rot), Klick = öffnen, ✥ = Lage eingeben. Blaue Linien = Übergänge. Fläche unbegrenzt.</p>';
     const leinwand = document.createElement('canvas');
     leinwand.style.cssText = 'width:100%;height:240px;background:#0d0f12;border-radius:6px;touch-action:none;cursor:grab';
     el.append(leinwand);
@@ -92,12 +101,15 @@ export function zonenUi({ zustand, panel, aktionen, befehle, layout, zeichner, p
     ul.className = 'liste';
     const paare = nachbarn(zonen, zustand.layout);
     for (const [id, k] of zonen) {
-      const probleme = validiere(k, { zonen: alle, mitErreichbarkeit: false });
-      const f = probleme.filter((p) => p.schwere === 'fehler').length;
+      // große Zonen (6.4): keine Live-Prüfung beim Zeichnen der Liste (sonst hängt der Reiter)
+      const probleme = istGrosseZone(k) ? null : validiere(k, { zonen: alle, mitErreichbarkeit: false });
+      const f = probleme ? probleme.filter((p) => p.schwere === 'fehler').length : 0;
       const nb = paare.filter((p) => p.a === id || p.b === id).map((p) => (p.a === id ? `${p.b} (${p.kante.seite})` : `${p.a} (${GEGENSEITE[p.kante.seite]})`));
       const ziele = [...new Set([...k.s('uebergaenge').values()].map((u) => u.ziel))];
+      const ueber = zustand.zonenKonflikte(id);
+      const lage = zustand.layout[id];
       const li = document.createElement('li');
-      li.innerHTML = `<b>${esc(k.name)}</b> (${esc(id)}, ${k.breite}×${k.hoehe}) ${f ? `⛔ ${f}` : '✓'}<br><span class="leise">Nachbarn: ${nb.map(esc).join(', ') || '–'} · Übergänge nach: ${ziele.map(esc).join(', ') || '–'}</span>`;
+      li.innerHTML = `<b>${esc(k.name)}</b> (${esc(id)}, ${k.breite}×${k.hoehe}) ${!probleme ? '<span class="leise">Prüfung bei Bedarf</span>' : f ? `⛔ ${f}` : '✓'}${ueber.length ? ` <b style="color:var(--rot)">⚠ überlappt ${ueber.map(esc).join(', ')}</b>` : ''}<br><span class="leise">Lage ${lage ? `${lage.x}|${lage.y}` : '–'} · Nachbarn: ${nb.map(esc).join(', ') || '–'} · Übergänge nach: ${ziele.map(esc).join(', ') || '–'}</span>`;
       li.addEventListener('click', () => {
         zustand.aktiviere(id);
         zeichner.einpassen();
@@ -109,7 +121,15 @@ export function zonenUi({ zustand, panel, aktionen, befehle, layout, zeichner, p
         e.stopPropagation();
         aktionen.zoneEntfernen?.(id);
       });
-      li.prepend(weg);
+      // 6.4: Lage per Eingabe
+      const lageKnopf = Object.assign(document.createElement('button'), { textContent: '✥', title: 'Lage in der Weltanordnung eingeben' });
+      lageKnopf.style.float = 'right';
+      lageKnopf.dataset.lage = id;
+      lageKnopf.addEventListener('click', (e) => {
+        e.stopPropagation();
+        aktionen.zoneLage?.(id);
+      });
+      li.prepend(weg, lageKnopf);
       ul.append(li);
     }
     el.append(ul);
@@ -160,8 +180,9 @@ export function zonenUi({ zustand, panel, aktionen, befehle, layout, zeichner, p
         ctx.globalAlpha = 0.85;
         ctx.drawImage(kachelBild(zonen.get(id)), r.x, r.y, r.b, r.h);
         ctx.globalAlpha = 1;
-        ctx.strokeStyle = id === zustand.aktivId ? '#4caf50' : '#ffffffaa';
-        ctx.lineWidth = id === zustand.aktivId ? 3 : 1;
+        const rot = konflikte(zustand.layout, zonen, id).length > 0; // 6.4: Überlappung rot
+        ctx.strokeStyle = rot ? '#e5484d' : id === zustand.aktivId ? '#4caf50' : '#ffffffaa';
+        ctx.lineWidth = rot || id === zustand.aktivId ? 3 : 1;
         ctx.strokeRect(r.x, r.y, r.b, r.h);
         ctx.font = '600 11px system-ui';
         ctx.fillStyle = '#fff';
@@ -216,8 +237,16 @@ export function zonenUi({ zustand, panel, aktionen, befehle, layout, zeichner, p
     });
     leinwand.addEventListener('pointerup', () => {
       if (!ziehen) return;
-      const { id, bewegt } = ziehen;
+      const { id, bewegt, start } = ziehen;
       ziehen = null;
+      // 6.4: Überlappung verhindern – zurück an die alte Stelle
+      if (bewegt && konflikte(zustand.layout, zonen, id).length) {
+        const k = konflikte(zustand.layout, zonen, id);
+        zustand.layout[id] = start;
+        male();
+        zustand.meldung(`Zonen dürfen sich nicht überlappen (${k.join(', ')}) – zurückgesetzt. Kante an Kante geht.`, 'fehler');
+        return;
+      }
       if (bewegt) layoutGeaendert();
       else if (id !== zustand.aktivId) {
         zustand.aktiviere(id);

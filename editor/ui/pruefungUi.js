@@ -1,5 +1,6 @@
 import { esc, dialog } from './dialoge.js';
 import { fixFuer, fixeAlle, istBehebbar } from '../kern/autoFix.js';
+import { istGrosseZone } from '../kern/zone.js';
 
 /**
  * Reiter „Prüfung“ (rechte Seitenleiste): Live-Validierung der aktiven Zone (kern/validierung.js) als Liste,
@@ -45,6 +46,12 @@ export function pruefungUi({ zustand, leiste, aktionen, zeichner }) {
       const { f, w } = zaehlerText(liste);
       const el = leiste.el;
       el.innerHTML = liste.length ? `<p class="leise">${f} Fehler (verhindern Test/Veröffentlichen) · ${w} Warnungen. Klick springt zur Stelle.</p>` : '<p>✓ Keine Probleme gefunden.</p>';
+      // 6.4: große Zonen werden nicht live geprüft → Knopf
+      if (istGrosseZone(zustand.karte)) {
+        const jetzt = Object.assign(document.createElement('button'), { type: 'button', textContent: '⟳ Jetzt prüfen (große Zone: nur auf Knopfdruck)' });
+        jetzt.addEventListener('click', () => aktionen.pruefeJetzt?.());
+        el.prepend(jetzt);
+      }
       const behebbar = liste.filter(istBehebbar).length;
       if (behebbar) {
         const alle = document.createElement('button');

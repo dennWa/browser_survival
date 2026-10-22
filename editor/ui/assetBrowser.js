@@ -215,13 +215,14 @@ export class AssetBrowser {
       return this.aktionen.klangSetzen?.(e.audio, e.klangArt);
     }
     if (e.art === 'bibliothek') {
-      if (z.ansicht === '3d') return z.meldung('Malen und Bauen gehen nur in 2D – Taste 3 schaltet um', 'fehler');
+      // 6.6: Bibliotheks-Modelle lassen sich auch in 3D setzen (Klick auf den Boden)
       this.zuletzt = [e.id, ...this.zuletzt.filter((id) => id !== e.id)].slice(0, ZULETZT_MAX);
       this.#speichere();
       return this.aktionen.verwendeModell?.(e.asset);
     }
     if (e.art === 'werkzeug' && (e.werkzeug === 'wetter' || e.werkzeug === 'musik')) return this.aktionen.zonenEinstellungen?.(e.werkzeug === 'wetter' ? 'wetter' : null);
-    if (z.ansicht === '3d') return z.meldung('Malen und Bauen gehen nur in 2D – Taste 3 schaltet um', 'fehler');
+    // 6.6: in 3D gehen Objekte, Bauwerke und Marker (Klick auf den Boden) – Boden malen, Bereiche, Gelände nur in 2D
+    if (z.ansicht === '3d' && !['objekt', 'bauwerk', 'marker'].includes(e.art)) return z.meldung('Boden malen, Bereiche und Gelände gehen nur in 2D – Taste 3 schaltet um (Objekte/Marker gehen auch in 3D)', 'fehler');
     z.setzeEintrag(e);
     if (e.art === 'kachel') {
       // Mauern werden gezogen (Linie) – danach kehrt der vorige Mal-Modus für Böden zurück

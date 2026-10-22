@@ -3,10 +3,41 @@ import { EditorKarte, ID_SAMMLUNGEN, markerSchluessel, ausSchluessel } from './k
 /**
  * Zone = Rechteck (Phase 2). Neu anlegen (nur Rasen) und Größe ändern (Ränder wachsen/schrumpfen).
  * Alles, was beim Verkleinern ganz oder teilweise herausfällt, wird gemeldet (Warnung + Bestätigung im UI) und entfernt.
+ * Feedback 6.4: eine Zone darf bis MAX_GROESSE × MAX_GROESSE (10 000) groß sein, die Weltfläche (viele Zonen) ist unbegrenzt.
+ *   Ab GROSS_KACHELN schaltet der Editor teure Automatiken ab (Live-Prüfung, Innen-Anzeige, 3D vereinfacht), ab
+ *   SEHR_GROSS_KACHELN fragt er vor dem Anlegen nach (`groessenHinweis`), Speicher-Schätzung `speicherSchaetzung`.
+ *   Die Raster-Operation von `groesseAendern` trägt `versatz` {x: links, y: oben} → zustand verschiebt die Weltlage mit
+ *   (sonst rutschte die Zone beim Wachsen nach links/oben in der Weltanordnung weg).
  */
 export const MIN_GROESSE = 4;
-export const MAX_GROESSE = 400;
+export const MAX_GROESSE = 10000;
+/** ab hier (Kacheln) keine Live-Prüfung/Innen-Anzeige, 3D vereinfacht, Autosave seltener */
+export const GROSS_KACHELN = 1_000_000;
+/** ab hier Rückfrage vor dem Anlegen/Vergrößern */
+export const SEHR_GROSS_KACHELN = 4_000_000;
+/** grob geschätzter Arbeitsspeicher je Kachel im Editor (Raster, Höhen, Speichern, Puffer) */
+export const BYTES_JE_KACHEL = 24;
 export const ZONEN_ID_MUSTER = /^[a-z0-9_]{1,40}$/;
+
+/** Ist die Zone so groß, dass der Editor sparsamer arbeitet? */
+export const istGrosseZone = (karte) => !!karte && karte.breite * karte.hoehe >= GROSS_KACHELN;
+
+/** Geschätzter Speicherbedarf (Bytes) einer Zone b × h */
+export const speicherSchaetzung = (b, h) => b * h * BYTES_JE_KACHEL;
+
+/**
+ * Hinweis zur Größe einer (neuen/vergrößerten) Zone → null (unkritisch) | { stufe: 'gross'|'sehr'|'zuviel', text }.
+ * heapGrenze (Bytes, optional, z. B. performance.memory.jsHeapSizeLimit) → 'zuviel', wenn die Schätzung > 60 % davon.
+ */
+export function groessenHinweis(b, h, { heapGrenze = null } = {}) {
+  const n = b * h;
+  const mb = Math.round(speicherSchaetzung(b, h) / 1048576);
+  const mio = (n / 1e6).toLocaleString('de-DE', { maximumFractionDigits: 1 });
+  if (heapGrenze && speicherSchaetzung(b, h) > heapGrenze * 0.6) return { stufe: 'zuviel', text: `${b} × ${h} = ${mio} Mio. Kacheln brauchen im Editor etwa ${mb} MB – mehr, als dieser Browser-Tab sicher hat (Absturzgefahr). Bitte kleiner anlegen und mehrere Zonen nebeneinander legen (Weltanordnung, unbegrenzt).` };
+  if (n >= SEHR_GROSS_KACHELN) return { stufe: 'sehr', text: `Sehr große Zone: ${mio} Mio. Kacheln (~${mb} MB im Editor). Speichern, Prüfen, 3D und KI werden langsam; das Spiel ist mit so großen Zonen nicht getestet. Empfehlung: mehrere kleinere Zonen nebeneinander (Weltanordnung).` };
+  if (n >= GROSS_KACHELN) return { stufe: 'gross', text: `Große Zone (${mio} Mio. Kacheln): Live-Prüfung und Innen-Anzeige laufen nur auf Knopfdruck, 3D zeigt den Boden vereinfacht.` };
+  return null;
+}
 
 export function neueZone({ id = 'neue_zone', name = 'Neue Zone', breite = 40, hoehe = 30 } = {}) {
   const b = Math.max(MIN_GROESSE, Math.min(MAX_GROESSE, Math.round(breite)));
@@ -42,7 +73,8 @@ export function groesseAendern(karte, { links = 0, oben = 0, rechts = 0, unten =
       hoehen[y * breite + x] = karte.hoehen[karte.index(ax, ay)];
     }
   }
-  const ops = [{ s: 'raster', neu: { breite, hoehe, zellen, hoehen } }];
+  // versatz: um so viel wandert der alte Ursprung im neuen Raster → Weltlage der Zone verschiebt sich um −versatz (zustand.js)
+  const ops = [{ s: 'raster', neu: { breite, hoehe, zellen, hoehen, ...(links || oben ? { versatz: { x: links, y: oben } } : {}) } }];
   const abgeschnitten = [];
   const drin = (r) => r.x >= 0 && r.y >= 0 && r.x + r.b <= breite + 1e-9 && r.y + r.h <= hoehe + 1e-9;
   for (const s of ID_SAMMLUNGEN) {

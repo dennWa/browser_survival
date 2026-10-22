@@ -138,7 +138,7 @@ function verarbeiteAufprall(spielWelt, fz) {
   schlageFahrzeug(spielWelt, fz, schaden);
 }
 
-/** Bäume & Straßenlaternen unter dem Fahrzeug bei ≥ 10 km/h: umgefahren (Baum kippt wie beim Fällen, Laterne knickt um); Auto wird etwas langsamer, nimmt aber keinen Schaden. */
+/** Bäume & Straßenlaternen unter dem Fahrzeug bei ≥ 10 km/h: umgefahren (Baum kippt wie beim Fällen, Laterne knickt um); Baum bremst etwas, Laterne deutlich (laterneBremse) + kleiner Schaden. */
 function fahreHindernisseUm(spielWelt, fz) {
   const welt = spielWelt.welt;
   const kandidaten = welt.umfahrbareImKreis(fz.x, fz.y, fz.laenge / 2 + 8);
@@ -156,7 +156,7 @@ function fahreHindernisseUm(spielWelt, fz) {
       welt.setzeLaterne(h.id, false);
       spielWelt.laternenNachwuchs.set(h.id, spielWelt.konfiguration.fahrzeug.laterneNachwachsen);
       spielWelt.ereignis({ typ: 'laterneUmgefahren', id: h.id, x: h.x, y: h.y, sx: fz.x, sy: fz.y });
-      fz.tempo *= 0.97;
+      fz.tempo *= spielWelt.konfiguration.fahrzeug.laterneBremse ?? 0.6; // Runde 18: Laterne bremst deutlich
       schlageFahrzeug(spielWelt, fz, spielWelt.konfiguration.fahrzeug.laterneSchaden);
       if (fz.kaputt) return;
     }

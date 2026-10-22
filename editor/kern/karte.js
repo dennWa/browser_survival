@@ -160,13 +160,15 @@ export class EditorKarte {
         return { s: 'wert', pfad: op.pfad, alt, neu: kopie(op.neu) };
       }
       case 'raster': {
-        const alt = { breite: this.breite, hoehe: this.hoehe, zellen: this.zellen.join(''), hoehen: [...this.hoehen] };
+        // versatz {x,y} (Feedback 6.4): alter Ursprung liegt im neuen Raster bei (x, y) – Undo bekommt den umgekehrten Versatz
+        const v = op.neu.versatz && (op.neu.versatz.x || op.neu.versatz.y) ? { x: op.neu.versatz.x | 0, y: op.neu.versatz.y | 0 } : null;
+        const alt = { breite: this.breite, hoehe: this.hoehe, zellen: this.zellen.join(''), hoehen: [...this.hoehen], ...(v ? { versatz: { x: -v.x, y: -v.y } } : {}) };
         const neu = op.neu;
         this.breite = neu.breite;
         this.hoehe = neu.hoehe;
         this.zellen = [...neu.zellen];
         this.hoehen = neu.hoehen ? [...neu.hoehen] : new Array(neu.breite * neu.hoehe).fill(0);
-        return { s: 'raster', alt, neu: { breite: neu.breite, hoehe: neu.hoehe, zellen: this.zellen.join(''), hoehen: [...this.hoehen] } };
+        return { s: 'raster', alt, neu: { breite: neu.breite, hoehe: neu.hoehe, zellen: this.zellen.join(''), hoehen: [...this.hoehen], ...(v ? { versatz: v } : {}) } };
       }
       default: {
         const map = this.sammlungen[op.s];

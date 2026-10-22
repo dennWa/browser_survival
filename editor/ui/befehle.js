@@ -7,7 +7,25 @@
  * `standard` = Kürzel aus der Befehlsliste. Kürzel-Schreibweise: 'Strg+Umschalt+Alt+Taste' (Strg = Ctrl oder ⌘).
  *   Tastennamen: Buchstaben groß ('V'), Ziffern, Zeichen ('[', '?', '+'), sowie Entf, Rück, Esc, Enter, Tab, Leertaste,
  *   Links/Rechts/Hoch/Runter, F1–F12. Umschalt zählt nur bei Buchstaben/Sondertasten (bei '?' steckt es im Zeichen).
+ * Text-Standard (Feedback 6.5): Strg+C/X/V/A gehören in Eingabefeldern IMMER dem Browser (auch bei `inEingabe`-Befehlen),
+ *   Strg+C/X/A außerdem, solange normaler Text markiert ist (z. B. eine KI-Antwort) – siehe `behandleTaste(e, { textMarkiert })`.
+ *   `leise: true` am Befehl = ist er gerade nicht verfügbar, bleibt die Taste beim Browser (keine Meldung, z. B. Enter fürs Maßband).
+ *   `istTextEingabe(el)` = Fokus in Text-/Zahlfeld, Textbereich, Auswahlliste, Schieberegler oder contenteditable
+ *   (Häkchen/Knöpfe/Farbwähler zählen nicht – Kürzel wirken dort weiter).
  */
+/** Kürzel, die in Textfeldern und bei markiertem Text dem Browser gehören (Kopieren, Ausschneiden, Einfügen, Alles markieren) */
+export const TEXT_KUERZEL = Object.freeze(['Strg+C', 'Strg+X', 'Strg+V', 'Strg+A']);
+const NICHT_TEXT = new Set(['checkbox', 'radio', 'button', 'submit', 'reset', 'color', 'file', 'image']);
+
+/** Liegt der Fokus in einem Feld, in dem getippt/gewählt wird? (Häkchen/Knöpfe zählen nicht) */
+export function istTextEingabe(el) {
+  if (!el) return false;
+  if (el.isContentEditable) return true;
+  const tag = String(el.tagName ?? '').toUpperCase();
+  if (tag === 'TEXTAREA' || tag === 'SELECT') return true;
+  return tag === 'INPUT' && !NICHT_TEXT.has(String(el.type ?? 'text').toLowerCase());
+}
+
 const SONDER = { ' ': 'Leertaste', arrowleft: 'Links', arrowright: 'Rechts', arrowup: 'Hoch', arrowdown: 'Runter', delete: 'Entf', backspace: 'Rück', escape: 'Esc', enter: 'Enter', tab: 'Tab', home: 'Pos1', end: 'Ende', pageup: 'BildHoch', pagedown: 'BildRunter', insert: 'Einfg' };
 const MODIFIKATOREN = new Set(['Control', 'Shift', 'Alt', 'Meta', 'AltGraph', 'CapsLock', 'OS']);
 
@@ -171,14 +189,17 @@ export class Befehle {
   }
 
   /**
-   * Tastendruck verarbeiten. In Eingabefeldern nur Befehle mit `inEingabe: true` (z. B. Strg+S).
+   * Tastendruck verarbeiten. In Eingabefeldern nur Befehle mit `inEingabe: true` (z. B. Strg+S) – Strg+C/X/V/A dort nie.
+   * textMarkiert = normaler Text auf der Seite markiert → Strg+C/X/A bleiben beim Browser.
    * @returns true, wenn ein Befehl die Taste übernommen hat (preventDefault ist dann schon gesetzt)
    */
-  behandleTaste(e, { inEingabe = false } = {}) {
+  behandleTaste(e, { inEingabe = false, textMarkiert = false } = {}) {
     const k = tastenKuerzel(e);
     if (!k) return false;
+    if (TEXT_KUERZEL.includes(k) && (inEingabe || (textMarkiert && k !== 'Strg+V'))) return false;
     const b = this.finde(k);
     if (!b || (inEingabe && !b.inEingabe)) return false;
+    if (b.leise && b.verfuegbar && !b.verfuegbar()) return false;
     e.preventDefault();
     this.fuehreAus(b.id, e);
     return true;

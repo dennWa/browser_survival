@@ -10,6 +10,10 @@ import { FARBEN, KACHEL_FARBEN } from './farben.js';
  * Schneezonen (welt.schnee): Kachel 'schnee' prozedural (bläulich-weiße Verwehungen, Glitzer); Straßen/Gehwege/Asphalt sind
  * verschneit (Ränder zum Schnee dicht, in der Mitte lückenhaft – man sieht den Asphalt noch), Wasser ist Eis.
  */
+/** Böden, in die der Rasen weich hineinwächst (#grasRand) – Farbe ≈ abgedunkelter Rasen nach #grasTon */
+const GRAS_RAND_BOEDEN = new Set(['asphalt', 'strasse', 'gehweg', 'holz', 'beton', 'fliesen']);
+const GRAS_RAND_FARBE = (a) => `rgba(46, 72, 28, ${a})`;
+
 export class BodenTextur {
   constructor(welt, assets) {
     this.welt = welt;
@@ -36,6 +40,11 @@ export class BodenTextur {
     for (let ty = 0; ty < this.welt.hoehe; ty++) {
       for (let tx = 0; tx < this.welt.breite; tx++) this.#zeichneBoden(ctx, tx, ty);
       if (ty % 4 === 3) yield;
+    }
+    // Runde 18 (6.2): Rasen läuft weich in Asphalt/Holz & Co. aus (eigener Durchgang, damit spätere Kacheln ihn nicht übermalen)
+    for (let ty = 0; ty < this.welt.hoehe; ty++) {
+      for (let tx = 0; tx < this.welt.breite; tx++) this.#grasRand(ctx, tx, ty);
+      if (ty % 8 === 7) yield;
     }
     if (this.bemalung) {
       ctx.globalAlpha = 0.55;
@@ -123,6 +132,59 @@ export class BodenTextur {
     // Glitzer
     ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
     for (let i = 0; i < 2; i++) ctx.fillRect(x + ((h >> (i * 7 + 3)) % (g - 2)), y + ((h >> (i * 7 + 11)) % (g - 2)), 1.5, 1.5);
+  }
+
+  /**
+   * Weicher Rasenrand (Runde 18, 6.2): Grenzt eine harte Bodenkachel (Asphalt, Straße, Gehweg, Holz, Beton, Fliesen) an Rasen,
+   * wächst das Gras als Verlauf + unregelmäßige Büschel ein Stück hinein – keine schnurgerade Kachelkante mehr.
+   * Diagonal angrenzender Rasen gibt nur einen kleinen Eckfleck. Deterministisch aus der Kachelposition.
+   */
+  #grasRand(ctx, tx, ty) {
+    const name = KACHELN[this.welt.kachelAn(tx, ty)]?.name;
+    if (!GRAS_RAND_BOEDEN.has(name)) return;
+    const istGras = (dx, dy) => KACHELN[this.welt.kachelAn(tx + dx, ty + dy)]?.name === 'gras';
+    const g = this.g;
+    const x = tx * g;
+    const y = ty * g;
+    const tiefe = 7;
+    const seiten = [];
+    for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) if (istGras(dx, dy)) seiten.push([dx, dy]);
+    for (const [dx, dy] of seiten) {
+      // Verlauf von der Kante ins Kachelinnere
+      const kx = dx < 0 ? x : dx > 0 ? x + g : 0;
+      const ky = dy < 0 ? y : dy > 0 ? y + g : 0;
+      const v = dx === 0 ? ctx.createLinearGradient(0, ky, 0, ky - dy * tiefe) : ctx.createLinearGradient(kx, 0, kx - dx * tiefe, 0);
+      v.addColorStop(0, GRAS_RAND_FARBE(0.85));
+      v.addColorStop(1, GRAS_RAND_FARBE(0));
+      ctx.fillStyle = v;
+      if (dx === 0) ctx.fillRect(x, dy < 0 ? y : y + g - tiefe, g + 0.25, tiefe);
+      else ctx.fillRect(dx < 0 ? x : x + g - tiefe, y, tiefe, g + 0.25);
+      // Büschel entlang der Kante (unterschiedlich weit hinein)
+      const h = streuwert(tx * 17 + dx * 5 + 3, ty * 23 + dy * 7 + 1);
+      for (let i = 0; i < 4; i++) {
+        const entlang = ((i + 0.5) / 4) * g + (((h >> (i * 4)) % 9) - 4);
+        const hinein = 2 + ((h >> (i * 3 + 13)) % 6);
+        const r = 3 + ((h >> (i * 2 + 7)) % 4);
+        const bx = dx === 0 ? x + entlang : kx - dx * hinein;
+        const by = dx === 0 ? ky - dy * hinein : y + entlang;
+        const b = ctx.createRadialGradient(bx, by, 0, bx, by, r);
+        b.addColorStop(0, GRAS_RAND_FARBE(0.75));
+        b.addColorStop(1, GRAS_RAND_FARBE(0));
+        ctx.fillStyle = b;
+        ctx.fillRect(bx - r, by - r, r * 2, r * 2);
+      }
+    }
+    // Ecken: Rasen nur diagonal (keine der beiden Seiten ist Rasen) → kleiner runder Fleck in der Ecke
+    for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      if (!istGras(dx, dy) || istGras(dx, 0) || istGras(0, dy)) continue;
+      const ex = dx < 0 ? x : x + g;
+      const ey = dy < 0 ? y : y + g;
+      const b = ctx.createRadialGradient(ex, ey, 0, ex, ey, tiefe + 2);
+      b.addColorStop(0, GRAS_RAND_FARBE(0.8));
+      b.addColorStop(1, GRAS_RAND_FARBE(0));
+      ctx.fillStyle = b;
+      ctx.fillRect(dx < 0 ? x : x + g - tiefe - 2, dy < 0 ? y : y + g - tiefe - 2, tiefe + 2, tiefe + 2);
+    }
   }
 
   /** Verschneite Straße: Schnee am Rand zum Schneeland dicht, sonst lückenhafte Flecken – der Asphalt bleibt erkennbar. */

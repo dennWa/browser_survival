@@ -27,12 +27,14 @@ Tipp: kurze Dateien (< 3 s), Lautstärke der Aufnahme selbst eher normalisiert.
 | `nacht` | Nachtgeräusche – Grillen (Schleife, nur nachts) |
 | `schritt_schnee` | Schritte im Schnee (Knirschen, jeder Tritt; Schneefall selbst ist lautlos) |
 | `schritt_gras` | Schritte im Gras (jeder Tritt; 6 Aufnahmen, zufällig) |
+| `donner` | Donner bei starkem Regen (zufällig, fern; Platzhalter) |
 
 ### Tiere
 
 | Dateiname (ohne Endung) | Wann? |
 |---|---|
 | `hase_flucht` | Hase erschrickt und hoppelt davon |
+| `vogel` | Vogelgezwitscher (tagsüber draußen, zufällig alle 8–25 s; nicht in Schneezonen) |
 | `hase_tod` | Hase wird erlegt (ohne eigene Datei lautlos) |
 
 ### Waffen & Kampf
@@ -41,11 +43,15 @@ Tipp: kurze Dateien (< 3 s), Lautstärke der Aufnahme selbst eher normalisiert.
 |---|---|
 | `pistole` | Pistolenschuss |
 | `schrotflinte` | Schrotflintenschuss |
+| `automatikgewehr` | Automatikgewehr-Schuss (Platzhalter, Waffe kommt später) |
 | `leer` | Klick: Magazin leer / nichts zu tun |
 | `nachladen` | Nachladen |
 | `nahkampf` | Schlag / Hieb in die Luft |
 | `treffer_zombie` | Zombie wird getroffen |
 | `treffer_spieler` | Spieler wird getroffen |
+| `schaden_mann` | Eigene Figur (Mann) nimmt Schaden – Aufschrei |
+| `schaden_frau` | Eigene Figur (Frau) nimmt Schaden – Aufschrei |
+| `keuchen` | Keuchen, wenn die Ausdauer leer ist |
 | `spieler_tod` | Spieler stirbt |
 
 ### Zombies
@@ -105,6 +111,8 @@ Tipp: kurze Dateien (< 3 s), Lautstärke der Aufnahme selbst eher normalisiert.
 | `beute` | Beute / Kiste durchsucht |
 | `essen` | Essen |
 | `trinken` | Trinken |
+| `magen_knurren` | Magenknurren bei großem Hunger (unter 20 %, zufällig) |
+| `durst` | Trockenes Räuspern/Schlucken bei großem Durst (unter 20 %, zufällig) |
 | `heilen` | Heilen (Verband/Medizin) |
 | `taschenlampe` | Taschenlampe an/aus (L) |
 | `inventar_auf` | Inventar öffnen (Tab) |

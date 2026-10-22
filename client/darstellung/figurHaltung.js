@@ -128,9 +128,9 @@ export function aktualisiereHaltung(figur, e, jetzt, dunkel = 1) {
 
   // Sitzen mit eigenem Clip: Arme/Beine kommen ganz aus dem Clip
   if (haltungsName === 'sitzen' && klips.has('sitzen')) return;
-  // Survivor: den Schlag macht ein Clip (hacken/spitzhacke/abbauen/hacke) – hier nur das Werkzeug in die Hände legen
+  // Survivor: den Schlag macht ein Clip (hacken/spitzhacke/abbauen/hacke/nahkampf) – hier nur das Werkzeug in die Hände legen
   // (figur.schlagKlip setzt der Renderer, wenn er gerade einen Werkzeug-Clip abspielt)
-  if (haltungsName === 'hacken' && figur.schlagKlip) {
+  if ((haltungsName === 'hacken' || haltungsName === 'nahkampf') && figur.schlagKlip) {
     platziereHackwerkzeug(figur);
     return;
   }
@@ -301,6 +301,11 @@ function veraendereFuerAktion(pose, haltung, aktion, p) {
 const EINHAENDIG = new Set(['kuechenmesser', 'skalpell']);
 export function haltungMitHaenden(name) {
   return EINHAENDIG.has(name) ? 'messer' : null;
+}
+
+/** Beidhändige Nahkampfwaffe in der Hand (Axt, Machete, Hammer …)? Dann spielt der Survivor den Clip „nahkampf“ (Runde 18). */
+export function istBeidhaendigerSchlag(e) {
+  return haltungFuer(waffenModellName(e.waffe, e.ausruestung)) === 'nahkampf';
 }
 
 /** Hacken: ausholen über die Schulter, dann kräftig nach vorne-unten schlagen (p = 0..1 je Schlag). */

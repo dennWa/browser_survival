@@ -3,6 +3,7 @@ import { GLTFLoader } from '../../client/vendor/three/addons.js';
 import { dataUrlZuBytes } from '../kern/bibliothek.js';
 import { baueAnimation, ANIMATIONS_ARTEN, ACHSEN } from '../kern/animation.js';
 import { dialog, esc, feldHtml, liesFelder } from './dialoge.js';
+import { spurNachUmbenennen } from '../kern/knochen.js';
 
 /**
  * Animationswerk der Modell-Werkstatt (Editor 2.0, Schritt 5.3) – hängt an einer Werkstatt (ui/werkstatt.js, `w`).
@@ -57,8 +58,25 @@ export class Animationswerk {
     return [this.w.modell, ...this.#gelenke, ...this.w.teile.filter((t) => t.visible), ...this.#knochen()];
   }
 
+  /** Gelenke + eigene Knochen (6.7, ui/werkstattKnochen.js) – gelöschte sind unsichtbar */
   get #gelenke() {
-    return this.w.objekte.filter((o) => o.userData.gelenk && o.visible);
+    return this.w.objekte.filter((o) => (o.userData.gelenk || o.userData.knochen) && o.visible);
+  }
+
+  /**
+   * Knoten umbenannt (6.7): Spuren aller Clips, die ihn adressieren, ziehen mit – als NEUE Clip-Objekte (die alten bleiben
+   * in `alle` fürs Undo, der Stand merkt nur uuid + Name).
+   */
+  benenneSpurenUm(alt, neu) {
+    this.w.clips = this.w.clips.map((c) => {
+      if (!c.tracks.some((t) => t.name.startsWith(`${alt}.`))) return c;
+      const spuren = c.tracks.map((t) => {
+        const kopie = t.clone();
+        kopie.name = spurNachUmbenennen(t.name, alt, neu);
+        return kopie;
+      });
+      return this.#neuerClip(new THREE.AnimationClip(c.name, c.duration, spuren));
+    });
   }
 
   #knochen() {
@@ -87,8 +105,8 @@ export class Animationswerk {
         : '<p class="leise klein">Keine Animationen. ➕ erzeugt einfache Bewegungen (Mühle dreht, Lampe flackert, Tür pendelt).</p>'
     }
       <div class="knopfreihe"><button type="button" data-c="neu">➕ Animation…</button><button type="button" data-c="gelenk" title="Drehpunkt für das gewählte Teil (Tür, Klappe)">⊕ Gelenk…</button><button type="button" data-c="uebernehmen" title="Clips eines anderen Modells mit gleichen Knochen-/Teilnamen">⇄ Übernehmen…</button></div>
-      ${this.#gelenke.length ? `<div class="werkstatt-gelenke">${this.#gelenke.map((g) => `<button type="button" class="klang-eintrag${sel === g ? ' aktiv' : ''}" data-gelenk="${w.objekte.indexOf(g)}">⊕ ${esc(g.name)}</button>`).join('')}</div>` : ''}
-      ${sel !== w.modell ? `<label class="werkstatt-haengt">Hängt an <select data-c="eltern">${ziele.map((z) => `<option value="${w.objekte.indexOf(z)}"${sel.parent === z ? ' selected' : ''}>${z === w.modell ? '🧊 Modell' : z.isBone ? `🦴 ${esc(z.name)}` : z.userData.gelenk ? `⊕ ${esc(z.name)}` : esc(z.name)}</option>`).join('')}${ziele.includes(sel.parent) ? '' : `<option selected disabled>${esc(sel.parent?.name ?? '–')}</option>`}</select></label>` : ''}
+      ${this.#gelenke.length ? `<div class="werkstatt-gelenke">${this.#gelenke.map((g) => `<button type="button" class="klang-eintrag${sel === g ? ' aktiv' : ''}" data-gelenk="${w.objekte.indexOf(g)}">${g.userData.knochen ? '🦴' : '⊕'} ${esc(g.name)}</button>`).join('')}</div>` : ''}
+      ${sel !== w.modell ? `<label class="werkstatt-haengt">Hängt an <select data-c="eltern">${ziele.map((z) => `<option value="${w.objekte.indexOf(z)}"${sel.parent === z ? ' selected' : ''}>${z === w.modell ? '🧊 Modell' : z.isBone || z.userData.knochen ? `🦴 ${esc(z.name)}` : z.userData.gelenk ? `⊕ ${esc(z.name)}` : esc(z.name)}</option>`).join('')}${ziele.includes(sel.parent) ? '' : `<option selected disabled>${esc(sel.parent?.name ?? '–')}</option>`}</select></label>` : ''}
       ${knochenZahl ? `<label><input type="checkbox" data-c="skelett"${this.skelett?.visible ? ' checked' : ''}> 🦴 Skelett zeigen (${knochenZahl} Knochen)</label>` : ''}`;
   }
 
@@ -197,7 +215,7 @@ export class Animationswerk {
     const knoten = [w.modell, ...this.#gelenke, ...w.teile.filter((t) => t.visible), ...this.#knochen()];
     const felder = [
       { name: 'art', label: 'Bewegung', typ: 'auswahl', wert: 'drehen', optionen: Object.entries(ANIMATIONS_ARTEN).map(([k, a]) => [k, a.name]) },
-      { name: 'ziel', label: 'Was bewegt sich', typ: 'auswahl', wert: String(w.objekte.indexOf(w.gewaehlt)), optionen: knoten.map((k) => [String(w.objekte.indexOf(k)), k === w.modell ? '🧊 ganzes Modell' : k.userData.gelenk ? `⊕ ${k.name}` : k.isBone ? `🦴 ${k.name}` : k.name]) },
+      { name: 'ziel', label: 'Was bewegt sich', typ: 'auswahl', wert: String(w.objekte.indexOf(w.gewaehlt)), optionen: knoten.map((k) => [String(w.objekte.indexOf(k)), k === w.modell ? '🧊 ganzes Modell' : k.userData.gelenk ? `⊕ ${k.name}` : k.isBone || k.userData.knochen ? `🦴 ${k.name}` : k.name]) },
       { name: 'achse', label: 'Achse', typ: 'auswahl', wert: 'y', optionen: ACHSEN.map((a) => [a, { x: 'x (links/rechts)', y: 'y (hoch)', z: 'z (vor/zurück)' }[a]]) },
       { name: 'dauer', label: 'Dauer einer Runde (s)', typ: 'zahl', wert: 2, min: 0.1, schritt: 0.1 },
       { name: 'staerke', label: 'Stärke', typ: 'zahl', wert: '', schritt: 0.05, hilfe: 'leer = Standard (Drehen 360°, Wippen 0,1 m, Pendeln 20°, Pulsieren/Flackern 0,1–0,15×)' },

@@ -255,6 +255,7 @@ test('See: Wasser blockiert Laufen, aber nicht Sicht und Schüsse', () => {
 test('Angeln: auswerfen, Pose wackelt (Biss), erneut klicken = Fang; zu früh/zu spät = nichts', () => {
   const { welt, spieler } = neueWelt({ angeln: { doppelChance: 0, wartenMin: 1, wartenMax: 1, bissMin: 2.5, bissMax: 2.5, beute: { fisch: 1, muell: 0, munition: 0 } } });
   fuegeZumInventarHinzu(spieler, 'angel', 1);
+  spieler.ausgeruestet = spieler.inventar.findIndex((e) => e?.defId === 'angel'); // Runde 18: Angel muss in der Hand sein
   spieler.x = mitte(9);
   spieler.y = mitte(4);
   spieler.blick = 0; // nach rechts zum See
@@ -307,6 +308,9 @@ test('Angeln: 10 % Doppelfang; Bewegung bricht ab; ohne Angel / ohne Wasser wird
   klick();
   assert.equal(spieler.angeln, null, 'ohne Angel nichts');
   fuegeZumInventarHinzu(spieler, 'angel', 1);
+  klick();
+  assert.equal(spieler.angeln, null, 'Angel nur im Inventar, nicht in der Hand: nichts');
+  spieler.ausgeruestet = spieler.inventar.findIndex((e) => e?.defId === 'angel'); // Runde 18: Angel muss in der Hand sein
   klick();
   ticks(welt, 10);
   assert.equal(spieler.angeln?.phase, 'biss');

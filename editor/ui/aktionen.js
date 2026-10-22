@@ -1,10 +1,14 @@
 import { LOOT_TABELLEN } from '../../server/spiel/konfiguration/lootTabellen.js';
-import { kopiere, loescheOps, einfuegeOps } from '../kern/auswahl.js';
+import { kopiere, kopiereElemente, loescheOps, einfuegeOps } from '../kern/auswahl.js';
 import { verschiebeOps, dupliziereOps } from '../kern/bearbeiten.js';
 import { ausrichtenOps, verteilenOps, spiegelnOps, rahmenVon } from '../kern/anordnen.js';
-import { groesseAendern, neueZone, ZONEN_ID_MUSTER } from '../kern/zone.js';
+import { groesseAendern, neueZone, ZONEN_ID_MUSTER, MIN_GROESSE, MAX_GROESSE, groessenHinweis } from '../kern/zone.js';
+import { verschiebeZone } from '../kern/weltLayout.js';
 import { katalog } from '../kern/katalog.js';
-import { formular, bestaetigen, esc } from './dialoge.js';
+import { formular, bestaetigen, dialog, esc } from './dialoge.js';
+
+/** JS-Speichergrenze des Tabs (nur Chromium kennt sie) – für die Größen-Schätzung neuer Zonen */
+const heapGrenze = () => globalThis.performance?.memory?.jsHeapSizeLimit ?? null;
 
 /**
  * Editor-Aktionen (aus main.js herausgelöst, Editor 2.0 Schritt 1.2): Werkzeug wählen, Auswahl bearbeiten (kopieren,
@@ -12,11 +16,16 @@ import { formular, bestaetigen, esc } from './dialoge.js';
  * Die Befehle (ui/befehlsliste.js) und Module (Prefabs, KI, Eigene …) rufen diese Funktionen; Module hängen eigene
  * Aktionen direkt an dasselbe Objekt (z. B. aktionen.prefabSpeichern, aktionen.kiImport).
  * `teile` wird nach dem Aufbau befüllt: { werkzeuge, assets, inspektor, befehle, kontextmenue, schalteAnsicht }.
+ * Runde 18: kopieren/ausschneiden ohne ⬚-Rahmen = nur gewählte Elemente (6.5, kern/auswahl.kopiereElemente); neueZone wird
+ * ANGEFÜGT (Weltlage ohne Überlappung), zoneLage, zoneGroesse lehnt Überlappung ab (6.4); Werkzeugwechsel leert das Maßband,
+ * Esc → Auswahl (6.3); kiMarkieren/kiBereichFertig/kiMarkierungWeg/kiZoneErweitern/kiNeueZoneDort (7.2).
  */
 export function erstelleAktionen({ zustand, zeichner, leinwand, teile }) {
   const aktionen = {
     werkzeug(id) {
       if (id === 'drehen') return teile.werkzeuge.drehe();
+      // 6.3: Maßband gehört zum Werkzeug „Messen“ – beim Wechsel weg (sonst klebte die Gummi-Linie an der Maus)
+      if (id !== 'messen') teile.werkzeuge?.massbandLeeren();
       if (id.startsWith('malen:')) {
         zustand.malModus = id.slice(6);
         if (zustand.eintrag?.art !== 'kachel') zustand.setzeEintrag(katalog().find((e) => e.id === 'kachel:,'));
@@ -66,15 +75,34 @@ export function erstelleAktionen({ zustand, zeichner, leinwand, teile }) {
       zustand.waehle([]);
       zustand.meldung(`Ganze Zone markiert (${k.breite} × ${k.hoehe}) – Strg+C kopiert, Entf leert`);
     },
+    /**
+     * Strg+C (6.5): markierter Bereich (⬚ Rahmen) → Bereich mit Boden + allem darin; nur angeklickte Elemente (ohne Rahmen)
+     * → genau diese Elemente, ohne Boden (Vorlage `nurElemente`, Einfügen stempelt nichts weg).
+     */
     kopieren() {
+      const gew = zustand.gewaehlte();
+      if (!zustand.auswahlRechteck && gew.length) {
+        const v = kopiereElemente(zustand.karte, gew);
+        if (!v) return zustand.meldung('Diese Auswahl lässt sich nicht kopieren (Übergänge/Ankünfte: duplizieren oder neu setzen)', 'fehler');
+        zustand.zwischenablage = v;
+        const n = gew.length - v.uebersprungen;
+        return zustand.meldung(`📋 ${n} Element${n === 1 ? '' : 'e'} kopiert${v.uebersprungen ? ` (${v.uebersprungen} übersprungen: Übergang/Ankunft)` : ''} – Strg+V hängt sie an die Maus, Klick setzt`, 'ok');
+      }
       const r = aktionen.auswahlBereich();
-      if (!r) return zustand.meldung('Erst einen Bereich markieren (⬚ ins Leere ziehen)', 'fehler');
+      if (!r) return zustand.meldung('Erst etwas wählen oder einen Bereich markieren (⬚ ins Leere ziehen)', 'fehler');
       zustand.zwischenablage = kopiere(zustand.karte, r);
       zustand.meldung(`📋 ${r.b} × ${r.h} kopiert – Strg+V fügt an der Maus ein`, 'ok');
     },
     ausschneiden() {
+      const gew = zustand.gewaehlte();
+      if (!zustand.auswahlRechteck && gew.length) {
+        aktionen.kopieren();
+        const ops = gew.filter((g) => g.s !== 'uebergaenge' && g.s !== 'ankuenfte').map(({ s, k }) => ({ s, k, neu: null }));
+        if (ops.length) zustand.ausfuehren(`Ausschneiden (${ops.length})`, ops);
+        return zustand.leereAuswahl();
+      }
       const r = aktionen.auswahlBereich();
-      if (!r) return zustand.meldung('Erst einen Bereich markieren (⬚ ins Leere ziehen)', 'fehler');
+      if (!r) return zustand.meldung('Erst etwas wählen oder einen Bereich markieren (⬚ ins Leere ziehen)', 'fehler');
       aktionen.kopieren();
       zustand.ausfuehren('Ausschneiden', loescheOps(zustand.karte, r));
       zustand.leereAuswahl();
@@ -96,10 +124,11 @@ export function erstelleAktionen({ zustand, zeichner, leinwand, teile }) {
     },
     einfuegenBei(vorlage, x, y, mehrfach = false) {
       const { ops, weggelassen, neueIds } = einfuegeOps(zustand.karte, vorlage, x, y);
-      zustand.ausfuehren(vorlage.name ? `Prefab „${vorlage.name}“` : 'Einfügen', ops);
+      zustand.ausfuehren(vorlage.name ? `Prefab „${vorlage.name}“` : vorlage.nurElemente ? 'Einfügen (Elemente)' : 'Einfügen', ops);
       if (!mehrfach) {
         aktionen.werkzeug('auswahl');
-        zustand.auswahlRechteck = { x, y, b: vorlage.b, h: vorlage.h };
+        // Einzel-Elemente: kein Rahmen (sonst kopierte das nächste Strg+C den ganzen Bereich mit Boden)
+        zustand.auswahlRechteck = vorlage.nurElemente ? null : { x, y, b: vorlage.b, h: vorlage.h };
         zustand.waehle(Object.entries(neueIds).flatMap(([s, ids]) => ids.map((k) => ({ s, k }))));
       }
       if (weggelassen) zustand.meldung(`${weggelassen} Teile lagen außerhalb der Zone (oder kein Raum frei) und wurden weggelassen`, 'fehler');
@@ -147,10 +176,59 @@ export function erstelleAktionen({ zustand, zeichner, leinwand, teile }) {
       zustand.ausfuehren('Verschieben', erg.ops);
       zustand.waehle(erg.neueAuswahl);
     },
+    /** Esc: laufende Aktion abbrechen; Platzieren/Einfügen/Messen/KI-Markieren → zurück zur Auswahl (6.3) */
     abbrechen() {
       teile.werkzeuge.abbrechen();
+      teile.ansicht3d?.verwerfeGeist?.();
       zustand.leereAuswahl();
-      if (zustand.werkzeug === 'platzieren' || zustand.werkzeug === 'einfuegen') aktionen.werkzeug('auswahl');
+      if (['platzieren', 'einfuegen', 'messen', 'kiMarkieren'].includes(zustand.werkzeug)) aktionen.werkzeug('auswahl');
+    },
+
+    // --- 7.2: Bereich für die KI markieren (aus dem 🤖 Helfer, auch über die Zone hinaus) -------------
+    /** aktuelle KI-Markierung (Zonen-Koordinaten, darf außerhalb liegen) oder null */
+    kiRechteck: () => zustand.kiBereich ?? null,
+    kiMarkieren() {
+      if (!zustand.karte) return zustand.meldung('Erst eine Zone öffnen', 'fehler');
+      if (zustand.ansicht === '3d') teile.schalteAnsicht();
+      aktionen.werkzeug('kiMarkieren');
+      // Handy: Schublade zu, damit die Karte frei ist (kommt nach dem Aufziehen wieder)
+      if (globalThis.matchMedia?.('(max-width: 900px)').matches) teile.layout?.verstecke('ki');
+      zustand.meldung('🤖 Rechteck aufziehen (Maus/Finger) – darf auch neben der Zone liegen · Esc bricht ab');
+    },
+    kiBereichFertig(r) {
+      aktionen.werkzeug('auswahl');
+      if (!r || r.b < 1 || r.h < 1) return;
+      teile.layout?.zeige('ki');
+      const k = zustand.karte;
+      const draussen = r.x < 0 || r.y < 0 || r.x + r.b > k.breite || r.y + r.h > k.hoehe;
+      zustand.meldung(`🤖 KI-Bereich ${r.b} × ${r.h} markiert${draussen ? ' – ragt über die Zone (KI plant dort, bauen erst nach „Zone vergrößern“/„Neue Zone“)' : ''} – jetzt im Helfer fragen`, 'ok');
+    },
+    kiMarkierungWeg() {
+      if (!zustand.kiBereich) return;
+      zustand.kiBereich = null;
+      zustand.melde('kiBereich');
+      zeichner.anfordern();
+    },
+    /** Zone bis zur KI-Markierung vergrößern (Ränder links/oben verschieben die Koordinaten → Markierung zieht mit) */
+    async kiZoneErweitern(rand) {
+      const k = zustand.karte;
+      const r = zustand.kiBereich;
+      if (!k || !r) return;
+      const vorher = { b: k.breite, h: k.hoehe };
+      await aktionen.zoneGroesse(rand);
+      if (k.breite === vorher.b && k.hoehe === vorher.h) return; // abgebrochen/abgelehnt
+      zustand.kiBereich = { ...r, x: r.x + (rand.links ?? 0), y: r.y + (rand.oben ?? 0) };
+      zustand.melde('kiBereich');
+      zeichner.anfordern();
+    },
+    /** Neue Zone an der Stelle der KI-Markierung (Weltanordnung, ohne Überlappung) – danach gilt die ganze neue Zone */
+    async kiNeueZoneDort(r) {
+      const vorher = zustand.aktivId;
+      await aktionen.neueZone(r);
+      if (zustand.aktivId === vorher || !zustand.karte) return;
+      zustand.kiBereich = { x: 0, y: 0, b: zustand.karte.breite, h: zustand.karte.hoehe };
+      zustand.melde('kiBereich');
+      teile.layout?.zeige('ki');
     },
 
     // --- Zone -------------------------------------------------------------------
@@ -172,11 +250,22 @@ export function erstelleAktionen({ zustand, zeichner, leinwand, teile }) {
     },
     async zoneGroesse(rand) {
       let erg;
+      const k = zustand.karte;
+      const neuB = k.breite + (rand.links ?? 0) + (rand.rechts ?? 0);
+      const neuH = k.hoehe + (rand.oben ?? 0) + (rand.unten ?? 0);
+      // 6.4: sehr große Zonen erst nach Rückfrage (und nie mehr, als der Browser sicher schafft)
+      const hinweis = neuB * neuH > k.breite * k.hoehe ? groessenHinweis(neuB, neuH, { heapGrenze: heapGrenze() }) : null;
+      if (hinweis?.stufe === 'zuviel') return dialog({ titel: '⚠ Zu groß für diesen Browser', html: `<p>${esc(hinweis.text)}</p>` });
+      if (hinweis?.stufe === 'sehr' && !(await bestaetigen('Sehr große Zone', `<p>${esc(hinweis.text)}</p>`, { ok: 'Trotzdem vergrößern' }))) return;
       try {
-        erg = groesseAendern(zustand.karte, rand);
+        erg = groesseAendern(k, rand);
       } catch (e) {
         return zustand.meldung(e.message, 'fehler');
       }
+      // Überlappt die vergrößerte Zone Nachbarn in der Weltanordnung? → geht nicht (6.4: Zonen überlappen nie)
+      const p = zustand.layout[k.id];
+      const ueber = p ? zustand.zonenKonflikte(k.id, { pos: { x: p.x - (rand.links ?? 0), y: p.y - (rand.oben ?? 0) }, b: neuB, h: neuH }) : [];
+      if (ueber.length) return dialog({ titel: '⛔ Zonen würden überlappen', html: `<p>Mit ${neuB} × ${neuH} überdeckt die Zone in der Weltanordnung: <b>${ueber.map((id) => esc(zustand.zonen.get(id)?.karte.name ?? id)).join(', ')}</b>. Zonen dürfen sich nicht überlappen (Kante an Kante geht).</p><p class="leise">Erst verschieben – Zone-Werkzeug (Z, in die Zone fassen und ziehen) oder Zone → „Lage eingeben…“ – oder zur anderen Seite wachsen lassen.</p>` });
       if (erg.abgeschnitten.length) {
         const ok = await bestaetigen('Beim Verkleinern geht etwas verloren', `<p>Diese ${erg.abgeschnitten.length} Teile liegen außerhalb der neuen Zone (${erg.breite} × ${erg.hoehe}) und werden entfernt:</p><ul>${erg.abgeschnitten.slice(0, 40).map((a) => `<li>${esc(a.text)}</li>`).join('')}${erg.abgeschnitten.length > 40 ? '<li>…</li>' : ''}</ul><p>Rückgängig (Strg+Z) bleibt möglich.</p>`, { ok: 'Trotzdem verkleinern', gefahr: true });
         if (!ok) return;
@@ -186,17 +275,51 @@ export function erstelleAktionen({ zustand, zeichner, leinwand, teile }) {
       zustand.meldung(`Zone ist jetzt ${erg.breite} × ${erg.hoehe}`, 'ok');
       zeichner.anfordern();
     },
+    /**
+     * Neue Zone (6.4): wird ANGEFÜGT (vorhandene Zonen bleiben im Projekt). r = aufgezogenes Rechteck in Koordinaten der
+     * aktiven Zone → Weltlage daraus; ohne r (Größe eingegeben) direkt neben die aktive Zone, nie überlappend.
+     * Größe 4 … MAX_GROESSE (10 000) je Seite; ab SEHR_GROSS_KACHELN Rückfrage, über der Speicher-Schätzung Abbruch.
+     */
     async neueZone(r) {
       const w = await formular('Neue Zone', [
         { name: 'name', label: 'Name', typ: 'text', wert: 'Neue Zone', pflicht: true },
         { name: 'id', label: 'ID', typ: 'text', wert: freieId('neue_zone'), pflicht: true, hilfe: 'a–z, 0–9, _' },
-        { name: 'breite', label: 'Breite', typ: 'zahl', wert: r?.b ?? 40, min: 4, max: 400, schritt: 1, pflicht: true },
-        { name: 'hoehe', label: 'Höhe', typ: 'zahl', wert: r?.h ?? 30, min: 4, max: 400, schritt: 1, pflicht: true },
-      ], { text: 'Die Fläche wird mit Rasen gefüllt – sonst nichts.', okText: 'Anlegen', pruefe: (v) => (!ZONEN_ID_MUSTER.test(v.id) ? 'ID: nur a–z, 0–9, _' : zustand.zonen.has(v.id) ? 'ID schon vergeben' : !(v.breite >= 4 && v.hoehe >= 4 && v.breite <= 400 && v.hoehe <= 400) ? 'Größe: 4 bis 400' : null) });
+        { name: 'breite', label: 'Breite', typ: 'zahl', wert: r?.b ?? 40, min: MIN_GROESSE, max: MAX_GROESSE, schritt: 1, pflicht: true },
+        { name: 'hoehe', label: 'Höhe', typ: 'zahl', wert: r?.h ?? 30, min: MIN_GROESSE, max: MAX_GROESSE, schritt: 1, pflicht: true },
+      ], { text: `Die Fläche wird mit Rasen gefüllt – sonst nichts. ${zustand.karte ? `Sie kommt <b>zusätzlich</b> ins Projekt, ${r ? 'an die aufgezogene Stelle' : `direkt neben „${esc(zustand.karte.name)}“`} (Weltanordnung, ohne Überlappung).` : ''} Größe ${MIN_GROESSE} bis ${MAX_GROESSE.toLocaleString('de-DE')} je Seite.`, okText: 'Anlegen', pruefe: (v) => (!ZONEN_ID_MUSTER.test(v.id) ? 'ID: nur a–z, 0–9, _' : zustand.zonen.has(v.id) ? 'ID schon vergeben' : !(Number.isInteger(v.breite) && Number.isInteger(v.hoehe) && v.breite >= MIN_GROESSE && v.hoehe >= MIN_GROESSE && v.breite <= MAX_GROESSE && v.hoehe <= MAX_GROESSE) ? `Größe: ganze Zahlen ${MIN_GROESSE} bis ${MAX_GROESSE}` : null) });
       if (!w) return;
-      zustand.fuegeZoneHinzu(neueZone(w));
+      const hinweis = groessenHinweis(w.breite, w.hoehe, { heapGrenze: heapGrenze() });
+      if (hinweis?.stufe === 'zuviel') return dialog({ titel: '⚠ Zu groß für diesen Browser', html: `<p>${esc(hinweis.text)}</p>` });
+      if (hinweis?.stufe === 'sehr' && !(await bestaetigen('Sehr große Zone', `<p>${esc(hinweis.text)}</p>`, { ok: 'Trotzdem anlegen' }))) return;
+      const basis = zustand.karte ? zustand.layout[zustand.aktivId] : null;
+      const position = r && basis && Number.isFinite(r.x) ? { x: basis.x + r.x, y: basis.y + r.y } : null;
+      // nur bei großen Zonen: Meldung erst zeichnen lassen, bevor das große Raster entsteht (kleine bleiben synchron –
+      // Rauchtest/Skripte lesen die neue Zone direkt nach dem Klick)
+      if (hinweis) {
+        zustand.meldung('⟳ Zone wird angelegt …');
+        await new Promise((f) => setTimeout(f, 30));
+      }
+      zustand.fuegeZoneHinzu(neueZone(w), undefined, { position });
       zeichner.einpassen();
-      zustand.meldung(`Zone „${w.name}“ angelegt (${w.breite} × ${w.hoehe}) – als Nächstes: Spieler-Start setzen (Gameplay → Spawns)`, 'ok');
+      const lage = zustand.layout[w.id];
+      zustand.meldung(`Zone „${w.name}“ angelegt (${w.breite} × ${w.hoehe}, Weltlage ${lage?.x}|${lage?.y}) – die anderen Zonen bleiben im Projekt (🗺 Zonen). Nächstes: Spieler-Start setzen${hinweis ? ` · ${hinweis.stufe === 'gross' ? 'große Zone: Prüfung auf Knopfdruck' : 'sehr groß'}` : ''}`, 'ok');
+    },
+    /** Lage der aktiven (oder genannten) Zone in der Weltanordnung per Eingabe (6.4) – Überlappung wird abgelehnt */
+    async zoneLage(id = zustand.aktivId) {
+      const k = zustand.zonen.get(id)?.karte;
+      if (!k) return;
+      const p = zustand.layout[id] ?? { x: 0, y: 0 };
+      const andere = [...zustand.zonen.keys()].filter((z) => z !== id && zustand.layout[z]).map((z) => `${esc(zustand.zonen.get(z).karte.name)}: x ${zustand.layout[z].x}, y ${zustand.layout[z].y} (${zustand.zonen.get(z).karte.breite} × ${zustand.zonen.get(z).karte.hoehe})`);
+      const w = await formular(`✥ Lage von „${k.name}“`, [
+        { name: 'x', label: 'Welt-x (links)', typ: 'zahl', wert: p.x, schritt: 1, pflicht: true },
+        { name: 'y', label: 'Welt-y (oben)', typ: 'zahl', wert: p.y, schritt: 1, pflicht: true },
+      ], { text: `Linke obere Ecke in Welt-Kacheln (Zone ${k.breite} × ${k.hoehe}). Kante an Kante = Nachbarn (Übergänge vorschlagen), überlappen geht nicht.${andere.length ? `<br>${andere.join('<br>')}` : ''}`, okText: 'Verschieben', pruefe: (v) => {
+        const erg = verschiebeZone(zustand.layout, new Map([...zustand.zonen].map(([z, e]) => [z, e.karte])), id, v);
+        return erg.ok ? null : `Geht nicht: ${erg.grund}`;
+      } });
+      if (!w) return;
+      const erg = zustand.setzeZonenLage(id, w);
+      if (erg.ok) zustand.meldung(`✥ „${k.name}“ liegt jetzt bei ${w.x}|${w.y}`, 'ok');
     },
     /** Zonen-Werte im Inspektor zeigen (z. B. bereich 'wetter') */
     zonenEinstellungen: (bereich = null) => teile.inspektor.zeigeZonenWerte(bereich),

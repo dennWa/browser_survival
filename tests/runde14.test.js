@@ -137,6 +137,20 @@ test('Baum & Laterne: Baum ab 10, Laterne ab 40 km/h umgefahren, langsam halten 
   assert.ok(langsam.auto.x < hindernis, 'Auto kommt nicht durch den Mast');
 });
 
+test('Runde 18: Laterne umfahren bremst das Auto deutlich (laterneBremse)', () => {
+  const LATERNE = { typ: 'licht', x: 24, y: 3, b: 1, h: 1, radius: 3, farbe: '#ffc070', staerke: 0.8, mast: true };
+  const mit = aufbau([LATERNE]);
+  const ohne = aufbau([]);
+  let tick = 0;
+  while (!mit.welt.welt.laternenUmgefahren.has(0) && tick < 600) {
+    fahre(mit.welt, mit.spieler, -1, TICK_DAUER_S);
+    fahre(ohne.welt, ohne.spieler, -1, TICK_DAUER_S);
+    tick++;
+  }
+  assert.ok(mit.welt.welt.laternenUmgefahren.has(0), 'Laterne umgefahren');
+  assert.ok(Math.abs(mit.auto.tempo) < Math.abs(ohne.auto.tempo) * 0.75, `deutlich langsamer (${mit.auto.tempo} vs. ${ohne.auto.tempo})`);
+});
+
 test('Client-Welt: Laternen-Zustand wird übernommen und blockiert nicht mehr', () => {
   const welt = new Welt({ ...karte([{ typ: 'licht', x: 5, y: 3, b: 1, h: 1, radius: 3, farbe: '#fff', staerke: 0.8, mast: true }]), breite: BREITE, hoehe: 8, kachelGroesse: 32 });
   const l = welt.laternen[0];

@@ -15,7 +15,7 @@ import { erzeugeFrisur } from './haarModell.js';
 import { AUSSEHEN, skinFuer } from '../../gemeinsam/spieler/aussehen.js';
 import { itemGeometrie, ITEM_MATERIAL, rucksackTeile } from './itemModelle.js';
 import { zeichneBeschriftung, zeichneItemName, zeichneSprechblase } from './beschriftung.js';
-import { richteFigurEin, aktualisiereHaltung, ARBEIT_KLIP } from './figurHaltung.js';
+import { richteFigurEin, aktualisiereHaltung, ARBEIT_KLIP, istBeidhaendigerSchlag } from './figurHaltung.js';
 import { erzeugeWaffe, WAFFEN_NAMEN } from './waffenModelle.js';
 import { erzeugeTier } from './tierModelle.js';
 import { erzeugeAngel } from './angelModell.js';
@@ -53,10 +53,12 @@ const ASSETS = new URL('../assets/', import.meta.url);
 const FIGUR_HOEHE = 64;
 // Spieler-Figuren (Quaternius „Adventurer“, werkzeuge/assets/figuren): je ein GLB mit Clips stehen/laufen/hacken/sterben
 const SURVIVOR = { mann: '3d/figur_mann.glb', frau: '3d/figur_frau.glb' };
-const LAUF_TEMPO = 100; // px/s, bei denen der Clip „laufen“ mit timeScale 1 passt (Fußgeschwindigkeit des Run-Clips)
-const GEH_TEMPO = 55; // px/s, bei denen der Clip „gehen“ (Walk) mit timeScale 1 passt
+// px/s, bei denen „laufen“ (Run) bzw. „gehen“ (Walk) mit timeScale 1 passen – je Figur aus der Fußgeschwindigkeit der Clips
+// (Clip-Weg/s × FIGUR_HOEHE / Modellhöhe, gemessen in figuren_bauen.py)
+const LAUF_TEMPO = { mann: 100, frau: 83 };
+const GEH_TEMPO = { mann: 47, frau: 38 };
 const GEH_GRENZE = 100; // darunter Geh-Clip (Gehen 80 px/s), darüber Lauf-Clip (Joggen 115, Rennen 150)
-const SCHLAG_KLIPS = new Set(['hacken', 'spitzhacke', 'abbauen', 'hacke']); // Clips, die ein Werkzeug schwingen (figurHaltung legt es in die Hände)
+const SCHLAG_KLIPS = new Set(['hacken', 'spitzhacke', 'abbauen', 'hacke', 'nahkampf']); // Clips, die ein Werkzeug schwingen (figurHaltung legt es in die Hände)
 const HACK_ARBEIT = new Set(['holz', 'stein', 'eisenerz']);
 const SCHNITT_RADIUS = 0; // 0 = aus: kein Durchschauen durch Wände mehr (verdeckte Figur zeigt stattdessen die Silhouette)
 const SCHNITT_HOEHE = 10; // bis zu dieser Höhe bleiben aufgeschnittene Wände als Sockel stehen
@@ -1204,14 +1206,23 @@ export class Renderer {
         else if (arbeitsKlip && k[arbeitsKlip]) name = arbeitsKlip;
         else if (arbeitsKlip && (HACK_ARBEIT.has(e.arbeit) || e.arbeit === 'zerlegen')) name = 'hacken';
         else if (e.aktion === 'hacke' && !e.arbeit && k.hacke) name = 'hacke';
+        else if (k.nahkampf && f.nahkampfBis > jetzt) name = 'nahkampf';
         else if (tempo > 12) name = k.gehen && tempo < GEH_GRENZE ? 'gehen' : 'laufen';
         else name = 'stehen';
-        if (name === 'laufen') zeitfaktor = Math.max(0.6, Math.min(2.4, tempo / LAUF_TEMPO));
-        if (name === 'gehen') zeitfaktor = Math.max(0.5, Math.min(2, tempo / GEH_TEMPO));
-        f.schlagKlip = SCHLAG_KLIPS.has(name);
+        const fk = f.koerper === 'frau' ? 'frau' : 'mann';
+        if (name === 'laufen') zeitfaktor = Math.max(0.6, Math.min(2.4, tempo / LAUF_TEMPO[fk]));
+        if (name === 'gehen') zeitfaktor = Math.max(0.5, Math.min(2.4, tempo / GEH_TEMPO[fk]));
         // Hacken-Schlag: jeder neue Schlag (neuer aktionTick) startet den Einmal-Clip von vorn
         if (name === 'hacke' && f.aktuell === 'hacke' && f.hackeTick !== e.aktionTick) k.hacke.reset().play();
         if (name === 'hacke') f.hackeTick = e.aktionTick;
+        // Nahkampf mit beidhändiger Waffe (Runde 18): jeder neue Schlag startet den Einmal-Clip; er läuft zu Ende, auch beim Gehen
+        if (e.aktion === 'nahkampf' && k.nahkampf && f.nahkampfTick !== e.aktionTick && !e.arbeit && istBeidhaendigerSchlag(e)) {
+          f.nahkampfTick = e.aktionTick;
+          f.nahkampfBis = jetzt + k.nahkampf.getClip().duration * 1000;
+          if (f.aktuell === 'nahkampf') k.nahkampf.reset().play();
+          else if (name !== 'sterben' && name !== 'sitzen' && name !== 'hacke' && !arbeitsKlip) name = 'nahkampf';
+        }
+        f.schlagKlip = SCHLAG_KLIPS.has(name);
       } else {
         name = tempo > 12 ? 'rennen' : 'stehen';
         if (name === 'rennen') zeitfaktor = e.typ === 'zombie' ? Math.max(0.5, tempo / 140) : Math.max(0.6, tempo / 170);

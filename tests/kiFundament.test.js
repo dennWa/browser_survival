@@ -20,7 +20,8 @@ test('Kontext: kleine Zone wird NICHT mehr ganz mitgeschickt (B6), Statistik sch
   assert.ok(!ohne.text.includes('## Kacheln'), 'kein Kachel-Raster');
   assert.match(ohne.text, /Marker: 1 Start/);
   assert.match(ohne.text, /Räume: a=Hütte/);
-  assert.deepEqual(ohne.teile.map((t) => t.titel), ['Zonen-Statistik (ohne Kacheln)']);
+  // Runde 18 (7.3): ohne Ausschnitt geht die Anleitung der ortlosen Aktionen mit (keine Kacheln)
+  assert.deepEqual(ohne.teile.map((t) => t.titel), ['Zonen-Statistik (ohne Kacheln)', 'Anleitung: Aktionen ohne Ort (Zonen-Werte, Räume, Namen)']);
   const mit = baueKontext(k, { rechteck: { x: 2, y: 2, b: 5, h: 4 } });
   assert.equal(mit.quelle, 'markierung');
   assert.equal(mit.teile.length, 2);

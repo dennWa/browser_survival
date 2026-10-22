@@ -11,9 +11,11 @@ const HINWEIS = {
   auswahl: 'Klick wählt · Umschalt = dazu · ins Leere ziehen = Bereich · Alt beim Ziehen = fein · Rechtsklick = Menü',
   hand: 'Ziehen schwenkt · Mausrad zoomt · auch: Leertaste halten, mittlere/rechte Maustaste, 2 Finger',
   pipette: 'Klick übernimmt Kachel/Objekt unter der Maus (auch Alt+Klick in jedem Malwerkzeug)',
-  zone: 'Griffe an Ecken/Kanten ziehen – Verkleinern fragt vorher nach',
+  zone: 'Griffe an Ecken/Kanten = Größe (Verkleinern fragt nach) · in die Zone fassen und ziehen = ganze Zone verschieben (rastet an Nachbarn ein, Strg = frei, rot = überlappt) · gestrichelt = andere Zonen',
   bereich: 'Rechteck aufziehen',
   raumFuellen: 'In einen Raum klicken – füllt bis zu Wänden/Türen',
+  messen: 'Klick = Punkt · Doppelklick/Enter = Messung fertig · Esc = Maßband weg, zurück zur Auswahl (V)',
+  kiMarkieren: 'Rechteck aufziehen – darf auch neben der Zone liegen (KI schlägt dort eine Erweiterung vor) · Esc bricht ab',
 };
 
 export class Optionsleiste {
@@ -36,18 +38,34 @@ export class Optionsleiste {
     const frei = (mitWinkel) =>
       gruppe(`<label title="stufenlos platzieren/verschieben, freie Drehung (R = 15°, Alt+Rad = 5°, Drehgriff an gewählten Objekten)"><input type="checkbox" data-o="frei" ${z.frei ? 'checked' : ''}> Frei</label>${z.frei && mitWinkel ? `<label class="leise">Winkel <input type="number" data-o="winkel" value="${z.drehung}" step="5" style="width:64px">°</label>` : ''}${z.frei ? '<span class="leise">Alt+Rad dreht · Umschalt = 15°</span>' : ''}`);
     const groesse = () => gruppe(`<span class="leise">Größe</span>${knopf('pinsel:-1', '−', false, 'kleiner ([)')}<input type="range" min="1" max="15" value="${z.pinselGroesse}" data-o="pinsel" aria-label="Pinselgröße"><b class="zahl">${z.pinselGroesse}</b>${knopf('pinsel:1', '+', false, 'größer (])')}`);
+    // Boden-Pinsel (6.1): Form + ausgefranster Rand (organischer Übergang, z. B. Schnee auf Rasen)
+    const form = (mitRand = true) => {
+      gruppe(`${knopf('form:eckig', '■ eckig', z.pinselForm !== 'rund', 'quadratischer Pinsel')}${knopf('form:rund', '● rund', z.pinselForm === 'rund', 'runder Pinsel (ab Größe 3)')}`);
+      if (mitRand) gruppe(`<span class="leise">Rand</span>${[[0, 'scharf'], [0.35, 'weich'], [0.6, 'fransig']].map(([w, t]) => knopf(`streuung:${w}`, t, Math.abs((z.pinselStreuung ?? 0) - w) < 0.01, 'äußerer Ring nur teilweise – natürlicher Übergang (ab Größe 3)')).join('')}`);
+    };
     if (z.ansicht === '3d') {
       gruppe('<b>🧊 3D-Ansicht</b>');
-      gruppe('<span class="leise">Ziehen = schieben · Rechts/Alt-Ziehen = drehen · Rad/2 Finger = Zoom · Klick = wählen · Malen/Bauen in 2D (Taste 3)</span>');
+      // 6.6: Objekte/Bauwerke/Marker auch in 3D setzen
+      if (w === 'platzieren' && e && ['objekt', 'bauwerk', 'marker'].includes(e.art)) {
+        gruppe(`<span class="symbol">${esc(e.symbol ?? '')}</span><b>${esc(e.name)}</b>`);
+        if (e.art !== 'marker') gruppe(`<span class="leise">Drehung</span>${[0, 90, 180, 270].map((d) => knopf(`drehung:${d}`, `${d}°`, z.drehung === d, 'R dreht weiter')).join('')}`);
+        gruppe(`<label title="sonst: Umschalt halten"><input type="checkbox" data-o="mehrfach" ${z.mehrfach ? 'checked' : ''}> mehrfach setzen</label>`);
+        gruppe('<span class="leise">Klick auf den Boden setzt (grün = frei, rot = geht nicht) · Finger: tippen = Vorschau, nochmal tippen = setzen · R dreht · Esc beendet</span>');
+      } else gruppe('<span class="leise">Ziehen = schieben · Rechts/Alt-Ziehen = drehen · Rad/2 Finger = Zoom · Klick = wählen · Asset links wählen → Klick auf den Boden setzt · Entf löscht · Rechtsklick/Langdruck = Menü · Boden malen/Gelände in 2D (Taste 3)</span>');
     } else if (w === 'malen') {
       gruppe(`${e ? `<span class="farbe" style="background:${esc(e.farbe)}"></span><b>${esc(e.name)}</b>` : '<b>Malen</b>'}`);
       gruppe(['pinsel', 'rechteck', 'linie', 'fuellen'].map((m) => knopf(`malen:${m}`, { pinsel: '🖌 Pinsel', rechteck: '▭ Rechteck', linie: '╱ Linie', fuellen: '🪣 Füllen' }[m], z.malModus === m, { pinsel: 'B', rechteck: 'U (Umschalt: nur Rand)', linie: 'L (Mauern rasten ein, Umschalt: frei)', fuellen: 'G' }[m])).join(''));
-      if (z.malModus !== 'fuellen') groesse();
+      if (z.malModus !== 'fuellen' && z.malModus !== 'rechteck') groesse();
+      if (z.malModus === 'pinsel') {
+        form(true);
+        gruppe('<span class="leise">Maustaste/Finger halten und ziehen = malen · ein Strich = ein Undo-Schritt · [ ] Größe</span>');
+      }
       if (z.malModus === 'rechteck') gruppe(`<label><input type="checkbox" data-o="nurRand" ${z.nurRand ? 'checked' : ''}> nur Rand</label>`);
       if (z.malModus === 'linie' && e?.kategorie === 'Mauern') gruppe(`<label title="auch: Strg beim Ziehen"><input type="checkbox" data-o="raumUmriss" ${z.raumUmriss ? 'checked' : ''}> Raum (Rechteck-Umriss)</label><span class="leise">Maustaste halten und ziehen · Umschalt = frei</span>`);
     } else if (w === 'radierer') {
       gruppe('<b>⌫ Radierer</b>');
       groesse();
+      form(false);
       gruppe('<span class="leise">Kacheln → Rasen, Objekte/Marker/Bauwerke weg (gesperrte Ebenen bleiben)</span>');
     } else if (w === 'platzieren' && e) {
       gruppe(`<span class="symbol">${esc(e.symbol ?? '')}</span><b>${esc(e.name)}</b>${e.b ? `<span class="leise">${e.b} × ${e.h}</span>` : ''}`);
@@ -75,9 +93,12 @@ export class Optionsleiste {
       const art = e?.werkzeug ?? 'farbePinsel';
       gruppe(['farbePinsel', 'farbeFuellen', 'farbeEntfernen'].map((m) => knopf(`farbe:${m}`, { farbePinsel: '🖌 Malen', farbeFuellen: '🪣 Füllen', farbeEntfernen: '🧽 Entfernen' }[m], art === m)).join(''));
       gruppe(`${PALETTE.map((f) => `<button type="button" class="farbknopf${f === z.farbe ? ' aktiv' : ''}" data-o="farbwahl:${f}" title="${f}" style="background:${f}"></button>`).join('')}<input type="color" value="${esc(z.farbe)}" data-o="farbe" title="eigene Farbe">`);
-      if (art !== 'farbeFuellen') groesse();
+      if (art !== 'farbeFuellen') {
+        groesse();
+        form(art !== 'farbeEntfernen');
+      }
     } else {
-      const titel = { auswahl: '⬚ Auswahl', hand: '✋ Schwenken', pipette: '💧 Pipette', zone: '⤡ Zonengröße', bereich: `▭ ${e?.name ?? 'Bereich'}`, raumFuellen: '🪣 Raum füllen' }[w] ?? w;
+      const titel = { auswahl: '⬚ Auswahl', hand: '✋ Schwenken', pipette: '💧 Pipette', zone: '⤡ Zone (Größe & Lage)', bereich: `▭ ${e?.name ?? 'Bereich'}`, raumFuellen: '🪣 Raum füllen', messen: '📏 Maßband', kiMarkieren: '🤖 Bereich für die KI markieren' }[w] ?? w;
       gruppe(`<b>${esc(titel)}</b>`);
       if (w === 'auswahl' && (z.auswahl.size || z.auswahlRechteck)) {
         const ids = z.auswahl.size ? ['bearbeiten.duplizieren', 'bearbeiten.drehen', 'bearbeiten.kopieren', 'bearbeiten.loeschen'] : ['bearbeiten.kopieren', 'bearbeiten.ausschneiden', 'bearbeiten.bereichLeeren', 'bearbeiten.alsPrefab', 'ki.ausschnitt'];
@@ -87,7 +108,7 @@ export class Optionsleiste {
         }).join(''));
       }
       if (w === 'auswahl' && z.karte) frei(false);
-      if (w === 'zone') gruppe(`<button type="button" data-befehl="zone.groesse">Größe eingeben…</button>`);
+      if (w === 'zone') gruppe(`<button type="button" data-befehl="zone.groesse">Größe eingeben…</button><button type="button" data-befehl="zone.lage">✥ Lage eingeben…</button>`);
       if (HINWEIS[w]) gruppe(`<span class="leise">${esc(HINWEIS[w])}</span>`);
     }
     this.el.innerHTML = teile.join('');
@@ -101,6 +122,8 @@ export class Optionsleiste {
       b.addEventListener('click', () => {
         const [art, wert] = b.dataset.o.split(/:(.*)/s);
         if (art === 'pinsel') this.aktionen.pinselGroesse(Number(wert));
+        else if (art === 'form') z.setzePinsel({ form: wert });
+        else if (art === 'streuung') z.setzePinsel({ streuung: Number(wert) });
         else if (art === 'malen') this.aktionen.werkzeug(`malen:${wert}`);
         else if (art === 'drehung') {
           z.drehung = Number(wert);

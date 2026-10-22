@@ -12,8 +12,12 @@ import { drehGriff } from '../kern/bearbeiten.js';
 /**
  * 2D-Draufsicht (Canvas). Kamera in Kachelkoordinaten (Mitte des Bilds) + Zoom (Pixel pro Kachel).
  * Oben und links laufen Lineale mit Kachelnummern (LINEAL px breit) – Koordinaten überall.
- * Kacheln liegen in einem 1-Pixel-pro-Kachel-Bild (wird nur an geänderten Stellen nachgemalt) und werden ohne Glättung
- * hochskaliert → scharf und schnell, auch bei 160 × 120.
+ * Kacheln liegen in 1-Pixel-pro-Kachel-Bildern, aufgeteilt in Stücke à STUECK Kacheln (6.4: nur sichtbare Stücke werden gebaut,
+ * geänderte Kacheln nur nachgemalt) und ohne Glättung hochskaliert → scharf und schnell, auch bei 10 000 × 10 000.
+ * Bemalung/Gelände genauso stückweise (geändertes Stück = neu bauen). `kachelBild` (Nachbarn, Weltkarte) rechnet große
+ * Zonen auf höchstens KACHELBILD_MAX px herunter.
+ * 6.4/7.2: `weltZonen` (alle anderen Zonen relativ zur aktiven, von ui/zonenUi.js) als Umrisse beim Zone-Werkzeug,
+ * „Neue Zone aufziehen“ und KI-Markieren; `zonenLage` = Vorschau beim Verschieben der Zone; zustand.kiBereich = KI-Bereich.
  * Ebenen (zustand.ebenen, kern/ebenen.js): ausgeblendete werden nicht gezeichnet, gesperrte ausgegraut (`this.dimm`).
  * Frei gedrehte Objekte (5.5): Grundfläche als gedrehtes Polygon (gemeinsam/welt/drehung.js), im Free-Modus Drehgriff am
  * einzeln gewählten Objekt (kern/bearbeiten.drehGriff); Vorschau ebenfalls gedreht.
@@ -24,6 +28,21 @@ import { drehGriff } from '../kern/bearbeiten.js';
 export const LINEAL = 24;
 const MIN_ZOOM = 2;
 const MAX_ZOOM = 96;
+/** Kachel-Puffer-Stück (Kacheln je Seite) – nur sichtbare Stücke entstehen */
+const STUECK = 256;
+/** größte Kantenlänge (px) der verkleinerten Zonen-Bilder (Nachbarn, Weltkarte) */
+const KACHELBILD_MAX = 1024;
+
+/** '#rrggbb' → [r, g, b] (Kachelfarben sind Hex) */
+const farbeRgb = (f) => {
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(String(f ?? ''));
+  return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [255, 0, 255];
+};
+const RGB_PUFFER = new Map();
+const kachelRgb = (z) => {
+  if (!RGB_PUFFER.has(z)) RGB_PUFFER.set(z, farbeRgb(kachelInfo(z).farbe));
+  return RGB_PUFFER.get(z);
+};
 
 export class Zeichner2D {
   constructor(leinwand, zustand) {
@@ -45,6 +64,9 @@ export class Zeichner2D {
     this.zonenGriffe = false;
     this.zonenVorschau = null; // { x, y, b, h } beim Größe ändern
     this.nachbarn = []; // [{ karte, dx, dy }] Nachbarzonen relativ (Phase 7)
+    this.weltZonen = []; // 6.4: alle anderen Zonen relativ zur aktiven [{ id, name, x, y, b, h }] (ui/zonenUi.js)
+    this.weltZonenZeigen = false; // 6.4: Umrisse auch außerhalb des Zone-Werkzeugs (Neue Zone aufziehen)
+    this.zonenLage = null; // 6.4: Vorschau beim Verschieben der Zone { dx, dy, konflikte: [] }
     this.innen = null; // Uint8Array, gesetzt von außen (Spiel-Berechnung)
     /** Hervorhebungen über allem (KI-Diff, Prüf-Fehler): [{ rechteck, farbe, gestrichelt?, text? }] */
     this.ueberlagerungen = [];
@@ -126,7 +148,9 @@ export class Zeichner2D {
     this.anfordern();
   }
 
-  // --- Kachel-Cache ----------------------------------------------------------
+  // --- Kachel-Cache (stückweise, 6.4) --------------------------------------------------
+  // cache = { karte, breite, hoehe, stuecke: Map("sx,sy" → { boden, farbe|null, terrain|null, farbeAlt, terrainAlt }),
+  //           mitFarbe, mitTerrain } – Stücke entstehen erst, wenn sie sichtbar sind
   #aufOps(ops) {
     const k = this.zustand.karte;
     if (!this.cache || this.cache.karte !== k) this.cache = null;
@@ -137,65 +161,127 @@ export class Zeichner2D {
           break;
         }
         if (op.s === 'kachel') this.#maleKachel(op.i);
-        if (op.s === 'hoehe') this.cache.terrainAlt = true;
-        if (op.s === 'bemalung') this.cache.farbeAlt = true;
+        else if (op.s === 'hoehe') {
+          this.cache.mitTerrain = true;
+          // Schummerung hängt an den Nachbarn → auch angrenzende Stücke
+          const x = op.i % k.breite;
+          const y = Math.floor(op.i / k.breite);
+          for (const [dx, dy] of [[0, 0], [-1, 0], [1, 0], [0, -1], [0, 1]]) this.#stueckAlt(x + dx, y + dy, 'terrainAlt');
+        } else if (op.s === 'bemalung') {
+          this.cache.mitFarbe = true;
+          const [x, y] = ausSchluessel(op.k);
+          this.#stueckAlt(x, y, 'farbeAlt');
+        }
       }
     this.anfordern();
   }
 
+  #stueckAlt(x, y, feld) {
+    const s = this.cache.stuecke.get(`${Math.floor(x / STUECK)},${Math.floor(y / STUECK)}`);
+    if (s) s[feld] = true;
+  }
+
   #baueCache() {
     const k = this.zustand.karte;
-    const bild = new OffscreenCanvas(k.breite, k.hoehe);
-    this.cache = { karte: k, breite: k.breite, hoehe: k.hoehe, bild, ctx: bild.getContext('2d'), terrain: null, terrainAlt: true, farbe: null, farbeAlt: true };
-    for (let i = 0; i < k.zellen.length; i++) this.#maleKachel(i);
+    // Gelände/Bemalung nur, wenn es sie gibt (einmal prüfen; danach schalten Ops sie an)
+    let mitTerrain = false;
+    for (let i = 0; i < k.hoehen.length && !mitTerrain; i++) if (k.hoehen[i] !== 0) mitTerrain = true;
+    this.cache = { karte: k, breite: k.breite, hoehe: k.hoehe, stuecke: new Map(), mitFarbe: k.s('bemalung').size > 0, mitTerrain };
+  }
+
+  /** Stück (sx, sy) holen und fehlende/veraltete Teile bauen */
+  #stueck(sx, sy) {
+    const c = this.cache;
+    const schl = `${sx},${sy}`;
+    let s = c.stuecke.get(schl);
+    if (!s) {
+      const x0 = sx * STUECK;
+      const y0 = sy * STUECK;
+      const b = Math.min(STUECK, c.breite - x0);
+      const h = Math.min(STUECK, c.hoehe - y0);
+      s = { x0, y0, b, h, boden: new OffscreenCanvas(b, h), farbe: null, terrain: null, farbeAlt: true, terrainAlt: true };
+      s.ctx = s.boden.getContext('2d');
+      const daten = s.ctx.createImageData(b, h);
+      const k = c.karte;
+      for (let y = 0; y < h; y++)
+        for (let x = 0; x < b; x++) {
+          const [r, g, bl] = kachelRgb(k.zellen[(y0 + y) * k.breite + x0 + x]);
+          const p = (y * b + x) * 4;
+          daten.data[p] = r;
+          daten.data[p + 1] = g;
+          daten.data[p + 2] = bl;
+          daten.data[p + 3] = 255;
+        }
+      s.ctx.putImageData(daten, 0, 0);
+      c.stuecke.set(schl, s);
+    }
+    if (s.farbeAlt) this.#baueFarbe(s);
+    if (s.terrainAlt) this.#baueTerrain(s);
+    return s;
   }
 
   #maleKachel(i) {
     const k = this.cache.karte;
-    this.cache.ctx.fillStyle = kachelInfo(k.zellen[i]).farbe;
-    this.cache.ctx.fillRect(i % k.breite, Math.floor(i / k.breite), 1, 1);
+    const x = i % k.breite;
+    const y = Math.floor(i / k.breite);
+    const s = this.cache.stuecke.get(`${Math.floor(x / STUECK)},${Math.floor(y / STUECK)}`);
+    if (!s) return; // noch nie sichtbar → entsteht später frisch
+    s.ctx.fillStyle = kachelInfo(k.zellen[i]).farbe;
+    s.ctx.fillRect(x - s.x0, y - s.y0, 1, 1);
   }
 
-  /** Bemalung (Phase 10) als 1-px-pro-Kachel-Bild – dieselben Farben zeigt die 3D-Ansicht und das Spiel */
-  #baueFarbe() {
+  /** Bemalung (Phase 10) des Stücks als 1-px-pro-Kachel-Bild – dieselben Farben zeigt die 3D-Ansicht und das Spiel */
+  #baueFarbe(s) {
     const k = this.cache.karte;
-    this.cache.farbeAlt = false;
-    if (!k.s('bemalung').size) {
-      this.cache.farbe = null;
-      return;
-    }
-    const bild = new OffscreenCanvas(k.breite, k.hoehe);
-    const c = bild.getContext('2d');
+    s.farbeAlt = false;
+    s.farbe = null;
+    if (!this.cache.mitFarbe || !k.s('bemalung').size) return;
+    let c = null;
     for (const [schl, f] of k.s('bemalung')) {
       const [x, y] = ausSchluessel(schl);
+      if (x < s.x0 || y < s.y0 || x >= s.x0 + s.b || y >= s.y0 + s.h) continue;
+      if (!c) {
+        s.farbe = new OffscreenCanvas(s.b, s.h);
+        c = s.farbe.getContext('2d');
+      }
       c.fillStyle = f;
-      c.fillRect(x, y, 1, 1);
+      c.fillRect(x - s.x0, y - s.y0, 1, 1);
     }
-    this.cache.farbe = bild;
   }
 
-  #baueTerrain() {
+  #baueTerrain(s) {
     const k = this.cache.karte;
-    this.cache.terrainAlt = false;
-    if (!k.hoehen.some((h) => h !== 0)) {
-      this.cache.terrain = null;
-      return;
-    }
-    const bild = new OffscreenCanvas(k.breite, k.hoehe);
+    s.terrainAlt = false;
+    s.terrain = null;
+    if (!this.cache.mitTerrain) return;
+    let etwas = false;
+    const bild = new OffscreenCanvas(s.b, s.h);
     const ctx = bild.getContext('2d');
-    const daten = ctx.createImageData(k.breite, k.hoehe);
-    for (let y = 0; y < k.hoehe; y++)
-      for (let x = 0; x < k.breite; x++) {
+    const daten = ctx.createImageData(s.b, s.h);
+    for (let y = s.y0; y < s.y0 + s.h; y++)
+      for (let x = s.x0; x < s.x0 + s.b; x++) {
         const h = k.hoeheAn(x, y);
         // Schummerung: Licht von links oben
         const neigung = (k.hoeheAn(x - 1, y) - k.hoeheAn(x + 1, y) + k.hoeheAn(x, y - 1) - k.hoeheAn(x, y + 1)) * 0.5;
-        const p = (y * k.breite + x) * 4;
+        if (h === 0 && neigung === 0) continue;
+        etwas = true;
+        const p = ((y - s.y0) * s.b + (x - s.x0)) * 4;
         const hell = Math.max(0, Math.min(255, 128 + neigung * 50 + h * 6));
         daten.data[p] = daten.data[p + 1] = daten.data[p + 2] = hell;
-        daten.data[p + 3] = h === 0 && neigung === 0 ? 0 : 90;
+        daten.data[p + 3] = 90;
       }
+    if (!etwas) return;
     ctx.putImageData(daten, 0, 0);
-    this.cache.terrain = bild;
+    s.terrain = bild;
+  }
+
+  /** Sichtbare Stücke (gebaut) */
+  #sichtbareStuecke(k) {
+    const f = this.#sichtFenster(k);
+    if (f.x1 < f.x0 || f.y1 < f.y0) return [];
+    const liste = [];
+    for (let sy = Math.floor(f.y0 / STUECK); sy <= Math.floor(f.y1 / STUECK); sy++) for (let sx = Math.floor(f.x0 / STUECK); sx <= Math.floor(f.x1 / STUECK); sx++) liste.push(this.#stueck(sx, sy));
+    return liste;
   }
 
   // --- Zeichnen --------------------------------------------------------------
@@ -213,27 +299,30 @@ export class Zeichner2D {
     const k = this.zustand.karte;
     if (k) {
       if (!this.cache || this.cache.karte !== k || this.cache.breite !== k.breite || this.cache.hoehe !== k.hoehe) this.#baueCache();
-      if (this.cache.terrainAlt) this.#baueTerrain();
-      if (this.cache.farbeAlt) this.#baueFarbe();
       this.#zeichneNachbarn(ctx);
       const o = this.zuBild(0, 0);
       const b = k.breite * this.zoom;
       const hh = k.hoehe * this.zoom;
+      const stuecke = this.#sichtbareStuecke(k);
+      const male = (s, bild) => {
+        const p = this.zuBild(s.x0, s.y0);
+        ctx.drawImage(bild, p.x, p.y, s.b * this.zoom, s.h * this.zoom);
+      };
       ctx.imageSmoothingEnabled = false;
-      if (this.zustand.sichtbar('boden')) this.#ebene(ctx, 'boden', () => ctx.drawImage(this.cache.bild, o.x, o.y, b, hh));
+      if (this.zustand.sichtbar('boden')) this.#ebene(ctx, 'boden', () => stuecke.forEach((s) => male(s, s.boden)));
       else {
         ctx.fillStyle = '#2a2f37';
         ctx.fillRect(o.x, o.y, b, hh);
       }
-      if (this.cache.farbe)
+      if (stuecke.some((s) => s.farbe))
         this.#ebene(ctx, 'bemalung', () => {
           ctx.globalAlpha = 0.6 * this.dimm;
-          ctx.drawImage(this.cache.farbe, o.x, o.y, b, hh);
+          stuecke.forEach((s) => s.farbe && male(s, s.farbe));
         });
-      if (this.cache.terrain)
+      if (stuecke.some((s) => s.terrain))
         this.#ebene(ctx, 'terrain', () => {
           ctx.imageSmoothingEnabled = true;
-          ctx.drawImage(this.cache.terrain, o.x, o.y, b, hh);
+          stuecke.forEach((s) => s.terrain && male(s, s.terrain));
           this.#zeichneHoehen(ctx, k);
         });
       if (this.zustand.sichtbar('boden')) this.#ebene(ctx, 'boden', () => this.#zeichneKachelDetails(ctx, k));
@@ -249,6 +338,9 @@ export class Zeichner2D {
       this.#zeichneUeberlagerungen(ctx);
       if (this.zustand.sichtbar('lootDichte')) this.#zeichneLootDichte(ctx, k);
       this.#zeichneVorschau(ctx);
+      const w = this.zustand.werkzeug;
+      if (w === 'zone' || w === 'kiMarkieren' || this.weltZonenZeigen) this.#zeichneWeltZonen(ctx);
+      this.#zeichneKiBereich(ctx);
       this.#zeichneZonenRand(ctx, k);
       this.#zeichneMessen(ctx, k);
       this.#zeichneTouch(ctx);
@@ -865,7 +957,13 @@ export class Zeichner2D {
     ctx.strokeRect(r.x - 1, r.y - 1, r.b + 2, r.h + 2);
     if (this.zonenVorschau) {
       const v = this.zonenVorschau;
-      this.#rahmen(ctx, v, v.verkleinert ? '#f5b83d' : '#4caf50', `${v.b} × ${v.h}`, false, true);
+      this.#rahmen(ctx, v, v.konflikte?.length ? '#e5484d' : v.verkleinert ? '#f5b83d' : '#4caf50', `${v.b} × ${v.h}${v.konflikte?.length ? ` – überlappt ${v.konflikte.join(', ')}` : ''}`, false, true);
+    }
+    // 6.4: Zone verschieben – Umriss an der neuen Stelle (rot = überlappt)
+    if (this.zonenLage) {
+      const l = this.zonenLage;
+      const rot = l.konflikte?.length;
+      this.#rahmen(ctx, { x: l.dx, y: l.dy, b: k.breite, h: k.hoehe }, rot ? '#e5484d' : '#4fc3ff', `✥ ${l.dx >= 0 ? '+' : ''}${l.dx} | ${l.dy >= 0 ? '+' : ''}${l.dy}${rot ? ` – überlappt ${l.konflikte.join(', ')}` : ''}`, true, true);
     }
     if (this.zonenGriffe) for (const g of this.griffe(k)) {
       const p = this.zuBild(g.x, g.y);
@@ -890,6 +988,32 @@ export class Zeichner2D {
       { id: 'l', x: x0, y: ym }, { id: 'r', x: x1, y: ym },
       { id: 'lu', x: x0, y: y1 }, { id: 'u', x: xm, y: y1 }, { id: 'ru', x: x1, y: y1 },
     ];
+  }
+
+  /** 6.4: alle anderen Zonen der Weltanordnung als Umriss + Name (relativ zur aktiven Zone) */
+  #zeichneWeltZonen(ctx) {
+    for (const z of this.weltZonen) {
+      const r = this.#rechteckBild(z.x, z.y, z.b, z.h);
+      if (!this.#sichtbar(r)) continue;
+      ctx.save();
+      ctx.fillStyle = 'rgba(120,140,170,0.10)';
+      ctx.fillRect(r.x, r.y, r.b, r.h);
+      ctx.setLineDash([8, 5]);
+      ctx.strokeStyle = 'rgba(190,205,230,0.75)';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(r.x, r.y, r.b, r.h);
+      ctx.restore();
+      this.#text(ctx, `${z.name} (${z.b} × ${z.h})`, r.x + r.b / 2, r.y + Math.min(r.h / 2, 18), '#c9d6ea', 12);
+    }
+  }
+
+  /** 7.2: Bereich für die KI (zustand.kiBereich, darf über die Zone hinausragen) */
+  #zeichneKiBereich(ctx) {
+    const r = this.zustand.kiBereich;
+    if (!r) return;
+    const k = this.zustand.karte;
+    const aussen = k && (r.x < 0 || r.y < 0 || r.x + r.b > k.breite || r.y + r.h > k.hoehe);
+    this.#rahmen(ctx, r, '#b388ff', `🤖 KI-Bereich ${r.b} × ${r.h}${aussen ? ' (ragt aus der Zone)' : ''}`, true, true);
   }
 
   #zeichneNachbarn(ctx) {
@@ -988,7 +1112,7 @@ export class Zeichner2D {
     const m = this.massband;
     if (m?.punkte.length) {
       const pkt = m.punkte.map((q) => this.zuBild(q.x, q.y));
-      if (!m.fertig && this.hover) pkt.push(this.zuBild(this.hover.x + 0.5, this.hover.y + 0.5));
+      if (!m.fertig && this.hover && this.zustand.werkzeug === 'messen') pkt.push(this.zuBild(this.hover.x + 0.5, this.hover.y + 0.5));
       ctx.strokeStyle = '#ffd54f';
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -1093,17 +1217,30 @@ export class Zeichner2D {
   }
 }
 
-/** Kachelbild (1 px je Kachel) einer Karte – gepuffert je Kartenversion (Nachbarzonen, Weltkarte) */
+/**
+ * Kachelbild (1 px je Kachel) einer Karte – gepuffert je Kartenversion (Nachbarzonen, Weltkarte). Große Zonen (6.4) werden
+ * auf höchstens KACHELBILD_MAX px Kantenlänge heruntergerechnet (jede n-te Kachel) – das Bild wird ohnehin skaliert gezeichnet.
+ */
 const bildPuffer = new WeakMap();
 export function kachelBild(k) {
   const alt = bildPuffer.get(k);
-  if (alt && alt.version === k.version && alt.bild.width === k.breite && alt.bild.height === k.hoehe) return alt.bild;
-  const bild = new OffscreenCanvas(k.breite, k.hoehe);
+  if (alt && alt.version === k.version && alt.breite === k.breite && alt.hoehe === k.hoehe) return alt.bild;
+  const schritt = Math.max(1, Math.ceil(Math.max(k.breite, k.hoehe) / KACHELBILD_MAX));
+  const b = Math.ceil(k.breite / schritt);
+  const h = Math.ceil(k.hoehe / schritt);
+  const bild = new OffscreenCanvas(b, h);
   const c = bild.getContext('2d');
-  for (let i = 0; i < k.zellen.length; i++) {
-    c.fillStyle = kachelInfo(k.zellen[i]).farbe;
-    c.fillRect(i % k.breite, Math.floor(i / k.breite), 1, 1);
-  }
-  bildPuffer.set(k, { version: k.version, bild });
+  const daten = c.createImageData(b, h);
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < b; x++) {
+      const [r, g, bl] = kachelRgb(k.zellen[Math.min(k.hoehe - 1, y * schritt) * k.breite + Math.min(k.breite - 1, x * schritt)]);
+      const p = (y * b + x) * 4;
+      daten.data[p] = r;
+      daten.data[p + 1] = g;
+      daten.data[p + 2] = bl;
+      daten.data[p + 3] = 255;
+    }
+  c.putImageData(daten, 0, 0);
+  bildPuffer.set(k, { version: k.version, breite: k.breite, hoehe: k.hoehe, bild });
   return bild;
 }

@@ -11,7 +11,7 @@ import { baueKontext, baueAnfrage, frageGemini, leseGeminiAntwort, findeAktionen
 const laden = () => ausDefinition(KARTEN.stadtrand.definition ?? KARTEN.stadtrand).karte;
 const antwortOk = (text) => ({ ok: true, status: 200, json: async () => ({ candidates: [{ content: { parts: [{ text }] }, finishReason: 'STOP' }] }) });
 
-test('Kontext: Markierung → Ausschnitt mit Bereich; Zone zu groß → nur Überblick; Auswahl → Rahmen', () => {
+test('Kontext: Markierung → Ausschnitt mit Bereich; ganze Zone markiert → ganz dabei (Runde 18 7.1: kein Limit); Auswahl → Rahmen', () => {
   const karte = laden();
   const k = baueKontext(karte, { rechteck: { x: 5, y: 5, b: 10, h: 8 } });
   assert.equal(k.quelle, 'markierung');
@@ -19,8 +19,8 @@ test('Kontext: Markierung → Ausschnitt mit Bereich; Zone zu groß → nur Übe
   assert.match(k.text, /objektTypen:/);
   assert.match(k.text, /"aktion":"bereich"/);
   const gross = baueKontext(karte, { rechteck: { x: 0, y: 0, b: karte.breite, h: karte.hoehe } });
-  assert.equal(gross.bereich, null);
-  assert.ok(gross.zuGross);
+  assert.deepEqual(gross.bereich, { x0: 0, x1: karte.breite - 1, y0: 0, y1: karte.hoehe - 1 });
+  assert.match(gross.text, /## Kacheln/);
   const [id, o] = [...karte.s('objekte')][0];
   const a = baueKontext(karte, { auswahl: [{ s: 'objekte', k: id, wert: o }] });
   assert.equal(a.quelle, 'auswahl');

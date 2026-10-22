@@ -96,8 +96,8 @@ export function kiErgebnis(karte, text, { bereich = null, prefabs = [] } = {}) {
   }
 }
 
-/** Rechteck {x,y,b,h} um Kacheln (+rand), auf die Zone begrenzt und höchstens `max` Kacheln groß – sonst null */
-export function rahmenUm(karte, punkte, { rand = 3, max = 2500 } = {}) {
+/** Rechteck {x,y,b,h} um Kacheln (+rand), auf die Zone begrenzt und höchstens `max` Kacheln groß – sonst null (7.1: Standard ohne Grenze) */
+export function rahmenUm(karte, punkte, { rand = 3, max = Infinity } = {}) {
   const p = punkte.filter((q) => Number.isFinite(q?.x) && Number.isFinite(q?.y));
   if (!p.length) return null;
   const x0 = Math.max(0, Math.min(...p.map((q) => q.x)) - rand);

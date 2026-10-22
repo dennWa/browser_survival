@@ -242,6 +242,7 @@ test('Angeln: Beute 50 % Fisch, 40 % Müll/Stoff/Schrott, 10 % Munition', () => 
   const { welt, spieler } = neueWelt({ angeln: { doppelChance: 0, wartenMin: 0.1, wartenMax: 0.1, bissMin: 3, bissMax: 3 } });
   assert.deepEqual(erstelleKonfiguration().angeln.beute, { fisch: 50, muell: 40, munition: 10 });
   fuegeZumInventarHinzu(spieler, 'angel', 1);
+  spieler.ausgeruestet = spieler.inventar.findIndex((e) => e?.defId === 'angel'); // Runde 18: Angel muss in der Hand sein
   spieler.x = mitte(9);
   spieler.y = mitte(4);
   spieler.blick = 0;

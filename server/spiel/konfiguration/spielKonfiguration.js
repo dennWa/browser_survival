@@ -96,6 +96,7 @@ export const STANDARD_KONFIGURATION = Object.freeze({
      * linear von `min` (bei 10 km/h) bis `max` (bei 70 km/h); Entlangschrammen nur `schrammFaktor` davon; `pause` Sekunden Ruhe zwischen zwei Aufprällen.
      */
     aufprallSchaden: { min: 0.5, max: 5, schrammFaktor: 0.25, pause: 0.5 },
+    laterneBremse: 0.6, // Runde 18: Anteil des Tempos, der nach dem Umfahren einer Laterne bleibt (spürbares Abbremsen)
     laterneSchaden: 0.5, // Schaden am Auto, wenn es eine Straßenlaterne umfährt (ab 40 km/h)
     laterneNachwachsen: 600, // Sekunden, bis eine umgefahrene Straßenlaterne wieder steht (Bäume: ressourcen.holz.nachwachsen)
   },
@@ -111,8 +112,8 @@ export const STANDARD_KONFIGURATION = Object.freeze({
   /** Angeln: Angel im Inventar, Linksklick Richtung Wasser. Pose wackelt (biss) → in der Zeitspanne nochmal klicken. */
   angeln: {
     reichweite: 230, // px, so weit kann man auswerfen
-    wartenMin: 3,
-    wartenMax: 9,
+    wartenMin: 6, // Runde 18: Wartezeit verdoppelt (vorher 3–9 s)
+    wartenMax: 18,
     bissMin: 2, // Zeitfenster, in dem die Pose wackelt (Sekunden)
     bissMax: 3,
     doppelChance: 0.1, // 10 %: gleich 2 Fische

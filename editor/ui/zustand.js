@@ -3,9 +3,12 @@ import { entwurfJson, ladeDatei } from '../kern/format.js';
 import { ID_SAMMLUNGEN } from '../kern/karte.js';
 import { EBENEN, ebenenAus, ebeneFrei, ebeneVon, filtereGesperrt } from '../kern/ebenen.js';
 import { filtereGesperrteZonen, eintragAnzeige } from '../kern/zonenManager.js';
+import { konflikte, freiePosition, verschiebeZone } from '../kern/weltLayout.js';
+import { GROSS_KACHELN } from '../kern/zone.js';
 
 const EBENEN_SPEICHER = 'browserSurvival.editorEbenen';
 const MESSEN_SPEICHER = 'browserSurvival.editorMessen';
+const PINSEL_SPEICHER = 'browserSurvival.editorPinsel';
 
 /**
  * Zustand des Editors (Browser): Projekt = mehrere Zonen-Entwürfe { karte, verlauf }, aktive Zone, Werkzeug, Auswahl,
@@ -29,6 +32,10 @@ export class Zustand {
     this.eintrag = null; // Katalog-Eintrag der Bauleiste
     this.kategorie = 'Wege';
     this.pinselGroesse = 1;
+    // Boden-Pinsel (6.1): Form eckig|rund + ausgefranster Rand (Streuung 0–1) – gilt für Pinsel, Radierer, Bemalen (localStorage)
+    const pinsel = liesLokal(PINSEL_SPEICHER) ?? {};
+    this.pinselForm = pinsel.form === 'rund' ? 'rund' : 'eckig';
+    this.pinselStreuung = Number.isFinite(pinsel.streuung) ? Math.max(0, Math.min(0.8, pinsel.streuung)) : 0;
     this.drehung = 0; // für neue Objekte (Grad; im Free-Modus beliebig)
     this.frei = false; // Free-Modus (5.5): stufenlos platzieren/verschieben, freie Drehung
     // Messen & Ausrichten (7.3): Einrasten an Kanten/Mitten/Hilfslinien, Raster-Weite + Hauptlinien (localStorage)
@@ -83,31 +90,72 @@ export class Zustand {
     return this.aktiv?.verlauf ?? null;
   }
 
-  /** Zone ins Projekt aufnehmen (ersetzt gleiche ID) und aktivieren */
-  fuegeZoneHinzu(karte, verlauf = new Verlauf(), { aktivieren = true, speichern = true } = {}) {
+  /**
+   * Zone ins Projekt aufnehmen (ersetzt gleiche ID) und aktivieren. Vorhandene Zonen bleiben (6.4: neue Zonen werden
+   * ANGEFÜGT). position = Wunsch-Weltlage {x,y} (z. B. aufgezogenes Rechteck) – überlappt sie, kommt die Zone daneben.
+   */
+  fuegeZoneHinzu(karte, verlauf = new Verlauf(), { aktivieren = true, speichern = true, position = null } = {}) {
+    const neben = this.aktivId;
     this.zonen.get(karte.id)?.abmelden?.();
     // Eingebettete 3D-Modelle (alte Entwürfe/Dateien) → Projekt-Bibliothek, Typ verweist danach per `asset` (Phase 3)
     if (this.bibliothek?.uebernimm(karte)) speichern = true;
     if (this.audioBibliothek?.uebernimm(karte)) speichern = true;
     const eintrag = { karte, verlauf };
     eintrag.abmelden = karte.beobachte((ops) => {
+      this.#versatzAusRaster(karte, ops);
       this.melde('karte', ops);
       this.#planeSpeichern(karte.id);
     });
     this.zonen.set(karte.id, eintrag);
-    if (!this.layout[karte.id]) this.layout[karte.id] = this.#freieWeltposition(karte);
+    // vorhandene Lage (geladene Entwürfe) bleibt; neue Zonen: Wunschlage, wenn frei – sonst direkt neben die aktive Zone
+    const platz = () => freiePosition(this.#ohne(karte.id), this.#groessen(), { b: karte.breite, h: karte.hoehe, neben: neben !== karte.id ? neben : null });
+    if (position) this.layout[karte.id] = konflikte(this.layout, this.#groessen(), karte.id, position).length ? platz() : { x: Math.round(position.x), y: Math.round(position.y) };
+    else if (!this.layout[karte.id]) this.layout[karte.id] = platz();
     if (aktivieren) this.aktiviere(karte.id);
     else this.melde('zone');
     if (speichern) this.speichereJetzt(karte.id);
   }
 
-  #freieWeltposition(karte) {
-    let x = 0;
-    for (const [id, p] of Object.entries(this.layout)) {
-      const k = this.zonen.get(id)?.karte;
-      if (k) x = Math.max(x, p.x + k.breite + 10);
+  /** Map id → EditorKarte (Größen für die Weltanordnung) */
+  #groessen() {
+    return new Map([...this.zonen].map(([id, e]) => [id, e.karte]));
+  }
+
+  #ohne(id) {
+    const l = { ...this.layout };
+    delete l[id];
+    return l;
+  }
+
+  /** Größe links/oben geändert (auch Undo/Redo) → Weltlage mitziehen, damit die Zone in der Welt stehen bleibt */
+  #versatzAusRaster(karte, ops) {
+    for (const op of ops) {
+      const v = op.s === 'raster' ? op.neu?.versatz : null;
+      const p = v && this.layout[karte.id];
+      if (!p) continue;
+      this.layout[karte.id] = { x: p.x - v.x, y: p.y - v.y };
+      this.speicher.setze('meta', 'layout', this.layout);
+      this.melde('layout');
     }
-    return { x, y: 0 };
+  }
+
+  /**
+   * Zone in der Weltanordnung verschieben (6.4) – überlappen ist verboten. @returns { ok, grund?, konflikte? }
+   */
+  setzeZonenLage(id, ziel) {
+    const erg = verschiebeZone(this.layout, this.#groessen(), id, ziel);
+    if (!erg.ok) return erg;
+    this.layout = erg.layout;
+    this.speicher.setze('meta', 'layout', this.layout);
+    this.melde('layout');
+    return erg;
+  }
+
+  /** Überlappt die Zone (Größe b×h an ihrer Lage) andere Zonen? → [ids] */
+  zonenKonflikte(id, { pos = this.layout[id], b = null, h = null } = {}) {
+    const k = this.zonen.get(id)?.karte;
+    if (!k || !pos) return [];
+    return konflikte(this.layout, this.#groessen(), id, pos, { breite: b ?? k.breite, hoehe: h ?? k.hoehe });
   }
 
   aktiviere(id) {
@@ -329,6 +377,14 @@ export class Zustand {
     this.melde('ansicht');
   }
 
+  /** Pinsel-Form/Streuung (6.1) setzen und merken */
+  setzePinsel({ form = this.pinselForm, streuung = this.pinselStreuung } = {}) {
+    this.pinselForm = form === 'rund' ? 'rund' : 'eckig';
+    this.pinselStreuung = Math.max(0, Math.min(0.8, Number(streuung) || 0));
+    schreibeLokal(PINSEL_SPEICHER, { form: this.pinselForm, streuung: this.pinselStreuung });
+    this.melde('werkzeug');
+  }
+
   setzeWerkzeug(werkzeug) {
     this.werkzeug = werkzeug;
     this.melde('werkzeug');
@@ -345,7 +401,14 @@ export class Zustand {
       // Zug zerfiele sonst in viele Undo-Schritte
       if ([...this.#ungespeichert].some((z) => this.zonen.get(z)?.verlauf.offen)) return this.#planeSpeichern(id);
       for (const z of [...this.#ungespeichert]) if (this.zonen.has(z)) await this.speichereJetzt(z);
-    }, 800);
+    }, this.#speicherPause());
+  }
+
+  /** Autosave-Pause: große Zonen (6.4) seltener speichern – ein Entwurf ist dort viele MB groß */
+  #speicherPause() {
+    let kacheln = 0;
+    for (const z of this.#ungespeichert) kacheln = Math.max(kacheln, (this.zonen.get(z)?.karte.breite ?? 0) * (this.zonen.get(z)?.karte.hoehe ?? 0));
+    return kacheln >= GROSS_KACHELN ? Math.min(15000, 800 + Math.round(kacheln / 1000)) : 800;
   }
 
   async speichereJetzt(id = this.aktivId) {

@@ -702,6 +702,53 @@ const REZEPTE = {
     rauschStoss(ctx, ausgang, rauschen, t + 0.02, { dauer: 0.12, typ: 'bandpass', frequenz: 3200, lautstaerke: 0.1 });
     return 0.2;
   },
+  // Runde 18: Platzhalter-Synthesen (eigene Dateien ersetzen sie über die Audio-Zentrale)
+  vogel: ({ ctx, ausgang, t }) => {
+    // 2–4 kurze Pfiffe, die nach oben/unten gleiten
+    const n = 2 + Math.floor(Math.random() * 3);
+    const grund = 2600 + Math.random() * 1400;
+    for (let i = 0; i < n; i++) {
+      const f = grund * (0.9 + Math.random() * 0.25);
+      ton(ctx, ausgang, t + i * (0.09 + Math.random() * 0.05), { typ: 'sine', von: f, bis: f * (Math.random() < 0.5 ? 1.35 : 0.75), dauer: 0.07, lautstaerke: 0.07, anschlag: 0.005 });
+    }
+    return n * 0.15 + 0.1;
+  },
+  donner: ({ ctx, ausgang, t, rauschen }) => {
+    // fernes Grollen: lange, tiefe Rauschwelle mit ein paar Nachrollern
+    rauschStoss(ctx, ausgang, rauschen, t, { dauer: 2.6, typ: 'lowpass', frequenz: 140, lautstaerke: 0.9, anschlag: 0.25 });
+    for (let i = 0; i < 3; i++) rauschStoss(ctx, ausgang, rauschen, t + 0.4 + i * 0.5 + Math.random() * 0.3, { dauer: 0.9, typ: 'lowpass', frequenz: 90 + Math.random() * 60, lautstaerke: 0.5, anschlag: 0.1 });
+    return 3.2;
+  },
+  automatikgewehr: (k) => schuss(k, { dauer: 0.16, hell: 4600, dumpf: 520, druck: 100, lautstaerke: 0.85 }),
+  schaden_mann: ({ ctx, ausgang, t, rauschen }) => {
+    ton(ctx, ausgang, t, { typ: 'sawtooth', von: 170, bis: 115, dauer: 0.24, lautstaerke: 0.2, filter: 800 });
+    rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.1, typ: 'bandpass', frequenz: 700, lautstaerke: 0.12 });
+    return 0.3;
+  },
+  schaden_frau: ({ ctx, ausgang, t, rauschen }) => {
+    ton(ctx, ausgang, t, { typ: 'sawtooth', von: 330, bis: 230, dauer: 0.22, lautstaerke: 0.18, filter: 1400 });
+    rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.09, typ: 'bandpass', frequenz: 1300, lautstaerke: 0.1 });
+    return 0.3;
+  },
+  keuchen: ({ ctx, ausgang, t, rauschen }) => {
+    // zwei schwere Atemzüge (ein/aus)
+    for (let i = 0; i < 2; i++) {
+      rauschStoss(ctx, ausgang, rauschen, t + i * 0.55, { dauer: 0.28, typ: 'bandpass', frequenz: 1100, lautstaerke: 0.22, anschlag: 0.08 });
+      rauschStoss(ctx, ausgang, rauschen, t + i * 0.55 + 0.3, { dauer: 0.22, typ: 'bandpass', frequenz: 750, lautstaerke: 0.16, anschlag: 0.05 });
+    }
+    return 1.15;
+  },
+  magen_knurren: ({ ctx, ausgang, t }) => {
+    ton(ctx, ausgang, t, { typ: 'sawtooth', von: 75, bis: 110, dauer: 0.5, lautstaerke: 0.14, filter: 260, anschlag: 0.1 });
+    ton(ctx, ausgang, t + 0.45, { typ: 'sawtooth', von: 95, bis: 60, dauer: 0.6, lautstaerke: 0.12, filter: 220, anschlag: 0.1 });
+    return 1.1;
+  },
+  durst: ({ ctx, ausgang, t, rauschen }) => {
+    // trockenes Räuspern + Schlucken
+    rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.16, typ: 'bandpass', frequenz: 1800, lautstaerke: 0.14, anschlag: 0.01 });
+    ton(ctx, ausgang, t + 0.3, { typ: 'sine', von: 420, bis: 180, dauer: 0.12, lautstaerke: 0.15 });
+    return 0.5;
+  },
   knistern: ({ ctx, ausgang, t, rauschen }) => {
     for (let i = 0; i < 3; i++) {
       rauschStoss(ctx, ausgang, rauschen, t + Math.random() * 0.25, { dauer: 0.015, typ: 'bandpass', frequenz: 1800 + Math.random() * 2500, lautstaerke: 0.25 + Math.random() * 0.2, anschlag: 0.001 });

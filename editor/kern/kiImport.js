@@ -23,6 +23,9 @@ import { eingebautePrefabs } from './prefabs.js';
  * Editor 2.0, 9.1 – neue Aktionen: wert (Zonen-Werte, nur Whitelist zonenEinstellungen + musik), lootzone (Rechteck im
  * Bereich, Items geprüft wie im Spiel-Lader), name (Zone/Raum/Objekt/Übergang/Loot-Zone), prefab (eingebaut oder Option
  * `prefabs`, ganz im Bereich). Zonenweite Aktionen (wert, name zone/raum, raum, typtextur) hängen an keinem Ort.
+ * Runde 18 (7.3, Loot-Balance wurde komplett abgelehnt): `meta.zone` darf ID ODER Anzeigename sein; `wert` versteht
+ * pfad|schluessel|{bereich, feld}, Groß/Klein, Zahl-Text („0,6“) und eindeutige Prozent (≥ 10 / "60%"); `raum` ändert vorhandene
+ * Räume ohne lootTabelle (spawnChance/respawnZeit tolerant über `anteil`/`zahlAus`).
  */
 export const KI_FORMAT = 'browser-survival-ki-aenderungen';
 
@@ -167,6 +170,24 @@ export function ausschnittZuAktionen(karte, a) {
 
 const zahl = (v) => typeof v === 'number' && Number.isFinite(v);
 const r3 = (v) => Math.round(v * 1000) / 1000;
+/** 7.3: Zahl oder Zahl-Text („0,6“, "600", "60%") → Zahl, sonst null */
+export function zahlAus(v) {
+  if (zahl(v)) return v;
+  if (typeof v !== 'string') return null;
+  const t = v.trim().replace(/%$/, '').trim().replace(',', '.');
+  if (!/^-?\d+(\.\d+)?$/.test(t)) return null;
+  return Number(t);
+}
+/** 7.3: Anteil 0–1 (eindeutige Prozent-Angaben 10–100 bzw. "60%" → 0,6) oder null (z. B. 3 – unklar) */
+export function anteil(v) {
+  const n = zahlAus(v);
+  if (n === null || n < 0) return null;
+  if (n <= 1 && !/%\s*$/.test(String(v))) return n;
+  if (n <= 100 && (n >= 10 || /%\s*$/.test(String(v)))) return Math.round(n * 10) / 1000;
+  return null;
+}
+/** 7.3: Zonen-Angabe der KI = diese Zone? (ID oder Anzeigename, Groß/Klein egal) */
+const gleicheZone = (z, karte) => [karte.id, karte.name].some((n) => String(n ?? '').trim().toLowerCase() === String(z).trim().toLowerCase());
 
 /**
  * Aktionen prüfen und als Diff aufbereiten (die übergebene Karte bleibt unverändert).
@@ -178,7 +199,8 @@ export function pruefeAenderungen(karte, { aktionen, meta = {}, warnungen = [] }
   const b = meta.bereich ?? bereich ?? (aktionen.length && aktionen.every(istZonenweit) ? KEIN_BEREICH : null);
   const hinweise = [...warnungen];
   if (!b) throw new Error('Kein Bereich: bitte vor dem Import einen Bereich markieren (⬚ ins Leere ziehen) oder {"aktion":"bereich",…} angeben');
-  if (meta.zone && meta.zone !== karte.id) throw new Error(`Die Änderungen sind für Zone „${meta.zone}“, offen ist „${karte.id}“`);
+  // 7.3: KIs schreiben oft den Anzeigenamen statt der ID („Stadtrand“ statt „stadtrand“) – beides gilt als dieselbe Zone
+  if (meta.zone && !gleicheZone(meta.zone, karte)) throw new Error(`Die Änderungen sind für Zone „${meta.zone}“, offen ist „${karte.id}“`);
   if (meta.pruefsumme && meta.pruefsumme !== bereichsPruefsumme(karte, b)) hinweise.push('Der Bereich hat sich seit dem Export geändert – Vorschau genau ansehen');
   if (meta.bereich && bereich && JSON.stringify(meta.bereich) !== JSON.stringify(bereich)) hinweise.push(`Bereich aus der Antwort (${bereichText(meta.bereich)}) statt der aktuellen Markierung`);
   const sim = karte.klon();
@@ -299,14 +321,27 @@ export function pruefeAenderungen(karte, { aktionen, meta = {}, warnungen = [] }
     if (art === 'bauwerk') return bauwerkSetzen(a);
 
     if (art === 'raum') {
-      const k = a.buchstabe ?? a.raum;
+      const k = typeof (a.buchstabe ?? a.raum) === 'string' ? String(a.buchstabe ?? a.raum).trim().toLowerCase() : a.buchstabe ?? a.raum;
       if (!(typeof k === 'string' && /^[a-z]$/.test(k))) return ungueltig('Raum braucht "buchstabe" (a–z)');
-      if (!LOOT_TABELLEN[a.lootTabelle]) return ungueltig(`unbekannte Loot-Tabelle „${a.lootTabelle}“ (${Object.keys(LOOT_TABELLEN).join(', ')})`);
       const alt = sim.s('raeume').get(k);
-      const neu = { ...(alt ?? {}), name: String(a.name ?? alt?.name ?? k), lootTabelle: a.lootTabelle };
-      if (zahl(a.spawnChance) && a.spawnChance >= 0 && a.spawnChance <= 1) neu.spawnChance = a.spawnChance;
-      if (zahl(a.respawnZeit) && a.respawnZeit > 0) neu.respawnZeit = a.respawnZeit;
-      return fertig(alt ? 'aendern' : 'neu', `${alt ? '～' : '＋'} Raum ${k}: ${neu.name} (${neu.lootTabelle})`, [{ s: 'raeume', k, neu }], null, null);
+      // 7.3: vorhandener Raum → lootTabelle optional (Loot-Balance ändert nur spawnChance/respawnZeit); neuer Raum braucht sie
+      const tabelle = a.lootTabelle ?? a.tabelle ?? alt?.lootTabelle;
+      if (!LOOT_TABELLEN[tabelle]) return ungueltig(`${alt ? '' : `Raum ${k} gibt es noch nicht – `}unbekannte Loot-Tabelle „${tabelle}“ (${Object.keys(LOOT_TABELLEN).join(', ')})`);
+      const neu = { ...(alt ?? {}), name: String(a.name ?? alt?.name ?? k), lootTabelle: tabelle };
+      const hinweise = [];
+      if (a.spawnChance !== undefined) {
+        const c = anteil(a.spawnChance);
+        if (c === null) return ungueltig(`Raum ${k}: spawnChance „${a.spawnChance}“ ist kein Anteil 0–1`);
+        if (c !== Number(a.spawnChance)) hinweise.push(`spawnChance ${a.spawnChance} → ${c}`);
+        neu.spawnChance = c;
+      }
+      if (a.respawnZeit !== undefined) {
+        const z = zahlAus(a.respawnZeit);
+        if (!(z > 0)) return ungueltig(`Raum ${k}: respawnZeit „${a.respawnZeit}“ ist keine Zahl > 0 (Sekunden)`);
+        neu.respawnZeit = z;
+      }
+      const werte = [neu.spawnChance !== undefined ? `Chance ${neu.spawnChance}` : '', neu.respawnZeit ? `Nachschub ${neu.respawnZeit}s` : ''].filter(Boolean).join(', ');
+      return fertig(alt ? 'aendern' : 'neu', `${alt ? '～' : '＋'} Raum ${k}: ${neu.name} (${neu.lootTabelle}${werte ? `; ${werte}` : ''})${hinweise.length ? ` – umgerechnet: ${hinweise.join(', ')}` : ''}`, [{ s: 'raeume', k, neu }], null, null);
     }
 
     if (art === 'hoehe') {
@@ -362,20 +397,33 @@ export function pruefeAenderungen(karte, { aktionen, meta = {}, warnungen = [] }
 
     if (art === 'wert') {
       // Zonen-Werte: nur was der Inspektor auch anbietet (Whitelist), Zahlen begrenzt wie im Spiel-Lader
-      const pfad = String(a.pfad ?? '').replace(/^einstellungen\./, '');
-      if (pfad === 'musik') {
-        const v = a.wert === null || a.wert === '' ? undefined : String(a.wert);
+      // 7.3: Pfad auch als schluessel/key oder {bereich:"loot", feld:"spawnChance"}; Groß/Klein egal; Zahlen als Text ok
+      const pfadRoh = a.pfad ?? a.schluessel ?? a.key ?? a.path ?? (typeof a.bereich === 'string' && typeof (a.feld ?? a.field) === 'string' ? `${a.bereich}.${a.feld ?? a.field}` : '');
+      const pfad = String(pfadRoh ?? '').trim().replace(/^einstellungen\./i, '');
+      const roh = a.wert !== undefined ? a.wert : a.value;
+      if (pfad.toLowerCase() === 'musik') {
+        const v = roh === null || roh === '' || roh === undefined ? undefined : String(roh);
         if (v !== undefined && !/^[\w-]{1,40}$/.test(v)) return ungueltig('wert: Musik-Ordner nur a–z, 0–9, _ und -');
         return fertig('aendern', `🎵 Musik-Ordner → ${v ?? 'Standard'}`, [{ s: 'wert', pfad: 'musik', neu: v }], null, null);
       }
-      const [bereichName, feld, ...rest] = pfad.split('.');
-      const def = ZONEN_EINSTELLUNGEN[bereichName]?.werte.find((f) => f.name === feld);
-      if (!def || rest.length) return ungueltig(`wert: „${a.pfad}“ ist kein Zonen-Wert (erlaubt: ${Object.entries(ZONEN_EINSTELLUNGEN).flatMap(([n, d]) => d.werte.map((f) => `${n}.${f.name}`)).join(', ')}, musik)`);
+      const [bName, fName, ...rest] = pfad.split('.');
+      const bereichName = Object.keys(ZONEN_EINSTELLUNGEN).find((n) => n.toLowerCase() === String(bName ?? '').toLowerCase());
+      const def = bereichName ? ZONEN_EINSTELLUNGEN[bereichName].werte.find((f) => f.name.toLowerCase() === String(fName ?? '').toLowerCase()) : null;
+      if (!def || rest.length) return ungueltig(`wert: „${pfadRoh}“ ist kein Zonen-Wert (erlaubt: ${Object.entries(ZONEN_EINSTELLUNGEN).flatMap(([n, d]) => d.werte.map((f) => `${n}.${f.name}`)).join(', ')}, musik)`);
+      const feld = def.name;
       const titel = `${ZONEN_EINSTELLUNGEN[bereichName].titel}: ${def.label}`;
-      if (a.wert === null) return fertig('aendern', `⚙ ${titel} → Standard`, [{ s: 'wert', pfad: `einstellungen.${bereichName}.${feld}`, neu: undefined }], null, null);
-      const geprueft = pruefeZonenEinstellungen({ [bereichName]: { [feld]: a.wert } })[bereichName]?.[feld];
-      if (geprueft === undefined) return ungueltig(`wert: ${def.label} braucht ${def.typ === 'haken' ? 'true/false' : 'eine Zahl'}`);
-      return fertig('aendern', `⚙ ${titel} → ${geprueft}${geprueft !== a.wert ? ` (begrenzt von ${a.wert})` : ''}`, [{ s: 'wert', pfad: `einstellungen.${bereichName}.${feld}`, neu: geprueft }], null, null);
+      if (roh === null) return fertig('aendern', `⚙ ${titel} → Standard`, [{ s: 'wert', pfad: `einstellungen.${bereichName}.${feld}`, neu: undefined }], null, null);
+      let v = roh;
+      if (def.typ === 'haken' && typeof v === 'string' && /^(true|false)$/i.test(v.trim())) v = v.trim().toLowerCase() === 'true';
+      if (def.typ === 'zahl') {
+        v = zahlAus(v);
+        // Anteil-Felder (max 1): eindeutige Prozent-Angaben (≥ 10 oder "60%") → 0,6; kleine Ausreißer (z. B. 3) werden begrenzt
+        if (def.max === 1 && v !== null && v <= 100 && (v >= 10 || (v > 1 && /%\s*$/.test(String(roh))))) v = Math.round(v * 10) / 1000;
+      }
+      const geprueft = v === null ? undefined : pruefeZonenEinstellungen({ [bereichName]: { [feld]: v } })[bereichName]?.[feld];
+      if (geprueft === undefined) return ungueltig(`wert: ${def.label} braucht ${def.typ === 'haken' ? 'true/false' : 'eine Zahl'} (bekam ${JSON.stringify(roh)})`);
+      const herkunft = geprueft !== v ? ` (begrenzt von ${v})` : v !== roh ? ` (aus ${JSON.stringify(roh)})` : '';
+      return fertig('aendern', `⚙ ${titel} → ${geprueft}${herkunft}`, [{ s: 'wert', pfad: `einstellungen.${bereichName}.${feld}`, neu: geprueft }], null, null);
     }
 
     if (art === 'lootzone') {

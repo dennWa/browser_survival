@@ -1,6 +1,6 @@
 /**
  * Spielerfiguren bauen:   npm run assets:figuren   (Mann + Frau → client/assets/3d/figur_mann.glb, figur_frau.glb)
- * Blender headless (figuren_bauen.py): Quaternius-Quellen + „hacken“-Clip aus hacken_quelle.glb übertragen.
+ * Blender headless (figuren_bauen.py): Quaternius-Quellen; Clips stehen/gehen/laufen/sterben aus dem Original, hacken/spitzhacke/hacke/abbauen/nahkampf/sitzen selbst gebaut.
  * Blender wird gesucht in: Umgebungsvariable BLENDER, C:\Program Files\Blender Foundation\Blender *\blender.exe, PATH.
  * Danach wird der Root-Knochen aus der Quelle übernommen (repariere_root.mjs).
  * Weitere Argumente gehen an das Skript, z. B.  npm run assets:figuren -- --nur frau --vorschau ORDNER --bilder 0,6,9,13 --ohne-export

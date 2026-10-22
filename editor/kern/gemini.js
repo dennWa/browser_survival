@@ -2,6 +2,8 @@ import { ausschnitt, ausschnittText, bereichText } from './ausschnitt.js';
 import { katalog, objektInfo } from './katalog.js';
 import { leseKiAntwort } from './kiImport.js';
 import { kopie } from './karte.js';
+import { ZONEN_EINSTELLUNGEN } from '../../server/spiel/karten/zonenEinstellungen.js';
+import { LOOT_TABELLEN } from '../../server/spiel/konfiguration/lootTabellen.js';
 
 /**
  * KI-Helfer (Gemini): Anfrage bauen, senden, Antwort lesen – umgebungsfrei (fetch wird übergeben, kein DOM).
@@ -12,24 +14,85 @@ import { kopie } from './karte.js';
  * Editor 2.0, 9.1: NIE die ganze Karte (früher: Zonen ≤ 2500 Kacheln ganz, Fehler B6) – nur Markierung/Auswahl + Statistik;
  * `teile` sagt, was gesendet wird (UI „Das wird gesendet“); strukturierte Antworten (`json: true` → responseMimeType
  * application/json, Form { antwort, aktionen }); frageGemini prüft, dass der Schlüssel NIE im Body steht.
+ * Runde 18: 7.1 kein Kachel-Limit (nur `gross`-Hinweis), 7.2 Markierung auch außerhalb der Zone (`markierungTeile`),
+ * 7.3 ohne Ausschnitt geht `ortloseAnleitung()` mit (sonst kannte die KI das Format von wert/raum nicht).
  */
 export const GEMINI_BASIS = 'https://generativelanguage.googleapis.com/v1beta/models';
 export const STANDARD_MODELL = 'gemini-2.5-flash';
 export const BEKANNTE_MODELLE = ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.5-flash-lite'];
-/** größter Bereich (Kacheln), der als Raster mitgeschickt wird */
-export const MAX_KACHELN = 2500;
+/**
+ * Feedback 7.1: KEIN Kachel-Limit mehr – jede Markierung geht vollständig mit (der Nutzer entscheidet im Dialog „Das wird
+ * gesendet“). Ab GROSS_KACHELN_KI meldet der Kontext `gross: true` (UI warnt: lange Antwortzeit/Kosten, Gemini kann ablehnen).
+ */
+export const GROSS_KACHELN_KI = 40000;
 
 export const JSON_TEXT = [
   'Antworte IMMER als JSON-Objekt: {"antwort": "<dein Text auf Deutsch>", "aktionen": [ … ]}.',
-  '"aktionen" ist die Aktionsliste (erste Aktion: die "bereich"-Aktion aus dem Kontext) – bei reinen Fragen/Ideen eine leere Liste.',
+  '"aktionen" ist die Aktionsliste – steht im Kontext eine "bereich"-Aktion, kommt sie zuerst; OHNE Bereich im Kontext KEINE "bereich"-Aktion erfinden (dann nur Aktionen ohne Ort). Bei reinen Fragen/Ideen eine leere Liste.',
 ].join('\n');
+
+/**
+ * Feedback 7.3: Ohne markierten Bereich kannte die KI das Format der ortlosen Aktionen nicht (die Anleitung steht nur im
+ * Ausschnitt) → Loot-Balance-Vorschläge kamen mit erfundenen Feldern und wurden alle abgelehnt. Diese Anleitung geht deshalb
+ * IMMER mit, wenn kein Ausschnitt dabei ist. Pfade/Grenzen kommen aus der Spiel-Whitelist (zonenEinstellungen.js).
+ */
+export function ortloseAnleitung() {
+  const pfade = Object.entries(ZONEN_EINSTELLUNGEN).flatMap(([n, d]) => d.werte.map((f) => `${n}.${f.name}${f.typ === 'haken' ? ' (true/false)' : ` (${f.min ?? '…'}–${f.max ?? '…'}${f.einheit ? ` ${f.einheit}` : ''})`}`));
+  return [
+    '## Aktionen ohne Ort (gehen ohne Bereich; Zahlen als Zahl, nicht als Text; Anteile 0–1, keine Prozent)',
+    '{"aktion":"wert","pfad":"loot.spawnChance","wert":0.4}  – Zonen-Wert; "wert":null = Spiel-Standard. Erlaubte Pfade: ' + pfade.join(', ') + ', musik (Ordnername)',
+    `{"aktion":"raum","buchstabe":"a","spawnChance":0.5,"respawnZeit":600}  – vorhandenen Raum ändern (spawnChance 0–1, respawnZeit s); neuer Raum braucht zusätzlich "name" und "lootTabelle" (${Object.keys(LOOT_TABELLEN).join(', ')})`,
+    '{"aktion":"name","ziel":"zone","name":"Altes Dorf"}  bzw. {"aktion":"name","ziel":"raum","buchstabe":"a","name":"Scheune"}',
+    '{"aktion":"typtextur","typ":"baum","farbe":"#557733","muster":"gras"}  – Farbe/Muster aller Objekte eines Typs',
+    '{"aktion":"bodenton","zeichen":",","farbe":"#a0b080"}  – alle Kacheln eines Zeichens einfärben',
+  ].join('\n');
+}
+
+/**
+ * Markierung gegen die Zone (7.2: darf über die Zone hinausragen oder ganz daneben liegen) →
+ * { innen: {x,y,b,h}|null (Teil in der Zone), aussen: {links,oben,rechts,unten} (Kacheln über den Rand), ragtHinaus, ganzAussen }
+ */
+export function markierungTeile(karte, r) {
+  if (!r) return { innen: null, aussen: { links: 0, oben: 0, rechts: 0, unten: 0 }, ragtHinaus: false, ganzAussen: false };
+  const x0 = Math.max(0, r.x);
+  const y0 = Math.max(0, r.y);
+  const x1 = Math.min(karte.breite, r.x + r.b);
+  const y1 = Math.min(karte.hoehe, r.y + r.h);
+  const innen = x1 > x0 && y1 > y0 ? { x: x0, y: y0, b: x1 - x0, h: y1 - y0 } : null;
+  const aussen = { links: Math.max(0, -r.x), oben: Math.max(0, -r.y), rechts: Math.max(0, r.x + r.b - karte.breite), unten: Math.max(0, r.y + r.h - karte.hoehe) };
+  const ragtHinaus = Object.values(aussen).some((v) => v > 0);
+  return { innen, aussen, ragtHinaus, ganzAussen: !innen };
+}
+
+/**
+ * Rechteck für „Neue Zone dort“ (7.2): ganz außerhalb = die Markierung selbst; sonst der größte Streifen jenseits einer
+ * Zonenkante (Zonen-Koordinaten, grenzt an die Zone, überlappt sie nicht). t = markierungTeile(karte, r)
+ */
+export function aussenRechteck(karte, r, t = markierungTeile(karte, r)) {
+  if (t.ganzAussen || !t.ragtHinaus) return { ...r };
+  const streifen = [
+    { n: t.aussen.links * r.h, r: { x: r.x, y: r.y, b: t.aussen.links, h: r.h } },
+    { n: t.aussen.rechts * r.h, r: { x: karte.breite, y: r.y, b: t.aussen.rechts, h: r.h } },
+    { n: t.aussen.oben * r.b, r: { x: r.x, y: r.y, b: r.b, h: t.aussen.oben } },
+    { n: t.aussen.unten * r.b, r: { x: r.x, y: karte.hoehe, b: r.b, h: t.aussen.unten } },
+  ].sort((a, b) => b.n - a.n);
+  return streifen[0].r;
+}
+
+/** Text für die KI: was von der Markierung außerhalb der Zone liegt */
+function aussenText(karte, r, t) {
+  const seiten = Object.entries(t.aussen).filter(([, v]) => v > 0).map(([s, v]) => `${v} Kacheln ${{ links: 'links', oben: 'oben', rechts: 'rechts', unten: 'unten' }[s]}`);
+  return t.ganzAussen
+    ? `(Die Markierung x ${r.x}–${r.x + r.b - 1}, y ${r.y}–${r.y + r.h - 1} liegt GANZ außerhalb der Zone (${karte.breite} × ${karte.hoehe}) – dort gibt es noch keine Kacheln. Beschreibe in "antwort", was dort entstehen könnte (Plan/Ideen, passend zur Zone); keine Aktionen mit Ort. Der Nutzer kann dort eine neue Zone anlegen oder die Zone vergrößern und dich dann bauen lassen.)`
+    : `(Die Markierung ragt über den Zonenrand hinaus: ${seiten.join(', ')} – dort gibt es noch keine Kacheln. Aktionen mit Ort nur INNERHALB des mitgeschickten Bereichs; für den Teil draußen nur Ideen in "antwort" – der Nutzer kann die Zone dorthin vergrößern.)`;
+}
 
 export const SYSTEM_TEXT = [
   'Du bist der Helfer im Map-Editor des Browser-Survival-Spiels (Top-Down-Zombie-Survival, 1 Kachel = 1 m).',
   'Du hilfst beim Gestalten von Zonen: Layout, Dekoration, Spawns/Loot-Verteilung, Farben und Texturen. Antworte auf Deutsch, kurz und konkret, gern mit einem Augenzwinkern.',
   'Du siehst nur den mitgelieferten Kontext (Zonen-Überblick, markierter Bereich, ausgewählte Objekte). Rate nicht, was du nicht siehst – frag nach oder bitte darum, einen Bereich zu markieren.',
-  'Wenn der Nutzer etwas geändert haben will, erkläre kurz, was du tust, und hänge GENAU EINEN ```json-Block mit der Aktionsliste an (erste Aktion: die "bereich"-Aktion aus dem Kontext).',
-  'Nutze nur Objekttypen aus "objektTypen", nur Kachelzeichen aus der Legende, nur Koordinaten INNERHALB des Bereichs. Ohne Bereich im Kontext keine Aktionen, sondern Tipps.',
+  'Wenn der Nutzer etwas geändert haben will, erkläre kurz, was du tust, und hänge GENAU EINEN ```json-Block mit der Aktionsliste an (erste Aktion: die "bereich"-Aktion aus dem Kontext, falls dort eine steht – sonst keine erfinden).',
+  'Nutze nur Objekttypen aus "objektTypen", nur Kachelzeichen aus der Legende, nur Koordinaten INNERHALB des Bereichs. Ohne Bereich im Kontext nur Aktionen ohne Ort (wert, raum, name, typtextur, bodenton – Format siehe Kontext), sonst Tipps.',
   'Bei reinen Fragen oder Ideen: nur Text, kein JSON. Die Änderungen werden vom Nutzer in einer Vorschau geprüft – du musst nichts "bestätigen".',
 ].join('\n');
 
@@ -86,7 +149,8 @@ export function zonenStatistik(karte, { prefabs = [] } = {}) {
 /**
  * Kontext für eine Frage (Kontext-Baukasten 9.1): Kopf + Statistik (immer, ohne Kacheln) + Ausschnitt NUR der Markierung bzw.
  * um die Auswahl (nie die ganze Zone) + gewählte Objekte.
- * @returns { text, teile: [{ titel, zeichen }], bereich: {x0,x1,y0,y1}|null, quelle: 'markierung'|'auswahl'|'keiner', beschreibung, zuGross }
+ * @returns { text, teile: [{ titel, zeichen }], bereich: {x0,x1,y0,y1}|null (nur der Teil IN der Zone), quelle: 'markierung'|'auswahl'|'keiner',
+ *   beschreibung, gross (≥ GROSS_KACHELN_KI, nur Hinweis), markierung (markierungTeile | null) }
  */
 export function baueKontext(karte, { rechteck = null, auswahl = [], mitBereich = true, mitAuswahl = true, prefabs = [] } = {}) {
   const teile = [];
@@ -98,30 +162,35 @@ export function baueKontext(karte, { rechteck = null, auswahl = [], mitBereich =
   const objekte = mitAuswahl ? auswahl.filter((e) => e.s === 'objekte' || e.s === 'bauwerke') : [];
   let r = null;
   let quelle = 'keiner';
-  let zuGross = false;
+  let markierung = null;
   if (mitBereich && rechteck) {
-    r = rechteck;
+    // 7.2: Markierung darf über die Zone hinausragen – mitgeschickt wird der Teil IN der Zone, der Rest als Hinweis
+    markierung = markierungTeile(karte, rechteck);
+    r = markierung.innen;
     quelle = 'markierung';
   } else if (objekte.length) {
     r = auswahlBereich(karte, objekte);
     quelle = 'auswahl';
   }
-  if (r && r.b * r.h > MAX_KACHELN) {
-    zuGross = true;
-    r = null;
-    quelle = 'keiner';
-  }
+  // 7.1: kein Größenlimit mehr (früher 2500 Kacheln) – nur ein Hinweis für die UI
+  const gross = !!r && r.b * r.h >= GROSS_KACHELN_KI;
   let bereich = null;
-  let beschreibung = 'kein Bereich';
+  let beschreibung = markierung?.ganzAussen ? 'Markierung außerhalb der Zone (nur Ideen)' : 'kein Bereich';
   if (r) {
     const a = ausschnitt(karte, r);
     bereich = { x0: a.bereich.x0, x1: a.bereich.x1, y0: a.bereich.y0, y1: a.bereich.y1 };
-    beschreibung = `${quelle === 'markierung' ? 'Markierung' : 'um die Auswahl'}: ${bereichText(bereich)}`;
+    beschreibung = `${quelle === 'markierung' ? 'Markierung' : 'um die Auswahl'}: ${bereichText(bereich)}${markierung?.ragtHinaus ? ' (+ Teil außerhalb der Zone)' : ''}`;
     const t = ausschnittText(a);
     teile.push({ titel: `Ausschnitt ${bereichText(bereich)} (${r.b} × ${r.h} Kacheln)`, zeichen: t.length });
     zeilen.push('', t);
-  } else if (zuGross) zeilen.push('', `(Der Bereich ist größer als ${MAX_KACHELN} Kacheln – nicht mitgeschickt. Der Nutzer soll einen kleineren Bereich markieren, wenn du Änderungen vorschlagen sollst.)`);
-  else zeilen.push('', '(Kein Bereich markiert – nur Rat geben; erlaubt sind dann nur zonenweite Aktionen: wert, name zone/raum, raum, typtextur.)');
+  } else zeilen.push('', '(Kein Bereich markiert – nur Rat geben bzw. Aktionen ohne Ort, siehe unten.)');
+  if (markierung?.ragtHinaus) zeilen.push('', aussenText(karte, rechteck, markierung));
+  // 7.3: ohne Ausschnitt fehlt sonst die Aktions-Anleitung (Format der ortlosen Aktionen)
+  if (!r) {
+    const anleitung = ortloseAnleitung();
+    zeilen.push('', anleitung);
+    teile.push({ titel: 'Anleitung: Aktionen ohne Ort (Zonen-Werte, Räume, Namen)', zeichen: anleitung.length });
+  }
 
   if (objekte.length) {
     zeilen.push('', '## Aktuell ausgewählt (der Nutzer meint vermutlich diese)');
@@ -133,7 +202,7 @@ export function baueKontext(karte, { rechteck = null, auswahl = [], mitBereich =
     teile.push({ titel: `${Math.min(40, objekte.length)} ausgewählte Objekte`, zeichen: 0 });
   }
   const text = zeilen.join('\n');
-  return { text, teile, bereich, quelle, beschreibung, zuGross, objekte: objekte.length, zeichen: text.length };
+  return { text, teile, bereich, quelle, beschreibung, gross, markierung, objekte: objekte.length, zeichen: text.length };
 }
 
 /** Anfrage-Body für generateContent: verlauf = [{rolle:'nutzer'|'helfer', text}] ohne die neue Frage */

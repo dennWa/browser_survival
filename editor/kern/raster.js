@@ -62,18 +62,51 @@ export function rechteck(x0, y0, x1, y1, rand = false) {
   return punkte;
 }
 
-/** Pinsel: Quadrat (groesse 1, 2, 3 …) bzw. Kreis, zentriert auf (x, y) */
-export function pinsel(x, y, groesse = 1, rund = false) {
+/**
+ * Pinsel: Quadrat (groesse 1, 2, 3 …) bzw. Kreis, zentriert auf (x, y).
+ * Boden-Pinsel (Feedback 6.1): rund = Kreis (3 = Plus, 5/7/9 = runde Scheiben), streuung 0–1 = äußerer Ring nur teilweise
+ * (ausgefranster, „organischer“ Rand; deterministisch über `saat`, z. B. die Strich-Nummer – gleicher Strich = gleiches Muster).
+ */
+export function pinsel(x, y, groesse = 1, rund = false, { streuung = 0, saat = 0 } = {}) {
   const punkte = [];
   const n = Math.max(1, Math.floor(groesse));
   const start = -Math.floor((n - 1) / 2);
-  const r = n / 2;
+  const mitte = start + n / 2; // Kachelmitte dx + 0.5 gegen die Pinselmitte
+  const r = n / 2 - 0.1;
   for (let dy = start; dy < start + n; dy++) {
     for (let dx = start; dx < start + n; dx++) {
-      if (rund && n > 2 && Math.hypot(dx + 0.5 - (start + r), dy + 0.5 - (start + r)) > r) continue;
+      const d = Math.hypot(dx + 0.5 - mitte, dy + 0.5 - mitte);
+      if (rund && n > 2 && d > r) continue;
+      // äußerer Ring (letzte Kachelreihe des Kreises/Quadrats) ausfransen
+      const rand = rund ? d > r - 1 : Math.max(Math.abs(dx + 0.5 - mitte), Math.abs(dy + 0.5 - mitte)) > n / 2 - 1;
+      if (streuung > 0 && n > 2 && rand && streuwert(x + dx, y + dy, saat) < streuung) continue;
       punkte.push({ x: x + dx, y: y + dy });
     }
   }
+  return punkte;
+}
+
+/** Fester Zufallswert 0..1 je Kachel (+ Saat) – gleiche Eingabe, gleiches Ergebnis (für den ausgefransten Pinselrand) */
+export function streuwert(x, y, saat = 0) {
+  let h = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263) ^ Math.imul(saat | 0, 2246822519);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+/**
+ * Pinselstrich von a nach b (Kachelkoordinaten): Linie Kachel für Kachel, an jedem Schritt der Pinsel – ohne Doppelte.
+ * opts = { groesse, rund, streuung, saat } wie `pinsel`.
+ */
+export function pinselStrich(a, b, opts = {}) {
+  const gesehen = new Set();
+  const punkte = [];
+  for (const p of linie(a.x, a.y, b.x, b.y))
+    for (const q of pinsel(p.x, p.y, opts.groesse ?? 1, !!opts.rund, opts)) {
+      const k = `${q.x},${q.y}`;
+      if (gesehen.has(k)) continue;
+      gesehen.add(k);
+      punkte.push(q);
+    }
   return punkte;
 }
 

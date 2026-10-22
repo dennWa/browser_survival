@@ -16,6 +16,13 @@ import { mitModell } from '../kern/bibliothek.js';
  * Klänge (Phase 4): Punkt = Kugel + Bodenringe (voll bis / Hörweite), Ambiente = durchsichtiger Rahmen (Ebene „klaenge“).
  * Auswahl ist synchron mit 2D (Klick wählt).
  * Steuerung: Ziehen = schieben, Rechts-/Alt-Ziehen = drehen, Rad/Pinch = Zoom, Tippen = wählen (Touch: Ansehen + Schwenken).
+ * Mappen in 3D (Feedback 6.6 – gab es vorher nie; seit Editor 1.1/B10 meldete 3D „Malen und Bauen nur in 2D“): mit einem
+ *   gewählten Katalog-Eintrag (Werkzeug „platzieren“: Objekt, Bauwerk, Marker, Klang, Bibliotheks-Modell) setzt ein Klick auf
+ *   den Boden – Strahl gegen das Boden-Gitter MIT Geländehöhen (`bodenPunkt`), dieselben Regeln/Prüfung wie 2D über
+ *   `werkzeuge.platziereAn/vorschauAn` (grün/rot-Geist `#geist`). Touch: tippen = Geist, nochmal auf den Geist tippen = setzen.
+ *   Rechtsklick ohne Ziehen bzw. Langdruck = Kontextmenü (Löschen, Drehen, Kopieren …), Entf löscht Gewähltes, Esc beendet.
+ *   Hooks (main.js): `beiPlatzieren(wx, wy, umschalt)`, `beiVorschau(wx, wy)` → Vorschau {rechtecke, gueltig, text},
+ *   `beiKontext(x, y, ziel)`.
  * Gezeichnet wird nur bei Bedarf (anfordern), neu gebaut nur, wenn sich die Karte geändert hat und die Ansicht sichtbar ist.
  */
 const PX = 32; // Spiel-Pixel je Kachel
@@ -40,7 +47,13 @@ export class Ansicht3D {
     this.szene.add(sonne);
     this.welt = new THREE.Group();
     this.markierung = new THREE.Group();
-    this.szene.add(this.welt, this.markierung);
+    this.geist = new THREE.Group(); // 6.6: Platzier-Vorschau (grün/rot)
+    this.szene.add(this.welt, this.markierung, this.geist);
+    this.beiPlatzieren = null; // (wx, wy, umschalt) → setzt wie in 2D (main.js → werkzeuge.platziereAn)
+    this.beiVorschau = null; // (wx, wy) → { rechtecke, gueltig, text } | null
+    this.beiKontext = null; // (clientX, clientY, { treffer }) → Kontextmenü
+    this.letzterBoden = null; // letzter Bodenpunkt unter der Maus { x, z }
+    this.touchGeist = null; // Touch: erster Tipp zeigt den Geist { x, z }, zweiter auf ihn setzt
     this.blick = { x: 20, z: 15, abstand: 30, gier: 0, neigung: SPIEL_NEIGUNG };
     this.waehlbar = []; // Meshes mit userData { s, k } bzw. InstancedMesh mit userData.ids
     this.boxen = new Map(); // "s|k" → { mitte, groesse } für Auswahl-Markierung
@@ -53,6 +66,8 @@ export class Ansicht3D {
     zustand.bei('bibliothek', () => this.#veraltet()); // Modell ersetzt/gelöscht
     zustand.bei('ebenen', () => this.#veraltet()); // Klang-Ebene ein/aus
     zustand.bei('auswahl', () => this.#markiereAuswahl());
+    // Werkzeug/Eintrag/Drehung geändert → Geist neu (R dreht die Vorschau auch in 3D)
+    for (const ev of ['werkzeug', 'eintrag']) zustand.bei(ev, () => this.sichtbar && this.#zeigeGeist(this.touchGeist ?? this.letzterBoden));
     zustand.bei('ansicht', () => {
       if (zustand.ansicht !== '3d') return;
       this.uebernimmBlickAus2D();
@@ -163,7 +178,7 @@ export class Ansicht3D {
       // 7.3: Raster (Hauptlinien wie in 2D) + Achsen am Ursprung (rot = x, blau = y/Süden)
       const n = Math.max(k.breite, k.hoehe);
       const w = this.zustand.rasterWeite ?? 1;
-      const gitter = new THREE.GridHelper(n, Math.max(1, Math.round(n / w)), 0x666f80, 0x2c323d);
+      const gitter = new THREE.GridHelper(n, Math.max(1, Math.min(1000, Math.round(n / w))), 0x666f80, 0x2c323d);
       gitter.position.set(n / 2, 0.03, n / 2);
       this.welt.add(gitter, new THREE.AxesHelper(Math.min(10, n / 4)));
     }
@@ -172,25 +187,46 @@ export class Ansicht3D {
   }
 
   #baueBoden(k) {
-    const tpx = Math.max(2, Math.min(8, Math.floor(4096 / Math.max(k.breite, k.hoehe))));
+    // 6.4: große Zonen → Boden-Textur höchstens 4096 px (jede n-te Kachel), Gitter höchstens 512 × 512 Felder
+    const schritt = Math.max(1, Math.ceil(Math.max(k.breite, k.hoehe) / 2048));
+    const tpx = schritt > 1 ? 1 / schritt : Math.max(2, Math.min(8, Math.floor(4096 / Math.max(k.breite, k.hoehe))));
     const canvas = document.createElement('canvas');
-    canvas.width = k.breite * tpx;
-    canvas.height = k.hoehe * tpx;
+    canvas.width = Math.ceil(k.breite * tpx);
+    canvas.height = Math.ceil(k.hoehe * tpx);
     const ctx = canvas.getContext('2d');
-    for (let y = 0; y < k.hoehe; y++)
-      for (let x = 0; x < k.breite; x++) {
-        ctx.fillStyle = kachelInfo(k.zellen[y * k.breite + x]).farbe;
-        ctx.fillRect(x * tpx, y * tpx, tpx, tpx);
-      }
+    if (schritt > 1) {
+      const daten = ctx.createImageData(canvas.width, canvas.height);
+      const farben = new Map();
+      for (let y = 0; y < canvas.height; y++)
+        for (let x = 0; x < canvas.width; x++) {
+          const z = k.zellen[Math.min(k.hoehe - 1, y * schritt) * k.breite + Math.min(k.breite - 1, x * schritt)];
+          if (!farben.has(z)) {
+            const n = parseInt(/^#?([0-9a-f]{6})/i.exec(kachelInfo(z).farbe)?.[1] ?? 'ff00ff', 16);
+            farben.set(z, [(n >> 16) & 255, (n >> 8) & 255, n & 255]);
+          }
+          const c = farben.get(z);
+          const p = (y * canvas.width + x) * 4;
+          daten.data[p] = c[0];
+          daten.data[p + 1] = c[1];
+          daten.data[p + 2] = c[2];
+          daten.data[p + 3] = 255;
+        }
+      ctx.putImageData(daten, 0, 0);
+    } else
+      for (let y = 0; y < k.hoehe; y++)
+        for (let x = 0; x < k.breite; x++) {
+          ctx.fillStyle = kachelInfo(k.zellen[y * k.breite + x]).farbe;
+          ctx.fillRect(x * tpx, y * tpx, tpx, tpx);
+        }
     ctx.globalAlpha = 0.6;
     for (const [schl, f] of k.s('bemalung')) {
       const [x, y] = ausSchluessel(schl);
       ctx.fillStyle = f;
-      ctx.fillRect(x * tpx, y * tpx, tpx, tpx);
+      ctx.fillRect(x * tpx, y * tpx, Math.max(1, tpx), Math.max(1, tpx));
     }
     ctx.globalAlpha = 0.12;
     ctx.strokeStyle = '#000';
-    for (let x = 0; x <= k.breite; x++) ctx.strokeRect(x * tpx, 0, 0.01, canvas.height);
+    if (schritt === 1) for (let x = 0; x <= k.breite; x++) ctx.strokeRect(x * tpx, 0, 0.01, canvas.height);
     ctx.globalAlpha = 1;
     // Bodenobjekte (Teppiche, Flecken, Markierungen) direkt auf die Textur
     for (const o of k.s('objekte').values()) {
@@ -202,7 +238,7 @@ export class Ansicht3D {
     textur.colorSpace = THREE.SRGBColorSpace;
     textur.magFilter = THREE.NearestFilter;
     textur.anisotropy = 4;
-    const geo = new THREE.PlaneGeometry(k.breite, k.hoehe, k.breite, k.hoehe);
+    const geo = new THREE.PlaneGeometry(k.breite, k.hoehe, Math.min(k.breite, 512), Math.min(k.hoehe, 512));
     geo.rotateX(-Math.PI / 2);
     geo.translate(k.breite / 2, 0, k.hoehe / 2);
     const pos = geo.attributes.position;
@@ -451,11 +487,25 @@ export class Ansicht3D {
     }, { passive: false });
     l.addEventListener('pointerdown', (e) => {
       l.setPointerCapture(e.pointerId);
-      this.#zeiger.set(e.pointerId, { x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY, drehen: e.button === 2 || e.altKey, umschalt: e.shiftKey });
+      const p = { x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY, drehen: e.button === 2 || e.altKey, rechts: e.button === 2, umschalt: e.shiftKey, touch: e.pointerType === 'touch', zeit: performance.now() };
+      // 6.6: Langdruck (Touch) = Kontextmenü wie in 2D
+      if (p.touch) p.timer = setTimeout(() => {
+        if (this.#zeiger.get(e.pointerId) !== p || Math.hypot(p.x - p.startX, p.y - p.startY) >= 10 || this.#zeiger.size > 1) return;
+        p.langdruck = true;
+        this.#kontext(p.startX, p.startY);
+      }, 550);
+      this.#zeiger.set(e.pointerId, p);
     });
     l.addEventListener('pointermove', (e) => {
       const p = this.#zeiger.get(e.pointerId);
-      if (!p) return;
+      if (!p) {
+        // Maus ohne Taste: Platzier-Geist folgt dem Boden (6.6)
+        if (e.pointerType !== 'touch' && this.#platzierModus()) {
+          this.letzterBoden = this.bodenPunkt(e.clientX, e.clientY);
+          this.#zeigeGeist(this.letzterBoden);
+        }
+        return;
+      }
       const dx = e.clientX - p.x;
       const dy = e.clientY - p.y;
       p.x = e.clientX;
@@ -475,11 +525,118 @@ export class Ansicht3D {
     const hoch = (e) => {
       const p = this.#zeiger.get(e.pointerId);
       this.#zeiger.delete(e.pointerId);
+      clearTimeout(p?.timer);
       if (this.#zeiger.size < 2) this.letzterAbstand = null;
-      if (p && Math.hypot(e.clientX - p.startX, e.clientY - p.startY) < 5 && !p.drehen) this.#waehle(e, p.umschalt);
+      if (!p || p.langdruck) return;
+      const klick = Math.hypot(e.clientX - p.startX, e.clientY - p.startY) < 5;
+      if (!klick) return;
+      if (p.rechts) return this.#kontext(e.clientX, e.clientY); // Rechtsklick ohne Ziehen = Menü (Ziehen dreht weiter)
+      if (p.drehen) return;
+      if (this.#platzierModus()) return this.#setze(e, p);
+      this.#waehle(e, p.umschalt);
     };
     l.addEventListener('pointerup', hoch);
-    l.addEventListener('pointercancel', (e) => this.#zeiger.delete(e.pointerId));
+    l.addEventListener('pointercancel', (e) => {
+      clearTimeout(this.#zeiger.get(e.pointerId)?.timer);
+      this.#zeiger.delete(e.pointerId);
+    });
+    l.addEventListener('pointerleave', () => {
+      if (this.#zeiger.size || this.touchGeist) return;
+      this.letzterBoden = null;
+      this.#zeigeGeist(null);
+    });
+  }
+
+  // --- Mappen in 3D (6.6) -------------------------------------------------------------
+  /** Wird gerade platziert (Katalog-Eintrag gewählt)? */
+  #platzierModus() {
+    const z = this.zustand;
+    return !!z.karte && z.werkzeug === 'platzieren' && !!z.eintrag && ['objekt', 'bauwerk', 'marker', 'klang'].includes(z.eintrag.art) && !!this.beiPlatzieren;
+  }
+
+  /**
+   * Bodenpunkt unter dem Bildpunkt (Kachelkoordinaten, x/z = Karten-x/-y): Strahl gegen das Boden-Gitter (mit Geländehöhen),
+   * außerhalb der Zone gegen die Ebene y = 0. @returns { x, z } | null
+   */
+  bodenPunkt(clientX, clientY) {
+    const r = this.leinwand.getBoundingClientRect();
+    if (!r.width || !r.height) return null;
+    const maus = new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
+    const strahl = new THREE.Raycaster();
+    strahl.setFromCamera(maus, this.kamera);
+    const boden = this.welt.children.find((o) => o.userData?.boden);
+    const t = boden ? strahl.intersectObject(boden, false)[0] : null;
+    if (t) return { x: t.point.x, z: t.point.z };
+    const p = new THREE.Vector3();
+    return strahl.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), p) ? { x: p.x, z: p.z } : null;
+  }
+
+  /** Klick/Tipp beim Platzieren: Maus setzt sofort; Finger: erster Tipp zeigt den Geist, Tipp auf den Geist setzt */
+  #setze(e, p) {
+    const b = this.bodenPunkt(e.clientX, e.clientY);
+    if (!b) return;
+    if (p.touch) {
+      const g = this.touchGeist;
+      if (!g || Math.hypot(g.x - b.x, g.z - b.z) > 0.9) {
+        this.touchGeist = b;
+        this.#zeigeGeist(b);
+        return this.zustand.meldung('Vorschau gesetzt – nochmal auf den Geist tippen = setzen, woanders tippen = verschieben, Esc/⟲ = abbrechen');
+      }
+      this.touchGeist = null;
+      this.beiPlatzieren(g.x, g.z, p.umschalt);
+      this.#zeigeGeist(null);
+      return;
+    }
+    this.beiPlatzieren(b.x, b.z, p.umschalt);
+    this.#zeigeGeist(b);
+  }
+
+  /** Grün/roter Geist an Bodenpunkt b (null = weg) – Prüfung wie 2D (werkzeuge.vorschauAn) */
+  #zeigeGeist(b) {
+    for (const kind of [...this.geist.children]) {
+      this.geist.remove(kind);
+      kind.geometry?.dispose();
+      kind.material?.dispose();
+    }
+    const k = this.zustand.karte;
+    const v = b && k && this.#platzierModus() ? this.beiVorschau?.(b.x, b.z) : null;
+    if (v?.rechtecke?.length) {
+      const farbe = v.gueltig === false ? 0xe5484d : 0x4caf50;
+      for (const r of v.rechtecke) {
+        const boden = k.hoeheAn(Math.floor(r.x + r.b / 2), Math.floor(r.y + r.h / 2));
+        const m = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.2, r.b), 1, Math.max(0.2, r.h)), new THREE.MeshBasicMaterial({ color: farbe, transparent: true, opacity: 0.4, depthWrite: false }));
+        m.position.set(r.x + r.b / 2, boden + 0.5, r.y + r.h / 2);
+        const kante = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry), new THREE.LineBasicMaterial({ color: farbe }));
+        kante.position.copy(m.position);
+        this.geist.add(m, kante);
+      }
+      if (v.text) this.zustand.melde('meldung', { text: `3D: ${v.text}`, art: v.gueltig === false ? 'fehler' : 'info' });
+    }
+    this.anfordern();
+  }
+
+  /** Kontextmenü an (x, y): Element unter dem Zeiger vorher wählen (wie 2D) */
+  #kontext(x, y) {
+    const t = this.#treffer(x, y);
+    if (t && !this.zustand.istGewaehlt(t.s, t.k)) this.zustand.waehle([t]);
+    this.beiKontext?.(x, y, { treffer: t });
+  }
+
+  #treffer(clientX, clientY) {
+    const r = this.leinwand.getBoundingClientRect();
+    const maus = new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
+    const strahl = new THREE.Raycaster();
+    strahl.setFromCamera(maus, this.kamera);
+    const treffer = strahl.intersectObjects(this.waehlbar, true).find((t) => t.object.userData?.s);
+    if (!treffer) return null;
+    const d = treffer.object.userData;
+    return { s: d.s, k: d.ids ? d.ids[treffer.instanceId] : d.k };
+  }
+
+  /** Touch-Geist verwerfen (Esc, Werkzeugwechsel) */
+  verwerfeGeist() {
+    this.touchGeist = null;
+    this.#zeigeGeist(null);
   }
 
   #schiebe(dx, dy) {

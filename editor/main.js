@@ -4,12 +4,13 @@ import { pruefeMarker } from './kern/platzierung.js';
 import { kopiere, dreheVorlage } from './kern/auswahl.js';
 import { kachelInfo, objektInfo } from './kern/katalog.js';
 import { innenRaster } from './kern/innen.js';
+import { istGrosseZone } from './kern/zone.js';
 import { Werkzeuge } from './ui/werkzeuge.js';
 import { TouchBauen } from './ui/touchBauen.js';
 import { EditorSpeicher } from './ui/speicher.js';
 import { Zustand } from './ui/zustand.js';
 import { Zeichner2D } from './ui/zeichner2d.js';
-import { Befehle, kuerzelText } from './ui/befehle.js';
+import { Befehle, kuerzelText, istTextEingabe } from './ui/befehle.js';
 import { hilfeUi } from './ui/hilfeUi.js';
 import { meldeBefehleAn, menues, SCHNELLLEISTE, WERKZEUGLEISTE, kontextEintraege } from './ui/befehlsliste.js';
 import { Menueleiste, oeffneListe, listeOffen } from './ui/menue.js';
@@ -128,6 +129,10 @@ eigeneUi({ zustand, aktionen });
 if (webglVerfuegbar()) {
   try {
     teile.ansicht3d = new Ansicht3D(document.getElementById('leinwand3d'), zustand, { zeichner2d: zeichner });
+    // 6.6: in 3D mappen – gleiche Platzier-Regeln/Prüfung wie 2D, Kontextmenü wie 2D
+    teile.ansicht3d.beiPlatzieren = (wx, wy, umschalt) => werkzeuge.platziereAn(wx, wy, umschalt);
+    teile.ansicht3d.beiVorschau = (wx, wy) => werkzeuge.vorschauAn(wx, wy);
+    teile.ansicht3d.beiKontext = (x, y, ziel) => kontextmenue(x, y, ziel);
     zustand.bei('ansicht', () => {
       // 3D → 2D: Blickpunkt mitnehmen (Auswahl ist ohnehin gemeinsam)
       if (zustand.ansicht === '2d') {
@@ -198,11 +203,17 @@ document.getElementById('handy-mehr').addEventListener('click', (e) => {
 window.addEventListener('keydown', (e) => {
   if (istDialogOffen() || listeOffen()) return;
   const aktiv = document.activeElement;
-  const inEingabe = /INPUT|TEXTAREA|SELECT/.test(aktiv?.tagName) || !!aktiv?.isContentEditable;
+  // 6.5: Text-/Zahlfelder, Textbereiche, contenteditable → Strg+C/V/X/A bleiben Browser-Standard (Häkchen/Knöpfe nicht)
+  const inEingabe = istTextEingabe(aktiv);
+  // markierter normaler Text (KI-Antwort, Hilfe, Listen) → Strg+C/X/A kopieren den Text statt Karten-Elemente
+  const sel = window.getSelection?.();
+  const textMarkiert = !!sel && !sel.isCollapsed && sel.toString().trim() !== '';
   // Tab nur auf der Karte als Fokus-Modus – sonst normale Tastatur-Navigation
   if (e.key === 'Tab' && aktiv && aktiv !== document.body && aktiv !== leinwand) return;
-  befehle.behandleTaste(e, { inEingabe });
+  befehle.behandleTaste(e, { inEingabe, textMarkiert });
 });
+// Klick auf die Karte hebt eine Text-Markierung auf (sonst bliebe Strg+C beim Text statt bei den gewählten Objekten)
+for (const l of [leinwand, document.getElementById('leinwand3d')]) l?.addEventListener('pointerdown', () => window.getSelection?.()?.removeAllRanges?.());
 
 aktionen.lokalerServer = async () => {
   const s = await pruefeLokalenServer({ neu: true });
@@ -278,22 +289,45 @@ speicherStatus.addEventListener('click', () => {
 });
 
 let pruefTimer = null;
+/** Prüfung jetzt (auch bei großen Zonen) – Statusleiste, Prüfungs-Reiter */
+function pruefeJetzt() {
+  if (!zustand.karte) return;
+  zustand.validierung = validiere(zustand.karte, { zonen: datei.projektZonen() });
+  zustand.validierungFuer = zustand.karte;
+  const { f, w } = zaehlerText(zustand.validierung);
+  statusPruefung.textContent = f || w ? `⛔ ${f} Fehler · ⚠ ${w} Warnungen` : '✓ Karte gültig';
+  zustand.melde('pruefung');
+}
 function planePruefung() {
   clearTimeout(pruefTimer);
-  pruefTimer = setTimeout(() => {
-    if (!zustand.karte) return;
-    zustand.validierung = validiere(zustand.karte, { zonen: datei.projektZonen() });
-    const { f, w } = zaehlerText(zustand.validierung);
-    statusPruefung.textContent = f || w ? `⛔ ${f} Fehler · ⚠ ${w} Warnungen` : '✓ Karte gültig';
-    zustand.melde('pruefung');
-  }, 350);
+  // 6.4: große Zonen nicht bei jeder Änderung prüfen (echter Spiel-Lader über Millionen Kacheln) – Klick prüft
+  if (istGrosseZone(zustand.karte)) {
+    statusPruefung.textContent = '⏸ Prüfung (große Zone): klicken';
+    if (zustand.validierungFuer !== zustand.karte) {
+      zustand.validierung = []; // Liste der vorigen Zone nicht stehen lassen
+      zustand.melde('pruefung');
+    }
+    return;
+  }
+  pruefTimer = setTimeout(pruefeJetzt, 350);
 }
-statusPruefung.addEventListener('click', () => layout.zeigeReiter('rechts', 'Prüfung'));
+aktionen.pruefeJetzt = () => {
+  zustand.meldung('⟳ Prüfe …');
+  setTimeout(() => {
+    pruefeJetzt();
+    zustand.meldung('✓ Geprüft', 'ok');
+  }, 30);
+};
+statusPruefung.addEventListener('click', () => {
+  if (istGrosseZone(zustand.karte)) aktionen.pruefeJetzt();
+  layout.zeigeReiter('rechts', 'Prüfung');
+});
 zustand.bei('karte', planePruefung);
 
-/** Innen/Außen wie das Spiel (Welt.istInnen) – für die Anzeige */
+/** Innen/Außen wie das Spiel (Welt.istInnen) – für die Anzeige (große Zonen: aus, 6.4) */
 function berechneInnen() {
-  zeichner.innen = zustand.karte && zustand.sichtbar('innen') ? innenRaster(zustand.karte) : null;
+  const gross = istGrosseZone(zustand.karte);
+  zeichner.innen = zustand.karte && zustand.sichtbar('innen') && !gross ? innenRaster(zustand.karte) : null;
   zeichner.anfordern();
 }
 zustand.bei('karte', () => zustand.sichtbar('innen') && berechneInnen());

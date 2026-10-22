@@ -22,6 +22,11 @@ const ZOMBIE_SPERRE = 260; // jagt einen ein Zombie in dieser Nähe, ist Linkskl
  * Wird vom kampfSystem jeden Tick VOR dem Angriff aufgerufen.
  * @returns true, wenn der Linksklick fürs Angeln gebraucht wurde (oder man gerade angelt) → kein Angriff
  */
+/** Angel ist der ausgerüstete Gegenstand (Runde 18: Angeln nur damit). */
+export function hatAngelInDerHand(spieler) {
+  return spieler.ausgeruestet !== null && spieler.ausgeruestet !== undefined && spieler.inventar[spieler.ausgeruestet]?.defId === 'angel';
+}
+
 export function behandleAngelKlick(spielWelt, spieler) {
   const neuerKlick = spieler.angriff && !spieler.angriffVorher;
   spieler.angriffVorher = spieler.angriff;
@@ -40,7 +45,8 @@ export function behandleAngelKlick(spielWelt, spieler) {
     }
     return spieler.angriff || neuerKlick; // solange geklickt wird, nicht schießen
   }
-  if (!neuerKlick || !spieler.inventar.some((e) => e?.defId === 'angel')) return false;
+  // Runde 18: nur mit der Angel in der Hand (ausgerüsteter Platz), nicht schon wenn sie irgendwo im Inventar liegt
+  if (!neuerKlick || !hatAngelInDerHand(spieler)) return false;
   const k = spielWelt.konfiguration.angeln;
   const gejagt = [...spielWelt.alleVomTyp('zombie')].some((z) => z.zielId === spieler.id && Math.hypot(z.x - spieler.x, z.y - spieler.y) < ZOMBIE_SPERRE);
   if (gejagt) return false;

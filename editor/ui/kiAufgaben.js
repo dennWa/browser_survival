@@ -1,7 +1,7 @@
 import { frageGemini } from '../kern/gemini.js';
 import { kiAnfrage, kiErgebnis, rahmenUm, KI_AUFGABEN } from '../kern/kiPipeline.js';
 import { findeLuecken, befundeText } from '../kern/lueckenfinder.js';
-import { neueZone, ZONEN_ID_MUSTER } from '../kern/zone.js';
+import { neueZone, ZONEN_ID_MUSTER, MAX_GROESSE } from '../kern/zone.js';
 import { objektInfo } from '../kern/katalog.js';
 import { STANDARD_KONFIGURATION } from '../../server/spiel/konfiguration/spielKonfiguration.js';
 import { ladeEinstellungen } from './geminiUi.js';
@@ -36,7 +36,7 @@ export function kiAufgabenUi({ zustand, aktionen, zeichner, pruefeText, layout }
     // bestaetigen:false nur, wo der Aufrufer selbst anzeigt, was gesendet wird (Release-Notes im Veröffentlichen-Dialog)
     const ok = !bestaetigen || await dialog({
       titel: `🤖 ${titel}: Das wird gesendet`,
-      html: `<ul class="liste">${gesendet.map((t) => `<li>${esc(t)}</li>`).join('')}</ul><details><summary>Kompletter Text (${kontext.zeichen} Zeichen)</summary><pre class="ki-gesendet">${esc(kontext.text)}\n\n---\n${esc(frage)}</pre></details>`,
+      html: `${kontext.gross ? `<p class="fehler">⚠ Großer Bereich (~${Math.round(kontext.zeichen / 1000)}k Zeichen): dauert länger, kostet mehr, Gemini kann ablehnen. Kein Limit – du entscheidest.</p>` : ''}<ul class="liste">${gesendet.map((t) => `<li>${esc(t)}</li>`).join('')}</ul><details><summary>Kompletter Text (${kontext.zeichen} Zeichen)</summary><pre class="ki-gesendet">${esc(kontext.text)}\n\n---\n${esc(frage)}</pre></details>`,
       knoepfe: [{ text: 'Abbrechen', wert: false }, { text: '🤖 Senden', wert: true, art: 'akzent' }],
     });
     if (!ok) return null;
@@ -65,20 +65,23 @@ export function kiAufgabenUi({ zustand, aktionen, zeichner, pruefeText, layout }
 
   // --- 9.2 Text zu Karte -------------------------------------------------------------------------
   aktionen.textZuKarte = async () => {
-    const markiert = aktionen.auswahlBereich?.();
+    // 7.2: KI-Markierung (aus dem Chat, darf über die Zone ragen) hat Vorrang vor dem ⬚-Rahmen
+    const markiert = aktionen.kiRechteck?.() ?? aktionen.auswahlBereich?.();
     const w = await dialog({
       titel: '🗺 Text zu Karte',
       html: `<p class="leise">Beschreibe, was entstehen soll. Die KI baut mit Prefabs, Wegen, Natur und Spawns – du siehst alles erst als Vorschau.</p>
         <textarea name="text" rows="4" placeholder="z. B. Ein kleines Dorf mit drei Häusern an einer Straße, Wald drumherum, ein paar Zombies am Waldrand"></textarea>
         <label class="feld"><span>Wo?</span><select name="wo"><option value="bereich"${markiert ? ' selected' : ''}${markiert ? '' : ' disabled'}>Markierter Bereich${markiert ? ` (${markiert.b} × ${markiert.h})` : ' (erst ⬚ markieren)'}</option><option value="neu"${markiert ? '' : ' selected'}>Neue leere Zone</option></select></label>
-        <label class="feld"><span>Größe (neu)</span><span><input name="b" type="number" value="40" min="8" max="50" style="width:70px"> × <input name="h" type="number" value="30" min="8" max="50" style="width:70px"></span></label>`,
+        <label class="feld"><span>Größe (neu)</span><span><input name="b" type="number" value="40" min="8" max="${MAX_GROESSE}" style="width:80px"> × <input name="h" type="number" value="30" min="8" max="${MAX_GROESSE}" style="width:80px"></span></label>
+        <p class="leise">Kein Größenlimit – große Bereiche brauchen aber lange und kosten mehr (Gemini kann sehr große Anfragen ablehnen).</p>`,
       knoepfe: [{ text: 'Abbrechen', wert: null }, { text: 'Weiter', art: 'akzent', wert: (b) => ({ text: b.querySelector('[name=text]').value.trim(), wo: b.querySelector('[name=wo]').value, b: Number(b.querySelector('[name=b]').value), h: Number(b.querySelector('[name=h]').value) }) }],
     });
     if (!w?.text) return;
     let rechteck = markiert;
     if (w.wo === 'neu' || !rechteck) {
-      const bb = Math.max(8, Math.min(50, w.b || 40));
-      const hh = Math.max(8, Math.min(50, w.h || 30));
+      // 7.1: kein KI-Limit mehr (früher 50 × 50) – nur die Zonengrenze des Editors
+      const bb = Math.max(8, Math.min(MAX_GROESSE, Math.round(w.b) || 40));
+      const hh = Math.max(8, Math.min(MAX_GROESSE, Math.round(w.h) || 30));
       let id = 'ki_zone';
       for (let n = 2; zustand.zonen.has(id); n++) id = `ki_zone_${n}`;
       if (!ZONEN_ID_MUSTER.test(id)) return;
@@ -88,7 +91,6 @@ export function kiAufgabenUi({ zustand, aktionen, zeichner, pruefeText, layout }
       zustand.auswahlRechteck = rechteck;
       zustand.melde('auswahl');
     }
-    if (rechteck.b * rechteck.h > 2500) return zustand.meldung('Bereich zu groß (max. 2500 Kacheln, z. B. 50 × 50) – kleiner markieren', 'fehler');
     zeigeErgebnis('Text zu Karte', await fuehreAus({ aufgabe: 'textZuKarte', frage: w.text, rechteck }));
   };
 
