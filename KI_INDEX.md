@@ -285,3 +285,6 @@ Zonen-Grundlage steht (2 Zonen, Waldweg groß mit See). Nächstes sinnvoll: Basi
 - **Items drüben:** NACHRICHT `fremdeGegenstaende {zone, gegenstaende}` (`spielServer.#sendeFremdeGegenstaende`, Version je Sitzung/Nachbar, nach Zonenwechsel neu); Client `fremdeGegenstaende` Map → nur ans Rendering (`alleGegenstaende`), nicht aufhebbar. Test in `zonen.test.js`.
 - **Admin:** `ADMIN_BEFEHLE.UNENDLICH_AUSDAUER` → `spieler.unendlichAusdauer` (im Netz), `aktualisiereAusdauer` behandelt es wie Boost (gleiche Physik Client/Server).
 - **Haltung:** `figurHaltung.js` `ANSCHLAG_MS` 5000 für Pistole/Gewehr/Nicht-Werkzeug-Nahkampf (`RUHE_HALTUNG`, `WERKZEUGE` = axt spitzhacke angel hammer hacke bleiben vorn); Items (essen/trinken/holz/samen) Haltung `seitlich`. ⚠ Clips bewegen nicht jeden Arm-Knochen → `armRuhe`/`loeseArm` setzen losgelassene Arme zurück (sonst „eine Hand bleibt oben“).
+
+## 16 · Zonen-Konzept (2026-10-22)
+- `ZONEN_KONZEPT.md`: Plan, §15 nahtlos zurückbauen → Ladebild lädt alles (Shader/Texturen/Geometrie/Pools), Sektoren 64², Riesen-Zonen per Ring-Streaming aus Fertig-Puffern, Schleusen-Übergänge. Noch NICHT umgesetzt.
