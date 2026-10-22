@@ -12,6 +12,8 @@
 
 - **Übergabe/Plan Editor 2.0:** `editor/ROADMAP.md` Abschnitt „🔁 Übergabe“ (Stand, nächster Schritt) – nach jeder Phase aktualisieren.
 
+- **Free-KI-Starterpaket:** `FREE_KI_STARTPAKET.md` (Kopiervorlage + Dateiliste für KIs mit kleinem Limit; KI_INDEX/Manifest sind dafür zu groß).
+
 ## 1 · Befehle
 `npm test` (node:test, ~200 Tests, ~3 s) · `npm run rauchtest:editor [-- --schnell]` (Map-Editor im Browser, Screens `werkzeuge/test/ausgabe/editor-*.png`) · `npm run karte:editor -- x.karte.json` (Editor-Export → `server/spiel/karten/<id>.js` + KARTEN) · `npm run rauchtest [-- --online]` (Playwright: Login→laufen→I→K→Zonenwechsel, Screens `werkzeuge/test/ausgabe/`) · `npm run start:gast` (Port `PORT`, Standard 8080) · `npm run karte:export -- <id>` / `karte:import -- x.tmj` (Tiled) · `python3 werkzeuge/karten/{stadtrand,waldweg}.py` (⚠ überschreibt Karten-JS) · `npm run konto -- name pw [--admin]` · `npm run musik:index` (client/musik → musik.json).
 Browser-Konsole (nur Lokal-Modus): `browserSurvival.{tp(tx,ty), gib(defId,n), boden(defId,n), zeit(h), zone(id[,ankunft]), ich(), welt(), spiel, server}`. F3 = Draw-Calls/Qualität.
