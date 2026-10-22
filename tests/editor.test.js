@@ -13,7 +13,7 @@ import { neueZone, groesseAendern } from '../editor/kern/zone.js';
 import { kopiere, einfuegeOps, loescheOps, dreheVorlage } from '../editor/kern/auswahl.js';
 import { pruefeObjekt, pruefeMarker, pruefeBereich } from '../editor/kern/platzierung.js';
 import { validiere, hatFehler } from '../editor/kern/validierung.js';
-import { katalog, KATEGORIEN, objektInfo } from '../editor/kern/katalog.js';
+import { katalog, KATEGORIEN, NUR_MODELL_KATEGORIEN, objektInfo } from '../editor/kern/katalog.js';
 import { alsJsModul, veroeffentlichung } from '../editor/kern/veroeffentlichen.js';
 import { innenRaster } from '../editor/kern/innen.js';
 
@@ -223,7 +223,7 @@ test('Innen/Außen wie im Spiel (Innenboden; Dach eines kartenfesten Bauwerks z�
 test('Katalog: alle Kategorien belegt, jede Kachel und jeder Kartenobjekt-Typ der Spielzonen ist drin', () => {
   const k = katalog();
   // Eigene/Klänge füllen sich aus der Karte bzw. der Audio-Bibliothek
-  for (const kat of KATEGORIEN.filter((x) => x !== 'Eigene' && x !== 'Klänge')) assert.ok(k.some((e) => e.kategorie === kat), kat);
+  for (const kat of KATEGORIEN.filter((x) => x !== 'Eigene' && x !== 'Klänge' && !NUR_MODELL_KATEGORIEN.includes(x))) assert.ok(k.some((e) => e.kategorie === kat), kat);
   const typen = new Set(Object.values(KARTEN).flatMap((d) => d.objekte.map((o) => o.typ)));
   for (const t of typen) assert.ok(objektInfo(t).bekannt, `Objekttyp ${t} fehlt im Katalog`);
   assert.ok(k.some((e) => e.art === 'bauwerk' && e.typ === 'zaun'));

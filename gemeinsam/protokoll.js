@@ -121,6 +121,7 @@ export const ADMIN_BEFEHLE = Object.freeze({
   WETTER: 'wetter', // klar → Regen → Nebel → klar (zum Testen)
   FLIEGEN: 'fliegen', // an/aus: Flugmodus – schnell und ohne Kollision über die Karte gleiten (Umschalt+B)
   UNENDLICH_MUNITION: 'unendlichMunition', // an/aus: Schusswaffen verbrauchen keine Munition (kein Nachladen)
+  UNENDLICH_AUSDAUER: 'unendlichAusdauer', // an/aus: Sprinten kostet keine Ausdauer
   ZEIT_VORSTELLEN: 'zeitVor12', // Uhr um 12 Spielstunden vorstellen (Pflanzen wachsen mit) – zum Testen von Wachstum und Tag/Nacht
   FLAGGE_ENTFERNEN: 'flaggeEntfernen', // eigene Basis-Flagge zurücknehmen (Bauteile bleiben stehen, gehören aber niemandem mehr)
 });

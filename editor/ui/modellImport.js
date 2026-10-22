@@ -67,14 +67,50 @@ export async function leseModellDatei(datei) {
   return { bytes, info, masse, vorschau: vorschauBild(szene), warnungen };
 }
 
-/** Kleines Vorschaubild (Schrägansicht, transparent). Ohne WebGL → null. */
+/** Alpha-Rand einer Leinwand abschneiden und den Inhalt quadratisch (6 % Rand) auf px × px zentrieren → PNG-Data-URL */
+function zugeschnitten(quelle, px) {
+  const n = quelle.width;
+  const kopie = document.createElement('canvas');
+  kopie.width = kopie.height = n;
+  const k = kopie.getContext('2d', { willReadFrequently: true });
+  k.drawImage(quelle, 0, 0);
+  const daten = k.getImageData(0, 0, n, n).data;
+  let x0 = n, y0 = n, x1 = -1, y1 = -1;
+  for (let y = 0; y < n; y++)
+    for (let x = 0; x < n; x++)
+      if (daten[(y * n + x) * 4 + 3] > 8) {
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+        if (y < y0) y0 = y;
+        if (y > y1) y1 = y;
+      }
+  const ziel = document.createElement('canvas');
+  ziel.width = ziel.height = px;
+  const z = ziel.getContext('2d');
+  z.imageSmoothingQuality = 'high';
+  if (x1 < 0) z.drawImage(quelle, 0, 0, px, px);
+  else {
+    const seite = Math.max(x1 - x0 + 1, y1 - y0 + 1) * 1.12;
+    const cx = (x0 + x1 + 1) / 2;
+    const cy = (y0 + y1 + 1) / 2;
+    z.drawImage(quelle, cx - seite / 2, cy - seite / 2, seite, seite, 0, 0, px, px);
+  }
+  return ziel.toDataURL('image/png');
+}
+
+/**
+ * Kleines Vorschaubild (Schrägansicht, transparent). Ohne WebGL → null.
+ * Runde 19: doppelt groß rendern, leeren Rand abschneiden (Alpha) und das Modell mittig auf `px` einpassen – die
+ * Hüllkugel-Kamera allein ließ schmale Modelle winzig und außermittig erscheinen.
+ */
 export function vorschauBild(szene, px = VORSCHAU_PX) {
   let renderer;
   try {
     const leinwand = document.createElement('canvas');
-    leinwand.width = leinwand.height = px;
+    const roh = px * 2;
+    leinwand.width = leinwand.height = roh;
     renderer = new THREE.WebGLRenderer({ canvas: leinwand, alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setSize(px, px, false);
+    renderer.setSize(roh, roh, false);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     const welt = new THREE.Scene();
     welt.add(new THREE.HemisphereLight(0xffffff, 0x445566, 2.2));
@@ -95,7 +131,7 @@ export function vorschauBild(szene, px = VORSCHAU_PX) {
     kamera.position.copy(mitte).add(new THREE.Vector3(0.75, 0.6, 1).normalize().multiplyScalar(abstand));
     kamera.lookAt(mitte);
     renderer.render(welt, kamera);
-    return leinwand.toDataURL('image/png');
+    return zugeschnitten(leinwand, px);
   } catch {
     return null;
   } finally {

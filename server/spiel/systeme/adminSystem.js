@@ -66,6 +66,11 @@ export function fuehreAdminBefehlAus(spielWelt, spieler, befehl) {
       spieler.unendlichMunition = !spieler.unendlichMunition;
       spielWelt.melde(spieler.id, spieler.unendlichMunition ? 'Unendlich Munition AN' : 'Unendlich Munition aus');
       break;
+    case ADMIN_BEFEHLE.UNENDLICH_AUSDAUER:
+      spieler.unendlichAusdauer = !spieler.unendlichAusdauer;
+      if (spieler.unendlichAusdauer) Object.assign(spieler, { ausdauer: k.ausdauerMax, erschoepft: false });
+      spielWelt.melde(spieler.id, spieler.unendlichAusdauer ? 'Unendlich Ausdauer AN' : 'Unendlich Ausdauer aus');
+      break;
     case ADMIN_BEFEHLE.ZEIT_VORSTELLEN:
       spuleZeitVor(spielWelt, ZEIT_VORSTELLEN_STUNDEN);
       spielWelt.zeitSprung = ZEIT_VORSTELLEN_STUNDEN; // SpielServer zieht die übrigen aktiven Zonen mit

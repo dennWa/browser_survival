@@ -826,6 +826,7 @@ export class ClientSpiel {
     this.lokal.fahrzeug = eigene.fahrzeug ? { ...eigene.fahrzeug, x: eigene.x, y: eigene.y } : null;
     this.lokal.ausdauer = eigene.ausdauer;
     this.lokal.erschoepft = eigene.erschoepft;
+    this.lokal.unendlichAusdauer = eigene.unendlichAusdauer === true; // Admin (gleiche Physik wie der Server)
     if (eigene.gleit) [this.lokal.gleitX, this.lokal.gleitY] = eigene.gleit; // Rutschen auf Eis
     this.lokal.fliegen = eigene.fliegen === true; // Admin-Flugmodus (gleiche Physik wie der Server)
     this.schlaeft = eigene.arbeit === 'schlafen'; // im Bett festgehalten: Server wendet keine Eingaben an

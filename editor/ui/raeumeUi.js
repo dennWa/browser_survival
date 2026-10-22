@@ -11,7 +11,7 @@ export function raeumeUi({ zustand, panel, aktionen, zeigeInspektor }) {
   panel.registriere('🚪 Räume', () => {
     const k = zustand.karte;
     const el = panel.el;
-    el.innerHTML = '<p class="leise">Markieren: Assets → Zonen & Logik → Räume (Rechteck oder 🪣 Füllen). Loot-Punkte: Assets → Gameplay → Loot. Innen/Außen: Ebenen → Anzeigen.</p>';
+    el.innerHTML = '<p class="leise">Markieren: Baukasten → Gameplay → Räume (Rechteck oder 🪣 Füllen). Loot-Punkte: Baukasten → Gameplay → Loot. Innen/Außen: Ebenen → Anzeigen.</p>';
     if (!k.s('raeume').size) el.insertAdjacentHTML('beforeend', '<p>Noch keine Räume.</p>');
     for (const [b, r] of k.s('raeume')) {
       const punkte = [...k.s('marker')].filter(([, m]) => m.raum === b);

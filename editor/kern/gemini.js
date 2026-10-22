@@ -155,7 +155,7 @@ export function zonenStatistik(karte, { prefabs = [] } = {}) {
  * @returns { text, teile: [{ titel, zeichen }], bereich: {x0,x1,y0,y1}|null (nur der Teil IN der Zone), quelle: 'markierung'|'auswahl'|'keiner',
  *   beschreibung, gross (≥ GROSS_KACHELN_KI, nur Hinweis), markierung (markierungTeile | null) }
  */
-export function baueKontext(karte, { rechteck = null, auswahl = [], mitBereich = true, mitAuswahl = true, prefabs = [] } = {}) {
+export function baueKontext(karte, { rechteck = null, auswahl = [], mitBereich = true, mitAuswahl = true, prefabs = [], schutz = [] } = {}) {
   const teile = [];
   const kopf = `# Kontext – Zone „${karte.name}“ (${karte.id}), ${karte.breite} × ${karte.hoehe} Kacheln`;
   const statistik = zonenStatistik(karte, { prefabs });
@@ -180,7 +180,7 @@ export function baueKontext(karte, { rechteck = null, auswahl = [], mitBereich =
   let bereich = null;
   let beschreibung = markierung?.ganzAussen ? 'Markierung außerhalb der Zone (nur Ideen)' : 'kein Bereich';
   if (r) {
-    const a = ausschnitt(karte, r);
+    const a = ausschnitt(karte, r, { schutz }); // Runde 19: geschützte Flächen (🛡) mit Hinweis + geschuetzt in der bereich-Aktion
     bereich = { x0: a.bereich.x0, x1: a.bereich.x1, y0: a.bereich.y0, y1: a.bereich.y1 };
     beschreibung = `${quelle === 'markierung' ? 'Markierung' : 'um die Auswahl'}: ${bereichText(bereich)}${markierung?.ragtHinaus ? ' (+ Teil außerhalb der Zone)' : ''}`;
     const t = ausschnittText(a);

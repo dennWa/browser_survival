@@ -3,6 +3,7 @@ import { markerZeichen } from './format.js';
 import { objektInfo } from './katalog.js';
 import { bedeckteKacheln } from './platzierung.js';
 import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
+import { schutzText } from './kiSchutz.js';
 
 /**
  * Ausschnitt-Export für KIs (Phase 8): ein markierter Bereich (wie in Excel) als JSON + lesbarer Text.
@@ -13,7 +14,10 @@ import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
  *   marker, bauwerke, uebergaenge, ankuenfte, tierBereiche, raumFlaechen, raeume (nur benutzte)
  *   pruefsumme  Hash des Bereichs beim Export → der Import warnt, wenn sich dort inzwischen etwas geändert hat
  * Antwort der KI: Aktionsliste (siehe AKTIONEN_ANLEITUNG, kern/kiImport.js).
+ * Runde 19: Option `aussen` – der Bereich darf über die Zone ragen (Kacheln dort = AUSSEN '?', „noch keine Zone“; beim
+ * Einfügen wächst die Zone mit, ui/kiUi.js). `schutz` = geschützte Flächen (kern/kiSchutz.js), `auftrag` = Text des Nutzers.
  */
+export const AUSSEN = '?'; // kein Kachel- oder Markerzeichen ('_' ist Asphalt!)
 export const FORMAT_AUSSCHNITT = 'browser-survival-ausschnitt';
 export const AUSSCHNITT_VERSION = 1;
 
@@ -53,8 +57,12 @@ export function pruefsumme(text) {
 const imBereich = (b, x, y) => x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1;
 const mitteIm = (b, o) => imBereich(b, Math.floor(o.x + (o.b ?? 1) / 2 - 1e-9), Math.floor(o.y + (o.h ?? 1) / 2 - 1e-9));
 
-/** Bereich aus Rechteck { x, y, b, h } (auf die Zone begrenzt) */
-export function bereichAus(karte, r) {
+/** Bereich aus Rechteck { x, y, b, h } (auf die Zone begrenzt; aussen = true → unbegrenzt, Runde 19) */
+export function bereichAus(karte, r, { aussen = false } = {}) {
+  if (aussen) {
+    if (!(r.b >= 1 && r.h >= 1)) throw new Error('Bereich ist leer');
+    return { x0: r.x, y0: r.y, x1: r.x + r.b - 1, y1: r.y + r.h - 1 };
+  }
   const x0 = Math.max(0, r.x);
   const y0 = Math.max(0, r.y);
   const x1 = Math.min(karte.breite - 1, r.x + r.b - 1);
@@ -74,10 +82,20 @@ export function inhaltDesBereichs(karte, b) {
     .map(([[x, y], m]) => ({ x, y, ...kopie(m) }));
   const bauwerke = [...karte.s('bauwerke')].filter(([, w]) => imBereich(b, w.tx, w.ty)).map(([id, w]) => ({ id, ...kopie(w) }));
   const bereiche = (s) => [...karte.s(s)].filter(([, r]) => r.x <= b.x1 && r.x + r.b - 1 >= b.x0 && r.y <= b.y1 && r.y + r.h - 1 >= b.y0).map(([id, r]) => ({ id, ...kopie(r) }));
+  // Kacheln außerhalb der Zone (Runde 19: Bereich darf hinausragen) = AUSSEN bzw. Höhe 0
+  const innen = (x, y) => x >= 0 && y >= 0 && x < karte.breite && y < karte.hoehe;
   const zeilen = [];
-  for (let y = b.y0; y <= b.y1; y++) zeilen.push(karte.zellen.slice(y * karte.breite + b.x0, y * karte.breite + b.x1 + 1).join(''));
   const hoehen = [];
-  for (let y = b.y0; y <= b.y1; y++) hoehen.push(karte.hoehen.slice(y * karte.breite + b.x0, y * karte.breite + b.x1 + 1));
+  for (let y = b.y0; y <= b.y1; y++) {
+    let z = '';
+    const h = [];
+    for (let x = b.x0; x <= b.x1; x++) {
+      z += innen(x, y) ? karte.zellen[y * karte.breite + x] : AUSSEN;
+      h.push(innen(x, y) ? karte.hoehen[y * karte.breite + x] : 0);
+    }
+    zeilen.push(z);
+    hoehen.push(h);
+  }
   return { zeilen, hoehen, objekte, marker, bauwerke, uebergaenge: bereiche('uebergaenge'), tierBereiche: bereiche('tierBereiche'), raumFlaechen: bereiche('raumFlaechen'), ankuenfte: [...karte.s('ankuenfte')].filter(([, p]) => imBereich(b, p.x, p.y)).map(([name, p]) => ({ name, ...p })) };
 }
 
@@ -101,15 +119,16 @@ export function rasterMitAchsen(b, zeileAn) {
 const SYMBOLE = 'ABCDEFGHIJKLMNOPQRUVWXYabcdefghijklmnopqrstuvwxyz0123456789@$%&*!?';
 
 /** Ausschnitt als JSON-Objekt */
-export function ausschnitt(karte, rechteck, { jetzt = new Date().toISOString() } = {}) {
-  const b = bereichAus(karte, rechteck);
+export function ausschnitt(karte, rechteck, { jetzt = new Date().toISOString(), aussen = false, schutz = [], auftrag = '' } = {}) {
+  const b = bereichAus(karte, rechteck, { aussen });
+  const innen = (x, y) => x >= 0 && y >= 0 && x < karte.breite && y < karte.hoehe;
   const inhalt = inhaltDesBereichs(karte, b);
   const markerAn = new Map(inhalt.marker.map((m) => [`${m.x},${m.y}`, m]));
   const raster = rasterMitAchsen(b, (y) => {
     let z = '';
     for (let x = b.x0; x <= b.x1; x++) {
       const m = markerAn.get(`${x},${y}`);
-      z += m ? markerZeichen(m) : karte.zellen[y * karte.breite + x];
+      z += m ? markerZeichen(m) : innen(x, y) ? karte.zellen[y * karte.breite + x] : AUSSEN;
     }
     return z;
   });
@@ -157,6 +176,11 @@ export function ausschnitt(karte, rechteck, { jetzt = new Date().toISOString() }
     raeume,
     anleitung: AKTIONEN_ANLEITUNG,
   };
+  const rand = { links: Math.max(0, -b.x0), oben: Math.max(0, -b.y0), rechts: Math.max(0, b.x1 - karte.breite + 1), unten: Math.max(0, b.y1 - karte.hoehe + 1) };
+  if (Object.values(rand).some((v) => v > 0)) ergebnis.aussen = rand;
+  if (schutz.length) ergebnis.geschuetzt = schutz.map((r) => ({ x: r.x, y: r.y, b: r.b, h: r.h }));
+  if (auftrag?.trim()) ergebnis.auftrag = auftrag.trim();
+  ergebnis.schutzText = schutzText(karte, schutz);
   if (inhalt.hoehen.some((z) => z.some((h) => h !== 0))) ergebnis.hoehen = inhalt.hoehen.map((z) => z.join(' '));
   return ergebnis;
 }
@@ -164,11 +188,15 @@ export function ausschnitt(karte, rechteck, { jetzt = new Date().toISOString() }
 /** Derselbe Ausschnitt als Text (Markdown) zum Einfügen in einen KI-Chat */
 export function ausschnittText(a) {
   const liste = (titel, eintraege, f) => (eintraege.length ? [`## ${titel}`, ...eintraege.map(f), ''] : []);
+  const geschuetzt = a.geschuetzt?.length ? `,"geschuetzt":${JSON.stringify(a.geschuetzt)}` : '';
   return [
-    `# Ausschnitt „${a.zone.name}“ (${a.zone.id}) – ${a.bereich.text}`,
+    `# Ausschnitt „${a.zone.name}“ (Zone-ID ${a.zone.id}) – ${a.bereich.text}`,
     `Zone ${a.zone.breite} × ${a.zone.hoehe} Kacheln, Format ${a.format} v${a.formatVersion}, Prüfsumme ${a.pruefsumme}.`,
-    'Koordinaten = Kacheln (1 Kachel = 1 m), x nach rechts, y nach unten.',
+    'Koordinaten = Kacheln (1 Kachel = 1 m), x nach rechts, y nach unten. Bearbeite NUR diesen Bereich.',
     '',
+    ...(a.auftrag ? ['## Auftrag', a.auftrag, ''] : []),
+    ...(a.aussen ? [`## Außerhalb der Zone`, `"${AUSSEN}" = dort gibt es noch keine Karte (${Object.entries(a.aussen).filter(([, v]) => v > 0).map(([s, v]) => `${v} Kacheln ${s}`).join(', ')}). Du darfst diese Fläche gestalten (Boden mit "kachel" setzen, sonst bleibt Rasen) – die Zone wird beim Einfügen vergrößert.`, ''] : []),
+    ...(a.schutzText ?? []),
     '## Kacheln (Spaltennummern oben senkrecht lesen, Zeilennummern links)',
     '```',
     ...a.raster,
@@ -190,7 +218,8 @@ export function ausschnittText(a) {
     ...liste('Räume', Object.entries(a.raeume), ([k, r]) => `- ${k}: ${JSON.stringify(r)}`),
     '## So antwortest du',
     ...a.anleitung.map((z) => `- ${z}`),
-    `- Gib als erste Aktion {"aktion":"bereich","zone":"${a.zone.id}","x0":${a.bereich.x0},"x1":${a.bereich.x1},"y0":${a.bereich.y0},"y1":${a.bereich.y1},"pruefsumme":"${a.pruefsumme}"} an.`,
+    `- Gib als erste Aktion {"aktion":"bereich","zone":"${a.zone.id}","x0":${a.bereich.x0},"x1":${a.bereich.x1},"y0":${a.bereich.y0},"y1":${a.bereich.y1},"pruefsumme":"${a.pruefsumme}"${geschuetzt}} an (genau so übernehmen).`,
+    '- Antworte NUR mit dem JSON (eine Liste von Aktionen), damit es direkt eingefügt werden kann.',
     '',
   ].join('\n');
 }

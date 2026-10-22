@@ -182,6 +182,6 @@ export function haltungFuer(name) {
   if (name === 'pistole') return 'pistole';
   if (name === 'schrotflinte') return 'gewehr';
   if (name === 'taschenlampe') return 'lampe';
-  if (name === 'essen' || name === 'trinken' || name === 'holz' || name === 'samen') return 'halten'; // etwas vor sich halten, kein Schwung
+  if (name === 'essen' || name === 'trinken' || name === 'holz' || name === 'samen') return 'seitlich'; // entspannt neben dem Körper tragen, kein Schwung (Runde 19)
   return 'nahkampf';
 }

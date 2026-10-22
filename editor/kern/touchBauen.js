@@ -34,7 +34,7 @@ export function touchArt(werkzeug, eintrag = null, { wand = false } = {}) {
     if (eintrag.art === 'bauwerk' && wand) return 'zeichnen';
     return ['objekt', 'bauwerk', 'marker', 'klang'].includes(eintrag.art) ? 'bestaetigen' : 'direkt';
   }
-  if (['malen', 'radierer', 'terrain', 'farbe', 'bereich', 'messen', 'kiMarkieren'].includes(werkzeug)) return 'zeichnen';
+  if (['malen', 'radierer', 'terrain', 'farbe', 'bereich', 'messen', 'kiMarkieren', 'kiSchutz'].includes(werkzeug)) return 'zeichnen';
   return 'direkt';
 }
 

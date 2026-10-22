@@ -1,3 +1,4 @@
+import { aktualisiereAusdauer } from '../gemeinsam/physik/bewegung.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { TICK_DAUER_S } from '../gemeinsam/konstanten.js';
@@ -265,4 +266,17 @@ test('Angeln: Beute 50 % Fisch, 40 % Müll/Stoff/Schrott, 10 % Munition', () => 
   assert.ok(Math.abs(anteil('muell') - 0.4) < 0.1, `Müll ${anteil('muell')}`);
   assert.ok(Math.abs(anteil('munition') - 0.1) < 0.07, `Munition ${anteil('munition')}`);
   assert.equal(stat.fisch + stat.muell + stat.munition, N);
+});
+
+test('Admin: unendlich Ausdauer (Sprinten kostet nichts, gemeinsame Physik)', () => {
+  const { welt, spieler } = neueWelt();
+  spieler.admin = true;
+  aktion(welt, spieler, { art: AKTIONEN.ADMIN, befehl: ADMIN_BEFEHLE.UNENDLICH_AUSDAUER });
+  assert.equal(spieler.unendlichAusdauer, true);
+  const p = { ausdauerMax: 100, ausdauerVerbrauch: 50, ausdauerRegeneration: 10, sprintMinimum: 20 };
+  const koerper = { ausdauer: 100, erschoepft: false, unendlichAusdauer: true };
+  for (let i = 0; i < 100; i++) assert.equal(aktualisiereAusdauer(koerper, true, p, 0.1), true);
+  assert.equal(koerper.ausdauer, 100);
+  aktion(welt, spieler, { art: AKTIONEN.ADMIN, befehl: ADMIN_BEFEHLE.UNENDLICH_AUSDAUER });
+  assert.equal(spieler.unendlichAusdauer, false);
 });

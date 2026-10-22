@@ -37,6 +37,7 @@ export function erzeugeSpieler({ id, benutzername, x, y, konfiguration, admin = 
     gottmodus: false,
     unsichtbar: false,
     unendlichMunition: false, // Admin-Schalter: Schüsse kosten keine Munition
+    unendlichAusdauer: false, // Admin-Schalter: Sprinten kostet keine Ausdauer (gemeinsam/physik/bewegung.js)
     boostRest: 0, // Sekunden, in denen Sprinten keine Ausdauer kostet (Energydrink) – öffentlich, der Client rechnet die Vorhersage damit
     stationText: '', // [intern] zuletzt gesendete Station-Ansicht (nur Änderungen schicken)
     offeneStation: null, // [intern] ID des Lagerfeuers/Schmelzofens, dessen Menü dieser Spieler offen hat
@@ -108,6 +109,7 @@ export function spielerZuNetzwerk(s) {
     erschoepft: s.erschoepft,
     gleit: s.aufEis ? [s.gleitX, s.gleitY] : undefined, // Eis-Schwung exakt (Vorhersage rutscht genauso)
     boostRest: Math.round(s.boostRest * 1000) / 1000,
+    unendlichAusdauer: s.unendlichAusdauer || undefined,
     sprintet: s.sprintet,
     lichtAn: s.lichtAn,
     gottmodus: s.gottmodus,

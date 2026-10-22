@@ -63,6 +63,29 @@ export class Zustand {
 
   #hoerer;
   #speicherTimer;
+
+  /**
+   * Runde 19: KI-Markierung JE ZONE (vorher bei jedem Zonenwechsel weg): id → { bereich: {x,y,b,h}|null, schutz: [{x,y,b,h}] }.
+   * `kiBereich` = Rechteck für die KI (darf über die Zone ragen), `kiSchutz` = geschützte Flächen (KI darf dort nichts ändern).
+   * Nur in dieser Sitzung; wandert bei Größenänderung links/oben mit (#versatzAusRaster).
+   */
+  kiMarken = new Map();
+  get kiBereich() {
+    return this.kiMarken.get(this.aktivId)?.bereich ?? null;
+  }
+  set kiBereich(r) {
+    this.#kiMarke().bereich = r ?? null;
+  }
+  get kiSchutz() {
+    return this.kiMarken.get(this.aktivId)?.schutz ?? [];
+  }
+  set kiSchutz(liste) {
+    this.#kiMarke().schutz = liste ?? [];
+  }
+  #kiMarke(id = this.aktivId) {
+    if (!this.kiMarken.has(id)) this.kiMarken.set(id, { bereich: null, schutz: [] });
+    return this.kiMarken.get(id);
+  }
   #ungespeichert = new Set();
 
   bei(name, f) {
@@ -134,6 +157,11 @@ export class Zustand {
       const p = v && this.layout[karte.id];
       if (!p) continue;
       this.layout[karte.id] = { x: p.x - v.x, y: p.y - v.y };
+      // KI-Markierung bleibt an derselben Stelle der Welt
+      const m = this.kiMarken.get(karte.id);
+      const schiebe = (r) => r && { ...r, x: r.x + v.x, y: r.y + v.y };
+      if (m) Object.assign(m, { bereich: schiebe(m.bereich), schutz: m.schutz.map(schiebe) });
+      if (m) this.melde('kiBereich');
       this.speicher.setze('meta', 'layout', this.layout);
       this.melde('layout');
     }

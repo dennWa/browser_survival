@@ -31,7 +31,7 @@ Dazu Anzeigen: Raster, Innen/Außen, steile Hänge, Nachbarzonen.
 Koordinaten sind **Kacheln** (1 Kachel = 1 m = 32 px im Spiel), x nach rechts, y nach unten, (0|0) oben links.
 
 **Seit Phase 10.7 aufgeräumt:** Die Werkzeugleiste ganz links zeigt Symbol, Namen und Taste (Auswahl V, Hand H, Pinsel B …).
-Die linke Seitenleiste hat nur noch vier Reiter: **🧱 Assets** (oben Gruppen-Chips – ★ Schnell, ⛰ Gelände, 🧱 Bauen, 🌳 Natur …;
+Die linke Seitenleiste hat nur noch vier Reiter: **🧱 Baukasten** (oben Gruppen-Chips – ★ Schnell, ⛰ Gelände, 🧱 Bauen, 🌳 Natur …;
 es ist immer eine Gruppe offen, die Suche findet alles), **📦 Modelle**, **🔊 Audio** und **🗺 Projekt** (darunter Zonen · Räume · Prefabs).
 
 ## Zone anlegen und öffnen
@@ -360,7 +360,7 @@ Der Editor lässt sich mit dem Finger bedienen (die frühere „Touch-Ausnahme�
   ✥ verschieben · ⟳ tippen = drehen (Free-Modus: ziehen = frei drehen in 15°-Schritten) · ⤡ Größe (ein Objekt).
   Jeder Griff-Zug ist ein Undo-Schritt.
 - **Langdruck** (Finger ruhig liegen lassen) = Kontextmenü (wie Rechtsklick).
-- **Handy-Leiste** unten (schmale Bildschirme): 🧱 Assets-Schublade · ↶ ↷ · ⋯ Kontextmenü · ◨ Inspektor-Schublade.
+- **Handy-Leiste** unten (schmale Bildschirme): 🧱 Baukasten-Schublade · ↶ ↷ · ⋯ Kontextmenü · ◨ Inspektor-Schublade.
   Tippen auf die Karte schließt die Schublade.
 
 ## Veröffentlichen (Karte → Spiel)

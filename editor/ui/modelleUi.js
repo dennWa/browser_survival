@@ -32,7 +32,7 @@ export function modelleUi({ zustand, panel, aktionen, layout, bibliothek }) {
   let ordner = '';
   const wurzel = document.createElement('div');
   wurzel.className = 'modelle';
-  wurzel.innerHTML = `<div class="ablage" tabindex="0" title="3D-Dateien hierher ziehen">⬇ .glb / .gltf / .obj / .fbx hierher ziehen<br><button type="button" class="akzent" data-waehlen>📂 Dateien wählen …</button> <button type="button" data-poly title="Kostenlose CC0/CC-BY-Modelle suchen">🌐 Poly Pizza</button> <button type="button" data-spielordner title="Modelle aus client/assets/eigene/ in die Bibliothek übernehmen">📁 Spielordner</button></div>
+  wurzel.innerHTML = `<div class="ablage" tabindex="0" title="3D-Dateien hierher ziehen">⬇ .glb / .gltf / .obj / .fbx hierher ziehen<br><button type="button" class="akzent" data-waehlen>📂 Dateien wählen …</button> <button type="button" data-poly title="Kostenlose CC0/CC-BY-Modelle suchen">🌐 Poly Pizza</button></div>
     <div class="modelle-filter"><input type="search" placeholder="Modelle suchen … (#tag)" aria-label="Modelle suchen"><select aria-label="Ordner"></select></div>
     <div class="modelle-liste"></div>`;
   const eingabe = wurzel.querySelector('input[type=search]');
@@ -51,7 +51,6 @@ export function modelleUi({ zustand, panel, aktionen, layout, bibliothek }) {
   });
   wurzel.querySelector('[data-waehlen]').addEventListener('click', () => waehleDateien());
   wurzel.querySelector('[data-poly]').addEventListener('click', () => polyPizza());
-  wurzel.querySelector('[data-spielordner]').addEventListener('click', () => spielordner());
   for (const art of ['dragenter', 'dragover']) ablage.addEventListener(art, (e) => (e.preventDefault(), ablage.classList.add('ueber')));
   for (const art of ['dragleave', 'drop']) ablage.addEventListener(art, () => ablage.classList.remove('ueber'));
   ablage.addEventListener('drop', (e) => {
@@ -324,51 +323,6 @@ export function modelleUi({ zustand, panel, aktionen, layout, bibliothek }) {
         if (e.key === 'Enter') suchen();
       });
     await dialog({ titel: '🌐 Poly Pizza – Modelle suchen', knoten, knoepfe: [{ text: '📂 Datei mit Lizenzangaben …', wert: 'datei' }, { text: 'Schließen', art: 'akzent', wert: null }], beiOeffnen: () => feldSchluessel.value && suchen() }).then((w) => w === 'datei' && dateiMitLizenz());
-  }
-
-  /** Modelle aus client/assets/eigene/ (index.json, `npm run eigene:index`) → Klick übernimmt sie in die Bibliothek */
-  async function spielordner() {
-    const basis = new URL('../client/assets/eigene/', location.href);
-    let katalog;
-    try {
-      katalog = await (await fetch(new URL('index.json', basis))).json();
-    } catch {
-      return zustand.meldung('Spielordner-Liste nicht gefunden (npm run eigene:index)', 'fehler');
-    }
-    const knoten = document.createElement('div');
-    knoten.className = 'quelle';
-    knoten.innerHTML = `<div class="quelle-zeile"><input type="search" name="suche" placeholder="${katalog.length} Modelle durchsuchen …" aria-label="Suche"></div><div class="quelle-status leise"></div><div class="quelle-liste" style="max-height:60vh;overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:6px"></div>`;
-    const feld = knoten.querySelector('[name=suche]');
-    const status = knoten.querySelector('.quelle-status');
-    const raster = knoten.querySelector('.quelle-liste');
-    const vorhanden = new Set(bibliothek.liste.map((m) => m.quelle));
-    const zeige = () => {
-      const q = feld.value.trim().toLowerCase();
-      const treffer = katalog.filter((k) => !q || k.name.toLowerCase().includes(q));
-      status.textContent = `${treffer.length} von ${katalog.length} – Klick = in die Bibliothek übernehmen`;
-      raster.innerHTML = treffer.map((k) => `<button type="button" data-datei="${esc(k.datei)}" title="${esc(k.datei)} · ${groesseText(k.groesse)}" style="display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px;font-size:11px;line-height:1.2"><img src="${esc(new URL(`vorschau/${k.datei.replace(/\.glb$/i, '.png')}`, basis).href)}" alt="" loading="lazy" width="96" height="96" style="object-fit:contain">${vorhanden.has(new URL(k.datei, basis).href) ? '✓ ' : ''}${esc(k.name)}</button>`).join('');
-    };
-    feld.addEventListener('input', zeige);
-    feld.addEventListener('keydown', (e) => e.stopPropagation());
-    raster.addEventListener('click', async (ev) => {
-      const datei = ev.target.closest('[data-datei]')?.dataset.datei;
-      if (!datei) return;
-      const k = katalog.find((x) => x.datei === datei);
-      const url = new URL(datei, basis).href;
-      status.textContent = `⟳ „${k.name}“ wird geladen …`;
-      try {
-        const antwort = await fetch(url);
-        if (!antwort.ok) throw new Error(`Datei nicht gefunden (${antwort.status})`);
-        const m = await leseModellDatei(new File([await antwort.arrayBuffer()], datei));
-        const { meta, neu } = await bibliothek.fuegeHinzu(m.bytes, { name: k.name, ordner: 'Spielordner', kategorie: 'Eigene', tags: ['spielordner'], quelle: url, masse: m.masse, dreiecke: m.info.dreiecke, animationen: m.info.animationen, vorschau: m.vorschau });
-        vorhanden.add(url);
-        status.textContent = `✓ „${meta.name}“ ${neu ? 'übernommen' : 'war schon in der Bibliothek'}${m.warnungen.length ? ` – ${m.warnungen.join('; ')}` : ''}`;
-      } catch (e) {
-        status.innerHTML = `<span style="color:var(--rot)">${esc(e.message)}</span>`;
-      }
-    });
-    zeige();
-    await dialog({ titel: '📁 Modelle aus dem Spielordner', knoten, knoepfe: [{ text: 'Schließen', art: 'akzent', wert: null }] });
   }
 
   /** Rückfall ohne API: heruntergeladene Datei + Urheber/Lizenz/Quelle von Hand */

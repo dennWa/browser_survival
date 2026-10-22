@@ -5,12 +5,13 @@ import { markerSchluessel, ID_SAMMLUNGEN, kopie } from './karte.js';
 import { katalog, objektInfo } from './katalog.js';
 import { pruefeObjekt, pruefeMarker, pruefeBauwerk } from './platzierung.js';
 import { linie as linienPunkte } from './raster.js';
-import { FORMAT_AUSSCHNITT, AUSSCHNITT_VERSION, bereichsPruefsumme, bereichText } from './ausschnitt.js';
+import { FORMAT_AUSSCHNITT, AUSSCHNITT_VERSION, AUSSEN, bereichsPruefsumme, bereichText } from './ausschnitt.js';
 import { ZONEN_EINSTELLUNGEN, pruefeZonenEinstellungen } from '../../server/spiel/karten/zonenEinstellungen.js';
 import { neueLootZone, pruefeLootZone } from '../../server/spiel/karten/lootZonen.js';
 import { einfuegeOps } from './auswahl.js';
 import { eingebautePrefabs } from './prefabs.js';
 import { spielordnerTyp } from './spielordner.js';
+import { opsImSchutz } from './kiSchutz.js';
 
 /**
  * Import von KI-Änderungen (Phase 8). Ablauf:
@@ -97,6 +98,7 @@ export function leseKiAntwort(text, karte = null) {
     if (roh.bereich) Object.assign(meta, normalisiereBereich(roh.bereich));
     if (roh.zone) meta.zone = roh.zone;
     if (roh.pruefsumme) meta.pruefsumme = roh.pruefsumme;
+    if (Array.isArray(roh.geschuetzt)) meta.geschuetzt = roh.geschuetzt;
   } else throw new Error('Leere Antwort');
   const rest = [];
   for (const a of aktionen) {
@@ -104,6 +106,7 @@ export function leseKiAntwort(text, karte = null) {
       Object.assign(meta, normalisiereBereich(a));
       if (a.zone) meta.zone = a.zone;
       if (a.pruefsumme) meta.pruefsumme = a.pruefsumme;
+      if (Array.isArray(a.geschuetzt)) meta.geschuetzt = a.geschuetzt; // Runde 19: geschützte Flächen aus dem Export zurück
     } else rest.push(a);
   }
   return { aktionen: rest, meta, warnungen };
@@ -141,7 +144,10 @@ export function ausschnittZuAktionen(karte, a) {
     }
     for (let x = b.x0; x <= b.x1; x++) {
       const neu = z[x - b.x0];
-      const m = karte.markerAn(x, y);
+      // Runde 19: außerhalb der Zone – „?“ (noch leer) oder Rasen (Füllung beim Vergrößern) ändern nichts
+      const aussen = x < 0 || y < 0 || x >= karte.breite || y >= karte.hoehe;
+      if (aussen && (neu === AUSSEN || neu === ',')) continue;
+      const m = aussen ? null : karte.markerAn(x, y);
       const altZeichen = m ? (m.art === 'start' ? 'S' : m.art === 'zombie' ? 'Z' : m.raum) : karte.kachelAn(x, y);
       if (neu === altZeichen) continue;
       if (m) aktionen.push({ aktion: 'entferne', marker: m.art, x, y });
@@ -167,7 +173,7 @@ export function ausschnittZuAktionen(karte, a) {
     }
     for (const [id] of vorher) if (!gesehen.has(id)) aktionen.push({ aktion: 'entferne', id });
   }
-  return { aktionen, meta: { bereich: b, zone: a.zone?.id, pruefsumme: a.pruefsumme }, warnungen };
+  return { aktionen, meta: { bereich: b, zone: a.zone?.id, pruefsumme: a.pruefsumme, ...(Array.isArray(a.geschuetzt) ? { geschuetzt: a.geschuetzt } : {}) }, warnungen };
 }
 
 const zahl = (v) => typeof v === 'number' && Number.isFinite(v);
@@ -196,7 +202,7 @@ const gleicheZone = (z, karte) => [karte.id, karte.name].some((n) => String(n ??
  * @param optionen.bereich  { x0, x1, y0, y1 } erlaubter Bereich (Vorrang: meta.bereich aus der Antwort)
  * @returns {{ eintraege, ops, bereich, warnungen, zaehler: { neu, weg, aendern, ungueltig } }}
  */
-export function pruefeAenderungen(karte, { aktionen, meta = {}, warnungen = [] }, { bereich = null, prefabs = [] } = {}) {
+export function pruefeAenderungen(karte, { aktionen, meta = {}, warnungen = [] }, { bereich = null, prefabs = [], geschuetzt = [] } = {}) {
   // Ohne Bereich gehen nur zonenweite Aktionen (9.1: wert, name zone/raum, raum, typtextur) – alles mit Ort braucht eine Markierung
   const b = meta.bereich ?? bereich ?? (aktionen.length && aktionen.every(istZonenweit) ? KEIN_BEREICH : null);
   const hinweise = [...warnungen];
@@ -216,6 +222,9 @@ export function pruefeAenderungen(karte, { aktionen, meta = {}, warnungen = [] }
     const nr = i + 1;
     const ungueltig = (text, x = null, y = null) => eintraege.push({ nr, aktion: a, art: 'ungueltig', text: `Aktion ${nr}: ${text}`, x, y, ops: [] });
     const fertig = (art, text, ops, x, y, extra = {}) => {
+      // Runde 19: geschützte Flächen (Rechtsklick „🛡 Für die KI schützen“) – alter und neuer Ort zählen
+      const schutz = opsImSchutz(sim, ops, geschuetzt);
+      if (schutz) return eintraege.push({ nr, aktion: a, art: 'ungueltig', text: `Aktion ${nr}: liegt in einer geschützten Fläche (bei ${schutz.x}|${schutz.y}) – ${text}`, x: schutz.x, y: schutz.y, ops: [] });
       const ausgefuehrt = sim.anwenden(ops);
       if (!ausgefuehrt.length) return eintraege.push({ nr, aktion: a, art: 'ungueltig', text: `Aktion ${nr}: ändert nichts (${text})`, x, y, ops: [] });
       alleOps.push(...ops);

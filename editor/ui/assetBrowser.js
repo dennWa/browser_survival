@@ -1,10 +1,11 @@
-import { GRUPPEN, KATEGORIEN, eintraegeDerKategorie, katalog, katalogEintrag, eigeneEintraege, passtZurSuche } from '../kern/katalog.js';
+import { GRUPPEN, KATEGORIEN, MODELL_KATEGORIEN, eintraegeDerKategorie, katalog, katalogEintrag, eigeneEintraege, passtZurSuche } from '../kern/katalog.js';
 import { istWandEintrag } from '../kern/wand.js';
 import { esc } from './dialoge.js';
 import { lootVorlagenEintraege } from '../kern/bibliothekVorlagen.js';
+import { ladeSpielordner, spielordnerListe, spielordnerTyp } from '../kern/spielordner.js';
 
 /**
- * Asset-Browser (linke Seitenleiste, Reiter „Assets“, Editor 2.0 Schritt 1.3) – ersetzt Kategorie-Spalte + Bauleiste:
+ * Baukasten (früher „Asset-Browser“; linke Seitenleiste, Reiter „🧱 Baukasten“, Editor 2.0 Schritt 1.3) – ersetzt Kategorie-Spalte + Bauleiste:
  *   Suche (Name, Typ, Kategorie, Gruppe; Umlaute egal) · ★ Favoriten · 🕘 Zuletzt benutzt · 7 aufklappbare Gruppen
  *   (kern/katalog.js GRUPPEN) mit den Kategorien als Unterüberschrift.
  * Eintrag wählen setzt das passende Werkzeug: Kachel → malen, Objekt/Bauwerk/Marker → platzieren, Bereich → bereich,
@@ -19,6 +20,10 @@ import { lootVorlagenEintraege } from '../kern/bibliothekVorlagen.js';
  * eigene Loot-Vorlagen in der Suche (öffnen die Verwaltung). Einträge lassen sich auf die Karte ziehen (HTML-Drag
  * 'application/x-editor-asset' → `ablegen(id, ereignis)`: Prefab wird dort eingefügt, Objekt/Bauwerk/Marker gesetzt).
  * Audio-Dateien (Phase 4) erscheinen in „Klänge“ als `klang:punkt:<id>` (art 'klang') → aktionen.klangSetzen (ui/audioUi.js).
+ * Runde 19: die Spielordner-Modelle (client/assets/eigene/index.json, kern/spielordner.js) stehen direkt in ihrer Kategorie
+ * als `sf:<name>` (art 'spielordner', Unterüberschrift „3D-Modelle“) – nur Name + Vorschaubild (lazy), die .glb lädt erst
+ * die 3D-Ansicht. Wählen legt den Typ `sf_<name>_<dm>` (Standardhöhe) in der Zone an; diese Zonen-Typen werden nicht
+ * doppelt gezeigt. Der frühere Dialog „Modelle → 📁 Spielordner“ ist dadurch entfallen.
  */
 const SPEICHER = 'browserSurvival.editorAssets';
 const ZULETZT_MAX = 8;
@@ -54,7 +59,7 @@ export class AssetBrowser {
     // Gerüst einmal bauen; die Liste wird neu gezeichnet, das Suchfeld bleibt (Fokus!)
     this.wurzel = document.createElement('div');
     this.wurzel.className = 'asset-browser';
-    this.wurzel.innerHTML = '<input type="search" class="asset-suche" placeholder="🔎 Suchen … (Strg+F)" aria-label="Assets suchen"><div class="asset-chips" role="tablist" aria-label="Gruppen"></div><div class="asset-liste"></div>';
+    this.wurzel.innerHTML = '<input type="search" class="asset-suche" placeholder="🔎 Suchen … (Strg+F)" aria-label="Baukasten durchsuchen"><div class="asset-chips" role="tablist" aria-label="Gruppen"></div><div class="asset-liste"></div>';
     this.eingabe = this.wurzel.querySelector('.asset-suche');
     this.liste = this.wurzel.querySelector('.asset-liste');
     this.chips = this.wurzel.querySelector('.asset-chips');
@@ -104,11 +109,19 @@ export class AssetBrowser {
       e.target.open ? this.zu.delete(name) : this.zu.add(name);
       this.#speichere();
     }, true);
-    leiste.registriere('🧱 Assets', () => {
+    leiste.registriere('🧱 Baukasten', () => {
       if (leiste.el.firstChild !== this.wurzel) leiste.el.replaceChildren(this.wurzel);
       this.zeichneListe();
     }, { ereignisse: ['zone', 'eintrag', 'bibliothek', 'vorlagen'], ohneKarte: true });
-    zustand.bei('karte', (ops) => ops.some((o) => o.s === 'raeume' || o.s === 'typen') && leiste.aktiv === '🧱 Assets' && this.zeichneListe());
+    zustand.bei('karte', (ops) => ops.some((o) => o.s === 'raeume' || o.s === 'typen') && leiste.aktiv === '🧱 Baukasten' && this.zeichneListe());
+    this.spielordner = [];
+    // Spielordner-Katalog (ohne Spielserver fehlt er einfach)
+    ladeSpielordner(new URL('../client/assets/eigene/', location.href))
+      .then(() => {
+        this.spielordner = spielordnerListe().map((m) => ({ id: `sf:${m.stem}`, art: 'spielordner', stem: m.stem, name: m.name, kategorie: MODELL_KATEGORIEN[m.kategorie] ?? 'Deko', symbol: '🧊', vorschau: m.vorschau, tags: ['modell', '3d', m.kategorie], hoehe: m.hoehe }));
+        if (leiste.aktiv === '🧱 Baukasten') this.zeichneListe();
+      })
+      .catch(() => {});
   }
 
   /** Bibliotheks-Modelle als Einträge */
@@ -118,9 +131,10 @@ export class AssetBrowser {
 
   /** Einträge einer Kategorie: fest + Zonen-Typen (ohne die, die ein Bibliotheks-Modell schon zeigt) + Modelle + Zusatz */
   #derKategorie(kat, k) {
-    const ausBibliothek = (e) => e.eigen && this.bibliothek?.meta(k?.s('typen').get(e.typ)?.asset);
+    // Zonen-Typen, die ein Bibliotheks- oder Spielordner-Modell schon zeigt, nicht doppelt
+    const ausBibliothek = (e) => e.eigen && (this.bibliothek?.meta(k?.s('typen').get(e.typ)?.asset) || (e.typ?.startsWith('sf_') && k?.s('typen').get(e.typ)?.glbDatei));
     const klaenge = kat === 'Klänge' ? (this.audioBibliothek?.liste ?? []).map((m) => ({ id: `klang:punkt:${m.id}`, art: 'klang', klangArt: 'punkt', audio: m.id, name: m.name, kategorie: kat, symbol: '🔊', tags: [...m.tags, m.ordner, 'klang', 'audio', 'sound'].filter(Boolean) })) : [];
-    return [...eintraegeDerKategorie(kat, k).filter((e) => !ausBibliothek(e)), ...this.#modelle().filter((e) => e.kategorie === kat), ...klaenge, ...zusatzEintraege(kat, k)];
+    return [...eintraegeDerKategorie(kat, k).filter((e) => !ausBibliothek(e)), ...this.#modelle().filter((e) => e.kategorie === kat), ...klaenge, ...zusatzEintraege(kat, k), ...this.spielordner.filter((e) => e.kategorie === kat)];
   }
 
   /** Alle wählbaren Einträge (fest + eigene + Modelle + Zusatz) */
@@ -141,8 +155,8 @@ export class AssetBrowser {
   #kachel(e) {
     const aktiv = this.zustand.eintrag?.id === e.id;
     const bild = e.art === 'prefab' ? this.aktionen.prefabVorschau?.(e.vorlage) : e.vorschau ?? (e.eigen ? this.bibliothek?.meta(this.zustand.karte?.s('typen').get(e.typ)?.asset)?.vorschau : null);
-    const vorschau = e.art === 'kachel' ? `<span class="farbe" style="background:${esc(e.farbe)}"></span>` : bild ? `<img class="vorschau" src="${esc(bild)}" alt="">` : `<span class="symbol">${esc(e.symbol ?? '▪')}</span>`;
-    const masse = e.b ? ` (${e.b} × ${e.h}${e.blockiert ? ', blockiert' : ''})` : '';
+    const vorschau = e.art === 'kachel' ? `<span class="farbe" style="background:${esc(e.farbe)}"></span>` : bild ? `<img class="vorschau" src="${esc(bild)}" alt="" loading="lazy" decoding="async">` : `<span class="symbol">${esc(e.symbol ?? '▪')}</span>`;
+    const masse = e.b ? ` (${e.b} × ${e.h}${e.blockiert ? ', blockiert' : ''})` : e.art === 'spielordner' ? ` (3D-Modell, ${e.hoehe} m hoch)` : '';
     const stern = e.art === 'aktion' ? '' : `<span class="stern${this.favoriten.has(e.id) ? ' an' : ''}" title="Favorit">${this.favoriten.has(e.id) ? '★' : '☆'}</span>`;
     return `<button type="button" class="asset${aktiv ? ' aktiv' : ''}"${e.art === 'aktion' ? '' : ' draggable="true"'} data-id="${esc(e.id)}" title="${esc(e.name + masse)}">${vorschau}<span class="name">${esc(e.name)}</span>${stern}</button>`;
   }
@@ -166,7 +180,7 @@ export class AssetBrowser {
       if (this.gruppe === 'schnell') {
         if (fav.length) teile.push(`<h5>★ Favoriten</h5><div class="asset-raster">${fav.map((e) => this.#kachel(e)).join('')}</div>`);
         if (zul.length) teile.push(`<h5>🕘 Zuletzt</h5><div class="asset-raster">${zul.map((e) => this.#kachel(e)).join('')}</div>`);
-        if (!fav.length && !zul.length) teile.push('<p class="leise">Noch leer – benutzte Assets erscheinen hier, ☆ an einem Asset macht es zum Favoriten.</p>');
+        if (!fav.length && !zul.length) teile.push('<p class="leise">Noch leer – benutzte Bausteine erscheinen hier, ☆ an einem Baustein macht ihn zum Favoriten.</p>');
       }
       for (const g of GRUPPEN.filter((x) => x.name === this.gruppe)) {
         const gesehen = new Set();
@@ -181,7 +195,11 @@ export class AssetBrowser {
           });
           if (!eintraege.length) continue;
           n += eintraege.length;
-          inhalt += `<h5>${esc(kat)}</h5><div class="asset-raster">${eintraege.map((e) => this.#kachel(e)).join('')}</div>`;
+          const fest = eintraege.filter((e) => e.art !== 'spielordner');
+          const modelle = eintraege.filter((e) => e.art === 'spielordner');
+          inhalt += `<h5>${esc(kat)}</h5>`;
+          if (fest.length) inhalt += `<div class="asset-raster">${fest.map((e) => this.#kachel(e)).join('')}</div>`;
+          if (modelle.length) inhalt += `<h6 class="asset-unter">🧊 3D-Modelle (${modelle.length})</h6><div class="asset-raster mit-bild">${modelle.map((e) => this.#kachel(e)).join('')}</div>`;
         }
         // Eigene Typen mit eigener (unbekannter) Kategorie landen in „Eigene“
         if (g.name === 'Eigene' && k) {
@@ -213,6 +231,16 @@ export class AssetBrowser {
       this.zuletzt = [e.id, ...this.zuletzt.filter((id) => id !== e.id)].slice(0, ZULETZT_MAX);
       this.#speichere();
       return this.aktionen.klangSetzen?.(e.audio, e.klangArt);
+    }
+    if (e.art === 'spielordner') {
+      // Runde 19: Modell aus dem Spielordner → Typ in der Zone (Standardhöhe), dann wie ein eigener Typ platzieren
+      if (!z.karte) return z.meldung('Erst eine Zone öffnen', 'fehler');
+      const sf = spielordnerTyp(e.stem);
+      if (!sf) return z.meldung(`Modell „${e.name}“ fehlt im Spielordner`, 'fehler');
+      if (!z.karte.s('typen').has(sf.typId)) z.ausfuehren(`Modell „${e.name}“ in die Zone`, [{ s: 'typen', k: sf.typId, neu: sf.typ }]);
+      this.zuletzt = [e.id, ...this.zuletzt.filter((id) => id !== e.id)].slice(0, ZULETZT_MAX);
+      this.#speichere();
+      return this.aktionen.waehleKatalog(`eigen:${sf.typId}`);
     }
     if (e.art === 'bibliothek') {
       // 6.6: Bibliotheks-Modelle lassen sich auch in 3D setzen (Klick auf den Boden)
@@ -247,7 +275,7 @@ export class AssetBrowser {
     this.zuletzt = [e.id, ...this.zuletzt.filter((id) => id !== e.id)].slice(0, ZULETZT_MAX);
     this.#speichere();
     z.meldung(`${e.name} gewählt${istWandEintrag(e) ? ' – Maustaste halten und ziehen (Strg = Raum-Umriss, Umschalt = frei)' : e.art === 'objekt' ? ' – Klick setzt, R dreht, Umschalt = mehrere' : ''}`);
-    if (this.leiste.aktiv === '🧱 Assets') this.zeichneListe();
+    if (this.leiste.aktiv === '🧱 Baukasten') this.zeichneListe();
   }
 
   /** 7.4: Eintrag auf die Karte gezogen → dort einfügen/setzen (ereignis = Drop-Ereignis mit clientX/Y) */
@@ -260,7 +288,8 @@ export class AssetBrowser {
     if (!p) return;
     if (e.art === 'prefab') return this.aktionen.einfuegenBei(e.vorlage, p.tx - Math.floor(e.vorlage.b / 2), p.ty - Math.floor(e.vorlage.h / 2));
     this.waehle(e);
-    if (z.werkzeug === 'platzieren' && z.eintrag?.id === e.id) this.aktionen.platziereBei?.(ereignis);
+    // Modelle (Bibliothek/Spielordner) wählen einen Zonen-Typ mit anderer ID
+    if (z.werkzeug === 'platzieren' && (z.eintrag?.id === e.id || e.art === 'spielordner' || e.art === 'bibliothek')) this.aktionen.platziereBei?.(ereignis);
   }
 
   /** Eintrag per ID wählen (Pipette, Menü „Einfügen“, Räume-Reiter) – mit Zusatzfeldern (z. B. Raum) */
@@ -283,7 +312,7 @@ export class AssetBrowser {
 
   fokusSuche() {
     this.leiste.wurzel.hidden = false;
-    this.leiste.zeige('🧱 Assets');
+    this.leiste.zeige('🧱 Baukasten');
     this.eingabe.focus();
     this.eingabe.select();
   }

@@ -58,10 +58,10 @@ export const KI_AUFGABEN = Object.freeze({
   },
 });
 
-export function kiAnfrage({ aufgabe = 'helfer', karte, frage, verlauf = [], rechteck = null, auswahl = [], mitBereich = true, mitAuswahl = true, prefabs = [], extra = [] }) {
+export function kiAnfrage({ aufgabe = 'helfer', karte, frage, verlauf = [], rechteck = null, auswahl = [], mitBereich = true, mitAuswahl = true, prefabs = [], extra = [], schutz = [] }) {
   const a = KI_AUFGABEN[aufgabe];
   if (!a) throw new Error(`Unbekannte KI-Aufgabe „${aufgabe}“`);
-  const kontext = baueKontext(karte, { rechteck, auswahl, mitBereich: a.bereich && mitBereich, mitAuswahl: a.auswahl && mitAuswahl, prefabs });
+  const kontext = baueKontext(karte, { rechteck, auswahl, mitBereich: a.bereich && mitBereich, mitAuswahl: a.auswahl && mitAuswahl, prefabs, schutz });
   for (const b of extra) {
     kontext.text += `\n\n## ${b.titel}\n${b.text}`;
     kontext.teile.push({ titel: b.titel, zeichen: b.text.length });

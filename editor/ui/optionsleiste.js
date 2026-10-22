@@ -16,6 +16,7 @@ const HINWEIS = {
   raumFuellen: 'In einen Raum klicken – füllt bis zu Wänden/Türen',
   messen: 'Klick = Punkt · Doppelklick/Enter = Messung fertig · Esc = Maßband weg, zurück zur Auswahl (V)',
   kiMarkieren: 'Rechteck aufziehen – darf auch neben der Zone liegen (KI schlägt dort eine Erweiterung vor) · Esc bricht ab',
+  kiSchutz: 'Fläche aufziehen, die die KI NICHT ändern darf (Gebäude o. Ä.) – sie passt die Umgebung daran an · Esc bricht ab',
 };
 
 export class Optionsleiste {
@@ -98,7 +99,7 @@ export class Optionsleiste {
         form(art !== 'farbeEntfernen');
       }
     } else {
-      const titel = { auswahl: '⬚ Auswahl', hand: '✋ Schwenken', pipette: '💧 Pipette', zone: '⤡ Zone (Größe & Lage)', bereich: `▭ ${e?.name ?? 'Bereich'}`, raumFuellen: '🪣 Raum füllen', messen: '📏 Maßband', kiMarkieren: '🤖 Bereich für die KI markieren' }[w] ?? w;
+      const titel = { auswahl: '⬚ Auswahl', hand: '✋ Schwenken', pipette: '💧 Pipette', zone: '⤡ Zone (Größe & Lage)', bereich: `▭ ${e?.name ?? 'Bereich'}`, raumFuellen: '🪣 Raum füllen', messen: '📏 Maßband', kiMarkieren: '🤖 Bereich für die KI markieren', kiSchutz: '🛡 Für die KI schützen' }[w] ?? w;
       gruppe(`<b>${esc(titel)}</b>`);
       if (w === 'auswahl' && (z.auswahl.size || z.auswahlRechteck)) {
         const ids = z.auswahl.size ? ['bearbeiten.duplizieren', 'bearbeiten.drehen', 'bearbeiten.kopieren', 'bearbeiten.loeschen'] : ['bearbeiten.kopieren', 'bearbeiten.ausschneiden', 'bearbeiten.bereichLeeren', 'bearbeiten.alsPrefab', 'ki.ausschnitt'];

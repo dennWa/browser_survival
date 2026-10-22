@@ -45,17 +45,24 @@ export function dateiAktionen({ zustand, zeichner, werkzeuge, aktionen, rechts, 
      * Neue Zone (6.4): wird an die vorhandenen Zonen ANGEFÜGT. Wer die aktuelle Zone nicht mehr im Projekt haben will,
      * archiviert sie hier gleich mit (Häkchen) – sie liegt dann im Archiv (🗺 Zonen → 🗄 Archiv → ♻ zurückholen).
      */
-    async neu() {
+    /** Runde 19: `loeschen` = aktuelle Zone ohne Rückfrage-Kette endgültig löschen (zum Testen; Sicherung wird heruntergeladen) */
+    async neu({ loeschen = false } = {}) {
       const k = zustand.karte;
       const w = await dialog({
         titel: '➕ Neue Zone',
         html: `<p>Die neue Zone wird dem Projekt <b>hinzugefügt</b> – ${zustand.zonen.size ? `die ${zustand.zonen.size} vorhandene${zustand.zonen.size === 1 ? '' : 'n'} Zone${zustand.zonen.size === 1 ? '' : 'n'} bleiben erhalten und liegen daneben in der Weltanordnung (🗺 Zonen).` : 'sie ist die erste Zone.'}</p>
           <p><b>▭ Rechteck aufziehen</b>: an der gewünschten Stelle neben der aktuellen Zone (ohne Überlappung). <b>Größe eingeben</b>: bis ${MAX_GROESSE.toLocaleString('de-DE')} × ${MAX_GROESSE.toLocaleString('de-DE')} Kacheln, kommt direkt daneben.</p>
-          ${k ? `<label class="feld" style="grid-template-columns:24px 1fr"><input type="checkbox" name="archiv"><span>„${esc(k.name)}“ vorher <b>archivieren</b> (aus dem Projekt nehmen, später im Reiter 🗺 Zonen → 🗄 Archiv → ♻ zurückholen)</span></label>` : ''}`,
-        knoepfe: [{ text: 'Abbrechen', wert: null }, { text: 'Größe eingeben', wert: (b) => ({ art: 'zahlen', archiv: !!b.querySelector('[name=archiv]')?.checked }) }, { text: '▭ Rechteck aufziehen', wert: (b) => ({ art: 'ziehen', archiv: !!b.querySelector('[name=archiv]')?.checked }), art: 'akzent' }],
+          ${k ? `<label class="feld" style="grid-template-columns:24px 1fr"><input type="checkbox" name="archiv"><span>„${esc(k.name)}“ vorher <b>archivieren</b> (aus dem Projekt nehmen, später im Reiter 🗺 Zonen → 🗄 Archiv → ♻ zurückholen)</span></label>
+          <label class="feld" style="grid-template-columns:24px 1fr"><input type="checkbox" name="loeschen"${loeschen ? ' checked' : ''}><span>„${esc(k.name)}“ vorher <b>endgültig löschen</b> (zum Testen – eine Sicherung wird heruntergeladen)</span></label>` : ''}`,
+        knoepfe: [{ text: 'Abbrechen', wert: null }, { text: 'Größe eingeben', wert: (b) => ({ art: 'zahlen', ...wahl(b) }) }, { text: '▭ Rechteck aufziehen', wert: (b) => ({ art: 'ziehen', ...wahl(b) }), art: 'akzent' }],
       });
       if (!w) return;
-      if (w.archiv && k) {
+      if (w.loeschen && k) {
+        await zustand.speichereJetzt(k.id);
+        herunterladen(`${k.id}.entwurf.json`, JSON.stringify(entwurfDatei(k, zustand.zonen.get(k.id).verlauf)));
+        await zustand.entferneZone(k.id);
+        zustand.meldung(`🗑 „${k.name}“ gelöscht (Sicherung heruntergeladen)`, 'ok');
+      } else if (w.archiv && k) {
         if (!(await zustand.archiviereZone(k.id))) return zustand.meldung('Archivieren fehlgeschlagen (Speicher?) – nichts angelegt', 'fehler');
         zustand.meldung(`🗄 „${k.name}“ archiviert – zurückholen im Reiter 🗺 Zonen`, 'ok');
       }
@@ -311,6 +318,11 @@ export function dateiAktionen({ zustand, zeichner, werkzeuge, aktionen, rechts, 
     },
   };
   aktionen.zoneEntfernen = (id) => datei.zoneEntfernen(id);
+  /** Neue-Zone-Dialog: Häkchen archivieren/löschen auslesen (löschen hat Vorrang) */
+  function wahl(b) {
+    const loeschen = !!b.querySelector('[name=loeschen]')?.checked;
+    return { loeschen, archiv: !loeschen && !!b.querySelector('[name=archiv]')?.checked };
+  }
   aktionen.archivZurueck = (id) => datei.archivZurueck(id);
   aktionen.archivLoeschen = (id) => datei.archivLoeschen(id);
   return datei;

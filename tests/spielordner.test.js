@@ -14,9 +14,12 @@ const index = JSON.parse(fs.readFileSync(new URL('../client/assets/eigene/index.
 const laden = () => ausDefinition(KARTEN.stadtrand.definition ?? KARTEN.stadtrand).karte;
 before(() => setzeSpielordner(index));
 
-test('index.json: alle Modelle haben Maße, Vorschaubild und gültigen Dateinamen', () => {
+test('index.json: alle Modelle haben Maße, Vorschaubild, Kategorie und gültigen Dateinamen', () => {
   assert.ok(index.length >= 400);
+  const bereiche = new Set(['natur', 'tiere', 'bau', 'moebel', 'fahrzeuge', 'gegenstaende', 'essen', 'deko']);
   for (const e of index) {
+    assert.ok(bereiche.has(e.kategorie), `Kategorie fehlt: ${e.datei}`);
+    assert.ok(e.zielHoehe > 0, `zielHoehe fehlt: ${e.datei}`);
     assert.ok(e.masse?.b > 0 && e.masse.h > 0 && e.masse.hoehe > 0, `Maße fehlen: ${e.datei}`);
     assert.match(e.datei, /^[a-z0-9_-]+\.glb$/, e.datei);
     assert.ok(fs.existsSync(new URL(`../client/assets/eigene/vorschau/${e.datei.replace(/\.glb$/, '.png')}`, import.meta.url)), `Vorschau fehlt: ${e.datei}`);
@@ -25,8 +28,10 @@ test('index.json: alle Modelle haben Maße, Vorschaubild und gültigen Dateiname
 });
 
 test('spielordnerTyp: Zielhöhe skaliert gleichmäßig, Typ-ID mit Höhe', () => {
-  const natuerlich = spielordnerTyp('wolf');
+  const natuerlich = spielordnerTyp('wolf', 2.7);
   const klein = spielordnerTyp('wolf', 0.9);
+  assert.equal(spielordnerTyp('wolf').typId, 'sf_wolf_9', 'ohne Höhe: realistische Standardhöhe (zielHoehe)');
+  assert.equal(spielordnerTyp('cat').hoehe, 0.35, 'Katze nicht mehr 40 m');
   assert.equal(klein.typId, 'sf_wolf_9');
   assert.equal(klein.typ.glbDatei, 'assets/eigene/wolf.glb');
   assert.ok(klein.b < natuerlich.b && klein.h < natuerlich.h);
@@ -59,6 +64,6 @@ test('KI-Aktion modell: legt Typ + Objekt an, Spiel-Lader nimmt es an; unbekannt
 test('Gemini-Kontext nennt die Spielordner-Modelle mit Maßen', () => {
   const k = baueKontext(laden(), { rechteck: { x: 5, y: 5, b: 10, h: 8 } });
   assert.match(k.text, /spielordnerModelle/);
-  assert.match(k.text, /wolf 1\.1x5\.3x2\.7/);
+  assert.match(k.text, /tiere: [^;]*wolf 0\.4x1\.8x0\.9/);
   assert.ok(spielordnerKontext().length < 20000, 'bleibt kompakt');
 });

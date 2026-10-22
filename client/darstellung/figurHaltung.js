@@ -13,9 +13,11 @@ const haltungFuer = (name) => haltungMitHaenden(name) ?? modellHaltung(name);
  * (hacken/spitzhacke/abbauen/hacke, figur.klips) – hier wird nur das Werkzeug zwischen die Hände gelegt (platziereHackwerkzeug).
  * Sitzen: Clip „sitzen“ (falls vorhanden), sonst prozedural.
  *
- * Haltungen (Runde 18): ohne Waffe hängen die Arme locker (Clip); Taschenlampe nur nachts mit Licht an nach vorn;
- * Pistole hängt unten und wird erst beim Schießen gehoben (bleibt PISTOLE_OBEN_MS oben); Nahkampfwaffen beidhändig vor dem
- * Körper, Messer einhändig (andere Hand locker).
+ * Haltungen (Runde 19): ohne Waffe hängen die Arme locker (Clip); Taschenlampe nur nachts mit Licht an, schräg nach vorn-unten;
+ * Schusswaffen (Pistole, Gewehr) und Nahkampfwaffen außer Arbeitswerkzeug hängen locker neben dem Körper und gehen erst beim
+ * Schießen/Schlagen in den Anschlag (bleibt ANSCHLAG_MS oben, dann BEIDE Arme wieder runter). Arbeitswerkzeug (WERKZEUGE:
+ * Axt, Spitzhacke, Angel, Hammer, Hacke) bleibt beidhändig vor dem Körper. Andere Hand-Items (Essen, Trinken, Holz, Samen)
+ * trägt die Figur entspannt seitlich (Haltung 'seitlich').
  *
  * Richtungen sind im Raum der Figur angegeben: +z = Blickrichtung, +y = oben,
  * -x = rechte Körperseite (die Kenney-Figur schaut im Modell nach +z, rechter Arm liegt bei -x).
@@ -36,8 +38,12 @@ const VORNE = new THREE.Vector3(0, 0, 1);
 const HALTUNGEN = {
   pistole: { rechts: [v(0.22, -0.04, 1), v(0.18, 0, 1)], links: [v(-0.5, -0.08, 1), v(-0.36, 0, 1)], hand: 'rechts', zielen: true },
   gewehr: { rechts: [v(0.05, -0.8, 0.5), v(0.35, 0.12, 1)], links: [v(-0.3, -0.35, 1), v(-0.12, 0.05, 1)], hand: 'rechts', zielen: true },
-  // Pistole in Ruhe: Arm hängt schräg nach vorn-unten, Lauf zeigt zum Boden vor der Figur
-  pistoleUnten: { rechts: [v(-0.08, -0.92, 0.32), v(0.02, -0.7, 0.7)], links: null, hand: 'rechts' },
+  // Pistole in Ruhe: Arm hängt neben dem Körper, leicht angewinkelt, Lauf zeigt zum Boden
+  pistoleUnten: { rechts: [v(-0.12, -0.98, 0.12), v(-0.04, -0.85, 0.5)], links: null, hand: 'rechts' },
+  // Gewehr in Ruhe: rechte Hand hält es locker neben dem Körper, Lauf schräg nach vorn-unten, linke Hand hängt
+  gewehrUnten: { rechts: [v(-0.12, -0.98, 0.15), v(-0.02, -0.75, 0.65)], links: null, hand: 'rechts' },
+  // Entspannt seitlich: Arm hängt neben dem Körper, Unterarm leicht nach vorn (Item neben der Hüfte)
+  seitlich: { rechts: [v(-0.14, -0.98, 0.08), v(-0.08, -0.8, 0.55)], links: null, hand: 'rechts' },
   // Messer (einhändig): Klinge vor dem Körper, andere Hand bleibt unten
   messer: { rechts: [v(-0.25, -0.85, 0.45), v(-0.05, -0.2, 1)], links: null, hand: 'rechts' },
   // Nahkampfwaffe beidhändig vor dem Körper (Schlagbereitschaft); die linke Hand greift den Stiel (greifeMitLinkerHand)
@@ -46,9 +52,7 @@ const HALTUNGEN = {
   faust: { rechts: [v(-0.25, -0.75, 0.5), v(0.15, 0.6, 0.75)], links: null, hand: null },
   // Nichts in der Hand: Arme kommen ganz aus dem Clip (locker hängend / Pendeln beim Gehen)
   locker: { rechts: null, links: null, hand: null },
-  // Etwas in der Hand halten (Essen, Trinken, Holz, Samen): Unterarm vor dem Bauch
-  halten: { rechts: [v(-0.12, -0.55, 0.8), v(0.12, 0.05, 1)], links: null, hand: 'rechts' },
-  lampe: { rechts: null, links: [v(-0.12, -0.35, 1), v(-0.08, -0.04, 1)], hand: 'links' },
+  lampe: { rechts: null, links: [v(0.1, -0.85, 0.5), v(0.02, -0.35, 1)], hand: 'links' },
   zombie: { rechts: [v(0.12, 0.05, 1), v(0.05, 0.02, 1)], links: [v(-0.12, 0.05, 1), v(-0.05, 0.02, 1)], hand: null },
   // Am Lagerfeuer sitzen: Hände locker auf den Knien
   sitzen: { rechts: [v(-0.05, -0.75, 0.55), v(0.02, -0.3, 1)], links: [v(0.05, -0.75, 0.55), v(-0.02, -0.3, 1)], hand: null },
@@ -60,8 +64,12 @@ const ARBEIT_WERKZEUG = { holz: 'axt', stein: 'spitzhacke', eisenerz: 'spitzhack
 /** Arbeit/Aktion → Clip, der den Schlag macht (wenn die Figur ihn hat) */
 export const ARBEIT_KLIP = { holz: 'hacken', stein: 'spitzhacke', eisenerz: 'spitzhacke', zerlegen: 'abbauen' };
 const HACK_TAKT_MS = 850; // ein Schlag
-const PISTOLE_OBEN_MS = 10000; // so lange bleibt die Pistole nach dem letzten Schuss im Anschlag
-const ANSCHLAG_TEMPO = 7; // 1/s: Heben/Senken der Pistole
+const ANSCHLAG_MS = 5000; // so lange bleibt eine Waffe nach dem letzten Schuss/Schlag im Anschlag, dann gehen beide Arme runter
+const ANSCHLAG_TEMPO = 7; // 1/s: Heben/Senken der Waffe
+/** Arbeitswerkzeug: bleibt beidhändig vor dem Körper (Nutzer-Wunsch) – alle anderen Waffen/Items hängen in Ruhe locker */
+const WERKZEUGE = new Set(['axt', 'spitzhacke', 'angel', 'hammer', 'hacke']);
+/** Haltung in Ruhe (nicht im Anschlag) – null = Haltung bleibt immer gleich */
+const RUHE_HALTUNG = { pistole: 'pistoleUnten', gewehr: 'gewehrUnten', nahkampf: 'seitlich', messer: 'seitlich' };
 
 /** Bereitet eine frisch geklonte Figur vor: Knochen merken. */
 export function richteFigurEin(figur, modell) {
@@ -135,21 +143,23 @@ export function aktualisiereHaltung(figur, e, jetzt, dunkel = 1) {
     return;
   }
 
-  // Pistole: unten tragen, erst beim Schießen/Nachladen in den Anschlag – nach PISTOLE_OBEN_MS ohne Schuss wieder runter
-  if (haltungsName === 'pistole') {
-    if ((e.aktion === 'schiessen' || e.aktion === 'nachladen') && fortschritt !== null) figur.anschlagBis = jetzt + PISTOLE_OBEN_MS;
+  // Waffen: locker unten tragen, erst beim Schießen/Nachladen/Schlagen in den Anschlag – nach ANSCHLAG_MS wieder runter
+  const ruhe = WERKZEUGE.has(waffenName) ? null : RUHE_HALTUNG[haltungsName];
+  if (ruhe) {
+    if ((e.aktion === 'schiessen' || e.aktion === 'nachladen' || e.aktion === 'nahkampf') && fortschritt !== null) figur.anschlagBis = jetzt + ANSCHLAG_MS;
     const ziel = jetzt < figur.anschlagBis ? 1 : 0;
     figur.anschlag += (ziel - figur.anschlag) * Math.min(1, dt * ANSCHLAG_TEMPO);
     if (Math.abs(ziel - figur.anschlag) < 0.01) figur.anschlag = ziel;
-  }
+  } else figur.anschlag = 0;
   const basis = HALTUNGEN[haltungsName];
   const pose = { rechts: basis.rechts?.map((r) => r.clone()) ?? null, links: basis.links?.map((r) => r.clone()) ?? null };
-  if (haltungsName === 'pistole' && figur.anschlag < 1) {
-    // Zwischen Ruhe (unten, einhändig) und Anschlag (beidhändig) überblenden; die linke Hand kommt erst oben dazu
-    const unten = HALTUNGEN.pistoleUnten;
+  if (ruhe && figur.anschlag < 1) {
+    // Zwischen Ruhe (unten, einhändig) und Anschlag überblenden; die linke Hand kommt erst oben dazu – unten hängen BEIDE Arme
+    const unten = HALTUNGEN[ruhe];
     for (let i = 0; i < 2; i++) pose.rechts[i].lerpVectors(unten.rechts[i], basis.rechts[i], figur.anschlag).normalize();
     if (figur.anschlag < 0.5) pose.links = null;
   }
+  const beidhaendig = basis.beidhaendig && (!ruhe || figur.anschlag >= 0.5);
   if (haltungsName === 'hacken') (e.arbeit === 'holz' ? seitSchwung : hackSchwung)(pose, e.aktion === 'hacke' && !e.arbeit ? Math.min(1, (fortschritt ?? 1) * 0.55 + 0.45) : (jetzt % HACK_TAKT_MS) / HACK_TAKT_MS);
   else veraendereFuerAktion(pose, haltungsName, e.aktion, fortschritt);
 
@@ -162,7 +172,7 @@ export function aktualisiereHaltung(figur, e, jetzt, dunkel = 1) {
     richteKnochen(unterarm, hand, inWelt(pose[seite][1], gruppe));
   }
   // Holzfällen / beidhändige Nahkampfwaffe: beide Hände am Stiel – die linke Hand greift ein Stück weiter vorn
-  if ((haltungsName === 'hacken' && e.arbeit === 'holz') || basis.beidhaendig) greifeMitLinkerHand(figur, gruppe);
+  if ((haltungsName === 'hacken' && e.arbeit === 'holz') || beidhaendig) greifeMitLinkerHand(figur, gruppe);
 
   // Sitzen: Oberschenkel nach vorn, Unterschenkel nach unten (Figur ist dafür tiefer gesetzt, siehe renderer)
   if (haltungsName === 'sitzen') {
@@ -190,8 +200,8 @@ export function aktualisiereHaltung(figur, e, jetzt, dunkel = 1) {
       richtung = _c.copy(VORNE);
       if (e.aktion === 'schiessen' && fortschritt !== null) richtung.y += Math.sin(Math.PI * fortschritt) * 0.5;
       if (e.aktion === 'nachladen' && fortschritt !== null) richtung.y -= Math.sin(Math.PI * fortschritt) * 0.9;
-      if (haltungsName === 'pistole' && figur.anschlag < 1) {
-        // Pistole unten: Lauf folgt dem Unterarm (zeigt schräg zum Boden), oben genau nach vorn
+      if (ruhe && figur.anschlag < 1) {
+        // Waffe unten: Lauf folgt dem Unterarm (zeigt schräg zum Boden), oben genau nach vorn
         const ellbogen = gruppe.worldToLocal(unterarm.getWorldPosition(_f));
         const arm = _g.copy(gruppe.worldToLocal(hand.getWorldPosition(_e))).sub(ellbogen).normalize();
         richtung.lerp(arm, 1 - figur.anschlag);
@@ -200,7 +210,7 @@ export function aktualisiereHaltung(figur, e, jetzt, dunkel = 1) {
     } else {
       const ellbogen = gruppe.worldToLocal(unterarm.getWorldPosition(_c));
       richtung = _d.copy(gruppe.worldToLocal(hand.getWorldPosition(_e))).sub(ellbogen).normalize();
-      if (haltungsName === 'nahkampf') richtung.y += 0.35; // Klinge leicht nach oben
+      if (haltungsName === 'nahkampf') richtung.y += 0.35 * (ruhe ? figur.anschlag : 1); // Klinge leicht nach oben (in Ruhe: hängt)
       if (haltungsName === 'hacken') richtung.y += e.arbeit === 'holz' ? 0.15 : 0.6; // Kopf des Werkzeugs vorne-oben (Axt seitlich: fast waagerecht)
       richtung.normalize();
     }

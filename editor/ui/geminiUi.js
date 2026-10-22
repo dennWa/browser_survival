@@ -37,7 +37,7 @@ export function geminiUi({ zustand, panel, aktionen, pruefeText }) {
   wurzel.innerHTML = `
     <div class="helfer-kopf"><span class="helfer-status leise"></span><button data-a="einst" title="API-Schlüssel &amp; Modell">⚙</button><button data-a="neu" title="Neues Gespräch">🗑</button></div>
     <div class="helfer-kontext leise"><span></span> <button type="button" data-a="gesendet" title="Genau ansehen, was an Gemini geht">👁 Das wird gesendet</button></div>
-    <div class="helfer-markierung knopfreihe"><button type="button" data-a="markieren" title="Rechteck auf der Karte aufziehen – darf auch neben der Zone liegen (Maus oder Finger)">⬚ Bereich für die KI markieren</button><button type="button" data-a="markierungWeg" title="KI-Markierung entfernen" hidden>✕ Markierung</button></div>
+    <div class="helfer-markierung knopfreihe"><button type="button" data-a="markieren" title="Rechteck auf der Karte aufziehen – darf auch neben der Zone liegen (Maus oder Finger)">⬚ Bereich für die KI markieren</button><button type="button" data-a="schutz" title="Fläche, die die KI NICHT ändern darf (z. B. ein Gebäude) – sie passt die Umgebung daran an">🛡 Schützen</button><button type="button" data-a="markierungWeg" title="KI-Auswahl entfernen (Bereich + Schutz)" hidden>✕ Auswahl</button></div>
     <div class="helfer-aussen leise" hidden></div>
     <div class="helfer-optionen leise"><label><input type="checkbox" name="bereich" checked> Bereich/Zone mitschicken</label><label><input type="checkbox" name="auswahl" checked> Auswahl mitschicken</label></div>
     <div class="helfer-vorschlaege"></div>
@@ -61,11 +61,11 @@ export function geminiUi({ zustand, panel, aktionen, pruefeText }) {
   const prefabs = () => aktionen.eigenePrefabs?.() ?? [];
   // 7.2: KI-Markierung aus dem Chat (darf über die Zone hinausragen) hat Vorrang vor dem ⬚-Rahmen der Auswahl
   const rechteck = () => aktionen.kiRechteck?.() ?? auswahlBereich();
-  const bereite = (frage = '') => kiAnfrage({ karte: zustand.karte, frage, verlauf, rechteck: rechteck(), auswahl: ausgewaehlteElemente(), prefabs: prefabs(), ...kontextOptionen() });
+  const bereite = (frage = '') => kiAnfrage({ karte: zustand.karte, frage, verlauf, rechteck: rechteck(), auswahl: ausgewaehlteElemente(), prefabs: prefabs(), schutz: zustand.kiSchutz, ...kontextOptionen() });
 
   function zeigeKontext() {
     const ziel = el('.helfer-kontext span');
-    el('[data-a=markierungWeg]').hidden = !zustand.kiBereich;
+    el('[data-a=markierungWeg]').hidden = !zustand.kiBereich && !zustand.kiSchutz.length;
     const aussen = el('.helfer-aussen');
     aussen.hidden = true;
     if (!zustand.karte) return (ziel.textContent = 'Keine Zone geöffnet.');
@@ -164,6 +164,7 @@ export function geminiUi({ zustand, panel, aktionen, pruefeText }) {
     else if (a === 'stopp') laeuft?.abort();
     else if (a === 'markieren') aktionen.kiMarkieren?.();
     else if (a === 'markierungWeg') aktionen.kiMarkierungWeg?.();
+    else if (a === 'schutz') aktionen.kiSchutzMarkieren?.();
     else if (a === 'erweitern' || a === 'neueZoneDort') {
       const r = zustand.kiBereich;
       if (!r || !zustand.karte) return;
@@ -184,10 +185,7 @@ export function geminiUi({ zustand, panel, aktionen, pruefeText }) {
     e.stopPropagation(); // Editor-Tastenkürzel (Werkzeuge) nicht beim Tippen auslösen
   });
   wurzel.addEventListener('change', zeigeKontext);
-  // KI-Markierung gilt für die Zone, in der sie gezogen wurde
-  zustand.bei('zone', () => {
-    if (zustand.kiBereich) zustand.kiBereich = null;
-  });
+  // KI-Markierung gilt je Zone (zustand.kiMarken) – beim Wechsel kommt die der anderen Zone
   // gebündelt: beim Aufziehen der KI-Markierung kommt jedes Zeigerereignis an (Ausschnitt bauen kostet bei großen Bereichen)
   let kontextTimer = 0;
   const planeKontext = () => {

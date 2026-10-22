@@ -18,16 +18,28 @@ import { KACHEL_FARBEN } from '../../client/darstellung/farben.js';
  *   art 'werkzeug' → werkzeug (terrain-heben …, wetter-panel)
  *   art 'klang'    → klangArt punkt|bereich, audio (Datei der Audio-Bibliothek; Einträge kommen aus ui/assetBrowser.js)
  */
-export const KATEGORIEN = Object.freeze(['Wege', 'Mauern', 'Böden', 'Umwelt', 'Gebäude', 'Ressourcen', 'Möbel', 'Fahrzeuge', 'Spawns', 'Loot', 'Tiere', 'Wetter', 'Terrain', 'Farbe', 'Räume', 'Zonen', 'Klänge', 'Eigene']);
+export const KATEGORIEN = Object.freeze(['Wege', 'Mauern', 'Böden', 'Umwelt', 'Gebäude', 'Ressourcen', 'Möbel', 'Deko', 'Gegenstände', 'Essen & Trinken', 'Fahrzeuge', 'Spawns', 'Loot', 'Tiere', 'Wetter', 'Terrain', 'Farbe', 'Räume', 'Zonen', 'Klänge', 'Eigene']);
 
-/** Gruppen des Asset-Browsers (Editor 2.0): jede Kategorie gehört zu genau einer Gruppe (Test prüft das). */
+/** Kategorien, die (bisher) nur Spielordner-Modelle füllen – ohne eingebaute Katalog-Einträge */
+export const NUR_MODELL_KATEGORIEN = Object.freeze(['Deko', 'Gegenstände', 'Essen & Trinken']);
+
+/**
+ * Spielordner-Modelle (client/assets/eigene/index.json `kategorie`, werkzeuge/assets/eigene_kategorien.mjs) → Kategorie.
+ * Runde 19: die 452 Modelle liegen direkt im Baukasten in ihrem Bereich (8 Bereiche, Nutzer-Wunsch).
+ */
+export const MODELL_KATEGORIEN = Object.freeze({ natur: 'Umwelt', tiere: 'Tiere', bau: 'Gebäude', moebel: 'Möbel', fahrzeuge: 'Fahrzeuge', gegenstaende: 'Gegenstände', essen: 'Essen & Trinken', deko: 'Deko' });
+
+/**
+ * Gruppen des Baukastens (früher „Assets“; Editor 2.0, Runde 19 neu geordnet): jede Kategorie gehört zu genau einer
+ * Gruppe (Test prüft das). Höchstens 8 Chips – Räume/Zonen sind zu „Gameplay“ gewandert, Tiere zur Natur.
+ */
 export const GRUPPEN = Object.freeze([
   { name: 'Gelände', symbol: '⛰', kategorien: ['Böden', 'Wege', 'Terrain', 'Farbe'] },
   { name: 'Bauen', symbol: '🧱', kategorien: ['Mauern', 'Gebäude'] },
-  { name: 'Natur', symbol: '🌳', kategorien: ['Ressourcen', 'Umwelt'] },
-  { name: 'Einrichtung', symbol: '🛋', kategorien: ['Möbel', 'Fahrzeuge'] },
-  { name: 'Gameplay', symbol: '🎮', kategorien: ['Spawns', 'Loot', 'Tiere', 'Wetter'] },
-  { name: 'Zonen & Logik', symbol: '🗺', kategorien: ['Räume', 'Zonen'] },
+  { name: 'Natur', symbol: '🌳', kategorien: ['Ressourcen', 'Umwelt', 'Tiere'] },
+  { name: 'Einrichtung', symbol: '🛋', kategorien: ['Möbel', 'Deko'] },
+  { name: 'Gegenstände', symbol: '📦', kategorien: ['Gegenstände', 'Essen & Trinken', 'Fahrzeuge'] },
+  { name: 'Gameplay', symbol: '🎮', kategorien: ['Spawns', 'Loot', 'Wetter', 'Räume', 'Zonen'] },
   { name: 'Klang', symbol: '🔊', kategorien: ['Klänge'] },
   { name: 'Eigene', symbol: '✦', kategorien: ['Eigene'] },
 ]);

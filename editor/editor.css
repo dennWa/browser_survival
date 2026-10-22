@@ -736,6 +736,26 @@ button.asset img.vorschau {
   width: 30px;
   height: 30px;
   object-fit: contain;
+  flex: none;
+}
+/* Runde 19: Spielordner-Modelle im Baukasten – größere Vorschau, Name darunter, nichts verrutscht */
+.asset-liste h6.asset-unter {
+  margin: 6px 0 3px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--leise);
+}
+.asset-raster.mit-bild {
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+}
+.asset-raster.mit-bild button.asset {
+  height: 86px;
+  justify-content: flex-start;
+  padding-top: 4px;
+}
+.asset-raster.mit-bild button.asset img.vorschau {
+  width: 52px;
+  height: 52px;
 }
 
 /* Modell-Bibliothek (Reiter 📦 Modelle, ui/modelleUi.js) */

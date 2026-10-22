@@ -181,7 +181,7 @@ export function erstelleAktionen({ zustand, zeichner, leinwand, teile }) {
       teile.werkzeuge.abbrechen();
       teile.ansicht3d?.verwerfeGeist?.();
       zustand.leereAuswahl();
-      if (['platzieren', 'einfuegen', 'messen', 'kiMarkieren'].includes(zustand.werkzeug)) aktionen.werkzeug('auswahl');
+      if (['platzieren', 'einfuegen', 'messen', 'kiMarkieren', 'kiSchutz'].includes(zustand.werkzeug)) aktionen.werkzeug('auswahl');
     },
 
     // --- 7.2: Bereich für die KI markieren (aus dem 🤖 Helfer, auch über die Zone hinaus) -------------
@@ -203,9 +203,35 @@ export function erstelleAktionen({ zustand, zeichner, leinwand, teile }) {
       const draussen = r.x < 0 || r.y < 0 || r.x + r.b > k.breite || r.y + r.h > k.hoehe;
       zustand.meldung(`🤖 KI-Bereich ${r.b} × ${r.h} markiert${draussen ? ' – ragt über die Zone (KI plant dort, bauen erst nach „Zone vergrößern“/„Neue Zone“)' : ''} – jetzt im Helfer fragen`, 'ok');
     },
+    /** Runde 19: KI-Auswahl ganz weg (Bereich + geschützte Flächen) */
     kiMarkierungWeg() {
-      if (!zustand.kiBereich) return;
+      if (!zustand.kiBereich && !zustand.kiSchutz.length) return;
       zustand.kiBereich = null;
+      zustand.kiSchutz = [];
+      zustand.melde('kiBereich');
+      zeichner.anfordern();
+      zustand.meldung('KI-Auswahl entfernt');
+    },
+    /** Runde 19: Fläche schützen (KI darf dort nichts ändern) – Rechteck aufziehen */
+    kiSchutzMarkieren() {
+      if (!zustand.karte) return zustand.meldung('Erst eine Zone öffnen', 'fehler');
+      if (zustand.ansicht === '3d') teile.schalteAnsicht();
+      aktionen.werkzeug('kiSchutz');
+      zustand.meldung('🛡 Fläche aufziehen, die die KI NICHT ändern darf (z. B. ein Gebäude) · Esc bricht ab');
+    },
+    kiSchutzFertig(r) {
+      aktionen.werkzeug('auswahl');
+      if (!r || r.b < 1 || r.h < 1) return;
+      zustand.kiSchutz = [...zustand.kiSchutz, r];
+      zustand.melde('kiBereich');
+      zeichner.anfordern();
+      zustand.meldung(`🛡 ${r.b} × ${r.h} geschützt – die KI passt die Umgebung daran an, ändert dort aber nichts`, 'ok');
+    },
+    /** Geschützte Fläche an Kachel (x, y) wieder freigeben */
+    kiSchutzWeg(x, y) {
+      const rest = zustand.kiSchutz.filter((r) => !(x >= r.x && y >= r.y && x < r.x + r.b && y < r.y + r.h));
+      if (rest.length === zustand.kiSchutz.length) return;
+      zustand.kiSchutz = rest;
       zustand.melde('kiBereich');
       zeichner.anfordern();
     },
@@ -217,9 +243,7 @@ export function erstelleAktionen({ zustand, zeichner, leinwand, teile }) {
       const vorher = { b: k.breite, h: k.hoehe };
       await aktionen.zoneGroesse(rand);
       if (k.breite === vorher.b && k.hoehe === vorher.h) return; // abgebrochen/abgelehnt
-      zustand.kiBereich = { ...r, x: r.x + (rand.links ?? 0), y: r.y + (rand.oben ?? 0) };
-      zustand.melde('kiBereich');
-      zeichner.anfordern();
+      zeichner.anfordern(); // Markierung wandert über den Raster-Versatz mit (zustand.#versatzAusRaster)
     },
     /** Neue Zone an der Stelle der KI-Markierung (Weltanordnung, ohne Überlappung) – danach gilt die ganze neue Zone */
     async kiNeueZoneDort(r) {

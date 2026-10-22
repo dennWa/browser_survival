@@ -90,8 +90,9 @@ export function aktualisiereAusdauer(koerper, willSprinten, p, dt) {
     koerper.erschoepft = false;
   }
   // Boost (Energydrink): läuft in Echtzeit ab, Sprinten kostet währenddessen keine Ausdauer
-  const boost = koerper.boostRest > 0;
-  if (boost) koerper.boostRest = Math.max(0, koerper.boostRest - dt);
+  // Admin „Unendlich Ausdauer“ wirkt wie ein Dauer-Boost
+  const boost = koerper.boostRest > 0 || koerper.unendlichAusdauer === true;
+  if (koerper.boostRest > 0) koerper.boostRest = Math.max(0, koerper.boostRest - dt);
   const sprintet = willSprinten && (boost || (!koerper.erschoepft && koerper.ausdauer > 0));
   if (sprintet && boost) {
     // kostenlos

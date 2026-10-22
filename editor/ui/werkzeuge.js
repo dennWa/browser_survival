@@ -95,6 +95,24 @@ export class Werkzeuge {
     return this.zustand.karte;
   }
 
+  /**
+   * Runde 19: Punkt außerhalb der aktiven Zone, aber in einer anderen Zone des Projekts (zeichner.weltZonen, relativ zur
+   * aktiven) → dorthin wechseln. Nicht beim Zone-Werkzeug (Größe/Lage) und beim KI-Markieren (darf über die Zone hinaus).
+   * @returns true, wenn gewechselt wurde (der Klick ist damit verbraucht)
+   */
+  #wechsleZoneBei(p) {
+    const k = this.karte;
+    if (['zone', 'kiMarkieren', 'kiSchutz'].includes(this.zustand.werkzeug) || this.neuModus) return false;
+    if (p.wx >= 0 && p.wy >= 0 && p.wx < k.breite && p.wy < k.hoehe) return false;
+    const ziel = this.z.weltZonen.find((w) => p.wx >= w.x && p.wy >= w.y && p.wx < w.x + w.b && p.wy < w.y + w.h);
+    if (!ziel || !this.zustand.zonen.has(ziel.id)) return false;
+    this.z.kamera.x -= ziel.x;
+    this.z.kamera.y -= ziel.y;
+    this.zustand.aktiviere(ziel.id);
+    this.zustand.meldung(`Zone „${ziel.name}“ wird bearbeitet`, 'ok');
+    return true;
+  }
+
   /** 7.4: Karten-Punkt eines (Drop-)Ereignisses bzw. Platzieren dort */
   kartenPunkt(e) {
     return this.#pos(e);
@@ -196,6 +214,8 @@ export class Werkzeuge {
       return;
     }
     if (!this.karte) return;
+    // Runde 19: Klick in eine andere (blasse) Zone → diese Zone wird aktiv und bleibt bearbeitbar; die Ansicht springt nicht
+    if (this.#wechsleZoneBei(p)) return;
     // Hilfslinie aus dem Lineal ziehen (oben → waagerecht, links → senkrecht) bzw. vorhandene anfassen
     const hl = p.px < LINEAL && p.py < LINEAL ? null : p.py < LINEAL ? { achse: 'y', alt: null } : p.px < LINEAL ? { achse: 'x', alt: null } : this.#hilfslinieBei(p);
     if (hl) {
@@ -210,6 +230,13 @@ export class Werkzeuge {
       // 7.2: Rechteck für die KI – darf neben/außerhalb der Zone liegen
       this.ziehen = { art: 'kiBereich', start: p, vorher: zustand.kiBereich ?? null };
       this.#kiBereichZiehen(this.ziehen, p);
+      return;
+    }
+    if (w === 'kiSchutz') {
+      // Runde 19: geschützte Fläche für die KI (Vorschau im Zeichner, fertig erst beim Loslassen)
+      this.ziehen = { art: 'kiSchutz', start: p };
+      this.z.schutzVorschau = rechteckAus(p.tx, p.ty, p.tx, p.ty);
+      this.z.anfordern();
       return;
     }
     if (e.altKey && ['malen', 'platzieren', 'farbe', 'radierer', 'terrain'].includes(w)) return this.#pipette(p);
@@ -322,6 +349,10 @@ export class Werkzeuge {
     else if (d.art === 'zone') this.#zoneZiehen(d, p);
     else if (d.art === 'zoneLage') this.#zoneLageZiehen(d, p);
     else if (d.art === 'kiBereich') this.#kiBereichZiehen(d, p);
+    else if (d.art === 'kiSchutz') {
+      this.z.schutzVorschau = rechteckAus(d.start.tx, d.start.ty, p.tx, p.ty);
+      this.z.anfordern();
+    }
     else if (d.art === 'hilfslinie') {
       this.z.hilfslinieZiehen = { achse: d.achse, wert: this.#hilfsWert(d.achse, p) };
       this.z.anfordern();
@@ -363,6 +394,10 @@ export class Werkzeuge {
     if (d.art === 'zone') this.#zoneFertig();
     if (d.art === 'zoneLage') this.#zoneLageFertig(d);
     if (d.art === 'kiBereich') this.#kiBereichFertig(d, p);
+    if (d.art === 'kiSchutz') {
+      this.z.schutzVorschau = null;
+      this.aktionen.kiSchutzFertig?.(rechteckAus(d.start.tx, d.start.ty, p.tx, p.ty));
+    }
     if (d.art === 'hilfslinie') this.#hilfslinieFertig(d, p);
     this.z.vorschau = null;
     this.z.fangLinien = null;
@@ -384,6 +419,7 @@ export class Werkzeuge {
       this.zustand.kiBereich = d.vorher;
       this.zustand.melde('kiBereich');
     }
+    if (d.art === 'kiSchutz') this.z.schutzVorschau = null;
     this.z.vorschau = null;
     this.z.zonenVorschau = null;
     this.z.zonenLage = null;

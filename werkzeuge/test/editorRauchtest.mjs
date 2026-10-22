@@ -76,7 +76,7 @@ try {
     await seite.click(`.menue-liste [data-befehl="${befehl}"]`);
   };
   const asset = async (id) => {
-    await seite.click('#links [data-reiter="🧱 Assets"]');
+    await seite.click('#links [data-reiter="🧱 Baukasten"]');
     await seite.evaluate((id) => window.mapEditor.assets.zeigeEintrag(id), id); // Gruppen-Chips (10.7): passende Gruppe öffnen
     await seite.click(`#links button.asset[data-id="${id}"]`);
   };
@@ -243,7 +243,7 @@ try {
   }
   // 7.4: Bibliothek – Prefabs im Asset-Browser (Vorschaubild, Suche) und per Ziehen auf der Karte ablegen
   {
-    await seite.evaluate(() => window.mapEditor.layout.zeigeReiter('links', '🧱 Assets'));
+    await seite.evaluate(() => window.mapEditor.layout.zeigeReiter('links', '🧱 Baukasten'));
     await seite.fill('.asset-suche', 'wohnhaus');
     const treffer = await seite.locator('.asset-liste button.asset[data-id^="prefab:"]').count();
     const bild = await seite.locator('.asset-liste button.asset[data-id^="prefab:"] img.vorschau').count();
@@ -382,7 +382,7 @@ try {
   await seite.click('#dialog button:has-text("Ersetzen & löschen")');
   const nachErsatz = await seite.evaluate((id) => ({ n: window.mapEditor.bibliothek.liste.length, typ: [...window.mapEditor.zustand.karte.s('typen').values()].find((t) => t.asset)?.asset === id }), pfeiler.id);
   pruefe(nachErsatz.n === 2 && nachErsatz.typ, `Modell ersetzt und gelöscht (${JSON.stringify(nachErsatz)})`);
-  await seite.click('#links [data-reiter="🧱 Assets"]');
+  await seite.click('#links [data-reiter="🧱 Baukasten"]');
 
   schritt('Phase 4: Audio hochladen (WAV), Punkt-Klang setzen, Hörweite per Griff, Trimmen, kaputte Datei abgelehnt');
   const wav = (sek, hz) => {
@@ -449,7 +449,7 @@ try {
   await seite.screenshot({ path: path.join(AUSGABE, 'editor-14-audio-3d.png') });
   await seite.keyboard.press('3');
   await seite.keyboard.press('Escape');
-  await seite.click('#links [data-reiter="🧱 Assets"]');
+  await seite.click('#links [data-reiter="🧱 Baukasten"]');
 
   schritt('Phase 5.1: Modell-Werkstatt – Zahlenfelder, Auf den Boden, Teil ausblenden, Undo/Redo, neue Version, Typen umstellen');
   await seite.click('#links [data-reiter="📦 Modelle"]');
@@ -676,7 +676,7 @@ try {
   await seite.waitForSelector('.werkstatt', { state: 'detached' });
   await seite.unroute('https://generativelanguage.googleapis.com/**');
   await seite.evaluate((alt) => (alt === null ? localStorage.removeItem('browserSurvival.editorGemini') : localStorage.setItem('browserSurvival.editorGemini', alt)), alterSchluessel);
-  await seite.click('#links [data-reiter="🧱 Assets"]');
+  await seite.click('#links [data-reiter="🧱 Baukasten"]');
 
   schritt('Phase 5.5: Free-Modus – frei platzieren mit Winkel, Alt+Rad, Drehgriff, Undo, gedrehte Kollision');
   await asset('objekt:tisch');
@@ -748,7 +748,7 @@ try {
   pruefe(freiKollision, 'Spiel-Welt blockiert die Kacheln des gedrehten Tischs');
   await seite.uncheck('#optionen [data-o="frei"]');
   await seite.keyboard.press('Escape');
-  await seite.click('#links [data-reiter="🧱 Assets"]');
+  await seite.click('#links [data-reiter="🧱 Baukasten"]');
 
   if (!nurBis) {
     schritt('Spielzone Waldweg als Vorlage');
@@ -1000,7 +1000,7 @@ try {
     await seite.waitForFunction(() => window.mapEditor.zustand.zonen.has('waldweg'));
     pruefe((await zm(async () => Object.keys(await window.mapEditor.zustand.archiv()).length)) === 0, 'Zone aus dem Archiv zurückgeholt');
     await zm(() => window.mapEditor.zustand.aktiviere('testzone'));
-    await seite.click('#links [data-reiter="🧱 Assets"]');
+    await seite.click('#links [data-reiter="🧱 Baukasten"]');
   }
 
   if (!nurBis) {

@@ -66,6 +66,7 @@ export class Zeichner2D {
     this.nachbarn = []; // [{ karte, dx, dy }] Nachbarzonen relativ (Phase 7)
     this.weltZonen = []; // 6.4: alle anderen Zonen relativ zur aktiven [{ id, name, x, y, b, h }] (ui/zonenUi.js)
     this.weltZonenZeigen = false; // 6.4: Umrisse auch außerhalb des Zone-Werkzeugs (Neue Zone aufziehen)
+    this.schutzVorschau = null; // Runde 19: geschützte Fläche beim Aufziehen (Werkzeug kiSchutz)
     this.zonenLage = null; // 6.4: Vorschau beim Verschieben der Zone { dx, dy, konflikte: [] }
     this.innen = null; // Uint8Array, gesetzt von außen (Spiel-Berechnung)
     /** Hervorhebungen über allem (KI-Diff, Prüf-Fehler): [{ rechteck, farbe, gestrichelt?, text? }] */
@@ -360,7 +361,7 @@ export class Zeichner2D {
       if (this.zustand.sichtbar('lootDichte')) this.#zeichneLootDichte(ctx, k);
       this.#zeichneVorschau(ctx);
       const w = this.zustand.werkzeug;
-      if (w === 'zone' || w === 'kiMarkieren' || this.weltZonenZeigen) this.#zeichneWeltZonen(ctx);
+      if (w === 'zone' || w === 'kiMarkieren' || w === 'kiSchutz' || this.weltZonenZeigen) this.#zeichneWeltZonen(ctx);
       this.#zeichneKiBereich(ctx);
       this.#zeichneZonenRand(ctx, k);
       this.#zeichneMessen(ctx, k);
@@ -1028,8 +1029,26 @@ export class Zeichner2D {
     }
   }
 
-  /** 7.2: Bereich für die KI (zustand.kiBereich, darf über die Zone hinausragen) */
+  /** 7.2: Bereich für die KI (zustand.kiBereich, darf über die Zone hinausragen) + Runde 19: geschützte Flächen (rot schraffiert) */
   #zeichneKiBereich(ctx) {
+    for (const sch of [...this.zustand.kiSchutz, ...(this.schutzVorschau ? [this.schutzVorschau] : [])]) {
+      const rb = this.#rechteckBild(sch.x, sch.y, sch.b, sch.h);
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(rb.x, rb.y, rb.b, rb.h);
+      ctx.clip();
+      ctx.strokeStyle = 'rgba(255,80,80,0.45)';
+      ctx.lineWidth = 2;
+      for (let d = -rb.h; d < rb.b; d += 12) {
+        ctx.beginPath();
+        ctx.moveTo(rb.x + d, rb.y + rb.h);
+        ctx.lineTo(rb.x + d + rb.h, rb.y);
+        ctx.stroke();
+      }
+      ctx.restore();
+      this.#rahmen(ctx, sch, '#ff5050', null);
+      this.#text(ctx, '🛡 geschützt', rb.x + rb.b / 2, rb.y + rb.h / 2, '#ff8080', 12);
+    }
     const r = this.zustand.kiBereich;
     if (!r) return;
     const k = this.zustand.karte;
@@ -1054,7 +1073,7 @@ export class Zeichner2D {
         ctx.strokeRect(r.x, r.y, r.b, r.h);
       }
       const m = this.zuBild(n.dx + k.breite / 2, n.dy + k.hoehe / 2);
-      this.#text(ctx, `Zone: ${k.name} (${k.id})`, m.x, m.y, '#ddd', 16);
+      this.#text(ctx, `Zone: ${k.name} (${k.id}) – Klick = bearbeiten`, m.x, m.y, '#ddd', 16);
       ctx.restore();
     }
   }
