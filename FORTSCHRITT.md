@@ -83,7 +83,14 @@
 ## Abschluss
 | # | Punkt | Status | Vermerk |
 |---|---|---|---|
-| A.1 | Gesamt-Rauchtest, Bericht | ⬜ | |
+| A.1 | Gesamt-Rauchtest, Bericht | ✅ | 2026-10-22, siehe „Abschlussbericht“ unten |
+
+### Abschlussbericht Runde 18 (2026-10-22)
+- `npm test`: 383/383 grün.
+- `npm run rauchtest` (lokal, jetzt mit Gottmodus): 7/7 Schritte ok (Login, laufen, Inventar/Karte, Bau-Modus, Zone Waldweg ↔ Stadtrand). `-- --online`: 5/5 ok.
+- `npm run rauchtest:editor` (voll): alles ok bis auf 2 Touch-Prüfungen – „Handy-Leiste ↶ nimmt das Skalieren in einem Schritt zurück“ und „Werkstatt am Handy: mit dem Finger gemalt (map:false)“. **Beide schlagen auch auf dem Stand vor Runde 18 (69f47b2) fehl** → keine Regression, älterer offener Punkt.
+- Gezielt im Browser-Pane (Gottmodus): Sitzen mit Ä → Clip `sitzen`, Aufstehen; leerer Slot; Pistole: Schuss, 10 s im Anschlag, keine Konsolenfehler (Fix `figurHaltung`); Axt-Schlag = Clip `nahkampf`; Vogelgezwitscher draußen bei Tag; weicher Rasenrand; Zonenkante abseits der Straße; Zombie aus Nachbarzone sichtbar; Zonenwechsel 1 Long Task 58 ms; Wände/Wand-Durchsicht/Laternen nachts mit Block-Culling.
+- Offen: Phase 5 (Dateien in `!verteilen` sind OneDrive-„Nur online“), die 2 Editor-Touch-Prüfungen, 6.6/6.7 nicht von Hand geprüft.
 
 ## Entscheidungen / Defaults (kurz)
 - (wird beim Arbeiten ergänzt)

@@ -6,7 +6,7 @@
  *   npm run rauchtest -- --online      über den Node-Server (WebSocket, Gast-Login)
  *   npm run rauchtest -- --port 8099   anderer Port (Standard 8093)
  *
- * Ablauf: Login → Ladebildschirm weg → laufen → Inventar (Tab) → Karte (K) → Bau-Modus (B) → Zonenwechsel Waldweg und zurück
+ * Ablauf: Login → Ladebildschirm weg → (lokal: Gottmodus an) → laufen → Inventar (Tab) → Karte (K) → Bau-Modus (B) → Zonenwechsel Waldweg und zurück
  * (nur lokal, über browserSurvival.zone) → Screenshots nach werkzeuge/test/ausgabe/ → Fehlerliste.
  * Exit-Code 1 bei Seiten-/Konsolenfehlern. Braucht Playwright + Chromium (lokal installiert oder global:
  * `npm i -g playwright`); in Cloud-Sandboxen ist es meist schon da.
@@ -69,6 +69,16 @@ try {
   }
   await seite.waitForSelector('#laden', { state: 'hidden', timeout: 60000 });
   schritt(`im Spiel (${online ? 'online' : 'lokal'})`);
+  // Gottmodus (nur lokal, Server im Tab): Zombies/Hunger töten die Testfigur sonst mitten im Test (Nutzer-Wunsch Runde 18)
+  if (!online) {
+    await seite.evaluate(() => {
+      const srv = browserSurvival.server;
+      for (const z of srv?.zonen.values() ?? []) {
+        const ich = z.spielWelt.holen(browserSurvival.spiel.eigeneId);
+        if (ich) ich.gottmodus = true;
+      }
+    });
+  }
   await seite.keyboard.down('KeyD');
   await seite.waitForTimeout(700);
   await seite.keyboard.up('KeyD');
