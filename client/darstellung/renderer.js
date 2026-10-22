@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { FBXLoader, GLTFLoader, SkeletonUtils } from '../vendor/three/addons.js';
 import { Welt } from '../../gemeinsam/welt/welt.js';
 import { KartenModell, TUER_EBENE, TUER_SCHIMMER_WEITE } from './kartenModell.js';
+import { SICHT_PUFFER } from './bloecke.js';
 import { Himmel } from './himmel.js';
 import { strahlGegenWaende } from '../../gemeinsam/physik/strahl.js';
 import { NaturSchicht, ladeNaturModelle } from './naturModell.js';
@@ -329,7 +330,7 @@ export class Renderer {
   }
 
   /** Baut die statische Szene aus der Welt und kompiliert alle Shader vor (dauert kurz, danach ruckelfrei). */
-  setzeWelt(welt, nahtlos = false) {
+  setzeWelt(welt, nahtlos = false, eigeneId = null) {
     const alteWelt = this.welt;
     this.welt = welt;
     // Nahtloser Zonenwechsel: die schon gebaute Nachbarkarte wird zur aktuellen (kein Neuaufbau, kein Ladebildschirm)
@@ -349,14 +350,27 @@ export class Renderer {
     this.fallendeBaeume.length = 0;
     for (const l of this.fallendeLaternen) this.szene.remove(l.gruppe);
     this.fallendeLaternen.length = 0;
-    for (const f of this.figuren.values()) this.szene.remove(f.gruppe);
-    this.figuren.clear();
+    if (uebernahme) {
+      // Runde 18 (4.2): Figuren/Autos/Tiere behalten (kein Neuaufbau = kein Ruckler). Drüben waren sie „zone:id“, jetzt sind es
+      // die eigenen IDs; die der alten Zone heißen ab jetzt „altzone:id“ (so schickt sie der Server als fremde).
+      // eigene Figur: alte ID → neue ID (sonst würde sie neu gebaut)
+      const eigene = this.fokusId != null ? this.figuren.get(this.fokusId) : null;
+      if (eigene) this.figuren.delete(this.fokusId);
+      this.#benenneUm(this.figuren, alteWelt.id, welt.id, (f) => this.szene.remove(f.gruppe));
+      if (eigene && eigeneId != null) this.figuren.set(eigeneId, eigene);
+      else if (eigene) this.szene.remove(eigene.gruppe);
+      this.#benenneUm(this.fahrzeuge, alteWelt.id, welt.id, (g) => this.szene.remove(g));
+      this.#benenneUm(this.tiere, alteWelt.id, welt.id, (t) => this.szene.remove(t.gruppe));
+    } else {
+      for (const f of this.figuren.values()) this.szene.remove(f.gruppe);
+      this.figuren.clear();
+      for (const g of this.fahrzeuge.values()) this.szene.remove(g);
+      this.fahrzeuge.clear();
+      for (const t of this.tiere.values()) this.szene.remove(t.gruppe);
+      this.tiere.clear();
+    }
     for (const m of this.items.values()) this.szene.remove(m);
     this.items.clear();
-    for (const g of this.fahrzeuge.values()) this.szene.remove(g);
-    this.fahrzeuge.clear();
-    for (const t of this.tiere.values()) this.szene.remove(t.gruppe);
-    this.tiere.clear();
     for (const a of this.angelnde.values()) a.freigeben();
     this.angelnde.clear();
     for (const b of this.bauwerke.values()) this.szene.remove(b.gruppe);
@@ -403,6 +417,18 @@ export class Renderer {
     this.karte.setzeBaumDetail(QUALITAETS_STUFEN[this.stufe].baumDetail);
     this.#vorkompilieren();
     this.aufwaermen();
+  }
+
+  /** Schlüssel nach nahtlosem Wechsel umbenennen: "neu:17" → 17, 17 (alte Zone) → "alt:17"; Einträge dritter Zonen fallen weg. */
+  #benenneUm(map, altId, neuId, weg) {
+    const p = `${neuId}:`;
+    const eintraege = [...map];
+    map.clear();
+    for (const [k, v] of eintraege) {
+      if (typeof k === 'string' && k.startsWith(p)) map.set(Number(k.slice(p.length)), v);
+      else if (typeof k === 'number') map.set(`${altId}:${k}`, v);
+      else weg(v);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -501,6 +527,7 @@ export class Renderer {
     // ⚠ Ein einziger ungültiger Fokus (NaN, z. B. kurz beim Respawn) machte Kamera/Höhe dauerhaft NaN → schwarzes Bild, Figur weg
     // (Runde 18: „nach dem Respawn in der Nacht sieht man nichts mehr“). Ungültige Werte nie in die weichen Nachführ-Größen übernehmen.
     if (Number.isFinite(fokus.x) && Number.isFinite(fokus.y)) this.letzterFokus = { x: fokus.x, y: fokus.y };
+    this.fokusId = fokus.id;
     const fx = this.letzterFokus?.x ?? 0;
     const fy = this.letzterFokus?.y ?? 0;
     const bodenY = this.#hy(fx, fy);
@@ -550,6 +577,11 @@ export class Renderer {
       effekte.aktualisiere(dt, jetzt);
       this.#aktualisiereEffekte(effekte.zustand);
     }
+
+    // Runde 18 (4.1): Sichtweiten-Culling – Blöcke jenseits von Nebelweite + Puffer gar nicht erst zeichnen (auch nicht im Schattendurchgang)
+    const weite = (this.szene.fog?.far ?? Infinity) + SICHT_PUFFER;
+    this.karte.kulle(this.kamera3d.position, weite);
+    for (const n of this.nachbarn) n.modell?.kulle(this.kamera3d.position, weite);
 
     this.gl.render(this.szene, this.kamera3d);
     this.#zeichneSilhouette(fokus);
@@ -937,6 +969,7 @@ export class Renderer {
       kopie.visible = true;
       probe.add(kopie);
     }
+    this.karte.kulle(this.kamera3d.position, Infinity); // alle Blöcke sichtbar, damit jedes Material kompiliert wird
     this.gl.compile(this.szene, this.kamera3d);
     for (const t of [this.karte.bodenTextur, ...Object.values(this.skins)]) this.gl.initTexture(t);
     this.gl.render(this.szene, this.kamera3d); // auch Schatten-Shader & Uploads einmal anstoßen

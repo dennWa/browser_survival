@@ -8,12 +8,14 @@ import { WandDurchsicht } from './wandDurchsicht.js';
 import { einfrieren, matrixAus, vereineGeometrien } from './geometrie.js';
 import { eigeneGroesse } from '../../gemeinsam/welt/drehung.js';
 import { eigenesModellUrl, ladeEigenesModell, eigenesModellInhalt, leerlaufMischer } from './eigeneModelle.js';
+import { BLOCK_KACHELN, BlockInstanzen, boxZweiGruppen, kulEintrag, kulleNachWeite } from './bloecke.js';
 
 /**
  * Die Karte als 3D-Modell – auf wenige Draw-Calls optimiert (Performance!):
  *   Boden        1 Mesh mit Bodentextur
- *   Wände/Glas   InstancedMesh (1–2 Draw-Calls)
- *   Möbel        ALLE Möbelseiten in einem Mesh (Vertexfarben) + je Möbeltyp ein Mesh für die Deckel
+ *   Wände/Glas   InstancedMesh je Block (BlockInstanzen, Runde 18) – 2 Materialgruppen je Block
+ *   Möbel        je Block ein Mesh mit allen Möbelseiten (Vertexfarben) + je Block und Möbeltyp ein Mesh für die Deckel
+ *   Culling      alles blockweise: Frustum (three.js) + Sichtweite (kulle, Nebelweite + Puffer)
  *   Bäume/Steine InstancedMesh pro Teil – einzelne Instanzen werden beim Abbauen ausgeblendet (Stumpf erscheint)
  *   Türen        einzelne Flügel (bewegen sich)
  *   Lampen       nur ein kleines Glühen pro Lampe; echtes Licht kommt aus einem Pool im Renderer
@@ -85,6 +87,9 @@ export class KartenModell {
     this.beweglich = new THREE.Group(); // Türen, Ressourcen
     /** Leerlauf-Animationen eigener Modelle (Map-Editor 5.3): [{ mischer, x, z }] – nur in der Nähe der Kamera abgespielt */
     this.mischer = [];
+    /** Sichtweiten-Culling (Runde 18, 4.1): [{ objekt, x, y, z, r, sichtbar }] in Modell-Koordinaten (bloecke.js) */
+    this.kulEintraege = [];
+    this.blockPx = BLOCK_KACHELN * this.g;
     this.#baueBoden(bodenMassstab);
     this.#baueWasser();
     this.#baueWaende();
@@ -108,6 +113,16 @@ export class KartenModell {
   /** Als Nachbarkarte gezeigt: der Rasen jenseits des Kartenrands gehört nur der aktiven Karte (sonst verdeckt er die Karte darunter). */
   setzeAlsNachbar(ist) {
     if (this.draussen) this.draussen.visible = !ist;
+  }
+
+  /**
+   * Sichtweiten-Culling: Blöcke weiter als `weite` von der Kamera ausblenden (Wände, Möbel, Laternen, Bäume …).
+   * @param kamera  Weltposition der Kamera (Vector3) – wird um den Versatz der Nachbarkarte in Modell-Koordinaten umgerechnet
+   * @returns Anzahl sichtbarer Blöcke
+   */
+  kulle(kamera, weite) {
+    const v = this.statisch.position;
+    return kulleNachWeite(this.kulEintraege, kamera.x - v.x, kamera.y - v.y, kamera.z - v.z, weite);
   }
 
   /** Lampen der Karte: [{ x, y, z, farbe, radius, staerke, objekt }] – für den Licht-Pool im Renderer */
@@ -338,12 +353,21 @@ export class KartenModell {
     }
     const seite = this.mitSchnitt(new THREE.MeshStandardMaterial({ color: 0x5a616c, roughness: 0.92 }));
     const oben = this.mitSchnitt(new THREE.MeshStandardMaterial({ color: 0x2c3038, roughness: 1 }));
-    const wand = instanzen(new THREE.BoxGeometry(g, 1, g), [seite, seite, oben, oben, seite, seite], teile);
-    wand.castShadow = true;
-    wand.receiveShadow = true;
+    // je Block ein InstancedMesh (Culling); Box mit nur 2 Materialgruppen (Seiten, Deckel) → 2 Draw-Calls je Block
+    const wand = this.#instanzen(boxZweiGruppen(g, 1, g), [seite, oben], teile).schatten(true);
     const glasMaterial = this.mitSchnitt(new THREE.MeshStandardMaterial({ color: 0x8cc8e2, transparent: true, opacity: 0.35, roughness: 0.1, metalness: 0.2 }));
-    this.statisch.add(wand, instanzen(new THREE.BoxGeometry(g, 1, g * 0.3), glasMaterial, glas));
+    this.statisch.add(wand, this.#instanzen(new THREE.BoxGeometry(g, 1, g * 0.3), glasMaterial, glas, { bloecke: false }));
     this.wandDaten = { wand, teile, instanzVon, seite, oben };
+  }
+
+  /** Gleiche Teile als BlockInstanzen (je Block ein InstancedMesh) + fürs Sichtweiten-Culling anmelden */
+  // Leichte Teile (Glas, Glühen, Lichtschein: wenige Dreiecke je Stück) bleiben EIN Mesh (bloecke: false) – Blöcke würden dort nur
+  // Draw-Calls kosten (Messung Runde 18: +50–70 Calls ohne Gewinn). Schwere Teile (Wände, Masten) lohnen sich.
+  #instanzen(geometrie, material, teileOderMatrizen, { farben = null, istMatrix = false, bloecke = true } = {}) {
+    const matrizen = istMatrix ? teileOderMatrizen : teileOderMatrizen.map(teilMatrix);
+    const bi = new BlockInstanzen(geometrie, material, matrizen, { blockPx: bloecke ? this.blockPx : Infinity, farben });
+    if (bloecke) this.kulEintraege.push(...bi.kulEintraege());
+    return bi;
   }
 
   /** Wand-Durchsicht (wandDurchsicht.js): braucht Wände + Räume der Dächer */
@@ -409,17 +433,41 @@ export class KartenModell {
       deckelProTyp.get(o.typ).push({ geometrie: deckel, matrix: matrixAus(x, hoehe + 0.15, z, drehung) });
     }
     this.#baueWegweiser(seiten);
+    // Runde 18 (4.1): je Block zusammenfassen (Culling) statt eines Meshes über die ganze Karte
     if (seiten.length) {
-      const mesh = new THREE.Mesh(this.#anGelaende(vereineGeometrien(seiten, { mitFarbe: true })), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }));
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      this.statisch.add(mesh);
+      const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 });
+      for (const teile of this.#nachBlock(seiten).values()) {
+        const mesh = this.#blockMesh(vereineGeometrien(teile, { mitFarbe: true }), material);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+      }
     }
+    // Deckel (2 Dreiecke je Möbel, eigene Textur je Typ): ein Mesh je Typ – in Blöcken nur mehr Draw-Calls
     for (const [typ, teile] of deckelProTyp) {
       const mesh = new THREE.Mesh(this.#anGelaende(vereineGeometrien(teile)), new THREE.MeshStandardMaterial({ map: this.#spriteTextur(typ).textur, roughness: 0.8 }));
       mesh.receiveShadow = true;
       this.statisch.add(mesh);
     }
+  }
+
+  /** Teile { matrix, … } nach Block (Position aus der Matrix) gruppieren */
+  #nachBlock(teile) {
+    const bloecke = new Map();
+    for (const t of teile) {
+      const k = `${Math.floor(t.matrix.elements[12] / this.blockPx)},${Math.floor(t.matrix.elements[14] / this.blockPx)}`;
+      if (!bloecke.has(k)) bloecke.set(k, []);
+      bloecke.get(k).push(t);
+    }
+    return bloecke;
+  }
+
+  /** Statisches Mesh aus Weltgeometrie (aufs Gelände gestellt), in `statisch` + Sichtweiten-Culling */
+  #blockMesh(geometrie, material) {
+    const mesh = new THREE.Mesh(this.#anGelaende(geometrie), material);
+    mesh.geometry.computeBoundingSphere();
+    this.kulEintraege.push(kulEintrag(mesh, mesh.geometry.boundingSphere));
+    this.statisch.add(mesh);
+    return mesh;
   }
 
   /** Wegweiser an jedem Zonen-Übergang: Pfosten + Schild (in `seiten`) und ein Schild-Text "⬆ Waldweg". */
@@ -472,19 +520,14 @@ export class KartenModell {
         objekt: o,
       }));
     const material = new THREE.MeshBasicMaterial({ transparent: true, opacity: 1, depthWrite: false });
-    this.lampenGluehen = new THREE.InstancedMesh(new THREE.SphereGeometry(3.5, 8, 6), material, Math.max(1, this.lampenListe.length));
-    this.gluehMatrizen = [];
-    this.lampenListe.forEach((l, i) => {
-      this.gluehMatrizen.push(_matrix.makeTranslation(l.x, l.y, l.z).clone());
-      this.lampenGluehen.setMatrixAt(i, _matrix);
-      this.lampenGluehen.setColorAt(i, l.farbe.clone().multiplyScalar(1.3));
-    });
-    this.lampenGluehen.count = this.lampenListe.length;
+    this.gluehMatrizen = this.lampenListe.map((l) => new THREE.Matrix4().makeTranslation(l.x, l.y, l.z));
+    const gluehFarben = this.lampenListe.map((l) => l.farbe.clone().multiplyScalar(1.3));
+    this.lampenGluehen = this.#instanzen(new THREE.SphereGeometry(3.5, 8, 6), material, this.gluehMatrizen, { farben: gluehFarben, istMatrix: true, bloecke: false });
     this.statisch.add(this.lampenGluehen);
     // Lichtschein am Boden (additiv, günstig): Kreis für Punkt-Lampen, gestreckter Fleck in Leuchtrichtung für Kegel-Lampen
     const schein = new THREE.MeshBasicMaterial({ map: lichtscheinTextur(), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
-    this.lampenSchein = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), schein, Math.max(1, this.lampenListe.length));
     this.scheinMatrizen = [];
+    const scheinFarben = [];
     this.lampenListe.forEach((l, i) => {
       const r = l.reichweite * 0.9;
       if (l.objekt.art === 'kegel') {
@@ -496,12 +539,11 @@ export class KartenModell {
         _matrix.compose(_vektor.set(sx, 1.2 + this.hy(sx, sz), sz), _quat.setFromAxisAngle(_achseY, -w), _skala.set(lang, 1, breit));
       } else _matrix.compose(_vektor.set(l.x, 1.2 + this.hy(l.x, l.z), l.z), _quat.identity(), _skala.set(r * 2, 1, r * 2));
       this.scheinMatrizen.push(_matrix.clone());
-      this.lampenSchein.setMatrixAt(i, _matrix);
-      this.lampenSchein.setColorAt(i, l.farbe.clone().multiplyScalar(l.objekt.staerke ?? 0.8));
+      scheinFarben.push(l.farbe.clone().multiplyScalar(l.objekt.staerke ?? 0.8));
     });
-    this.lampenSchein.count = this.lampenListe.length;
+    this.lampenSchein = this.#instanzen(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), schein, this.scheinMatrizen, { farben: scheinFarben, istMatrix: true, bloecke: false });
     this.lampenSchein.visible = false;
-    this.lampenSchein.renderOrder = 1;
+    for (const m of this.lampenSchein.meshes) m.renderOrder = 1;
     this.statisch.add(this.lampenSchein);
     // Straßenlaternen (mast): ein InstancedMesh (eine Instanz je Laterne) – so lässt sich jede einzeln ausblenden, wenn ein Auto sie umfährt
     this.mastInstanzen = this.lampenListe.map((l, i) => ({ l, i })).filter(({ l }) => l.objekt.mast);
@@ -518,12 +560,8 @@ export class KartenModell {
       ];
       this.mastGeometrie = vereineGeometrien(teile, { mitFarbe: true });
       this.mastMaterial = this.mitSchnitt(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.4 }));
-      this.mastMesh = new THREE.InstancedMesh(this.mastGeometrie, this.mastMaterial, this.mastInstanzen.length);
       this.mastMatrizen = this.mastInstanzen.map(({ l }) => new THREE.Matrix4().makeTranslation(l.x, this.hy(l.x, l.z), l.z));
-      this.mastMatrizen.forEach((m, k) => this.mastMesh.setMatrixAt(k, m));
-      this.mastMesh.castShadow = true;
-      this.mastMesh.frustumCulled = false;
-      this.mastMesh.instanceMatrix.needsUpdate = true;
+      this.mastMesh = this.#instanzen(this.mastGeometrie, this.mastMaterial, this.mastMatrizen, { istMatrix: true }).schatten(true, false);
       this.statisch.add(this.mastMesh);
     }
     this.laternenStand = -1;
@@ -618,6 +656,7 @@ export class KartenModell {
       mesh.receiveShadow = schatten;
       mesh.boundingSphere = kugelFuer(schluessel); // feste Kugel: Instanzen werden ein-/ausgeblendet (Nullmatrix), nie neu berechnen
       mesh.frustumCulled = true;
+      this.kulEintraege.push(kulEintrag(mesh, mesh.boundingSphere));
       return mesh;
     };
 
@@ -842,18 +881,10 @@ export function werkbankTeile(x, z, breite, tiefe, hoehe, drehung) {
   ];
 }
 
-function instanzen(geometrie, material, teile) {
-  const mesh = new THREE.InstancedMesh(geometrie, material, Math.max(1, teile.length));
-  mesh.count = teile.length;
-  const q = new THREE.Quaternion();
-  teile.forEach((t, i) => {
-    q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), t.drehung ?? 0);
-    _matrix.compose(new THREE.Vector3(t.x, t.unten + t.hoehe / 2, t.z), q, new THREE.Vector3(1, t.hoehe, 1));
-    mesh.setMatrixAt(i, _matrix);
-  });
-  mesh.instanceMatrix.needsUpdate = true;
-  mesh.computeBoundingSphere();
-  return mesh;
+/** Matrix je Teil { x, z, unten, hoehe, drehung? } für eine Geometrie der Höhe 1 */
+function teilMatrix(t) {
+  const q = new THREE.Quaternion().setFromAxisAngle(_achseY, t.drehung ?? 0);
+  return new THREE.Matrix4().compose(new THREE.Vector3(t.x, t.unten + t.hoehe / 2, t.z), q, new THREE.Vector3(1, t.hoehe, 1));
 }
 
 function istWandig(welt, tx, ty) {

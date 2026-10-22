@@ -23,7 +23,7 @@ import { ArbeitsspeicherSpeicher } from './speicher/arbeitsspeicherSpeicher.js';
 import { KARTEN } from './karten/kartenLader.js';
 import { holeZeitNach, uebernimmZeitsprung } from './systeme/arbeitSystem.js';
 import { Taktgeber } from './taktgeber.js';
-import { Zone } from './zone.js';
+import { NETZ_SICHTWEITE, Zone } from './zone.js';
 import { BAUTEILE } from '../../gemeinsam/basisbau/teile.js';
 import { EBENEN } from '../../gemeinsam/welt/bauwerke.js';
 import { spawnPunkt } from './systeme/spawnSystem.js';
@@ -189,8 +189,10 @@ export class SpielServer {
    */
   tickAusfuehren() {
     let proZone = this.#sitzungenProZone();
+    // Runde 18 (4.2): Nachbarzonen, an deren Grenze jemand steht, laufen mit (Zombies drüben bewegen sich, Client sieht sie)
+    const amRand = this.#nachbarnInSicht(proZone);
     for (const zone of this.zonen.values()) {
-      const aktiv = zone === this.startZone || proZone.has(zone);
+      const aktiv = zone === this.startZone || proZone.has(zone) || amRand.has(zone);
       if (aktiv) this.#aktiviere(zone);
       zone.aktiv = aktiv;
     }
@@ -229,7 +231,81 @@ export class SpielServer {
     }
 
     proZone = this.#sitzungenProZone(); // nach den Zonenwechseln
-    for (const zone of aktive) zone.versende(proZone.get(zone) ?? [], (sitzung) => this.#sendePrivateDaten(sitzung));
+    const fremdCache = new Map();
+    for (const zone of aktive) {
+      zone.versende(
+        proZone.get(zone) ?? [],
+        (sitzung) => this.#sendePrivateDaten(sitzung),
+        (ich) => this.#fremdeFuer(zone, ich, fremdCache),
+      );
+    }
+  }
+
+  /** Nahtlose Nachbarn einer Zone: [{ zone, versatz }] (versatz = Ursprung der Nachbarkarte in Pixeln dieser Zone), zwischengespeichert. */
+  #nahtloseNachbarn(zone) {
+    if (zone.nahtloseNachbarn) return zone.nahtloseNachbarn;
+    const aus = [];
+    for (const u of zone.spielWelt.karte.daten.uebergaenge) {
+      if (!u.nahtlos || u.ziel === zone.id || aus.some((n) => n.zone.id === u.ziel)) continue;
+      const nachbar = this.zone(u.ziel);
+      if (nachbar) aus.push({ zone: nachbar, versatz: u.nahtlos.versatz });
+    }
+    return (zone.nahtloseNachbarn = aus);
+  }
+
+  /** Sieht dieser Spieler (Koordinaten seiner Zone) in die Nachbarkarte hinein? (Quadrat ± NETZ_SICHTWEITE wie beim Interest Management) */
+  #siehtNachbar(ich, nachbar, versatz) {
+    const w = nachbar.spielWelt.welt;
+    const x0 = versatz.x;
+    const y0 = versatz.y;
+    const x1 = x0 + w.breite * w.kachelGroesse;
+    const y1 = y0 + w.hoehe * w.kachelGroesse;
+    return ich.x > x0 - NETZ_SICHTWEITE && ich.x < x1 + NETZ_SICHTWEITE && ich.y > y0 - NETZ_SICHTWEITE && ich.y < y1 + NETZ_SICHTWEITE;
+  }
+
+  /** Zonen, in die gerade jemand von nebenan hineinsieht. */
+  #nachbarnInSicht(proZone) {
+    const aus = new Set();
+    for (const [zone, sitzungen] of proZone) {
+      for (const { zone: nachbar, versatz } of this.#nahtloseNachbarn(zone)) {
+        if (aus.has(nachbar)) continue;
+        if (sitzungen.some((s) => {
+          const ich = zone.spielWelt.holen(s.spielerId);
+          return ich && this.#siehtNachbar(ich, nachbar, versatz);
+        })) aus.add(nachbar);
+      }
+    }
+    return aus;
+  }
+
+  /**
+   * Entitäten der Nachbarzonen, die dieser Spieler sehen kann – in Koordinaten SEINER Zone (+ versatz), IDs mit Zonen-Präfix
+   * ("schneeland:17"), Markierung `fremd`. Nur zum Anzeigen: der Client interpoliert und zeichnet sie, interagiert nicht.
+   * Schnappschuss je Nachbar nur einmal pro Tick (cache).
+   */
+  #fremdeFuer(zone, ich, cache) {
+    let aus = null;
+    for (const { zone: nachbar, versatz } of this.#nahtloseNachbarn(zone)) {
+      if (!this.#siehtNachbar(ich, nachbar, versatz)) continue;
+      const schluessel = `${nachbar.id}|${versatz.x}|${versatz.y}`;
+      let liste = cache.get(schluessel);
+      if (!liste) {
+        const p = `${nachbar.id}:`;
+        liste = nachbar.spielWelt.schnappschuss().entitaeten.map((e) => ({
+          ...e,
+          id: p + e.id,
+          x: e.x + versatz.x,
+          y: e.y + versatz.y,
+          ...(e.fahrerId != null ? { fahrerId: p + e.fahrerId } : {}),
+          fremd: true,
+        }));
+        cache.set(schluessel, liste);
+      }
+      for (const e of liste) {
+        if (Math.abs(e.x - ich.x) < NETZ_SICHTWEITE && Math.abs(e.y - ich.y) < NETZ_SICHTWEITE) (aus ??= []).push(e);
+      }
+    }
+    return aus;
   }
 
   /** Map Zone → [Sitzungen im Spiel] */
@@ -294,8 +370,8 @@ export class SpielServer {
     // Nahtloser Übergang: dieselbe Stelle in Koordinaten der Zielkarte (nur wenn dort begehbar und nicht im Rückweg-Übergang)
     let nahtlos = false;
     if (!punkt && versatz) {
-      const p = { x: spieler.x - versatz.x, y: spieler.y - versatz.y };
-      if (this.#ankunftFrei(zone, p)) {
+      const p = this.#ankunftNahe(zone, { x: spieler.x - versatz.x, y: spieler.y - versatz.y });
+      if (p) {
         punkt = p;
         nahtlos = true;
       }
@@ -319,6 +395,31 @@ export class SpielServer {
     if (!(p.x >= 0 && p.y >= 0 && p.x < welt.breite * g && p.y < welt.hoehe * g)) return false;
     if (welt.istBlockiert(Math.floor(p.x / g), Math.floor(p.y / g))) return false;
     return !zone.spielWelt.karte.daten.uebergaenge.some((u) => p.x >= u.px.x0 && p.x < u.px.x1 && p.y >= u.px.y0 && p.y < u.px.y1);
+  }
+
+  /**
+   * Runde 18 (4.3): Ist die genaue Stelle drüben blockiert (Baum, Zaun …), die nächste freie Kachel im Umkreis von 4 Kacheln
+   * (Mitte der Kachel) – sonst null (dann klassisch zum Ankunftspunkt).
+   */
+  #ankunftNahe(zone, p) {
+    if (this.#ankunftFrei(zone, p)) return p;
+    const g = zone.spielWelt.welt.kachelGroesse;
+    const tx = Math.floor(p.x / g);
+    const ty = Math.floor(p.y / g);
+    for (let r = 1; r <= 4; r++) {
+      let bester = null;
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+          const q = { x: (tx + dx + 0.5) * g, y: (ty + dy + 0.5) * g };
+          if (!this.#ankunftFrei(zone, q)) continue;
+          const d = Math.hypot(q.x - p.x, q.y - p.y);
+          if (!bester || d < bester.d) bester = { ...q, d };
+        }
+      }
+      if (bester) return { x: bester.x, y: bester.y };
+    }
+    return null;
   }
 
   /** Nachbarzonen mit nahtlosem Übergang: Kartendaten + Ursprung (Pixel dieser Zone), damit der Client sie vorab zeigen kann. */

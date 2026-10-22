@@ -272,7 +272,7 @@ function veraendereFuerAktion(pose, haltung, aktion, p) {
   const welle = Math.sin(Math.PI * p);
   if (aktion === 'schiessen' && (haltung === 'pistole' || haltung === 'gewehr')) {
     const kick = welle * (haltung === 'gewehr' ? 0.45 : 0.6);
-    for (const seite of ['rechts', 'links']) for (const r of pose[seite]) r.y += kick;
+    for (const seite of ['rechts', 'links']) for (const r of pose[seite] ?? []) r.y += kick; // Pistole unten: nur rechter Arm (links null)
   } else if (aktion === 'nachladen' && pose.links) {
     for (const r of pose.rechts) r.y -= welle * 0.6;
     pose.links[0].set(-0.55, -0.6, 0.7);

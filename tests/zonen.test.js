@@ -246,3 +246,58 @@ test('Nahtloser Übergang: Stadtrand ↔ Schneeland tauscht an derselben Stelle 
   await warte(20);
   assert.equal(server.weltVon('Nahtlos').karte.daten.id, 'schneeland');
 });
+
+test('Runde 18 (4.3): nahtloser Übergang gilt an der ganzen Kante, gezielte Übergänge behalten Vorrang', async (t) => {
+  const stadtrand = ladeKarte('stadtrand');
+  const u = stadtrand.daten.uebergaenge.find((x) => x.ziel === 'schneeland');
+  assert.equal(u.kante, 'ost');
+  assert.equal(u.px.y0, 0);
+  assert.equal(u.px.y1, stadtrand.daten.hoehe * 32);
+  assert.equal(u.y, 86, 'Wegweiser/Editor behalten das ursprüngliche Rechteck');
+
+  const server = new SpielServer({ authentifizierung: new GastAuthentifizierung(), protokoll: stillerLog });
+  t.after(() => server.stoppen());
+  const { empfangen } = verbinde(server, 'Kante');
+  await warteAuf(() => letzte(empfangen, NACHRICHT.ANMELDUNG_OK), 'Login');
+  const welt = server.weltVon('Kante');
+  const ich = [...welt.alleVomTyp('spieler')][0];
+  ich.x = u.px.x0 + 5;
+  ich.y = 20 * 32 + 16; // weit weg vom alten 9-Kachel-Stück
+  server.tickAusfuehren();
+  await warteAuf(() => letzte(empfangen, NACHRICHT.ZONE_WECHSEL), 'ZONE_WECHSEL');
+  const wechsel = letzte(empfangen, NACHRICHT.ZONE_WECHSEL);
+  assert.equal(wechsel.nahtlos, true);
+  assert.ok(Math.abs(wechsel.start.y - ich.y) <= 4 * 32 + 16, 'drüben an (fast) derselben Stelle');
+});
+
+test('Runde 18 (4.2): Nachbarzone läuft mit und ihre Entitäten kommen als ZUSTAND.fremde (versetzt, eigene IDs)', async (t) => {
+  const server = new SpielServer({ authentifizierung: new GastAuthentifizierung(), protokoll: stillerLog });
+  t.after(() => server.stoppen());
+  const { empfangen } = verbinde(server, 'Grenze');
+  await warteAuf(() => letzte(empfangen, NACHRICHT.ANMELDUNG_OK), 'Login');
+  const welt = server.weltVon('Grenze');
+  const ich = [...welt.alleVomTyp('spieler')][0];
+  // weit weg von der Grenze: nichts von drüben
+  ich.x = 10 * 32;
+  ich.y = 60 * 32;
+  server.tickAusfuehren();
+  await warte(10);
+  assert.equal(letzte(empfangen, NACHRICHT.ZUSTAND).fremde, undefined);
+  const schnee = server.zone('schneeland');
+  assert.equal(schnee.aktiv, false, 'ohne Grenznähe pausiert die Nachbarzone');
+  // an die Grenze: Schneeland aktiv, Zombies von dort sichtbar (Koordinaten im Stadtrand)
+  ich.x = 150 * 32;
+  ich.y = 60 * 32;
+  const z = [...schnee.spielWelt.alleVomTyp('zombie')][0];
+  assert.ok(z, 'Schneeland hat Zombies');
+  z.x = 5 * 32;
+  z.y = 60 * 32;
+  server.tickAusfuehren();
+  await warte(10);
+  assert.equal(schnee.aktiv, true, 'Nachbarzone läuft mit');
+  const fremde = letzte(empfangen, NACHRICHT.ZUSTAND).fremde ?? [];
+  const drueben = fremde.find((e) => e.id === `schneeland:${z.id}`);
+  assert.ok(drueben, 'Zombie von drüben im Zustand');
+  assert.equal(drueben.fremd, true);
+  assert.ok(Math.abs(drueben.x - (z.x + 153 * 32)) < 40, 'in Stadtrand-Koordinaten');
+});

@@ -56,8 +56,9 @@ export class Zone {
    * Nachrichten dieses Ticks an alle Sitzungen der Zone: Listen nur bei Änderung, Schnappschuss immer.
    * @param sitzungen  Sitzungen im Spiel, die in dieser Zone sind
    * @param privat     (sitzung) → private Spielerdaten senden (macht der SpielServer)
+   * @param [fremde]   (spieler) → Entitäten der Nachbarzonen in Sicht (bereits umgerechnet) oder null – als ZUSTAND.fremde (Runde 18, 4.2)
    */
-  versende(sitzungen, privat) {
+  versende(sitzungen, privat, fremde = null) {
     const w = this.spielWelt;
     const g = this.gesendet;
     const pakete = [];
@@ -90,7 +91,9 @@ export class Zone {
       for (const paket of pakete) sitzung.kanal.senden(paket);
       const ich = w.holen(sitzung.spielerId);
       const sichtbar = ich ? schnappschuss.entitaeten.filter((e) => e.typ === 'spieler' || (Math.abs(e.x - ich.x) < NETZ_SICHTWEITE && Math.abs(e.y - ich.y) < NETZ_SICHTWEITE)) : schnappschuss.entitaeten;
-      if (sichtbar.length === schnappschuss.entitaeten.length) sitzung.kanal.senden((alle ??= kodiere({ typ: NACHRICHT.ZUSTAND, ...schnappschuss })));
+      const drueben = ich && fremde ? fremde(ich) : null;
+      if (drueben?.length) sitzung.kanal.senden(kodiere({ typ: NACHRICHT.ZUSTAND, ...schnappschuss, entitaeten: sichtbar, fremde: drueben }));
+      else if (sichtbar.length === schnappschuss.entitaeten.length) sitzung.kanal.senden((alle ??= kodiere({ typ: NACHRICHT.ZUSTAND, ...schnappschuss })));
       else sitzung.kanal.senden(kodiere({ typ: NACHRICHT.ZUSTAND, ...schnappschuss, entitaeten: sichtbar }));
       privat(sitzung);
       for (const k of kisten.get(sitzung.spielerId) ?? []) {

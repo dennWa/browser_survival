@@ -45,6 +45,18 @@ export const KARTEN = Object.freeze({
  *   schnee true → Schneezone (daten.schnee): Schneefall statt Regen, verschneite Straßen, knirschende Schritte (Kachel '*' = Schnee)
  *   bemalung { '#rrggbb': [[x, y, b, h]] } → daten.bemalung (nur Optik: Client malt es in die Bodentextur)
  */
+/** Liegt das Übergangs-Rechteck an einem Kartenrand? → 'west' | 'ost' | 'nord' | 'sued' | null (an einer Ecke zählt die längere Seite). */
+export function randKante(u, breite, hoehe) {
+  const senkrecht = u.h >= u.b;
+  if (senkrecht && u.x === 0) return 'west';
+  if (senkrecht && u.x + u.b === breite) return 'ost';
+  if (u.y === 0) return 'nord';
+  if (u.y + u.h === hoehe) return 'sued';
+  if (u.x === 0) return 'west';
+  if (u.x + u.b === breite) return 'ost';
+  return null;
+}
+
 export function ladeKarte(id) {
   const definition = KARTEN[id];
   if (!definition) throw new Error(`Unbekannte Karte: "${id}"`);
@@ -146,7 +158,12 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE, { au
     // nahtlos { dx, dy }: Ursprung der Zielkarte in Kacheln dieser Karte → Client zeigt die Nachbarzone schon vorab, Ankunft = gleiche Stelle (Versatz)
     const n = u.nahtlos;
     const nahtlos = n && Number.isInteger(n.dx) && Number.isInteger(n.dy) ? { dx: n.dx, dy: n.dy, versatz: { x: n.dx * kachelGroesse, y: n.dy * kachelGroesse } } : null;
-    return { x: u.x, y: u.y, b: u.b, h: u.h, ziel: u.ziel, ankunft: u.ankunft, name: u.name ?? u.ziel, px, ...(nahtlos ? { nahtlos } : {}) };
+    // Runde 18 (4.3): Ein nahtloser Übergang am Kartenrand gilt für die GANZE Kante (px gestreckt; x/y/b/h bleiben für Wegweiser & Editor).
+    // `ganzeKante: false` in der Definition schaltet das ab. Spezifische Übergänge haben beim Betreten Vorrang (zonenSystem).
+    const kante = nahtlos && u.ganzeKante !== false ? randKante(u, breite, hoehe) : null;
+    if (kante === 'west' || kante === 'ost') Object.assign(px, { y0: 0, y1: hoehe * kachelGroesse });
+    if (kante === 'nord' || kante === 'sued') Object.assign(px, { x0: 0, x1: breite * kachelGroesse });
+    return { x: u.x, y: u.y, b: u.b, h: u.h, ziel: u.ziel, ankunft: u.ankunft, name: u.name ?? u.ziel, px, ...(nahtlos ? { nahtlos } : {}), ...(kante ? { kante } : {}) };
   });
 
   const bauwerke = (Array.isArray(definition.bauwerke) ? definition.bauwerke : [])

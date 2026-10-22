@@ -145,7 +145,7 @@ export class ClientSpiel {
     this.letzterTick = 0;
     this.beendet = false;
 
-    this.renderer.setzeWelt(this.welt, anmeldeDaten.nahtlos === true);
+    this.renderer.setzeWelt(this.welt, anmeldeDaten.nahtlos === true, anmeldeDaten.spielerId);
     this.renderer.setzeNachbarn((anmeldeDaten.nachbarn ?? []).map((n) => ({ id: n.zone, versatz: n.versatz, karte: n.karte })));
     this.hud.setzeSpielerDaten(this.spielerDaten, this.itemDefinitionen);
     this.abmelden = [
@@ -786,7 +786,9 @@ export class ClientSpiel {
 
     this.wetter = n.wetter ?? 'klar';
     const entitaeten = new Map(n.entitaeten.map((e) => [e.id, e]));
-    this.schnappschuesse.push({ empfangen: jetzt, tick: n.tick, entitaeten });
+    // Runde 18 (4.2): Entitäten der Nachbarzone (schon in unseren Koordinaten, IDs "zone:id") – nur anzeigen, nie anfassen
+    const fremde = n.fremde?.length ? new Map(n.fremde.map((e) => [e.id, e])) : null;
+    this.schnappschuesse.push({ empfangen: jetzt, tick: n.tick, entitaeten, fremde });
     // Fahrzeuge blockieren ihre Kacheln – auch für die eigene Laufvorhersage
     const g = this.welt.kachelGroesse;
     for (const e of entitaeten.values()) {
@@ -1270,6 +1272,8 @@ export class ClientSpiel {
     if (this.hud.minikarteAn && jetzt - this.letzteMiniKarte > 180) {
       this.letzteMiniKarte = jetzt;
       this.karte.zeichneMini(this.hud.el.minikarte, eigen, this.#minikartenPunkte());
+      // Runde 18 (4.2): Kartenbild der Nachbarzone vorab malen, sobald ihr 3D-Modell steht → Wechsel ohne Ruckler
+      for (const n of this.renderer.nachbarn) if (n.modell && n.welt) Karte.vorbereiten(n.welt, this.renderer.assets, 2);
     }
     if (!this.hud.el.spielerliste.hidden && jetzt - this.letzteListe > 1000) {
       this.letzteListe = jetzt;
@@ -1366,15 +1370,17 @@ export class ClientSpiel {
     const ergebnis = [];
     if (!b || renderTick <= a.tick) {
       for (const e of a.entitaeten.values()) if (e.id !== this.eigeneId) ergebnis.push(e);
+      if (a.fremde) for (const e of a.fremde.values()) ergebnis.push(e);
       return ergebnis;
     }
 
     const t = Math.min(1, (renderTick - a.tick) / (b.tick - a.tick));
     const dauer = Math.max(1, b.tick - a.tick) * TICK_DAUER_S;
     const pool = this.interpolationsPool;
-    for (const neu of b.entitaeten.values()) {
+    const neue = b.fremde ? [...b.entitaeten.values(), ...b.fremde.values()] : b.entitaeten.values();
+    for (const neu of neue) {
       if (neu.id === this.eigeneId) continue;
-      const alt = a.entitaeten.get(neu.id);
+      const alt = neu.fremd ? a.fremde?.get(neu.id) : a.entitaeten.get(neu.id);
       if (!alt) {
         ergebnis.push(neu);
         continue;
@@ -1392,7 +1398,7 @@ export class ClientSpiel {
       e.bewegungsWinkel = Math.atan2(dy, dx);
       ergebnis.push(e);
     }
-    if (pool.size > b.entitaeten.size * 2 + 32) for (const id of pool.keys()) if (!b.entitaeten.has(id)) pool.delete(id);
+    if (pool.size > b.entitaeten.size * 2 + 32) for (const id of pool.keys()) if (!b.entitaeten.has(id) && !b.fremde?.has(id)) pool.delete(id);
     return ergebnis;
   }
 

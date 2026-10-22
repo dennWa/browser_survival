@@ -12,6 +12,26 @@ const SICHT_KACHELN = 9;
 const MASSSTAB = 0.25; // Kartenbild: 8 Pixel pro Kachel
 const SPEICHER_INTERVALL_MS = 10000;
 const MINI_RADIUS_KACHELN = 20; // Minikarte zeigt so viele Kacheln in jede Richtung
+const MINI_BUDGET_MS = 4; // Runde 18 (4.2): Kartenbild für die Minikarte in Portionen malen (sonst ~1 s Ruckler beim Zonenwechsel)
+
+/**
+ * Kartenbilder je Zone (Karten-ID → { maler, bild }): bleiben über Zonenwechsel erhalten, beim Hin- und Zurücklaufen
+ * wird nichts neu gemalt. Karte.vorbereiten() malt die Nachbarzone schon im Hintergrund.
+ */
+const BILDER = new Map();
+
+function kartenBild(welt, assets, budgetMs) {
+  let e = BILDER.get(welt.id);
+  if (!e) BILDER.set(welt.id, (e = { maler: bildPortionen(welt, assets), bild: null }));
+  if (e.bild) return e.bild;
+  const ende = performance.now() + budgetMs;
+  let schritt = e.maler.next();
+  while (!schritt.done && performance.now() < ende) schritt = e.maler.next();
+  if (!schritt.done) return null;
+  e.bild = schritt.value;
+  e.maler = null;
+  return e.bild;
+}
 
 export class Karte {
   constructor(dokument, { welt, assets, schluessel }) {
@@ -123,9 +143,14 @@ export class Karte {
     }
   }
 
+  /** Kartenbild einer (Nachbar-)Zone schon vorab in kleinen Portionen malen. */
+  static vorbereiten(welt, assets, budgetMs = 2) {
+    if (welt?.id) kartenBild(welt, assets, budgetMs);
+  }
+
   zeichne(spieler) {
     const ctx = this.leinwand.getContext('2d');
-    if (!this.bild) this.bild = this.#erzeugeBild();
+    this.bild ??= kartenBild(this.welt, this.assets, Infinity); // große Karte: sofort fertig malen
     this.leinwand.width = this.bild.width;
     this.leinwand.height = this.bild.height;
     ctx.drawImage(this.bild, 0, 0);
@@ -257,7 +282,8 @@ export class Karte {
    * unerkundetes bleibt schwarz. @param punkte [{ x, y, art: 'zombie' | 'spieler' | 'tier' }] in Weltpixeln
    */
   zeichneMini(leinwand, spieler, punkte = []) {
-    if (!this.bild) this.bild = this.#erzeugeBild();
+    this.bild ??= kartenBild(this.welt, this.assets, MINI_BUDGET_MS);
+    if (!this.bild) return; // wird noch gemalt (nächstes Mal weiter)
     this.#aktualisiereNebel();
     const g = this.welt.kachelGroesse;
     const k = g * MASSSTAB; // Pixel pro Kachel im Kartenbild
@@ -316,60 +342,6 @@ export class Karte {
   }
 
   /** Kartenbild: Böden, Wände, Möbel, Bäume, Werkbänke & Betten als Symbole. */
-  #erzeugeBild() {
-    const welt = this.welt;
-    const g = welt.kachelGroesse;
-    const s = MASSSTAB;
-    const bild = new BodenTextur(welt, this.assets).rendere(s);
-    const ctx = bild.getContext('2d');
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    for (let ty = 0; ty < welt.hoehe; ty++) {
-      for (let tx = 0; tx < welt.breite; tx++) {
-        const name = KACHELN[welt.kachelAn(tx, ty)]?.name;
-        if (name !== 'wand' && name !== 'fenster') continue;
-        ctx.fillStyle = name === 'fenster' ? '#7fb6cf' : '#22252b';
-        ctx.fillRect(tx * g * s, ty * g * s, g * s + 0.5, g * s + 0.5);
-      }
-    }
-    for (const o of welt.objekte) {
-      const x = o.x * g * s;
-      const y = o.y * g * s;
-      const b = o.b * g * s;
-      const h = o.h * g * s;
-      if (o.ebene === 'unsichtbar') continue; // steile Hänge (Map-Editor-Terrain): nur Kollision
-      if (o.ebene === 'oben') {
-        ctx.fillStyle = o.typ === 'baum_herbst' ? 'rgba(196, 120, 50, 0.85)' : o.typ === 'tanne' ? 'rgba(40, 96, 84, 0.9)' : 'rgba(46, 120, 52, 0.85)';
-        ctx.beginPath();
-        ctx.arc(x + b / 2, y + h / 2, Math.min(b, h) / 2.4, 0, Math.PI * 2);
-        ctx.fill();
-      } else if (o.typ === 'stein' || o.typ === 'eisenerz') {
-        ctx.fillStyle = o.typ === 'eisenerz' ? '#b0643a' : '#8a8d91';
-        ctx.beginPath();
-        ctx.arc(x + b / 2, y + h / 2, b / 2, 0, Math.PI * 2);
-        ctx.fill();
-      } else if (o.blockiert) {
-        ctx.fillStyle = 'rgba(70, 55, 40, 0.75)';
-        ctx.fillRect(x, y, b, h);
-      }
-    }
-    ctx.font = '13px system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    for (const o of welt.objekte) {
-      const symbol = o.typ === 'werkbank' ? '🔨' : o.typ.startsWith('bett') ? '🛏' : null;
-      if (symbol) ctx.fillText(symbol, (o.x + o.b / 2) * g * s, (o.y + o.h / 2) * g * s);
-    }
-    // Raumnamen
-    ctx.font = '600 9px system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
-    ctx.lineWidth = 2.5;
-    for (const raum of welt.raeume) {
-      ctx.strokeText(raum.name, raum.x * s, raum.y * s - 8);
-      ctx.fillText(raum.name, raum.x * s, raum.y * s - 8);
-    }
-    return bild;
-  }
 
   #laden() {
     const erkundet = new Uint8Array(this.welt.breite * this.welt.hoehe);
@@ -384,4 +356,59 @@ export class Karte {
     }
     return erkundet;
   }
+}
+
+/** Kartenbild (Boden, Wände, Bäume, Symbole, Raumnamen) als Generator – gibt zwischendurch ab. */
+function* bildPortionen(welt, assets) {
+  const g = welt.kachelGroesse;
+  const s = MASSSTAB;
+  const bild = yield* new BodenTextur(welt, assets).renderePortionen(s);
+  const ctx = bild.getContext('2d');
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  for (let ty = 0; ty < welt.hoehe; ty++) {
+    for (let tx = 0; tx < welt.breite; tx++) {
+      const name = KACHELN[welt.kachelAn(tx, ty)]?.name;
+      if (name !== 'wand' && name !== 'fenster') continue;
+      ctx.fillStyle = name === 'fenster' ? '#7fb6cf' : '#22252b';
+      ctx.fillRect(tx * g * s, ty * g * s, g * s + 0.5, g * s + 0.5);
+    }
+  }
+  for (const o of welt.objekte) {
+    const x = o.x * g * s;
+    const y = o.y * g * s;
+    const b = o.b * g * s;
+    const h = o.h * g * s;
+    if (o.ebene === 'unsichtbar') continue; // steile Hänge (Map-Editor-Terrain): nur Kollision
+    if (o.ebene === 'oben') {
+      ctx.fillStyle = o.typ === 'baum_herbst' ? 'rgba(196, 120, 50, 0.85)' : o.typ === 'tanne' ? 'rgba(40, 96, 84, 0.9)' : 'rgba(46, 120, 52, 0.85)';
+      ctx.beginPath();
+      ctx.arc(x + b / 2, y + h / 2, Math.min(b, h) / 2.4, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (o.typ === 'stein' || o.typ === 'eisenerz') {
+      ctx.fillStyle = o.typ === 'eisenerz' ? '#b0643a' : '#8a8d91';
+      ctx.beginPath();
+      ctx.arc(x + b / 2, y + h / 2, b / 2, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (o.blockiert) {
+      ctx.fillStyle = 'rgba(70, 55, 40, 0.75)';
+      ctx.fillRect(x, y, b, h);
+    }
+  }
+  ctx.font = '13px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (const o of welt.objekte) {
+    const symbol = o.typ === 'werkbank' ? '🔨' : o.typ.startsWith('bett') ? '🛏' : null;
+    if (symbol) ctx.fillText(symbol, (o.x + o.b / 2) * g * s, (o.y + o.h / 2) * g * s);
+  }
+  // Raumnamen
+  ctx.font = '600 9px system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
+  ctx.lineWidth = 2.5;
+  for (const raum of welt.raeume) {
+    ctx.strokeText(raum.name, raum.x * s, raum.y * s - 8);
+    ctx.fillText(raum.name, raum.x * s, raum.y * s - 8);
+  }
+  return bild;
 }

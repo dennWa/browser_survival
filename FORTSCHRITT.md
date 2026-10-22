@@ -47,10 +47,10 @@
 > Nutzer (2026-10-22): Phase 4 erst GANZ ZUM SCHLUSS (nach 5–7) – vorher dem Nutzer Bescheid geben, er stellt den Aufwand um.
 | # | Punkt | Status | Vermerk |
 |---|---|---|---|
-| 4.1 | Render-Culling Sichtradius + Puffer (Messung vorher/nachher) | ⬜ | |
-| 4.2 | Zonenwechsel ruckelfrei, Nachbar inkrementell vorladen, Entitäten drüben sichtbar | ⬜ | |
-| 4.3 | Übergang überall an der Zonenkante | ⬜ | |
-| 4.E | Phase-Ende | ⬜ | |
+| 4.1 | Render-Culling Sichtradius + Puffer (Messung vorher/nachher) | ✅ | `client/darstellung/bloecke.js` (`BlockInstanzen` je 64×64-Kachel-Block mit Instanz-Nummern-Schnittstelle, `boxZweiGruppen`, Sichtweiten-Culling `kulleNachWeite` = Nebelweite + 256 px) für Wände, Masten, Möbelkörper, Bäume/Steine; leichte Teile (Glas, Glühen, Schein, Deckel) bleiben 1 Mesh. A/B im selben Lauf (1024×768): Stadtrand −8–10 % Dreiecke bei 0–15 % mehr Calls, Zonengrenze −17 % Dreiecke / +6 % Calls; 16er/32er-Blöcke verworfen (+50–100 % Calls) |
+| 4.2 | Zonenwechsel ruckelfrei, Nachbar inkrementell vorladen, Entitäten drüben sichtbar | ✅ | Server: Nachbarzone läuft mit, sobald jemand in Sichtweite der Grenze ist; ZUSTAND.fremde (IDs `zone:id`, versetzt) → Client interpoliert/zeichnet sie. Ruckler beim Wechsel 2×~1 s → 1 Long Task 58 ms: Minikarte malt in Portionen + Bild-Cache je Zone (Nachbar vorab), Renderer übernimmt Figuren/Autos/Tiere (`#benenneUm`) statt Neubau |
+| 4.3 | Übergang überall an der Zonenkante | ✅ | `kartenLader.randKante`: nahtloser Übergang am Rand gilt für die ganze Kante (`kante`, px gestreckt, `ganzeKante:false` schaltet ab); gezielte Übergänge haben Vorrang; Ankunft = nächste freie Kachel ≤ 4 (`#ankunftNahe`) |
+| 4.E | Phase-Ende | ✅ | `npm test` grün; im Browser-Pane geprüft: Kante abseits der Straße, Zombie von drüben sichtbar, Wände/Durchsicht/Laternen nachts. Nebenbei Fix `figurHaltung` (Schuss mit Pistole unten: `pose.links` null) |
 
 ## Phase 5 – Assets verteilen
 | # | Punkt | Status | Vermerk |
