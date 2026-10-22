@@ -142,6 +142,27 @@ export class Zeichner2D {
     this.anfordern();
   }
 
+  /** Ansicht so wählen, dass die aktive Zone und die genannten anderen Zonen (Weltanordnung) ganz zu sehen sind */
+  einpassenMit(ids) {
+    const k = this.zustand.karte;
+    const p = this.zustand.layout[this.zustand.aktivId];
+    if (!k || !p) return this.einpassen();
+    let x0 = 0, y0 = 0, x1 = k.breite, y1 = k.hoehe;
+    for (const id of ids) {
+      const l = this.zustand.layout[id];
+      const z = this.zustand.zonen.get(id)?.karte;
+      if (!l || !z) continue;
+      x0 = Math.min(x0, l.x - p.x);
+      y0 = Math.min(y0, l.y - p.y);
+      x1 = Math.max(x1, l.x - p.x + z.breite);
+      y1 = Math.max(y1, l.y - p.y + z.hoehe);
+    }
+    const { b, h } = this.groesse;
+    this.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Math.min((b - LINEAL - 30) / (x1 - x0), (h - LINEAL - 30) / (y1 - y0))));
+    this.kamera = { x: (x0 + x1) / 2, y: (y0 + y1) / 2 };
+    this.anfordern();
+  }
+
   springeZu(x, y, zoom = Math.max(this.zoom, 20)) {
     this.zoom = zoom;
     this.kamera = { x: x + 0.5, y: y + 0.5 };
@@ -1033,7 +1054,7 @@ export class Zeichner2D {
         ctx.strokeRect(r.x, r.y, r.b, r.h);
       }
       const m = this.zuBild(n.dx + k.breite / 2, n.dy + k.hoehe / 2);
-      this.#text(ctx, `Nachbarzone: ${k.name} (${k.id})`, m.x, m.y, '#ddd', 16);
+      this.#text(ctx, `Zone: ${k.name} (${k.id})`, m.x, m.y, '#ddd', 16);
       ctx.restore();
     }
   }

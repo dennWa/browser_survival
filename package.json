@@ -14,6 +14,7 @@
     "musik:index": "node werkzeuge/musik/indexieren.mjs",
     "sounds": "node werkzeuge/audio/indexieren.mjs",
     "eigene:index": "node werkzeuge/assets/eigene_index.mjs",
+    "eigene:vorschau": "node werkzeuge/assets/eigene_vorschau.mjs",
     "assets:3d": "node werkzeuge/assets/baue_3d.mjs",
     "assets:figuren": "node werkzeuge/assets/figuren/baue_figuren.mjs",
     "karte:export": "node werkzeuge/karten/tiled.mjs export",

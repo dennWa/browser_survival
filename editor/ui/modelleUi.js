@@ -337,7 +337,7 @@ export function modelleUi({ zustand, panel, aktionen, layout, bibliothek }) {
     }
     const knoten = document.createElement('div');
     knoten.className = 'quelle';
-    knoten.innerHTML = `<div class="quelle-zeile"><input type="search" name="suche" placeholder="${katalog.length} Modelle durchsuchen …" aria-label="Suche"></div><div class="quelle-status leise"></div><div class="quelle-liste" style="max-height:50vh;overflow:auto;display:flex;flex-wrap:wrap;gap:6px"></div>`;
+    knoten.innerHTML = `<div class="quelle-zeile"><input type="search" name="suche" placeholder="${katalog.length} Modelle durchsuchen …" aria-label="Suche"></div><div class="quelle-status leise"></div><div class="quelle-liste" style="max-height:60vh;overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:6px"></div>`;
     const feld = knoten.querySelector('[name=suche]');
     const status = knoten.querySelector('.quelle-status');
     const raster = knoten.querySelector('.quelle-liste');
@@ -346,7 +346,7 @@ export function modelleUi({ zustand, panel, aktionen, layout, bibliothek }) {
       const q = feld.value.trim().toLowerCase();
       const treffer = katalog.filter((k) => !q || k.name.toLowerCase().includes(q));
       status.textContent = `${treffer.length} von ${katalog.length} – Klick = in die Bibliothek übernehmen`;
-      raster.innerHTML = treffer.map((k) => `<button type="button" data-datei="${esc(k.datei)}" title="${esc(k.datei)} · ${groesseText(k.groesse)}">${vorhanden.has(new URL(k.datei, basis).href) ? '✓ ' : ''}${esc(k.name)}</button>`).join('');
+      raster.innerHTML = treffer.map((k) => `<button type="button" data-datei="${esc(k.datei)}" title="${esc(k.datei)} · ${groesseText(k.groesse)}" style="display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px;font-size:11px;line-height:1.2"><img src="${esc(new URL(`vorschau/${k.datei.replace(/\.glb$/i, '.png')}`, basis).href)}" alt="" loading="lazy" width="96" height="96" style="object-fit:contain">${vorhanden.has(new URL(k.datei, basis).href) ? '✓ ' : ''}${esc(k.name)}</button>`).join('');
     };
     feld.addEventListener('input', zeige);
     feld.addEventListener('keydown', (e) => e.stopPropagation());

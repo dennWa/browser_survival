@@ -299,8 +299,9 @@ export function erstelleAktionen({ zustand, zeichner, leinwand, teile }) {
         zustand.meldung('⟳ Zone wird angelegt …');
         await new Promise((f) => setTimeout(f, 30));
       }
+      const davor = zustand.aktivId;
       zustand.fuegeZoneHinzu(neueZone(w), undefined, { position });
-      zeichner.einpassen();
+      zeichner.einpassenMit(davor && davor !== w.id ? [davor] : []); // alte Zone bleibt neben der neuen im Bild
       const lage = zustand.layout[w.id];
       zustand.meldung(`Zone „${w.name}“ angelegt (${w.breite} × ${w.hoehe}, Weltlage ${lage?.x}|${lage?.y}) – die anderen Zonen bleiben im Projekt (🗺 Zonen). Nächstes: Spieler-Start setzen${hinweis ? ` · ${hinweis.stufe === 'gross' ? 'große Zone: Prüfung auf Knopfdruck' : 'sehr groß'}` : ''}`, 'ok');
     },

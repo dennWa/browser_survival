@@ -18,10 +18,9 @@ export function zonenUi({ zustand, panel, aktionen, befehle, layout, zeichner, p
   const aktualisiereNachbarn = () => {
     const id = zustand.aktivId;
     const p = zustand.layout[id];
-    zeichner.nachbarn = !p ? [] : nachbarn(zonenMap(), zustand.layout).filter((n) => n.a === id || n.b === id).map((n) => {
-      const andere = n.a === id ? n.b : n.a;
-      return { karte: zustand.zonen.get(andere).karte, dx: zustand.layout[andere].x - p.x, dy: zustand.layout[andere].y - p.y };
-    });
+    // alle anderen Zonen des Projekts als blasses Kachelbild (nicht nur Kante-an-Kante-Nachbarn) – so bleibt die alte Zone
+    // nach „Neue Zone“ neben der neuen sichtbar, auch mit Lücke dazwischen
+    zeichner.nachbarn = !p ? [] : [...zustand.zonen].filter(([z]) => z !== id && zustand.layout[z]).map(([z, e]) => ({ karte: e.karte, dx: zustand.layout[z].x - p.x, dy: zustand.layout[z].y - p.y }));
     // 6.4: alle anderen Zonen als Umriss (Zone-Werkzeug, Neue Zone, KI-Markieren)
     zeichner.weltZonen = !p ? [] : [...zustand.zonen].filter(([z]) => z !== id && zustand.layout[z]).map(([z, e]) => ({ id: z, name: e.karte.name, x: zustand.layout[z].x - p.x, y: zustand.layout[z].y - p.y, b: e.karte.breite, h: e.karte.hoehe }));
     zeichner.anfordern();
