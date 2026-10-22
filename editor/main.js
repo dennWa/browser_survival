@@ -48,6 +48,7 @@ import { pruefeLokalenServer, LOKAL_HINWEIS } from './ui/lokalerServer.js';
  * alle Befehle in ui/befehlsliste.js) → Menüleiste, Schnellleiste, Werkzeugleiste, Kontextmenü, Tastatur ·
  * Seitenleisten links (Assets, Modelle, Audio, Prefabs, Zonen, Räume) / rechts (Inspektor, Ebenen, Prüfung, Bereiche, Versionen 7.5) / KI-Helfer · Optionsleiste.
  * Touch-Bauen (7.6): ui/touchBauen.js hängt sich in die Werkzeuge; Handy-Leiste #handy-leiste (≤ 900 px).
+ * Finger-Tipp ohne Klick (Chrome nach einem Wisch): `fingerTipp` reicht nach 300 ms button.click() nach.
  * Spielcode wird nur GELESEN. Geschrieben wird nur lokal (IndexedDB) bzw. per Download.
  */
 const speicher = new EditorSpeicher();
@@ -172,6 +173,26 @@ function baueLeiste(element, ids, mitText, { mitTaste = false } = {}) {
 baueLeiste(document.getElementById('schnell'), SCHNELLLEISTE, true);
 baueLeiste(document.getElementById('werkzeuge'), WERKZEUGLEISTE, true, { mitTaste: true });
 // Knöpfe mit data-befehl in Leisten und auf der Fläche führen ihren Befehl aus (Seitenleisten/Optionsleiste binden selbst)
+// Finger-Tipp ohne Klick nachreichen: direkt nach einem Wisch auf der Leinwand (Griff ziehen, Pinselstrich) verschluckt Chrome den
+// Klick des nächsten Tipps (Rauchtest „Handy-Leiste ↶“, „Werkstatt am Handy“). Runter + hoch auf demselben Knopf, kaum bewegt
+// und nach 300 ms kein Klick → knopf.click(). Kommt der echte Klick, passiert nichts zusätzlich.
+const fingerTipp = { knopf: null, x: 0, y: 0 };
+document.addEventListener('pointerdown', (e) => {
+  fingerTipp.knopf = e.pointerType === 'touch' ? e.target.closest('button') : null;
+  Object.assign(fingerTipp, { x: e.clientX, y: e.clientY });
+}, true);
+document.addEventListener('pointerup', (e) => {
+  const k = fingerTipp.knopf;
+  fingerTipp.knopf = null;
+  if (e.pointerType !== 'touch' || !k || e.target.closest('button') !== k || Math.hypot(e.clientX - fingerTipp.x, e.clientY - fingerTipp.y) > 12) return;
+  let geklickt = false;
+  const merke = (ev) => ev.target.closest?.('button') === k && (geklickt = true);
+  document.addEventListener('click', merke, true);
+  setTimeout(() => {
+    document.removeEventListener('click', merke, true);
+    if (!geklickt && k.isConnected && !k.disabled) k.click();
+  }, 300);
+}, true);
 document.body.addEventListener('click', (e) => {
   const k = e.target.closest('button[data-befehl]');
   // isConnected: hat der Knopf-eigene Handler (Inspektor, Menü …) die Leiste schon neu gezeichnet, hängt der Knopf nicht mehr

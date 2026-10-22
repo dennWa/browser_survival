@@ -1185,6 +1185,7 @@ try {
       const breite = await h.evaluate((k) => window.mapEditor.zustand.karte.s('objekte').get(k).b, gesetzt.k);
       pruefe(breite === gesetzt.g.b + 2, `Skalier-Griff macht den Tisch 2 Kacheln breiter (${gesetzt.g.b} → ${breite})`);
       await h.tap('#handy-leiste [data-befehl="bearbeiten.rueckgaengig"]');
+      await h.waitForTimeout(400); // Tipp direkt nach dem Wisch: Klick kommt ggf. erst über den Editor-Ersatz (main.js fingerTipp, 300 ms)
       const zurueck = await h.evaluate((k) => window.mapEditor.zustand.karte.s('objekte').get(k).b, gesetzt.k);
       pruefe(zurueck === gesetzt.g.b, 'Handy-Leiste ↶ nimmt das Skalieren in einem Schritt zurück');
     }
@@ -1219,6 +1220,7 @@ try {
     await h.evaluate((id) => void window.mapEditor.aktionen.werkstatt(id), schildId);
     await h.waitForSelector('.werkstatt canvas');
     await h.tap('.werkstatt [data-modus="malen"]');
+    await h.waitForTimeout(400); // wie oben: Tipp nach dem Pinsel-Wisch (fingerTipp-Ersatz)
     const hb = await h.locator('.werkstatt-buehne').boundingBox();
     const mitte = [hb.x + hb.width / 2, hb.y + hb.height / 2];
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: punkt(mitte[0] - 20, mitte[1]) });
