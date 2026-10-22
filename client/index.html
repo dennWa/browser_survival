@@ -63,7 +63,7 @@
       <div id="chat">
         <div id="chat-log" aria-live="polite"></div>
         <form id="chat-form" hidden autocomplete="off">
-          <input id="chat-eingabe" type="text" maxlength="160" placeholder="Nachricht an alle … (Enter)" enterkeyhint="send" />
+          <input id="chat-eingabe" type="text" maxlength="160" placeholder="Nachricht an die Zone … (/a = an alle)" enterkeyhint="send" />
         </form>
       </div>
       <!-- Spielerliste (I) -->
@@ -289,10 +289,11 @@
 
     <!-- Ladebildschirm -->
     <div id="laden" class="overlay">
+      <!-- Motivfläche: später Bild der Zielzone / Tipp-Texte -->
+      <div id="lade-motiv"><h1>Browser Survival</h1></div>
       <div class="lade-box">
-        <h1>Browser Survival</h1>
+        <p class="lade-zeile"><span id="lade-text">Lade Grafiken …</span><span id="lade-prozent"></span></p>
         <div class="ladebalken"><div id="ladebalken-fuellung"></div></div>
-        <p id="lade-text">Lade Grafiken …</p>
       </div>
     </div>
 

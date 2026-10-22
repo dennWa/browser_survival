@@ -1,20 +1,21 @@
+import { ZONE_MAX_KACHELN } from '../../gemeinsam/konstanten.js';
 import { EditorKarte, ID_SAMMLUNGEN, markerSchluessel, ausSchluessel } from './karte.js';
 
 /**
  * Zone = Rechteck (Phase 2). Neu anlegen (nur Rasen) und Größe ändern (Ränder wachsen/schrumpfen).
  * Alles, was beim Verkleinern ganz oder teilweise herausfällt, wird gemeldet (Warnung + Bestätigung im UI) und entfernt.
- * Feedback 6.4: eine Zone darf bis MAX_GROESSE × MAX_GROESSE (10 000) groß sein, die Weltfläche (viele Zonen) ist unbegrenzt.
+ * Feedback 6.4: eine Zone darf bis MAX_GROESSE × MAX_GROESSE (= ZONE_MAX_KACHELN, 1500 – das Spiel lädt jede Zone komplett hinter dem Ladebild) groß sein, die Weltfläche (viele Zonen) ist unbegrenzt.
  *   Ab GROSS_KACHELN schaltet der Editor teure Automatiken ab (Live-Prüfung, Innen-Anzeige, 3D vereinfacht), ab
  *   SEHR_GROSS_KACHELN fragt er vor dem Anlegen nach (`groessenHinweis`), Speicher-Schätzung `speicherSchaetzung`.
  *   Die Raster-Operation von `groesseAendern` trägt `versatz` {x: links, y: oben} → zustand verschiebt die Weltlage mit
  *   (sonst rutschte die Zone beim Wachsen nach links/oben in der Weltanordnung weg).
  */
 export const MIN_GROESSE = 4;
-export const MAX_GROESSE = 10000;
+export const MAX_GROESSE = ZONE_MAX_KACHELN;
 /** ab hier (Kacheln) keine Live-Prüfung/Innen-Anzeige, 3D vereinfacht, Autosave seltener */
 export const GROSS_KACHELN = 1_000_000;
 /** ab hier Rückfrage vor dem Anlegen/Vergrößern */
-export const SEHR_GROSS_KACHELN = 4_000_000;
+export const SEHR_GROSS_KACHELN = 1_500_000;
 /** grob geschätzter Arbeitsspeicher je Kachel im Editor (Raster, Höhen, Speichern, Puffer) */
 export const BYTES_JE_KACHEL = 24;
 export const ZONEN_ID_MUSTER = /^[a-z0-9_]{1,40}$/;

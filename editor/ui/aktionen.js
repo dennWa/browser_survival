@@ -302,14 +302,14 @@ export function erstelleAktionen({ zustand, zeichner, leinwand, teile }) {
     /**
      * Neue Zone (6.4): wird ANGEFÜGT (vorhandene Zonen bleiben im Projekt). r = aufgezogenes Rechteck in Koordinaten der
      * aktiven Zone → Weltlage daraus; ohne r (Größe eingegeben) direkt neben die aktive Zone, nie überlappend.
-     * Größe 4 … MAX_GROESSE (10 000) je Seite; ab SEHR_GROSS_KACHELN Rückfrage, über der Speicher-Schätzung Abbruch.
+     * Größe 4 … MAX_GROESSE (1500) je Seite; ab SEHR_GROSS_KACHELN Rückfrage, über der Speicher-Schätzung Abbruch.
      */
     async neueZone(r) {
       const w = await formular('Neue Zone', [
         { name: 'name', label: 'Name', typ: 'text', wert: 'Neue Zone', pflicht: true },
         { name: 'id', label: 'ID', typ: 'text', wert: freieId('neue_zone'), pflicht: true, hilfe: 'a–z, 0–9, _' },
-        { name: 'breite', label: 'Breite', typ: 'zahl', wert: r?.b ?? 40, min: MIN_GROESSE, max: MAX_GROESSE, schritt: 1, pflicht: true },
-        { name: 'hoehe', label: 'Höhe', typ: 'zahl', wert: r?.h ?? 30, min: MIN_GROESSE, max: MAX_GROESSE, schritt: 1, pflicht: true },
+        { name: 'breite', label: 'Breite', typ: 'zahl', wert: Math.min(MAX_GROESSE, r?.b ?? 40), min: MIN_GROESSE, max: MAX_GROESSE, schritt: 1, pflicht: true },
+        { name: 'hoehe', label: 'Höhe', typ: 'zahl', wert: Math.min(MAX_GROESSE, r?.h ?? 30), min: MIN_GROESSE, max: MAX_GROESSE, schritt: 1, pflicht: true },
       ], { text: `Die Fläche wird mit Rasen gefüllt – sonst nichts. ${zustand.karte ? `Sie kommt <b>zusätzlich</b> ins Projekt, ${r ? 'an die aufgezogene Stelle' : `direkt neben „${esc(zustand.karte.name)}“`} (Weltanordnung, ohne Überlappung).` : ''} Größe ${MIN_GROESSE} bis ${MAX_GROESSE.toLocaleString('de-DE')} je Seite.`, okText: 'Anlegen', pruefe: (v) => (!ZONEN_ID_MUSTER.test(v.id) ? 'ID: nur a–z, 0–9, _' : zustand.zonen.has(v.id) ? 'ID schon vergeben' : !(Number.isInteger(v.breite) && Number.isInteger(v.hoehe) && v.breite >= MIN_GROESSE && v.hoehe >= MIN_GROESSE && v.breite <= MAX_GROESSE && v.hoehe <= MAX_GROESSE) ? `Größe: ganze Zahlen ${MIN_GROESSE} bis ${MAX_GROESSE}` : null) });
       if (!w) return;
       const hinweis = groessenHinweis(w.breite, w.hoehe, { heapGrenze: heapGrenze() });

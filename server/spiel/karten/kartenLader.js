@@ -1,4 +1,4 @@
-import { KACHEL_GROESSE } from '../../../gemeinsam/konstanten.js';
+import { KACHEL_GROESSE, ZONE_MAX_KACHELN } from '../../../gemeinsam/konstanten.js';
 import { KACHELN, MARKER, istKachel, istLootMarker } from '../../../gemeinsam/welt/kacheln.js';
 import { BAUWERKE } from '../../../gemeinsam/welt/bauwerke.js';
 import { liesHoehen, klippenFuesse } from '../../../gemeinsam/welt/gelaende.js';
@@ -28,7 +28,7 @@ export const KARTEN = Object.freeze({
  *   ankuenfte    → { name: {x, y} } (Pixel, Kachelmitte): wo man ankommt, wenn man aus einer anderen Zone kommt
  *
  * Übergänge (definition.uebergaenge): [{ x, y, b, h, ziel, ankunft, name }] in Kacheln – wer das Rechteck betritt,
- * wechselt in Zone `ziel` und landet dort bei `ankuenfte[ankunft]` (mit `nahtlos {dx,dy}`: an der gleichen Stelle, versetzt um den Ursprung der Zielkarte). In daten.uebergaenge zusätzlich in Pixeln (px).
+ * wechselt in Zone `ziel` und landet dort bei `ankuenfte[ankunft]`. In daten.uebergaenge zusätzlich in Pixeln (px).
  *
  * Erweiterungen (Map-Editor, alle optional – alte Karten ohne sie verhalten sich wie immer; Format: editor/kern/format.js):
  *   zombieSpawns  [{ x, y, anzahl?, respawnZeit?, horde? }] → Eigenschaften der Z-Marker; anzahl × einstellungen.zombie.dichte
@@ -45,18 +45,6 @@ export const KARTEN = Object.freeze({
  *   schnee true → Schneezone (daten.schnee): Schneefall statt Regen, verschneite Straßen, knirschende Schritte (Kachel '*' = Schnee)
  *   bemalung { '#rrggbb': [[x, y, b, h]] } → daten.bemalung (nur Optik: Client malt es in die Bodentextur)
  */
-/** Liegt das Übergangs-Rechteck an einem Kartenrand? → 'west' | 'ost' | 'nord' | 'sued' | null (an einer Ecke zählt die längere Seite). */
-export function randKante(u, breite, hoehe) {
-  const senkrecht = u.h >= u.b;
-  if (senkrecht && u.x === 0) return 'west';
-  if (senkrecht && u.x + u.b === breite) return 'ost';
-  if (u.y === 0) return 'nord';
-  if (u.y + u.h === hoehe) return 'sued';
-  if (u.x === 0) return 'west';
-  if (u.x + u.b === breite) return 'ost';
-  return null;
-}
-
 export function ladeKarte(id) {
   const definition = KARTEN[id];
   if (!definition) throw new Error(`Unbekannte Karte: "${id}"`);
@@ -69,6 +57,7 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE, { au
   const hoehe = roh.length;
   const breite = roh[0]?.length ?? 0;
   if (hoehe === 0 || breite === 0) throw new Error(`Karte "${definition.id}" ist leer`);
+  if (breite > ZONE_MAX_KACHELN || hoehe > ZONE_MAX_KACHELN) throw new Error(`Karte "${definition.id}": ${breite} × ${hoehe} ist zu groß (höchstens ${ZONE_MAX_KACHELN} × ${ZONE_MAX_KACHELN})`);
 
   roh.forEach((zeile, y) => {
     if (zeile.length !== breite) {
@@ -155,15 +144,7 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE, { au
       throw new Error(`Karte "${definition.id}": Übergang #${i} ungültig (x, y, b, h in der Karte, ziel, ankunft nötig)`);
     }
     const px = { x0: u.x * kachelGroesse, y0: u.y * kachelGroesse, x1: (u.x + u.b) * kachelGroesse, y1: (u.y + u.h) * kachelGroesse };
-    // nahtlos { dx, dy }: Ursprung der Zielkarte in Kacheln dieser Karte → Client zeigt die Nachbarzone schon vorab, Ankunft = gleiche Stelle (Versatz)
-    const n = u.nahtlos;
-    const nahtlos = n && Number.isInteger(n.dx) && Number.isInteger(n.dy) ? { dx: n.dx, dy: n.dy, versatz: { x: n.dx * kachelGroesse, y: n.dy * kachelGroesse } } : null;
-    // Runde 18 (4.3): Ein nahtloser Übergang am Kartenrand gilt für die GANZE Kante (px gestreckt; x/y/b/h bleiben für Wegweiser & Editor).
-    // `ganzeKante: false` in der Definition schaltet das ab. Spezifische Übergänge haben beim Betreten Vorrang (zonenSystem).
-    const kante = nahtlos && u.ganzeKante !== false ? randKante(u, breite, hoehe) : null;
-    if (kante === 'west' || kante === 'ost') Object.assign(px, { y0: 0, y1: hoehe * kachelGroesse });
-    if (kante === 'nord' || kante === 'sued') Object.assign(px, { x0: 0, x1: breite * kachelGroesse });
-    return { x: u.x, y: u.y, b: u.b, h: u.h, ziel: u.ziel, ankunft: u.ankunft, name: u.name ?? u.ziel, px, ...(nahtlos ? { nahtlos } : {}), ...(kante ? { kante } : {}) };
+    return { x: u.x, y: u.y, b: u.b, h: u.h, ziel: u.ziel, ankunft: u.ankunft, name: u.name ?? u.ziel, px };
   });
 
   const bauwerke = (Array.isArray(definition.bauwerke) ? definition.bauwerke : [])

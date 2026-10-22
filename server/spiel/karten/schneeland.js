@@ -373,7 +373,7 @@ export const SCHNEELAND = {
     { typ: 'eisenerz', x: 27, y: 60, b: 1, h: 1, ...M },
   ],
   uebergaenge: [
-    { x: 0, y: 86, b: 1, h: 9, ziel: 'stadtrand', ankunft: 'ost', name: 'Stadtrand (Westen)', nahtlos: { dx: -153, dy: 0 } },
+    { x: 0, y: 86, b: 1, h: 9, ziel: 'stadtrand', ankunft: 'ost', name: 'Stadtrand (Westen)' },
   ],
   ankuenfte: {
     west: { x: 5, y: 90 }, // wer vom Stadtrand kommt (Straße, nicht im Übergang)

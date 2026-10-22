@@ -21,7 +21,7 @@ import { BLOCK_KACHELN, BlockInstanzen, boxZweiGruppen, kulEintrag, kulleNachWei
  *   Lampen       nur ein kleines Glühen pro Lampe; echtes Licht kommt aus einem Pool im Renderer
  *
  * Alles außer Türen und Ressourcen wird "eingefroren" (Matrizen nicht jeden Frame neu berechnen).
- * Bau: am Stück (Konstruktor) oder in kleinen Schritten (KartenModell.baueSchrittweise – Nachbarzonen im Hintergrund).
+ * Bau: am Stück (Konstruktor) oder in kleinen Schritten (KartenModell.baueSchrittweise – Ladebildschirm mit Fortschritt).
  */
 export const WANDHOEHE = 84;
 export const TUER_HOEHE = WANDHOEHE - 14;
@@ -99,12 +99,13 @@ export class KartenModell {
   }
 
   /**
-   * Runde 19 (Block-Welt): Karte in kleinen Schritten bauen – für Nachbarzonen, die sich unbemerkt im Hintergrund aufbauen
-   * (Renderer gibt jedem Bild ein paar Millisekunden). Ergebnis = fertiges Modell (Boden-Texturen noch nicht hochgeladen,
+   * Karte in kleinen Schritten bauen (Ladebildschirm: Renderer.bereiteVor). Erster Wert = das (noch leere) Modell, damit der
+   * Aufrufer den Fortschritt an `bodenBloecke` ablesen kann; Ergebnis = fertiges Modell (Boden-Texturen noch nicht hochgeladen,
    * siehe bodenHochladen).
    */
   static *baueSchrittweise(optionen) {
     const modell = new KartenModell({ ...optionen, aufgeschoben: true });
+    yield modell;
     yield* modell.#schritte();
     return modell;
   }
@@ -132,21 +133,9 @@ export class KartenModell {
     einfrieren(this.statisch);
   }
 
-  /** Nahtloser Zonenwechsel: dieses Modell gehört jetzt zur echten Welt der Zone (Türen, gefällte Bäume, Laternen werden beim nächsten Bild angeglichen). */
-  uebernimmWelt(welt) {
-    this.welt = welt;
-    this.abgebautStand = -1;
-    this.laternenStand = -1;
-  }
-
-  /** Als Nachbarkarte gezeigt: der Rasen jenseits des Kartenrands gehört nur der aktiven Karte (sonst verdeckt er die Karte darunter). */
-  setzeAlsNachbar(ist) {
-    if (this.draussen) this.draussen.visible = !ist;
-  }
-
   /**
    * Sichtweiten-Culling: Blöcke weiter als `weite` von der Kamera ausblenden (Wände, Möbel, Laternen, Bäume …).
-   * @param kamera  Weltposition der Kamera (Vector3) – wird um den Versatz der Nachbarkarte in Modell-Koordinaten umgerechnet
+   * @param kamera  Weltposition der Kamera (Vector3)
    * @returns Anzahl sichtbarer Blöcke
    */
   kulle(kamera, weite) {
@@ -315,9 +304,9 @@ export class KartenModell {
         yield;
       }
     }
-    const draussen = new THREE.Mesh(new THREE.PlaneGeometry(8000, 8000), new THREE.MeshStandardMaterial({ color: 0x3f8f4f, roughness: 1 }) /* Rasen jenseits des Kartenrands – war fast schwarz und wirkte im Auto (Kamera weiter weg) wie "extrem dunkel" im Norden */);
+    const draussen = new THREE.Mesh(new THREE.PlaneGeometry(welt.pixelBreite + 8000, welt.pixelHoehe + 8000), new THREE.MeshStandardMaterial({ color: 0x3f8f4f, roughness: 1 }) /* Rasen jenseits des Kartenrands – war fast schwarz und wirkte im Auto (Kamera weiter weg) wie "extrem dunkel" im Norden */);
     draussen.rotation.x = -Math.PI / 2;
-    draussen.position.set(welt.pixelBreite / 2, -1.5, welt.pixelHoehe / 2); // unter dem Boden einer Nachbarkarte (-0,8), die ihrerseits unter dem eigenen Boden liegt
+    draussen.position.set(welt.pixelBreite / 2, -1.5, welt.pixelHoehe / 2); // knapp unter dem Kartenboden
     this.draussen = draussen;
     this.statisch.add(draussen);
   }

@@ -599,11 +599,14 @@ export class Hud {
     }
   }
 
-  /** Chatzeile anzeigen: { von, text, admin, system } – verblasst nach CHAT_SICHTBAR_MS */
+  /** Chatzeile anzeigen: { von, text, admin, system, global } – verblasst nach CHAT_SICHTBAR_MS */
   chatNachricht(n) {
     const zeile = Object.assign(this.dokument.createElement('div'), { className: `chat-zeile${n.system ? ' system' : ''}${n.admin ? ' admin' : ''}` });
     if (n.system) zeile.textContent = n.text;
-    else zeile.append(Object.assign(this.dokument.createElement('b'), { textContent: `${n.von}: ` }), n.text);
+    else {
+      if (n.global) zeile.append(Object.assign(this.dokument.createElement('span'), { className: 'chat-global', textContent: '[Alle] ', title: n.zone ? `aus ${n.zone}` : '' }));
+      zeile.append(Object.assign(this.dokument.createElement('b'), { textContent: `${n.von}: ` }), n.text);
+    }
     this.el.chatLog.append(zeile);
     while (this.el.chatLog.children.length > CHAT_ZEILEN) this.el.chatLog.firstElementChild.remove();
     setTimeout(() => zeile.classList.add('alt'), CHAT_SICHTBAR_MS);
@@ -642,12 +645,12 @@ export class Hud {
     const zelle = (tag, text) => Object.assign(d.createElement(tag), { textContent: text });
     const tabelle = d.createElement('table');
     const kopf = d.createElement('tr');
-    for (const t of ['Spieler', 'Lv', '🧟 Zombies', '☠ Spieler', '⏱ überlebt']) kopf.append(zelle('th', t));
+    for (const t of ['Spieler', 'Zone', 'Lv', '🧟 Zombies', '☠ Spieler', '⏱ überlebt']) kopf.append(zelle('th', t));
     tabelle.append(kopf);
     for (const s of spieler) {
       const zeile = d.createElement('tr');
       zeile.className = `${s.ich ? 'ich' : ''}${s.tot ? ' tot' : ''}`;
-      zeile.append(zelle('td', s.name), zelle('td', s.level ?? 1), zelle('td', s.zombies ?? 0), zelle('td', s.spieler ?? 0), zelle('td', formatiereDauer(s.ueberlebt ?? 0)));
+      zeile.append(zelle('td', s.name), zelle('td', s.zone ?? '–'), zelle('td', s.level ?? 1), zelle('td', s.zombies ?? 0), zelle('td', s.spieler ?? 0), zelle('td', formatiereDauer(s.ueberlebt ?? 0)));
       tabelle.append(zeile);
     }
     el.replaceChildren(zelle('h3', `${spieler.length} online`), tabelle);

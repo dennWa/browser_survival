@@ -52,7 +52,7 @@ export class ClientSpiel {
    * @param beiZonenwechsel (daten, sitzung) → ZONE_WECHSEL kam an: main.js räumt diese Sitzung ab (uebergeben) und baut neu auf
    * @param seq             letzte Eingabe-Nummer der vorigen Zone (der Server zählt über Zonen hinweg weiter)
    */
-  constructor({ verbindung, anmeldeDaten, eingabe, renderer, hud, sound, musik = null, beiEnde, beiZonenwechsel, benutzername = '', vorabNachrichten = [], seq = 0 }) {
+  constructor({ verbindung, anmeldeDaten, welt = null, eingabe, renderer, hud, sound, musik = null, beiEnde, beiZonenwechsel, benutzername = '', vorabNachrichten = [], seq = 0 }) {
     this.verbindung = verbindung;
     this.eingabe = eingabe;
     this.renderer = renderer;
@@ -65,7 +65,7 @@ export class ClientSpiel {
 
     this.serverName = anmeldeDaten.serverName;
     this.eigeneId = anmeldeDaten.spielerId;
-    this.welt = new Welt(anmeldeDaten.karte);
+    this.welt = welt ?? new Welt(anmeldeDaten.karte); // welt: schon vom Ladebildschirm gebaut (main.js)
     this.musikOrdner = anmeldeDaten.karte.musik ?? this.welt.id; // Musik-Ordner der Zone (Map-Editor: Feld musik)
     // Klanglandschaft der Karte (Map-Editor Phase 4: Punkt-/Bereichs-/Global-Klänge mit Auslösern)
     this.klaenge = new Klanglandschaft(sound, anmeldeDaten.karte.klaenge ?? [], { handy: globalThis.matchMedia?.('(pointer: coarse)').matches ?? false });
@@ -115,8 +115,6 @@ export class ClientSpiel {
     this.tag = anmeldeDaten.tag ?? 1;
     this.physik = anmeldeDaten.physik;
     this.gegenstaende = anmeldeDaten.gegenstaende ?? [];
-    this.fremdeGegenstaende = new Map(); // Runde 19: Zone → Items der Nachbarzone (IDs "zone:id", Koordinaten dieser Zone)
-    this.alleGegenstaende = null; // eigene + fremde fürs Zeichnen (zwischengespeichert)
     this.itemDefinitionen = anmeldeDaten.itemDefinitionen ?? {};
     this.spielerDaten = anmeldeDaten.spielerDaten;
     this.bau.beiSpielerDaten(this.spielerDaten); // eigenes Baugebiet aus den Spielerdaten
@@ -147,8 +145,7 @@ export class ClientSpiel {
     this.letzterTick = 0;
     this.beendet = false;
 
-    this.renderer.setzeWelt(this.welt, anmeldeDaten.nahtlos === true, anmeldeDaten.spielerId);
-    this.renderer.setzeNachbarn((anmeldeDaten.nachbarn ?? []).map((n) => ({ id: n.zone, versatz: n.versatz, karte: n.karte })));
+    this.renderer.setzeWelt(this.welt);
     this.hud.setzeSpielerDaten(this.spielerDaten, this.itemDefinitionen);
     this.abmelden = [
       verbindung.beiNachricht((n) => this.#nachricht(n)),
@@ -349,6 +346,8 @@ export class ClientSpiel {
 
   /** Alle Spieler im letzten Schnappschuss mit Statistik (für die Tab-Liste), nach Name sortiert. */
   spielerStatistik() {
+    // Server-Liste (alle Zonen, SPIELER_LISTE); Fallback: Spieler der eigenen Zone aus dem Schnappschuss
+    if (this.spielerListe) return this.spielerListe.map((s) => ({ ...s, ich: s.name === this.benutzername })).sort((a, b) => a.name.localeCompare(b.name));
     const letzter = this.schnappschuesse[this.schnappschuesse.length - 1];
     if (!letzter) return [];
     return [...letzter.entitaeten.values()]
@@ -714,12 +713,9 @@ export class ClientSpiel {
         break;
       case NACHRICHT.GEGENSTAENDE:
         this.gegenstaende = n.gegenstaende;
-        this.alleGegenstaende = null;
         break;
-      case NACHRICHT.FREMDE_GEGENSTAENDE:
-        // Runde 19: Items der Nachbarzone – nur Anzeige, bleiben bis zum Zonenwechsel (nichts verschwindet beim Weggehen)
-        if (typeof n.zone === 'string' && Array.isArray(n.gegenstaende)) this.fremdeGegenstaende.set(n.zone, n.gegenstaende);
-        this.alleGegenstaende = null;
+      case NACHRICHT.SPIELER_LISTE:
+        if (Array.isArray(n.liste)) this.spielerListe = n.liste;
         break;
       case NACHRICHT.CHAT:
         this.hud.chatNachricht(n);
@@ -794,9 +790,7 @@ export class ClientSpiel {
 
     this.wetter = n.wetter ?? 'klar';
     const entitaeten = new Map(n.entitaeten.map((e) => [e.id, e]));
-    // Runde 18 (4.2): Entitäten der Nachbarzone (schon in unseren Koordinaten, IDs "zone:id") – nur anzeigen, nie anfassen
-    const fremde = n.fremde?.length ? new Map(n.fremde.map((e) => [e.id, e])) : null;
-    this.schnappschuesse.push({ empfangen: jetzt, tick: n.tick, entitaeten, fremde });
+    this.schnappschuesse.push({ empfangen: jetzt, tick: n.tick, entitaeten });
     // Fahrzeuge blockieren ihre Kacheln – auch für die eigene Laufvorhersage
     const g = this.welt.kachelGroesse;
     for (const e of entitaeten.values()) {
@@ -1228,7 +1222,7 @@ export class ClientSpiel {
     this.renderer.zeichne({
       fokus: eigen,
       entitaeten: [...andere, eigen],
-      gegenstaende: (this.alleGegenstaende ??= this.fremdeGegenstaende.size ? [...this.gegenstaende, ...[...this.fremdeGegenstaende.values()].flat()] : this.gegenstaende),
+      gegenstaende: this.gegenstaende,
       itemDefinitionen: this.itemDefinitionen,
       jetzt,
       effekte: this.effekte,
@@ -1281,8 +1275,6 @@ export class ClientSpiel {
     if (this.hud.minikarteAn && jetzt - this.letzteMiniKarte > 180) {
       this.letzteMiniKarte = jetzt;
       this.karte.zeichneMini(this.hud.el.minikarte, eigen, this.#minikartenPunkte());
-      // Runde 18 (4.2): Kartenbild der Nachbarzone vorab malen, sobald ihr 3D-Modell steht → Wechsel ohne Ruckler
-      for (const n of this.renderer.nachbarn) if (n.modell && n.welt) Karte.vorbereiten(n.welt, this.renderer.assets, 2);
     }
     if (!this.hud.el.spielerliste.hidden && jetzt - this.letzteListe > 1000) {
       this.letzteListe = jetzt;
@@ -1355,7 +1347,6 @@ export class ClientSpiel {
     this.angelBlick = modus === 'auswerfen' ? this.#angelWinkel(performance.now()) : null;
   }
 
-  /** Alle fremden Entitäten zur Zeit `renderZeit` – zwischen den beiden passenden Schnappschüssen. */
   /**
    * Andere Spieler & Zombies, INTERPOLATIONS_VERZOEGERUNG_MS in der Vergangenheit zwischen zwei Schnappschüssen
    * interpoliert. Gerechnet wird in Server-Ticks (geglättete Uhr tickNull), nicht nach Ankunftszeit der Pakete –
@@ -1379,17 +1370,15 @@ export class ClientSpiel {
     const ergebnis = [];
     if (!b || renderTick <= a.tick) {
       for (const e of a.entitaeten.values()) if (e.id !== this.eigeneId) ergebnis.push(e);
-      if (a.fremde) for (const e of a.fremde.values()) ergebnis.push(e);
       return ergebnis;
     }
 
     const t = Math.min(1, (renderTick - a.tick) / (b.tick - a.tick));
     const dauer = Math.max(1, b.tick - a.tick) * TICK_DAUER_S;
     const pool = this.interpolationsPool;
-    const neue = b.fremde ? [...b.entitaeten.values(), ...b.fremde.values()] : b.entitaeten.values();
-    for (const neu of neue) {
+    for (const neu of b.entitaeten.values()) {
       if (neu.id === this.eigeneId) continue;
-      const alt = neu.fremd ? a.fremde?.get(neu.id) : a.entitaeten.get(neu.id);
+      const alt = a.entitaeten.get(neu.id);
       if (!alt) {
         ergebnis.push(neu);
         continue;
@@ -1407,7 +1396,7 @@ export class ClientSpiel {
       e.bewegungsWinkel = Math.atan2(dy, dx);
       ergebnis.push(e);
     }
-    if (pool.size > b.entitaeten.size * 2 + 32) for (const id of pool.keys()) if (!b.entitaeten.has(id) && !b.fremde?.has(id)) pool.delete(id);
+    if (pool.size > b.entitaeten.size * 2 + 32) for (const id of pool.keys()) if (!b.entitaeten.has(id)) pool.delete(id);
     return ergebnis;
   }
 

@@ -7,7 +7,7 @@ export const SPIEL_NAME = 'Browser Survival';
 export const SPIEL_VERSION = '0.14.0';
 
 /** Wird beim Login verglichen. Erhöhen, sobald sich das Nachrichtenformat inkompatibel ändert. */
-export const PROTOKOLL_VERSION = 10;
+export const PROTOKOLL_VERSION = 11;
 
 /** Simulationstakt (Ticks pro Sekunde). Server-Simulation und Client-Vorhersage laufen im selben Takt. */
 export const TICK_RATE = 30;
@@ -19,6 +19,8 @@ export const MAX_EINGABE_PUFFER = 8;
 
 /** Größe einer Kachel (Tile) in Weltpixeln. */
 export const KACHEL_GROESSE = 32;
+/** Größte Zone je Seite (Kacheln) – Editor legt nichts Größeres an, der Kartenlader lehnt es ab (ZONEN_KONZEPT.md: Ladebild lädt alles vor) */
+export const ZONE_MAX_KACHELN = 1500;
 
 /** Schnellleiste (Tasten 1–9 und 0 für Platz 10) = die ersten Inventarplätze. */
 export const HOTBAR_PLAETZE = 10;

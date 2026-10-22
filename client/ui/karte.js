@@ -9,14 +9,20 @@ import { entpackeErkundet } from '../../gemeinsam/welt/erkundung.js';
  * v0.10: Klick/Tippen auf einen erkundeten Ort → beiZielWahl (Auto-Lauf, clientSpiel.js); zeichneMini() = Minikarte im HUD.
  */
 const SICHT_KACHELN = 9;
-const MASSSTAB = 0.25; // Kartenbild: 8 Pixel pro Kachel
+const MASSSTAB = 0.25; // Kartenbild: 8 Pixel pro Kachel …
+const BILD_MAX_PX = 6144; // … große Zonen gröber, damit das Kartenbild nicht Hunderte MB frisst
+
+/** Maßstab des Kartenbilds dieser Zone (Weltpixel → Bildpixel) */
+function massstabFuer(welt) {
+  return Math.min(MASSSTAB, BILD_MAX_PX / (Math.max(welt.breite, welt.hoehe) * welt.kachelGroesse));
+}
 const SPEICHER_INTERVALL_MS = 10000;
 const MINI_RADIUS_KACHELN = 20; // Minikarte zeigt so viele Kacheln in jede Richtung
 const MINI_BUDGET_MS = 4; // Runde 18 (4.2): Kartenbild für die Minikarte in Portionen malen (sonst ~1 s Ruckler beim Zonenwechsel)
 
 /**
  * Kartenbilder je Zone (Karten-ID → { maler, bild }): bleiben über Zonenwechsel erhalten, beim Hin- und Zurücklaufen
- * wird nichts neu gemalt. Karte.vorbereiten() malt die Nachbarzone schon im Hintergrund.
+ * wird nichts neu gemalt. Karte.vorbereiten() malt sie hinter dem Ladebildschirm fertig.
  */
 const BILDER = new Map();
 
@@ -143,7 +149,7 @@ export class Karte {
     }
   }
 
-  /** Kartenbild einer (Nachbar-)Zone schon vorab in kleinen Portionen malen. */
+  /** Kartenbild einer Zone vorab malen (Ladebildschirm: budgetMs = Infinity). */
   static vorbereiten(welt, assets, budgetMs = 2) {
     if (welt?.id) kartenBild(welt, assets, budgetMs);
   }
@@ -162,7 +168,7 @@ export class Karte {
     this.anteilEl.textContent = `${Math.round((this.gesehen / this.erkundet.length) * 100)} % erkundet`;
 
     this.letztesZeichnen = performance.now();
-    const s = MASSSTAB;
+    const s = massstabFuer(this.welt);
     // Werkbänke immer zeigen (auch im Nebel) – sonst findet man sie kaum
     const g = this.welt.kachelGroesse;
     ctx.font = '15px system-ui, sans-serif';
@@ -286,7 +292,7 @@ export class Karte {
     if (!this.bild) return; // wird noch gemalt (nächstes Mal weiter)
     this.#aktualisiereNebel();
     const g = this.welt.kachelGroesse;
-    const k = g * MASSSTAB; // Pixel pro Kachel im Kartenbild
+    const k = g * massstabFuer(this.welt); // Pixel pro Kachel im Kartenbild
     const px = spieler.x / g;
     const py = spieler.y / g;
     const r = MINI_RADIUS_KACHELN;
@@ -361,7 +367,7 @@ export class Karte {
 /** Kartenbild (Boden, Wände, Bäume, Symbole, Raumnamen) als Generator – gibt zwischendurch ab. */
 function* bildPortionen(welt, assets) {
   const g = welt.kachelGroesse;
-  const s = MASSSTAB;
+  const s = massstabFuer(welt);
   const bild = yield* new BodenTextur(welt, assets).renderePortionen(s);
   const ctx = bild.getContext('2d');
   ctx.setTransform(1, 0, 0, 1, 0, 0);

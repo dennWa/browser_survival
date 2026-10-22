@@ -21,7 +21,7 @@ export const NACHRICHT = Object.freeze({
   AKTION: 'aktion',
   /** { t } – Zeitstempel des Clients, kommt als PONG zurück */
   PING: 'ping',
-  /** { text } – Chatnachricht an alle (max. CHAT_MAX_LAENGE Zeichen) */
+  /** { text } – Chatnachricht an die eigene Zone; beginnt sie mit „/a “, an alle Zonen (max. CHAT_MAX_LAENGE Zeichen) */
   CHAT: 'chat',
   /** {} – Developer-Modus: aktuelle Werte anfordern (nur Admins) */
   DEV_ABFRAGEN: 'devAbfragen',
@@ -50,11 +50,8 @@ export const NACHRICHT = Object.freeze({
   MELDUNG: 'meldung',
   /** { gegenstaende: [...] } – komplette Item-Liste, nur wenn sie sich geändert hat */
   GEGENSTAENDE: 'gegenstaende',
-  /**
-   * Runde 19: { zone, gegenstaende: [...] } – Items einer nahtlosen Nachbarzone (IDs "zone:id", Koordinaten dieser Zone), bei
-   * Änderung, sobald man hineinsieht. Nur Anzeige (Aufheben geht erst drüben); der Client behält sie, auch weiter weg.
-   */
-  FREMDE_GEGENSTAENDE: 'fremdeGegenstaende',
+  /** { liste: [{ name, level, zombies, spieler, ueberlebt, tot, zone }] } – alle Spieler auf dem Server (alle Zonen), ~1×/s bei Änderung */
+  SPIELER_LISTE: 'spielerListe',
   /** { offen: [Tür-IDs] } – Türzustand, nur wenn er sich geändert hat (IDs: Welt.tueren) */
   TUEREN: 'tueren',
   /** { abgebaut: [Ressourcen-IDs], laternen: [Laternen-IDs] } – gefällte Bäume / abgebaute Steine / umgefahrene Straßenlaternen, nur bei Änderung (IDs: Welt.ressourcen bzw. Welt.laternen) */
@@ -69,7 +66,7 @@ export const NACHRICHT = Object.freeze({
   STATION: 'station',
   /** { t } */
   PONG: 'pong',
-  /** { von, text, admin, system } – Chatnachricht (system = Server-Hinweis wie "X ist beigetreten"); Typ wie CHAT */
+  /** { von, text, admin, system, global, zone } – Chatnachricht (system = Server-Hinweis wie "X ist beigetreten"; global = per /a an alle Zonen, zone = Zone des Absenders); Typ wie CHAT */
   /** { felder: [{ pfad, name, gruppe, min, max, schritt, einheit, wert, standard }], ueberschreibungen } – nur an Admins */
   DEV_WERTE: 'devWerte',
   /** { physik, tageszeit, itemDefinitionen } – nach Developer-Änderungen an alle (Vorhersage, Uhr, HUD) */

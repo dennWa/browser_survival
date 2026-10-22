@@ -99,13 +99,14 @@ test('6.4 Weltanordnung: Kante an Kante ok, Überlappung verboten, neue Zone dan
   assert.deepEqual(rasteZoneEin(layout, groessen, 'b', { x: 41, y: 1 }, 2), { x: 40, y: 0 });
 });
 
-test('6.4 Zonengröße bis 10 000, Hinweise ab 1 Mio. Kacheln, Größe links/oben trägt den Versatz (auch im Undo)', () => {
-  assert.equal(MAX_GROESSE, 10000);
-  assert.equal(neueZone({ breite: 20000, hoehe: 10 }).breite, 10000);
+test('6.4 Zonengröße bis 1500 (ZONE_MAX_KACHELN), Hinweise ab 1 Mio. Kacheln, Größe links/oben trägt den Versatz (auch im Undo)', () => {
+  assert.equal(MAX_GROESSE, 1500);
+  assert.equal(neueZone({ breite: 20000, hoehe: 10 }).breite, 1500);
+  assert.throws(() => groesseAendern(zone('x'), { rechts: 2000 }), /zu groß/);
   assert.equal(groessenHinweis(100, 100), null);
   assert.equal(groessenHinweis(1000, 1000).stufe, 'gross');
-  assert.equal(groessenHinweis(10000, 10000).stufe, 'sehr');
-  assert.equal(groessenHinweis(10000, 10000, { heapGrenze: 100 * 1024 * 1024 }).stufe, 'zuviel');
+  assert.equal(groessenHinweis(1500, 1500).stufe, 'sehr');
+  assert.equal(groessenHinweis(1500, 1500, { heapGrenze: 50 * 1024 * 1024 }).stufe, 'zuviel');
   assert.ok(istGrosseZone({ breite: 1000, hoehe: GROSS_KACHELN / 1000 }));
   const k = zone('a');
   const erg = groesseAendern(k, { links: 3, oben: 2 });

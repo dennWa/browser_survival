@@ -125,7 +125,7 @@ export function ausTiled(tmj, { id, name } = {}) {
         }
         raster[y][x] = zeichen;
       } else if (klasse === 'uebergang') {
-        uebergaenge.push({ x: Math.round(o.x / tw), y: Math.round(o.y / th), b: Math.round(o.width / tw), h: Math.round(o.height / th), ziel: p.ziel, ankunft: p.ankunft, name: o.name || p.ziel, ...(Number.isInteger(p.nahtlosDx) && Number.isInteger(p.nahtlosDy) ? { nahtlos: { dx: p.nahtlosDx, dy: p.nahtlosDy } } : {}) });
+        uebergaenge.push({ x: Math.round(o.x / tw), y: Math.round(o.y / th), b: Math.round(o.width / tw), h: Math.round(o.height / th), ziel: p.ziel, ankunft: p.ankunft, name: o.name || p.ziel });
       } else if (klasse === 'ankunft') {
         if (!o.name) throw new Error(`Ankunft #${o.id} braucht einen Namen (z. B. "nord")`);
         ankuenfte[o.name] = kachelVon(o);
@@ -202,7 +202,7 @@ export function nachTiled(definition, { tilesetBild = 'kacheln.png', kachel = 32
     height: u.h * kachel,
     rotation: 0,
     visible: true,
-    properties: alsEigenschaften({ ziel: u.ziel, ankunft: u.ankunft, ...(u.nahtlos ? { nahtlosDx: u.nahtlos.dx, nahtlosDy: u.nahtlos.dy } : {}) }),
+    properties: alsEigenschaften({ ziel: u.ziel, ankunft: u.ankunft }),
   }));
   const ankuenfte = Object.entries(definition.ankuenfte ?? {}).map(([name, p]) => ({
     id: objektId++,

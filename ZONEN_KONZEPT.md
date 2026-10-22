@@ -1,6 +1,6 @@
 # Konzept: Große Zonen, Ladebildschirm statt Vorladen, keine Ruckler
 
-Stand 2026-10-22 · Status: **Konzept, noch nicht umgesetzt**
+Stand 2026-10-22 · Status: **Phase A + B umgesetzt** (Rückbau, Ladebild mit Fortschritt, Max. 1500 × 1500, Zonen-Chat). Offen: C (Ruckel-Messung), D (Sektor-Streaming/LOD für schärferen Boden auf großen Zonen), E (Schleusen).
 
 ## 1. Entscheidungen (Nutzer)
 
@@ -85,8 +85,10 @@ Ehrlich gesagt: 10 000² = **100 Mio. Kacheln**. Alles komplett auf die GPU zu l
 | D | Sektor-Streaming + LOD für Riesen-Zonen (§5), Editor sektorweise | Zonen > 1500² möglich |
 | E | Schleusen-Übergänge (§6) | Schöne Übergänge |
 
-## 8. Offene Fragen
+## 8. Entschieden
 
-1. Einheit „10 000 × 10 000“ – Kacheln oder Pixel? (Pixel = 312 × 312 Kacheln → wäre klein und komplett vorladbar.)
-2. Soll Multiplayer-Ost/West über eine Schleuse sichtbar sein (Chat/Spielerliste je Zone)? Heute: ja, global.
-3. Ladebild: schlicht (Balken + Tipp) oder mit Bild der Zielzone?
+1. Maximum 1500 × 1500 Kacheln je Zone (Editor + Kartenlader).
+2. Chat nur in der eigenen Zone, `/a Text` an alle Zonen. Spielerliste (Tab) serverweit mit Zone.
+3. Ladebild schlicht mit Balken unten; Bilder/Tipps kommen später in `#lade-motiv`.
+
+**Hinweis Speicher:** Bis Phase D wird die Bodentextur großer Zonen automatisch gröber (Budget 512 MB PC / 192 MB Handy), damit alles hinter dem Ladebild auf die Grafikkarte passt. Ab etwa 400 × 400 Kacheln sieht man das.

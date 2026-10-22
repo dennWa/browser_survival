@@ -219,112 +219,60 @@ test('Zonenwechsel: Toter zieht nicht um; derselbe Account kann sich währenddes
   await warteAuf(() => letzte(zweiter.empfangen, NACHRICHT.ANMELDUNG_FEHLER), 'zweiter Login abgelehnt');
 });
 
-test('Nahtloser Übergang: Stadtrand ↔ Schneeland tauscht an derselben Stelle (Versatz), ohne Ping-Pong; Nachbarkarte im Start', async (t) => {
+test('Stadtrand → Schneeland: klassischer Übergang mit Ladebild, Ankunft „west“, keine Nachbardaten mehr', async (t) => {
   const server = new SpielServer({ authentifizierung: new GastAuthentifizierung(), protokoll: stillerLog });
   t.after(() => server.stoppen());
-  const { empfangen } = verbinde(server, 'Nahtlos');
+  const { empfangen } = verbinde(server, 'Grenzer');
   await warteAuf(() => letzte(empfangen, NACHRICHT.ANMELDUNG_OK), 'Login');
-  const ok = letzte(empfangen, NACHRICHT.ANMELDUNG_OK);
-  const nachbar = ok.nachbarn.find((n) => n.zone === 'schneeland');
-  assert.ok(nachbar, 'Stadtrand schickt die Nachbarkarte Schneeland mit');
-  assert.deepEqual(nachbar.versatz, { x: 153 * 32, y: 0 });
-  assert.equal(nachbar.karte.id, 'schneeland');
-
-  const welt = server.weltVon('Nahtlos');
+  assert.equal(letzte(empfangen, NACHRICHT.ANMELDUNG_OK).nachbarn, undefined);
+  const welt = server.weltVon('Grenzer');
   const ich = [...welt.alleVomTyp('spieler')][0];
   const u = welt.karte.daten.uebergaenge.find((x) => x.ziel === 'schneeland');
+  assert.equal(u.kante, undefined);
   ich.x = u.px.x0 + 5;
   ich.y = (u.px.y0 + u.px.y1) / 2;
-  const alt = { x: ich.x, y: ich.y };
   server.tickAusfuehren();
   await warteAuf(() => letzte(empfangen, NACHRICHT.ZONE_WECHSEL), 'ZONE_WECHSEL');
   const wechsel = letzte(empfangen, NACHRICHT.ZONE_WECHSEL);
-  assert.equal(wechsel.nahtlos, true);
-  assert.deepEqual(wechsel.start, { x: alt.x - 153 * 32, y: alt.y });
-  assert.ok(wechsel.nachbarn.some((n) => n.zone === 'stadtrand' && n.versatz.x === -153 * 32));
-  // kein Ping-Pong: ein Tick später ist man noch in Schneeland
+  assert.equal(wechsel.nahtlos, undefined);
+  assert.deepEqual(wechsel.start, ladeKarte('schneeland').ankuenfte.west);
   server.tickAusfuehren();
   await warte(20);
-  assert.equal(server.weltVon('Nahtlos').karte.daten.id, 'schneeland');
+  assert.equal(server.weltVon('Grenzer').karte.daten.id, 'schneeland', 'kein Ping-Pong');
 });
 
-test('Runde 18 (4.3): nahtloser Übergang gilt an der ganzen Kante, gezielte Übergänge behalten Vorrang', async (t) => {
-  const stadtrand = ladeKarte('stadtrand');
-  const u = stadtrand.daten.uebergaenge.find((x) => x.ziel === 'schneeland');
-  assert.equal(u.kante, 'ost');
-  assert.equal(u.px.y0, 0);
-  assert.equal(u.px.y1, stadtrand.daten.hoehe * 32);
-  assert.equal(u.y, 86, 'Wegweiser/Editor behalten das ursprüngliche Rechteck');
-
+test('Chat: normal nur in der eigenen Zone, „/a …“ an alle Zonen (global + Zone des Absenders)', async (t) => {
   const server = new SpielServer({ authentifizierung: new GastAuthentifizierung(), protokoll: stillerLog });
   t.after(() => server.stoppen());
-  const { empfangen } = verbinde(server, 'Kante');
-  await warteAuf(() => letzte(empfangen, NACHRICHT.ANMELDUNG_OK), 'Login');
-  const welt = server.weltVon('Kante');
-  const ich = [...welt.alleVomTyp('spieler')][0];
-  ich.x = u.px.x0 + 5;
-  ich.y = 20 * 32 + 16; // weit weg vom alten 9-Kachel-Stück
-  server.tickAusfuehren();
-  await warteAuf(() => letzte(empfangen, NACHRICHT.ZONE_WECHSEL), 'ZONE_WECHSEL');
-  const wechsel = letzte(empfangen, NACHRICHT.ZONE_WECHSEL);
-  assert.equal(wechsel.nahtlos, true);
-  assert.ok(Math.abs(wechsel.start.y - ich.y) <= 4 * 32 + 16, 'drüben an (fast) derselben Stelle');
+  const anna = verbinde(server, 'Anna');
+  const ben = verbinde(server, 'Ben');
+  await warteAuf(() => letzte(anna.empfangen, NACHRICHT.ANMELDUNG_OK) && letzte(ben.empfangen, NACHRICHT.ANMELDUNG_OK), 'Login');
+  await gehDurchUebergang(server, 'Ben', ben.empfangen);
+  const chats = (e, von) => e.filter((n) => n.typ === NACHRICHT.CHAT && n.von === von);
+  anna.kanal.senden(kodiere({ typ: NACHRICHT.CHAT, text: 'Nur hier' }));
+  await warteAuf(() => chats(anna.empfangen, 'Anna').length === 1, 'eigene Zonen-Nachricht');
+  await warte(30);
+  assert.equal(chats(ben.empfangen, 'Anna').length, 0, 'andere Zone hört nichts');
+  await warte(750); // Spam-Pause
+  anna.kanal.senden(kodiere({ typ: NACHRICHT.CHAT, text: '/a Hallo Welt' }));
+  await warteAuf(() => chats(ben.empfangen, 'Anna').length === 1, '/a kommt überall an');
+  const n = chats(ben.empfangen, 'Anna')[0];
+  assert.equal(n.text, 'Hallo Welt');
+  assert.equal(n.global, true);
+  assert.ok(n.zone);
 });
 
-test('Runde 18 (4.2): Nachbarzone läuft mit und ihre Entitäten kommen als ZUSTAND.fremde (versetzt, eigene IDs)', async (t) => {
+test('Spielerliste: SPIELER_LISTE kennt alle Spieler aller Zonen (mit Zone)', async (t) => {
   const server = new SpielServer({ authentifizierung: new GastAuthentifizierung(), protokoll: stillerLog });
   t.after(() => server.stoppen());
-  const { empfangen } = verbinde(server, 'Grenze');
-  await warteAuf(() => letzte(empfangen, NACHRICHT.ANMELDUNG_OK), 'Login');
-  const welt = server.weltVon('Grenze');
-  const ich = [...welt.alleVomTyp('spieler')][0];
-  // weit weg von der Grenze: nichts von drüben
-  ich.x = 10 * 32;
-  ich.y = 60 * 32;
-  server.tickAusfuehren();
-  await warte(10);
-  assert.equal(letzte(empfangen, NACHRICHT.ZUSTAND).fremde, undefined);
-  const schnee = server.zone('schneeland');
-  assert.equal(schnee.aktiv, false, 'ohne Grenznähe pausiert die Nachbarzone');
-  // an die Grenze: Schneeland aktiv, Zombies von dort sichtbar (Koordinaten im Stadtrand)
-  ich.x = 150 * 32;
-  ich.y = 60 * 32;
-  const z = [...schnee.spielWelt.alleVomTyp('zombie')][0];
-  assert.ok(z, 'Schneeland hat Zombies');
-  z.x = 5 * 32;
-  z.y = 60 * 32;
-  server.tickAusfuehren();
-  await warte(10);
-  assert.equal(schnee.aktiv, true, 'Nachbarzone läuft mit');
-  const fremde = letzte(empfangen, NACHRICHT.ZUSTAND).fremde ?? [];
-  const drueben = fremde.find((e) => e.id === `schneeland:${z.id}`);
-  assert.ok(drueben, 'Zombie von drüben im Zustand');
-  assert.equal(drueben.fremd, true);
-  assert.ok(Math.abs(drueben.x - (z.x + 153 * 32)) < 40, 'in Stadtrand-Koordinaten');
-});
-
-test('Runde 19: Items der Nachbarzone kommen als FREMDE_GEGENSTAENDE (versetzt, nur bei Änderung, nach Zonenwechsel neu)', async (t) => {
-  const server = new SpielServer({ authentifizierung: new GastAuthentifizierung(), protokoll: stillerLog });
-  t.after(() => server.stoppen());
-  const { empfangen } = verbinde(server, 'Sammler');
-  await warteAuf(() => letzte(empfangen, NACHRICHT.ANMELDUNG_OK), 'Login');
-  const ich = [...server.weltVon('Sammler').alleVomTyp('spieler')][0];
-  const schnee = server.zone('schneeland');
-  const item = schnee.spielWelt.hinzufuegen(erzeugeGegenstand({ id: schnee.spielWelt.neueId(), defId: 'apfel', x: 4 * 32, y: 60 * 32 }));
-  ich.x = 10 * 32;
-  ich.y = 60 * 32;
-  server.tickAusfuehren();
-  await warte(10);
-  assert.equal(letzte(empfangen, NACHRICHT.FREMDE_GEGENSTAENDE), undefined, 'weit weg: nichts');
-  ich.x = 150 * 32;
-  server.tickAusfuehren();
-  await warte(10);
-  const n = letzte(empfangen, NACHRICHT.FREMDE_GEGENSTAENDE);
-  assert.equal(n?.zone, 'schneeland');
-  const apfel = n.gegenstaende.find((g) => g.id === `schneeland:${item.id}`);
-  assert.ok(apfel && Math.abs(apfel.x - (item.x + 153 * 32)) < 1, 'in Stadtrand-Koordinaten');
-  const anzahl = empfangen.filter((x) => x.typ === NACHRICHT.FREMDE_GEGENSTAENDE).length;
-  server.tickAusfuehren();
-  await warte(10);
-  assert.equal(empfangen.filter((x) => x.typ === NACHRICHT.FREMDE_GEGENSTAENDE).length, anzahl, 'ohne Änderung nicht nochmal');
+  const anna = verbinde(server, 'Anna');
+  const ben = verbinde(server, 'Ben');
+  await warteAuf(() => letzte(anna.empfangen, NACHRICHT.ANMELDUNG_OK) && letzte(ben.empfangen, NACHRICHT.ANMELDUNG_OK), 'Login');
+  await gehDurchUebergang(server, 'Ben', ben.empfangen);
+  for (let i = 0; i < 31; i++) server.tickAusfuehren();
+  await warteAuf(() => letzte(anna.empfangen, NACHRICHT.SPIELER_LISTE)?.liste.length === 2, 'Liste');
+  const liste = letzte(anna.empfangen, NACHRICHT.SPIELER_LISTE).liste;
+  const zonen = new Set(liste.map((s) => s.zone));
+  assert.equal(zonen.size, 2, 'beide Zonen stehen drin');
+  assert.ok(letzte(ben.empfangen, NACHRICHT.SPIELER_LISTE), 'auch nach dem Zonenwechsel');
 });

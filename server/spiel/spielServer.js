@@ -67,6 +67,8 @@ export class SpielServer {
     this.speicher = speicher ?? new ArbeitsspeicherSpeicher();
     this.ausstehendeSpeicherungen = new Set();
     this.ticksSeitAutosave = 0;
+    this.tickZaehler = 0;
+    this.letzteSpielerListe = null; // zuletzt gesendete SPIELER_LISTE (nur bei Änderung neu)
     this.gestoppt = false;
     this.konfiguration = erstelleKonfiguration(konfiguration);
     // Developer-Modus: alle Überschreibungen (Format von einstellungen.json) – inkl. Item-Werte
@@ -189,10 +191,8 @@ export class SpielServer {
    */
   tickAusfuehren() {
     let proZone = this.#sitzungenProZone();
-    // Runde 18 (4.2): Nachbarzonen, an deren Grenze jemand steht, laufen mit (Zombies drüben bewegen sich, Client sieht sie)
-    const amRand = this.#nachbarnInSicht(proZone);
     for (const zone of this.zonen.values()) {
-      const aktiv = zone === this.startZone || proZone.has(zone) || amRand.has(zone);
+      const aktiv = zone === this.startZone || proZone.has(zone);
       if (aktiv) this.#aktiviere(zone);
       zone.aktiv = aktiv;
     }
@@ -230,105 +230,9 @@ export class SpielServer {
       }
     }
 
+    if (this.tickZaehler++ % TICK_RATE === 0) this.#sendeSpielerListe();
     proZone = this.#sitzungenProZone(); // nach den Zonenwechseln
-    const fremdCache = new Map();
-    for (const zone of aktive) {
-      zone.versende(
-        proZone.get(zone) ?? [],
-        (sitzung) => this.#sendePrivateDaten(sitzung),
-        (ich) => this.#fremdeFuer(zone, ich, fremdCache),
-      );
-      for (const sitzung of proZone.get(zone) ?? []) this.#sendeFremdeGegenstaende(sitzung, zone);
-    }
-  }
-
-  /** Nahtlose Nachbarn einer Zone: [{ zone, versatz }] (versatz = Ursprung der Nachbarkarte in Pixeln dieser Zone), zwischengespeichert. */
-  #nahtloseNachbarn(zone) {
-    if (zone.nahtloseNachbarn) return zone.nahtloseNachbarn;
-    const aus = [];
-    for (const u of zone.spielWelt.karte.daten.uebergaenge) {
-      if (!u.nahtlos || u.ziel === zone.id || aus.some((n) => n.zone.id === u.ziel)) continue;
-      const nachbar = this.zone(u.ziel);
-      if (nachbar) aus.push({ zone: nachbar, versatz: u.nahtlos.versatz });
-    }
-    return (zone.nahtloseNachbarn = aus);
-  }
-
-  /** Sieht dieser Spieler (Koordinaten seiner Zone) in die Nachbarkarte hinein? (Quadrat ± NETZ_SICHTWEITE wie beim Interest Management) */
-  #siehtNachbar(ich, nachbar, versatz) {
-    const w = nachbar.spielWelt.welt;
-    const x0 = versatz.x;
-    const y0 = versatz.y;
-    const x1 = x0 + w.breite * w.kachelGroesse;
-    const y1 = y0 + w.hoehe * w.kachelGroesse;
-    return ich.x > x0 - NETZ_SICHTWEITE && ich.x < x1 + NETZ_SICHTWEITE && ich.y > y0 - NETZ_SICHTWEITE && ich.y < y1 + NETZ_SICHTWEITE;
-  }
-
-  /** Zonen, in die gerade jemand von nebenan hineinsieht. */
-  #nachbarnInSicht(proZone) {
-    const aus = new Set();
-    for (const [zone, sitzungen] of proZone) {
-      for (const { zone: nachbar, versatz } of this.#nahtloseNachbarn(zone)) {
-        if (aus.has(nachbar)) continue;
-        if (sitzungen.some((s) => {
-          const ich = zone.spielWelt.holen(s.spielerId);
-          return ich && this.#siehtNachbar(ich, nachbar, versatz);
-        })) aus.add(nachbar);
-      }
-    }
-    return aus;
-  }
-
-  /**
-   * Entitäten der Nachbarzonen, die dieser Spieler sehen kann – in Koordinaten SEINER Zone (+ versatz), IDs mit Zonen-Präfix
-   * ("schneeland:17"), Markierung `fremd`. Nur zum Anzeigen: der Client interpoliert und zeichnet sie, interagiert nicht.
-   * Schnappschuss je Nachbar nur einmal pro Tick (cache).
-   */
-  #fremdeFuer(zone, ich, cache) {
-    let aus = null;
-    for (const { zone: nachbar, versatz } of this.#nahtloseNachbarn(zone)) {
-      if (!this.#siehtNachbar(ich, nachbar, versatz)) continue;
-      const schluessel = `${nachbar.id}|${versatz.x}|${versatz.y}`;
-      let liste = cache.get(schluessel);
-      if (!liste) {
-        const p = `${nachbar.id}:`;
-        liste = nachbar.spielWelt.schnappschuss().entitaeten.map((e) => ({
-          ...e,
-          id: p + e.id,
-          x: e.x + versatz.x,
-          y: e.y + versatz.y,
-          ...(e.fahrerId != null ? { fahrerId: p + e.fahrerId } : {}),
-          fremd: true,
-        }));
-        cache.set(schluessel, liste);
-      }
-      for (const e of liste) {
-        if (Math.abs(e.x - ich.x) < NETZ_SICHTWEITE && Math.abs(e.y - ich.y) < NETZ_SICHTWEITE) (aus ??= []).push(e);
-      }
-    }
-    return aus;
-  }
-
-  /**
-   * Runde 19: Items nahtloser Nachbarzonen, in die der Spieler hineinsieht – nur bei Änderung (Version je Nachbar und Sitzung;
-   * nach einem Zonenwechsel alles neu). Der Client behält die Liste, auch wenn man sich wieder entfernt (nichts verschwindet).
-   */
-  #sendeFremdeGegenstaende(sitzung, zone) {
-    const ich = zone.spielWelt.holen(sitzung.spielerId);
-    if (!ich) return;
-    if (sitzung.fremdeGegenstaendeZone !== zone) {
-      sitzung.fremdeGegenstaendeZone = zone;
-      sitzung.fremdeGegenstaendeStand = new Map();
-    }
-    for (const { zone: nachbar, versatz } of this.#nahtloseNachbarn(zone)) {
-      if (!this.#siehtNachbar(ich, nachbar, versatz)) continue;
-      const w = nachbar.spielWelt;
-      if (sitzung.fremdeGegenstaendeStand.get(nachbar.id) === w.gegenstaendeVersion) continue;
-      sitzung.fremdeGegenstaendeStand.set(nachbar.id, w.gegenstaendeVersion);
-      const p = `${nachbar.id}:`;
-      const gegenstaende = w.gegenstaendeListe().map((g) => ({ ...g, id: p + g.id, x: g.x + versatz.x, y: g.y + versatz.y }));
-      sitzung.kanal.senden(kodiere({ typ: NACHRICHT.FREMDE_GEGENSTAENDE, zone: nachbar.id, gegenstaende }));
-    }
+    for (const zone of aktive) zone.versende(proZone.get(zone) ?? [], (sitzung) => this.#sendePrivateDaten(sitzung));
   }
 
   /** Map Zone → [Sitzungen im Spiel] */
@@ -351,7 +255,7 @@ export class SpielServer {
    * Ankunftspunkt rein, Client baut neu auf (ZONE_WECHSEL). Unbekanntes Ziel → Weg "versperrt".
    */
   async #wechsleZone(sitzung, spieler) {
-    const { ziel, ankunft, name, spawn = false, versatz = null } = spieler.zonenwechsel;
+    const { ziel, ankunft, name, spawn = false } = spieler.zonenwechsel;
     spieler.zonenwechsel = null;
     const alt = sitzung.zone;
     const zone = ziel === alt.id ? null : this.zone(ziel);
@@ -390,15 +294,6 @@ export class SpielServer {
         zone.spielWelt.melde(neu.id, 'Dein Bett ist weg oder zugebaut – du startest am normalen Startpunkt');
       }
     }
-    // Nahtloser Übergang: dieselbe Stelle in Koordinaten der Zielkarte (nur wenn dort begehbar und nicht im Rückweg-Übergang)
-    let nahtlos = false;
-    if (!punkt && versatz) {
-      const p = this.#ankunftNahe(zone, { x: spieler.x - versatz.x, y: spieler.y - versatz.y });
-      if (p) {
-        punkt = p;
-        nahtlos = true;
-      }
-    }
     punkt ??= zone.ankunft(ankunft);
     Object.assign(neu, behalten, { x: punkt.x, y: punkt.y });
     sitzung.zone = zone;
@@ -407,53 +302,9 @@ export class SpielServer {
     sitzung.letzteSpielerDaten = null;
     sitzung.status = 'imSpiel';
     zone.spielWelt.melde(neu.id, `Du betrittst: ${zone.name}`);
-    this.#senden(sitzung, { typ: NACHRICHT.ZONE_WECHSEL, zone: zone.name, nahtlos, ...this.#startDaten(zone, neu) });
+    this.letzteSpielerListe = null; // neuer Client nach dem Ladebild braucht die Liste wieder
+    this.#senden(sitzung, { typ: NACHRICHT.ZONE_WECHSEL, zone: zone.name, ...this.#startDaten(zone, neu) });
     this.log.info?.(`[Server] ${sitzung.benutzername}: ${alt.id} → ${zone.id}`);
-  }
-
-  /** Ankunftsstelle für nahtlosen Übergang: in der Karte, nicht blockiert, nicht in einem Übergangs-Rechteck (sonst Ping-Pong) */
-  #ankunftFrei(zone, p) {
-    const welt = zone.spielWelt.welt;
-    const g = welt.kachelGroesse;
-    if (!(p.x >= 0 && p.y >= 0 && p.x < welt.breite * g && p.y < welt.hoehe * g)) return false;
-    if (welt.istBlockiert(Math.floor(p.x / g), Math.floor(p.y / g))) return false;
-    return !zone.spielWelt.karte.daten.uebergaenge.some((u) => p.x >= u.px.x0 && p.x < u.px.x1 && p.y >= u.px.y0 && p.y < u.px.y1);
-  }
-
-  /**
-   * Runde 18 (4.3): Ist die genaue Stelle drüben blockiert (Baum, Zaun …), die nächste freie Kachel im Umkreis von 4 Kacheln
-   * (Mitte der Kachel) – sonst null (dann klassisch zum Ankunftspunkt).
-   */
-  #ankunftNahe(zone, p) {
-    if (this.#ankunftFrei(zone, p)) return p;
-    const g = zone.spielWelt.welt.kachelGroesse;
-    const tx = Math.floor(p.x / g);
-    const ty = Math.floor(p.y / g);
-    for (let r = 1; r <= 4; r++) {
-      let bester = null;
-      for (let dy = -r; dy <= r; dy++) {
-        for (let dx = -r; dx <= r; dx++) {
-          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
-          const q = { x: (tx + dx + 0.5) * g, y: (ty + dy + 0.5) * g };
-          if (!this.#ankunftFrei(zone, q)) continue;
-          const d = Math.hypot(q.x - p.x, q.y - p.y);
-          if (!bester || d < bester.d) bester = { ...q, d };
-        }
-      }
-      if (bester) return { x: bester.x, y: bester.y };
-    }
-    return null;
-  }
-
-  /** Nachbarzonen mit nahtlosem Übergang: Kartendaten + Ursprung (Pixel dieser Zone), damit der Client sie vorab zeigen kann. */
-  #nachbarn(zone) {
-    const aus = [];
-    for (const u of zone.spielWelt.karte.daten.uebergaenge) {
-      if (!u.nahtlos || aus.some((n) => n.zone === u.ziel)) continue;
-      const nachbar = u.ziel === zone.id ? null : this.zone(u.ziel);
-      if (nachbar) aus.push({ zone: u.ziel, versatz: u.nahtlos.versatz, karte: nachbar.spielWelt.karte.daten });
-    }
-    return aus;
   }
 
   /** Alles, was der Client zum (Neu-)Aufbau braucht – ANMELDUNG_OK und ZONE_WECHSEL. */
@@ -467,7 +318,6 @@ export class SpielServer {
       spielerDaten: spielerDatenPrivat(spieler, this.konfiguration, zone.spielWelt),
       erkundet: packeErkundet(spieler.erkundet),
       rezepte: REZEPTE,
-      nachbarn: this.#nachbarn(zone),
       ...zone.weltDaten(),
     };
   }
@@ -586,6 +436,7 @@ export class SpielServer {
     this.#senden(sitzung, { typ: NACHRICHT.ANMELDUNG_OK, ...this.#startDaten(zone, spieler) });
     this.log.info?.(`[Server] ${name} ist beigetreten (${this.spielerAnzahl} online)`);
     this.#anAlle({ typ: NACHRICHT.CHAT, system: true, text: `${name} ist beigetreten` });
+    this.letzteSpielerListe = null; // Neue bekommen die Liste beim nächsten Versand
   }
 
   /** Spielstand sichern – Daten werden SOFORT erfasst, das Schreiben läuft im Hintergrund. */
@@ -656,16 +507,41 @@ export class SpielServer {
     spieler.aktionsPuffer.push(aktion);
   }
 
-  /** Chat: Text prüfen (Länge, Steuerzeichen, Spam-Pause) und an alle verteilen. */
+  /**
+   * Chat: Text prüfen (Länge, Steuerzeichen, Spam-Pause). Normal nur an die eigene Zone; „/a Text“ an alle Zonen (global: true).
+   */
   #chat(sitzung, n) {
     if (typeof n.text !== 'string') return;
     // Steuerzeichen raus, Leerraum zusammenfassen
-    const text = n.text.replace(/[\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim().slice(0, CHAT_MAX_LAENGE);
+    let text = n.text.replace(/[\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim();
+    const global = /^\/a(\s|$)/i.test(text);
+    if (global) text = text.slice(2).trim();
+    text = text.slice(0, CHAT_MAX_LAENGE);
     const jetzt = Date.now();
     if (!text || jetzt - (sitzung.letzterChat ?? 0) < CHAT_PAUSE_MS) return;
     sitzung.letzterChat = jetzt;
     const spieler = this.#spieler(sitzung);
-    this.#anAlle({ typ: NACHRICHT.CHAT, von: sitzung.benutzername, text, admin: !!spieler?.admin });
+    const nachricht = { typ: NACHRICHT.CHAT, von: sitzung.benutzername, text, admin: !!spieler?.admin };
+    if (global) this.#anAlle({ ...nachricht, global: true, zone: sitzung.zone?.name ?? null });
+    else this.#anZone(sitzung.zone, nachricht);
+  }
+
+  /** Spielerliste (Tab) über alle Zonen – an alle, nur wenn sich etwas geändert hat */
+  #sendeSpielerListe() {
+    const liste = [];
+    for (const s of this.sitzungen) {
+      const sp = this.#spieler(s);
+      if (sp) liste.push({ name: sp.name, level: sp.level, zombies: sp.statistik.zombies, spieler: sp.statistik.spieler, ueberlebt: Math.floor(sp.statistik.ueberlebt), tot: !!sp.tot, zone: s.zone.name });
+    }
+    const text = kodiere({ typ: NACHRICHT.SPIELER_LISTE, liste });
+    if (text === this.letzteSpielerListe) return;
+    this.letzteSpielerListe = text;
+    for (const s of this.sitzungen) if (s.status === 'imSpiel') s.kanal.senden(text);
+  }
+
+  #anZone(zone, nachricht) {
+    const text = kodiere(nachricht);
+    for (const s of this.sitzungen) if (s.status === 'imSpiel' && s.zone === zone) s.kanal.senden(text);
   }
 
   #anAlle(nachricht) {

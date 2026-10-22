@@ -16,6 +16,8 @@ import { ladeEditorTest, zeigeTestBanner, istVonAudio, zeigeAudioBanner } from '
 import { starteDebugLauf } from './debug/debugLauf.js';
 import { AKTIONEN, NACHRICHT } from '../gemeinsam/protokoll.js';
 import { EgoModus } from './ego/egoModus.js'; // EGO-PROTOTYP (siehe EGO_PROTOTYP.md)
+import { Welt } from '../gemeinsam/welt/welt.js';
+import { Karte } from './ui/karte.js';
 
 /**
  * Einstiegspunkt des Clients. Verdrahtet nur die Bausteine – keine Spiellogik hier.
@@ -190,7 +192,6 @@ async function anmeldungStarten({ server, adresse, benutzername, passwort, gast 
  * Auch beim Zonenwechsel (zone = Name der neuen Zone, seq = Eingabe-Zähler der alten Sitzung).
  */
 async function spielStarten(verbindung, anmeldeDaten, benutzername, { zone = null, seq = 0 } = {}) {
-  const nahtlos = anmeldeDaten.nahtlos === true; // Nachbarkarte war schon da: kein Ladebildschirm, kein Aufwärmen
   const vorab = []; // Nachrichten, die während des Ladens ankommen, gehen nicht verloren
   const vorabAbmelden = verbindung.beiNachricht((n) => vorab.push(n));
   let getrennt = null;
@@ -204,15 +205,20 @@ async function spielStarten(verbindung, anmeldeDaten, benutzername, { zone = nul
     renderer.verbergen();
     login.anzeigen(grund === 'Abgemeldet' ? '' : grund);
   };
-  if (!nahtlos) {
-    eingabe.aktiv = false;
-    zeigeLaden(zone ? `Unterwegs nach ${zone} …` : 'Welt wird aufgebaut …', 70);
-  }
+  eingabe.aktiv = false;
+  const titel = zone ? `Unterwegs nach ${zone}` : 'Welt wird aufgebaut';
+  zeigeLaden(`${titel} …`, 0);
   login.verbergen();
-  if (!nahtlos) {
-    await naechsterFrame();
-    await naechsterFrame();
-  }
+  await naechsterFrame();
+  // Ladebildschirm: ALLES vorbereiten, was später ruckeln könnte – Karte (Boden, Wände, Bäume …) 0–80 %, Kartenbild,
+  // dann setzeWelt (Texturen hochladen, Shader vorkompilieren) und Aufwärm-Frames bis es ruhig läuft (→ 100 %)
+  const welt = new Welt(anmeldeDaten.karte);
+  await renderer.bereiteVor(welt, (p) => zeigeLaden(`${titel} … Landschaft`, Math.round(p * 80)));
+  zeigeLaden(`${titel} … Karte`, 82);
+  await naechsterFrame();
+  Karte.vorbereiten(welt, renderer.assets, Infinity);
+  zeigeLaden(`${titel} … Grafik`, 86);
+  await naechsterFrame();
   vorabAbmelden();
   trennAbmelden();
   if (getrennt) return zurueckZumLogin(getrennt);
@@ -222,6 +228,7 @@ async function spielStarten(verbindung, anmeldeDaten, benutzername, { zone = nul
   const spiel = new ClientSpiel({
     verbindung,
     anmeldeDaten,
+    welt,
     eingabe,
     renderer,
     hud,
@@ -239,11 +246,7 @@ async function spielStarten(verbindung, anmeldeDaten, benutzername, { zone = nul
   });
   if (spiel.beendet) return; // während des Nachholens schon weitergezogen
   aktuellesSpiel = spiel;
-  if (nahtlos) {
-    eingabe.aktiv = true;
-    return;
-  }
-  zeigeLaden(zone ? `${zone} …` : 'Grafik wärmt auf …', 90);
+  zeigeLaden(`${titel} … fast fertig`, 94);
   await renderer.warteBisRuhig();
   if (aktuellesSpiel !== spiel) return;
   versteckeLaden();
@@ -257,6 +260,7 @@ function zeigeLaden(text, prozent) {
   ladeBildschirm.classList.remove('weg');
   document.getElementById('lade-text').textContent = text;
   document.getElementById('ladebalken-fuellung').style.width = `${prozent}%`;
+  document.getElementById('lade-prozent').textContent = `${Math.round(prozent)} %`;
 }
 function versteckeLaden() {
   ladeBildschirm.classList.add('weg'); // kurz ausblenden (CSS), dann weg
@@ -267,21 +271,19 @@ function versteckeLaden() {
 const naechsterFrame = () => new Promise((r) => requestAnimationFrame(() => r()));
 
 async function starten() {
-  const ladeBildschirm = document.getElementById('laden');
-  const fuellung = document.getElementById('ladebalken-fuellung');
-  const ladeText = document.getElementById('lade-text');
   try {
-    assets = await ladeAssets((anteil) => (fuellung.style.width = `${Math.round(anteil * 80)}%`));
+    zeigeLaden('Lade Grafiken …', 0);
+    assets = await ladeAssets((anteil) => zeigeLaden('Lade Grafiken …', Math.round(anteil * 80)));
     hud.setzeAssets(assets);
   } catch (fehler) {
     console.warn('[Assets] Laden fehlgeschlagen:', fehler);
   }
   let fehlerText = '';
   try {
-    ladeText.textContent = 'Lade 3D-Figuren …';
+    zeigeLaden('Lade 3D-Figuren …', 85);
     renderer = await Renderer.erstelle(leinwand, assets);
     renderer.verbergen();
-    fuellung.style.width = '100%';
+    zeigeLaden('Fertig', 100);
   } catch (fehler) {
     console.warn('[3D] nicht verfügbar:', fehler);
     fehlerText = 'Dein Browser kann keine 3D-Grafik (WebGL) – leider geht es ohne nicht.';
