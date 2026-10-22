@@ -84,3 +84,20 @@ test('KI-Aktionen typtextur + bemale: Vorschau, Prüfung (Farbe/Muster/Bereich),
   karte.anwenden(weg.ops);
   assert.equal(karte.s('texturen').has('baum'), false);
 });
+
+test('Runde 19: 503/504 von Google → automatisch wiederholen, danach verständliche Meldung mit Googles Text', async () => {
+  let n = 0;
+  const warte = async () => {};
+  const erst503dannOk = async () => (++n < 3 ? { ok: false, status: 503, json: async () => ({ error: { message: 'The model is overloaded.' } }) } : { ok: true, status: 200, json: async () => ({ candidates: [{ content: { parts: [{ text: 'Klappt' }] }, finishReason: 'STOP' }] }) });
+  const ok = await frageGemini({ schluessel: 'k', anfrage: {}, fetchFn: erst503dannOk, warte });
+  assert.equal(ok.text, 'Klappt');
+  assert.equal(n, 3, 'zweimal wiederholt');
+  n = 0;
+  const immer503 = async () => (n++, { ok: false, status: 503, json: async () => ({ error: { message: 'The model is overloaded.' } }) });
+  await assert.rejects(frageGemini({ schluessel: 'k', anfrage: {}, fetchFn: immer503, warte }), /überlastet.*overloaded/);
+  assert.equal(n, 3);
+  await assert.rejects(frageGemini({ schluessel: 'k', anfrage: {}, fetchFn: async () => ({ ok: false, status: 504, json: async () => ({}) }), warte }), /zu groß/);
+  n = 0;
+  await assert.rejects(frageGemini({ schluessel: 'k', anfrage: {}, fetchFn: async () => (n++, { ok: false, status: 400, json: async () => ({ error: { message: 'x' } }) }), warte }));
+  assert.equal(n, 1, '4xx nicht wiederholen');
+});

@@ -105,5 +105,5 @@ export function versionenUi({ zustand, leiste, zeichner, aktionen }) {
         }
       }),
     );
-  }, { ereignisse: ['zone'] });
+  }, { gruppe: '🗂 Mehr', ereignisse: ['zone'] }); // Runde 19: rechts nur noch 4 Knöpfe (Bereiche + Versionen gebündelt)
 }

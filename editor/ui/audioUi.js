@@ -232,7 +232,7 @@ export function audioUi({ zustand, panel, aktionen, layout, audioBibliothek: bib
   panel.registriere(REITER, () => {
     if (panel.el.firstChild !== wurzel) panel.el.replaceChildren(wurzel);
     zeichneListe();
-  }, { ereignisse: ['zone', 'bibliothek', 'auswahl'], ohneKarte: true });
+  }, { gruppe: '📁 Dateien', ereignisse: ['zone', 'bibliothek', 'auswahl'], ohneKarte: true }); // Runde 19: Modelle + Audio unter einem Reiter
   zustand.bei('karte', (ops) => ops.some((o) => o.s === 'klaenge') && panel.aktiv === REITER && zeichneListe());
 
   function waehleDateien() {

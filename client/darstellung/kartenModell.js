@@ -12,7 +12,7 @@ import { BLOCK_KACHELN, BlockInstanzen, boxZweiGruppen, kulEintrag, kulleNachWei
 
 /**
  * Die Karte als 3D-Modell – auf wenige Draw-Calls optimiert (Performance!):
- *   Boden        1 Mesh mit Bodentextur
+ *   Boden        je 32×32-Kachel-Block ein Mesh + eigene kleine Textur (Runde 19, BODEN_BLOCK; sichtbar nach bodenHochladen)
  *   Wände/Glas   InstancedMesh je Block (BlockInstanzen, Runde 18) – 2 Materialgruppen je Block
  *   Möbel        je Block ein Mesh mit allen Möbelseiten (Vertexfarben) + je Block und Möbeltyp ein Mesh für die Deckel
  *   Culling      alles blockweise: Frustum (three.js) + Sichtweite (kulle, Nebelweite + Puffer)
@@ -21,6 +21,7 @@ import { BLOCK_KACHELN, BlockInstanzen, boxZweiGruppen, kulEintrag, kulleNachWei
  *   Lampen       nur ein kleines Glühen pro Lampe; echtes Licht kommt aus einem Pool im Renderer
  *
  * Alles außer Türen und Ressourcen wird "eingefroren" (Matrizen nicht jeden Frame neu berechnen).
+ * Bau: am Stück (Konstruktor) oder in kleinen Schritten (KartenModell.baueSchrittweise – Nachbarzonen im Hintergrund).
  */
 export const WANDHOEHE = 84;
 export const TUER_HOEHE = WANDHOEHE - 14;

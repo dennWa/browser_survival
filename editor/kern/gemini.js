@@ -244,29 +244,46 @@ export function fehlerText(status, body) {
   if (status === 401 || status === 403) return `Kein Zugriff (${status}): Schlüssel falsch, für die Gemini-API nicht freigeschaltet oder Region gesperrt. ${meldung}`.trim();
   if (status === 404) return `Modell nicht gefunden – unter ⚙ ein anderes wählen. ${meldung}`.trim();
   if (status === 429) return 'Zu viele Anfragen oder Tageslimit erreicht (429). Kurz warten oder anderes Modell wählen.';
-  if (status >= 500) return `Gemini hat gerade Probleme (${status}). Gleich nochmal versuchen.`;
+  // Runde 19: „Gemini hat Probleme, obwohl alles stimmt“ – das sind Störungen bei Google, nicht im Editor; Googles Text mit anzeigen
+  if (status === 503) return `Das Gemini-Modell ist bei Google gerade überlastet (503) – 3× versucht. Gleich nochmal oder unter ⚙ „gemini-2.5-flash-lite“ wählen.${meldung ? ` (${meldung})` : ''}`;
+  if (status === 504) return `Zeitüberschreitung bei Google (504) – die Anfrage war vermutlich zu groß. Kleineren Bereich markieren oder „Bereich/Zone mitschicken“ abwählen.${meldung ? ` (${meldung})` : ''}`;
+  if (status >= 500) return `Interner Fehler bei Google (${status}) – 3× versucht. Oft hilft ein kleinerer Bereich oder ein anderes Modell (⚙).${meldung ? ` (${meldung})` : ''}`;
   return `Fehler ${status}: ${meldung}`;
 }
 
+/** Runde 19: vorübergehende Google-Fehler (überlastet, Zeitüberschreitung) – automatisch wiederholen */
+const WIEDERHOLEN_BEI = new Set([500, 502, 503, 504]);
+export const WARTEZEITEN_MS = [1500, 4000];
+
+/** POST mit bis zu 2 Wiederholungen bei 5xx (Wartezeit wächst); Abbruch über `signal` wirkt auch beim Warten */
+async function sendeMitWiederholung(fetchFn, url, optionen, warte = (ms) => new Promise((ok) => setTimeout(ok, ms))) {
+  for (let versuch = 0; ; versuch++) {
+    let antwort;
+    try {
+      antwort = await fetchFn(url, optionen);
+    } catch (e) {
+      if (e?.name === 'AbortError') throw new Error('Abgebrochen.');
+      throw new Error('Keine Verbindung zu Gemini (Internet/Adblocker?).');
+    }
+    if (!WIEDERHOLEN_BEI.has(antwort.status) || versuch >= WARTEZEITEN_MS.length) return antwort;
+    await warte(WARTEZEITEN_MS[versuch]);
+    if (optionen.signal?.aborted) throw new Error('Abgebrochen.');
+  }
+}
+
 /** Sendet eine Anfrage. @returns { text, abgeschnitten } */
-export async function frageGemini({ schluessel, modell = STANDARD_MODELL, anfrage, signal = undefined, fetchFn = globalThis.fetch }) {
+export async function frageGemini({ schluessel, modell = STANDARD_MODELL, anfrage, signal = undefined, fetchFn = globalThis.fetch, warte = undefined }) {
   if (!schluessel?.trim()) throw new Error('Kein API-Schlüssel hinterlegt (⚙ im Helfer-Reiter).');
   if (!/^[\w.\-]+$/.test(modell)) throw new Error('Ungültiger Modellname');
   const body = JSON.stringify(anfrage);
   // 9.1: Der Schlüssel gehört NUR in den Header – steht er (z. B. durch einen Fehler im Kontext) im Body, wird nichts gesendet
   if (schluessel.trim().length >= 8 && body.includes(schluessel.trim())) throw new Error('Sicherheitsstopp: der API-Schlüssel stünde in der Anfrage – nichts gesendet.');
-  let antwort;
-  try {
-    antwort = await fetchFn(`${GEMINI_BASIS}/${modell}:generateContent`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': schluessel.trim() },
-      body,
-      signal,
-    });
-  } catch (e) {
-    if (e?.name === 'AbortError') throw new Error('Abgebrochen.');
-    throw new Error('Keine Verbindung zu Gemini (Internet/Adblocker?).');
-  }
+  const antwort = await sendeMitWiederholung(fetchFn, `${GEMINI_BASIS}/${modell}:generateContent`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': schluessel.trim() },
+    body,
+    signal,
+  }, warte);
   let json = null;
   try {
     json = await antwort.json();
@@ -288,18 +305,12 @@ export async function frageGeminiBild({ schluessel, modell = BILD_MODELL, prompt
   if (!/^[\w.\-]+$/.test(modell)) throw new Error('Ungültiger Modellname');
   const body = JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { responseModalities: ['TEXT', 'IMAGE'] } });
   if (schluessel.trim().length >= 8 && body.includes(schluessel.trim())) throw new Error('Sicherheitsstopp: der API-Schlüssel stünde in der Anfrage – nichts gesendet.');
-  let antwort;
-  try {
-    antwort = await fetchFn(`${GEMINI_BASIS}/${modell}:generateContent`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': schluessel.trim() },
-      body,
-      signal,
-    });
-  } catch (e) {
-    if (e?.name === 'AbortError') throw new Error('Abgebrochen.');
-    throw new Error('Keine Verbindung zu Gemini (Internet/Adblocker?).');
-  }
+  const antwort = await sendeMitWiederholung(fetchFn, `${GEMINI_BASIS}/${modell}:generateContent`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': schluessel.trim() },
+    body,
+    signal,
+  });
   let json = null;
   try {
     json = await antwort.json();

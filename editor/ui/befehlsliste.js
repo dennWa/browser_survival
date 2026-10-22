@@ -186,7 +186,8 @@ export function menues(t) {
   ];
 }
 
-export const SCHNELLLEISTE = ['bearbeiten.rueckgaengig', 'bearbeiten.wiederholen', '-', 'ansicht.dreiD', 'ansicht.loot', 'audio.zentrale', 'zone.testen', 'datei.veroeffentlichen', '-', 'ki.helfer', 'ansicht.links', 'ansicht.rechts'];
+// Runde 19: Audio-Zentrale nicht mehr oben (steht im Reiter 📁 Dateien → Audio und im Menü Ansicht)
+export const SCHNELLLEISTE = ['bearbeiten.rueckgaengig', 'bearbeiten.wiederholen', '-', 'ansicht.dreiD', 'ansicht.loot', 'zone.testen', 'datei.veroeffentlichen', '-', 'ki.helfer', 'ansicht.links', 'ansicht.rechts'];
 
 export const WERKZEUGLEISTE = ['werkzeug.auswahl', 'werkzeug.hand', '-', 'werkzeug.pinsel', 'werkzeug.rechteck', 'werkzeug.linie', 'werkzeug.fuellen', 'werkzeug.radierer', 'werkzeug.pipette', 'werkzeug.messen', '-', 'werkzeug.terrain', 'werkzeug.farbe', '-', 'werkzeug.zone'];
 

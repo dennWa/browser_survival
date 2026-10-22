@@ -119,7 +119,7 @@ export function zonenManagerUi({ zustand, leiste, zeichner, aktionen }) {
       );
       el.querySelectorAll('[data-nr] button[data-a]').forEach((b) => b.addEventListener('click', () => ablageAktion(b.dataset.a, Number(b.closest('[data-nr]').dataset.nr))));
     },
-    { ereignisse: ['zone', 'karte', 'auswahl'] },
+    { gruppe: '🗂 Mehr', ereignisse: ['zone', 'karte', 'auswahl'] }, // Runde 19: mit Versionen gebündelt
   );
   aktionen.bereiche = () => leiste.zeige(REITER);
 }

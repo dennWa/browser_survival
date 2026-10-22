@@ -96,7 +96,7 @@ export function modelleUi({ zustand, panel, aktionen, layout, bibliothek }) {
   panel.registriere(REITER, () => {
     if (panel.el.firstChild !== wurzel) panel.el.replaceChildren(wurzel);
     zeichneListe();
-  }, { ereignisse: ['zone', 'bibliothek'], ohneKarte: true });
+  }, { gruppe: '📁 Dateien', ereignisse: ['zone', 'bibliothek'], ohneKarte: true }); // Runde 19: Modelle + Audio unter einem Reiter
 
   function waehleDateien() {
     const input = Object.assign(document.createElement('input'), { type: 'file', accept: DATEI_ANNAHME, multiple: true });

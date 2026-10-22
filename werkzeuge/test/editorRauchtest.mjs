@@ -75,6 +75,11 @@ try {
     await seite.click(`#menue .menue-titel:has-text("${titel}")`);
     await seite.click(`.menue-liste [data-befehl="${befehl}"]`);
   };
+  /** Runde 19: gruppierte Reiter (📁 Dateien, 🗂 Mehr) – erst die Gruppe, dann den Unter-Reiter */
+  const reiter = async (seite_, gruppe, name) => {
+    await seite.click(`#${seite_} .reiter [data-reiter="${gruppe}"]`);
+    await seite.click(`#${seite_} .unterreiter [data-reiter="${name}"]`);
+  };
   const asset = async (id) => {
     await seite.click('#links [data-reiter="🧱 Baukasten"]');
     await seite.evaluate((id) => window.mapEditor.assets.zeigeEintrag(id), id); // Gruppen-Chips (10.7): passende Gruppe öffnen
@@ -337,7 +342,7 @@ try {
   await seite.evaluate(async () => {
     for (const m of window.mapEditor.bibliothek.liste) await window.mapEditor.bibliothek.entferne(m.id);
   });
-  await seite.click('#links [data-reiter="📦 Modelle"]');
+  await reiter('links', '📁 Dateien', '📦 Modelle');
   const [modellWahl] = await Promise.all([seite.waitForEvent('filechooser'), seite.click('#links [data-waehlen]')]);
   await modellWahl.setFiles([glbPfad, objPfad]);
   await seite.waitForSelector('#dialog h2:has-text("Hochladen")', { timeout: 20000 }); // Hinweis: OBJ umgewandelt
@@ -411,7 +416,7 @@ try {
   await seite.evaluate(async () => {
     for (const m of window.mapEditor.audioBibliothek.liste) await window.mapEditor.audioBibliothek.entferne(m.id);
   });
-  await seite.click('#links [data-reiter="🔊 Audio"]');
+  await reiter('links', '📁 Dateien', '🔊 Audio');
   const [audioWahl] = await Promise.all([seite.waitForEvent('filechooser'), seite.click('#links .audio [data-waehlen]')]);
   await audioWahl.setFiles([wavPfad, kaputtPfad]);
   await seite.waitForSelector('#dialog h2:has-text("Hochladen")', { timeout: 20000 });
@@ -452,7 +457,7 @@ try {
   await seite.click('#links [data-reiter="🧱 Baukasten"]');
 
   schritt('Phase 5.1: Modell-Werkstatt – Zahlenfelder, Auf den Boden, Teil ausblenden, Undo/Redo, neue Version, Typen umstellen');
-  await seite.click('#links [data-reiter="📦 Modelle"]');
+  await reiter('links', '📁 Dateien', '📦 Modelle');
   await seite.click('#links .modell:has-text("Blauer Pfeiler") [data-werkstatt]');
   await seite.waitForSelector('.werkstatt canvas');
   const info = () => seite.locator('.werkstatt-info').textContent();
@@ -636,7 +641,7 @@ try {
     localStorage.setItem('browserSurvival.editorGemini', JSON.stringify({ schluessel: 'WERKSTATTKEY', modell: 'gemini-2.5-flash' }));
     return alt;
   });
-  await seite.click('#links [data-reiter="📦 Modelle"]');
+  await reiter('links', '📁 Dateien', '📦 Modelle');
   await seite.click('#links .modell:has-text("rauchtest schild"):not(:has-text("v2")):not(:has-text("v3")) [data-werkstatt]');
   await seite.waitForSelector('.werkstatt canvas');
   const kiFrage = async (aufgabe) => {
@@ -952,7 +957,7 @@ try {
       const z = window.mapEditor.zustand;
       z.ausfuehren('Hasen für den Test', [{ s: 'tierBereiche', k: z.karte.naechsteId, neu: { x: 1, y: 1, b: 3, h: 3, art: 'hase', anzahl: 1 } }]);
     });
-    await seite.click('#rechts [data-reiter="▭ Bereiche"]');
+    await reiter('rechts', '🗂 Mehr', '▭ Bereiche');
     await seite.waitForSelector('#rechts .zonen-liste [data-schl^="tierBereiche|"]');
     const tierSchl = await seite.getAttribute('#rechts .zonen-liste [data-schl^="tierBereiche|"]', 'data-schl');
     const tierId = Number(tierSchl.split('|')[1]);

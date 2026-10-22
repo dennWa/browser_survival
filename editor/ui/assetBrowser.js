@@ -35,10 +35,10 @@ function zusatzEintraege(kategorie, karte) {
     for (const [raum, r] of karte.s('raeume')) liste.push({ id: `loot:${raum}`, art: 'marker', marker: 'loot', raum, name: `Loot ${raum}: ${r.name}`, kategorie, symbol: '🎁', farbe: '#ffd23f' });
     liste.push({ id: 'aktion:raum', art: 'aktion', aktion: 'neuerRaum', name: 'Neuer Raum / Loot-Tabelle', kategorie, symbol: '➕' }, { id: 'aktion:lootVorlagen', art: 'aktion', aktion: 'lootVorlagen', name: 'Loot-Vorlagen', kategorie, symbol: '📚' });
   }
-  if (kategorie === 'Räume') liste.push({ id: 'aktion:prefab', art: 'aktion', aktion: 'prefabs', name: 'Prefabs (Vorlagen)', kategorie, symbol: '🏠' });
-  if (kategorie === 'Zonen') liste.push({ id: 'aktion:zonen', art: 'aktion', aktion: 'zonen', name: 'Zonen-Übersicht', kategorie, symbol: '🗺' }, { id: 'aktion:vorschlaege', art: 'aktion', aktion: 'vorschlaege', name: 'Übergänge vorschlagen', kategorie, symbol: '💡' });
-  if (kategorie === 'Eigene') liste.push({ id: 'aktion:modellHochladen', art: 'aktion', aktion: 'modellHochladen', name: '3D-Modelle hochladen', kategorie, symbol: '⬆' }, { id: 'aktion:modelle', art: 'aktion', aktion: 'modelle', name: 'Modell-Bibliothek', kategorie, symbol: '📦' }, { id: 'aktion:neuerTyp', art: 'aktion', aktion: 'neuerTyp', name: 'Platzhalter-Objekt anlegen', kategorie, symbol: '✚' });
-  if (kategorie === 'Klänge') liste.push({ id: 'aktion:audioHochladen', art: 'aktion', aktion: 'audioHochladen', name: 'Audio hochladen', kategorie, symbol: '⬆' }, { id: 'aktion:audioReiter', art: 'aktion', aktion: 'audioReiter', name: 'Audio-Bibliothek (Ambiente, Musik)', kategorie, symbol: '🔊' });
+  // Runde 19 aufgeräumt: Prefabs (Chip + Projekt-Reiter), Zonen-Übersicht/Vorschläge (Projekt → Zonen), Modell-/Audio-Bibliothek
+  // (Reiter 📁 Dateien) gibt es schon an ihrem Platz – hier nur noch das Hochladen als Abkürzung
+  if (kategorie === 'Eigene') liste.push({ id: 'aktion:modellHochladen', art: 'aktion', aktion: 'modellHochladen', name: '3D-Modelle hochladen', kategorie, symbol: '⬆' }, { id: 'aktion:neuerTyp', art: 'aktion', aktion: 'neuerTyp', name: 'Platzhalter-Objekt anlegen', kategorie, symbol: '✚' });
+  if (kategorie === 'Klänge') liste.push({ id: 'aktion:audioHochladen', art: 'aktion', aktion: 'audioHochladen', name: 'Audio hochladen', kategorie, symbol: '⬆' });
   if (kategorie === 'Farbe') liste.push({ id: 'aktion:texturen', art: 'aktion', aktion: 'texturen', name: 'Farbe/Textur je Objekttyp', kategorie, symbol: '🎨' });
   return liste;
 }
