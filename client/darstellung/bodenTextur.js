@@ -32,18 +32,30 @@ export class BodenTextur {
     return schritt.value;
   }
 
-  /** Wie rendere(), aber als Generator: gibt nach jeweils einigen Kachelzeilen ab (Nachbarkarte baut sich ruckelfrei im Hintergrund); Ergebnis = Canvas */
-  *renderePortionen(massstab = 1) {
-    const canvas = neuesCanvas(this.welt.pixelBreite * massstab, this.welt.pixelHoehe * massstab);
+  /**
+   * Wie rendere(), aber als Generator: gibt nach jeweils einigen Kachelzeilen ab (Nachbarkarte baut sich ruckelfrei im
+   * Hintergrund); Ergebnis = Canvas.
+   * @param bereich  Runde 19 (Boden-Blöcke): nur Kacheln { x0, y0, x1, y1 } (x1/y1 exklusiv) – das Canvas ist so groß wie der
+   *   Ausschnitt; Nachbarkacheln (1 Kachel Rand) werden mitgemalt, damit Übergänge über die Blockgrenze gleich aussehen
+   *   (alles ist deterministisch, kein Zufall) – so passen benachbarte Blöcke nahtlos aneinander.
+   */
+  *renderePortionen(massstab = 1, bereich = null) {
+    const w = this.welt;
+    const r = bereich ?? { x0: 0, y0: 0, x1: w.breite, y1: w.hoehe };
+    const canvas = neuesCanvas((r.x1 - r.x0) * this.g * massstab, (r.y1 - r.y0) * this.g * massstab);
     const ctx = canvas.getContext('2d');
-    ctx.setTransform(massstab, 0, 0, massstab, 0, 0);
-    for (let ty = 0; ty < this.welt.hoehe; ty++) {
-      for (let tx = 0; tx < this.welt.breite; tx++) this.#zeichneBoden(ctx, tx, ty);
+    ctx.setTransform(massstab, 0, 0, massstab, -r.x0 * this.g * massstab, -r.y0 * this.g * massstab);
+    const xa = Math.max(0, r.x0 - 1);
+    const xe = Math.min(w.breite, r.x1 + 1);
+    const ya = Math.max(0, r.y0 - 1);
+    const ye = Math.min(w.hoehe, r.y1 + 1);
+    for (let ty = ya; ty < ye; ty++) {
+      for (let tx = xa; tx < xe; tx++) this.#zeichneBoden(ctx, tx, ty);
       if (ty % 4 === 3) yield;
     }
     // Runde 18 (6.2): Rasen läuft weich in Asphalt/Holz & Co. aus (eigener Durchgang, damit spätere Kacheln ihn nicht übermalen)
-    for (let ty = 0; ty < this.welt.hoehe; ty++) {
-      for (let tx = 0; tx < this.welt.breite; tx++) this.#grasRand(ctx, tx, ty);
+    for (let ty = ya; ty < ye; ty++) {
+      for (let tx = xa; tx < xe; tx++) this.#grasRand(ctx, tx, ty);
       if (ty % 8 === 7) yield;
     }
     if (this.bemalung) {
@@ -54,9 +66,10 @@ export class BodenTextur {
       }
       ctx.globalAlpha = 1;
     }
-    for (const o of this.bodenObjekte) this.#zeichneObjekt(ctx, o);
-    for (let ty = 0; ty < this.welt.hoehe; ty++) {
-      for (let tx = 0; tx < this.welt.breite; tx++) {
+    // Bodenobjekte nur, wenn sie den Ausschnitt (+ Rand) berühren – das Canvas schneidet den Rest ab
+    for (const o of this.bodenObjekte) if (o.x < xe && o.x + o.b > xa && o.y < ye && o.y + o.h > ya) this.#zeichneObjekt(ctx, o);
+    for (let ty = ya; ty < ye; ty++) {
+      for (let tx = xa; tx < xe; tx++) {
         if (KACHELN[this.welt.kachelAn(tx, ty)]?.name === 'tuer') this.#zeichneTuerschwelle(ctx, tx, ty);
       }
     }

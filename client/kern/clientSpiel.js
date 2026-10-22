@@ -115,6 +115,8 @@ export class ClientSpiel {
     this.tag = anmeldeDaten.tag ?? 1;
     this.physik = anmeldeDaten.physik;
     this.gegenstaende = anmeldeDaten.gegenstaende ?? [];
+    this.fremdeGegenstaende = new Map(); // Runde 19: Zone → Items der Nachbarzone (IDs "zone:id", Koordinaten dieser Zone)
+    this.alleGegenstaende = null; // eigene + fremde fürs Zeichnen (zwischengespeichert)
     this.itemDefinitionen = anmeldeDaten.itemDefinitionen ?? {};
     this.spielerDaten = anmeldeDaten.spielerDaten;
     this.bau.beiSpielerDaten(this.spielerDaten); // eigenes Baugebiet aus den Spielerdaten
@@ -712,6 +714,12 @@ export class ClientSpiel {
         break;
       case NACHRICHT.GEGENSTAENDE:
         this.gegenstaende = n.gegenstaende;
+        this.alleGegenstaende = null;
+        break;
+      case NACHRICHT.FREMDE_GEGENSTAENDE:
+        // Runde 19: Items der Nachbarzone – nur Anzeige, bleiben bis zum Zonenwechsel (nichts verschwindet beim Weggehen)
+        if (typeof n.zone === 'string' && Array.isArray(n.gegenstaende)) this.fremdeGegenstaende.set(n.zone, n.gegenstaende);
+        this.alleGegenstaende = null;
         break;
       case NACHRICHT.CHAT:
         this.hud.chatNachricht(n);
@@ -1220,7 +1228,7 @@ export class ClientSpiel {
     this.renderer.zeichne({
       fokus: eigen,
       entitaeten: [...andere, eigen],
-      gegenstaende: this.gegenstaende,
+      gegenstaende: (this.alleGegenstaende ??= this.fremdeGegenstaende.size ? [...this.gegenstaende, ...[...this.fremdeGegenstaende.values()].flat()] : this.gegenstaende),
       itemDefinitionen: this.itemDefinitionen,
       jetzt,
       effekte: this.effekte,

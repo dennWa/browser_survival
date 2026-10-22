@@ -238,6 +238,7 @@ export class SpielServer {
         (sitzung) => this.#sendePrivateDaten(sitzung),
         (ich) => this.#fremdeFuer(zone, ich, fremdCache),
       );
+      for (const sitzung of proZone.get(zone) ?? []) this.#sendeFremdeGegenstaende(sitzung, zone);
     }
   }
 
@@ -306,6 +307,28 @@ export class SpielServer {
       }
     }
     return aus;
+  }
+
+  /**
+   * Runde 19: Items nahtloser Nachbarzonen, in die der Spieler hineinsieht – nur bei Änderung (Version je Nachbar und Sitzung;
+   * nach einem Zonenwechsel alles neu). Der Client behält die Liste, auch wenn man sich wieder entfernt (nichts verschwindet).
+   */
+  #sendeFremdeGegenstaende(sitzung, zone) {
+    const ich = zone.spielWelt.holen(sitzung.spielerId);
+    if (!ich) return;
+    if (sitzung.fremdeGegenstaendeZone !== zone) {
+      sitzung.fremdeGegenstaendeZone = zone;
+      sitzung.fremdeGegenstaendeStand = new Map();
+    }
+    for (const { zone: nachbar, versatz } of this.#nahtloseNachbarn(zone)) {
+      if (!this.#siehtNachbar(ich, nachbar, versatz)) continue;
+      const w = nachbar.spielWelt;
+      if (sitzung.fremdeGegenstaendeStand.get(nachbar.id) === w.gegenstaendeVersion) continue;
+      sitzung.fremdeGegenstaendeStand.set(nachbar.id, w.gegenstaendeVersion);
+      const p = `${nachbar.id}:`;
+      const gegenstaende = w.gegenstaendeListe().map((g) => ({ ...g, id: p + g.id, x: g.x + versatz.x, y: g.y + versatz.y }));
+      sitzung.kanal.senden(kodiere({ typ: NACHRICHT.FREMDE_GEGENSTAENDE, zone: nachbar.id, gegenstaende }));
+    }
   }
 
   /** Map Zone → [Sitzungen im Spiel] */

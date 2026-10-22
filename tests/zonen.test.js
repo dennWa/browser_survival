@@ -8,6 +8,7 @@ import { GastAuthentifizierung } from '../server/spiel/authentifizierung/gastAut
 import { ArbeitsspeicherSpeicher } from '../server/spiel/speicher/arbeitsspeicherSpeicher.js';
 import { erstelleSpeicherKanalPaar } from '../server/spiel/netz/speicherKanal.js';
 import { erstelleKonfiguration } from '../server/spiel/konfiguration/spielKonfiguration.js';
+import { erzeugeGegenstand } from '../server/spiel/entitaeten/gegenstand.js';
 import { holeZeitNach } from '../server/spiel/systeme/arbeitSystem.js';
 import { NACHRICHT, kodiere, dekodiere } from '../gemeinsam/protokoll.js';
 import { PROTOKOLL_VERSION, TICK_DAUER_S } from '../gemeinsam/konstanten.js';
@@ -300,4 +301,30 @@ test('Runde 18 (4.2): Nachbarzone läuft mit und ihre Entitäten kommen als ZUST
   assert.ok(drueben, 'Zombie von drüben im Zustand');
   assert.equal(drueben.fremd, true);
   assert.ok(Math.abs(drueben.x - (z.x + 153 * 32)) < 40, 'in Stadtrand-Koordinaten');
+});
+
+test('Runde 19: Items der Nachbarzone kommen als FREMDE_GEGENSTAENDE (versetzt, nur bei Änderung, nach Zonenwechsel neu)', async (t) => {
+  const server = new SpielServer({ authentifizierung: new GastAuthentifizierung(), protokoll: stillerLog });
+  t.after(() => server.stoppen());
+  const { empfangen } = verbinde(server, 'Sammler');
+  await warteAuf(() => letzte(empfangen, NACHRICHT.ANMELDUNG_OK), 'Login');
+  const ich = [...server.weltVon('Sammler').alleVomTyp('spieler')][0];
+  const schnee = server.zone('schneeland');
+  const item = schnee.spielWelt.hinzufuegen(erzeugeGegenstand({ id: schnee.spielWelt.neueId(), defId: 'apfel', x: 4 * 32, y: 60 * 32 }));
+  ich.x = 10 * 32;
+  ich.y = 60 * 32;
+  server.tickAusfuehren();
+  await warte(10);
+  assert.equal(letzte(empfangen, NACHRICHT.FREMDE_GEGENSTAENDE), undefined, 'weit weg: nichts');
+  ich.x = 150 * 32;
+  server.tickAusfuehren();
+  await warte(10);
+  const n = letzte(empfangen, NACHRICHT.FREMDE_GEGENSTAENDE);
+  assert.equal(n?.zone, 'schneeland');
+  const apfel = n.gegenstaende.find((g) => g.id === `schneeland:${item.id}`);
+  assert.ok(apfel && Math.abs(apfel.x - (item.x + 153 * 32)) < 1, 'in Stadtrand-Koordinaten');
+  const anzahl = empfangen.filter((x) => x.typ === NACHRICHT.FREMDE_GEGENSTAENDE).length;
+  server.tickAusfuehren();
+  await warte(10);
+  assert.equal(empfangen.filter((x) => x.typ === NACHRICHT.FREMDE_GEGENSTAENDE).length, anzahl, 'ohne Änderung nicht nochmal');
 });

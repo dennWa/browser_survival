@@ -63,6 +63,8 @@ const CHUNK_KACHELN = 12;
 export const TUER_EBENE = 2;
 /** Nur Türen näher als das (px) schimmern durch Wände (schwacher X-Ray, damit Eingänge auffindbar sind) */
 export const TUER_SCHIMMER_WEITE = 96;
+/** Runde 19: Kantenlänge eines Boden-Blocks in Kacheln (32 → bei voller Auflösung 1024 px ≈ 4 MB je Textur, hochgeladen in wenigen ms) */
+export const BODEN_BLOCK = 32;
 
 /** Modell-Animationen laufen nur bis zu dieser Entfernung (Kacheln) von der Kamera – spart Rechenzeit auf großen Karten */
 const ANIMATION_WEITE = 40;
@@ -72,8 +74,7 @@ export class KartenModell {
    * @param mitSchnitt  Funktion, die einem Material den Wand-Schnitt (siehe Renderer) verpasst
    * @param bodenMassstab  Auflösung der Bodentextur (Pixel pro Weltpixel) – auf Handys kleiner
    */
-  constructor({ welt, assets, gl, mitSchnitt, bodenMassstab = 1, bodenLeinwand = null }) {
-    this.vorgemalt = bodenLeinwand; // schon gemalter Boden (Nachbarkarte, siehe malePortionen)
+  constructor({ welt, assets, gl, mitSchnitt, bodenMassstab = 1, aufgeschoben = false }) {
     this.welt = welt;
     this.assets = assets;
     this.gl = gl;
@@ -90,15 +91,42 @@ export class KartenModell {
     /** Sichtweiten-Culling (Runde 18, 4.1): [{ objekt, x, y, z, r, sichtbar }] in Modell-Koordinaten (bloecke.js) */
     this.kulEintraege = [];
     this.blockPx = BLOCK_KACHELN * this.g;
-    this.#baueBoden(bodenMassstab);
+    this.bodenMassstab = bodenMassstab;
+    if (!aufgeschoben) for (const _ of this.#schritte()) {
+      /* alles am Stück (aktive Karte, hinter dem Ladebild) */
+    }
+  }
+
+  /**
+   * Runde 19 (Block-Welt): Karte in kleinen Schritten bauen – für Nachbarzonen, die sich unbemerkt im Hintergrund aufbauen
+   * (Renderer gibt jedem Bild ein paar Millisekunden). Ergebnis = fertiges Modell (Boden-Texturen noch nicht hochgeladen,
+   * siehe bodenHochladen).
+   */
+  static *baueSchrittweise(optionen) {
+    const modell = new KartenModell({ ...optionen, aufgeschoben: true });
+    yield* modell.#schritte();
+    return modell;
+  }
+
+  *#schritte() {
+    yield* this.#baueBoden(this.bodenMassstab);
+    yield;
     this.#baueWasser();
+    yield;
     this.#baueWaende();
+    yield;
     this.#baueDaecher();
+    yield;
     this.#baueDurchsicht();
+    yield;
     this.#baueMoebel();
+    yield;
     this.#baueEigeneModelle();
+    yield;
     this.#baueLampen();
+    yield;
     this.#baueTueren();
+    yield;
     this.#baueRessourcen();
     einfrieren(this.statisch);
   }
@@ -208,72 +236,109 @@ export class KartenModell {
 
   // ---------------------------------------------------------------------------
 
-  /** Bodenbild malen (Innenräume abgedunkelt, weil es kein Dach gibt) */
-  #maleBoden(massstab) {
-    if (this.vorgemalt) {
-      const fertig = this.vorgemalt;
-      this.vorgemalt = null;
-      return fertig;
-    }
-    const it = KartenModell.malePortionen(this.welt, this.assets, massstab);
-    let schritt = it.next();
-    while (!schritt.done) schritt = it.next();
-    return schritt.value;
-  }
-
-  /** Bodenbild als Generator (gibt zwischendurch ab) – für Nachbarkarten, die sich im Hintergrund aufbauen. Ergebnis = Canvas für `bodenLeinwand`. */
-  static *malePortionen(welt, assets, massstab) {
-    const g = welt.kachelGroesse;
-    const it = new BodenTextur(welt, assets).renderePortionen(massstab);
-    let schritt = it.next();
-    while (!schritt.done) {
-      yield;
-      schritt = it.next();
-    }
-    const leinwand = schritt.value;
+  /**
+   * Bodenbild eines Ausschnitts malen (Innenräume abgedunkelt, weil es kein Dach gibt) – Generator, gibt zwischendurch ab.
+   * @param r { x0, y0, x1, y1 } Kacheln (x1/y1 exklusiv) · Ergebnis = Canvas
+   */
+  *#maleBereich(r, massstab) {
+    const g = this.g;
+    const welt = this.welt;
+    const leinwand = yield* new BodenTextur(welt, this.assets).renderePortionen(massstab, r);
     const ctx = leinwand.getContext('2d');
-    ctx.setTransform(massstab, 0, 0, massstab, 0, 0);
+    ctx.setTransform(massstab, 0, 0, massstab, -r.x0 * g * massstab, -r.y0 * g * massstab);
     ctx.fillStyle = 'rgba(0, 0, 0, 0.42)';
-    for (let ty = 0; ty < welt.hoehe; ty++) {
-      for (let tx = 0; tx < welt.breite; tx++) {
+    for (let ty = r.y0; ty < r.y1; ty++) {
+      for (let tx = r.x0; tx < r.x1; tx++) {
         if (KACHELN[welt.kachelAn(tx, ty)]?.innen) ctx.fillRect(tx * g, ty * g, g, g);
       }
     }
     return leinwand;
   }
 
-  /** Grafik-Einstellung geändert: Bodentextur in anderer Auflösung neu malen (Textur-Objekt bleibt, kein Shader-Neubau). */
+  /** Grafik-Einstellung geändert: alle Boden-Blöcke in anderer Auflösung neu malen (kein Shader-Neubau). */
   setzeBodenMassstab(massstab) {
     if (massstab === this.bodenMassstab) return;
     this.bodenMassstab = massstab;
-    this.bodenTextur.image = this.#maleBoden(massstab);
-    this.bodenTextur.needsUpdate = true;
+    for (const b of this.bodenBloecke) {
+      const it = this.#maleBereich(b.bereich, massstab);
+      let schritt = it.next();
+      while (!schritt.done) schritt = it.next();
+      b.textur.dispose(); // andere Größe → neu anlegen statt überschreiben
+      b.textur.image = schritt.value;
+      b.textur.needsUpdate = true;
+    }
   }
 
-  #baueBoden(massstab) {
+  /**
+   * Runde 19 (Block-Welt): Boden in Blöcken zu BODEN_BLOCK × BODEN_BLOCK Kacheln, jeder mit eigener kleiner Textur
+   * (vorher EINE Textur über die ganze Zone: ~5000 × 4000 px = 80 MB, die auf einen Schlag zur Grafikkarte gingen – der große
+   * Ruckler vor der Zonengrenze; große Editor-Zonen sprengten sogar die maximale Texturgröße). Ein Block wird erst sichtbar,
+   * wenn seine Textur hochgeladen ist (bodenHochladen, der Renderer lädt nur wenige pro Bild – nächste zuerst).
+   */
+  *#baueBoden(massstab) {
     const welt = this.welt;
-    this.bodenMassstab = massstab;
-    const leinwand = this.#maleBoden(massstab);
-    const textur = new THREE.CanvasTexture(leinwand);
-    textur.colorSpace = THREE.SRGBColorSpace;
-    textur.anisotropy = Math.min(8, this.gl.capabilities.getMaxAnisotropy());
-    this.bodenTextur = textur;
-    // Mit Gelände: ein Gitterpunkt je Kachelecke, Höhe aus welt.hoeheBei (Ebene liegt vor der Drehung in X/Y, lokales Z = Höhe)
-    const geometrie = welt.hoehen ? new THREE.PlaneGeometry(welt.pixelBreite, welt.pixelHoehe, welt.breite, welt.hoehe) : new THREE.PlaneGeometry(welt.pixelBreite, welt.pixelHoehe);
-    if (welt.hoehen) {
-      const pos = geometrie.attributes.position;
-      for (let i = 0; i < pos.count; i++) pos.setZ(i, this.hy(pos.getX(i) + welt.pixelBreite / 2, welt.pixelHoehe / 2 - pos.getY(i)));
-      geometrie.computeVertexNormals();
+    const g = this.g;
+    this.bodenBloecke = [];
+    // alle Blöcke teilen sich EIN Material-Setup (gleicher Shader); jede Textur ist ein eigenes Material
+    for (let by = 0; by < welt.hoehe; by += BODEN_BLOCK) {
+      for (let bx = 0; bx < welt.breite; bx += BODEN_BLOCK) {
+        const bereich = { x0: bx, y0: by, x1: Math.min(welt.breite, bx + BODEN_BLOCK), y1: Math.min(welt.hoehe, by + BODEN_BLOCK) };
+        const leinwand = yield* this.#maleBereich(bereich, massstab);
+        const textur = new THREE.CanvasTexture(leinwand);
+        textur.colorSpace = THREE.SRGBColorSpace;
+        textur.anisotropy = Math.min(8, this.gl.capabilities.getMaxAnisotropy());
+        const nx = bereich.x1 - bereich.x0;
+        const ny = bereich.y1 - bereich.y0;
+        const breite = nx * g;
+        const tiefe = ny * g;
+        const x0 = bereich.x0 * g;
+        const z0 = bereich.y0 * g;
+        // Mit Gelände: ein Gitterpunkt je Kachelecke, Höhe aus welt.hoeheBei (Ebene liegt vor der Drehung in X/Y, lokales Z = Höhe)
+        const geometrie = welt.hoehen ? new THREE.PlaneGeometry(breite, tiefe, nx, ny) : new THREE.PlaneGeometry(breite, tiefe);
+        if (welt.hoehen) {
+          const pos = geometrie.attributes.position;
+          for (let i = 0; i < pos.count; i++) pos.setZ(i, this.hy(x0 + pos.getX(i) + breite / 2, z0 + tiefe / 2 - pos.getY(i)));
+          geometrie.computeVertexNormals();
+        }
+        const mesh = new THREE.Mesh(geometrie, new THREE.MeshStandardMaterial({ map: textur, roughness: 1 }));
+        mesh.rotation.x = -Math.PI / 2;
+        mesh.position.set(x0 + breite / 2, 0, z0 + tiefe / 2);
+        mesh.receiveShadow = true;
+        mesh.visible = false; // erst nach dem Hochladen der Textur
+        // Hülle fürs Sichtweiten-Culling (bloecke.js setzt visible der Hülle, das Mesh selbst wartet aufs Hochladen)
+        const huelle = new THREE.Group();
+        huelle.add(mesh);
+        this.statisch.add(huelle);
+        this.kulEintraege.push({ objekt: huelle, x: x0 + breite / 2, y: 0, z: z0 + tiefe / 2, r: Math.hypot(breite, tiefe) / 2, sichtbar: true });
+        this.bodenBloecke.push({ bereich, mesh, textur, x: x0 + breite / 2, z: z0 + tiefe / 2, hoch: false });
+        yield;
+      }
     }
-    const boden = new THREE.Mesh(geometrie, new THREE.MeshStandardMaterial({ map: textur, roughness: 1 }));
-    boden.rotation.x = -Math.PI / 2;
-    boden.position.set(welt.pixelBreite / 2, 0, welt.pixelHoehe / 2);
-    boden.receiveShadow = true;
     const draussen = new THREE.Mesh(new THREE.PlaneGeometry(8000, 8000), new THREE.MeshStandardMaterial({ color: 0x3f8f4f, roughness: 1 }) /* Rasen jenseits des Kartenrands – war fast schwarz und wirkte im Auto (Kamera weiter weg) wie "extrem dunkel" im Norden */);
     draussen.rotation.x = -Math.PI / 2;
     draussen.position.set(welt.pixelBreite / 2, -1.5, welt.pixelHoehe / 2); // unter dem Boden einer Nachbarkarte (-0,8), die ihrerseits unter dem eigenen Boden liegt
     this.draussen = draussen;
-    this.statisch.add(boden, draussen);
+    this.statisch.add(draussen);
+  }
+
+  /** Alle Boden-Texturen (Vorkompilieren, Statistik) */
+  get bodenTexturen() {
+    return this.bodenBloecke.map((b) => b.textur);
+  }
+
+  /**
+   * Boden-Texturen hochladen – nächste Blöcke (x/z in Modell-Koordinaten) zuerst, höchstens `anzahl` (Infinity = alle).
+   * @returns Anzahl noch wartender Blöcke
+   */
+  bodenHochladen(x, z, anzahl = 1) {
+    const offen = this.bodenBloecke.filter((b) => !b.hoch);
+    if (anzahl < offen.length) offen.sort((a, b) => Math.hypot(a.x - x, a.z - z) - Math.hypot(b.x - x, b.z - z));
+    for (const b of offen.slice(0, anzahl)) {
+      this.gl.initTexture(b.textur);
+      b.hoch = true;
+      b.mesh.visible = true;
+    }
+    return Math.max(0, offen.length - anzahl);
   }
 
   /** Seen: bewegte Wellen als ein InstancedMesh (ein Draw-Call) über dem gemalten Wasserboden. */

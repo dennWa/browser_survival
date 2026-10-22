@@ -86,6 +86,10 @@ export function richteFigurEin(figur, modell) {
   };
   figur.knochen = waehle(ARM_KNOCHEN);
   figur.beine = waehle(BEIN_KNOCHEN);
+  // Runde 19: Ruhestellung der Arm-Knochen merken – Clips bewegen nicht jeden Knochen; ein einmal prozedural gedrehter Arm blieb
+  // sonst stehen („nach dem Schießen bleibt eine Hand oben“). Beim Loslassen (Seite ohne Pose) geht er hierhin zurück.
+  figur.armRuhe = Object.fromEntries(Object.entries(figur.knochen).map(([seite, k]) => [seite, k.map((x) => x.quaternion.clone())]));
+  figur.armGesetzt = { rechts: false, links: false };
   figur.waffe = null;
   figur.waffenName = null;
   figur.aktionSchluessel = null;
@@ -135,10 +139,11 @@ export function aktualisiereHaltung(figur, e, jetzt, dunkel = 1) {
   setzeWaffe(figur, waffenName);
 
   // Sitzen mit eigenem Clip: Arme/Beine kommen ganz aus dem Clip
-  if (haltungsName === 'sitzen' && klips.has('sitzen')) return;
+  if (haltungsName === 'sitzen' && klips.has('sitzen')) return loeseArme(figur);
   // Survivor: den Schlag macht ein Clip (hacken/spitzhacke/abbauen/hacke/nahkampf) – hier nur das Werkzeug in die Hände legen
   // (figur.schlagKlip setzt der Renderer, wenn er gerade einen Werkzeug-Clip abspielt)
   if ((haltungsName === 'hacken' || haltungsName === 'nahkampf') && figur.schlagKlip) {
+    loeseArme(figur);
     platziereHackwerkzeug(figur);
     return;
   }
@@ -165,14 +170,22 @@ export function aktualisiereHaltung(figur, e, jetzt, dunkel = 1) {
 
   const gruppe = figur.gruppe;
   gruppe.updateMatrixWorld(true);
+  const linksGreift = (haltungsName === 'hacken' && e.arbeit === 'holz') || beidhaendig;
   for (const seite of ['rechts', 'links']) {
-    if (!pose[seite]) continue;
+    if (!pose[seite]) {
+      if (!(seite === 'links' && linksGreift)) loeseArm(figur, seite);
+      continue;
+    }
     const [oberarm, unterarm, hand] = figur.knochen[seite];
     richteKnochen(oberarm, unterarm, inWelt(pose[seite][0], gruppe));
     richteKnochen(unterarm, hand, inWelt(pose[seite][1], gruppe));
+    figur.armGesetzt[seite] = true;
   }
   // Holzfällen / beidhändige Nahkampfwaffe: beide Hände am Stiel – die linke Hand greift ein Stück weiter vorn
-  if ((haltungsName === 'hacken' && e.arbeit === 'holz') || beidhaendig) greifeMitLinkerHand(figur, gruppe);
+  if (linksGreift) {
+    greifeMitLinkerHand(figur, gruppe);
+    figur.armGesetzt.links = true;
+  }
 
   // Sitzen: Oberschenkel nach vorn, Unterschenkel nach unten (Figur ist dafür tiefer gesetzt, siehe renderer)
   if (haltungsName === 'sitzen') {
@@ -228,6 +241,19 @@ export function aktualisiereHaltung(figur, e, jetzt, dunkel = 1) {
     figur.hatMuendung = !!muendung;
     if (muendung) figur.muendung.copy(muendung).applyMatrix4(figur.waffe.matrixWorld);
   }
+}
+
+/** Runde 19: Arm einer Seite einmalig in die Ruhestellung zurück (danach übernimmt wieder der Clip, falls er ihn bewegt) */
+function loeseArm(figur, seite) {
+  if (!figur.armGesetzt?.[seite]) return;
+  figur.armGesetzt[seite] = false;
+  figur.knochen[seite].forEach((k, i) => k.quaternion.copy(figur.armRuhe[seite][i]));
+  figur.knochen[seite][0].updateMatrixWorld(true);
+}
+
+function loeseArme(figur) {
+  loeseArm(figur, 'rechts');
+  loeseArm(figur, 'links');
 }
 
 const HACK_WERKZEUG_GROESSE = 1.5; // Axt/Spitzhacke wirken zum Schwingen mit zwei Händen sonst zu klein

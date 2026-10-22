@@ -50,6 +50,11 @@ export const NACHRICHT = Object.freeze({
   MELDUNG: 'meldung',
   /** { gegenstaende: [...] } – komplette Item-Liste, nur wenn sie sich geändert hat */
   GEGENSTAENDE: 'gegenstaende',
+  /**
+   * Runde 19: { zone, gegenstaende: [...] } – Items einer nahtlosen Nachbarzone (IDs "zone:id", Koordinaten dieser Zone), bei
+   * Änderung, sobald man hineinsieht. Nur Anzeige (Aufheben geht erst drüben); der Client behält sie, auch weiter weg.
+   */
+  FREMDE_GEGENSTAENDE: 'fremdeGegenstaende',
   /** { offen: [Tür-IDs] } – Türzustand, nur wenn er sich geändert hat (IDs: Welt.tueren) */
   TUEREN: 'tueren',
   /** { abgebaut: [Ressourcen-IDs], laternen: [Laternen-IDs] } – gefällte Bäume / abgebaute Steine / umgefahrene Straßenlaternen, nur bei Änderung (IDs: Welt.ressourcen bzw. Welt.laternen) */

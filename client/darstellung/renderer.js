@@ -119,10 +119,11 @@ export const GRAFIK_PROFILE = Object.freeze({
 const GRAFIK_SCHLUESSEL = 'browserSurvival.grafik';
 const ADAPTIV_MAX_STUFE = 4; // im Profil "hoch" wird höchstens bis hier gespart (Schatten, Baum-Details) – Auflösung bleibt
 const AUFWAERM_MS = 6000; // so lange nach dem Betreten nicht messen (Shader, Texturen, erste Frames)
-const NACHBAR_BAU_WEITE = 1500; // px: so nah an der Nachbarkarte wird sie (unsichtbar weit hinten) gebaut
-const NACHBAR_FREI_WEITE = 2400; // px: weiter weg wird sie wieder freigegeben
-const NACHBAR_BUDGET_MS = 5; // so viel Rechenzeit pro Bild für den Aufbau einer Nachbarkarte
-const NACHBAR_TIEFE = -0.8; // Nachbarkarte liegt knapp unter dem Boden der aktiven Karte
+const NACHBAR_BAU_WEITE = 2000; // px: so nah an der Nachbarkarte wird sie (unsichtbar weit hinten) gebaut – Runde 19: früher, dafür in kleinen Schritten
+const NACHBAR_FREI_WEITE = 2800; // px: weiter weg wird sie wieder freigegeben
+const NACHBAR_BUDGET_MS = 3; // so viel Rechenzeit pro Bild für den Aufbau einer Nachbarkarte (Runde 19: Bau in Schritten, Boden in Blöcken)
+const NACHBAR_TIEFE = 0.8; // Nachbarkarte liegt knapp unter/über dem Boden der aktiven Karte (Vorrang im Überlappungsstreifen: #streifenVorrang)
+const BODEN_UPLOADS_JE_BILD = 2; // Runde 19: so viele Boden-Blöcke (je ≈ 4 MB) gehen pro Bild zur Grafikkarte – nächste zuerst
 const ZOOM_MIN = 0.32; // so nah kommt die Kamera an die Figur (Runde 18: näher als vorher 0,5)
 const ZOOM_MAX = 1.12; // weiter raus geht nicht (Runde 18: 1,35 war noch zu weit)
 const EGO_SICHT_ZOOM = 1.35; // Sichtweite der Ich-Ansicht = Draufsicht bei diesem Zoom (unabhängig vom Zoom-Limit)
@@ -233,7 +234,8 @@ export class Renderer {
     this.muendungslichter = Array.from({ length: MUENDUNGS_LICHTER }, () => this.#neuesPunktlicht(0xffc070, 380));
     this.#baueEffektObjekte();
     this.fussspuren = new Fussspuren(this.szene);
-    this.nachbarn = []; // Nachbarzonen mit nahtlosem Übergang: { id, versatz, daten|welt, modell|null }
+    this.nachbarn = []; // Nachbarzonen mit nahtlosem Übergang: { id, versatz, daten|welt, modell|null, bauer|null }
+    this.linkWarteschlange = []; // Runde 19: Shader der Nachbarkarte, die noch fertig gelinkt werden (eins pro Bild)
     this.fallendeBaeume = []; // { gruppe, achse, zeit }
     this.sprechblasen = new Map(); // Spielername → { text, bis } (Chat über dem Kopf)
     this.fallendeLaternen = []; // { gruppe, achse, zeit } – von Autos umgefahrene Straßenlaternen
@@ -340,6 +342,7 @@ export class Renderer {
       // Geometrie lädt three.js bei Bedarf einfach neu hoch – Materialien/Texturen bleiben)
       this.szene.remove(this.karte.statisch, this.karte.beweglich);
       for (const teil of [this.karte.statisch, this.karte.beweglich]) teil.traverse((o) => o.geometry?.dispose());
+      for (const t of this.karte.bodenTexturen) t.dispose();
     }
     if (this.natur) {
       this.szene.remove(this.natur.gruppe);
@@ -394,7 +397,7 @@ export class Renderer {
       // alte Zone bleibt als Nachbar sichtbar (in den Koordinaten der neuen Zone), Kamera wandert mit der Spielerposition
       this.nachbarn = [{ id: alteWelt.id, welt: alteWelt, versatz: { x: -v.x, y: -v.y }, modell: altKarte, daten: null }];
       altKarte.setzeAlsNachbar(true);
-      this.#setzeVersatz(altKarte, -v.x, -v.y);
+      this.#setzeVersatz(altKarte, -v.x, -v.y, alteWelt.id);
       this.kamera3d.position.x -= v.x;
       this.kamera3d.position.z -= v.y;
     } else {
@@ -406,6 +409,7 @@ export class Renderer {
         mitSchnitt: (m) => this.#mitSchnitt(m),
         bodenMassstab: this.#bodenMassstab(),
       });
+      this.karte.bodenHochladen(0, 0, Infinity); // hinter dem Ladebild: alles auf einmal
     }
     this.szene.add(this.karte.statisch, this.karte.beweglich);
     this.natur = this.naturModelle ? NaturSchicht.erzeuge(welt, this.naturModelle, (x, z) => this.#hy(x, z), this.istHandy) : null;
@@ -442,7 +446,7 @@ export class Renderer {
       const vorhanden = alt.find((a) => a.id === n.id);
       if (vorhanden) {
         vorhanden.versatz = n.versatz;
-        if (vorhanden.modell) this.#setzeVersatz(vorhanden.modell, n.versatz.x, n.versatz.y);
+        if (vorhanden.modell) this.#setzeVersatz(vorhanden.modell, n.versatz.x, n.versatz.y, n.id);
         this.nachbarn.push(vorhanden);
         alt.splice(alt.indexOf(vorhanden), 1);
       } else this.nachbarn.push({ id: n.id, versatz: n.versatz, daten: n.karte, welt: null, modell: null });
@@ -450,9 +454,18 @@ export class Renderer {
     for (const a of alt) this.#entferneNachbar(a);
   }
 
-  #setzeVersatz(modell, x, y) {
+  /**
+   * Runde 19 (Schnee-Fix): Wer zeigt den Überlappungsstreifen zweier nahtloser Zonen? Vorher immer die aktive Zone – beim
+   * Übertreten sprang der Boden dort (Rasen/Straße ↔ Schnee, „Schnee verschiebt sich“). Jetzt eine feste Reihenfolge nach
+   * Zonen-ID: die alphabetisch kleinere liegt oben, egal wo man steht. @returns Höhe des Nachbarn (+ = über der aktiven Karte)
+   */
+  #nachbarTiefe(nachbarId) {
+    return String(nachbarId) < String(this.welt?.id) ? NACHBAR_TIEFE : -NACHBAR_TIEFE;
+  }
+
+  #setzeVersatz(modell, x, y, id = null) {
     for (const g of [modell.statisch, modell.beweglich]) {
-      g.position.set(x, x === 0 && y === 0 ? 0 : NACHBAR_TIEFE, y); // Nachbar knapp unter dem Boden: im Überlappungsstreifen gewinnt immer die aktive Karte
+      g.position.set(x, x === 0 && y === 0 ? 0 : this.#nachbarTiefe(id), y); // Nachbar knapp unter/über dem Boden der aktiven Karte
       g.updateMatrix();
       // Modell ist eingefroren (matrixWorldAutoUpdate aus): Weltmatrizen von Hand neu berechnen
       const nachziehen = (o, eltern) => {
@@ -464,9 +477,12 @@ export class Renderer {
   }
 
   #entferneNachbar(n) {
+    n.bauer = null;
     if (!n.modell) return;
-    this.szene.remove(n.modell.statisch, n.modell.beweglich);
+    n.modell.statisch.removeFromParent();
+    n.modell.beweglich.removeFromParent();
     for (const teil of [n.modell.statisch, n.modell.beweglich]) teil.traverse((o) => o.geometry?.dispose());
+    for (const t of n.modell.bodenTexturen) t.dispose(); // Runde 19: Boden-Texturen freigeben (vorher blieben ~80 MB je Karte liegen)
     n.modell = null;
   }
 
@@ -485,25 +501,72 @@ export class Renderer {
       const dy = Math.max(n.versatz.y - fokus.y, 0, fokus.y - (n.versatz.y + hoehe));
       const abstand = Math.hypot(dx, dy);
       if (!n.modell && abstand < NACHBAR_BAU_WEITE && !this.ruhigWarter) {
-        n.welt ??= new Welt(n.daten);
-        // Boden (der dicke Brocken) erst in kleinen Portionen malen, jedes Bild nur ein paar Millisekunden
-        n.maler ??= KartenModell.malePortionen(n.welt, this.assets, this.#bodenMassstab());
+        // Runde 19: die ganze Karte (nicht nur der Boden) baut sich in kleinen Schritten, jedes Bild nur ein paar Millisekunden
         const ende = performance.now() + NACHBAR_BUDGET_MS;
-        let schritt = n.maler.next();
-        while (!schritt.done && performance.now() < ende) schritt = n.maler.next();
+        if (!n.welt) {
+          n.welt = new Welt(n.daten);
+          if (performance.now() >= ende) break;
+        }
+        n.bauer ??= KartenModell.baueSchrittweise({ welt: n.welt, assets: this.assets, gl: this.gl, mitSchnitt: (m) => this.#mitSchnitt(m), bodenMassstab: this.#bodenMassstab() });
+        let schritt = n.bauer.next();
+        while (!schritt.done && performance.now() < ende) schritt = n.bauer.next();
         if (!schritt.done) break;
-        const massstab = this.#bodenMassstab();
-        n.maler = null;
-        n.modell = new KartenModell({ welt: n.welt, assets: this.assets, gl: this.gl, mitSchnitt: (m) => this.#mitSchnitt(m), bodenMassstab: massstab, bodenLeinwand: schritt.value });
+        n.bauer = null;
+        n.modell = schritt.value;
         n.modell.setzeBaumDetail(QUALITAETS_STUFEN[this.stufe].baumDetail);
         n.modell.setzeAlsNachbar(true);
-        this.#setzeVersatz(n.modell, n.versatz.x, n.versatz.y);
-        this.szene.add(n.modell.statisch, n.modell.beweglich);
+        this.#setzeVersatz(n.modell, n.versatz.x, n.versatz.y, n.id);
+        this.#zeigeNachbarNachKompilieren(n.modell);
         break; // höchstens eine Karte pro Bild bauen
       }
-      if (!n.modell && n.maler && abstand > NACHBAR_FREI_WEITE) n.maler = null;
+      if (!n.modell && n.bauer && abstand > NACHBAR_FREI_WEITE) n.bauer = null;
       if (n.modell && abstand > NACHBAR_FREI_WEITE) this.#entferneNachbar(n);
       else if (n.modell) n.modell.aktualisiere(dt, dunkel, null);
+    }
+  }
+
+  /**
+   * Runde 19: neue Shader-Varianten der Nachbarkarte im Hintergrund kompilieren (KHR_parallel_shader_compile, falls die
+   * Grafikkarte es kann), erst danach in die Szene – sonst kompiliert three.js sie, wenn sie zum ersten Mal ins Bild kommen
+   * (= Ruckler beim Näherkommen). Wird die Karte inzwischen gebraucht (Zonenwechsel), hängt setzeWelt sie selbst ein.
+   */
+  #zeigeNachbarNachKompilieren(modell) {
+    const wartend = new THREE.Group();
+    wartend.add(modell.statisch, modell.beweglich);
+    const einhaengen = () => {
+      if (modell.statisch.parent !== wartend) return; // schon übernommen oder freigegeben
+      this.szene.add(modell.statisch, modell.beweglich);
+    };
+    const v = modell.statisch.position;
+    modell.kulle({ x: v.x, y: v.y, z: v.z }, Infinity); // alles sichtbar, damit jedes Material dabei ist
+    const vorher = new Set(this.gl.info.programs);
+    Promise.resolve(this.gl.compileAsync?.(wartend, this.kamera3d, this.szene))
+      .catch(() => {})
+      .then(() => {
+        // Ohne KHR_parallel_shader_compile (Software-GL, manche Browser) linkt der Treiber erst beim ersten Zeichnen – alles in
+        // EINEM Bild (gemessen: 2 s). Deshalb die neuen Programme schon jetzt, eins pro Bild, fertig linken (#linkeNachbarShader).
+        for (const p of this.gl.info.programs) if (!vorher.has(p)) this.linkWarteschlange.push(p);
+        einhaengen();
+      });
+  }
+
+  /** Runde 19: höchstens ein Shader-Programm pro Bild fertig linken (getUniforms erzwingt es) */
+  #linkeNachbarShader() {
+    const p = this.linkWarteschlange.shift();
+    if (p?.program) p.getUniforms();
+  }
+
+  /** Runde 19: Boden-Blöcke dosiert zur Grafikkarte (aktive Karte zuerst, dann Nachbarn), nächste zuerst */
+  #ladeBodenHoch(fokus) {
+    let rest = BODEN_UPLOADS_JE_BILD;
+    const karten = [this.karte, ...this.nachbarn.filter((n) => n.modell?.statisch.parent === this.szene).map((n) => n.modell)];
+    for (const k of karten) {
+      if (!k || rest <= 0) break;
+      const vor = k.bodenBloecke.filter((b) => !b.hoch).length;
+      if (!vor) continue;
+      const v = k.statisch.position;
+      k.bodenHochladen(fokus.x - v.x, fokus.y - v.z, rest);
+      rest -= vor - k.bodenBloecke.filter((b) => !b.hoch).length;
     }
   }
 
@@ -553,6 +616,8 @@ export class Renderer {
 
     this.karte.aktualisiere(dt, dunkel, fokus);
     if (this.nachbarn.length) this.#aktualisiereNachbarn(dt, dunkel, fokus);
+    this.#ladeBodenHoch(fokus);
+    if (this.linkWarteschlange.length) this.#linkeNachbarShader();
     this.karte.aktualisiereDaecher(fokus.x, fokus.y);
     this.karte.aktualisiereDurchsicht(dt, fokus.x, fokus.y, !this.egoHaken);
     this.natur?.aktualisiere(fokus, this.welt.bauwerkeVersion, !!this.egoHaken);
@@ -971,7 +1036,7 @@ export class Renderer {
     }
     this.karte.kulle(this.kamera3d.position, Infinity); // alle Blöcke sichtbar, damit jedes Material kompiliert wird
     this.gl.compile(this.szene, this.kamera3d);
-    for (const t of [this.karte.bodenTextur, ...Object.values(this.skins)]) this.gl.initTexture(t);
+    for (const t of Object.values(this.skins)) this.gl.initTexture(t);
     this.gl.render(this.szene, this.kamera3d); // auch Schatten-Shader & Uploads einmal anstoßen
     this.szene.remove(probe);
   }
