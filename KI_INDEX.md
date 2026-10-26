@@ -289,3 +289,4 @@ Zonen-Grundlage steht (2 Zonen, Waldweg groß mit See). Nächstes sinnvoll: Basi
 - **Chat** nur Zone (`spielServer.#anZone`); `/a Text` → alle Zonen, Nachricht `global:true, zone`; HUD `[Alle]` (`.chat-global`).
 - **Spielerliste** serverweit: NACHRICHT `SPIELER_LISTE {liste:[{name,level,zombies,spieler,ueberlebt,tot,zone}]}` ~1×/s bei Änderung (`#sendeSpielerListe`, `letzteSpielerListe` = null bei Beitritt/Zonenwechsel); Client `spielerStatistik()` nimmt sie, Tab-Liste mit Spalte Zone. `PROTOKOLL_VERSION` 11.
 - Tests: `zonen.test.js` (Übergang klassisch, Zonen-Chat, Spielerliste), `editorRunde18.test.js` 6.4.
+- **Pages „Site not found“ (2026-10-26):** Repo public, `has_pages` true, letzter Build grün – trotzdem 404. Erst neuer Push auf `main` (stößt „pages build and deployment“ an); hilft das nicht → Nutzer: Settings → Pages → Source „Deploy from a branch“, `main` / `(root)`.
