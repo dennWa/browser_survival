@@ -130,7 +130,7 @@ test('Developer-Modus: nur Admins dürfen Werte ändern – wirkt sofort und wir
 
   gast.senden({ typ: NACHRICHT.DEV_SETZEN, werte: { 'spieler.geschwindigkeit': 300 } });
   await warte(20);
-  assert.equal(server.konfiguration.spieler.geschwindigkeit, 80, 'Nicht-Admin: keine Wirkung');
+  assert.equal(server.konfiguration.spieler.geschwindigkeit, 100, 'Nicht-Admin: keine Wirkung');
 
   chef.senden({ typ: NACHRICHT.DEV_SETZEN, werte: { 'spieler.geschwindigkeit': 220, 'gegenstaende.pistole.schaden': 99, 'zombie.leben': 99999 } });
   await warteAuf(() => chef.empfangen.some((n) => n?.typ === NACHRICHT.DEV_WERTE), 'DEV_WERTE');
@@ -146,7 +146,7 @@ test('Developer-Modus: nur Admins dürfen Werte ändern – wirkt sofort und wir
 
   chef.senden({ typ: NACHRICHT.DEV_ZURUECKSETZEN });
   await warteAuf(() => GEGENSTAENDE.pistole.schaden === PISTOLE_SCHADEN, 'zurückgesetzt');
-  assert.equal(server.konfiguration.spieler.geschwindigkeit, 80);
+  assert.equal(server.konfiguration.spieler.geschwindigkeit, 100);
   assert.equal(gespeichert.at(-1).spieler?.geschwindigkeit, undefined);
 });
 

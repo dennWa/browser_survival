@@ -23,9 +23,10 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     tagSekunden: 600, // Tag (06:00–21:00) dauert 10 Minuten …
     nachtSekunden: 300, // … die Nacht (21:00–06:00) 5 Minuten
     startZeit: 30, // Sekunden nach Tagesbeginn beim Serverstart (kurz nach Sonnenaufgang)
+    uebergangSekunden: 5, // so lange im Übergang (Zonenrand) warten, bis man rüberwechselt (Runde 21)
   },
   spieler: {
-    geschwindigkeit: 80, // Pixel pro Sekunde beim Gehen (Standard ohne Shift; Runde 18: vorher 150 = jetziges Rennen)
+    geschwindigkeit: 100, // Pixel pro Sekunde ohne Shift = leichtes Joggen (Runde 21: vorher 80 Gehen, war zu lahm)
     radius: 12,
     leben: 100,
     hungerProMinute: 4, // Sättigung 100 → 0 in 25 min
@@ -37,8 +38,8 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     todesZombieRadius: 480, // px: beim Tod verschwinden alle Zombies in diesem Umkreis (kommen später regulär wieder)
     startHunger: 85,
     startDurst: 85,
-    sprintFaktor: 1.875, // Rennen (Shift + Ausdauer) = 1,875 × Gehen = 150 px/s
-    joggFaktor: 1.4375, // Shift gehalten, aber Ausdauer leer/erschöpft → Joggen = 115 px/s
+    sprintFaktor: 1.7, // Rennen (Shift + Ausdauer) = 1,7 × Grundtempo = 170 px/s (Runde 21: vorher 150)
+    joggFaktor: 1.25, // Shift gehalten, aber Ausdauer leer/erschöpft → schnelleres Joggen = 125 px/s
     ausdauerMax: 100,
     ausdauerVerbrauch: 22, // pro Sekunde Sprint (≈ 4,5 s am Stück)
     ausdauerRegeneration: 14, // pro Sekunde ohne Sprint

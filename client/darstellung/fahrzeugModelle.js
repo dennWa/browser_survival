@@ -1,12 +1,22 @@
 import * as THREE from 'three';
 import { vereineGeometrien, matrixAus } from './geometrie.js';
 import { FAHRZEUG_MODELLE } from '../../gemeinsam/physik/fahrzeug.js';
+import { ladeEigenesModell } from './eigeneModelle.js';
 
 /**
- * Low-Poly-Autos (prozedural): Karosserie, Kabine mit Scheiben, Räder, Scheinwerfer & Rücklichter.
- * Ein Mesh pro Auto (alles in einer Geometrie mit Vertexfarben, pro Modell & Größe gecacht).
- * Lokal: Front zeigt nach +z, Breite entlang x, Boden y = 0.
+ * Autos: sofort ein prozedurales Low-Poly-Auto (Karosserie, Kabine, Räder, Lichter – eine Geometrie mit Vertexfarben,
+ * pro Modell & Größe gecacht); ist das GLB aus `GLB_AUTOS` (Quaternius-Autos, CC0) geladen, ersetzt es den Platzhalter.
+ * gruppe.children[0] = Karosserie (Neigung im Renderer, Wrack-Material). Lokal: Front nach +z, Breite entlang x, Boden y = 0.
+ * GLB-Größe: gleichmäßig in Länge × Breite des Fahrzeugs (Physik) eingepasst → Höhe ≈ 1,2 m bei ~36 px/m (Figur 64 px ≈ 1,8 m).
  */
+const GLB_AUTOS = {
+  auto_schwarz: { datei: 'police-car.glb' },
+  auto_blau: { datei: 'car.glb' },
+  auto_rot: { datei: 'sports-car.glb' },
+  auto_gruen: { datei: 'car-2.glb', lack: { LightBlue: 0x3f8a3a } }, // Lack umgefärbt
+  auto_gelb: { datei: 'taxi.glb' },
+  transporter: { datei: 'suv.glb' },
+};
 const MATERIAL = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, metalness: 0.25 });
 const cache = new Map();
 
@@ -18,7 +28,70 @@ export function erzeugeFahrzeugModell(modell, laenge, breite) {
   mesh.receiveShadow = true;
   const gruppe = new THREE.Group();
   gruppe.add(mesh);
+  const glb = GLB_AUTOS[modell];
+  if (glb) {
+    ladeEigenesModell(new URL(`../assets/eigene/${glb.datei}`, import.meta.url).href)
+      .then((szene) => {
+        const karosserie = glbKarosserie(szene, glb, laenge, breite);
+        karosserie.rotation.copy(gruppe.children[0].rotation);
+        karosserie.position.copy(gruppe.children[0].position);
+        gruppe.remove(gruppe.children[0]);
+        gruppe.add(karosserie);
+        gruppe.children.unshift(gruppe.children.pop()); // Karosserie bleibt children[0] (Wrack-Rauch dahinter)
+        if (gruppe.userData.wrack) faerbeWrack(karosserie);
+      })
+      .catch(() => {}); // Platzhalter bleibt
+  }
   return gruppe;
+}
+
+const lackCache = new Map(); // Materialname|Farbe → umgefärbtes Material (geteilt)
+
+/** GLB-Auto als Karosserie-Gruppe: Front (Seite der Vorderräder) nach +z, gleichmäßig in L × B eingepasst, Boden y = 0. */
+function glbKarosserie(szene, glb, L, B) {
+  const modell = szene.clone(true);
+  modell.traverse((t) => {
+    if (!t.isMesh) return;
+    t.castShadow = true;
+    t.receiveShadow = true;
+    const farbe = glb.lack?.[t.material?.name];
+    if (farbe === undefined) return;
+    const schluessel = `${t.material.name}|${farbe}`;
+    if (!lackCache.has(schluessel)) {
+      const m = t.material.clone();
+      m.color.set(farbe);
+      lackCache.set(schluessel, m);
+    }
+    t.material = lackCache.get(schluessel);
+  });
+  modell.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(modell);
+  const groesse = box.getSize(new THREE.Vector3());
+  const mitte = box.getCenter(new THREE.Vector3());
+  const laengsX = groesse.x > groesse.z; // Längsachse des Modells
+  // Vorderräder zeigen, wo vorne ist
+  let vorne = 1;
+  modell.traverse((t) => {
+    if (!/front/i.test(t.name)) return;
+    const p = new THREE.Box3().setFromObject(t).getCenter(new THREE.Vector3());
+    vorne = Math.sign((laengsX ? p.x - mitte.x : p.z - mitte.z) || 1);
+  });
+  const s = Math.min(L / (laengsX ? groesse.x : groesse.z), B / (laengsX ? groesse.z : groesse.x)) * 1.04;
+  const drehen = new THREE.Group();
+  drehen.rotation.y = laengsX ? (vorne > 0 ? Math.PI / 2 : -Math.PI / 2) : vorne > 0 ? 0 : Math.PI;
+  modell.position.set(-mitte.x, -box.min.y, -mitte.z);
+  drehen.add(modell);
+  drehen.scale.setScalar(s);
+  const karosserie = new THREE.Group();
+  karosserie.add(drehen);
+  return karosserie;
+}
+
+/** Wrack-Material auf alle Meshes (GLB-Auto). */
+function faerbeWrack(karosserie) {
+  karosserie.traverse((t) => {
+    if (t.isMesh) t.material = WRACK_GLB_MATERIAL;
+  });
 }
 
 function baueGeometrie(modell, L, B) {
@@ -66,12 +139,14 @@ function baueGeometrie(modell, L, B) {
 // Wrack (Auto kaputt, siehe server fahrzeugSystem.schlageFahrzeug): verkohlt, schief, qualmt
 
 const WRACK_MATERIAL = new THREE.MeshStandardMaterial({ vertexColors: true, color: 0x4a423c, roughness: 1, metalness: 0 });
+const WRACK_GLB_MATERIAL = new THREE.MeshStandardMaterial({ color: 0x2e2a27, roughness: 1, metalness: 0 });
 
 /** Macht aus einem Auto-Modell ein Wrack (einmalig; erkennt man an gruppe.userData.wrack). */
 export function macheWrack(gruppe) {
   gruppe.userData.wrack = true;
   const mesh = gruppe.children[0];
-  mesh.material = WRACK_MATERIAL;
+  if (mesh.isMesh) mesh.material = WRACK_MATERIAL;
+  else faerbeWrack(mesh);
   mesh.rotation.z = 0.07;
   mesh.position.y = -1.5;
   const rauch = new THREE.Group();

@@ -8,11 +8,14 @@ import { GastAuthentifizierung } from '../server/spiel/authentifizierung/gastAut
 import { ArbeitsspeicherSpeicher } from '../server/spiel/speicher/arbeitsspeicherSpeicher.js';
 import { erstelleSpeicherKanalPaar } from '../server/spiel/netz/speicherKanal.js';
 import { erstelleKonfiguration } from '../server/spiel/konfiguration/spielKonfiguration.js';
+
 import { erzeugeGegenstand } from '../server/spiel/entitaeten/gegenstand.js';
 import { holeZeitNach } from '../server/spiel/systeme/arbeitSystem.js';
 import { NACHRICHT, kodiere, dekodiere } from '../gemeinsam/protokoll.js';
 import { PROTOKOLL_VERSION, TICK_DAUER_S } from '../gemeinsam/konstanten.js';
 
+/** Übergänge ohne Wartezeit (die 5 s testet ein eigener Test) */
+const SOFORT = { welt: { uebergangSekunden: 0 } };
 const stillerLog = { info() {}, warn() {}, error() {} };
 const warte = (ms = 5) => new Promise((r) => setTimeout(r, ms));
 async function warteAuf(bedingung, beschreibung) {
@@ -78,7 +81,7 @@ test('Kartenlader prüft Übergänge und Ankünfte', () => {
 });
 
 test('Zonenwechsel: Übergang betreten → neue Zone, Inventar & Level bleiben, Eingaben zählen weiter', async (t) => {
-  const server = new SpielServer({ authentifizierung: new GastAuthentifizierung(), protokoll: stillerLog });
+  const server = new SpielServer({ authentifizierung: new GastAuthentifizierung(), konfiguration: SOFORT, protokoll: stillerLog });
   t.after(() => server.stoppen());
   const { empfangen, kanal } = verbinde(server, 'Wanderer');
   await warteAuf(() => letzte(empfangen, NACHRICHT.ANMELDUNG_OK), 'Login');
@@ -116,7 +119,7 @@ test('Zonenwechsel: Übergang betreten → neue Zone, Inventar & Level bleiben, 
 
 test('Zonenwechsel: Spielstand merkt die Zone, Login landet wieder dort; Erkundung pro Zone', async (t) => {
   const speicher = new ArbeitsspeicherSpeicher();
-  const server = new SpielServer({ authentifizierung: new GastAuthentifizierung(), speicher, protokoll: stillerLog });
+  const server = new SpielServer({ authentifizierung: new GastAuthentifizierung(), konfiguration: SOFORT, speicher, protokoll: stillerLog });
   t.after(() => server.stoppen());
   const erster = verbinde(server, 'Pendler');
   await warteAuf(() => letzte(erster.empfangen, NACHRICHT.ANMELDUNG_OK), 'Login');
@@ -144,7 +147,7 @@ test('Zonenwechsel: Spielstand merkt die Zone, Login landet wieder dort; Erkundu
 
 test('Zonen: alter Spielstand (erkundet als { karte, daten }) und unbekannte Zone → Startzone', async (t) => {
   const speicher = new ArbeitsspeicherSpeicher();
-  const server = new SpielServer({ authentifizierung: new GastAuthentifizierung(), speicher, protokoll: stillerLog });
+  const server = new SpielServer({ authentifizierung: new GastAuthentifizierung(), konfiguration: SOFORT, speicher, protokoll: stillerLog });
   t.after(() => server.stoppen());
   await speicher.speichern('altspieler', { version: 1, karte: 'gibtsnicht', x: 1, y: 1, leben: 50, hunger: 50, durst: 50, inventar: [], erkundet: { karte: 'stadtrand', daten: 'AQ==' } });
   const { empfangen } = verbinde(server, 'Altspieler');
@@ -155,7 +158,7 @@ test('Zonen: alter Spielstand (erkundet als { karte, daten }) und unbekannte Zon
 
 test('Zonen: unbekanntes Ziel → "versperrt", Spieler bleibt', async (t) => {
   const definition = { id: 'insel', name: 'Insel', kacheln: ['S.....', '......'], raeume: {}, uebergaenge: [{ x: 5, y: 0, b: 1, h: 2, ziel: 'atlantis', ankunft: 'x', name: 'Atlantis' }] };
-  const server = new SpielServer({ authentifizierung: new GastAuthentifizierung(), protokoll: stillerLog, kartenDefinition: definition });
+  const server = new SpielServer({ authentifizierung: new GastAuthentifizierung(), konfiguration: SOFORT, protokoll: stillerLog, kartenDefinition: definition });
   t.after(() => server.stoppen());
   const { empfangen } = verbinde(server, 'Kapitaen');
   await warteAuf(() => letzte(empfangen, NACHRICHT.ANMELDUNG_OK), 'Login');
@@ -203,7 +206,7 @@ test('Schlafen zonenübergreifend: Zeit läuft nur, wenn auch die Spieler der an
 });
 
 test('Zonenwechsel: Toter zieht nicht um; derselbe Account kann sich währenddessen nicht doppelt einloggen', async (t) => {
-  const server = new SpielServer({ authentifizierung: new GastAuthentifizierung(), protokoll: stillerLog });
+  const server = new SpielServer({ authentifizierung: new GastAuthentifizierung(), konfiguration: SOFORT, protokoll: stillerLog });
   t.after(() => server.stoppen());
   const { empfangen } = verbinde(server, 'Doppelt');
   await warteAuf(() => letzte(empfangen, NACHRICHT.ANMELDUNG_OK), 'Login');
@@ -220,7 +223,7 @@ test('Zonenwechsel: Toter zieht nicht um; derselbe Account kann sich währenddes
 });
 
 test('Stadtrand → Schneeland: klassischer Übergang mit Ladebild, Ankunft „west“, keine Nachbardaten mehr', async (t) => {
-  const server = new SpielServer({ authentifizierung: new GastAuthentifizierung(), protokoll: stillerLog });
+  const server = new SpielServer({ authentifizierung: new GastAuthentifizierung(), konfiguration: SOFORT, protokoll: stillerLog });
   t.after(() => server.stoppen());
   const { empfangen } = verbinde(server, 'Grenzer');
   await warteAuf(() => letzte(empfangen, NACHRICHT.ANMELDUNG_OK), 'Login');
@@ -242,7 +245,7 @@ test('Stadtrand → Schneeland: klassischer Übergang mit Ladebild, Ankunft „w
 });
 
 test('Chat: normal nur in der eigenen Zone, „/a …“ an alle Zonen (global + Zone des Absenders)', async (t) => {
-  const server = new SpielServer({ authentifizierung: new GastAuthentifizierung(), protokoll: stillerLog });
+  const server = new SpielServer({ authentifizierung: new GastAuthentifizierung(), konfiguration: SOFORT, protokoll: stillerLog });
   t.after(() => server.stoppen());
   const anna = verbinde(server, 'Anna');
   const ben = verbinde(server, 'Ben');
@@ -263,7 +266,7 @@ test('Chat: normal nur in der eigenen Zone, „/a …“ an alle Zonen (global +
 });
 
 test('Spielerliste: SPIELER_LISTE kennt alle Spieler aller Zonen (mit Zone)', async (t) => {
-  const server = new SpielServer({ authentifizierung: new GastAuthentifizierung(), protokoll: stillerLog });
+  const server = new SpielServer({ authentifizierung: new GastAuthentifizierung(), konfiguration: SOFORT, protokoll: stillerLog });
   t.after(() => server.stoppen());
   const anna = verbinde(server, 'Anna');
   const ben = verbinde(server, 'Ben');
@@ -275,4 +278,62 @@ test('Spielerliste: SPIELER_LISTE kennt alle Spieler aller Zonen (mit Zone)', as
   const zonen = new Set(liste.map((s) => s.zone));
   assert.equal(zonen.size, 2, 'beide Zonen stehen drin');
   assert.ok(letzte(ben.empfangen, NACHRICHT.SPIELER_LISTE), 'auch nach dem Zonenwechsel');
+});
+
+test('Runde 21: Übergang erst nach 5 s Warten (raus = Abbruch); im Auto fährt das Auto samt Kofferraum mit', async (t) => {
+  const server = new SpielServer({ authentifizierung: new GastAuthentifizierung(), protokoll: stillerLog });
+  t.after(() => server.stoppen());
+  const { empfangen } = verbinde(server, 'Fahrer');
+  await warteAuf(() => letzte(empfangen, NACHRICHT.ANMELDUNG_OK), 'Login');
+  const welt = server.weltVon('Fahrer');
+  const ich = [...welt.alleVomTyp('spieler')][0];
+  ich.gottmodus = true;
+  const u = welt.karte.daten.uebergaenge.find((x) => x.ziel === 'schneeland');
+  // zu Fuß: 2 s rein, kurz raus → Countdown beginnt von vorn
+  ich.x = u.px.x0 + 5;
+  ich.y = (u.px.y0 + u.px.y1) / 2;
+  for (let i = 0; i < 60; i++) server.tickAusfuehren();
+  assert.ok(ich.uebergang && ich.uebergang.rest > 2.9 && ich.uebergang.rest < 3.1, 'Countdown läuft');
+  assert.equal(server.weltVon('Fahrer'), welt);
+  ich.x = u.px.x0 - 40;
+  server.tickAusfuehren();
+  assert.equal(ich.uebergang, null, 'raus = abgebrochen');
+  // im Auto: Front ragt in den Randstreifen (die Mitte kommt nie hinein)
+  const fz = [...welt.alleVomTyp('fahrzeug')].find((f) => !f.kaputt);
+  Object.assign(fz, { x: u.px.x0 - fz.laenge / 2, y: (u.px.y0 + u.px.y1) / 2, winkel: 0, fahrerId: ich.id });
+  fz.kofferraum[0] = { defId: 'holz', menge: 7 };
+  Object.assign(ich, { x: fz.x, y: fz.y, fahrzeug: fz });
+  const anzahlVorher = welt.anzahlVomTyp('fahrzeug');
+  for (let i = 0; i < 140; i++) server.tickAusfuehren();
+  assert.equal(server.weltVon('Fahrer'), welt, 'nach 4,7 s noch nicht drüben');
+  for (let i = 0; i < 12 && !letzte(empfangen, NACHRICHT.ZONE_WECHSEL); i++) {
+    server.tickAusfuehren();
+    await warte(2);
+  }
+  await warteAuf(() => letzte(empfangen, NACHRICHT.ZONE_WECHSEL), 'ZONE_WECHSEL');
+  const schnee = server.weltVon('Fahrer');
+  assert.equal(schnee.karte.daten.id, 'schneeland');
+  const neu = [...schnee.alleVomTyp('spieler')].find((s) => s.name === 'Fahrer');
+  assert.ok(neu.fahrzeug, 'sitzt drüben im Auto');
+  assert.equal(neu.fahrzeug.modell, fz.modell);
+  assert.deepEqual(neu.fahrzeug.kofferraum[0], { defId: 'holz', menge: 7 });
+  assert.equal(neu.fahrzeug.fahrerId, neu.id);
+  assert.equal(welt.anzahlVomTyp('fahrzeug'), anzahlVorher - 1, 'Auto ist aus der alten Zone weg');
+  // Weltstand: drüben gespeichert, beim Laden genau diese Autos (auch das zugezogene)
+  const stand = JSON.parse(JSON.stringify(schnee.weltzustand()));
+  const frisch = new SpielWelt(erstelleKonfiguration(), { kartenDefinition: KARTEN.schneeland });
+  frisch.uebernimmWeltzustand(stand);
+  assert.equal(frisch.anzahlVomTyp('fahrzeug'), schnee.anzahlVomTyp('fahrzeug'));
+  assert.ok([...frisch.alleVomTyp('fahrzeug')].some((f) => f.kofferraum[0]?.defId === 'holz'));
+  for (let i = 0; i < 40; i++) server.tickAusfuehren();
+  assert.equal(server.weltVon('Fahrer'), schnee, 'kein Ping-Pong');
+});
+
+test('Runde 21: hinterFahrzeug – nur am Heck in Reichweite (Tab = Kofferraum)', async () => {
+  const { hinterFahrzeug } = await import('../gemeinsam/physik/fahrzeug.js');
+  const fz = { x: 100, y: 100, winkel: 0, laenge: 150, breite: 70 }; // Front nach +x
+  assert.equal(hinterFahrzeug(fz, 100 - 75 - 15, 100), true, 'hinten');
+  assert.equal(hinterFahrzeug(fz, 100 + 75 + 15, 100), false, 'vorne');
+  assert.equal(hinterFahrzeug(fz, 100, 100 + 35 + 15), false, 'seitlich');
+  assert.equal(hinterFahrzeug(fz, 100 - 75 - 60, 100), false, 'zu weit weg');
 });

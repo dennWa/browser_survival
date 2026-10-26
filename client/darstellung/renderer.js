@@ -65,7 +65,7 @@ const SURVIVOR = { mann: '3d/figur_mann.glb', frau: '3d/figur_frau.glb' };
 // (Clip-Weg/s × FIGUR_HOEHE / Modellhöhe, gemessen in figuren_bauen.py)
 const LAUF_TEMPO = { mann: 100, frau: 83 };
 const GEH_TEMPO = { mann: 47, frau: 38 };
-const GEH_GRENZE = 100; // darunter Geh-Clip (Gehen 80 px/s), darüber Lauf-Clip (Joggen 115, Rennen 150)
+const GEH_GRENZE = 90; // darunter Geh-Clip, darüber Lauf-Clip (Grundtempo = leichtes Joggen 100, Joggen erschöpft 125, Rennen 170)
 const SCHLAG_KLIPS = new Set(['hacken', 'spitzhacke', 'abbauen', 'hacke', 'nahkampf']); // Clips, die ein Werkzeug schwingen (figurHaltung legt es in die Hände)
 const HACK_ARBEIT = new Set(['holz', 'stein', 'eisenerz']);
 const SCHNITT_RADIUS = 0; // 0 = aus: kein Durchschauen durch Wände mehr (verdeckte Figur zeigt stattdessen die Silhouette)
@@ -109,7 +109,7 @@ const NEUE_FIGUREN_JE_BILD = 2; // höchstens so viele Zombie-Figuren pro Bild n
  * hoehe = Anteil von FIGUR_HOEHE, klips = Spielname → Clipname im GLB (ohne „CharacterArmature|“), tempo = px/s, bei denen der Clip passt.
  */
 const ZOMBIE_MODELLE = {
-  gruen: { datei: 'eigene/zombie-2.glb', hoehe: 0.95, klips: { stehen: 'Idle', gehen: 'Walk', rennen: 'Run', angriff: 'Punch' }, tempo: { gehen: 55, rennen: 125 } },
+  gruen: { datei: 'eigene/zombie-2.glb', hoehe: 0.86, klips: { stehen: 'Idle', gehen: 'Walk', rennen: 'Run', angriff: 'Punch' }, tempo: { gehen: 55, rennen: 125 } },
   koloss: { datei: 'eigene/zombie.glb', hoehe: 1.05, klips: { stehen: 'Idle', gehen: 'Walk', rennen: 'Run', angriff: 'Punch' }, tempo: { gehen: 50, rennen: 115 } },
   halb: { datei: 'eigene/zombie-half.glb', hoehe: 0.62, klips: { stehen: 'Idle', gehen: 'Walk', rennen: 'Run', angriff: 'HitReact' }, tempo: { gehen: 40, rennen: 95 } },
 };

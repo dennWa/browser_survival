@@ -27,6 +27,7 @@ import { NETZ_SICHTWEITE, Zone } from './zone.js';
 import { BAUTEILE } from '../../gemeinsam/basisbau/teile.js';
 import { EBENEN } from '../../gemeinsam/welt/bauwerke.js';
 import { spawnPunkt } from './systeme/spawnSystem.js';
+import { loeseFahrzeugFuerWechsel, parkeZurueck, setzeFahrzeugEin } from './systeme/fahrzeugSystem.js';
 
 /** Danach wird die Verbindung getrennt (Schutz gegen Passwort-Raten). */
 const MAX_FEHLVERSUCHE = 5;
@@ -275,12 +276,16 @@ export class SpielServer {
       letzteEmpfangeneSeq: spieler.letzteEmpfangeneSeq, // Client zählt seq weiter
       letzteVerarbeiteteSeq: spieler.letzteVerarbeiteteSeq,
     };
+    const auto = spawn ? null : loeseFahrzeugFuerWechsel(alt.spielWelt, spieler); // Auto fährt mit (Runde 21)
     alt.spielWelt.entfernen(spieler.id);
     sitzung.status = 'wechseltZone';
     sitzung.zonenStand = stand; // falls die Verbindung genau jetzt abreißt: trotzdem speichern
     sitzung.spielerId = null;
     await zone.geladen;
-    if (!this.sitzungen.has(sitzung) || this.gestoppt) return;
+    if (!this.sitzungen.has(sitzung) || this.gestoppt) {
+      if (auto) parkeZurueck(alt.spielWelt, auto);
+      return;
+    }
 
     this.#aktiviere(zone);
     const neu = zone.spielWelt.spielerBetrittWelt(sitzung.benutzername, { admin: spieler.admin });
@@ -296,6 +301,13 @@ export class SpielServer {
     }
     punkt ??= zone.ankunft(ankunft);
     Object.assign(neu, behalten, { x: punkt.x, y: punkt.y });
+    if (auto) {
+      neu.imUebergang = true; // falls das Auto doch am Rand landet: erst wieder raus, dann zählt der Übergang
+      if (!setzeFahrzeugEin(zone.spielWelt, auto, neu, punkt)) {
+        parkeZurueck(alt.spielWelt, auto);
+        zone.spielWelt.melde(neu.id, 'Hier ist kein Platz fürs Auto – es steht noch am alten Ort');
+      }
+    }
     sitzung.zone = zone;
     sitzung.spielerId = neu.id;
     sitzung.zonenStand = null;
@@ -419,7 +431,10 @@ export class SpielServer {
     // Weiter in der Zone vom letzten Mal (nur lebend und wenn es die Karte noch gibt), sonst Startzone
     const zone = (spielstand?.leben > 0 && typeof spielstand.karte === 'string' && this.zone(spielstand.karte)) || this.startZone;
     await zone.geladen;
-    if (!this.sitzungen.has(sitzung) || this.gestoppt) return;
+    if (!this.sitzungen.has(sitzung) || this.gestoppt) {
+      if (auto) parkeZurueck(alt.spielWelt, auto);
+      return;
+    }
 
     this.#aktiviere(zone);
     const spieler = zone.spielWelt.spielerBetrittWelt(name, { admin: ergebnis.admin === true });

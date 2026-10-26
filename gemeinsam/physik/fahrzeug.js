@@ -24,10 +24,10 @@ export const FAHRZEUG = Object.freeze({
   rollReibung: 70, // ohne Gas wird er langsamer …
   fahrtwind: 0.28, // … plus dieser Anteil des Tempos je Sekunde
   lenkWinkel: 0.65, // rad, größter Radeinschlag im Stand/langsam
-  lenkAbfall: 200, // px/s: bei diesem Tempo ist der größte Einschlag halbiert
+  lenkAbfall: 225, // px/s (Runde 21: 200 → etwas straffer): bei diesem Tempo ist der größte Einschlag halbiert
   radstand: 0.55, // Anteil der Fahrzeuglänge
-  lenkTempo: 4, // so schnell (1/s) dreht das „Lenkrad“ zum Anschlag …
-  lenkZurueck: 5, // … und zurück in die Mitte
+  lenkTempo: 5, // so schnell (Runde 21: 4 → straffer) (1/s) dreht das „Lenkrad“ zum Anschlag …
+  lenkZurueck: 6.5, // … und zurück in die Mitte
   abprallen: 0.25, // Anteil des Tempos, der beim Aufprall übrig bleibt (rückwärts)
 });
 
@@ -70,6 +70,15 @@ export const FAHRZEUG_MODELLE = Object.freeze({
   auto_gelb: { name: 'Auto', farbe: 0xe0b52c },
   transporter: { name: 'Transporter', farbe: 0xe8e8e2, transporter: true },
 });
+
+/** Steht (x, y) hinter dem Fahrzeug (Heck, in Einstiegsreichweite)? → Tab öffnet dort den Kofferraum (Runde 21). */
+export function hinterFahrzeug(fz, x, y) {
+  const dx = x - fz.x;
+  const dy = y - fz.y;
+  const laengs = dx * Math.cos(fz.winkel) + dy * Math.sin(fz.winkel);
+  const quer = -dx * Math.sin(fz.winkel) + dy * Math.cos(fz.winkel);
+  return laengs < -fz.laenge * 0.3 && Math.abs(quer) <= fz.breite / 2 + 10 && abstandZumFahrzeug(fz, x, y) <= EINSTIEG_ABSTAND;
+}
 
 /** Kartenobjekt (Auto mit drehung in Grad, 0 = Front nach oben) → Fahrzeugdaten */
 export function fahrzeugAusObjekt(o, g) {

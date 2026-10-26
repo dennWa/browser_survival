@@ -8,7 +8,7 @@ import { AKTIONEN, NACHRICHT } from '../../gemeinsam/protokoll.js';
 import { Welt } from '../../gemeinsam/welt/welt.js';
 import { wendeEingabeAn } from '../../gemeinsam/physik/bewegung.js';
 import { sichtlinieFrei } from '../../gemeinsam/physik/strahl.js';
-import { EINSTIEG_ABSTAND, FAHRZEUG_MODELLE, abstandZumFahrzeug, fahrzeugKacheln, tempoZuKmh } from '../../gemeinsam/physik/fahrzeug.js';
+import { EINSTIEG_ABSTAND, FAHRZEUG_MODELLE, abstandZumFahrzeug, fahrzeugKacheln, hinterFahrzeug, tempoZuKmh } from '../../gemeinsam/physik/fahrzeug.js';
 import { lerp, lerpWinkel } from '../../gemeinsam/mathe.js';
 import { INTERPOLATIONS_VERZOEGERUNG_MS, PING_INTERVALL_MS } from '../konfiguration.js';
 import { Effekte } from '../darstellung/effekte.js';
@@ -444,6 +444,24 @@ export class ClientSpiel {
   kofferraum() {
     if (this.spielerDaten?.tot) return;
     if (this.#naheFahrzeug() || this.lokal.fahrzeug) this.#aktion(AKTIONEN.KOFFERRAUM);
+  }
+
+  /**
+   * Tab (Runde 21): Kiste/Kofferraum offen → zu; zu Fuß hinter einem Auto → Kofferraum auf. true = erledigt, sonst öffnet main.js das Inventar.
+   */
+  tabTaste() {
+    if (this.hud.kiste.offen) {
+      this.kisteSchliessen();
+      return true;
+    }
+    if (this.spielerDaten?.tot || this.lokal.fahrzeug || this.hud.inventar.offen) return false;
+    const letzter = this.schnappschuesse[this.schnappschuesse.length - 1];
+    for (const e of letzter?.entitaeten.values() ?? []) {
+      if (e.typ !== 'fahrzeug' || !hinterFahrzeug(e, this.lokal.x, this.lokal.y)) continue;
+      this.#aktion(AKTIONEN.KOFFERRAUM);
+      return true;
+    }
+    return false;
   }
 
   /** Auto (auch besetzt/Wrack) in Einstiegsreichweite aus dem letzten Schnappschuss – für Kofferraum-Knopf & -Taste. */

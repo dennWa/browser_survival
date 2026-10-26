@@ -118,8 +118,9 @@ export class SpielWelt {
    * gebaute Sachen (inkl. Beete & Pflanzen), Uhrzeit und Tag.
    */
   weltzustand() {
-    const fahrzeuge = [...this.alleVomTyp('fahrzeug')].map(({ modell, x, y, winkel, leben, kaputt, kofferraum }) => ({ modell, x, y, winkel, leben, kaputt, kofferraum }));
-    return { version: 1, karte: this.karte.daten.id, zeit: this.zeit, tag: this.tag, bauwerke: [...this.welt.bauwerke.values()], flaggen: territoriumSpeichern(this.territorium), fahrzeuge };
+    const fahrzeuge = [...this.alleVomTyp('fahrzeug')].map(({ modell, x, y, winkel, laenge, breite, leben, maxLeben, kaputt, kofferraum }) => ({ modell, x, y, winkel, laenge, breite, leben, maxLeben, kaputt, kofferraum }));
+    // fahrzeugeAlle: die Liste ist vollständig (Autos können seit Runde 21 die Zone wechseln) – beim Laden ersetzt sie die Kartenautos
+    return { version: 1, karte: this.karte.daten.id, zeit: this.zeit, tag: this.tag, bauwerke: [...this.welt.bauwerke.values()], flaggen: territoriumSpeichern(this.territorium), fahrzeuge, fahrzeugeAlle: true };
   }
 
   /** Gespeicherten Weltzustand übernehmen – alles wird geprüft (Datei kann alt oder kaputt sein). */
@@ -138,8 +139,23 @@ export class SpielWelt {
       b.id = this.neueBauwerkId();
       this.welt.setzeBauwerk(b);
     }
-    // Autos stehen da, wo sie zuletzt geparkt wurden (Anzahl & Modelle wie auf der Karte)
+    // Autos stehen da, wo sie zuletzt geparkt wurden. Neuer Stand (fahrzeugeAlle): genau die gespeicherten Autos (auch zugezogene);
+    // alter Stand: Anzahl & Modelle wie auf der Karte
     const gespeichert = Array.isArray(stand.fahrzeuge) ? stand.fahrzeuge : [];
+    if (stand.fahrzeugeAlle === true) {
+      for (const fz of [...this.alleVomTyp('fahrzeug')]) this.entfernen(fz.id);
+      for (const f of gespeichert) {
+        const ok = FAHRZEUG_MODELLE[f?.modell] && [f.x, f.y, f.winkel, f.laenge, f.breite].every(Number.isFinite) && f.laenge > 0 && f.laenge < 400 && f.breite > 0 && f.breite < 200;
+        if (!ok) continue;
+        const maxLeben = Number.isFinite(f.maxLeben) && f.maxLeben > 0 ? f.maxLeben : this.konfiguration.fahrzeug.haltbarkeit;
+        const fz = erzeugeFahrzeug({ id: this.neueId(), modell: f.modell, x: f.x, y: f.y, winkel: f.winkel, laenge: f.laenge, breite: f.breite, haltbarkeit: maxLeben });
+        if (Number.isFinite(f.leben)) fz.leben = Math.min(fz.maxLeben, Math.max(0, f.leben));
+        fz.kaputt = f.kaputt === true || fz.leben <= 0;
+        if (Array.isArray(f.kofferraum)) f.kofferraum.slice(0, fz.kofferraum.length).forEach((e, k) => (fz.kofferraum[k] = pruefeEintrag(e)));
+        this.hinzufuegen(fz);
+      }
+      return true;
+    }
     const vorhanden = [...this.alleVomTyp('fahrzeug')];
     for (const fz of vorhanden) {
       const i = gespeichert.findIndex((f) => f?.modell === fz.modell && Number.isFinite(f.x) && Number.isFinite(f.y) && Number.isFinite(f.winkel));
@@ -240,7 +256,7 @@ export class SpielWelt {
     this.#beendeAbgelaufeneAktionen();
     verarbeiteSpielerEingaben(this);
     aktualisiereFahrzeuge(this, dt);
-    pruefeUebergaenge(this);
+    pruefeUebergaenge(this, dt);
     verarbeiteAktionen(this);
     aktualisiereNachladen(this, dt);
     aktualisiereKampf(this, dt);

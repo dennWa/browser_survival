@@ -73,6 +73,7 @@ export function erzeugeSpieler({ id, benutzername, x, y, konfiguration, admin = 
     inventar: new Array(INVENTAR_PLAETZE).fill(null),
     rucksack: null, // defId des getragenen Rucksacks oder null
     fahrzeug: null, // [intern] Fahrzeug-Entität, in der der Spieler sitzt (systeme/fahrzeugSystem.js)
+    uebergang: null, // [intern] Zonenrand-Countdown { u, name, rest } (systeme/zonenSystem.js)
     ausgeruestet: null, // Inventarplatz der Waffe in der Hand
     nachladenRest: 0, // Sekunden, solange nachgeladen wird
     respawnRest: 0,
@@ -110,6 +111,7 @@ export function spielerZuNetzwerk(s) {
     gleit: s.aufEis ? [s.gleitX, s.gleitY] : undefined, // Eis-Schwung exakt (Vorhersage rutscht genauso)
     boostRest: Math.round(s.boostRest * 1000) / 1000,
     unendlichAusdauer: s.unendlichAusdauer || undefined,
+    unendlichMunition: s.unendlichMunition || undefined, // nur für den Admin-Schalter (gelb)
     sprintet: s.sprintet,
     lichtAn: s.lichtAn,
     gottmodus: s.gottmodus,
@@ -150,6 +152,7 @@ export function spielerDatenPrivat(s, konfiguration, spielWelt = null) {
     nachladen: s.nachladenRest > 0,
     tot: s.tot,
     respawnIn: Math.ceil(s.respawnRest),
+    uebergang: s.uebergang ? { name: s.uebergang.name, rest: Math.ceil(s.uebergang.rest) } : null, // Zonenrand-Countdown (zonenSystem)
     admin: s.admin,
     fliegen: s.fliegen,
     unendlichMunition: s.unendlichMunition,

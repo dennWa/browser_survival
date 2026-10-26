@@ -135,7 +135,7 @@ test('Karte testen: zwei Editor-Entwürfe laufen im echten SpielServer (wie im T
   const { daten, probleme } = testDaten(zonen, 'editor_sued', 0);
   assert.deepEqual(probleme, []);
   const json = JSON.parse(JSON.stringify(daten)); // wie über localStorage
-  const server = new SpielServer({ authentifizierung: new GastAuthentifizierung({ admin: true }), protokoll: { info() {}, warn() {}, error() {} }, speicher: new ArbeitsspeicherSpeicher(), kartenDefinition: json.karten[json.start], kartenDefinitionen: json.karten });
+  const server = new SpielServer({ authentifizierung: new GastAuthentifizierung({ admin: true }), konfiguration: { welt: { uebergangSekunden: 0 } }, protokoll: { info() {}, warn() {}, error() {} }, speicher: new ArbeitsspeicherSpeicher(), kartenDefinition: json.karten[json.start], kartenDefinitionen: json.karten });
   await server.weltGeladen;
   const { clientSeite, serverSeite } = erstelleSpeicherKanalPaar();
   const empfangen = [];

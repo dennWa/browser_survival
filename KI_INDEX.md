@@ -1,4 +1,4 @@
-# KI_INDEX – Kompaktkarte für KI-Sitzungen (v0.19.0-dev · Proto v11)
+# KI_INDEX – Kompaktkarte für KI-Sitzungen (v0.20.0-dev · Proto v11)
 
 > Dicht & abgekürzt, für Maschinen gedacht. Für Menschen: `project_manifest.md` (ausführlich, „Wo ändere ich …?“ §4).
 > Legende: `→` führt zu/ruft · `S:` Server (`server/spiel/`) · `C:` Client (`client/`) · `G:` gemeinsam (`gemeinsam/`) · `K:` Konfig (`server/spiel/konfiguration/`) · `⚠` Falle/Invariante · `★` häufigste Änderungsstelle
@@ -302,3 +302,14 @@ Zonen-Grundlage steht (2 Zonen, Waldweg groß mit See). Nächstes sinnvoll: Basi
 - **Villa Schneeland** (Generator `werkzeuge/karten/schneeland.py`: `modell(stem, x, y, drehung)` liest `client/assets/eigene/index.json`, schreibt Karten-`typen` sf_… wie `spielordnerTyp`; drehung 0 = Front Süd, 180 Nord, 90 West, 270 Ost). Räume j (Villa Küche), k (Villa). Tests: `inhalte.test.js` akzeptiert `daten.typen[typ].glbDatei` (Datei muss existieren), `editor.test.js` Katalog ignoriert Karten-eigene Typen. `eigenesModellInhalt` klont Materialien nur mit farbe/id.
 - Tests `tests/runde20.test.js`. Prüf-Skript-Muster: `browserSurvival.tp(tx,ty)` (Server-Position direkt setzen wird von Client-Eingaben überschrieben), nach `zone()` erst 2 s warten, dann auf `#laden` hidden.
 
+
+## Runde 21 (2026-10-26)
+- **Übergang mit Wartezeit:** `S:zonenSystem.pruefeUebergaenge(welt, dt)`: im Rechteck `spieler.uebergang={u,name,rest}` zählt `K welt.uebergangSekunden` (5) runter → dann `zonenwechsel`; raus = null. Im Auto zählen Front/Mitte/Heck (`punkteVon`; Mitte erreicht den 1-Kachel-Streifen nie). Privat → `spielerDaten.uebergang{name,rest}` → `C:hud #hud-uebergang`. ⚠ Tests mit Sofortwechsel: `konfiguration: { welt: { uebergangSekunden: 0 } }` (`SOFORT` in `zonen.test.js`).
+- **Auto fährt mit:** `spielServer.#wechsleZone` → `S:fahrzeugSystem.loeseFahrzeugFuerWechsel` (Kofferraum-Fenster anderer zu, Entität raus) → `setzeFahrzeugEin(zielWelt, alt, neu, punkt)` (Ringsuche ≤6 Kacheln, 4 Winkel, nicht im Übergang; neue ID; `neu.imUebergang=true`) sonst `parkeZurueck` (alte Zone). Bett-Respawn nimmt kein Auto mit.
+- **Weltstand Autos:** `weltzustand()` schreibt alle Autos (+laenge/breite/maxLeben) + `fahrzeugeAlle:true` → `uebernimmWeltzustand` ersetzt dann die Kartenautos komplett; alter Stand ohne Flag = altes Matching nach Modell.
+- **Tab = Kofferraum hinter dem Auto:** `G:fahrzeug.hinterFahrzeug(fz,x,y)` (Heck ≥30 % Länge, quer ≤ Breite/2+10, Einstiegsreichweite); `C:clientSpiel.tabTaste()` (Kiste offen → zu; hinter Auto → AKTION kofferraum; sonst false → `main.js` Inventar). G/🧳 wie bisher.
+- **Admin gelb:** `hud.#zeigeSchalter` kennt fliegen/unendlichMunition/unendlichAusdauer; `spielerZuNetzwerk` schickt `unendlichMunition` (nur wenn an).
+- **Tempo:** K spieler.geschwindigkeit 100 (leichtes Joggen, Lauf-Clip; `renderer GEH_GRENZE` 90), sprintFaktor 1,7 (170), joggFaktor 1,25 (125). Lenkung `FAHRZEUG` lenkTempo 5, lenkZurueck 6,5, lenkAbfall 225.
+- **GLB-Autos:** `C:fahrzeugModelle.GLB_AUTOS` (modell → `assets/eigene/*.glb`, optional `lack` {Materialname: Farbe}); Platzhalter sofort, GLB ersetzt `gruppe.children[0]` (= Karosserie, Neigung/Wrack `faerbeWrack`). Front = Seite der „Front…“-Knoten, gleichmäßig in L×B (×1,04). Credits in `eigene/credits.json`.
+- **Zombie-Größe:** `renderer ZOMBIE_MODELLE.gruen.hoehe` 0,86 (wirkte durch Masse größer als der Spieler). Messen: Figuren-Höhe per Vertex-Box über `browserSurvival.spiel.renderer.figuren`.
+- Tests: `tests/zonen.test.js` (Runde 21: Wartezeit/Abbruch, Auto+Kofferraum drüben, Weltstand, hinterFahrzeug).

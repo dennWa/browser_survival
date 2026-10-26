@@ -1182,6 +1182,19 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
   border: 1px solid rgba(140, 200, 240, 0.6);
   border-radius: 20px;
 }
+#hud-uebergang {
+  position: absolute;
+  left: 50%;
+  top: 26%;
+  transform: translateX(-50%);
+  padding: 8px 18px;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+  background: rgba(10, 40, 70, 0.8);
+  border: 1px solid rgba(140, 200, 240, 0.6);
+  border-radius: 20px;
+}
 #hud-autolauf button { pointer-events: auto; padding: 4px 12px; font-weight: 700; color: #fff; background: #7d2c2c; border: 0; border-radius: 14px; }
 @media (max-width: 700px) { #karte-tipp { display: none; } }
 

@@ -89,6 +89,7 @@ export class Hud {
       meldungen: el('hud-meldungen'),
       tod: el('tod-overlay'),
       todText: el('tod-countdown'),
+      uebergang: el('hud-uebergang'),
       wiederbeleben: el('tod-wiederbeleben'),
       arbeit: el('hud-arbeit'),
       arbeitText: el('hud-arbeit-text'),
@@ -485,6 +486,11 @@ export class Hud {
       this.el.munition.classList.toggle('leer', waffe.magazin === 0);
     }
 
+    // Zonenrand: Countdown bis zum Wechsel (raus aus dem Streifen = Abbruch)
+    const uebergang = daten.uebergang && !daten.tot ? `➜ ${daten.uebergang.name} in ${daten.uebergang.rest} s … (zurück = abbrechen)` : '';
+    if (this.el.uebergang.textContent !== uebergang) this.el.uebergang.textContent = uebergang;
+    this.el.uebergang.hidden = !uebergang;
+
     this.el.tod.hidden = !daten.tot;
     if (daten.tot) this.el.todText.textContent = `Automatische Wiederbelebung in ${Math.max(0, daten.respawnIn)} s`;
 
@@ -495,13 +501,13 @@ export class Hud {
 
   /** Schalter-Zustände (Taschenlampe, Gottmodus …) aus dem öffentlichen Spielerzustand – DOM nur bei Änderung. */
   #zeigeSchalter(spieler) {
-    const stand = `${spieler.lichtAn !== false}|${!!spieler.gottmodus}|${!!spieler.unsichtbar}|${this.#nachtsicht}`;
+    const stand = `${spieler.lichtAn !== false}|${!!spieler.gottmodus}|${!!spieler.unsichtbar}|${!!spieler.fliegen}|${!!spieler.unendlichMunition}|${!!spieler.unendlichAusdauer}|${this.#nachtsicht}`;
     if (stand === this.#schalterStand) return;
     this.#schalterStand = stand;
     const lichtAn = spieler.lichtAn !== false;
     this.el.licht.classList.toggle('aus', !lichtAn);
     this.el.licht.title = `Taschenlampe ${lichtAn ? 'an' : 'aus'} (L) – aus = Zombies sehen dich schlechter`;
-    const an = { gottmodus: !!spieler.gottmodus, unsichtbar: !!spieler.unsichtbar, fliegen: !!spieler.fliegen };
+    const an = { gottmodus: !!spieler.gottmodus, unsichtbar: !!spieler.unsichtbar, fliegen: !!spieler.fliegen, unendlichMunition: !!spieler.unendlichMunition, unendlichAusdauer: !!spieler.unendlichAusdauer };
     for (const knopf of this.el.adminPanel.querySelectorAll('button[data-befehl]')) {
       if (knopf.dataset.befehl in an) knopf.classList.toggle('an', an[knopf.dataset.befehl]);
     }

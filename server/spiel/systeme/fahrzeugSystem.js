@@ -1,11 +1,14 @@
-import { AUFPRALL_MIN_KMH, LATERNE_MIN_KMH, tempoZuKmh, EINSTIEG_ABSTAND, FAHRZEUG_MAX_KMH, abstandZumFahrzeug, ausstiegsPunkt, fahrzeugKacheln, kmhZuTempo } from '../../../gemeinsam/physik/fahrzeug.js';
+import { AUFPRALL_MIN_KMH, LATERNE_MIN_KMH, tempoZuKmh, EINSTIEG_ABSTAND, FAHRZEUG_MAX_KMH, abstandZumFahrzeug, ausstiegsPunkt, fahrzeugKacheln, kmhZuTempo, passt } from '../../../gemeinsam/physik/fahrzeug.js';
 import { fuegeSchadenZu, toeten } from './kampfSystem.js';
+import { schliesseKiste } from './kistenSystem.js';
+import { erzeugeFahrzeug } from '../entitaeten/fahrzeug.js';
 
 /**
  * Fahrzeuge: AKTION 'fahrzeug' = einsteigen (nächstes freies Auto in Reichweite) bzw. aussteigen.
  * Gefahren wird über die normalen Eingaben (gemeinsam/physik/bewegung.js → fahre), damit die Vorhersage passt.
  * Pro Tick: belegte Kacheln aktualisieren (Kollision für alle), Zombies anfahren, verwaiste Autos anhalten,
  * Aufprall-Schaden (Wand/Fahrzeug ≥ AUFPRALL_MIN_KMH), Bäume (≥ AUFPRALL_MIN_KMH) & Straßenlaternen (≥ LATERNE_MIN_KMH) umfahren.
+ * Zonenwechsel im Auto: loeseFahrzeugFuerWechsel / setzeFahrzeugEin / parkeZurueck (unten, aufgerufen vom SpielServer).
  */
 const ANFAHR_MIN_TEMPO = 55; // px/s – langsamer schiebt das Auto Zombies nur
 const ANFAHR_SCHADEN = 0.42; // Schaden pro px/s Tempo (Vollgas ≈ 140)
@@ -208,4 +211,60 @@ function fahreZombiesAn(spielWelt, fz) {
     schlageFahrzeug(spielWelt, fz, spielWelt.konfiguration.fahrzeug.ueberfahrSchaden);
     if (fz.kaputt) return;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Zonenwechsel im Auto (Runde 21): das Auto fährt mit in die neue Zone (spielServer.#wechsleZone)
+
+/**
+ * Auto des Fahrers aus seiner Zone lösen (Kofferraum-Fenster anderer zu, Entität raus). Liefert die Entität oder null
+ * (zu Fuß / Wrack). Passt es drüben nicht hin: `parkeZurueck`.
+ */
+export function loeseFahrzeugFuerWechsel(spielWelt, spieler) {
+  const fz = spieler.fahrzeug;
+  if (!fz || fz.kaputt) return null;
+  spieler.fahrzeug = null;
+  fz.fahrerId = null;
+  fz.tempo = 0;
+  fz.lenkung = 0;
+  for (const s of spielWelt.alleVomTyp('spieler')) if (s.offeneKiste === `f${fz.id}`) schliesseKiste(spielWelt, s);
+  spielWelt.entfernen(fz.id);
+  return fz;
+}
+
+/** Konnte das Auto drüben nirgends hin: bleibt in der alten Zone stehen, wo es war. */
+export function parkeZurueck(spielWelt, fz) {
+  fz.letzteKacheln = '';
+  spielWelt.hinzufuegen(fz);
+}
+
+/**
+ * Auto in der neuen Zone nahe `punkt` abstellen (freie Pose, nicht in einem Übergang) und den Spieler hineinsetzen.
+ * Sucht ringförmig bis ~6 Kacheln, je Stelle Fahrtrichtung wie vorher bzw. gedreht. @returns true, wenn es geklappt hat
+ */
+export function setzeFahrzeugEin(spielWelt, alt, spieler, punkt) {
+  const g = spielWelt.welt.kachelGroesse;
+  const fz = erzeugeFahrzeug({ id: spielWelt.neueId(), modell: alt.modell, x: punkt.x, y: punkt.y, winkel: alt.winkel, laenge: alt.laenge, breite: alt.breite, haltbarkeit: alt.maxLeben });
+  fz.leben = alt.leben;
+  fz.kofferraum = alt.kofferraum;
+  const uebergaenge = spielWelt.karte.daten.uebergaenge ?? [];
+  const imUebergang = (x, y) => uebergaenge.some((u) => x + fz.laenge / 2 > u.px.x0 && x - fz.laenge / 2 < u.px.x1 && y + fz.laenge / 2 > u.px.y0 && y - fz.laenge / 2 < u.px.y1);
+  const winkel = [alt.winkel, alt.winkel + Math.PI, alt.winkel + Math.PI / 2, alt.winkel - Math.PI / 2];
+  for (let ring = 0; ring <= 6; ring++) {
+    for (let dy = -ring; dy <= ring; dy++) {
+      for (let dx = -ring; dx <= ring; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== ring) continue;
+        const x = punkt.x + dx * g;
+        const y = punkt.y + dy * g;
+        if (imUebergang(x, y)) continue;
+        const w = winkel.find((w) => passt(fz, x, y, spielWelt.welt, w));
+        if (w === undefined) continue;
+        Object.assign(fz, { x, y, winkel: w, fahrerId: spieler.id });
+        spielWelt.hinzufuegen(fz);
+        Object.assign(spieler, { x, y, fahrzeug: fz });
+        return true;
+      }
+    }
+  }
+  return false;
 }
