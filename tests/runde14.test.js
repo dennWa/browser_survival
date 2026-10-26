@@ -49,11 +49,11 @@ test('Schnellleiste hat 10 Plätze (Tasten 1–9 und 0), Grund-Inventar bleibt 1
   assert.equal(INVENTAR_PLAETZE, 16);
 });
 
-test('Tacho: Höchsttempo = 70 km/h, Umrechnung hin und zurück', () => {
-  assert.equal(FAHRZEUG_MAX_KMH, 70);
-  assert.ok(Math.abs(tempoZuKmh(FAHRZEUG.max) - 70) < 1e-9);
+test('Tacho: Höchsttempo = 120 km/h (Runde 20), Umrechnung hin und zurück', () => {
+  assert.equal(FAHRZEUG_MAX_KMH, 120);
+  assert.ok(Math.abs(tempoZuKmh(FAHRZEUG.max) - 120) < 1e-9);
   assert.ok(Math.abs(tempoZuKmh(kmhZuTempo(10)) - 10) < 1e-9);
-  assert.equal(AUFPRALL_MIN_KMH, 10);
+  assert.equal(AUFPRALL_MIN_KMH, 17);
 });
 
 test('Doppelklick-Konsum: AKTION konsumieren verbraucht Essen/Trinken direkt (ohne Hand), nicht-Verbrauchbares bleibt', () => {

@@ -174,8 +174,9 @@ Spieler aller Zonen schlafen; der Zeitsprung gilt dann für alle aktiven Zonen. 
   W/S Gas/Bremse, A/D lenken (Touch: linker Stick). Gemeinsame Physik → Vorhersage wie beim Laufen. Zombies anfahren
   macht Schaden je Tempo (+XP) und kostet das Auto nur **0,5** Haltbarkeit; **Haltbarkeit 10 Zombie-Schläge** (Boss-Schlag
   zählt nach Angriffsschaden mehr) – Zombies schlagen auf die Karosserie, der Fahrer bleibt unverletzt. Bei 0: Fahrer wird
-  **ausgeworfen**, das Auto bleibt als **Wrack** (kaputt, qualmt, nicht einsteigbar, wird gespeichert). Scheinwerfer, Motorsound,
-  Kamera zoomt raus. Parkposition wird gespeichert. Durch Zonen-Übergänge geht es nur zu Fuß.
+  **ausgeworfen**, das Auto bleibt als **Wrack** (kaputt, qualmt, nicht einsteigbar, wird gespeichert). Zwei Scheinwerfer, Motorsound,
+  Kamera zoomt raus. Runde 20: Fahrmodell mit Lenkrad-Trägheit (`fz.lenkung`) + Einspurmodell (enge Kurven nur langsam), sanfteres
+  Anfahren, Tacho bis 120 km/h, Karosserie neigt sich, Reifenspuren auf Gras/Schnee (`client/darstellung/reifenspuren.js`). Parkposition wird gespeichert. Durch Zonen-Übergänge geht es nur zu Fuß.
 - **Crafting** (`craftingSystem.js`, Rezepte in `konfiguration/rezepte.js`): an einer Werkbank (Wohnhäuser, Werkstatt);
   Menü mit Kategorien. Bretter verstärken geschlossene Türen (+`welt.tuerVerstaerkung`, max. 4× Haltbarkeit).
 - **Schlafen:** in jedem Bett, jederzeit (keine jagenden Zombies in `schlafen.zombieAbstand`): dauert `schlafen.dauer`
@@ -258,6 +259,9 @@ Schadensblitz per CSS, ferne Figuren werden nicht animiert. F3 zeigt Draw-Calls 
 - **Items am Boden** = 3D-Modelle (`itemModelle.js`, je 1 Mesh mit Vertexfarben, Waffen aus `waffenModelle.js`
   liegen auf der Seite); Leuchtring + Hüpfen beim Item, das E aufheben würde; ohne Bauplan → flaches Icon
 - **Fußspuren** (`fussspuren.js`): ~18 Abdrücke (≈ 8 m) pro Spieler, verblassen nach hinten und mit der Zeit, 1 Draw-Call
+- **Reifenspuren** (`reifenspuren.js`, Runde 20): Hinterräder auf Gras/Schnee (Schneezone: auch Straßen), ≈ 25 m je Auto, 90 s, 1 Draw-Call
+- **Grafik „Auto“** (`geraet.js` + `renderer.js`, Runde 20): Standardprofil; erkennt schwache Grafikchips (Intel-Onboard, alte GeForce/Radeon,
+  Software-GL) → Basis mittel/niedrig; Lichtbudget je Profil (`LICHT_BUDGET`), Schatten in sparsamen Stufen nur jedes 2. Bild
 - **Rucksack** am Rücken der Figur, wenn getragen (`spieler.rucksack` im Schnappschuss)
 - **Türen** = Flügel mit Scharnier, schwingen weich auf/zu (folgen `welt.istTuerOffen`)
 - **Wand-Schnitt:** Wände/Türen zwischen Kamera und eigener Figur werden nahe der Figur per Shader weggeschnitten
@@ -435,6 +439,8 @@ browser_survival/
 │   │   ├── baumModell.js          Prozedurale Cartoon-Bäume/Büsche/Stümpfe (Toon + Umriss)
 │   │   ├── itemModelle.js         ★ 3D-Modelle der Items am Boden (neues Modell = Eintrag in BAUPLAENE) + Rucksack
 │   │   ├── fussspuren.js          Fußspuren (InstancedMesh mit Deckkraft pro Abdruck)
+│   │   ├── reifenspuren.js        Reifenspuren der Autos auf Gras/Schnee (InstancedMesh, Runde 20)
+│   │   ├── geraet.js              Auto-Grafik: Leistungsklasse aus Grafikchip/Kernen/Speicher (Runde 20)
 │   │   ├── geometrie.js           Geometrien zusammenfassen, Matrizen, Einfrieren
 │   │   ├── figurHaltung.js        Prozedurale Arm-Haltung (Zielen, Rückstoß, Schlag) + Waffe in der Hand
 │   │   ├── waffenModelle.js       Waffen-/Lampenmodelle aus einfachen Körpern
@@ -480,8 +486,9 @@ browser_survival/
 | Interaktion mit E (Reihenfolge) | `client/kern/clientSpiel.js` → `#interaktion` |
 | Karte (Sichtradius, Aussehen) | `client/ui/karte.js` |
 | Chat (Länge, Spam-Pause) | `gemeinsam/konstanten.js` → `CHAT_MAX_LAENGE`, `CHAT_PAUSE_MS`; UI `client/ui/hud.js` |
-| Grafik-Performance (Lampen-Pool, Auflösung, Sichtweite) | `client/darstellung/renderer.js` → `LAMPEN_POOL`, `AUFLOESUNG_MIN`, `SICHTWEITE` |
-| Zombie-Typen (Werte, Häufigkeit) | `spielKonfiguration.js` → `zombie.varianten`; Aussehen: `SKINS` in `client/darstellung/renderer.js` |
+| Grafik-Performance (Lichtbudget, Auflösung, Sichtweite) | `client/darstellung/renderer.js` → `LICHT_BUDGET`, `QUALITAETS_STUFEN`, `GRAFIK_PROFILE`, `AUTO_STUFEN`, `SICHTWEITE`; Geräteerkennung `client/darstellung/geraet.js` |
+| Fahrgefühl Auto (Beschleunigung, Lenkung, Tacho) | `gemeinsam/physik/fahrzeug.js` → `FAHRZEUG`, `FAHRZEUG_MAX_KMH` |
+| Zombie-Typen (Werte, Häufigkeit) | `spielKonfiguration.js` → `zombie.varianten`; Aussehen: `SKINS`, `ZOMBIE_MODELLE`, `zombieModellFuer` in `client/darstellung/renderer.js` |
 | Tag-/Nachtlänge, Horde, Nacht-Wahrnehmung | `spielKonfiguration.js` → `welt.tagSekunden/nachtSekunden`, `zombie.nachtHorde/nachtTempoFaktor/nachtLichtFaktor/dunkelFaktor` |
 | Licht-Stimmung (Farben Tag/Nacht/Dämmerung) | `client/darstellung/renderer.js` → `TAG`, `NACHT`, `DAEMMERUNG`, `#tageslicht` |
 | Türen (Auto-Radius, Haltbarkeit, Startzustand) | `gemeinsam/konstanten.js` → `TUER_AUTO_OEFFNEN/SCHLIESSEN/BRUCH_OFFEN`, `TUER_REICHWEITE` (nur Bretter); `spielKonfiguration.js` → `welt.tuerLeben/tuerenGeschlossen`; Logik `tuerSystem.js` |
@@ -900,3 +907,4 @@ Weiter: `statischerServer.js` liefert `editor/` aus,
 | 0.17.0-dev | 2026-10-22 | **Spielordner-Modelle im Editor + für die KI:** Spielordner-Dialog mit Vorschaubildern (`client/assets/eigene/vorschau/`, `npm run eigene:vorschau`), Maße je Modell in `index.json`; neue KI-Aktion `modell` + Katalog im Gemini-Kontext (`editor/kern/spielordner.js`, Typ mit `glbDatei`); Fix: Skelett-Modelle (Wolf …) waren im Spiel unsichtbar/winzig (Messung vor Knochen-Update, `eigeneModelle.js`/`modellImport.js`); Zonen-Layout: alle Nachbarzonen sichtbar + Ansicht nach „Neue Zone“ zeigt alte und neue. Test `tests/spielordner.test.js`. |
 | 0.17.0-dev | 2026-10-22 | **Zonen mit Ladebild (Plan `ZONEN_KONZEPT.md`, Phase A+B):** Nahtloser Übergang samt Nachbarzonen-Vorladen entfernt (Ruckler-Quelle); Ladebildschirm mit Balken unten baut die ganze Zone vorab (Fortschritt echt, Kartenbild, Shader); Zonen max. 1500 × 1500 (Editor + Kartenlader), Bodentextur/Kartenbild mit Speicherbudget; Chat nur in der Zone (`/a` = alle), Spielerliste serverweit mit Zone (NACHRICHT `spielerListe`, Protokoll 11). |
 | 0.18.0-dev | 2026-10-22 | **Runde 19:** Editor-„Assets“ heißt **Baukasten**; die 452 Spielordner-Modelle liegen direkt darin, sortiert in 8 Bereiche (`werkzeuge/assets/eigene_kategorien.mjs` → `index.json` `kategorie` + realistische `zielHoehe`), Vorschaubilder automatisch zugeschnitten; Gruppen neu (Gelände, Bauen, Natur, Einrichtung, Gegenstände, Gameplay, Klang, Eigene); Reiter gebündelt (📁 Dateien = Modelle + Audio, 🗂 Mehr = Bereiche + Versionen), doppelte Wege entfernt. Zonen im Editor: Klick in eine blasse Zone = bearbeiten, Datei → „Neue Zone, aktuelle löschen“ / „Zone löschen“. KI: Rechtsklick → KI-Bereich / 🛡 Schützen / Ausschnitt (mit Auftrag) / Antwort einfügen; Bereich darf über die Zone ragen (Zone wächst beim Einfügen), Markierung je Zone (`editor/kern/kiSchutz.js`); Gemini 5xx wird wiederholt und erklärt. Spiel: Boden in Blöcken, Nachbarkarte schrittweise + Shader vorab (kein Ruckeln vor der Grenze), Schnee-Streifen springt nicht mehr, Items der Nachbarzone sichtbar, Admin „Unendlich Ausdauer“, Waffen nach 5 s beidhändig runter, andere Items locker neben dem Körper |
+| 0.19.0-dev | 2026-10-26 | **Runde 20 (Performance & Auto):** Grafikprofil **Auto** (Standard) erkennt schwache Grafikchips (`client/darstellung/geraet.js`) und regelt bis zur nächsttieferen Basis nach; Lichtbudget je Profil (vorher 15 Lichter je Pixel), Schattenkarten in sparsamen Stufen nur jedes 2. Bild, Zombie-Figuren-Pool + max. 2 neue Klone/Bild, entfernte Zombies halbe Animationsrate, geteilte Materialien bei Spielordner-Modellen. **Auto:** zwei Scheinwerfer (eigene Lichter ohne Schatten), Fix Licht-Geisterschatten (eingefrorene Taschenlampen-Schattenkarte), Lenkrad-Trägheit + Einspurmodell + sanfteres Anfahren (`fz.lenkung` im Netz), Tacho bis 120 km/h (Schwellen umgerechnet: Aufprall 17, Laterne 70 km/h), Karosserie neigt sich, Reifenspuren auf Gras/Schnee (`reifenspuren.js`). **Zombies:** Spielordner-Modelle zombie-2 (grün, jeder 2. normale), zombie (Koloss = Brocken), zombie-half als neue Variante `halb` (schwach, langsam). **Schneeland:** Villa mit 5 Räumen, eingerichtet mit 40 Spielordner-Modellen (Generator `schneeland.py`, Karten-`typen`). Tests `tests/runde20.test.js`. |

@@ -125,7 +125,7 @@ export function spielerZuNetzwerk(s) {
     rucksack: s.rucksack !== null, // Rucksack auf dem Rücken (3D-Modell)
     aussehen: aussehenKompakt(s.aussehen), // nur Abweichungen vom Standard (spart ~110 Bytes pro Spieler und Tick)
     // Im Auto: genauer Fahrzustand (der eigene Client rechnet damit die Vorhersage nach)
-    fahrzeug: s.fahrzeug ? { id: s.fahrzeug.id, winkel: s.fahrzeug.winkel, tempo: s.fahrzeug.tempo, laenge: s.fahrzeug.laenge, breite: s.fahrzeug.breite, modell: s.fahrzeug.modell, leben: Math.round(s.fahrzeug.leben * 10) / 10, maxLeben: s.fahrzeug.maxLeben } : null,
+    fahrzeug: s.fahrzeug ? { id: s.fahrzeug.id, winkel: s.fahrzeug.winkel, tempo: s.fahrzeug.tempo, lenkung: s.fahrzeug.lenkung ?? 0, laenge: s.fahrzeug.laenge, breite: s.fahrzeug.breite, modell: s.fahrzeug.modell, leben: Math.round(s.fahrzeug.leben * 10) / 10, maxLeben: s.fahrzeug.maxLeben } : null,
     seq: s.letzteVerarbeiteteSeq,
   };
 }

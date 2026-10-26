@@ -84,6 +84,8 @@ export const STANDARD_KONFIGURATION = Object.freeze({
       laeufer: { gewicht: 2, xp: 12, leben: 35, jagdGeschwindigkeit: 135, angriffsSchaden: 8, angriffsAbklingzeit: 0.7, groesse: 0.92 },
       // Boss (große Zombies): halten viel aus, teilen mehr aus; waffenChance = Wahrscheinlichkeit auf Waffe + Munition
       // Brocken: selten (gewicht) und exakt 10 Pistolentreffer stark (Pistole 25 Schaden → 250 Leben; Schüsse ignorieren Skills)
+      // Runde 20: „Halber Zombie“ (nur Beine + Bauch, Modell zombie-half.glb) – langsam, schwach, tritt zu
+      halb: { gewicht: 1, xp: 6, leben: 30, jagdGeschwindigkeit: 90, angriffsSchaden: 6, angriffsAbklingzeit: 1.1, groesse: 1 },
       brocken: { gewicht: 0.2, xp: 40, leben: 250, jagdGeschwindigkeit: 90, angriffsSchaden: 40, angriffsAbklingzeit: 1.5, radius: 15, groesse: 1.3, rueckstossFaktor: 0.15, waffenChance: 0.5 },
     },
   },
@@ -92,12 +94,12 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     haltbarkeit: 10,
     ueberfahrSchaden: 0.5, // pro überfahrenem Zombie (verhindert endloses Zombie-Farmen mit dem Auto)
     /**
-     * Aufprall an Wand/anderem Fahrzeug ab 10 km/h (gemeinsam/physik/fahrzeug.js AUFPRALL_MIN_KMH): Schaden am eigenen Auto,
-     * linear von `min` (bei 10 km/h) bis `max` (bei 70 km/h); Entlangschrammen nur `schrammFaktor` davon; `pause` Sekunden Ruhe zwischen zwei Aufprällen.
+     * Aufprall an Wand/anderem Fahrzeug ab 17 km/h (gemeinsam/physik/fahrzeug.js AUFPRALL_MIN_KMH): Schaden am eigenen Auto,
+     * linear von `min` (bei 17 km/h) bis `max` (bei 120 km/h = Vollgas); Entlangschrammen nur `schrammFaktor` davon; `pause` Sekunden Ruhe zwischen zwei Aufprällen.
      */
     aufprallSchaden: { min: 0.5, max: 5, schrammFaktor: 0.25, pause: 0.5 },
     laterneBremse: 0.6, // Runde 18: Anteil des Tempos, der nach dem Umfahren einer Laterne bleibt (spürbares Abbremsen)
-    laterneSchaden: 0.5, // Schaden am Auto, wenn es eine Straßenlaterne umfährt (ab 40 km/h)
+    laterneSchaden: 0.5, // Schaden am Auto, wenn es eine Straßenlaterne umfährt (ab 70 km/h, LATERNE_MIN_KMH)
     laterneNachwachsen: 600, // Sekunden, bis eine umgefahrene Straßenlaterne wieder steht (Bäume: ressourcen.holz.nachwachsen)
   },
   /** Kleintiere (Hasen): Anzahl je 1000 Gras-Kacheln der Karte, scheu, geben 1× Fleisch. */

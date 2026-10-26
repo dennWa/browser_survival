@@ -2,7 +2,7 @@
  * Zombie-Entität. Verhalten (Aggro, Verfolgen, Angriff, Umherschlurfen) → server/spiel/systeme/zombieSystem.js
  *
  * zustand:  'ruhend' | 'verfolgend' | 'angreifend'
- * variante: 'normal' | 'laeufer' | 'brocken' (Werte aus konfiguration.zombie.varianten)
+ * variante: 'normal' | 'laeufer' | 'brocken' | 'halb' (Werte aus konfiguration.zombie.varianten)
  */
 export function erzeugeZombie({ id, x, y, konfiguration, spawnIndex = null, blick = Math.random() * Math.PI * 2, variante = 'normal' }) {
   const k = konfiguration.zombie;

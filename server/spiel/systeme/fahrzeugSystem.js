@@ -5,7 +5,7 @@ import { fuegeSchadenZu, toeten } from './kampfSystem.js';
  * Fahrzeuge: AKTION 'fahrzeug' = einsteigen (nächstes freies Auto in Reichweite) bzw. aussteigen.
  * Gefahren wird über die normalen Eingaben (gemeinsam/physik/bewegung.js → fahre), damit die Vorhersage passt.
  * Pro Tick: belegte Kacheln aktualisieren (Kollision für alle), Zombies anfahren, verwaiste Autos anhalten,
- * Aufprall-Schaden (Wand/Fahrzeug ≥ 10 km/h), Bäume & Straßenlaternen umfahren (≥ 10 km/h).
+ * Aufprall-Schaden (Wand/Fahrzeug ≥ AUFPRALL_MIN_KMH), Bäume (≥ AUFPRALL_MIN_KMH) & Straßenlaternen (≥ LATERNE_MIN_KMH) umfahren.
  */
 const ANFAHR_MIN_TEMPO = 55; // px/s – langsamer schiebt das Auto Zombies nur
 const ANFAHR_SCHADEN = 0.42; // Schaden pro px/s Tempo (Vollgas ≈ 140)
@@ -37,6 +37,7 @@ export function fahrzeugAktion(spielWelt, spieler) {
   if (fz.kaputt) return;
   fz.fahrerId = spieler.id;
   fz.tempo = 0;
+  fz.lenkung = 0;
   spieler.fahrzeug = fz;
   spieler.arbeit = null;
   spieler.nachladenRest = 0;
@@ -55,6 +56,7 @@ export function aussteigen(spielWelt, spieler, { erzwingen = false } = {}) {
   spieler.fahrzeug = null;
   fz.fahrerId = null;
   fz.tempo = 0;
+  fz.lenkung = 0;
   // Auto zerstört und rundum eingekeilt: trotzdem neben dem Wrack landen (nie im Wrack stecken bleiben)
   const ziel = punkt ?? (erzwingen ? { x: fz.x - Math.sin(fz.winkel) * (fz.breite / 2 + 18), y: fz.y + Math.cos(fz.winkel) * (fz.breite / 2 + 18) } : null);
   if (ziel) {
@@ -123,7 +125,7 @@ export function aktualisiereFahrzeuge(spielWelt, dt) {
 }
 
 /**
- * Aufprall an Wand/anderem Fahrzeug (fahre() hat `fz.aufprall = { kmh, schramm }` gemerkt): ab 10 km/h Schaden am eigenen Auto,
+ * Aufprall an Wand/anderem Fahrzeug (fahre() hat `fz.aufprall = { kmh, schramm }` gemerkt): ab AUFPRALL_MIN_KMH Schaden am eigenen Auto,
  * linear mit dem Tempo; Entlangschrammen nur anteilig; dazwischen Pause (kein Dauerschaden beim Anliegen an der Wand).
  */
 function verarbeiteAufprall(spielWelt, fz) {
@@ -138,7 +140,7 @@ function verarbeiteAufprall(spielWelt, fz) {
   schlageFahrzeug(spielWelt, fz, schaden);
 }
 
-/** Bäume & Straßenlaternen unter dem Fahrzeug bei ≥ 10 km/h: umgefahren (Baum kippt wie beim Fällen, Laterne knickt um); Baum bremst etwas, Laterne deutlich (laterneBremse) + kleiner Schaden. */
+/** Bäume & Straßenlaternen unter dem Fahrzeug bei ≥ AUFPRALL_MIN_KMH: umgefahren (Baum kippt wie beim Fällen, Laterne knickt um); Baum bremst etwas, Laterne deutlich (laterneBremse) + kleiner Schaden. */
 function fahreHindernisseUm(spielWelt, fz) {
   const welt = spielWelt.welt;
   const kandidaten = welt.umfahrbareImKreis(fz.x, fz.y, fz.laenge / 2 + 8);
@@ -146,7 +148,7 @@ function fahreHindernisseUm(spielWelt, fz) {
   const fahrer = fz.fahrerId !== null ? spielWelt.holen(fz.fahrerId) : null;
   for (const h of kandidaten) {
     if (abstandZumFahrzeug(fz, h.x, h.y) > h.radius + 2) continue;
-    if (h.typ === 'laterne' && tempoZuKmh(fz.tempo) < LATERNE_MIN_KMH) continue; // Laternen erst ab 40 km/h
+    if (h.typ === 'laterne' && tempoZuKmh(fz.tempo) < LATERNE_MIN_KMH) continue; // Laternen erst ab LATERNE_MIN_KMH
     if (h.typ === 'baum') {
       welt.setzeRessource(h.id, false);
       spielWelt.ressourcenNachwuchs.set(h.id, spielWelt.konfiguration.ressourcen.holz.nachwachsen);

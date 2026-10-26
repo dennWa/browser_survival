@@ -7,10 +7,11 @@ import { strahlGegenWaende } from '../../gemeinsam/physik/strahl.js';
 import { NaturSchicht, ladeNaturModelle } from './naturModell.js';
 import { vereineGeometrien } from './geometrie.js';
 import { Fussspuren } from './fussspuren.js';
+import { Reifenspuren } from './reifenspuren.js';
 import { bauwerkDrehungY, erzeugeBauwerk, erzeugeVorschau } from './bauwerkModelle.js';
 import { BASIS_MATERIAL, BasisbauSchicht, INSTANZ_TYPEN, bauteilGeometrie, erzeugeGebietRing, initialisiereBasisbauModelle, markierungsHoehe, wirdInstanziert } from './basisbauModelle.js';
 import { animiereWrack, erzeugeFahrzeugModell, macheWrack } from './fahrzeugModelle.js';
-import { FAHRZEUG_MODELLE } from '../../gemeinsam/physik/fahrzeug.js';
+import { FAHRZEUG, FAHRZEUG_MODELLE } from '../../gemeinsam/physik/fahrzeug.js';
 import { erzeugeFrisur } from './haarModell.js';
 import { AUSSEHEN, skinFuer } from '../../gemeinsam/spieler/aussehen.js';
 import { itemGeometrie, ITEM_MATERIAL, rucksackTeile } from './itemModelle.js';
@@ -22,6 +23,7 @@ import { erzeugeAngel } from './angelModell.js';
 import { WetterEffekt } from './wetterEffekt.js';
 import { BAUM_WIND } from './baumModell.js';
 import { BlaetterEffekt } from './blaetterEffekt.js';
+import { erkenneGeraet, merkeAutoProfil } from './geraet.js';
 
 /**
  * Renderer mit Three.js (WebGL): schräge Kamera, echte Lichter und Schatten, Tag & Nacht.
@@ -29,6 +31,8 @@ import { BlaetterEffekt } from './blaetterEffekt.js';
  * Gameplay bleibt 2D (x/y auf dem Boden); nur die Darstellung ist 3D:
  *   Weltpixel x → three.x, Weltpixel y → three.z, Höhe → three.y (1 Einheit = 1 Weltpixel)
  *
+ * Runde 20: zwei Scheinwerfer je Auto, Karosserie neigt sich (Kurve/Bremsen), Reifenspuren (reifenspuren.js), Geisterschatten-Fix
+ *   (Taschenlampen-Schattenkarte nie eingefroren benutzen).
  * v0.10: Tiere (Hase), Angel (Rute/Schnur/Pose), Wetter (wetterEffekt.js: Regen, Nebel, Licht), Wracks, Erdfeld-Vorschau.
  * v0.11 Basisbau: Böden/Wände/Dächer als instanzierte Schicht (basisbauModelle.js → BasisbauSchicht), Bau-Hologramm (zeigeVorschau mit
  *   drehung, 'abriss'-Markierung, 'flagge'), roter Baugebiet-Ring (zeigeGebiet, nur Besitzer) + Flaggen-Ring (zeigeGebietVorschau).
@@ -40,9 +44,13 @@ import { BlaetterEffekt } from './blaetterEffekt.js';
  *
  * Performance (Ziel: 60 FPS auch auf Handys):
  *   - Karte in wenigen Draw-Calls (kartenModell.js: Instancing, zusammengefasste Möbel, eingefrorene Matrizen)
- *   - feste Lichteranzahl: Lampen-Pool (nur die nächsten LAMPEN_POOL Punkt- bzw. KEGEL_POOL Kegel-Lampen leuchten echt;
- *     alle anderen zeigen nachts einen Lichtschein am Boden, kartenModell.js), 3 Taschenlampen,
- *     2 Mündungsblitze → Shader werden nie neu kompiliert
+ *   - feste Lichteranzahl je Grafikprofil (LICHT_BUDGET): Lampen-Pool (nur die nächsten Punkt- bzw. Kegel-Lampen leuchten echt;
+ *     alle anderen zeigen nachts einen Lichtschein am Boden, kartenModell.js), Taschenlampen, Mündungsblitze, 2 Auto-Scheinwerfer
+ *     (#aktualisiereScheinwerfer, ohne Schatten) → Shader werden nur beim Profilwechsel neu kompiliert (#baueLichter)
+ *   - Grafikprofil „Auto“ (Standard, geraet.js erkenneGeraet): schwache Grafikchips starten auf mittel/niedrig, bei dauerhaft
+ *     < 40 FPS eine Basis tiefer (gemerkt); Schattenkarten in sparsamen Stufen nur jedes 2. Bild (#schattenDran)
+ *   - Zombie-Figuren aus einem Pool (#holeFigur), höchstens NEUE_FIGUREN_JE_BILD neue Klone pro Bild, entfernte Zombies nur jedes
+ *     2. Bild animiert (ANIM_HALB_AB); Zombie-Modelle: alte Kenney-Figur + Spielordner-GLBs (ZOMBIE_MODELLE, zombieModellFuer)
  *   - alle Shader beim Laden vorkompiliert (#vorkompilieren), Materialien geteilt
  *   - adaptive Qualität (QUALITAETS_STUFEN): fallen die FPS, werden erst Details gespart (Retina-Auflösung,
  *     Schattenauflösung, Baum-Umrisse/-Schatten) und erst ganz zum Schluss die Auflösung unter 1 – nie unter 0,8
@@ -71,24 +79,47 @@ const _zenit = new THREE.Color();
 const _buffer = new THREE.Vector2();
 const _blick = new THREE.Vector3();
 const _wolkenFarbe = new THREE.Color();
-const MAX_TASCHENLAMPEN = 3;
 const NACHT_MOND = 0.13; // Mondlicht bei voller Dunkelheit (vorher 0,07)
 const NACHT_UMGEBUNG = 0.12; // Himmelslicht bei voller Dunkelheit (vorher 0,06)
 const NACHT_EIGENLEUCHTEN = 0.4; // (Runde 18: 0,2 → 0,4, eigene Figur bleibt nachts erkennbar) Emissive-Stärke der Spieler-Figur bei voller Dunkelheit (nur Orientierung, kein echtes Licht)
 const TASCHENLAMPEN_ANSATZ = { vorn: 16, hoehe: 36 }; // Lichtkegel beginnt knapp vor der Brust (px vor der Körpermitte, Höhe über Boden)
 // So viele Kartenlampen leuchten gleichzeitig echt (die nächsten); jede echte Lichtquelle kostet in jedem Pixel → klein halten,
 // die übrigen Lampen zeigen nachts nur ihren Lichtschein am Boden (kartenModell.js)
-const LAMPEN_POOL = { handy: 5, desktop: 8 };
-const KEGEL_POOL = { handy: 1, desktop: 2 }; // Kegel-Lampen (Scheinwerfer, art 'kegel')
+// Runde 20: Lichtbudget je Grafikprofil – three.js rechnet JEDE Lichtquelle in jedem Pixel jedes beleuchteten Materials (auch mit
+// Stärke 0). Das war auf alten Laptops der größte Bremsklotz (15 Lichter je Pixel) → schwächere Profile bekommen weniger Lichter.
+// taschen = Taschenlampen (die erste mit Schatten), muendung = Mündungsblitze; dazu immer 2 Auto-Scheinwerfer (ohne Schatten).
+const LICHT_BUDGET = {
+  hoch: { lampen: { handy: 5, desktop: 8 }, kegel: { handy: 1, desktop: 2 }, taschen: 2, muendung: 2 },
+  mittel: { lampen: { handy: 4, desktop: 5 }, kegel: { handy: 1, desktop: 1 }, taschen: 2, muendung: 1 },
+  niedrig: { lampen: { handy: 3, desktop: 3 }, kegel: { handy: 1, desktop: 1 }, taschen: 1, muendung: 1 },
+};
 /** Taschenlampe (Spieler): eher schmal und schwach – Nächte sollen düster bleiben (Nutzer-Wunsch, Editor 2.0 Schritt 2.1) */
 // Fokussierter Strahl: schmaler Kegel (~11°), 520 px Reichweite, weicher Rand (penumbra) und Abfall mit decay 1,5 statt hartem Schnitt.
 // Bei decay > 1 fällt das Licht schneller ab → Stärken entsprechend höher (≈ ×16 gegenüber decay 1 bei 250 px). Tagsüber aus.
 // Runde 18: kürzer und breiter, Rand sehr weich (penumbra 0,95) – der Lichtfleck läuft zu den Seiten aus statt hart abzuschneiden
 const TASCHENLAMPE = { winkel: 0.56, rand: 0.95, reichweite: 330, decay: 1.5, staerke: 0, staerkeNacht: 26000, kegelLaenge: 200, ziel: 120 }; // ziel = px vor dem Spieler (näher = Lichtkreis beginnt dichter an der Figur)
-const SCHEINWERFER = { decay: 1, winkel: 0.45, rand: 0.5, reichweite: 650, staerke: 500, staerkeNacht: 2600 };
-const MUENDUNGS_LICHTER = 2;
+// Je Scheinwerfer (zwei pro Auto, Runde 20): etwas mehr als die Hälfte des früheren Einzel-Lichts, Ziel = px vor der Front
+const SCHEINWERFER = { decay: 1, winkel: 0.4, rand: 0.55, reichweite: 620, staerke: 280, staerkeNacht: 1500, ziel: 360 };
 const SITZ_TIEFE = 24; // so weit sinkt die Figur beim Sitzen am Feuer
 const SICHTWEITE = 1300; // weiter entfernte Figuren werden nicht animiert/gezeichnet
+const ANIM_HALB_AB = 650; // Zombies weiter weg werden nur jedes 2. Bild animiert (mit doppeltem dt)
+const NEUE_FIGUREN_JE_BILD = 2; // höchstens so viele Zombie-Figuren pro Bild neu aufbauen (Horden-Spawn ruckelte)
+/**
+ * Zusätzliche Zombie-Modelle (Spielordner, Quaternius „Ultimate Monsters“, CC0) mit eigenen Clips.
+ * hoehe = Anteil von FIGUR_HOEHE, klips = Spielname → Clipname im GLB (ohne „CharacterArmature|“), tempo = px/s, bei denen der Clip passt.
+ */
+const ZOMBIE_MODELLE = {
+  gruen: { datei: 'eigene/zombie-2.glb', hoehe: 0.95, klips: { stehen: 'Idle', gehen: 'Walk', rennen: 'Run', angriff: 'Punch' }, tempo: { gehen: 55, rennen: 125 } },
+  koloss: { datei: 'eigene/zombie.glb', hoehe: 1.05, klips: { stehen: 'Idle', gehen: 'Walk', rennen: 'Run', angriff: 'Punch' }, tempo: { gehen: 50, rennen: 115 } },
+  halb: { datei: 'eigene/zombie-half.glb', hoehe: 0.62, klips: { stehen: 'Idle', gehen: 'Walk', rennen: 'Run', angriff: 'HitReact' }, tempo: { gehen: 40, rennen: 95 } },
+};
+/** Welches Modell trägt welche Zombie-Variante? normal: abwechselnd alte Kenney-Figur und grüner Zombie (Abwechslung) */
+function zombieModellFuer(e) {
+  if (e.variante === 'brocken') return 'koloss';
+  if (e.variante === 'halb') return 'halb';
+  if (e.variante === 'normal' || !e.variante) return (e.id ?? 0) % 2 ? 'gruen' : null;
+  return null;
+}
 const SPRECHBLASE_MS = 4000; // Chat-Sprechblase: Grunddauer + 60 ms je Zeichen …
 const SPRECHBLASE_MAX_MS = 10000; // … höchstens so lange
 /**
@@ -96,26 +127,32 @@ const SPRECHBLASE_MAX_MS = 10000; // … höchstens so lange
  * schatten = Größe der Schattenkarte, baumDetail = Umrisse + Schatten der Bäume.
  */
 const QUALITAETS_STUFEN = [
-  { aufloesung: null, schatten: 2048, baumDetail: true },
-  { aufloesung: 1.5, schatten: 2048, baumDetail: true },
-  { aufloesung: 1, schatten: 2048, baumDetail: true },
-  { aufloesung: 1, schatten: 1024, baumDetail: true },
-  { aufloesung: 1, schatten: 1024, baumDetail: false },
-  { aufloesung: 0.9, schatten: 1024, baumDetail: false },
-  { aufloesung: 0.8, schatten: 1024, baumDetail: false },
+  { aufloesung: null, schatten: 2048, baumDetail: true, schattenTakt: 1 },
+  { aufloesung: 1.5, schatten: 2048, baumDetail: true, schattenTakt: 1 },
+  { aufloesung: 1, schatten: 2048, baumDetail: true, schattenTakt: 1 },
+  { aufloesung: 1, schatten: 1024, baumDetail: true, schattenTakt: 1 },
+  { aufloesung: 1, schatten: 1024, baumDetail: false, schattenTakt: 2 },
+  { aufloesung: 0.9, schatten: 1024, baumDetail: false, schattenTakt: 2 },
+  { aufloesung: 0.8, schatten: 1024, baumDetail: false, schattenTakt: 2 },
 ];
 /**
  * Grafik-Einstellung (Einstellungen ⚙): hoch = volle Auflösung, Schatten & Texturen (Bildrate wird nur über
  * Schatten/Baum-Details nachgeregelt, die Auflösung bleibt – sonst wirkt das Bild mal scharf, mal unscharf),
  * mittel = etwas abgeschwächt, niedrig = beste Bildrate (kleinere Auflösung, kleine Texturen, keine Sonnenschatten).
  * stufe = feste Qualitätsstufe (QUALITAETS_STUFEN), adaptiv = darf bei Ruckeln sparsamer werden.
+ * schattenTakt = Schattenkarten nur jedes n-te Bild neu zeichnen (2 = halbe Kosten, bewegte Schatten hängen 1 Bild nach).
+ * auto (Runde 20, Standard): erkennt schwache Grafikchips (erkenneGeraet) und nimmt hoch/mittel/niedrig als Basis (#profil),
+ *   regelt innerhalb der Basis nach (AUTO_STUFEN) und geht bei dauerhaft < 40 FPS eine Basis tiefer (gemerkt je Grafikchip).
  */
 export const GRAFIK_PROFILE = Object.freeze({
-  hoch: { name: 'Hoch', beschreibung: 'volle Auflösung, Schatten, Texturen', stufe: null, adaptiv: true, aufloesung: null, texturen: 1, sonnenschatten: true },
-  mittel: { name: 'Mittel', beschreibung: 'etwas weichere Schatten & Texturen', stufe: 3, adaptiv: false, aufloesung: 1.25, texturen: 0.6, sonnenschatten: true },
-  niedrig: { name: 'Niedrig', beschreibung: 'beste Leistung für schwache Geräte (ohne 3D-Gras)', stufe: 6, adaptiv: false, aufloesung: 0.8, texturen: 0.4, sonnenschatten: false, natur: false },
+  auto: { name: 'Auto', beschreibung: 'passt sich dem Gerät an (empfohlen)' },
+  hoch: { name: 'Hoch', beschreibung: 'volle Auflösung, Schatten, Texturen', stufe: null, adaptiv: true, aufloesung: null, texturen: 1, sonnenschatten: true, schattenTakt: 1 },
+  mittel: { name: 'Mittel', beschreibung: 'etwas weichere Schatten & Texturen, weniger Lichter', stufe: 3, adaptiv: false, aufloesung: 1.25, texturen: 0.6, sonnenschatten: true, schattenTakt: 2 },
+  niedrig: { name: 'Niedrig', beschreibung: 'beste Leistung für schwache Geräte (ohne 3D-Gras)', stufe: 6, adaptiv: false, aufloesung: 0.8, texturen: 0.4, sonnenschatten: false, natur: false, schattenTakt: 2 },
 });
 const GRAFIK_SCHLUESSEL = 'browserSurvival.grafik';
+const AUTO_STUFEN = { hoch: [null, 4], mittel: [3, 5], niedrig: [6, 6] }; // Auto: [beste, sparsamste] Qualitätsstufe je Basis (null = Gerät)
+const AUTO_TIEFER = { hoch: 'mittel', mittel: 'niedrig' };
 const ADAPTIV_MAX_STUFE = 4; // im Profil "hoch" wird höchstens bis hier gespart (Schatten, Baum-Details) – Auflösung bleibt
 const AUFWAERM_MS = 6000; // so lange nach dem Betreten nicht messen (Shader, Texturen, erste Frames)
 const ZOOM_MIN = 0.32; // so nah kommt die Kamera an die Figur (Runde 18: näher als vorher 0,5)
@@ -176,8 +213,12 @@ export class Renderer {
     this.vignette = document.getElementById('vignette');
     this.schadenEbene = document.getElementById('schadensblitz');
     this.istHandy = matchMedia('(pointer: coarse)').matches;
+    // Grafik-Profil vor dem WebGL-Kontext bestimmen: Kantenglättung (MSAA) lässt sich nur beim Anlegen wählen
+    this.grafik = ladeGrafik();
+    this.geraet = erkenneGeraet(this.istHandy);
+    this.autoProfil = this.geraet.profil;
 
-    this.gl = new THREE.WebGLRenderer({ canvas: this.leinwand, antialias: !this.istHandy, stencil: true, powerPreference: 'high-performance' });
+    this.gl = new THREE.WebGLRenderer({ canvas: this.leinwand, antialias: !this.istHandy && this.#basisProfil() !== 'niedrig', stencil: true, powerPreference: 'high-performance' });
     this.gl.shadowMap.enabled = true;
     this.gl.shadowMap.type = THREE.PCFShadowMap;
     this.gl.toneMapping = THREE.ACESFilmicToneMapping;
@@ -221,13 +262,12 @@ export class Renderer {
     this.itemMaterialien = new Map(); // defId → { normal, markiert, breite, hoehe }
     this.figurMaterialien = new Map(); // Skin-Schlüssel → Material (geteilt)
     this.spielerMaterialien = []; // Spieler-Skins: bekommen nachts ein schwaches Eigenleuchten
-    this.taschenlampen = Array.from({ length: MAX_TASCHENLAMPEN }, (_, i) => this.#neueTaschenlampe(i === 0));
-    this.taschenKegel = Array.from({ length: MAX_TASCHENLAMPEN }, () => this.#neuerLichtKegel()); // sichtbarer Strahl
-    this.lampenPool = Array.from({ length: LAMPEN_POOL[this.istHandy ? 'handy' : 'desktop'] }, () => this.#neuesPunktlicht(0xffffff, 300));
-    this.kegelPool = Array.from({ length: KEGEL_POOL[this.istHandy ? 'handy' : 'desktop'] }, () => this.#neuesKegellicht());
-    this.muendungslichter = Array.from({ length: MUENDUNGS_LICHTER }, () => this.#neuesPunktlicht(0xffc070, 380));
+    this.#baueLichter(); // Taschenlampen, Lampen-Pool, Kegel, Mündungsblitze, Scheinwerfer (Anzahl je Profil, LICHT_BUDGET)
+    this.bildNr = 0;
+    this.figurPool = new Map(); // Pool-Schlüssel → [Figur] (verschwundene Zombies, werden wiederverwendet statt neu geklont)
     this.#baueEffektObjekte();
     this.fussspuren = new Fussspuren(this.szene);
+    this.reifenspuren = new Reifenspuren(this.szene, (x, y) => this.#hy(x, y));
     this.fallendeBaeume = []; // { gruppe, achse, zeit }
     this.sprechblasen = new Map(); // Spielername → { text, bis } (Chat über dem Kopf)
     this.fallendeLaternen = []; // { gruppe, achse, zeit } – von Autos umgefahrene Straßenlaternen
@@ -249,11 +289,10 @@ export class Renderer {
 
     // Adaptive Qualität (siehe QUALITAETS_STUFEN)
     this.aufloesungMax = Math.min(window.devicePixelRatio || 1, this.istHandy ? 1.5 : 2);
-    this.grafik = ladeGrafik();
     this.stufe = 0;
     this.aufloesung = this.#stufenAufloesung();
     this.#setzeStufe(this.#startStufe());
-    this.mond.castShadow = GRAFIK_PROFILE[this.grafik].sonnenschatten;
+    this.mond.castShadow = this.#profil().sonnenschatten;
     this.messung = { frames: 0, zeit: 0, seit: 0 };
     this.messenAb = 0;
     // Zoom (Mausrad / zwei Finger), gemerkt im Browser
@@ -383,6 +422,7 @@ export class Renderer {
     this.zeigeVorschau(null);
     this.blaetter?.entfernen();
     this.blaetter = new BlaetterEffekt(this.szene, welt);
+    this.reifenspuren.setzeWelt(welt);
     // vom Ladebildschirm schon gebaut (bereiteVor) – sonst am Stück
     this.karte = this.vorbereitet?.welt === welt
       ? this.vorbereitet.modell
@@ -392,7 +432,7 @@ export class Renderer {
     this.szene.add(this.karte.statisch, this.karte.beweglich);
     this.natur = this.naturModelle ? NaturSchicht.erzeuge(welt, this.naturModelle, (x, z) => this.#hy(x, z), this.istHandy) : null;
     if (this.natur) {
-      this.natur.gruppe.visible = GRAFIK_PROFILE[this.grafik].natur !== false;
+      this.natur.gruppe.visible = this.#profil().natur !== false;
       this.szene.add(this.natur.gruppe);
     }
     this.karte.setzeBaumDetail(QUALITAETS_STUFEN[this.stufe].baumDetail);
@@ -403,7 +443,9 @@ export class Renderer {
   /** Kurzinfo für das Debug-Overlay (F3). */
   statistik() {
     const info = this.gl.info.render;
-    return `Draw-Calls ${info.calls} · Dreiecke ${Math.round(info.triangles / 1000)}k · Qualität ${this.stufe} · Auflösung ${this.aufloesung.toFixed(2)} · Zoom ${this.zoom.toFixed(2)}`;
+    const profil = this.grafik === 'auto' ? `Auto→${this.autoProfil}` : this.grafik;
+    const lichter = this.taschenlampen.length + this.lampenPool.length + this.kegelPool.length + this.muendungslichter.length + this.scheinwerfer.length;
+    return `Draw-Calls ${info.calls} · Dreiecke ${Math.round(info.triangles / 1000)}k · ${profil} · Qualität ${this.stufe} · Auflösung ${this.aufloesung.toFixed(2)} · Lichter ${lichter} · Zoom ${this.zoom.toFixed(2)}\nGPU ${this.geraet.gpu || '?'}`;
   }
 
   /**
@@ -412,6 +454,7 @@ export class Renderer {
   zeichne({ fokus, entitaeten, gegenstaende, itemDefinitionen = {}, jetzt, effekte = null, markiertId = null, zielId = null, tageszeit = null, wetter = 'klar' }) {
     const dt = this.letzteZeit ? Math.min(0.1, (jetzt - this.letzteZeit) / 1000) : 0;
     this.letzteZeit = jetzt;
+    this.bildNr = (this.bildNr + 1) % 1e6;
     this.#passeAufloesungAn(dt, jetzt);
 
     // Kamera folgt weich dem eigenen Spieler (im Auto etwas weiter weg – man ist schneller)
@@ -456,6 +499,7 @@ export class Renderer {
     this.#aktualisiereTiere(entitaeten, fokus, jetzt);
     this.#aktualisiereAngeln(entitaeten, fokus, jetzt);
     this.#aktualisiereTaschenlampen(entitaeten, fokus, dunkel);
+    this.#aktualisiereScheinwerfer(entitaeten, fokus, dunkel);
     this.#aktualisiereItems(gegenstaende, markiertId, jetzt);
     this.#aktualisiereZielRing(entitaeten, zielId, jetzt);
     this.#aktualisiereFallendeBaeume(dt);
@@ -464,6 +508,7 @@ export class Renderer {
     this.gebietRing.animiere(jetzt);
     this.gebietVorschau.animiere(jetzt);
     this.fussspuren.aktualisiere(entitaeten, jetzt);
+    this.reifenspuren.aktualisiere(entitaeten, jetzt);
     this.#aktualisiereLampenPool(fokus, jetzt, dunkel);
     if (effekte) {
       effekte.aktualisiere(dt, jetzt);
@@ -594,6 +639,16 @@ export class Renderer {
       g.visible = Math.abs(e.x - fokus.x) < SICHTWEITE && Math.abs(e.y - fokus.y) < SICHTWEITE;
       g.position.set(e.x, this.#hy(e.x, e.y), e.y);
       g.rotation.y = Math.PI / 2 - e.winkel;
+      if (!g.userData.wrack && g.visible) {
+        // Karosserie neigt sich in Kurven nach außen und beim Anfahren/Bremsen nach hinten/vorn (nur Optik)
+        const anteil = Math.max(-1, Math.min(1, (e.tempo ?? 0) / FAHRZEUG.max));
+        const vorher = g.userData.tempo ?? e.tempo ?? 0;
+        g.userData.tempo = e.tempo ?? 0;
+        const nicken = Math.max(-1, Math.min(1, ((e.tempo ?? 0) - vorher) / 6));
+        const mesh = g.children[0];
+        mesh.rotation.z += (-(e.lenkung ?? 0) * Math.abs(anteil) * 0.07 - mesh.rotation.z) * 0.2;
+        mesh.rotation.x += (-nicken * 0.03 - mesh.rotation.x) * 0.15;
+      }
       if (e.kaputt && !g.userData.wrack) macheWrack(g);
       if (g.userData.wrack) animiereWrack(g, performance.now());
     }
@@ -786,13 +841,47 @@ export class Renderer {
     this.basisModell = modell;
     const lader = new THREE.TextureLoader();
     this.skins = {};
-    await this.#ladeSurvivor();
+    await Promise.all([this.#ladeSurvivor(), this.#ladeZombieModelle()]);
     await Promise.all(
       Object.entries(info.skins).map(async ([name, pfad]) => {
         const textur = await lader.loadAsync(new URL(pfad, ASSETS).href);
         textur.colorSpace = THREE.SRGBColorSpace;
         textur.flipY = true;
         this.skins[name] = textur;
+      }),
+    );
+  }
+
+  /** Zusätzliche Zombie-Modelle (ZOMBIE_MODELLE) laden; fehlt eins, tragen die Zombies die alte Kenney-Figur. */
+  async #ladeZombieModelle() {
+    this.zombieModelle = {};
+    await Promise.all(
+      Object.entries(ZOMBIE_MODELLE).map(async ([name, def]) => {
+        try {
+          const gltf = await new GLTFLoader().loadAsync(new URL(def.datei, ASSETS).href);
+          const modell = gltf.scene;
+          // ⚠ Skelett-Modelle erst nach Matrix-/Skelett-Update messen (sonst ~100× falsch, siehe KI_INDEX §18)
+          modell.updateMatrixWorld(true);
+          modell.traverse((o) => {
+            if (!o.isMesh) return;
+            o.castShadow = true;
+            o.frustumCulled = false;
+            if (o.isSkinnedMesh) {
+              o.skeleton.update();
+              o.geometry.boundingBox = null;
+            }
+          });
+          const hoehe = new THREE.Box3().setFromObject(modell, true).getSize(new THREE.Vector3()).y;
+          const clips = {};
+          for (const [spiel, clipName] of Object.entries(def.klips)) {
+            const clip = gltf.animations.find((c) => c.name === clipName) ?? gltf.animations.find((c) => c.name.endsWith(`|${clipName}`));
+            if (clip) clips[spiel] = clip;
+          }
+          if (!clips.stehen || !(hoehe > 0)) return;
+          this.zombieModelle[name] = { modell, clips, massstab: (FIGUR_HOEHE * def.hoehe) / hoehe, def };
+        } catch (fehler) {
+          console.warn(`Zombie-Modell ${def.datei} nicht geladen`, fehler);
+        }
       }),
     );
   }
@@ -825,7 +914,8 @@ export class Renderer {
     probe.position.set(this.welt.pixelBreite / 2, 0, this.welt.pixelHoehe / 2);
     const figuren = [
       ...Object.keys(AUSSEHEN.koerper.optionen).map((koerper) => ({ id: -1, typ: 'spieler', aussehen: { koerper } })),
-      ...['normal', 'laeufer', 'brocken'].map((variante) => ({ id: -1, typ: 'zombie', variante })),
+      ...['normal', 'laeufer', 'brocken', 'halb'].map((variante) => ({ id: 2, typ: 'zombie', variante })),
+      { id: 1, typ: 'zombie', variante: 'normal' }, // grüner Zombie (zombieModellFuer)
     ];
     for (const e of figuren) {
       const f = this.#neueFigur(e);
@@ -911,6 +1001,54 @@ export class Renderer {
   /** Öffentlich für Kamera-Adapter/Overlay/Ego: Geländehöhe in Weltpixeln */
   bodenHoehe(x, y) {
     return this.#hy(x, y);
+  }
+
+  /** Lichter nach dem Lichtbudget des Profils (neu) anlegen. @returns true, wenn sich etwas geändert hat (→ Shader neu kompilieren) */
+  #baueLichter() {
+    const name = this.#basisProfil();
+    if (this.lichtProfil === name) return false;
+    this.lichtProfil = name;
+    const budget = LICHT_BUDGET[name];
+    const art = this.istHandy ? 'handy' : 'desktop';
+    for (const l of [...(this.taschenlampen ?? []), ...(this.lampenPool ?? []), ...(this.kegelPool ?? []), ...(this.muendungslichter ?? []), ...(this.scheinwerfer ?? [])]) {
+      this.szene.remove(l);
+      if (l.target) this.szene.remove(l.target);
+      l.dispose();
+    }
+    for (const k of this.taschenKegel ?? []) {
+      this.szene.remove(k);
+      k.geometry.dispose();
+      k.material.dispose();
+    }
+    this.taschenlampen = Array.from({ length: budget.taschen }, (_, i) => this.#neueTaschenlampe(i === 0));
+    this.taschenKegel = Array.from({ length: budget.taschen }, () => this.#neuerLichtKegel()); // sichtbarer Strahl
+    this.lampenPool = Array.from({ length: budget.lampen[art] }, () => this.#neuesPunktlicht(0xffffff, 300));
+    this.kegelPool = Array.from({ length: budget.kegel[art] }, () => this.#neuesKegellicht());
+    this.muendungslichter = Array.from({ length: budget.muendung }, () => this.#neuesPunktlicht(0xffc070, 380));
+    this.scheinwerfer = [0, 1].map(() => this.#neuerScheinwerfer());
+    this.naechsteLampen = null;
+    return true;
+  }
+
+  #neuerScheinwerfer() {
+    const spot = new THREE.SpotLight(0xfff1d6, 0, SCHEINWERFER.reichweite, SCHEINWERFER.winkel, SCHEINWERFER.rand, SCHEINWERFER.decay);
+    this.szene.add(spot, spot.target);
+    return spot;
+  }
+
+  /** Grafik-Basis ('hoch'|'mittel'|'niedrig') – bei „Auto“ die erkannte bzw. gelernte */
+  #basisProfil() {
+    return this.grafik === 'auto' ? this.autoProfil : this.grafik;
+  }
+
+  #profil() {
+    return GRAFIK_PROFILE[this.#basisProfil()];
+  }
+
+  /** Werden die Schattenkarten in diesem Bild neu gezeichnet? (schattenTakt aus Profil bzw. Qualitätsstufe) */
+  #schattenDran() {
+    const takt = Math.max(this.#profil().schattenTakt ?? 1, QUALITAETS_STUFEN[this.stufe]?.schattenTakt ?? 1);
+    return this.bildNr % takt === 0;
   }
 
   #neuesKegellicht() {
@@ -1007,7 +1145,8 @@ export class Renderer {
    * Jede Änderung kostet einen kurzen Hänger (Puffer neu anlegen), darum so zurückhaltend.
    */
   #passeAufloesungAn(dt, jetzt) {
-    if (!GRAFIK_PROFILE[this.grafik].adaptiv) return; // mittel/niedrig: feste Stufe
+    const auto = this.grafik === 'auto';
+    if (!auto && !this.#profil().adaptiv) return; // mittel/niedrig: feste Stufe
     if (jetzt < this.messenAb || dt > 0.25) return; // Aufwärmphase bzw. Tab war im Hintergrund
     const m = this.messung;
     m.frames++;
@@ -1015,12 +1154,28 @@ export class Renderer {
     if (jetzt - m.seit < 2000) return;
     const mittel = m.zeit / Math.max(1, m.frames);
     this.messung = { frames: 0, zeit: 0, seit: jetzt };
-    if (mittel > 1 / 48 && this.stufe < ADAPTIV_MAX_STUFE) {
+    const maxStufe = auto ? AUTO_STUFEN[this.autoProfil][1] : ADAPTIV_MAX_STUFE;
+    if (mittel > 1 / 48 && this.stufe < maxStufe) {
       this.#setzeStufe(this.stufe + 1);
       this.anhebenGesperrtBis = jetzt + 30000;
       this.guteFenster = 0;
+    } else if (auto && mittel > 1 / 40 && AUTO_TIEFER[this.autoProfil]) {
+      // Auto: schon am sparsamsten Ende der Basis und trotzdem < 40 FPS (zweimal hintereinander) → eine Basis tiefer (einmal kurz ruckeln)
+      this.schlechteFenster = (this.schlechteFenster ?? 0) + 1;
+      if (this.schlechteFenster >= 2) {
+        this.schlechteFenster = 0;
+        this.autoProfil = AUTO_TIEFER[this.autoProfil];
+        try {
+          merkeAutoProfil(this.geraet.gpu, this.autoProfil);
+        } catch {
+          // egal
+        }
+        this.#wendeProfilAn();
+      }
+      return;
     } else if (mittel < 1 / 57) {
       this.guteFenster = (this.guteFenster ?? 0) + 1;
+      this.schlechteFenster = 0;
       if (this.guteFenster >= 3 && jetzt > (this.anhebenGesperrtBis ?? 0) && this.stufe > this.#startStufe()) {
         this.#setzeStufe(this.stufe - 1);
         this.guteFenster = 0;
@@ -1032,17 +1187,18 @@ export class Renderer {
 
   /** Beste Stufe des gewählten Profils (Handy startet im Profil "hoch" eine Stufe sparsamer). */
   #startStufe() {
-    return GRAFIK_PROFILE[this.grafik].stufe ?? (this.istHandy ? 2 : 0);
+    if (this.grafik === 'auto') return AUTO_STUFEN[this.autoProfil][0] ?? (this.istHandy ? 2 : 0);
+    return this.#profil().stufe ?? (this.istHandy ? 2 : 0);
   }
 
   /** Pixelverhältnis: im Profil "hoch" immer volle Geräteauflösung (nie automatisch unscharf), sonst die Profil-Grenze. */
   #stufenAufloesung() {
-    const grenze = GRAFIK_PROFILE[this.grafik].aufloesung;
+    const grenze = this.#profil().aufloesung;
     return Math.min(this.aufloesungMax, grenze ?? (this.istHandy ? 1.25 : 2));
   }
 
   #bodenMassstab(welt = this.welt) {
-    const massstab = GRAFIK_PROFILE[this.grafik].texturen;
+    const massstab = this.#profil().texturen;
     // Speicherbudget: Bodentextur (RGBA + Mipmaps ≈ ×1,33) der ganzen Zone passt in BODEN_SPEICHER_MB – große Zonen werden gröber
     const budget = (this.istHandy ? BODEN_SPEICHER_MB.handy : BODEN_SPEICHER_MB.pc) * 1024 * 1024;
     const g = welt?.kachelGroesse ?? 32;
@@ -1051,7 +1207,7 @@ export class Renderer {
     return Math.max(0.1, Math.min(this.istHandy ? Math.min(massstab, 0.6) : massstab, grenze));
   }
 
-  /** Grafik-Einstellung ändern ('hoch' | 'mittel' | 'niedrig') – wirkt sofort und wird im Browser gemerkt. */
+  /** Grafik-Einstellung ändern ('auto' | 'hoch' | 'mittel' | 'niedrig') – wirkt sofort und wird im Browser gemerkt. */
   setzeGrafik(name) {
     if (!(name in GRAFIK_PROFILE)) return;
     this.grafik = name;
@@ -1060,13 +1216,25 @@ export class Renderer {
     } catch {
       // egal
     }
-    const profil = GRAFIK_PROFILE[name];
+    this.#wendeProfilAn();
+  }
+
+  /** Text für die Einstellungen (bei Auto mit der gerade gewählten Basis) */
+  grafikBeschreibung() {
+    const p = GRAFIK_PROFILE[this.grafik];
+    return this.grafik === 'auto' ? `${p.name}: ${p.beschreibung} – gerade ${GRAFIK_PROFILE[this.autoProfil].name}` : `${p.name}: ${p.beschreibung}`;
+  }
+
+  #wendeProfilAn() {
+    const profil = this.#profil();
     this.#setzeStufe(this.#startStufe());
     this.mond.castShadow = profil.sonnenschatten;
     if (this.natur) this.natur.gruppe.visible = profil.natur !== false; // Gras nur in den Profilen hoch/mittel
     this.karte?.setzeBodenMassstab(this.#bodenMassstab());
+    if (this.#baueLichter() && this.welt) this.#vorkompilieren(); // andere Lichteranzahl → alle Shader einmal neu (kurzer Hänger)
     this.messung = { frames: 0, zeit: 0, seit: 0 };
     this.guteFenster = 0;
+    this.schlechteFenster = 0;
     this.messenAb = performance.now() + 3000;
   }
 
@@ -1089,7 +1257,9 @@ export class Renderer {
   }
 
   #aktualisiereFiguren(entitaeten, fokus, dt, jetzt) {
-    const gesehen = new Set();
+    const gesehen = this.gesehenFiguren ?? (this.gesehenFiguren = new Set());
+    gesehen.clear();
+    let neuGebaut = 0;
     for (const e of entitaeten) {
       if (e.typ !== 'spieler' && e.typ !== 'zombie') continue;
       gesehen.add(e.id);
@@ -1101,7 +1271,11 @@ export class Renderer {
         f = null;
       }
       if (!f) {
-        f = this.#neueFigur(e);
+        // Horde kommt in Sicht: nicht alle Figuren im selben Bild klonen (Ruckler) – der Rest kommt in den nächsten Bildern
+        if (e.typ === 'zombie' && neuGebaut >= NEUE_FIGUREN_JE_BILD) continue;
+        f = this.#holeFigur(e);
+        if (f.neuGebaut) neuGebaut++;
+        f.neuGebaut = false;
         this.figuren.set(e.id, f);
       }
       const nah = Math.abs(e.x - fokus.x) < SICHTWEITE && Math.abs(e.y - fokus.y) < SICHTWEITE;
@@ -1152,6 +1326,23 @@ export class Renderer {
           else if (name !== 'sterben' && name !== 'sitzen' && name !== 'hacke' && !arbeitsKlip) name = 'nahkampf';
         }
         f.schlagKlip = SCHLAG_KLIPS.has(name);
+      } else if (f.glb) {
+        // GLB-Zombie: Angriff (Einmal-Clip je neuem Schlag) > gehen/rennen (nach Tempo) > stehen
+        const k = f.aktionen;
+        const t = f.glb.def.tempo;
+        const g = e.groesse ?? 1;
+        if (e.aktion === 'angriff' && k.angriff && f.angriffTick !== e.aktionTick) {
+          f.angriffTick = e.aktionTick;
+          f.angriffBis = jetzt + (k.angriff.getClip().duration * 1000) / 1.4;
+          if (f.aktuell === 'angriff') k.angriff.reset().play();
+        }
+        if (f.angriffBis > jetzt) {
+          name = 'angriff';
+          zeitfaktor = 1.4;
+        } else if (tempo > 12) {
+          name = tempo < ((t.gehen + t.rennen) / 2) * g ? 'gehen' : 'rennen';
+          zeitfaktor = Math.max(0.5, Math.min(2.2, tempo / (t[name] * g)));
+        } else name = 'stehen';
       } else {
         name = tempo > 12 ? 'rennen' : 'stehen';
         if (name === 'rennen') zeitfaktor = e.typ === 'zombie' ? Math.max(0.5, tempo / 140) : Math.max(0.6, tempo / 170);
@@ -1169,7 +1360,13 @@ export class Renderer {
       if (f.survivor) f.gesehenAlsLebend = !e.tot;
       f.aktionen[name].timeScale = zeitfaktor;
       if (!!e.rucksack !== !!f.rucksack) this.#setzeRucksack(f, !!e.rucksack);
-      f.mixer.update(dt);
+      // Weiter entfernte Zombies nur jedes 2. Bild animieren (Knochen rechnen kostet CPU), Zeit wird nachgeholt
+      if (!f.survivor && e.typ === 'zombie' && Math.abs(e.x - fokus.x) + Math.abs(e.y - fokus.y) > ANIM_HALB_AB && (this.bildNr + e.id) % 2) {
+        f.animRest = (f.animRest ?? 0) + dt;
+        continue;
+      }
+      f.mixer.update(dt + (f.animRest ?? 0));
+      f.animRest = 0;
       if (f.waffe) f.waffe.visible = !e.tot;
       if (!schlaeft && !e.tot) aktualisiereHaltung(f, e, jetzt, this.dunkel ?? 0);
     }
@@ -1178,6 +1375,11 @@ export class Renderer {
       this.szene.remove(f.gruppe);
       f.mixer.stopAllAction();
       this.figuren.delete(id);
+      if (f.poolSchluessel) {
+        const pool = this.figurPool.get(f.poolSchluessel) ?? [];
+        if (pool.length < 12) pool.push(f);
+        this.figurPool.set(f.poolSchluessel, pool);
+      }
     }
   }
 
@@ -1284,8 +1486,52 @@ export class Renderer {
     return figur;
   }
 
+  /** Zombie-Figur aus dem Pool (gleiches Modell/Skin/Größe) oder neu; Spieler immer neu. */
+  #holeFigur(e) {
+    if (e.typ !== 'zombie') return this.#neueFigur(e);
+    const schluessel = `${e.variante ?? 'normal'}:${(e.id ?? 0) % 4}:${e.groesse ?? 1}`;
+    const f = this.figurPool.get(schluessel)?.pop();
+    if (f) {
+      this.szene.add(f.gruppe);
+      f.mixer.stopAllAction();
+      f.aktionen.stehen.reset().play();
+      f.aktuell = 'stehen';
+      f.angriffBis = 0;
+      f.angriffTick = undefined;
+      f.animRest = 0;
+      return f;
+    }
+    const neu = this.#neueFigur(e);
+    neu.poolSchluessel = schluessel;
+    neu.neuGebaut = true;
+    return neu;
+  }
+
+  /** GLB-Zombie (ZOMBIE_MODELLE): eigenes Skelett + Clips stehen/gehen/rennen/angriff */
+  #neueGlbZombie(e, z) {
+    const modell = SkeletonUtils.clone(z.modell);
+    modell.scale.setScalar(z.massstab * (e.groesse ?? 1));
+    const gruppe = new THREE.Group();
+    gruppe.add(modell);
+    this.szene.add(gruppe);
+    const mixer = new THREE.AnimationMixer(modell);
+    const aktionen = {};
+    for (const [name, clip] of Object.entries(z.clips)) aktionen[name] = mixer.clipAction(clip);
+    if (aktionen.angriff) {
+      aktionen.angriff.setLoop(THREE.LoopOnce, 1);
+      aktionen.angriff.clampWhenFinished = true;
+    }
+    aktionen.stehen.play();
+    mixer.setTime(Math.random() * 2);
+    const figur = { gruppe, mixer, aktionen, aktuell: 'stehen', koerper: AUSSEHEN.koerper.standard, glb: z };
+    richteFigurEin(figur, modell);
+    return figur;
+  }
+
   #neueFigur(e) {
     if (e.typ === 'spieler' && this.survivor) return this.#neueSurvivorFigur(e);
+    const glb = e.typ === 'zombie' ? this.zombieModelle?.[zombieModellFuer(e)] : null;
+    if (glb) return this.#neueGlbZombie(e, glb);
     const modell = SkeletonUtils.clone(this.basisModell);
     const material = this.#figurMaterial(e);
     modell.traverse((teil) => {
@@ -1322,18 +1568,10 @@ export class Renderer {
         spot.intensity = 0;
         return;
       }
-      // Im Auto: Scheinwerfer statt Taschenlampe (von der Front in Fahrtrichtung)
-      const autoId = s.fahrzeugId ?? s.fahrzeug?.id;
-      const auto = autoId !== undefined && autoId !== null ? entitaeten.find((e) => e.id === autoId) : null;
-      if (auto) {
-        const ax = Math.cos(auto.winkel);
-        const az = Math.sin(auto.winkel);
-        const ah = this.#hy(auto.x, auto.y);
-        spot.position.set(auto.x + ax * (auto.laenge / 2 + 2), 22 + ah, auto.y + az * (auto.laenge / 2 + 2));
-        spot.target.position.set(auto.x + ax * 380, this.#hy(auto.x + ax * 380, auto.y + az * 380), auto.y + az * 380);
-        Object.assign(spot, { angle: SCHEINWERFER.winkel, penumbra: SCHEINWERFER.rand, distance: SCHEINWERFER.reichweite, decay: SCHEINWERFER.decay });
-        spot.shadow.autoUpdate = false; // Scheinwerfer werfen keinen Schatten (Leistung)
-        spot.intensity = this.nachtsicht ? 600 : SCHEINWERFER.staerke + SCHEINWERFER.staerkeNacht * dunkel;
+      // Im Auto: Taschenlampe aus – das Auto leuchtet mit seinen zwei Scheinwerfern (#aktualisiereScheinwerfer)
+      if (s.fahrzeugId != null || s.fahrzeug) {
+        spot.intensity = 0;
+        spot.shadow.autoUpdate = false;
         return;
       }
       const vx = Math.cos(s.blick);
@@ -1345,8 +1583,10 @@ export class Renderer {
       // Schmaler, schwacher Kegel (düster); tagsüber sieht man ihn kaum
       Object.assign(spot, { angle: TASCHENLAMPE.winkel, penumbra: TASCHENLAMPE.rand, distance: TASCHENLAMPE.reichweite, decay: TASCHENLAMPE.decay });
       spot.intensity = this.nachtsicht ? 14000 : TASCHENLAMPE.staerke + TASCHENLAMPE.staerkeNacht * dunkel;
-      // Schattenkarte nur neu zeichnen, wenn der Strahl überhaupt sichtbar ist (nachts) – tagsüber spart das einen Szenen-Durchgang
-      spot.shadow.autoUpdate = spot.castShadow && spot.intensity > 500;
+      // Schattenkarte nur neu zeichnen, wenn die Lampe überhaupt leuchtet (nachts) – tagsüber spart das einen Szenen-Durchgang.
+      // ⚠ Leuchtet sie, muss die Karte aktuell sein: eine eingefrorene Karte projiziert alte Schatten (z. B. das Auto, an dem man
+      // eingestiegen ist) an die alte Stelle – das war der „Licht-Schatten, wo das Auto vorher stand“ (Runde 20).
+      spot.shadow.autoUpdate = spot.castShadow && spot.intensity > 0 && this.#schattenDran();
       if (dunkel > 0.05) {
         // Sichtbarer Strahl endet an der ersten Wand (der echte Spot wird von der Schattenkarte begrenzt)
         const frei = this.welt ? strahlGegenWaende(this.welt, s.x, s.y, s.blick, TASCHENLAMPE.kegelLaenge + TASCHENLAMPEN_ANSATZ.vorn).laenge - TASCHENLAMPEN_ANSATZ.vorn : TASCHENLAMPE.kegelLaenge;
@@ -1360,10 +1600,42 @@ export class Renderer {
     });
   }
 
+  /**
+   * Scheinwerfer: zwei Kegel links/rechts an der Front des nächsten gefahrenen Autos (eigenes zuerst) – ohne Schatten.
+   * Eigene Lichter (nicht die Taschenlampe), damit keine Schattenkarte mitwandert.
+   */
+  #aktualisiereScheinwerfer(entitaeten, fokus, dunkel) {
+    let auto = null;
+    let bester = Infinity;
+    for (const e of entitaeten) {
+      if (e.typ !== 'fahrzeug' || e.kaputt || e.fahrerId == null) continue;
+      const d = e.id === fokus.fahrzeugId ? -1 : Math.hypot(e.x - fokus.x, e.y - fokus.y);
+      if (d < bester && d < SICHTWEITE) {
+        bester = d;
+        auto = e;
+      }
+    }
+    const staerke = auto && dunkel > 0.02 ? (this.nachtsicht ? 300 : SCHEINWERFER.staerke * Math.min(1, dunkel * 3) + SCHEINWERFER.staerkeNacht * dunkel) : 0;
+    this.scheinwerfer.forEach((spot, i) => {
+      spot.intensity = staerke;
+      if (!staerke) return;
+      const ax = Math.cos(auto.winkel);
+      const az = Math.sin(auto.winkel);
+      const seite = (i === 0 ? -1 : 1) * auto.breite * 0.32;
+      const vorn = auto.laenge / 2 + 1;
+      const x = auto.x + ax * vorn - az * seite;
+      const z = auto.y + az * vorn + ax * seite;
+      spot.position.set(x, 16 + this.#hy(auto.x, auto.y), z);
+      // leicht nach außen gedreht, damit die zwei Lichtkegel sichtbar getrennt beginnen und sich weiter vorn treffen
+      const zx = x + ax * SCHEINWERFER.ziel - az * seite * 0.6;
+      const zz = z + az * SCHEINWERFER.ziel + ax * seite * 0.6;
+      spot.target.position.set(zx, this.#hy(zx, zz), zz);
+    });
+  }
+
   /** Nur die nächsten Kartenlampen bekommen ein echtes Licht aus dem Pool (feste Lichteranzahl = keine Shader-Neubauten). */
   #aktualisiereLampenPool(fokus, jetzt, dunkel) {
-    const lampen = this.feuerLampen.length > 0 ? [...this.karte.lampen, ...this.feuerLampen] : this.karte.lampen;
-    if (dunkel < 0.03 || lampen.length === 0) {
+    if (dunkel < 0.03 || this.karte.lampen.length + this.feuerLampen.length === 0) {
       for (const l of this.lampenPool) l.intensity = 0;
       for (const l of this.kegelPool) l.intensity = 0;
       return;
@@ -1371,6 +1643,7 @@ export class Renderer {
     // Alle paar Frames neu sortieren reicht – Punkt- und Kegel-Lampen getrennt
     if (!this.naechsteLampen || jetzt - this.lampenSortiert > 250) {
       this.lampenSortiert = jetzt;
+      const lampen = this.feuerLampen.length > 0 ? [...this.karte.lampen, ...this.feuerLampen] : this.karte.lampen;
       const abstand = (a, b) => Math.hypot(a.x - fokus.x, a.z - fokus.y) - Math.hypot(b.x - fokus.x, b.z - fokus.y);
       this.naechsteLampen = lampen.filter((l) => l.objekt.art !== 'kegel' && !l.aus).sort(abstand).slice(0, this.lampenPool.length);
       this.naechsteKegel = lampen.filter((l) => l.objekt.art === 'kegel' && !l.aus).sort(abstand).slice(0, this.kegelPool.length);
@@ -1510,7 +1783,7 @@ export class Renderer {
     this.szene.background.copy(NACHT.hintergrund).lerp(TAG.hintergrund, hell).lerp(DAEMMERUNG.hintergrund, daemmerung * 0.5);
     this.szene.fog.color.copy(this.szene.background);
     // Sonnenschatten: nachts (Mond ≈ 0) keinen Szenen-Durchgang; Schattenkamera nur so groß wie der sichtbare Bereich (zoomabhängig)
-    this.mond.shadow.autoUpdate = this.mond.intensity > 0.25;
+    this.mond.shadow.autoUpdate = this.mond.intensity > 0.25 && this.#schattenDran();
     const schattenHalb = Math.round((560 * Math.max(0.9, this.zoom * this.fahrZoom)) / 20) * 20;
     if (this.mond.shadow.camera.right !== schattenHalb) {
       Object.assign(this.mond.shadow.camera, { left: -schattenHalb, right: schattenHalb, top: schattenHalb, bottom: -schattenHalb });
@@ -1622,7 +1895,14 @@ export class Renderer {
     const spuren = Math.min(leuchtspuren.length, 64);
     for (let i = 0; i < spuren; i++) {
       const s = leuchtspuren[i];
-      this.spurPunkte.array.set([s.x, ZIELHOEHE, s.y, s.zx, ZIELHOEHE, s.zy], i * 6);
+      const a = this.spurPunkte.array;
+      const k = i * 6;
+      a[k] = s.x;
+      a[k + 1] = ZIELHOEHE;
+      a[k + 2] = s.y;
+      a[k + 3] = s.zx;
+      a[k + 4] = ZIELHOEHE;
+      a[k + 5] = s.zy;
     }
     this.spurGeometrie.setDrawRange(0, spuren * 2);
     this.spurPunkte.needsUpdate = spuren > 0;
@@ -1636,9 +1916,15 @@ export class Renderer {
     const anzahl = Math.min(partikel.length, 400);
     for (let i = 0; i < anzahl; i++) {
       const t = partikel[i];
-      this.partikelPunkte.array.set([t.x, 12 + (1 - t.alter / t.dauer) * 20, t.y], i * 3);
+      const p = this.partikelPunkte.array;
+      const f = this.partikelFarben.array;
+      p[i * 3] = t.x;
+      p[i * 3 + 1] = 12 + (1 - t.alter / t.dauer) * 20;
+      p[i * 3 + 2] = t.y;
       PARTIKEL_FARBE.set(t.farbe);
-      this.partikelFarben.array.set([PARTIKEL_FARBE.r, PARTIKEL_FARBE.g, PARTIKEL_FARBE.b], i * 3);
+      f[i * 3] = PARTIKEL_FARBE.r;
+      f[i * 3 + 1] = PARTIKEL_FARBE.g;
+      f[i * 3 + 2] = PARTIKEL_FARBE.b;
     }
     this.partikelFarben.needsUpdate = anzahl > 0;
     this.partikelGeometrie.setDrawRange(0, anzahl);
@@ -1832,5 +2118,5 @@ function ladeGrafik() {
   } catch {
     // egal
   }
-  return 'hoch';
+  return 'auto';
 }

@@ -8,8 +8,10 @@ macht die Bodentextur in einer Schneezone von selbst). Wenige Häuser mit viel P
 ein zugefrorener See zum Angeln. Die Westseite der Hauptstraße schließt an die Ostseite des Stadtrands an (Übergang y 86–94).
 Zufall mit festem Startwert → gleiche Karte bei jedem Lauf. Danach: npm test (prüft Erreichbarkeit, Überlappungen, Grafiken).
 """
+import json
 import math
 import random
+import re
 from pathlib import Path
 
 ZIEL = Path(__file__).resolve().parents[2] / 'server' / 'spiel' / 'karten' / 'schneeland.js'
@@ -154,6 +156,110 @@ o('kiste', x0 + 6, y0 + 1, 1, 1, blockiert=True)
 o('tisch_rund', x0 + 4, y0 + 2, 1, 1, blockiert=True)
 o('licht', x0 + 3, y0 + 3, 1, 1, radius=4, farbe='#ffd9a0', staerke=0.7)
 
+# --- Villa (Runde 20, Nutzer-Wunsch): großes Haus mit 5 Räumen, eingerichtet mit Spielordner-Modellen (client/assets/eigene/*.glb) ---
+# Nordwestlich der Kreuzung, Eingang (Doppeltür) nach Süden. Räume: Küche, Wohnzimmer (Kamin), Schlafzimmer, Arbeitszimmer, Flur.
+# Möbel = eigene Objekttypen `sf_<name>_<dm>` mit glbDatei (wie der Editor-Baukasten, editor/kern/spielordner.js spielordnerTyp).
+INDEX = {e['datei'][:-4]: e for e in json.loads((ZIEL.parents[3] / 'client' / 'assets' / 'eigene' / 'index.json').read_text(encoding='utf-8'))}
+typen = {}
+
+
+def modell(stem, x, y, drehung=0, blockiert=True, hoehe=None):
+    """Spielordner-Modell mit linker oberer Ecke (x, y) in Kacheln; drehung 0 = Vorderseite nach Süden, 180 Norden, 90 Westen, 270 Osten."""
+    e = INDEX[stem]
+    m = e['masse']
+    ziel = hoehe or e.get('zielHoehe') or m['hoehe']
+    f = ziel / m['hoehe']
+    b, t = round(m['b'] * f, 2), round(m['h'] * f, 2)
+    if drehung in (90, 270):
+        b, t = t, b
+    typ_id = f"sf_{re.sub('[^a-z0-9]+', '_', stem)[:28]}_{round(ziel * 10)}"
+    eb, et = round(m['b'] * f, 2), round(m['h'] * f, 2)
+    typen[typ_id] = {'name': e.get('name', stem), 'kategorie': 'Spielordner', 'b': eb, 'h': et, 'hoehe3d': round(ziel, 3), 'blockiert': blockiert,
+                     'farbe': '#c080ff', 'glbDatei': f'assets/eigene/{stem}.glb'}
+    extra = {'drehung': drehung} if drehung else {}
+    o(typ_id, round(x, 2), round(y, 2), b, t, blockiert=blockiert, **extra)
+
+
+VX, VY, VB, VH = 38, 54, 28, 18
+for y in range(VY, VY + VH):
+    for x in range(VX, VX + VB):
+        dx, dy = x - VX, y - VY
+        aussen = dx in (0, VB - 1) or dy in (0, VH - 1)
+        innen = (dx == 10 and dy <= 9) or dy == 9 or (dx in (13, 19) and dy >= 9)
+        if aussen or innen:
+            g[y][x] = '#'
+        elif dy < 9:
+            g[y][x] = '.' if dx < 10 else '+'          # Küche Fliesen, Wohnzimmer Holz
+        else:
+            g[y][x] = '+'                               # Schlafzimmer, Arbeitszimmer, Flur
+for dx, dy in ((10, 4), (12, 9), (16, 9), (22, 9), (23, 9), (23, 17), (24, 17)):
+    g[VY + dy][VX + dx] = 'T'
+for dx, dy in ((3, 0), (6, 0), (14, 0), (18, 0), (22, 0), (25, 0), (0, 4), (0, 13), (27, 4), (27, 13), (4, 17), (8, 17), (16, 17)):
+    g[VY + dy][VX + dx] = 'F'
+sperre(VX, VY, VX + VB - 1, VY + VH - 1, rand=3)
+for i in range(1, 4):
+    for dx in (23, 24):
+        g[VY + VH - 1 + i][VX + dx] = '-'
+for dx, dy in ((2, 6), (8, 6)):
+    loot(VX + dx, VY + dy, 'j')
+for dx, dy in ((13, 6), (25, 7), (10, 12), (4, 15), (15, 12), (21, 15)):
+    loot(VX + dx, VY + dy, 'k')
+X, Y = VX, VY
+# Küche (x 1–9, y 1–8): Zeile an der Nordwand, Esstisch mit vier Stühlen
+modell('fridge', X + 1.1, Y + 1.05)
+modell('double-door-tall-cabinet', X + 2.3, Y + 1.05)
+modell('sink-kitchen-cabinet', X + 3.3, Y + 1.05)
+modell('dish-washer', X + 4.35, Y + 1.05)
+modell('double-door-base-cabinet', X + 5.0, Y + 1.05)
+modell('gas-stove', X + 6.1, Y + 1.05)
+modell('drawers-base-cabinet', X + 6.9, Y + 1.05)
+modell('double-door-base-cabinet', X + 7.5, Y + 1.05)
+modell('wood-kitchen-table', X + 4.3, Y + 4.5)
+for cx in (4.6, 5.9):
+    modell('wooden-chair', X + cx, Y + 3.95)
+    modell('wooden-chair', X + cx, Y + 5.85, drehung=180)
+modell('kitchen-stool', X + 8.6, Y + 7.6, blockiert=False)
+o('licht', X + 5, Y + 3, 1, 1, radius=5, farbe='#fff0d0', staerke=0.8)
+# Wohnzimmer (x 11–26, y 1–8): Kamin, Sofa, Sessel, Teppich, Bücherregal
+modell('fireplace', X + 17.5, Y + 1.0)
+modell('wool-carpet', X + 16.8, Y + 3.6, blockiert=False)
+modell('rounded-coffee-table', X + 17.65, Y + 3.85)
+modell('sofa', X + 16.8, Y + 6.3, drehung=180)
+modell('club-arm-chair', X + 15.1, Y + 4.0, drehung=270)
+modell('club-arm-chair', X + 20.6, Y + 4.0, drehung=90)
+modell('large-book-shelf', X + 26.4, Y + 2.5, drehung=90)
+modell('floor-lamp', X + 14.4, Y + 1.2)
+modell('floor-lamp', X + 21.4, Y + 1.2)
+modell('plant', X + 11.2, Y + 1.2)
+modell('two-seater-couch', X + 23.2, Y + 1.1)
+o('licht', X + 14, Y + 4, 1, 1, radius=5.5, farbe='#ffd9a0', staerke=0.85)
+o('licht', X + 22, Y + 5, 1, 1, radius=5.5, farbe='#ffd9a0', staerke=0.85)
+# Schlafzimmer (x 1–12, y 10–16): Doppelbett mit Nachttischen, Kleiderschrank, Spiegel, Kommode
+modell('double-bed', X + 1.0, Y + 12.0, drehung=270)
+modell('bachelor-dresser', X + 1.0, Y + 11.0, drehung=270)
+modell('bachelor-dresser', X + 1.0, Y + 14.5, drehung=270)
+modell('large-wardrobe', X + 5.5, Y + 16.25, drehung=180)
+modell('mirror', X + 8.6, Y + 16.3, drehung=180)
+modell('wide-dresser', X + 5.0, Y + 10.05)
+modell('floor-lamp', X + 11.9, Y + 15.9)
+o('licht', X + 7, Y + 13, 1, 1, radius=5, farbe='#ffd9a0', staerke=0.75)
+# Arbeitszimmer (x 14–18, y 10–16): Schreibtisch, Chefsessel, Regale
+modell('computer-desk', X + 15.0, Y + 15.9, drehung=180)
+modell('executive-chair', X + 15.5, Y + 14.9)
+modell('medium-book-shelf', X + 18.55, Y + 11.0, drehung=90)
+modell('cube-cabinet', X + 14.05, Y + 11.0, drehung=270)
+o('licht', X + 16, Y + 13, 1, 1, radius=4, farbe='#fff2d0', staerke=0.7)
+# Flur (x 20–26, y 10–16): Garderobe, Spiegel, Bank, Pflanze
+modell('small-wardrobe', X + 26.35, Y + 11.0, drehung=90)
+modell('mirror', X + 26.35, Y + 13.0, drehung=90)
+modell('park-bench', X + 20.05, Y + 12.0, drehung=270)
+modell('plant', X + 20.1, Y + 15.5)
+o('licht', X + 23, Y + 13, 1, 1, radius=4.5, farbe='#ffd9a0', staerke=0.75)
+# Vorgarten: Briefkasten und Pflanzkübel am Weg
+modell('mailbox', X + 21.5, Y + 18.6)
+modell('planter--bushes', X + 18.5, Y + 18.2)
+modell('planter--bushes', X + 25.5, Y + 18.2)
+
 # --- Zugefrorener See im Südosten (Wasser "~", blockiert; Eisangeln) ---
 SEE_X, SEE_Y, SEE_RX, SEE_RY = 126, 74, 12, 7
 wasser = []
@@ -296,6 +402,7 @@ js = ['''/**
  * Zone "Schneeland" – östlich vom Stadtrand (erzeugt von werkzeuge/karten/schneeland.py, dort ändern!).
  * 155 × 130, Schneezone (`schnee: true`): Boden "*" = Schnee, Straßen leicht verschneit, Schneefall statt Regen, knirschende Schritte,
  * wenige Häuser mit viel Platz, Tannen in kleinen Gruppen, zugefrorener See "~" zum Angeln.
+ * Villa (Runde 20) nordwestlich der Kreuzung, eingerichtet mit Spielordner-Modellen (`typen`, glbDatei unter client/assets/eigene/).
  * Übergang: Westrand (Hauptstraße) ↔ Stadtrand Ostrand. Legende wie stadtrand.js.
  */
 const M = { blockiert: true };
@@ -316,13 +423,17 @@ js += ['  ],', '  raeume: {',
        "    g: { name: 'Jagdhütte', lootTabelle: 'huette' },",
        "    h: { name: 'Angelhütte', lootTabelle: 'angler' },",
        "    i: { name: 'Schuppen', lootTabelle: 'werkstatt' },",
+       "    j: { name: 'Villa Küche', lootTabelle: 'kueche' },",
+       "    k: { name: 'Villa', lootTabelle: 'wohnung' },",
        '  },', '  einstellungen: {',
        '    wetter: { regenAnteil: 0.8, dauerMin: 90, dauerMax: 300, pauseMin: 60, pauseMax: 240 }, // regenAnteil = Anteil Schneefall (Rest Nebel)',
        '    tiere: { hasenProTausend: 1.5, hasenMax: 10 },',
        '  },', '  objekte: [']
 js += [f'    {js_objekt(e)},' for e in objekte]
-js += ['  ],', '  uebergaenge: [',
-       f"    {{ x: 0, y: {HAUPT_Y0 - 2}, b: 1, h: {HAUPT_Y1 - HAUPT_Y0 + 5}, ziel: 'stadtrand', ankunft: 'ost', name: 'Stadtrand (Westen)'} }}},",
+js += ['  ],', '  // Spielordner-Modelle der Villa (nur Anzeige; Kollision über blockiert am Objekt)', '  typen: {']
+js += [f"    {k}: {{ name: '{v['name']}', kategorie: '{v['kategorie']}', b: {zahl(v['b'])}, h: {zahl(v['h'])}, hoehe3d: {zahl(v['hoehe3d'])}, blockiert: {'true' if v['blockiert'] else 'false'}, farbe: '{v['farbe']}', glbDatei: '{v['glbDatei']}' }}," for k, v in typen.items()]
+js += ['  },', '  uebergaenge: [',
+       f"    {{ x: 0, y: {HAUPT_Y0 - 2}, b: 1, h: {HAUPT_Y1 - HAUPT_Y0 + 5}, ziel: 'stadtrand', ankunft: 'ost', name: 'Stadtrand (Westen)' }},",
        '  ],', '  ankuenfte: {', f'    west: {{ x: 5, y: {(HAUPT_Y0 + HAUPT_Y1) // 2} }}, // wer vom Stadtrand kommt (Straße, nicht im Übergang)', '  },', '};']
 ZIEL.write_text('\n'.join(js) + '\n', encoding='utf-8')
 print(f'{ZIEL} geschrieben ({B} × {H}, {len(objekte)} Objekte, {sum(1 for o_ in objekte if o_["typ"] == "tanne")} Tannen, {len(wasser)} Eiskacheln)')

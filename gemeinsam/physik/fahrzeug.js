@@ -5,28 +5,39 @@
  *   x/y = Mitte (Weltpixel), winkel = Fahrtrichtung (Radiant, 0 = nach rechts, wie spieler.blick),
  *   tempo = px/s (negativ = rückwärts)
  * Eingabe wie beim Laufen: y = -1 (W) Gas, y = +1 (S) Bremse/rückwärts, x = lenken.
+ * fz.lenkung = aktueller Lenkeinschlag (−1..1, folgt der Eingabe weich wie ein Lenkrad) – gehört zum Fahrzustand
+ * (Vorhersage/Reconciliation: spielerZuNetzwerk schickt ihn mit).
+ *
+ * Fahrmodell (Nutzer-Wunsch „realistischer“): Einspurmodell – Drehrate = Tempo / Radstand × tan(Lenkwinkel);
+ * der größte Lenkwinkel sinkt mit dem Tempo (bei Vollgas nur noch weite Kurven), Beschleunigung lässt zur
+ * Höchstgeschwindigkeit hin nach, ohne Gas bremsen Rollreibung + Fahrtwind.
  *
  * Kollision: drei Kreise entlang der Längsachse (vorne, Mitte, hinten) gegen blockierte Kacheln –
  * Lenken prüft die neue Pose (kein Einklemmen); steckt das Auto schon fest, darf es freifahren.
  * die eigenen Fahrzeug-Kacheln zählen nicht (welt.istBlockiert(tx, ty, ignoriereFahrzeug)).
  */
 export const FAHRZEUG = Object.freeze({
-  beschleunigung: 230, // px/s²
-  bremse: 520,
-  rueckwaertsMax: 120,
+  beschleunigung: 125, // px/s² beim Anfahren (vorher 230 – zog zu schnell an); zur Höchstgeschwindigkeit hin nur noch ¼ davon
+  bremse: 400,
+  rueckwaertsMax: 110,
   max: 340, // px/s (Laufen: 150)
-  rollReibung: 160, // ohne Gas wird er langsamer
-  lenkung: 2.4, // rad/s bei voller Lenkung und Fahrt
+  rollReibung: 70, // ohne Gas wird er langsamer …
+  fahrtwind: 0.28, // … plus dieser Anteil des Tempos je Sekunde
+  lenkWinkel: 0.65, // rad, größter Radeinschlag im Stand/langsam
+  lenkAbfall: 200, // px/s: bei diesem Tempo ist der größte Einschlag halbiert
+  radstand: 0.55, // Anteil der Fahrzeuglänge
+  lenkTempo: 4, // so schnell (1/s) dreht das „Lenkrad“ zum Anschlag …
+  lenkZurueck: 5, // … und zurück in die Mitte
   abprallen: 0.25, // Anteil des Tempos, der beim Aufprall übrig bleibt (rückwärts)
 });
 
-/** Anzeige-Höchstgeschwindigkeit (Tacho): FAHRZEUG.max entspricht 70 km/h */
-export const FAHRZEUG_MAX_KMH = 70;
-/** ab diesem Tempo wirken Aufprälle (Schaden am eigenen Auto) und Bäume/Laternen werden umgefahren */
-export const AUFPRALL_MIN_KMH = 10;
+/** Anzeige-Höchstgeschwindigkeit (Tacho): FAHRZEUG.max entspricht 120 km/h (Runde 20, vorher 70 – wirkte zu lahm) */
+export const FAHRZEUG_MAX_KMH = 120;
+/** ab diesem Tempo wirken Aufprälle (Schaden am eigenen Auto) und Bäume/Laternen werden umgefahren (≈ 56 px/s, wie früher „10 km/h“) */
+export const AUFPRALL_MIN_KMH = 17;
 
-/** Straßenlaternen werden erst ab diesem Tempo umgefahren (darunter halten sie das Auto auf) */
-export const LATERNE_MIN_KMH = 40;
+/** Straßenlaternen werden erst ab diesem Tempo umgefahren (darunter halten sie das Auto auf; ≈ 198 px/s, wie früher „40 km/h“) */
+export const LATERNE_MIN_KMH = 70;
 
 /** px/s → km/h (für Tacho & Aufprall-Schwelle) */
 export function tempoZuKmh(tempo) {
@@ -83,13 +94,20 @@ export function fahre(fz, eingabe, welt, dt) {
   const gas = Number.isFinite(eingabe.y) ? Math.max(-1, Math.min(1, -eingabe.y)) : 0;
   const lenken = Number.isFinite(eingabe.x) ? Math.max(-1, Math.min(1, eingabe.x)) : 0;
   const p = FAHRZEUG;
-  if (gas > 0.1) fz.tempo += (fz.tempo < 0 ? p.bremse : p.beschleunigung) * gas * dt;
-  else if (gas < -0.1) fz.tempo -= (fz.tempo > 0 ? p.bremse : p.beschleunigung * 0.6) * -gas * dt;
-  else fz.tempo = Math.sign(fz.tempo) * Math.max(0, Math.abs(fz.tempo) - p.rollReibung * dt);
+  const anteil = Math.min(1, Math.abs(fz.tempo) / p.max);
+  if (gas > 0.1) fz.tempo += (fz.tempo < 0 ? p.bremse : p.beschleunigung * (1 - 0.75 * anteil * anteil)) * gas * dt;
+  else if (gas < -0.1) fz.tempo -= (fz.tempo > 0 ? p.bremse : p.beschleunigung * 0.7) * -gas * dt;
+  else fz.tempo = Math.sign(fz.tempo) * Math.max(0, Math.abs(fz.tempo) - (p.rollReibung + p.fahrtwind * Math.abs(fz.tempo)) * dt);
   fz.tempo = Math.max(-p.rueckwaertsMax, Math.min(p.max, fz.tempo));
-  // Lenken wirkt nur in Fahrt (rückwärts andersherum, wie im echten Auto)
+  // Lenkrad folgt der Eingabe weich (kein Sofort-Einschlag)
+  const lenkung = Number.isFinite(fz.lenkung) ? fz.lenkung : 0;
+  const zurMitte = Math.abs(lenken) < Math.abs(lenkung) || Math.sign(lenken) !== Math.sign(lenkung);
+  const schritt = (zurMitte ? p.lenkZurueck : p.lenkTempo) * dt;
+  fz.lenkung = lenkung + Math.max(-schritt, Math.min(schritt, lenken - lenkung));
+  // Einspurmodell: Drehrate = v / Radstand · tan(Einschlag); Einschlag wird mit dem Tempo kleiner (rückwärts andersherum, wie im echten Auto)
   // Drehung nur, wenn die neue Pose frei ist (sonst klemmt das Auto in der Wand und ist stuck)
-  const drehung = lenken * p.lenkung * dt * Math.max(-1, Math.min(1, fz.tempo / 110));
+  const einschlag = (fz.lenkung * p.lenkWinkel) / (1 + (fz.tempo / p.lenkAbfall) ** 2);
+  const drehung = ((fz.tempo / Math.max(20, fz.laenge * p.radstand)) * Math.tan(einschlag)) * dt;
   const steckt = !passt(fz, fz.x, fz.y, welt); // schon eingeklemmt (z. B. Altstand) → Freifahr-Modus
   if (drehung !== 0) {
     for (const f of [1, 0.5, 0.25]) {

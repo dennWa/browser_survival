@@ -113,7 +113,7 @@ export class EinstellungenFenster {
   #aktualisiere() {
     const aktuell = this.#renderer()?.grafik;
     for (const knopf of this.grafikEl.children) knopf.classList.toggle('aktiv', knopf.dataset.grafik === aktuell);
-    this.grafikInfo.textContent = aktuell ? `${GRAFIK_PROFILE[aktuell].name}: ${GRAFIK_PROFILE[aktuell].beschreibung}` : '';
+    this.grafikInfo.textContent = aktuell ? (this.#renderer()?.grafikBeschreibung?.() ?? `${GRAFIK_PROFILE[aktuell].name}: ${GRAFIK_PROFILE[aktuell].beschreibung}`) : '';
     if (this.#handy) {
       const { hud, touch } = this.#handy;
       const el = this.dokument.getElementById('einst-handy');

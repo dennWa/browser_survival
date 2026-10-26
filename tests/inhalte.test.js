@@ -60,8 +60,15 @@ for (const id of Object.keys(KARTEN)) {
   });
 
   test(`Karte "${id}": jedes Objekt hat eine Grafik`, () => {
-    for (const o of ladeKarte(id).daten.objekte) {
+    const { daten } = ladeKarte(id);
+    for (const o of daten.objekte) {
       if (PROZEDURAL.has(o.typ)) continue;
+      // Eigene 3D-Modelle (Spielordner/Editor): die .glb muss es geben
+      const glb = daten.typen?.[o.typ]?.glbDatei;
+      if (glb) {
+        assert.ok(existsSync(new URL(`../client/${glb}`, import.meta.url)), `Modell ${glb} (Objekt ${o.typ}) fehlt`);
+        continue;
+      }
       assert.ok(atlas.umgebung.objekte[o.typ], `Objekttyp "${o.typ}" fehlt in atlas.json`);
     }
   });

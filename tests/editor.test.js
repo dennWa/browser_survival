@@ -224,7 +224,8 @@ test('Katalog: alle Kategorien belegt, jede Kachel und jeder Kartenobjekt-Typ de
   const k = katalog();
   // Eigene/Klänge füllen sich aus der Karte bzw. der Audio-Bibliothek
   for (const kat of KATEGORIEN.filter((x) => x !== 'Eigene' && x !== 'Klänge' && !NUR_MODELL_KATEGORIEN.includes(x))) assert.ok(k.some((e) => e.kategorie === kat), kat);
-  const typen = new Set(Object.values(KARTEN).flatMap((d) => d.objekte.map((o) => o.typ)));
+  // Typen, die die Karte selbst mitbringt (`typen`, z. B. Spielordner-Modelle der Villa im Schneeland), braucht der Katalog nicht
+  const typen = new Set(Object.values(KARTEN).flatMap((d) => d.objekte.map((o) => o.typ).filter((t) => !d.typen?.[t])));
   for (const t of typen) assert.ok(objektInfo(t).bekannt, `Objekttyp ${t} fehlt im Katalog`);
   assert.ok(k.some((e) => e.art === 'bauwerk' && e.typ === 'zaun'));
 });

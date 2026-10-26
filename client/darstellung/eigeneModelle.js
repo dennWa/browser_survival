@@ -43,7 +43,8 @@ export function ladeEigenesModell(url) {
 }
 
 /**
- * Kopie der Szene, eingepasst in den Kasten. Materialien je Kopie (Farbe ändern wirkt nur auf dieses Objekt).
+ * Kopie der Szene, eingepasst in den Kasten. Materialien je Kopie nur mit farbe/id (Editor: Farbe ändern wirkt nur auf dieses Objekt),
+ * sonst geteilt.
  * @param {object} o { b, h, hoehe, einheit = 1, drehung?, farbe?, id? } – id setzt userData für die Auswahl im Editor
  */
 export function eigenesModellInhalt(szene, { b, h, hoehe, einheit = 1, farbe = null, id = null }) {
@@ -53,12 +54,16 @@ export function eigenesModellInhalt(szene, { b, h, hoehe, einheit = 1, farbe = n
   modell.animations = szene.animations ?? [];
   modell.traverse((t) => {
     if (!t.isMesh) return;
-    const kopie = (m) => {
-      const c = m.clone();
-      if (farbe && c.color) c.color.set(farbe);
-      return c;
-    };
-    t.material = Array.isArray(t.material) ? t.material.map(kopie) : kopie(t.material);
+    // Eigene Materialkopie nur, wenn umgefärbt oder im Editor ausgewählt wird – im Spiel teilen sich gleiche Modelle die
+    // Materialien (Runde 20: weniger Shader-/Zustandswechsel bei vielen Möbeln)
+    if (farbe || id !== null) {
+      const kopie = (m) => {
+        const c = m.clone();
+        if (farbe && c.color) c.color.set(farbe);
+        return c;
+      };
+      t.material = Array.isArray(t.material) ? t.material.map(kopie) : kopie(t.material);
+    }
     if (id !== null) t.userData = { s: 'objekte', k: id };
   });
   // Skelett-Modelle: erst alle Knochen-Matrizen berechnen und die (gecachte) Skinning-Box verwerfen, sonst wird in Ruhepose

@@ -22,7 +22,7 @@ import { Schritte } from '../audio/schritte.js';
 const MAX_OFFENE_EINGABEN = 120;
 const STOEHN_REICHWEITE = 650; // Zombies in diesem Umkreis stöhnen gelegentlich
 const STOEHN_PAUSE_MS = 900; // höchstens ein Stöhnen pro Pause (sonst Chor)
-const ZOMBIE_TONHOEHE = { normal: 1, laeufer: 1.35, brocken: 0.7 };
+const ZOMBIE_TONHOEHE = { normal: 1, laeufer: 1.35, brocken: 0.7, halb: 1.2 };
 const AUTOLAUF_ANKUNFT_PX = 9; // so nah an der Kachelmitte des Ziels gilt man als angekommen
 const AUTOLAUF_WEGPUNKT_PX = 10;
 const AUTOLAUF_STECKT_S = 1.2; // so lange ohne Fortschritt → Weg neu suchen, dann aufgeben
