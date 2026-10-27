@@ -1,4 +1,4 @@
-# KI_INDEX – Kompaktkarte für KI-Sitzungen (v0.20.0-dev · Proto v11)
+# KI_INDEX – Kompaktkarte für KI-Sitzungen (v0.21.0-dev · Proto v11)
 
 > Dicht & abgekürzt, für Maschinen gedacht. Für Menschen: `project_manifest.md` (ausführlich, „Wo ändere ich …?“ §4).
 > Legende: `→` führt zu/ruft · `S:` Server (`server/spiel/`) · `C:` Client (`client/`) · `G:` gemeinsam (`gemeinsam/`) · `K:` Konfig (`server/spiel/konfiguration/`) · `⚠` Falle/Invariante · `★` häufigste Änderungsstelle
@@ -314,6 +314,12 @@ Zonen-Grundlage steht (2 Zonen, Waldweg groß mit See). Nächstes sinnvoll: Basi
 - **Zombie-Größe:** `renderer ZOMBIE_MODELLE.gruen.hoehe` 0,86 (wirkte durch Masse größer als der Spieler). Messen: Figuren-Höhe per Vertex-Box über `browserSurvival.spiel.renderer.figuren`.
 - Tests: `tests/zonen.test.js` (Runde 21: Wartezeit/Abbruch, Auto+Kofferraum drüben, Weltstand, hinterFahrzeug).
 
-## 22 · Tutorial (nur Konzept, 2026-10-27, `TUTORIAL_KONZEPT.md`)
-- Noch kein Code. Plan: eigene Zone `tutorial` (Krankenhaus + Hinterhof/Garten + Parkplatz), läuft **lokal** in einer Wegwerf-`SpielServer`-Instanz (Arbeitsspeicher, wie `setzeTestKarten`), Start per Hauptmenü-Knopf; Skript als Daten `S:tutorial/skript.js` + Engine `S:systeme/tutorialSystem.js`, UI/Stimme im Client (`ui/tutorialAnzeige.js`, `audio/funkstimme.js`).
-- ⚠ Esc schließt schon Menüs (`TASTEN.menue`) → Tutorial-Skip = Pause-Dialog. ⚠ `unendlichMunition` (Admin) füllt das Magazin auf → lehrt kein Nachladen; Tutorial braucht eigene Reserve-Regel. ⚠ `speechSynthesis` lässt sich nicht filtern → Funk-Effekt nur mit Sprachdateien + Web Audio. ⚠ Größen: `zielHoehe` aus `werkzeuge/assets/eigene_kategorien.mjs` (HOEHEN) → `npm run eigene:index`; Typ-IDs `sf_<name>_<dm>` schützen bestehende Karten.
+## 22 · Tutorial (umgesetzt 2026-10-27, Plan `TUTORIAL_KONZEPT.md`)
+- Start: Hauptmenü `#login-tutorial` → `main.js` anmeldungStarten({server:{typ:'tutorial'}}) → `C:netzwerk/verbindungAufbauen` → `lokalerServer.oeffneTutorialKanal()` (eigener SpielServer, ArbeitsspeicherSpeicher, kartenDefinition TUTORIAL, admin:false); Ende/Abbruch → `beendeTutorial()`; `zurueckZumLogin` → bei „Story starten“ `login.starteStory()`. Flag `localStorage browserSurvival.tutorialFertig` (Knopf `.empfohlen` pulsiert vorher).
+- Karte `S:karten/tutorial.js` (Generator `werkzeuge/karten/tutorial.py`, ⚠ NICHT in KARTEN) mit `tutorial:{punkte,bereiche,tueren}` (Kacheln) → kartenLader reicht `tutorial` durch → `SpielWelt.tutorial = erstelleTutorial()` + `tutorialKonfiguration()` (Prototyp-Schicht: kein Hunger, schnelle Ressourcen, Beet 18 s, Kochen 8 s, keine Horde/Loot/Wetter). Spieler startet ohne Startinventar.
+- Ablauf = Daten `S:tutorial/skript.js` (KAPITEL[].schritte[].aufgaben[].wenn, beiStart/beiEnde-Aktionen, FUNK-Zeilen). Engine `S:systeme/tutorialSystem.js` (`aktualisiereTutorial` am Tick-Ende liest `spielWelt.ereignisse`; Zustand `spieler.tutorial`; Client bekommt `spielerDatenPrivat.tutorial`). Hooks: kampfSystem `tutorialVorSchaden` (Ohnmacht→Checkpoint), zombieSystem `z.gefesselt`, tuerSystem `tuerGesperrt` (Gates), tageszeit ohne Meldungen/Horde. AKTION `tutorial {befehl:'ui'|'ueberspringen'|'kapitel', wert}`.
+- C: `ui/tutorialAnzeige.js` (Panel/Tipp/Funk-Untertitel/Marker per `kamera.weltZuBildschirm`, Pause- & Ende-Dialog, meldet offene Fenster als `ui`), `audio/funkstimme.js` (ogg → Bandpass/Verzerrung/Rauschen/Squelch, max. 2 Zeilen Warteschlange). Esc: `main.js` → offene Fenster zuerst (`clientSpiel.etwasOffen()`), sonst `tutorial.pause()`.
+- Stimme: `python3 werkzeuge/audio/tutorial_stimme.py --piper … --modell de_DE-thorsten-medium.onnx` → `client/audio/tutorial/<id>.ogg` + `stimme.json` (Prüfsummen, nur Geändertes). Neue Funkzeile = FUNK-Eintrag + Skript laufen lassen.
+- ⚠ Zonen-Konfig erbt per Prototyp → nie `{...k}` spreaden (Fix in `erzeugeZombie`: for…in). ⚠ Zombies öffnen keine Türen (brechen sie auf) → Verfolger-Spawns ohne Tür dazwischen planen. ⚠ Einstiegs-Punkt ≤ ~1 Kachel neben dem Auto.
+- Modelle: Kenney Furniture Kit (CC0) `client/assets/eigene/kenney-*.glb`; Größen-Audit in `werkzeuge/assets/eigene_kategorien.mjs` HOEHEN (typ-IDs `sf_<name>_<dm>` → bestehende Karten unverändert).
+- Tests `tests/tutorial.test.js` (Skript-Verweise, Erreichbarkeit, Durchspiel-Bot bis „fertig“, Gates, Sicherheitsnetz, echte Mechanik Hof/Garten).

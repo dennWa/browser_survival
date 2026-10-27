@@ -22,5 +22,17 @@
     "urheber": "Quaternius",
     "lizenz": "CC0",
     "url": "https://quaternius.com"
+  },
+  {
+    "paket": "Furniture Kit 2.0 (kenney-*.glb: Toilette, Waschbecken, Dusche, Spiegel, Badschrank, Mülleimer, Garderobe, Bürostuhl, Nachttisch, Bildschirm, Laptop, Waschmaschine – Tutorial-Krankenhaus)",
+    "urheber": "Kenney (www.kenney.nl)",
+    "lizenz": "CC0",
+    "url": "https://kenney.nl/assets/furniture-kit"
+  },
+  {
+    "paket": "Funkstimme „Jelke“ im Tutorial (client/audio/tutorial/*.ogg, erzeugt mit Piper TTS, Stimme de_DE-thorsten-medium)",
+    "urheber": "Thorsten Müller (Thorsten-Voice) / Piper (rhasspy)",
+    "lizenz": "CC0 (Stimme), MIT (Piper, nur Werkzeug)",
+    "url": "https://huggingface.co/rhasspy/piper-voices/tree/main/de/de_DE/thorsten/medium"
   }
 ]

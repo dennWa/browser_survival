@@ -371,6 +371,7 @@ browser_survival/
 │   │   │   └── lootSystem.js      Start-Loot, Nachschub an Loot-Punkten, Zombie-Beute
 │   │   ├── karten/
 │   │   │   ├── kartenLader.js     Kartenregister + ASCII → Kacheln/Spawns/Loot-Punkte
+│   │   │   ├── tutorial.js        Tutorial-Zone „Kreisklinik Hohenfeld“ (generiert: werkzeuge/karten/tutorial.py, NICHT in KARTEN)
 │   │   │   ├── lootZonen.js       (Editor 2.0, 6.2) Loot-Zonen: Prüfung, feste Punkte, Würfeln (Chance/Gewicht), erwartete Ausbeute
 │   │   │   ├── stadtrand.js       Startzone (110×86, GENERIERT von werkzeuge/karten/stadtrand.py)
 │   │   │   └── waldweg.js         Zone Waldweg (160×120: Ringstraße mit Autos, Wald, See, Angelhütte; GENERIERT von werkzeuge/karten/waldweg.py)
@@ -422,7 +423,7 @@ browser_survival/
 │   │   ├── verbindungAufbauen.js  Fabrik: Lokal vs. WebSocket
 │   │   ├── jsonVerbindung.js      Text-Kanal → Objekt-Nachrichten
 │   │   ├── websocketKanal.js      Browser-WebSocket als Text-Kanal
-│   │   ├── lokalerServer.js       Startet SpielServer im Tab (Lokal-Modus)
+│   │   ├── lokalerServer.js       Startet SpielServer im Tab (Lokal-Modus) + Wegwerf-Server fürs Tutorial (oeffneTutorialKanal)
 │   │   ├── browserSpeicher.js     Spielstände im localStorage (Lokal-Modus)
 │   │   └── anmeldung.js           Login-Handshake (Promise)
 │   ├── audio/
@@ -529,6 +530,7 @@ browser_survival/
 | Was wo spawnt | `server/spiel/konfiguration/lootTabellen.js`, Raumzuordnung in der Kartendatei |
 | Karte bearbeiten | `server/spiel/karten/stadtrand.js` (ASCII; Tests prüfen Erreichbarkeit & Möbel nicht in Türen) |
 | **Karte im Map-Editor bauen** | `…/editor/` (Login → 🗺 Map-Editor), veröffentlichen mit `npm run karte:editor -- <id>.karte.json`; Editor-Code: `editor/` (§8) |
+| **Tutorial** (Texte, Aufgaben, Reihenfolge, Funksprüche) | `server/spiel/tutorial/skript.js` (Daten); Engine `server/spiel/systeme/tutorialSystem.js`; Karte `werkzeuge/karten/tutorial.py` → `server/spiel/karten/tutorial.js`; UI `client/ui/tutorialAnzeige.js`; Stimme `client/audio/tutorial/<id>.ogg` (`werkzeuge/audio/tutorial_stimme.py`), Funk-Klang `client/audio/funkstimme.js`; Konzept `TUTORIAL_KONZEPT.md` |
 | Neue Karte / Zone | Tiled: `werkzeuge/karten/README.md` (`npm run karte:import`), oder Datei in `server/spiel/karten/` + in `KARTEN` (`kartenLader.js`) eintragen; Übergänge: `uebergaenge` + `ankuenfte` in der Kartendatei |
 | Skills / Fähigkeiten | `gemeinsam/spieler/skills.js` (Werte), Wirkung in `levelSystem.js`, `kampfSystem.js`, `arbeitSystem.js`, `gemeinsam/physik/bewegung.js` |
 | Bauwerke, Pflanzen, Kochen | `gemeinsam/welt/bauwerke.js`, `bauSystem.js`; Rezepte `rezepte.js` (`ort: 'inventar'`); Modelle `client/darstellung/bauwerkModelle.js` |
@@ -910,3 +912,4 @@ Weiter: `statischerServer.js` liefert `editor/` aus,
 | 0.19.0-dev | 2026-10-26 | **Runde 20 (Performance & Auto):** Grafikprofil **Auto** (Standard) erkennt schwache Grafikchips (`client/darstellung/geraet.js`) und regelt bis zur nächsttieferen Basis nach; Lichtbudget je Profil (vorher 15 Lichter je Pixel), Schattenkarten in sparsamen Stufen nur jedes 2. Bild, Zombie-Figuren-Pool + max. 2 neue Klone/Bild, entfernte Zombies halbe Animationsrate, geteilte Materialien bei Spielordner-Modellen. **Auto:** zwei Scheinwerfer (eigene Lichter ohne Schatten), Fix Licht-Geisterschatten (eingefrorene Taschenlampen-Schattenkarte), Lenkrad-Trägheit + Einspurmodell + sanfteres Anfahren (`fz.lenkung` im Netz), Tacho bis 120 km/h (Schwellen umgerechnet: Aufprall 17, Laterne 70 km/h), Karosserie neigt sich, Reifenspuren auf Gras/Schnee (`reifenspuren.js`). **Zombies:** Spielordner-Modelle zombie-2 (grün, jeder 2. normale), zombie (Koloss = Brocken), zombie-half als neue Variante `halb` (schwach, langsam). **Schneeland:** Villa mit 5 Räumen, eingerichtet mit 40 Spielordner-Modellen (Generator `schneeland.py`, Karten-`typen`). Tests `tests/runde20.test.js`. |
 | 0.20.0-dev | 2026-10-26 | **Runde 21:** Zonenwechsel erst nach **5 s Warten** im Randstreifen (`welt.uebergangSekunden`, Countdown `#hud-uebergang`, raus = Abbruch); **Auto fährt mit** in die neue Zone (inkl. Kofferraum/Haltbarkeit; `fahrzeugSystem.loeseFahrzeugFuerWechsel/setzeFahrzeugEin/parkeZurueck`, Weltstand speichert alle Autos `fahrzeugeAlle`). **Tab hinter dem Auto** öffnet den Kofferraum. Admin-Schalter Fliegen/∞ Munition/∞ Ausdauer werden gelb. Grundtempo 100 (leichtes Joggen), Rennen 170, erschöpft 125. Lenkung straffer. **GLB-Autos** (Quaternius, CC0) statt Klötzchen, in Länge × Breite eingepasst. Grüner Zombie kleiner (0,86). |
 | 0.20.0-dev | 2026-10-27 | **Tutorial-Konzept (nur Doku):** `TUTORIAL_KONZEPT.md` – eigene Krankenhaus-Zone, lokal gestartet über das Hauptmenü, Skript-gesteuerte Kapitel, Funk-Erzählerstimme, Größen-Audit der Modelle. Noch kein Code. |
+| 0.21.0-dev | 2026-10-27 | **Tutorial „Station 3“ umgesetzt:** Hauptmenü-Knopf 🎓 (pulsiert bis zum ersten Abschluss), eigene Zone „Kreisklinik Hohenfeld“ (Krankenhaus, Hinterhof, Garten, Parkplatz; Generator `werkzeuge/karten/tutorial.py`) in einem lokalen Wegwerf-Server; 9 Kapitel / 25 Schritte als Daten (`server/spiel/tutorial/skript.js`), Engine `tutorialSystem.js` (Bedingungen, Gates, Skript-Zombies inkl. festgeketteter, Uhr fest, Ohnmacht statt Tod, Munition/Werkzeug-Sicherheitsnetz, Kapitel-Sprung); UI mit Aufgabenliste, Tipps, Marker, Esc-Pause, Ende-Dialog „Story starten?“; Funker **Jelke** (41 Zeilen, Piper/Thorsten CC0, Funk-Filter zur Laufzeit); 12 Kenney-Modelle (CC0, Bad/Büro); Größen-Audit (`HOEHEN`); Fix: `erzeugeZombie` übernimmt geerbte Zonen-Konfiguration (vorher NaN-Radius). Neue AKTION `tutorial` (kompatibel, Proto bleibt 11). |

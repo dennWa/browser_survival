@@ -190,6 +190,8 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE, { au
     einstellungen: pruefeZonenEinstellungen(definition.einstellungen),
     bauwerke,
     tierBereiche,
+    // Tutorial-Zone (server/spiel/tutorial/): Orte für das Skript – nur der Server kennt sie
+    tutorial: definition.tutorial && typeof definition.tutorial === 'object' ? definition.tutorial : null,
   };
 }
 

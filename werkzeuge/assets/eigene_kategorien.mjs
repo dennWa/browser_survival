@@ -44,7 +44,9 @@ export const KATEGORIEN = {
     single-door-upper-cabinet sink-kitchen-cabinet small-bookshelf small-wardrobe sofa sofa-small standing-desk
     steel-sink-kitchen-cabinet table table-1 table-2 table-7qaygzneryt table-big table-lamp three-seater-couch
     two-seater-couch vanity vending-machine wall-shelf wide-dresser wood-kitchen-chair wood-kitchen-table
-    wooden-arm-chair wooden-chair wooden-kitchen-sink wool-carpet`),
+    wooden-arm-chair wooden-chair wooden-kitchen-sink wool-carpet
+    kenney-badschrank kenney-bildschirm kenney-buerostuhl kenney-dusche kenney-garderobe kenney-laptop kenney-muelleimer
+    kenney-nachttisch kenney-spiegel kenney-toilette kenney-waschbecken kenney-waschmaschine`),
   fahrzeuge: L(`
     boat car car-2 dump-truck fire-truck forklift police-car raft raft-paddle sports-car sports-car-2 sushi-truck suv
     taxi tires truck-tank wheel wheels-stack`),
@@ -85,6 +87,15 @@ export const HOEHEN = {
   'eight-vases': 0.5, box: 0.6, building: 6, 'building-l': 8, 'twisted-tree': 8, 'twisted-tree-2': 8,
   'twisted-tree-3': 8, 'twisted-tree-4': 8, 'twisted-tree-5': 8, 'dead-tree': 7, 'dead-tree-2': 7, 'dead-tree-3': 7,
   'dead-tree-4': 7, 'dead-tree-5': 7, 'cardboard-boxes-2': 0.9, 'gas-station': 5, crane: 14, 'water-tower': 9,
+  // Tutorial-Größen-Audit (2026-10-27): Ausreißer gegen die Spielerfigur (~1,8 m) geprüft
+  chair: 0.95, 'bed-single': 0.75, 'single-bed': 1, 'vending-machine': 1.85, can: 0.15, 'can-red': 0.15, 'can-broken': 0.15,
+  pot: 0.3, 'ceiling-lamp-3': 0.4, 'ceiling-lamp-4': 0.4, 'ceiling-lamp-5': 0.4, 'plant-big-2': 1.5, clover: 0.3, 'clover-2': 0.3,
+  'flower-single': 0.5, 'flower-single-2': 0.5, 'flower-group': 0.6, 'flower-group-2': 0.6, fern: 0.9, axe2: 0.9, 'wood-log': 0.45,
+  bonfire: 0.8, tv: 0.7, grass: 0.5,
+  // Kenney Furniture Kit (CC0)
+  'kenney-toilette': 0.8, 'kenney-waschbecken': 0.95, 'kenney-dusche': 2.1, 'kenney-spiegel': 0.7, 'kenney-muelleimer': 0.6,
+  'kenney-garderobe': 1.8, 'kenney-buerostuhl': 1.0, 'kenney-nachttisch': 0.6, 'kenney-bildschirm': 0.45, 'kenney-laptop': 0.25,
+  'kenney-badschrank': 0.9, 'kenney-waschmaschine': 0.9,
 };
 
 /** stem → Kategorie-Schlüssel */

@@ -4,6 +4,7 @@ import { erstelleSpeicherKanalPaar } from '../../server/spiel/netz/speicherKanal
 import { BrowserSpeicher } from './browserSpeicher.js';
 import { ArbeitsspeicherSpeicher } from '../../server/spiel/speicher/arbeitsspeicherSpeicher.js';
 import { LOKALE_LATENZ_MS } from '../konfiguration.js';
+import { TUTORIAL } from '../../server/spiel/karten/tutorial.js';
 
 /**
  * Lokal-Modus: Der ECHTE SpielServer läuft hier im Browser-Tab.
@@ -60,4 +61,36 @@ export function oeffneLokalenKanal() {
   const { clientSeite, serverSeite } = erstelleSpeicherKanalPaar({ latenzMs: LOKALE_LATENZ_MS });
   server.verbindungHinzufuegen(serverSeite, { adresse: 'lokal' });
   return clientSeite;
+}
+
+/** Tutorial (TUTORIAL_KONZEPT.md): eigener, wegwerfbarer Server nur mit der Tutorial-Zone – Spielstand nur im Arbeitsspeicher. */
+let tutorialServer = null;
+
+export function oeffneTutorialKanal() {
+  beendeTutorial();
+  tutorialServer = new SpielServer({
+    authentifizierung: new GastAuthentifizierung({ admin: false }),
+    konfiguration: { server: { name: 'Tutorial' } },
+    speicher: new ArbeitsspeicherSpeicher(),
+    kartenDefinition: TUTORIAL,
+  });
+  tutorialServer.starten();
+  const { clientSeite, serverSeite } = erstelleSpeicherKanalPaar({ latenzMs: 0 });
+  tutorialServer.verbindungHinzufuegen(serverSeite, { adresse: 'tutorial' });
+  return clientSeite;
+}
+
+/** Tutorial-Server stoppen (Ende, Abbruch) – nichts wird gespeichert. */
+export function beendeTutorial() {
+  if (!tutorialServer) return;
+  const s = tutorialServer;
+  tutorialServer = null;
+  s.taktgeber.stoppen();
+  s.gestoppt = true;
+  for (const sitzung of s.sitzungen) sitzung.kanal.trennen('Tutorial beendet');
+}
+
+/** Der Tutorial-Server (Konsole/Tests) oder null. */
+export function tutorialServerInstanz() {
+  return tutorialServer;
 }

@@ -6,7 +6,10 @@
  */
 export function erzeugeZombie({ id, x, y, konfiguration, spawnIndex = null, blick = Math.random() * Math.PI * 2, variante = 'normal' }) {
   const k = konfiguration.zombie;
-  const v = { ...k, ...(k.varianten?.[variante] ?? {}) };
+  // for…in statt Spread: Zonen-Konfigurationen erben per Prototyp (zonenEinstellungen/Tutorial) – Spread sähe nur eigene Felder
+  const v = {};
+  for (const feld in k) v[feld] = k[feld];
+  Object.assign(v, k.varianten?.[variante] ?? {});
   return {
     id,
     typ: 'zombie',

@@ -11,7 +11,9 @@ import { Hud } from './ui/hud.js';
 import { zeigeCredits } from './ui/credits.js';
 import { Sound } from './audio/sound.js';
 import { ZonenMusik } from './audio/zonenMusik.js';
-import { lokalerServer, setzeTestKarten } from './netzwerk/lokalerServer.js';
+import { lokalerServer, setzeTestKarten, beendeTutorial, tutorialServerInstanz } from './netzwerk/lokalerServer.js';
+import { TutorialAnzeige, tutorialGeschafft } from './ui/tutorialAnzeige.js';
+import { KAPITEL } from '../server/spiel/tutorial/skript.js';
 import { ladeEditorTest, zeigeTestBanner, istVonAudio, zeigeAudioBanner } from './ui/editorTest.js';
 import { starteDebugLauf } from './debug/debugLauf.js';
 import { AKTIONEN, NACHRICHT } from '../gemeinsam/protokoll.js';
@@ -55,6 +57,16 @@ document.addEventListener('click', (e) => {
   if (knopf && !knopf.id.startsWith('knopf-') && knopf.id !== 'hud-licht') sound.spiele('ui_klick');
 }, true);
 hud.inventar.beiUmschalten = (offen) => sound.spiele(offen ? 'inventar_auf' : 'inventar_zu');
+// Tutorial (TUTORIAL_KONZEPT.md): eigene Zone, lokal; am Ende „Story jetzt starten?“
+let storyNachTutorial = false;
+const tutorial = new TutorialAnzeige(document, {
+  holeAusgang: () => sound.klangAusgang(),
+  beiEnde: (story) => {
+    storyNachTutorial = story;
+    aktuellesSpiel?.beenden('Abgemeldet');
+  },
+});
+tutorial.kapitelNamen = KAPITEL.map((k) => k.titel);
 /** Hauptmenü-Musik (client/musik/hauptmenue/) – Browser spielen Ton erst nach der ersten Berührung/Taste */
 const hauptmenueMusik = () => {
   if (aktuellesSpiel || new URLSearchParams(location.search).has('editorTest')) return;
@@ -76,7 +88,11 @@ eingabe.beiTaste('tuer', () => aktuellesSpiel?.tuer());
 eingabe.beiTaste('wiederbeleben', () => aktuellesSpiel?.wiederbeleben());
 eingabe.beiTaste('admin', () => hud.adminMenuUmschalten());
 eingabe.beiTaste('aufheben', () => aktuellesSpiel?.interagieren());
-eingabe.beiTaste('menue', () => aktuellesSpiel?.menuesSchliessen());
+eingabe.beiTaste('menue', () => {
+  // Tutorial: Esc schließt erst offene Fenster, sonst Pause-Dialog (überspringen/beenden)
+  if (tutorial.aktiv && (tutorial.dialogOffen || !aktuellesSpiel?.etwasOffen())) return tutorial.pause();
+  aktuellesSpiel?.menuesSchliessen();
+});
 eingabe.beiTaste('karte', () => aktuellesSpiel?.karteUmschalten());
 eingabe.beiTaste('inventar', () => aktuellesSpiel && !aktuellesSpiel.tabTaste() && hud.inventar.zeige()); // hinter dem Auto: Kofferraum
 eingabe.beiTaste('skills', () => aktuellesSpiel && hud.skills.zeige());
@@ -145,10 +161,11 @@ window.browserSurvival = {
     return aktuellesSpiel;
   },
   get server() {
-    return lokalerServer();
+    return tutorialServerInstanz() ?? lokalerServer();
   },
   sound, // Tests/Audio-Zentrale: sound.quelleVon('wind') → 'eigen' | 'sample' | 'synth'
-  ...konsolenHelfer({ spiel: () => aktuellesSpiel, server: () => lokalerServer() }),
+  ...konsolenHelfer({ spiel: () => aktuellesSpiel, server: () => tutorialServerInstanz() ?? lokalerServer() }),
+  tutorial,
 };
 document.getElementById('credits-knopf').addEventListener('click', () => zeigeCredits(document, assets));
 
@@ -157,6 +174,10 @@ const editorTest = await ladeEditorTest();
 if (editorTest) setzeTestKarten(editorTest);
 
 login.beiAnmeldung((daten) => anmeldungStarten(daten));
+login.beiTutorial(({ aussehen }) => {
+  storyNachTutorial = false;
+  anmeldungStarten({ server: { id: 'tutorial', name: 'Tutorial', typ: 'tutorial' }, benutzername: 'Gast-0001', gast: true, aussehen });
+});
 
 async function anmeldungStarten({ server, adresse, benutzername, passwort, gast = false, aussehen = null }) {
   sound.entsperren(); // Klick auf "Login" = Nutzeraktion → Browser erlaubt ab jetzt Ton
@@ -179,7 +200,7 @@ async function anmeldungStarten({ server, adresse, benutzername, passwort, gast 
       verbindung = await verbindungAufbauen(server, adresse);
       anmeldeDaten = await anmelden(verbindung, { benutzername, passwort, gast, aussehen });
     }
-    await spielStarten(verbindung, anmeldeDaten, benutzername);
+    await spielStarten(verbindung, anmeldeDaten, benutzername, { tutorialZone: server.typ === 'tutorial' });
   } catch (fehler) {
     if (verbindung && !verbindung.getrennt) verbindung.trennen('Login abgebrochen');
     login.anzeigen(fehler.message);
@@ -191,7 +212,7 @@ async function anmeldungStarten({ server, adresse, benutzername, passwort, gast 
  * erst wenn es ruhig läuft, verschwindet der Ladebildschirm (sonst ruckeln die ersten Sekunden).
  * Auch beim Zonenwechsel (zone = Name der neuen Zone, seq = Eingabe-Zähler der alten Sitzung).
  */
-async function spielStarten(verbindung, anmeldeDaten, benutzername, { zone = null, seq = 0 } = {}) {
+async function spielStarten(verbindung, anmeldeDaten, benutzername, { zone = null, seq = 0, tutorialZone = false } = {}) {
   const vorab = []; // Nachrichten, die während des Ladens ankommen, gehen nicht verloren
   const vorabAbmelden = verbindung.beiNachricht((n) => vorab.push(n));
   let getrennt = null;
@@ -203,10 +224,20 @@ async function spielStarten(verbindung, anmeldeDaten, benutzername, { zone = nul
     versteckeLaden();
     hud.verbergen();
     renderer.verbergen();
+    if (tutorialZone) {
+      tutorial.stoppe();
+      beendeTutorial();
+      login.empfehleTutorial(!tutorialGeschafft());
+      const story = storyNachTutorial;
+      storyNachTutorial = false;
+      login.anzeigen('');
+      if (story) login.starteStory();
+      return;
+    }
     login.anzeigen(grund === 'Abgemeldet' ? '' : grund);
   };
   eingabe.aktiv = false;
-  const titel = zone ? `Unterwegs nach ${zone}` : 'Welt wird aufgebaut';
+  const titel = zone ? `Unterwegs nach ${zone}` : tutorialZone ? 'Kreisklinik Hohenfeld' : 'Welt wird aufgebaut';
   zeigeLaden(`${titel} …`, 0);
   login.verbergen();
   await naechsterFrame();
@@ -237,6 +268,7 @@ async function spielStarten(verbindung, anmeldeDaten, benutzername, { zone = nul
     benutzername,
     seq,
     vorabNachrichten: vorab,
+    tutorial: tutorialZone ? tutorial : null,
     beiEnde: zurueckZumLogin,
     // Übergang betreten → diese Sitzung abräumen, neue Zone aufbauen (Verbindung bleibt dieselbe)
     beiZonenwechsel: (daten, alt) => {
@@ -302,6 +334,7 @@ async function starten() {
     anmeldungStarten({ server: SERVER_LISTE.find((s) => s.typ === 'lokal'), benutzername: 'Gast-0001', gast: true });
     return;
   }
+  login.empfehleTutorial(!tutorialGeschafft());
   login.anzeigen(fehlerText);
 }
 

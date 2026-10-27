@@ -109,6 +109,7 @@ export const AKTIONEN = Object.freeze({
   LICHT: 'licht', // Taschenlampe an/aus (aus = Zombies bemerken einen erst aus der Nähe)
   WIEDERBELEBEN: 'wiederbeleben', // tot → sofort am Startpunkt neu spawnen (statt Countdown abzuwarten)
   ADMIN: 'admin', // Admin-Befehl (nur für Accounts mit Admin-Recht, prüft der Server)
+  TUTORIAL: 'tutorial', // { befehl: 'ui'|'ueberspringen'|'kapitel', wert } – nur in einer Tutorial-Zone (server/spiel/systeme/tutorialSystem.js)
 });
 
 /** Admin-Befehle (AKTION { art: 'admin', befehl }). Der Server prüft das Admin-Recht des Spielers. */

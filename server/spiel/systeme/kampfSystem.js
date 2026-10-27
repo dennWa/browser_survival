@@ -9,6 +9,7 @@ import { aussteigen, schlageFahrzeug } from './fahrzeugSystem.js';
 import { behandleAngelKlick, brecheAngelnAb } from './angelSystem.js';
 import { planeTierRespawn } from './tierSystem.js';
 import { schuereFeuer, sitztAmFeuer } from './stationSystem.js';
+import { tutorialVorSchaden } from './tutorialSystem.js';
 import { lasseBossLootFallen, lasseZombieLootFallen } from './lootSystem.js';
 
 /**
@@ -160,6 +161,7 @@ export function fuegeSchadenZu(spielWelt, ziel, menge, quelle, winkel = 0, optio
     schlageFahrzeug(spielWelt, ziel.fahrzeug, quelle.angriffsSchaden / spielWelt.konfiguration.zombie.angriffsSchaden);
     return;
   }
+  if (ziel.typ === 'spieler' && tutorialVorSchaden(spielWelt, ziel, menge)) return; // Tutorial: Ohnmacht statt Tod
   ziel.leben -= menge;
   if (ziel.angeln) brecheAngelnAb(ziel);
   if (ziel.arbeit) brecheArbeitAb(spielWelt, ziel, ziel.arbeit.art === 'schlafen' ? 'Aufgeschreckt!' : null);

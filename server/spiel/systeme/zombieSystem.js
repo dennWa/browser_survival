@@ -56,6 +56,11 @@ export function aktualisiereZombies(spielWelt, dt) {
     z.wartet = false;
     if (z.gibAuf > 0) z.gibAuf -= dt;
     z.angriffsAbklingzeit = Math.max(0, z.angriffsAbklingzeit - dt);
+    if (z.gefesselt) {
+      // Tutorial: festgeketteter Zombie – steht, zappelt, greift nicht an
+      z.zustand = 'ruhend';
+      continue;
+    }
     if (z.nacht) wittere(spielWelt, z, lebendeSpieler, dt);
     const ziel = waehleZiel(spielWelt, z, lebendeSpieler, k);
     if (!ziel) {

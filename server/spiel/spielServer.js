@@ -519,6 +519,10 @@ export class SpielServer {
     if (n.art === AKTIONEN.BAUEN) Object.assign(aktion, { teil: n.teil, tx: n.tx, ty: n.ty, drehung: n.drehung === 0 || n.drehung === 1 ? n.drehung : null });
     if (n.art === AKTIONEN.ABREISSEN) Object.assign(aktion, { tx: n.tx, ty: n.ty, ebene: n.ebene ?? null });
     if (n.art === AKTIONEN.SKILL) aktion.skill = typeof n.skill === 'string' ? n.skill : null;
+    if (n.art === AKTIONEN.TUTORIAL) {
+      if (typeof n.befehl !== 'string' || n.befehl.length > 20) return;
+      Object.assign(aktion, { befehl: n.befehl, wert: typeof n.wert === 'string' ? n.wert.slice(0, 20) : Number.isInteger(n.wert) ? n.wert : null });
+    }
     spieler.aktionsPuffer.push(aktion);
   }
 

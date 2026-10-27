@@ -1,3 +1,4 @@
+import { tuerGesperrt } from './tutorialSystem.js';
 import { TUER_AUTO_OEFFNEN, TUER_AUTO_SCHLIESSEN, TUER_BRUCH_OFFEN, TUER_REICHWEITE } from '../../../gemeinsam/konstanten.js';
 
 /**
@@ -25,7 +26,9 @@ export function aktualisiereTueren(spielWelt, dt) {
     const offen = welt.istTuerOffen(tuer.id);
     const grenze = offen ? TUER_AUTO_SCHLIESSEN : TUER_AUTO_OEFFNEN;
     const naehe = spieler.some((s) => abstandZurTuer(welt, tuer, s.x, s.y) <= grenze);
-    if (!offen && naehe) {
+    if (tuerGesperrt(spielWelt, tuer.id)) {
+      if (offen && !tuerBelegt(spielWelt, tuer)) setzeTuer(spielWelt, tuer, false); // Tutorial-Gate: zu und bleibt zu
+    } else if (!offen && naehe) {
       setzeTuer(spielWelt, tuer, true);
     } else if (offen && !naehe && !haltOffen.has(tuer.id) && !tuerBelegt(spielWelt, tuer)) {
       setzeTuer(spielWelt, tuer, false);

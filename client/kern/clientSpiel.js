@@ -52,8 +52,10 @@ export class ClientSpiel {
    * @param beiZonenwechsel (daten, sitzung) → ZONE_WECHSEL kam an: main.js räumt diese Sitzung ab (uebergeben) und baut neu auf
    * @param seq             letzte Eingabe-Nummer der vorigen Zone (der Server zählt über Zonen hinweg weiter)
    */
-  constructor({ verbindung, anmeldeDaten, welt = null, eingabe, renderer, hud, sound, musik = null, beiEnde, beiZonenwechsel, benutzername = '', vorabNachrichten = [], seq = 0 }) {
+  constructor({ verbindung, anmeldeDaten, welt = null, eingabe, renderer, hud, sound, musik = null, beiEnde, beiZonenwechsel, benutzername = '', vorabNachrichten = [], seq = 0, tutorial = null }) {
     this.verbindung = verbindung;
+    /** Tutorial-Oberfläche (ui/tutorialAnzeige.js) – nur in der Tutorial-Zone, sonst null */
+    this.tutorialAnzeige = tutorial;
     this.eingabe = eingabe;
     this.renderer = renderer;
     this.hud = hud;
@@ -146,6 +148,7 @@ export class ClientSpiel {
     this.beendet = false;
 
     this.renderer.setzeWelt(this.welt);
+    this.tutorialAnzeige?.starte(this);
     this.hud.setzeSpielerDaten(this.spielerDaten, this.itemDefinitionen);
     this.abmelden = [
       verbindung.beiNachricht((n) => this.#nachricht(n)),
@@ -188,6 +191,7 @@ export class ClientSpiel {
 
   #aufraeumen() {
     this.beendet = true;
+    this.tutorialAnzeige?.stoppe();
     this.schleife?.stoppen();
     this.karte.speichern();
     this.karte.zeige(false);
@@ -376,6 +380,17 @@ export class ClientSpiel {
   }
 
   /** Escape: offene Fenster schließen. */
+  /** Tutorial-Zone: Befehl an den Server ('ui' | 'ueberspringen' | 'kapitel', wert) */
+  tutorialAktion(befehl, wert = null) {
+    this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.TUTORIAL, befehl, wert });
+  }
+
+  /** Ist irgendein Fenster/Modus offen, den Esc zuerst schließen soll? */
+  etwasOffen() {
+    const h = this.hud;
+    return !!(this.karte.offen || h.inventar.offen || h.skills.offen || h.einstellungen.offen || h.kiste.offen || h.station.offen || this.werkbankOffen || this.bau.aktiv || this.platzierung || this.autoLauf);
+  }
+
   menuesSchliessen() {
     this.karte.zeige(false);
     this.hud.entwickler.zeige(false);
@@ -790,6 +805,7 @@ export class ClientSpiel {
     if (vorher) this.#datenSound(vorher, daten);
     if (vorher?.tot && !daten.tot) this.offeneEingaben = []; // Respawn: neue Position kommt vom Server
     this.spielerDaten = daten;
+    if (daten.tutorial) this.tutorialAnzeige?.daten(daten.tutorial);
     this.bau.beiSpielerDaten(daten);
     this.lokal.tempoFaktor = daten.tempoFaktor ?? 1; // Skill "Schnelligkeit" → Vorhersage läuft gleich schnell wie der Server
     this.hud.setzeSpielerDaten(daten, this.itemDefinitionen);
@@ -1237,6 +1253,7 @@ export class ClientSpiel {
     }
     this.bau.aktualisiere();
     this.#oberflaecheAktualisieren(eigen, jetzt);
+    this.tutorialAnzeige?.frame(this, eigen, jetzt);
     this.renderer.zeichne({
       fokus: eigen,
       entitaeten: [...andere, eigen],

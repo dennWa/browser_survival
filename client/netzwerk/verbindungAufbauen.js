@@ -1,6 +1,6 @@
 import { JsonVerbindung } from './jsonVerbindung.js';
 import { oeffneWebsocketKanal } from './websocketKanal.js';
-import { oeffneLokalenKanal } from './lokalerServer.js';
+import { oeffneLokalenKanal, oeffneTutorialKanal } from './lokalerServer.js';
 
 /**
  * Fabrik: baut je nach Servereintrag die passende Verbindung.
@@ -9,6 +9,9 @@ import { oeffneLokalenKanal } from './lokalerServer.js';
 export async function verbindungAufbauen(serverEintrag, adresse) {
   if (serverEintrag.typ === 'lokal') {
     return new JsonVerbindung(oeffneLokalenKanal(), 'Lokal');
+  }
+  if (serverEintrag.typ === 'tutorial') {
+    return new JsonVerbindung(oeffneTutorialKanal(), 'Tutorial');
   }
   if (serverEintrag.typ === 'websocket') {
     const ziel = adresse || serverEintrag.adresse;

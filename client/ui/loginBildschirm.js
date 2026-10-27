@@ -30,6 +30,7 @@ export function gastName(neu = false) {
 
 export class LoginBildschirm {
   #beiAnmeldung = null;
+  #beiTutorial = null;
 
   constructor(dokument, serverListe) {
     this.serverListe = serverListe;
@@ -47,7 +48,9 @@ export class LoginBildschirm {
       gastName: dokument.getElementById('login-gast-name'),
       aussehen: dokument.getElementById('login-aussehen'),
       meldung: dokument.getElementById('login-meldung'),
+      tutorial: dokument.getElementById('login-tutorial'),
     };
+    this.el.tutorial.addEventListener('click', () => this.#beiTutorial?.({ aussehen: { ...this.aussehen } }));
 
     for (const eintrag of serverListe) this.el.server.add(new Option(eintrag.name, eintrag.id));
     this.#baueAussehenWahl(dokument);
@@ -71,6 +74,29 @@ export class LoginBildschirm {
   /** fn({ server, adresse, benutzername, passwort, gast? }) */
   beiAnmeldung(fn) {
     this.#beiAnmeldung = fn;
+  }
+
+  /** fn({ aussehen }) – Knopf „🎓 Tutorial“ */
+  beiTutorial(fn) {
+    this.#beiTutorial = fn;
+  }
+
+  /** Tutorial-Knopf hervorheben (Erstbesuch: noch nie geschafft) */
+  empfehleTutorial(an) {
+    this.el.tutorial.classList.toggle('empfohlen', an);
+  }
+
+  /** „Story jetzt starten?“ nach dem Tutorial: mit den Formularwerten anmelden – ohne Namen als Gast (bzw. lokal mit Gastnamen) */
+  starteStory() {
+    const daten = this.#werte();
+    const online = daten.server.typ === 'websocket';
+    if (online && daten.benutzername && !daten.passwort) {
+      this.anzeigen('Passwort eingeben – oder als Gast spielen');
+      this.el.passwort.focus();
+      return;
+    }
+    if (!daten.benutzername) return this.#beiAnmeldung?.({ ...daten, benutzername: gastName(), passwort: '', gast: true });
+    this.#beiAnmeldung?.(daten);
   }
 
   anzeigen(meldung = '') {

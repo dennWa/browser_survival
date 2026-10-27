@@ -1,3 +1,4 @@
+import { tutorialAktion } from './tutorialSystem.js';
 import { AUFHEB_REICHWEITE, INVENTAR_PLAETZE } from '../../../gemeinsam/konstanten.js';
 import { samenZiel } from '../../../gemeinsam/welt/bauwerke.js';
 import { AKTIONEN } from '../../../gemeinsam/protokoll.js';
@@ -37,6 +38,10 @@ export function verarbeiteAktionen(spielWelt) {
       const aktion = spieler.aktionsPuffer.shift();
       if (aktion.art === AKTIONEN.WIEDERBELEBEN) {
         if (spieler.tot) wiederbeleben(spielWelt, spieler);
+        continue;
+      }
+      if (aktion.art === AKTIONEN.TUTORIAL) {
+        tutorialAktion(spielWelt, spieler, aktion.befehl, aktion.wert);
         continue;
       }
       if (aktion.art === AKTIONEN.ADMIN) {

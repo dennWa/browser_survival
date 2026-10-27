@@ -27,6 +27,7 @@ import { pruefeUebergaenge } from './systeme/zonenSystem.js';
 import { erzeugeFahrzeug, fahrzeugZuNetzwerk } from './entitaeten/fahrzeug.js';
 import { FAHRZEUG_MODELLE, fahrzeugAusObjekt, passt } from '../../gemeinsam/physik/fahrzeug.js';
 import { BAUWERKE, PFLANZEN, pruefePlatz } from '../../gemeinsam/welt/bauwerke.js';
+import { aktualisiereTutorial, erstelleTutorial, tutorialKonfiguration } from './systeme/tutorialSystem.js';
 import { erzeugeTerritorium, territoriumLaden, territoriumSpeichern } from './systeme/territoriumSystem.js';
 
 /** Welche Entitätstypen jeden Tick im Schnappschuss landen (dynamisch) – und wie sie serialisiert werden. */
@@ -55,6 +56,8 @@ export class SpielWelt {
     const karte = kartenDefinition ? verarbeiteKarte(kartenDefinition) : ladeKarte(konfiguration.welt.karte);
     /** Zonen-Werte der Karte (einstellungen) liegen über der gemeinsamen Konfiguration (zonenEinstellungen.js) */
     this.konfiguration = zonenKonfiguration(konfiguration, karte.einstellungen);
+    // Tutorial-Zone: eigene Regeln (kein Hunger, schnelle Ressourcen, keine Horde …) – systeme/tutorialSystem.js
+    if (karte.tutorial) this.konfiguration = tutorialKonfiguration(this.konfiguration);
     konfiguration = this.konfiguration;
     // Autos auf der Karte werden zu Fahrzeugen (Entitäten) – aus den Möbeln raus, auch für den Client (karte.daten)
     const autos = karte.daten.objekte.filter((o) => FAHRZEUG_MODELLE[o.typ]);
@@ -87,6 +90,8 @@ export class SpielWelt {
     this.ressourcenNachwuchs = new Map(); // Ressourcen-ID → Sekunden bis zum Nachwachsen
     this.laternenNachwuchs = new Map(); // Laternen-ID (welt.laternen) → Sekunden bis die umgefahrene Laterne wieder steht
     if (konfiguration.welt.tuerenGeschlossen) for (const t of this.welt.tueren) this.welt.setzeTuer(t.id, false);
+    /** Tutorial (Orte, gesperrte Türen) oder null */
+    this.tutorial = karte.tutorial ? erstelleTutorial(this, karte.tutorial) : null;
     /** Sekunden seit Tagesbeginn (siehe gemeinsam/tageszeit.js) und Tageszähler */
     this.zeit = konfiguration.welt.startZeit ?? 0;
     this.tag = 1;
@@ -223,7 +228,9 @@ export class SpielWelt {
 
   spielerBetrittWelt(benutzername, { admin = false } = {}) {
     const start = this.zufall.auswahl(this.karte.spielerStarts);
-    const spieler = gibStartausruestung(erzeugeSpieler({ id: this.neueId(), benutzername, x: start.x, y: start.y, konfiguration: this.konfiguration, admin }), this.konfiguration);
+    const neu = erzeugeSpieler({ id: this.neueId(), benutzername, x: start.x, y: start.y, konfiguration: this.konfiguration, admin });
+    // Im Tutorial beginnt man mit leeren Taschen (Items kommen Schritt für Schritt)
+    const spieler = this.tutorial ? neu : gibStartausruestung(neu, this.konfiguration);
     spieler.erkundet = new Uint8Array(this.welt.breite * this.welt.hoehe); // Karte (K), siehe gemeinsam/welt/erkundung.js
     spieler.erkundetAndere = {}; // Erkundung der anderen Zonen (gepackt, siehe spielstand.js)
     return this.hinzufuegen(spieler);
@@ -270,6 +277,7 @@ export class SpielWelt {
     aktualisiereUeberleben(this, dt);
     aktualisiereLoot(this, dt);
     aktualisiereTageszeit(this, dt);
+    aktualisiereTutorial(this, dt);
   }
 
   /** Dauer von Tag und Nacht – geht auch an die Clients (Uhr, Licht). */

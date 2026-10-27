@@ -1,7 +1,6 @@
 # Konzept: Tutorial „Station 3“ (eigene Krankenhaus-Zone)
 
-Stand 2026-10-27 · Status: **nur Konzept – noch nichts gebaut.** Nach Freigabe in Phasen (§13) umsetzen.
-Bestandsaufnahme: Es gibt noch **keinerlei** Tutorial-Code (Suche nach „tutorial/erzähl/speechSynth“ ohne Treffer).
+Stand 2026-10-27 · Status: **Phasen 0–4 umgesetzt** (Funker heißt **Jelke**, Ziel ≤ 12 min, Angeln/Basisbau nur optional). Offen: Phase 5 (Erstbesuch-Automatik beim ersten Login), 6 (direkt im Spiel). Wo was liegt: KI_INDEX §22.
 
 ## 1. Vorgaben des Nutzers (fix)
 
@@ -76,7 +75,7 @@ Später (Phase 5) „beim ersten Einloggen“: Konto neu → Client startet erst
 ## 5. Story & Figuren
 
 - **Du:** Patient/in auf Zimmer 12, leicht verletzt (Leben ~70) – du weißt nicht, *was passiert ist*.
-- **Der Funker „Brandt“ (Leitstelle Katastrophenschutz):** ruhig, ernst, trocken. Spricht über das **Funkgerät auf dem Nachttisch** (Modell `radio` ist vorhanden) – er sieht die Lage über Kameras/Meldungen, kann nicht helfen außer mit Anweisungen. Er weiß mehr, als er sagt (Hook für die Story).
+- **Der Funker „Jelke“ (Leitstelle Katastrophenschutz):** ruhig, ernst, trocken. Spricht über das **Funkgerät auf dem Nachttisch** (Modell `radio` ist vorhanden) – er sieht die Lage über Kameras/Meldungen, kann nicht helfen außer mit Anweisungen. Er weiß mehr, als er sagt (Hook für die Story).
 - **Spannungsbogen:** Ruhe & Rätsel (Kap. 1–4) → **Stromausfall**, erster Zombie (Kap. 5) → Flucht ins Freie, Ruhe vor dem Sturm (Kap. 7–8) → **Horde, Auto, Aufbruch** (Kap. 9). Funk bricht am Ende mitten im Satz ab: „… fahr nach Süden, zum St.-Elisabeth. Dort …“ (Rauschen) → knüpft an die Story-Startzone an.
 
 Beispielzeilen (Ton!): 
@@ -200,7 +199,7 @@ Betten (`single-bed`, `bed-single`, `bunk-bed`, `double-bed`, `bedside-lamp`) ·
 - **Esc-Konflikt** mit Menü-Schließen und Browser-Vollbild (siehe §2) sauber testen.
 - **Stimmenrechte/Lizenz** der TTS-Stimme vor dem Einchecken verifizieren (Quelle in `credits.json`).
 - Neues Protokoll-Element (`NACHRICHT.TUTORIAL`, kleine Whitelist-Aktion `tutorial`) → `PROTOKOLL_VERSION` erhöhen, falls Online-Clients betroffen wären (Tutorial läuft lokal → vermutlich nicht nötig).
-- Entscheidungen offen für dich: Name der Klinik/des Funkers, Länge (12–15 min ok?), ob Angeln/Basisbau Pflicht werden sollen.
+- Entscheidungen offen für dich: Name der Klinik, Länge (12–15 min ok?), ob Angeln/Basisbau Pflicht werden sollen.
 
 ## Quellen (Recherche)
 

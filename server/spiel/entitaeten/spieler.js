@@ -3,6 +3,7 @@ import { STANDARD_AUSRUESTUNG } from '../konfiguration/gegenstaende.js';
 import { xpFuerNaechstesLevel } from '../systeme/levelSystem.js';
 import { flaggeFuerClient, radiusFuer } from '../systeme/territoriumSystem.js';
 import { leereSkills } from '../../../gemeinsam/spieler/skills.js';
+import { tutorialFuerClient } from '../systeme/tutorialSystem.js';
 import { aussehenKompakt, pruefeAussehen } from '../../../gemeinsam/spieler/aussehen.js';
 
 /**
@@ -160,6 +161,7 @@ export function spielerDatenPrivat(s, konfiguration, spielWelt = null) {
     bauRadius: spielWelt ? radiusFuer(s, konfiguration) : konfiguration.basisbau.radiusKacheln, // Radius einer neuen Flagge (fürs Hologramm)
     bauBlock: konfiguration.basisbau.blockGroesse ?? 1, // Block-Kantenlänge für Boden/Wand/Dach (1 = einzeln)
     spawn: s.spawn, // Respawn-Bett { karte, tx, ty } oder null
+    tutorial: spielWelt?.tutorial ? tutorialFuerClient(spielWelt, s) : undefined, // Tutorial-Zone: Kapitel, Aufgaben, Funk (systeme/tutorialSystem.js)
     // Fortschritt in 5-%-Schritten (sonst würde jeder Tick neue Daten schicken)
     arbeit: s.arbeit
       ? { art: s.arbeit.art, fortschritt: Math.round((1 - s.arbeit.rest / s.arbeit.dauer) * 20) / 20, wartet: s.arbeit.fertig === true, amFeuer: s.arbeit.art === 'sitzen' && s.arbeit.bauwerkId != null }

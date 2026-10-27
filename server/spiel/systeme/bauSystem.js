@@ -208,7 +208,7 @@ export function benutzeBauwerk(spielWelt, spieler, bauwerkId = null, wunschPflan
       Object.assign(b, { pflanze, wachstum: 0 });
       welt.setzeBauwerk(b);
       spielWelt.ereignis({ typ: 'gepflanzt', x: mitteX(spielWelt, b), y: mitteY(spielWelt, b), von: spieler.id });
-      spielWelt.melde(spieler.id, `${p.name} gepflanzt – braucht einen Tag (24 h), bei Regen die Hälfte`);
+      spielWelt.melde(spieler.id, spielWelt.tutorial ? `${p.name} gepflanzt – im Tutorial gleich reif` : `${p.name} gepflanzt – braucht einen Tag (24 h), bei Regen die Hälfte`);
       return;
     }
     case 'ernten': {

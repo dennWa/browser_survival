@@ -16,7 +16,7 @@ export function aktualisiereTageszeit(spielWelt, dt) {
   const { istNacht } = tageszeit(spielWelt.zeit, dauer);
   if (istNacht === spielWelt.istNacht) return;
   spielWelt.istNacht = istNacht;
-  if (istNacht) {
+  if (istNacht && !spielWelt.tutorial) {
     const anzahl = schickeHorde(spielWelt);
     meldeAllen(spielWelt, `Die Nacht bricht herein … ${anzahl > 0 ? 'Etwas kommt näher.' : ''}`.trim());
   } else {
@@ -50,5 +50,6 @@ export function schickeHorde(spielWelt) {
 }
 
 function meldeAllen(spielWelt, text) {
+  if (spielWelt.tutorial) return; // Tutorial stellt die Uhr selbst
   for (const s of spielWelt.alleVomTyp('spieler')) spielWelt.melde(s.id, text);
 }
