@@ -9,7 +9,7 @@
     "streuung": 0.06
   },
   "hack_holz": {
-    "maxDauer": 6,
+    "maxDauer": 5,
     "einmal": true
   },
   "nachladen": {
@@ -21,5 +21,12 @@
   "schritt_gras": {
     "lautstaerke": 0.5,
     "streuung": 0.08
+  },
+  "zombie_stoehnen": {
+    "dateiPegel": {
+      "zombie_stoehnen_0.wav": 0.3,
+      "zombie_stoehnen_1.wav": 0.2,
+      "zombie_stoehnen_2.wav": 0.35
+    }
   }
 }

@@ -50,7 +50,7 @@ test('Im Stand dreht das Auto nicht, bei Vollgas nur weite Kurven', () => {
   };
   const langsam = drehrate(110);
   const schnell = drehrate(FAHRZEUG.max);
-  assert.ok(langsam > 0.6 && langsam < 1.6, `Drehrate bei 110 px/s ${langsam}`);
+  assert.ok(langsam > 0.6 && langsam < 2.4, `Drehrate bei 110 px/s ${langsam}`);
   // Wendekreis bei Vollgas deutlich größer als langsam (Radius = Tempo / Drehrate)
   assert.ok(FAHRZEUG.max / schnell > 2 * (110 / langsam), 'schnell = weite Kurve');
   // rückwärts andersherum

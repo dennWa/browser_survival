@@ -81,6 +81,7 @@ class AudioZentrale {
     this.puffer = new Map(); // pfad → Promise<AudioBuffer>
     this.ctx = null;
     this.stimme = null;
+    this.abspielNr = 0; // zählt Wiedergaben hoch; stoppe() verwirft noch ladende
     this.synth = null;
     this.synthTimer = null;
     this.laeuft = null; // Marke dessen, was gerade klingt: Eintrags-ID | 'datei:<pfad>' | 'vor' | 'vorSchleife' (→ Knöpfe zeigen ⏸)
@@ -473,6 +474,7 @@ class AudioZentrale {
     const d = this.elDetail;
     const knopf = (a, f) => d.querySelectorAll(`[data-a=${a}]`).forEach((b) => b.addEventListener('click', () => f(Number(b.dataset.i))));
     knopf('zurueck', () => this.el.classList.remove('detail-offen'));
+    for (const pfad of e.dateien ?? []) this.#puffer(pfad).catch(() => {}); // vorladen: Varianten starten ohne Verzögerung
     knopf('anhoeren', () => (this.laeuft === e.id ? this.stoppe() : this.spiele(e.id)));
     const datei = (pfad) => (this.laeuft === `datei:${pfad}` ? this.stoppe() : this.#spieleDatei(pfad, e, `datei:${pfad}`));
     knopf('datei', (i) => datei(e.dateien[i]));
@@ -480,6 +482,7 @@ class AudioZentrale {
       r.addEventListener('input', () => {
         r.nextElementSibling.textContent = `${r.value} %`;
         r.title = `Lautstärke nur dieser Variante: ${r.value} %`;
+        this.#pegelLive(e); // läuft genau diese Variante, hört man die Änderung sofort
       });
       r.addEventListener('change', () => this.#speichereDateiPegel(e)); // beim Loslassen speichern
     }
@@ -495,7 +498,7 @@ class AudioZentrale {
     for (const r of d.querySelectorAll('.az-regler input')) {
       r.addEventListener('input', () => {
         r.nextElementSibling.textContent = `${r.value} %`;
-        if (r.dataset.f === 'pegel') this.#pegelLive(e, Number(r.value) / 100);
+        if (r.dataset.f === 'pegel' || r.dataset.f === 'streuung') this.#pegelLive(e);
       });
     }
     d.querySelector('[data-f=reihe]')?.addEventListener('change', (ev) => this.#setzeReihe(e, ev.target.checked));
@@ -566,7 +569,7 @@ class AudioZentrale {
   }
 
   /** AudioBuffer abspielen (eine Stimme), optional Schleife; `marke` = was die Knöpfe als „läuft“ zeigen */
-  #spielePuffer(puffer, { pegel = 1, rate = 1, loop = false, marke = null, verzoegerung = 0, maxDauer = 0 } = {}) {
+  #spielePuffer(puffer, { pegel = 1, rate = 1, loop = false, marke = null, verzoegerung = 0, maxDauer = 0, pfad = null, zufall = 0 } = {}) {
     this.stoppe();
     const ctx = this.#kontext();
     const q = ctx.createBufferSource();
@@ -583,7 +586,7 @@ class AudioZentrale {
       g.gain.linearRampToValueAtTime(0, beginn + maxDauer + 0.06);
       q.stop(beginn + maxDauer + 0.08);
     }
-    const stimme = { q, g };
+    const stimme = { q, g, pfad, zufall, maxDauer, beginn };
     q.onended = () => {
       if (this.stimme !== stimme) return;
       this.stimme = null;
@@ -614,10 +617,13 @@ class AudioZentrale {
   }
 
   async #spieleDatei(pfad, e = null, marke = e?.id ?? null) {
+    this.stoppe(); // sofort den vorherigen Ton beenden, auch während die neue Datei noch lädt
+    const nr = this.abspielNr;
     try {
       const puffer = await this.#puffer(pfad);
-      const s = e?.streuung ?? 0;
-      this.#spielePuffer(puffer, { ...this.#zeitWerte(e), pegel: this.#reglerPegel(e) * this.#dateiPegel(pfad), rate: 1 + (Math.random() * 2 - 1) * s, loop: !!e?.loop, marke });
+      if (nr !== this.abspielNr) return; // inzwischen gestoppt oder andere Variante gewählt
+      const zufall = Math.random() * 2 - 1;
+      this.#spielePuffer(puffer, { ...this.#zeitWerte(e), pegel: this.#reglerPegel(e) * this.#dateiPegel(pfad), rate: 1 + zufall * this.#reglerStreuung(e), loop: !!e?.loop, marke, pfad, zufall });
     } catch (fehler) {
       this.zustand.meldung(`Abspielen nicht möglich: ${fehler.message}`, 'fehler');
     }
@@ -640,10 +646,27 @@ class AudioZentrale {
     return { verzoegerung: f('verzoegerung', e?.verzoegerung ?? 0), maxDauer: f('maxDauer', e?.maxDauer ?? 0), einmal: box ? box.checked : !!e?.einmal };
   }
 
-  /** Regler bewegt → laufenden Ton sofort anpassen */
-  #pegelLive(e, wert) {
-    if (this.stimme) this.stimme.g.gain.setTargetAtTime(Math.min(3, wert) * 0.8, this.stimme.q.context.currentTime, 0.02);
-    this.synth?.setzePegel(e.ereignis, wert);
+  /** Tonhöhen-Streuung (0..0,5) wie am Regler eingestellt, sonst die gespeicherte */
+  #reglerStreuung(e) {
+    const r = e && this.elDetail?.querySelector('[data-f=streuung]');
+    return r ? Number(r.value) / 100 : e?.streuung ?? 0;
+  }
+
+  /** Regler bewegt (Gesamtpegel, Variante, Streuung) → laufenden Ton sofort anpassen */
+  #pegelLive(e) {
+    const st = this.stimme;
+    if (st) {
+      const t = st.q.context.currentTime;
+      const pegel = Math.min(3, this.#reglerPegel(e) * (st.pfad ? this.#dateiPegel(st.pfad) : 1)) * 0.8;
+      st.g.gain.cancelScheduledValues(t);
+      st.g.gain.setTargetAtTime(pegel, t, 0.02);
+      if (st.maxDauer > 0 && !st.q.loop) {
+        st.g.gain.setValueAtTime(pegel, Math.max(t, st.beginn + st.maxDauer)); // Ausblenden am Ende wieder einplanen
+        st.g.gain.linearRampToValueAtTime(0, Math.max(t, st.beginn + st.maxDauer) + 0.06);
+      }
+      st.q.playbackRate.setTargetAtTime(1 + st.zufall * this.#reglerStreuung(e), t, 0.02);
+    }
+    this.synth?.setzePegel(e.ereignis, this.#reglerPegel(e));
   }
 
   /** Eintrag anhören: Datei (zufällige Variante) oder Synthese wie im Spiel */
@@ -669,7 +692,7 @@ class AudioZentrale {
       this.synthStopp = () => clearInterval(lauf);
     } else {
       s.setzeZeit(n, this.#zeitWerte(e));
-      s.spiele(n, { lautstaerke: pegel, tonhoehe: 1 + (Math.random() * 2 - 1) * e.streuung });
+      s.spiele(n, { tonhoehe: 1 + (Math.random() * 2 - 1) * e.streuung }); // Pegel kommt aus setzePegel (sonst doppelt)
       this.#marke(e.id);
       this.synthTimer = setTimeout(() => this.stoppe(), 1500); // Kurzgeräusch: nach ~1,5 s wieder ▶ (Rezept-Länge unbekannt)
       return;
@@ -679,12 +702,15 @@ class AudioZentrale {
   }
 
   stoppe() {
+    this.abspielNr++; // verwirft noch ladende Wiedergaben
     const st = this.stimme;
     this.stimme = null;
     if (st) {
       try {
-        st.g.gain.setTargetAtTime(0.0001, st.q.context.currentTime, 0.03);
-        st.q.stop(st.q.context.currentTime + 0.12);
+        const t = st.q.context.currentTime;
+        st.g.gain.cancelScheduledValues(t);
+        st.g.gain.setValueAtTime(0, t); // sofort still (kein Ausklingen)
+        st.q.stop(t + 0.01);
       } catch {
         /* schon zu Ende */
       }
@@ -697,6 +723,7 @@ class AudioZentrale {
       this.synth?.stoppeAtmosphaere();
       this.synth?.motor(null);
     }
+    this.synth?.stoppeKurze();
     this.#marke(null);
   }
 

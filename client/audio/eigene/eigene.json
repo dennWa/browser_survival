@@ -4,7 +4,7 @@
       "hack_holz.ogg"
     ],
     "lautstaerke": 1,
-    "maxDauer": 6,
+    "maxDauer": 5,
     "einmal": true
   },
   "nachladen": {
@@ -37,6 +37,35 @@
     ],
     "lautstaerke": 0.5,
     "streuung": 0.08
+  },
+  "zombie_angriff": {
+    "dateien": [
+      "zombie_angriff_0.wav",
+      "zombie_angriff_1.wav",
+      "zombie_angriff_2.wav",
+      "zombie_angriff_3.wav"
+    ],
+    "lautstaerke": 1
+  },
+  "zombie_stoehnen": {
+    "dateien": [
+      "zombie_stoehnen_0.wav",
+      "zombie_stoehnen_1.wav",
+      "zombie_stoehnen_2.wav"
+    ],
+    "lautstaerke": 1,
+    "dateiPegel": {
+      "zombie_stoehnen_0.wav": 0.3,
+      "zombie_stoehnen_1.wav": 0.2,
+      "zombie_stoehnen_2.wav": 0.35
+    }
+  },
+  "zombie_tod": {
+    "dateien": [
+      "zombie_tod_0.wav",
+      "zombie_tod_1.wav"
+    ],
+    "lautstaerke": 1
   },
   "wind": {
     "dateien": [],

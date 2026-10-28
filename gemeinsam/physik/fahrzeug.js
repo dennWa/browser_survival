@@ -23,8 +23,8 @@ export const FAHRZEUG = Object.freeze({
   max: 340, // px/s (Laufen: 150)
   rollReibung: 70, // ohne Gas wird er langsamer …
   fahrtwind: 0.28, // … plus dieser Anteil des Tempos je Sekunde
-  lenkWinkel: 0.65, // rad, größter Radeinschlag im Stand/langsam
-  lenkAbfall: 225, // px/s (Runde 21: 200 → etwas straffer): bei diesem Tempo ist der größte Einschlag halbiert
+  lenkWinkel: 0.95, // rad, größter Radeinschlag im Stand/langsam (Runde 22: 0.65 → stärkere Lenkung)
+  lenkAbfall: 250, // px/s (Runde 22: 225 → 250, Runde 21: 200): bei diesem Tempo ist der größte Einschlag halbiert
   radstand: 0.55, // Anteil der Fahrzeuglänge
   lenkTempo: 5, // so schnell (Runde 21: 4 → straffer) (1/s) dreht das „Lenkrad“ zum Anschlag …
   lenkZurueck: 6.5, // … und zurück in die Mitte

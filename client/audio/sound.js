@@ -46,6 +46,7 @@ export class Sound {
   #eigenePegel = {}; // Name → Faktor aus eigene/lautstaerke.txt / einstellungen.json (gilt für alle Quellen)
   #streuung = {}; // Name → ± Tonhöhe (0..0,5) aus einstellungen.json
   #zeit = {}; // Name → { verzoegerung, maxDauer, einmal } aus einstellungen.json: Ton später starten (s) / nach so langer Zeit abschneiden (s) / nicht neu starten, solange er läuft
+  #kurz = new Set(); // gerade klingende Kurzgeräusche { name, knoten, ziel, ohnePegel } (Stopp/Live-Pegel der Audio-Zentrale)
   #laufBis = {}; // Name → Audio-Zeit, bis der zuletzt gestartete Ton (mit `einmal`) zu Ende ist
   #nacht = null;
   #letzteEigene = {}; // Name → zuletzt gespielter Index (keine direkte Wiederholung)
@@ -271,6 +272,8 @@ export class Sound {
       ziel = panner;
     }
     ziel.connect(this.#effekte);
+    const lauf = { name, knoten: lautstaerkeKnoten, ziel, ohnePegel: gain / (this.#eigenePegel[name] ?? 1) };
+    this.#kurz.add(lauf);
     let dauer;
     if (eigene?.length) {
       // Eigene Datei: unverändert (Tonhöhe 1, außer Streuung), zufällige Variante, nie zweimal dieselbe hintereinander
@@ -305,7 +308,17 @@ export class Sound {
     }
     const spielzeit = Math.min(dauer, maxDauer > 0 ? maxDauer : Infinity) + verzoegerung;
     if (einmal) this.#laufBis[name] = ctx.currentTime + VORLAUF + spielzeit;
-    setTimeout(() => ziel.disconnect(), (spielzeit + 0.5) * 1000);
+    setTimeout(() => {
+      ziel.disconnect();
+      this.#kurz.delete(lauf);
+    }, (spielzeit + 0.5) * 1000);
+  }
+
+  /** Alle gerade klingenden Kurzgeräusche sofort abschneiden (Audio-Zentrale: Stopp) */
+  stoppeKurze() {
+    for (const l of this.#kurz) l.ziel.disconnect();
+    this.#kurz.clear();
+    this.#laufBis = {};
   }
 
   /**
@@ -440,6 +453,7 @@ export class Sound {
   /** Pegel eines Ereignisses live ändern (Audio-Zentrale: Regler während des Anhörens); Wind sofort, andere ab dem nächsten Abspielen */
   setzePegel(name, wert) {
     this.#eigenePegel[name] = wert;
+    for (const l of this.#kurz) if (l.name === name) l.knoten.gain.setTargetAtTime(l.ohnePegel * wert, this.#ctx.currentTime, 0.02);
     if (name === 'wind') this.#wind?.regler?.(wert);
   }
 
