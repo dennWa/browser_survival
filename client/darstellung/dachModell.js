@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
+import { ladeTextur } from './wandTexturen.js';
 
 /**
  * Echte Dächer für alle Gebäude der Karte (Walmdach, Top-Down-/Isometrie-tauglich).
@@ -19,15 +20,29 @@ const GROSS_AB = 6; // Gebäude mit größerem Abstand (Kacheln) Rand→Mitte ge
 const ANSTIEG_KACHELN = 3; // so viele Kacheln braucht der Anstieg bis zum First
 const UEBERSTAND = 5; // Traufe ragt so viele px über die Wand
 const TRAUFE_SENKUNG = 3; // und hängt etwas nach unten
-const TEXTUR_KACHELN = 1.5; // eine Texturkachel deckt so viele Dachkacheln ab
+const TEXTUR_KACHELN = 3.2; // eine Texturkachel deckt so viele Dachkacheln ab (Runde 23: echte Ziegel-Textur, ~10 Ziegelreihen)
 const DACH_FARBEN = [0xd0644a, 0x7f8ca0, 0xa8705a, 0x6f8f7a, 0xb88a62, 0x8a96aa]; // Ziegelrot, Schiefer, Braun, Moosgrün, Holz, Blaugrau
 const GROSS_FARBE = 0xa2a8b0; // Flachdach (Krankenhaus u. a.): helles Betongrau
 const NACHBARN8 = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
 
 let schindelCache = null;
-/** Graustufen-Schindeln (Reihen mit Versatz, dunkle Fugen) – die Farbe kommt aus den Vertexfarben. */
+/**
+ * Runde 23: echte Dachziegel (ambientCG RoofingTiles006, CC0) in Graustufen – die Farbe je Gebäude kommt weiter aus den
+ * Vertexfarben. Ohne DOM (Tests) bleibt die alte, gemalte Schindel-Textur.
+ */
 function schindelTextur() {
   if (schindelCache) return schindelCache;
+  if (typeof document !== 'undefined' && typeof Image !== 'undefined') {
+    schindelCache = ladeTextur('dachziegel_grau.jpg');
+    return schindelCache;
+  }
+  return gemalteSchindeln();
+}
+
+/** Graustufen-Schindeln (Reihen mit Versatz, dunkle Fugen) – die Farbe kommt aus den Vertexfarben. */
+let gemaltCache = null;
+function gemalteSchindeln() {
+  if (gemaltCache) return gemaltCache;
   const c = document.createElement('canvas');
   c.width = c.height = 128;
   const x = c.getContext('2d');
@@ -47,11 +62,11 @@ function schindelTextur() {
       x.fillRect(s * breite + versatz + 1, r * reihe + reihe - 4, breite - 2, 3);
     }
   }
-  schindelCache = new THREE.CanvasTexture(c);
-  schindelCache.wrapS = schindelCache.wrapT = THREE.RepeatWrapping;
-  schindelCache.colorSpace = THREE.SRGBColorSpace;
-  schindelCache.anisotropy = 4;
-  return schindelCache;
+  gemaltCache = new THREE.CanvasTexture(c);
+  gemaltCache.wrapS = gemaltCache.wrapT = THREE.RepeatWrapping;
+  gemaltCache.colorSpace = THREE.SRGBColorSpace;
+  gemaltCache.anisotropy = 4;
+  return gemaltCache;
 }
 
 export class Daecher {
@@ -75,9 +90,12 @@ export class Daecher {
     this.gebaeudeVon = new Map(); // Kachelindex → Gebäude-Nr.
     this.versteckt = new Set(); // aktuell offene (nicht gezeichnete) Dachkacheln
     this.offenesGebaeude = -1;
-    material.map = schindelTextur();
     material.vertexColors = true;
     material.roughness = 0.85;
+    // Runde 23: Flachdächer (große Gebäude) ohne Ziegel – Teerpappe/Beton wirkt dort echter als Dachziegel
+    this.flachMaterial = material.clone();
+    this.flachMaterial.map = gemalteSchindeln();
+    material.map = schindelTextur();
     material.needsUpdate = true;
     this.material = material;
     this.#baue();
@@ -232,6 +250,7 @@ export class Daecher {
         for (const [cx, cy] of [[tx, ty], [tx + 1, ty], [tx, ty + 1], [tx + 1, ty + 1]]) maxD = Math.max(maxD, abstand.get(cy * eb + cx) ?? 0);
       }
       const gross = maxD >= GROSS_AB;
+      gb.flach = gross;
       const kappe = gross ? ANSTIEG_GROSS : ANSTIEG_KLEIN;
       const proKachel = kappe / Math.min(ANSTIEG_KACHELN, maxD);
       const farbe = new THREE.Color(gross ? GROSS_FARBE : DACH_FARBEN[(gb.kacheln[0] * 7 + gb.kacheln.length) % DACH_FARBEN.length]);
@@ -276,7 +295,7 @@ export class Daecher {
     const gb = this.gebaeude[nr];
     const sichtbar = gb.kacheln.filter((idx) => !this.versteckt.has(idx));
     if (!gb.mesh) {
-      gb.mesh = new THREE.Mesh(new THREE.BufferGeometry(), this.material);
+      gb.mesh = new THREE.Mesh(new THREE.BufferGeometry(), gb.flach ? this.flachMaterial : this.material);
       gb.mesh.castShadow = true;
       gb.mesh.renderOrder = -1; // Dächer zuerst: Böden/Möbel darunter fallen dann schon im Tiefentest raus (spart Pixel-Beleuchtung)
       gb.mesh.receiveShadow = true;

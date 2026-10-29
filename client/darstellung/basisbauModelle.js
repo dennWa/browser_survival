@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { vereineGeometrien, matrixAus } from './geometrie.js';
 import { ebeneVon } from '../../gemeinsam/welt/bauwerke.js';
+import { wendeWandTexturAn } from './wandTexturen.js';
 
 /**
  * 3D-Darstellung des Basisbaus (gemeinsam/basisbau/teile.js): Modelle der Bauteile, die instanzierte Schicht für
@@ -18,7 +19,8 @@ export const WAND_HOEHE = 76;
 const DACH_HOEHE = 5;
 
 /** Material für alle Basisbau-Teile (Vertexfarben). Der Renderer hängt den Wand-Schnitt an (initialisiereBasisbauModelle). */
-export const BASIS_MATERIAL = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88 });
+// Runde 23: Holzmaserung (ambientCG WoodSiding008, CC0) per Welt-Raum-Projektion über die Vertexfarben (wandTexturen.js)
+export const BASIS_MATERIAL = wendeWandTexturAn(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88 }), 'holz');
 
 /** Typen, die als InstancedMesh gezeichnet werden (viele gleiche Teile): Bauwerk-Typ → { oriented, schatten } */
 export const INSTANZ_TYPEN = Object.freeze({

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { wendeWandTexturAn } from './wandTexturen.js';
 
 /**
  * Wand-Durchsicht (Runde 18): Steht man in einem Raum (Innenboden, den Türen begrenzen – `Daecher.raumBei`), werden NUR die
@@ -164,6 +165,7 @@ export class WandDurchsicht {
 
   #material(vorlage) {
     const m = vorlage.clone();
+    if (vorlage.userData.wandTextur) wendeWandTexturAn(m, vorlage.userData.wandTextur); // onBeforeCompile geht beim Klonen verloren
     m.transparent = true;
     m.depthWrite = false;
     m.vertexColors = true; // Farbattribut mit Alpha = Deckkraft je Kachel

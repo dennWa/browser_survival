@@ -5,6 +5,7 @@ import { baueBaum, baueStumpf, toonMaterial, baumMaterial, ladeTanneAusGlb, BAUM
 import { BodenTextur } from './bodenTextur.js';
 import { Daecher } from './dachModell.js';
 import { WandDurchsicht } from './wandDurchsicht.js';
+import { wendeWandTexturAn } from './wandTexturen.js';
 import { einfrieren, matrixAus, vereineGeometrien } from './geometrie.js';
 import { eigeneGroesse } from '../../gemeinsam/welt/drehung.js';
 import { eigenesModellUrl, ladeEigenesModell, eigenesModellInhalt, leerlaufMischer } from './eigeneModelle.js';
@@ -406,7 +407,8 @@ export class KartenModell {
         if (name === 'tuer') nimm({ x, z, unten: b + TUER_HOEHE, hoehe: WANDHOEHE - TUER_HOEHE }); // Sturz
       }
     }
-    const seite = this.mitSchnitt(new THREE.MeshStandardMaterial({ color: 0x5a616c, roughness: 0.92 }));
+    // Runde 23: Ziegelwand statt grauer Fläche (wandTexturen.js, Welt-Raum-Projektion; Farbe hellt die Textur nur noch ab)
+    const seite = this.mitSchnitt(wendeWandTexturAn(new THREE.MeshStandardMaterial({ color: 0xa4a4a4, roughness: 0.92 }), 'ziegel'));
     const oben = this.mitSchnitt(new THREE.MeshStandardMaterial({ color: 0x2c3038, roughness: 1 }));
     // je Block ein InstancedMesh (Culling); Box mit nur 2 Materialgruppen (Seiten, Deckel) → 2 Draw-Calls je Block
     const wand = this.#instanzen(boxZweiGruppen(g, 1, g), [seite, oben], teile).schatten(true);

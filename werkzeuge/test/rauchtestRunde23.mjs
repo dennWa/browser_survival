@@ -289,6 +289,35 @@ try {
     } else fehler.push('Prüfung: kein Hase in der Zone');
   }
 
+  // ---------------------------------------------------------------- Phase 7 (Häuser)
+  if (phaseAn(7)) {
+    // draußen vor einem Haus (Dächer zu) und drinnen (Wände durchsichtig, Ziegel-Textur)
+    await amServer('ich.gottmodus = true;');
+    await seite.evaluate(() => browserSurvival.tp(20, 30));
+    await seite.waitForTimeout(2500);
+    await bild('7_haeuser_aussen');
+    const texturen = await seite.evaluate(() => {
+      let anzahl = 0;
+      browserSurvival.spiel.renderer.szene.traverse((o) => {
+        for (const m of [].concat(o.material ?? [])) if (m?.userData?.wandTextur) anzahl++;
+      });
+      return anzahl;
+    });
+    pruefe(texturen > 0, `Wand-/Holz-Texturen im Einsatz (${texturen} Materialien)`);
+    const start = await seite.evaluate(() => {
+      const r = browserSurvival.spiel.welt.raeume[0];
+      return r ? { tx: Math.floor(r.x / 32), ty: Math.floor(r.y / 32) } : null;
+    });
+    if (start) {
+      await seite.evaluate(({ tx, ty }) => browserSurvival.tp(tx, ty), start);
+      await seite.waitForTimeout(2500);
+      await bild('7_haus_innen');
+      await seite.evaluate(({ tx, ty }) => browserSurvival.tp(tx, ty + 8), start);
+      await seite.waitForTimeout(2500);
+      await bild('7_haus_dach');
+    }
+  }
+
   const info = await seite.evaluate(() => browserSurvival.spiel?.renderer.statistik() ?? '');
   if (info) console.log(`  Grafik: ${info}`);
 } catch (e) {
