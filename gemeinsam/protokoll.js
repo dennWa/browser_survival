@@ -112,6 +112,10 @@ export const AKTIONEN = Object.freeze({
   MODS_ABNEHMEN: 'modsAbnehmen', // Runde 24: { slot } alle Aufsätze (Zielfernrohr …) von der Waffe nehmen
   HAUSTIER: 'haustier', // Runde 24: { ziel: tierId } zähmen (mit Futter) bzw. eigenes Tier Bleib/Bei Fuß (haustierSystem)
   MUSIK: 'musik', // Runde 24: { ziel: bauwerkId, quelle: 'ordner'|'youtube'|'aus', wert } Radio/Plattenspieler (musikSystem)
+  GRUPPE: 'gruppe', // Runde 24: { was: einladen{ziel}|annehmen|ablehnen|verlassen|entfernen{name} } (mehrspielerSystem)
+  HANDEL: 'handel', // Runde 24: { was: anfragen{ziel}|annehmen|ablehnen|anbieten{slot}|zurueck{slot}|bereit|abbrechen }
+  HELFEN: 'helfen', // Runde 24: { ziel } Niedergestreckten mit Erste-Hilfe-Kasten wiederbeleben
+  AUFGEBEN: 'aufgeben', // Runde 24: niedergestreckt → endgültig sterben
   LICHT: 'licht', // Taschenlampe an/aus (aus = Zombies bemerken einen erst aus der Nähe)
   WIEDERBELEBEN: 'wiederbeleben', // tot → sofort am Startpunkt neu spawnen (statt Countdown abzuwarten)
   ADMIN: 'admin', // Admin-Befehl (nur für Accounts mit Admin-Recht, prüft der Server)

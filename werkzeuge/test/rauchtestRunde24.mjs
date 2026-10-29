@@ -324,6 +324,39 @@ try {
     await amServer('ich.zustand = null; ich.muedigkeit = 0; ich.gottmodus = true;');
   }
 
+  // ---------------------------------------------------------------- Phase 14 (Gruppen, Handel, Niederstrecken)
+  if (phaseAn(14)) {
+    await amServer(`const bob = welt.spielerBetrittWelt('Bob'); bob.x = ich.x + 40; bob.y = ich.y; bob.inventar[0] = { defId: 'apfel', menge: 3 };
+      ich.inventar[5] = { defId: 'brot', menge: 2 }; ich.gottmodus = false;
+      bob.aktionsPuffer.push({ art: 'handel', was: 'anfragen', ziel: ich.id, slot: null });`);
+    await seite.waitForSelector('.ms-anfrage:not([hidden])', { timeout: 5000 });
+    schritt('Handelsanfrage erscheint');
+    await seite.click('.ms-ja');
+    await seite.waitForSelector('.ms-handel:not([hidden])', { timeout: 5000 });
+    await amServer(`const bob = [...welt.alleVomTyp('spieler')].find((s) => s.name === 'Bob'); bob.aktionsPuffer.push({ art: 'handel', was: 'anbieten', slot: 0 });`);
+    await seite.waitForTimeout(600);
+    await seite.click('.ms-inventar .slot');
+    await seite.waitForTimeout(600);
+    pruefe((await seite.$$('.ms-seins .slot')).length === 1 && (await seite.$$('.ms-meins .slot')).length === 1, 'Angebote beidseitig sichtbar');
+    await bild('14_handel');
+    await seite.click('.ms-abbrechen');
+    await seite.evaluate(async () => {
+      const { toeten } = await import('/server/spiel/systeme/kampfSystem.js');
+      for (const z of browserSurvival.server.zonen.values()) {
+        const ich = z.spielWelt.holen(browserSurvival.spiel.eigeneId);
+        if (ich?.typ === 'spieler' && z.spielWelt.karte.daten.id === browserSurvival.spiel.welt.id) toeten(z.spielWelt, ich);
+      }
+    });
+    await seite.waitForSelector('.ms-nieder:not([hidden])', { timeout: 5000 });
+    schritt('Niedergestreckt-Hinweis');
+    await seite.waitForTimeout(1200);
+    await bild('14_niedergestreckt');
+    await amServer(`const bob = [...welt.alleVomTyp('spieler')].find((s) => s.name === 'Bob'); bob.inventar[1] = { defId: 'erste_hilfe_kasten', menge: 1 }; bob.aktionsPuffer.push({ art: 'helfen', ziel: ich.id, slot: null });`);
+    await seite.waitForSelector('.ms-nieder[hidden]', { state: 'attached', timeout: 5000 });
+    pruefe(await amServer('return !ich.tot && !(ich.niedergestreckt > 0);'), 'von Bob gerettet');
+    await amServer(`ich.gottmodus = true; const bob = [...welt.alleVomTyp('spieler')].find((s) => s.name === 'Bob'); welt.entfernen(bob.id);`);
+  }
+
   const info = await seite.evaluate(() => browserSurvival.spiel?.renderer.statistik() ?? '');
   if (info) console.log(`  Grafik: ${info}`);
 } catch (e) {

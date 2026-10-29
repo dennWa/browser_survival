@@ -16,7 +16,7 @@ export function verarbeiteSpielerEingaben(spielWelt) {
   for (const spieler of spielWelt.alleVomTyp('spieler')) {
     while (spieler.eingabePuffer.length > 0) {
       const eingabe = spieler.eingabePuffer.shift();
-      if (spieler.arbeit?.art === 'schlafen') {
+      if (spieler.arbeit?.art === 'schlafen' || spieler.niedergestreckt > 0) {
         spieler.angriff = false; // im Bett: festgehalten, bis man ausgeschlafen hat (oder angegriffen wird)
       } else if (!spieler.tot) {
         const sprintet = wendeEingabeAn(spieler, eingabe, spielWelt.welt, parameter, TICK_DAUER_S);

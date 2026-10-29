@@ -1339,7 +1339,7 @@ export class Renderer {
         // > gehen/laufen (Tempo über timeScale) > stehen. Fehlt ein Clip, gilt der nächstbeste (hacken bzw. prozedural).
         const k = f.aktionen;
         const arbeitsKlip = ARBEIT_KLIP[e.arbeit];
-        if (e.tot) name = 'sterben';
+        if (e.tot || e.niedergestreckt) name = 'sterben'; // Runde 24: niedergestreckt liegt am Boden
         else if (e.arbeit === 'sitzen' && k.sitzen) name = 'sitzen';
         else if (arbeitsKlip && k[arbeitsKlip]) name = arbeitsKlip;
         else if (arbeitsKlip && (HACK_ARBEIT.has(e.arbeit) || e.arbeit === 'zerlegen')) name = 'hacken';

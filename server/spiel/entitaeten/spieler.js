@@ -5,6 +5,7 @@ import { flaggeFuerClient, radiusFuer } from '../systeme/territoriumSystem.js';
 import { leereSkills } from '../../../gemeinsam/spieler/skills.js';
 import { tutorialFuerClient } from '../systeme/tutorialSystem.js';
 import { aussehenKompakt, pruefeAussehen } from '../../../gemeinsam/spieler/aussehen.js';
+import { gruppeFuerClient, handelFuerClient } from '../systeme/mehrspielerSystem.js';
 
 /**
  * Spieler-Entität ("Männeken").
@@ -123,6 +124,7 @@ export function spielerZuNetzwerk(s) {
     fliegen: s.fliegen,
     arbeit: s.arbeit?.art ?? null, // 'holz' | 'stein' | 'schlafen' → Animation/Werkzeug
     arbeitOrt: s.arbeit?.ort ?? null, // Bett beim Schlafen
+    ...(s.niedergestreckt > 0 ? { niedergestreckt: true } : {}), // Runde 24: liegt am Boden, wartet auf Hilfe
     level: s.level,
     zombiesGetoetet: s.statistik.zombies,
     spielerGetoetet: s.statistik.spieler,
@@ -177,6 +179,10 @@ export function spielerDatenPrivat(s, konfiguration, spielWelt = null) {
     ...(s.gemuetlich ? { gemuetlich: true } : {}), // Runde 24: Cozy-Bonus (HUD-Chip)
     muedigkeit: Math.round(s.muedigkeit ?? 0), // Runde 24 (P11): Müdigkeit, Zustände, Buffs → HUD
     zustand: zustandKompakt(s.zustand),
+    niedergestreckt: s.niedergestreckt > 0 ? Math.ceil(s.niedergestreckt) : undefined, // Runde 24 (P14)
+    anfrage: s.anfrage ? { art: s.anfrage.art, von: s.anfrage.vonName } : undefined,
+    handel: spielWelt ? handelFuerClient(spielWelt, s) : undefined,
+    gruppe: spielWelt ? gruppeFuerClient(spielWelt, s) : undefined,
     buffs: s.buffs && Object.keys(s.buffs).length ? Object.fromEntries(Object.entries(s.buffs).map(([k, v]) => [k, Math.ceil(v)])) : undefined,
     ausgeruestet: s.ausgeruestet,
     nachladen: s.nachladenRest > 0,

@@ -21,6 +21,8 @@ import { legeInStation, nimmAusStation, schliesseStation, setzeAmFeuer, setzeHin
 import { baue, reisseAb } from './basisbauSystem.js';
 import { wendeItemAn } from './gesundheitSystem.js';
 import { istWasserKachel } from '../../../gemeinsam/welt/wasser.js';
+import { gruppenAktion, handelAktion, helfen } from './mehrspielerSystem.js';
+import { toeten } from './kampfSystem.js';
 
 /**
  * Inventar: Aufheben, Benutzen (Essen/Trinken/Medizin), Aus-/Abrüsten, Ablegen, Nachladen.
@@ -55,6 +57,23 @@ export function verarbeiteAktionen(spielWelt) {
         continue;
       }
       if (spieler.tot) continue;
+      // Runde 24: niedergestreckt – nur aufgeben (bzw. Anfragen beantworten)
+      if (spieler.niedergestreckt > 0) {
+        if (aktion.art === AKTIONEN.AUFGEBEN) toeten(spielWelt, spieler, null, { endgueltig: true });
+        continue;
+      }
+      if (aktion.art === AKTIONEN.GRUPPE) {
+        gruppenAktion(spielWelt, spieler, aktion);
+        continue;
+      }
+      if (aktion.art === AKTIONEN.HANDEL) {
+        handelAktion(spielWelt, spieler, aktion);
+        continue;
+      }
+      if (aktion.art === AKTIONEN.HELFEN) {
+        helfen(spielWelt, spieler, aktion.ziel);
+        continue;
+      }
       // Im Auto geht nur: aussteigen, Licht, Fähigkeiten, Inventar umsortieren
       if (spieler.fahrzeug && ![AKTIONEN.FAHRZEUG, AKTIONEN.LICHT, AKTIONEN.SKILL, AKTIONEN.TAUSCHEN, AKTIONEN.KOFFERRAUM, AKTIONEN.KISTE_LEGEN, AKTIONEN.KISTE_NEHMEN, AKTIONEN.KISTE_SCHLIESSEN].includes(aktion.art)) continue;
       switch (aktion.art) {

@@ -1394,3 +1394,20 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
 @keyframes zustand-puls { 50% { filter: brightness(1.35); } }
 #wert-muedigkeit .fuellung { background: #8a7ad0; }
 .emoji-symbol { font-size: 0.85rem; line-height: 1; }
+/* Runde 24 (P14): Mehrspieler – Anfrage, Spieler-Menü, Handel, Niedergestreckt */
+.mehrspieler .fenster { position: fixed; z-index: 45; padding: 10px 12px; border-radius: 12px; background: rgba(28, 24, 20, 0.95); color: #f0e6d0; border: 1px solid #6a5a40; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5); }
+.mehrspieler .fenster[hidden] { display: none; }
+.mehrspieler button { cursor: pointer; border-radius: 8px; border: 1px solid #7a6a4a; background: #3a3224; color: #f0e6d0; padding: 8px 12px; font: inherit; }
+.mehrspieler button:hover, .mehrspieler button.aktiv { background: #4f6a34; }
+.ms-anfrage { top: 70px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; align-items: center; }
+.ms-menue, .ms-nieder { left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; gap: 8px; min-width: 220px; text-align: center; }
+.ms-nieder { top: 28%; background: rgba(90, 20, 20, 0.92) !important; }
+.ms-handel { left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(460px, calc(100vw - 32px)); max-height: 85vh; overflow: auto; }
+.ms-kopf { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.ms-spalten { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px; }
+.ms-unter { font-size: 0.8rem; opacity: 0.8; margin: 4px 0; }
+.ms-raster { display: flex; flex-wrap: wrap; gap: 4px; min-height: 48px; }
+.ms-raster .slot { width: 46px; height: 46px; padding: 0; position: relative; }
+.ms-icon { width: 40px; height: 40px; }
+.ms-raster .menge { position: absolute; right: 3px; bottom: 1px; font-size: 0.7rem; }
+.ms-bereit { width: 100%; margin-top: 10px; }

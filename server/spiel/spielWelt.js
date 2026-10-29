@@ -33,6 +33,7 @@ import { FAHRZEUG_MODELLE, fahrzeugAusObjekt, passt } from '../../gemeinsam/phys
 import { BAUWERKE, PFLANZEN, pruefePlatz } from '../../gemeinsam/welt/bauwerke.js';
 import { aktualisiereTutorial, erstelleTutorial, tutorialKonfiguration } from './systeme/tutorialSystem.js';
 import { erzeugeTerritorium, territoriumLaden, territoriumSpeichern } from './systeme/territoriumSystem.js';
+import { aktualisiereMehrspieler } from './systeme/mehrspielerSystem.js';
 
 /** Welche Entitätstypen jeden Tick im Schnappschuss landen (dynamisch) – und wie sie serialisiert werden. */
 const NETZWERK_SERIALISIERER = {
@@ -89,6 +90,8 @@ export class SpielWelt {
     this.wetter = { art: 'klar', rest: 30 + this.zufall.zahl() * 120 };
     /** Offene Kisten-Ansichten, die der Zone-Versand abholt: [{ spielerId, id, inhalt | null }] */
     this.kistenNachrichten = [];
+    /** Runde 24: laufende Handel (mehrspielerSystem) */
+    this.handel = new Map();
     this.lootZustand = [];
     /** Wird bei jeder Türänderung erhöht → Server schickt TUEREN */
     this.tuerenVersion = 0;
@@ -284,6 +287,7 @@ export class SpielWelt {
     aktualisiereAngeln(this, dt);
     aktualisiereWetter(this, dt);
     aktualisiereUeberleben(this, dt);
+    aktualisiereMehrspieler(this, dt);
     aktualisiereLoot(this, dt);
     aktualisiereTageszeit(this, dt);
     aktualisiereTutorial(this, dt);

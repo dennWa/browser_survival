@@ -44,7 +44,7 @@ const AUTO_SCHLAG_ABSTAND = 22; // px zwischen Zombie-Rand und Karosserie, ab de
 export function aktualisiereZombies(spielWelt, dt) {
   const k = spielWelt.konfiguration.zombie;
   const spielerRadius = spielWelt.konfiguration.spieler.radius;
-  const lebendeSpieler = [...spielWelt.alleVomTyp('spieler')].filter((s) => !s.tot && !s.unsichtbar);
+  const lebendeSpieler = [...spielWelt.alleVomTyp('spieler')].filter((s) => !s.tot && !s.unsichtbar && !(s.niedergestreckt > 0)); // Runde 24: Niedergestreckte bleiben liegen
   const zombies = [...spielWelt.alleVomTyp('zombie')];
   spielWelt.pfadBudget = PFAD_BUDGET;
   // Tür-Reservierungen: letzte Runde gilt, diese Runde wird neu gesammelt (Kachel → { id, abstand })

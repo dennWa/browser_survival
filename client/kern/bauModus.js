@@ -50,7 +50,7 @@ export class BauModus {
   }
 
   hatFlagge() {
-    return this.territorium.von(this.name) !== null;
+    return this.territorium.von(this.name) !== null || this.territorium.flaggen.size > 0; // eigene oder Gruppen-Basis
   }
 
   // --- Modus an/aus ------------------------------------------------------------
@@ -212,6 +212,9 @@ export class BauModus {
   beiSpielerDaten(daten) {
     const hatteFlagge = this.hatFlagge();
     this.territorium.setzeNurEigene(daten.flagge ? { besitzer: this.name, tx: daten.flagge.tx, ty: daten.flagge.ty, radius: daten.flagge.radius, mitglieder: {} } : null);
+    // Runde 24 (P14): Gruppen-Basis (als Mitglied) – volle Rechte dort, Bau-Modus darf ohne eigene Flagge
+    const gf = daten.gruppe?.flagge;
+    if (gf) this.territorium.flaggen.set(daten.gruppe.besitzer, { besitzer: daten.gruppe.besitzer, ...gf, mitglieder: { [this.name]: ['bauen', 'abreissen', 'benutzen'] } });
     if (this.aktiv && daten.tot) this.umschalten(false);
     // Flagge steht → gleich zu den Bauteilen weiter (Boden vorgewählt)
     if (this.aktiv && !hatteFlagge && this.hatFlagge()) {

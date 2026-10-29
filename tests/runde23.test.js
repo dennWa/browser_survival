@@ -299,7 +299,7 @@ test('Kleidung: Tod lässt sie fallen, Spielstand speichert und prüft sie', asy
   assert.equal(neu.inventar.length, spieler.inventar.length);
   assert.equal(neu.kaelte, 42);
   spieler.gottmodus = false;
-  toeten(welt, spieler);
+  toeten(welt, spieler, null, { endgueltig: true });
   assert.equal(spieler.kleidung.oberkoerper, null);
   assert.ok([...welt.alleVomTyp('gegenstand')].some((g) => g.defId === 'arbeitsweste'));
 });

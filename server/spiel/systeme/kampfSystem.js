@@ -15,6 +15,7 @@ import { lasseBossLootFallen, lasseZombieLootFallen } from './lootSystem.js';
 import { explodiere } from './sonderZombieSystem.js';
 import { werfe } from './explosionSystem.js';
 import { haustierGestorben } from './haustierSystem.js';
+import { streckeNieder } from './mehrspielerSystem.js';
 
 /**
  * (Linksklick am Ufer mit Angel im Inventar ist KEIN Angriff: behandleAngelKlick läuft zuerst, siehe angelSystem.js.)
@@ -185,6 +186,7 @@ export function fuegeSchadenZu(spielWelt, ziel, menge, quelle, winkel = 0, optio
     return;
   }
   if (ziel.typ === 'spieler' && tutorialVorSchaden(spielWelt, ziel, menge)) return; // Tutorial: Ohnmacht statt Tod
+  if (ziel.niedergestreckt > 0) return toeten(spielWelt, ziel, quelle, { ...optionen, endgueltig: true }); // Runde 24: am Boden = aus
   // Runde 24: Panzerung (gepanzerte Zombies) schluckt einen Teil – Explosionen und Waffen mit `durchschlag` nicht
   if (ziel.panzer > 0 && !optionen.explosion) menge *= 1 - ziel.panzer * (1 - Math.min(1, optionen.durchschlag ?? 0));
   if (ziel.typ === 'spieler' && ziel.kleidung) menge *= 1 - kleidungsSchutz(ziel) / 100; // Runde 24: Rüstung
@@ -242,6 +244,8 @@ export function toeten(spielWelt, ziel, quelle = null, optionen = {}) {
     legeAufBoden(spielWelt, { defId: 'fleisch', menge: 1 }, ziel.x, ziel.y);
     return;
   }
+  if (!optionen.endgueltig && streckeNieder(spielWelt, ziel)) return; // Runde 24: Mitspieler können retten
+  ziel.niedergestreckt = 0;
   if (quelle?.typ === 'spieler' && quelle !== ziel) quelle.statistik.spieler++;
   ziel.statistik.ueberlebt = 0;
   if (ziel.fahrzeug) aussteigen(spielWelt, ziel, { erzwingen: true });

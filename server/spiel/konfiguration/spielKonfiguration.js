@@ -291,6 +291,16 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     warmFaktor: 0.5, // Buff „warm“: Kälte steigt halb so schnell
     kraftFaktor: 1.25, // Buff „kraft“: Nahkampf +25 %
   },
+  /** Runde 24 (P14): Gruppen, Handel, Niederstrecken (systeme/mehrspielerSystem.js). niederDauer 0 = sofort tot */
+  mehrspieler: {
+    reichweite: 90, // px: einladen, handeln, helfen
+    handelAbstand: 220,
+    handelPlaetze: 6,
+    anfrageDauer: 30,
+    gruppeMax: 8,
+    niederDauer: 60,
+    wiederbelebtLeben: 0.35,
+  },
   /** Bauwerke (gemeinsam/welt/bauwerke.js): Lagerfeuer, Kochen, Beete */
   bauen: {
     kaminDauer: 600, // Runde 24: Sekunden, die ein angezündeter Kamin brennt (Holz nachlegen +½)

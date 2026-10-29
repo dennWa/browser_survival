@@ -20,6 +20,7 @@ import { Klanglandschaft } from '../audio/klaenge.js';
 import { Schritte } from '../audio/schritte.js';
 import { HausMusik } from '../audio/hausMusik.js';
 import { MusikFenster } from '../ui/musikFenster.js';
+import { MehrspielerFenster } from '../ui/mehrspielerFenster.js';
 
 /** Maximal gemerkte, vom Server noch nicht bestätigte Eingaben (~4 s). */
 const MAX_OFFENE_EINGABEN = 120;
@@ -186,6 +187,7 @@ export class ClientSpiel {
     this.hausMusik = new HausMusik(this.sound, this.musik);
     this.musikFenster = new MusikFenster(document);
     this.musikFenster.beiWahl((wahl) => this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.MUSIK, ...wahl }));
+    this.mehrspieler = new MehrspielerFenster(document, { senden: (a) => this.#senden({ typ: NACHRICHT.AKTION, ...a }), zeichneIcon: (c, id) => this.hud.zeichneIcon(c, id) }); // Runde 24 (P14)
     this.sound?.starteAtmosphaere();
     if (this.klaenge.ersetztMusik) this.musik?.stoppen(); // Karte bringt eigene Hintergrundmusik mit
     else this.musik?.setzeZone(this.musikOrdner);
@@ -225,6 +227,7 @@ export class ClientSpiel {
     this.klaenge?.stoppe();
     this.hausMusik?.stoppen();
     this.musikFenster?.zeige(null);
+    this.mehrspieler?.zeigeMenue(null);
     clearInterval(this.pingTimer);
     for (const ab of this.abmelden) ab();
   }
@@ -245,6 +248,8 @@ export class ClientSpiel {
     const was = this.#interaktion();
     if (!was) return;
     if (was.art === 'fahrzeug') return this.#aktion(AKTIONEN.FAHRZEUG);
+    if (was.art === 'mitspieler') return this.mehrspieler.zeigeMenue({ id: was.id, name: was.name }); // Runde 24
+    if (was.art === 'helfen') return this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.HELFEN, ziel: was.id });
     if (was.art === 'haustier') return this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.HAUSTIER, ziel: was.id });
     if (was.art === 'aufheben') this.#aktion(AKTIONEN.AUFHEBEN);
     else if (was.art === 'abbauen') this.#aktion(AKTIONEN.ABBAUEN);
@@ -410,13 +415,13 @@ export class ClientSpiel {
   /** Ist irgendein Fenster/Modus offen, den Esc zuerst schließen soll? */
   etwasOffen() {
     const h = this.hud;
-    return !!(this.karte.offen || h.inventar.offen || h.skills.offen || h.einstellungen.offen || h.kiste.offen || h.station.offen || this.werkbankOffen || this.musikFenster?.offen || this.bau.aktiv || this.platzierung || this.autoLauf);
+    return !!(this.karte.offen || h.inventar.offen || h.skills.offen || h.einstellungen.offen || h.kiste.offen || h.station.offen || this.werkbankOffen || this.musikFenster?.offen || this.mehrspieler?.offen || this.bau.aktiv || this.platzierung || this.autoLauf);
   }
 
   /** Fenster offen, durch das ein Klick ins Spiel NICHT schießen soll (Bau-/Platzier-Modus brauchen den Klick). */
   fensterOffen() {
     const h = this.hud;
-    return !!(this.karte.offen || h.inventar.offen || h.skills.offen || h.einstellungen.offen || h.kiste.offen || h.station.offen || this.werkbankOffen || this.musikFenster?.offen);
+    return !!(this.karte.offen || h.inventar.offen || h.skills.offen || h.einstellungen.offen || h.kiste.offen || h.station.offen || this.werkbankOffen || this.musikFenster?.offen || this.mehrspieler?.offen);
   }
 
   menuesSchliessen() {
@@ -554,13 +559,15 @@ export class ClientSpiel {
 
   /** Was würde E gerade tun? → { art, text } oder null */
   #interaktion() {
-    if (this.spielerDaten?.tot || this.spielerDaten?.arbeit) return null;
+    if (this.spielerDaten?.tot || this.spielerDaten?.arbeit || this.spielerDaten?.niedergestreckt) return null;
     const { x, y } = this.lokal;
     if (this.lokal.fahrzeug) return { art: 'fahrzeug', text: 'Aussteigen', symbol: '🚪' };
     const gegenstand = this.#naechsterGegenstand();
     if (gegenstand) return { art: 'aufheben', text: `${gegenstand.menge > 1 ? `${gegenstand.name} ×${gegenstand.menge}` : gegenstand.name} aufheben`, gegenstand };
     const auto = this.#naechstesFreiesFahrzeug();
     if (auto) return { art: 'fahrzeug', text: `Einsteigen (${FAHRZEUG_MODELLE[auto.modell]?.name ?? 'Auto'})`, symbol: '🚗' };
+    const mitspieler = this.#naechsterMitspieler(); // Runde 24 (P14): helfen / Handel / Gruppe
+    if (mitspieler) return mitspieler;
     const tier = this.#naechstesHaustier(); // Runde 24: Hund/Katze/Huhn
     if (tier) return tier;
     const ressource = this.welt.naechsteRessource(x, y, ABBAU_REICHWEITE);
@@ -605,6 +612,28 @@ export class ClientSpiel {
   }
 
   /** Freies Fahrzeug in Einstiegsreichweite (aus dem letzten Schnappschuss) */
+  /** Runde 24 (P14): Mitspieler in Reichweite → niedergestreckt: helfen, sonst Spieler-Menü */
+  #naechsterMitspieler() {
+    const letzter = this.schnappschuesse[this.schnappschuesse.length - 1];
+    if (!letzter) return null;
+    let bestes = null;
+    let bestAbstand = 70;
+    for (const e of letzter.entitaeten.values()) {
+      if (e.typ !== 'spieler' || e.id === this.eigeneId || e.tot || e.bot) continue;
+      const d = Math.hypot(e.x - this.lokal.x, e.y - this.lokal.y);
+      if (d < bestAbstand) {
+        bestes = e;
+        bestAbstand = d;
+      }
+    }
+    if (!bestes) return null;
+    if (bestes.niedergestreckt) {
+      const kit = (this.spielerDaten?.inventar ?? []).some((i) => i?.defId === 'erste_hilfe_kasten');
+      return { art: kit ? 'helfen' : 'info', id: bestes.id, text: kit ? `${bestes.name} wiederbeleben` : `${bestes.name} braucht einen Erste-Hilfe-Kasten`, symbol: '🆘' };
+    }
+    return { art: 'mitspieler', id: bestes.id, name: bestes.name, text: `${bestes.name}: Handeln / Gruppe`, symbol: '🤝' };
+  }
+
   #naechstesFreiesFahrzeug() {
     const letzter = this.schnappschuesse[this.schnappschuesse.length - 1];
     if (!letzter) return null;
@@ -922,6 +951,7 @@ export class ClientSpiel {
     this.spielerDaten = daten;
     if (daten.tutorial) this.tutorialAnzeige?.daten(daten.tutorial);
     this.bau.beiSpielerDaten(daten);
+    this.mehrspieler?.aktualisiere(daten, this.itemDefinitionen); // Runde 24 (P14)
     this.lokal.tempoFaktor = daten.tempoFaktor ?? 1; // Skill "Schnelligkeit" → Vorhersage läuft gleich schnell wie der Server
     this.hud.setzeSpielerDaten(daten, this.itemDefinitionen);
     if (this.werkbankOffen) this.hud.zeigeWerkbank(rezepteFuerOrt(this.rezepte, this.werkbankOrt), daten, this.itemDefinitionen, this.werkbankOrt);
@@ -983,7 +1013,7 @@ export class ClientSpiel {
     this.lokal.unendlichAusdauer = eigene.unendlichAusdauer === true; // Admin (gleiche Physik wie der Server)
     if (eigene.gleit) [this.lokal.gleitX, this.lokal.gleitY] = eigene.gleit; // Rutschen auf Eis
     this.lokal.fliegen = eigene.fliegen === true; // Admin-Flugmodus (gleiche Physik wie der Server)
-    this.schlaeft = eigene.arbeit === 'schlafen'; // im Bett festgehalten: Server wendet keine Eingaben an
+    this.schlaeft = eigene.arbeit === 'schlafen' || eigene.niedergestreckt === true; // im Bett / am Boden festgehalten: Server wendet keine Eingaben an
     if (eigene.tot || this.schlaeft) {
       this.lokalVorher.x = eigene.x;
       this.lokalVorher.y = eigene.y;

@@ -741,3 +741,83 @@ test('P13 Handwerks-Orte: Amboss, Webstuhl, Chemie, Kochstelle nur in der Nähe 
     for (const z of Object.keys(r.zutaten)) assert.ok(GEGENSTAENDE[z], z);
   }
 });
+
+// ---------------------------------------------------------------- Phase 14: Gruppen, Handel, Wiederbeleben
+const zweiSpieler = (extra) => {
+  const w = neueWelt(extra);
+  const b = w.welt.spielerBetrittWelt('Bob');
+  b.x = w.spieler.x + 40;
+  b.y = w.spieler.y;
+  w.spieler.gottmodus = b.gottmodus = false;
+  return { ...w, a: w.spieler, b };
+};
+
+test('P14 Gruppe: Einladung mit Flagge annehmen → Mitglied darf Kisten/Bauen; verlassen entfernt', async () => {
+  const { setzeFlagge } = await import('../server/spiel/systeme/territoriumSystem.js');
+  const { hatRechtBei } = await import('../server/spiel/systeme/territoriumSystem.js');
+  const { welt, a, b, konfiguration } = zweiSpieler();
+  aktion(welt, a, { art: AKTIONEN.GRUPPE, was: 'einladen', ziel: b.id });
+  assert.equal(b.anfrage, undefined, 'ohne Flagge keine Einladung');
+  assert.ok(setzeFlagge(welt, a, 8, 4));
+  aktion(welt, a, { art: AKTIONEN.GRUPPE, was: 'einladen', ziel: b.id });
+  assert.equal(b.anfrage?.art, 'gruppe');
+  assert.deepEqual(spielerDatenPrivat(b, konfiguration, welt).anfrage, { art: 'gruppe', von: 'Tester' });
+  aktion(welt, b, { art: AKTIONEN.GRUPPE, was: 'annehmen' });
+  assert.ok(hatRechtBei(welt, 'Bob', 8, 4, 'benutzen'));
+  assert.deepEqual(spielerDatenPrivat(b, konfiguration, welt).gruppe.mitglieder, ['Bob']);
+  assert.equal(spielerDatenPrivat(b, konfiguration, welt).gruppe.besitzer, 'Tester');
+  aktion(welt, b, { art: AKTIONEN.GRUPPE, was: 'verlassen' });
+  assert.ok(!hatRechtBei(welt, 'Bob', 8, 4, 'benutzen'));
+});
+
+test('P14 Handel: anbieten, beide bereit → getauscht; Änderung nimmt Bereit zurück; Abstand bricht ab', () => {
+  const { welt, a, b, konfiguration } = zweiSpieler();
+  a.inventar[2] = { defId: 'axt', menge: 1, haltbarkeit: 7 };
+  b.inventar[4] = { defId: 'apfel', menge: 3 };
+  aktion(welt, a, { art: AKTIONEN.HANDEL, was: 'anfragen', ziel: b.id });
+  aktion(welt, b, { art: AKTIONEN.HANDEL, was: 'annehmen' });
+  assert.ok(a.handelId && a.handelId === b.handelId);
+  aktion(welt, a, { art: AKTIONEN.HANDEL, was: 'anbieten', slot: 2 });
+  aktion(welt, a, { art: AKTIONEN.HANDEL, was: 'bereit' });
+  aktion(welt, b, { art: AKTIONEN.HANDEL, was: 'anbieten', slot: 4 });
+  assert.equal(spielerDatenPrivat(a, konfiguration, welt).handel.ichBereit, false, 'Änderung → nicht mehr bereit');
+  assert.deepEqual(spielerDatenPrivat(a, konfiguration, welt).handel.seins, [{ defId: 'apfel', menge: 3 }]);
+  aktion(welt, a, { art: AKTIONEN.HANDEL, was: 'bereit' });
+  aktion(welt, b, { art: AKTIONEN.HANDEL, was: 'bereit' });
+  assert.equal(a.handelId, null);
+  assert.equal(b.inventar.find((e) => e?.defId === 'axt')?.haltbarkeit, 7, 'Zustand bleibt');
+  assert.equal(a.inventar.find((e) => e?.defId === 'apfel')?.menge, 3);
+  assert.ok(!a.inventar.some((e) => e?.defId === 'axt'));
+  // Abstand
+  aktion(welt, a, { art: AKTIONEN.HANDEL, was: 'anfragen', ziel: b.id });
+  aktion(welt, b, { art: AKTIONEN.HANDEL, was: 'annehmen' });
+  b.x += 400;
+  ticks(welt, 1);
+  assert.equal(a.handelId, null, 'zu weit → abgebrochen');
+});
+
+test('P14 Niedergestreckt statt tot, wenn Mitspieler da sind; Erste-Hilfe-Kasten rettet; Zeit um → tot; allein sofort tot', async () => {
+  const { toeten } = await import('../server/spiel/systeme/kampfSystem.js');
+  const { welt, a, b } = zweiSpieler({ mehrspieler: { niederDauer: 2 } });
+  toeten(welt, b);
+  assert.ok(b.niedergestreckt > 0 && !b.tot, 'am Boden');
+  const z = zombie(welt, 'normal', b.x + 60, b.y);
+  ticks(welt, 5);
+  assert.notEqual(z.zielId, b.id, 'Zombies lassen ihn liegen');
+  welt.entfernen(z.id);
+  aktion(welt, a, { art: AKTIONEN.HELFEN, ziel: b.id });
+  assert.ok(b.niedergestreckt > 0, 'ohne Kasten nichts');
+  a.inventar[1] = { defId: 'erste_hilfe_kasten', menge: 1 };
+  aktion(welt, a, { art: AKTIONEN.HELFEN, ziel: b.id });
+  assert.equal(b.niedergestreckt, 0);
+  assert.ok(b.leben > 20 && !b.tot);
+  assert.equal(a.inventar[1], null, 'Kasten verbraucht');
+  toeten(welt, b);
+  ticks(welt, 30 * 3);
+  assert.equal(b.tot, true, 'Zeit um');
+  // allein: sofort tot
+  const solo = neueWelt();
+  solo.spieler.gottmodus = false;
+  toeten(solo.welt, solo.spieler);
+  assert.equal(solo.spieler.tot, true);
+});

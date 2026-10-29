@@ -4,6 +4,7 @@ import { gibStartausruestung, kleidungsWaerme, kleidungsRegenschutz } from './in
 import { bettFehlt, spawnPunkt } from './spawnSystem.js';
 import { istGemuetlich } from '../../../gemeinsam/welt/einrichtung.js';
 import { aktualisiereGesundheit, darfHeilen, neuerZustand } from './gesundheitSystem.js';
+import { aktualisiereNiedergestreckt } from './mehrspielerSystem.js';
 
 /**
  * Überleben: Hunger & Durst sinken, bei 0 verliert man Leben; satt & getränkt heilt man langsam.
@@ -17,6 +18,10 @@ export function aktualisiereUeberleben(spielWelt, dt) {
     if (spieler.tot) {
       spieler.respawnRest -= dt;
       if (spieler.respawnRest <= 0) wiederbeleben(spielWelt, spieler);
+      continue;
+    }
+    if (spieler.niedergestreckt > 0) {
+      aktualisiereNiedergestreckt(spielWelt, spieler, dt); // Runde 24
       continue;
     }
     spieler.statistik.ueberlebt += dt;

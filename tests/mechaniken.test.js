@@ -195,7 +195,7 @@ test('Crafting-Level: höherwertige Rezepte erst ab Spieler-Level', () => {
 
 // ---------------------------------------------------------------------------
 test('Statistik: Zombies getötet, Spieler getötet, Zeit überlebt (Tod setzt die Zeit zurück) – auch im Spielstand', () => {
-  const { welt, spieler } = neueWelt({ kampf: { pvp: true } });
+  const { welt, spieler } = neueWelt({ kampf: { pvp: true }, mehrspieler: { niederDauer: 0 } });
   const z = zombieBei(welt, mitte(10), mitte(2));
   fuegeSchadenZu(welt, z, 9999, spieler);
   assert.equal(spieler.statistik.zombies, 1);
