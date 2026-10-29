@@ -170,6 +170,9 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     regenAnteil: 0.6, // Anteil Niederschlag (Regen/Schnee), Rest Nebel bzw. Sturm
     gewitterAnteil: 0.3, // vom Niederschlag: Gewitter (Schneezonen: Schneesturm)
     sturmAnteil: 0.35, // vom Rest: Sturm statt Nebel
+    windMin: 45, // Runde 24: Sekunden, bis der Grundwind ein neues Ziel würfelt (ruhig/leicht/frisch/stark)
+    windMax: 150,
+    windTempo: 0.025, // Änderung des Grundwinds je Sekunde (0..1-Skala)
   },
   kampf: {
     pvp: false, // Spieler können sich gegenseitig verletzen

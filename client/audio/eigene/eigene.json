@@ -289,6 +289,18 @@
     "lautstaerke": 0.5,
     "streuung": 0.05
   },
+  "wind_leicht": {
+    "dateien": [
+      "wind_leicht.ogg"
+    ],
+    "lautstaerke": 0.55
+  },
+  "wind_stark": {
+    "dateien": [
+      "wind_stark.ogg"
+    ],
+    "lautstaerke": 0.6
+  },
   "zittern": {
     "dateien": [
       "zittern_0.ogg",

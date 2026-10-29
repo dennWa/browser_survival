@@ -6,7 +6,7 @@ import { wendeWandTexturAn } from './wandTexturen.js';
  * Wände dieses Raums durchsichtig, die die Figur verdecken können: Wandkacheln der Raumhülle (`Daecher.huelleVonRaum`), die
  * zwischen Kamera und Figur liegen – die Kamera schaut von Süden, also v. a. die Südwand – und nahe an der Figur sind
  * (`DURCHSICHT_NAH`, `verdecktFigur`). Läuft man durch den Raum, blenden die Kacheln einzeln weich auf und zu.
- * Draußen, in fremden Räumen und weiter entfernte Wände bleiben dicht.
+ * Draußen, in fremden Räumen, weiter entfernte Wände und Seitenwände (Runde 24: `istSuedwand`) bleiben dicht.
  *
  * Technik (Performance!): Die Wände der Karte sind EIN InstancedMesh. Durchsichtige Kacheln werden dort auf Maßstab 0 gesetzt
  * und stattdessen als kleines, zusammengefasstes Mesh gezeichnet (nur sichtbare Außenflächen – sonst scheinen Innenflächen
@@ -60,7 +60,7 @@ export function durchsichtDeckkraft(anteil) {
 }
 
 /** So nah (Kacheln) an der Figur werden verdeckende Wände durchsichtig: vorn = Richtung Kamera (Süden), seitlich = quer dazu. */
-export const DURCHSICHT_NAH = { vorn: 4, seitlich: 3 };
+export const DURCHSICHT_NAH = { vorn: 4, seitlich: 2 };
 
 /**
  * Kann eine Wandkachel mit Versatz (dtx, dty) zur Kachel der Figur die Figur verdecken? Die Kamera schaut von Süden (+y) schräg
@@ -70,6 +70,16 @@ export const DURCHSICHT_NAH = { vorn: 4, seitlich: 3 };
 export function verdecktFigur(dtx, dty, nah = DURCHSICHT_NAH) {
   if (dty < 1 || dty > nah.vorn) return false;
   return Math.abs(dtx) <= nah.seitlich + Math.floor((dty - 1) / 2);
+}
+
+/**
+ * Runde 24: Ist die Hüllkachel `idx` eine Südwand des Raums (Wandreihe, die zur Kamera hin vor dem Raum liegt)?
+ * Ja, wenn direkt nördlich Innenboden des Raums liegt – oder es eine Ecke ist, deren Nachbar links/rechts so eine Kachel ist.
+ * Seitenwände (Innenboden nur östlich/westlich) bleiben dicht: sie verdecken die Figur nie.
+ */
+export function istSuedwand(idx, breite, istRaum) {
+  if (istRaum(idx - breite)) return true;
+  return (istRaum(idx - 1 - breite) && !istRaum(idx - 1)) || (istRaum(idx + 1 - breite) && !istRaum(idx + 1));
 }
 
 export class WandDurchsicht {
@@ -114,6 +124,7 @@ export class WandDurchsicht {
       if (raum >= 0) {
         for (const idx of this.daecher.huelleVonRaum[raum]) {
           if (!this.instanzVon.has(idx)) continue;
+          if (!istSuedwand(idx, this.breite, (i) => this.daecher.raumAn.get(i) === raum)) continue;
           if (verdecktFigur((idx % this.breite) - tx, Math.floor(idx / this.breite) - ty)) soll.add(idx);
         }
       }

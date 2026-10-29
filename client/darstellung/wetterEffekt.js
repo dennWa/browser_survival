@@ -7,6 +7,8 @@ import * as THREE from 'three';
  * hier blenden sich die Werte weich über (regen/nebel/schnee/sturm/gewitter 0..1 → Renderer: Nebelweite, Lichtstärke,
  * Himmelsfarbe, Ton). Runde 23: Gewitter = dichter, schräger Regen + Blitze (`blitz` 0..1, Haken `beiBlitz(staerke, nah)` →
  * Donner im clientSpiel), Sturm = starker Wind (Bäume, schräger Niederschlag), Schneesturm = dichter, waagerecht treibender Schnee.
+ * Runde 24: `grundWind` (0..1, Server ZUSTAND.wind) + Böen-Kurve `boe` → `windStufe` (0..3). Dieselbe Stufe steuert
+ * Bäume/Gras (BAUM_WIND), Blätter und den Windton (clientSpiel #atmosphaereSchichten) – man hört die Böe, wenn sich die Bäume biegen.
  */
 const TROPFEN = 1200; // bei normalem Regen nur ~55 % sichtbar (uAnteil), bei Gewitter alle
 const RADIUS = 760; // px um den Fokus, in denen es regnet (Kamera sieht ~±900 px)
@@ -78,7 +80,9 @@ export class WetterEffekt {
     this.zeit = 0;
     this.schneeZeit = 0;
     this.windZeit = 0;
-    this.windStufe = 1; // 0 windstill … 3 stark (fließend), steuert das Baum-Schwanken
+    this.windStufe = 1; // 0 windstill … 3 stark (fließend), steuert das Baum-Schwanken und den Windton
+    this.grundWind = 0.35; // 0..1 vom Server (ZUSTAND.wind)
+    this.boe = 0; // 0..1 aktuelle Böe (für Ton und Blätter)
     this.sturm = 0; // 0..1 Sturmstärke (Sturm, Gewitter, Schneesturm)
     this.gewitter = 0; // 0..1
     this.blitz = 0; // 0..1 aktuelle Helligkeit eines Blitzes (Renderer hellt Licht/Himmel auf)
@@ -161,11 +165,15 @@ export class WetterEffekt {
     this.gewitter = blende(this.gewitter, zielGewitter);
     // Wind passt sich dem Wetter an: Nebel = fast windstill, klar = leicht (mit Böen), Regen = mittel, Sturm = stark mit Böen
     this.windZeit += dt;
-    const boe = 0.5 + 0.5 * Math.sin(this.windZeit * 0.21) * Math.sin(this.windZeit * 0.067 + 1);
     const boeSchnell = 0.5 + 0.5 * Math.sin(this.windZeit * 0.9) * Math.sin(this.windZeit * 0.37 + 2);
-    const grundWind = a === 'nebel' ? 0.15 : a === 'regen' ? 2 + boe : a === 'schnee' ? 0.4 + 0.6 * boe : 0.6 + 0.9 * boe;
+    // Böen: zwei langsame, gegeneinander verschobene Wellen, nur die Spitzen zählen (kurze Stöße statt Dauerwabern)
+    const welle = Math.sin(this.windZeit * 0.23) * 0.6 + Math.sin(this.windZeit * 0.071 + 1.3) * 0.4;
+    const boeZiel = Math.max(0, welle) ** 1.5 * (0.7 + 0.3 * boeSchnell);
+    this.boe += (boeZiel - this.boe) * Math.min(1, dt * 1.5);
+    const g = Math.max(0, Math.min(1, this.grundWind));
+    const grundWind = a === 'nebel' ? Math.min(0.2, g * 3) : g * 3 * (0.8 + (0.25 + 0.5 * g) * this.boe);
     const zielWind = Math.max(grundWind * (1 - this.sturm), this.sturm * (2.4 + 0.6 * boeSchnell));
-    this.windStufe += (zielWind - this.windStufe) * Math.min(1, dt * 0.4);
+    this.windStufe += (zielWind - this.windStufe) * Math.min(1, dt * 0.9);
     const windSchraeg = this.sturm * (0.55 + 0.45 * boeSchnell);
     this.#blitze(dt);
     const schneit = this.schnee > 0.01;

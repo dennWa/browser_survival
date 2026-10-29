@@ -6,6 +6,9 @@
  * es klar (pauseMin…pauseMax). Anteile: regenAnteil = Niederschlag (sonst Nebel/Sturm), davon gewitterAnteil = Gewitter
  * bzw. Schneesturm; vom Rest sturmAnteil = Sturm, sonst Nebel. Der Zustand geht in jedem Schnappschuss mit (ZUSTAND.wetter).
  * Regen/Gewitter halbieren die Wachstumszeit der Pflanzen (bauSystem, WACHSTUM_REGEN_FAKTOR) und löschen Lagerfeuer.
+ * Runde 24: Grundwind `wetter.wind` 0..1 (ruhig ≈0,1 · leicht ≈0,35 · frisch ≈0,6 · stark ≈0,85) wechselt alle
+ * windMin…windMax Sekunden sein Ziel und gleitet langsam dorthin; Sturmwetter zieht ihn hoch, Nebel runter.
+ * Geht als ZUSTAND.wind mit – der Client legt Böen drüber (Ton + Bäume/Gras aus derselben Kurve).
  */
 export const WACHSTUM_REGEN_FAKTOR = 2;
 
@@ -17,9 +20,18 @@ export function regnet(art) {
   return art === 'regen' || art === 'gewitter';
 }
 
+/** Windstufen, aus denen der Grundwind sein nächstes Ziel würfelt (Wert, Gewicht). */
+export const WIND_STUFEN = Object.freeze([
+  [0.1, 2],
+  [0.35, 4],
+  [0.6, 3],
+  [0.85, 1.2],
+]);
+
 export function aktualisiereWetter(spielWelt, dt) {
   const k = spielWelt.konfiguration.wetter;
   const w = spielWelt.wetter;
+  aktualisiereWind(spielWelt, w, dt);
   if (!k.aktiv) {
     w.art = 'klar';
     return;
@@ -56,4 +68,26 @@ export function wetterDerZone(spielWelt) {
 export function setzeWetter(spielWelt, art, sekunden = 120) {
   spielWelt.wetter.art = art;
   spielWelt.wetter.rest = sekunden;
+}
+
+/** Ziel-Windstärke würfeln und langsam angleichen; das Wetter setzt Unter-/Obergrenzen. */
+function aktualisiereWind(spielWelt, w, dt) {
+  const k = spielWelt.konfiguration.wetter;
+  w.wind ??= 0.35;
+  w.windZiel ??= 0.35;
+  w.windRest = (w.windRest ?? 0) - dt;
+  if (w.windRest <= 0) {
+    const z = spielWelt.zufall;
+    const summe = WIND_STUFEN.reduce((s, [, g]) => s + g, 0);
+    let r = z.zahl() * summe;
+    w.windZiel = WIND_STUFEN.find(([, g]) => (r -= g) < 0)?.[0] ?? 0.35;
+    w.windRest = (k.windMin ?? 45) + z.zahl() * ((k.windMax ?? 150) - (k.windMin ?? 45));
+  }
+  let ziel = w.windZiel;
+  if (w.art === 'sturm' || w.art === 'schneesturm') ziel = 1;
+  else if (w.art === 'gewitter') ziel = Math.max(ziel, 0.75);
+  else if (w.art === 'regen') ziel = Math.max(ziel, 0.45);
+  else if (w.art === 'nebel') ziel = Math.min(ziel, 0.12);
+  const schritt = (k.windTempo ?? 0.025) * dt;
+  w.wind += Math.max(-schritt, Math.min(schritt, ziel - w.wind));
 }

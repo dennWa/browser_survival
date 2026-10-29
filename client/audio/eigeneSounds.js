@@ -21,6 +21,8 @@ export const EREIGNISSE = {
   donner: ['Atmosphäre & Wetter', 'Ferner Donner bei Gewitter (verzögert nach dem Blitz)'],
   donner_nah: ['Atmosphäre & Wetter', 'Naher Donnerschlag (Blitz ganz in der Nähe)', { stumm: true }],
   regen_stark: ['Atmosphäre & Wetter', 'Starkregen bei Gewitter (Schleife, zusätzlich zum Regen)', { loop: true, stumm: true }],
+  wind_leicht: ['Atmosphäre & Wetter', 'Wind leicht – sanftes Rauschen draußen (Schleife, Stärke folgt Wind + Böen wie die Bäume)', { loop: true, stumm: true }],
+  wind_stark: ['Atmosphäre & Wetter', 'Wind stark – kräftige Böen (Schleife, kommt bei starkem Wind/Böen dazu)', { loop: true, stumm: true }],
   sturm: ['Atmosphäre & Wetter', 'Sturm – starker, böiger Wind (Schleife; Wetter Sturm/Gewitter)', { loop: true, stumm: true }],
   schneesturm: ['Atmosphäre & Wetter', 'Schneesturm – heulender, kalter Wind (Schleife)', { loop: true, stumm: true }],
   tag: ['Atmosphäre & Wetter', 'Tag draußen – Vogelkulisse (Schleife, nur bei gutem Wetter, nicht in Schneezonen)', { loop: true, stumm: true }],

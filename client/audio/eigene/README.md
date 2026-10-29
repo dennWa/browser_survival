@@ -30,6 +30,8 @@ Tipp: kurze Dateien (< 3 s), Lautstärke der Aufnahme selbst eher normalisiert.
 | `donner` | Ferner Donner bei Gewitter (verzögert nach dem Blitz) |
 | `donner_nah` | Naher Donnerschlag (Blitz ganz in der Nähe) |
 | `regen_stark` | Starkregen bei Gewitter (Schleife, zusätzlich zum Regen) |
+| `wind_leicht` | Wind leicht – sanftes Rauschen draußen (Schleife, Stärke folgt Wind + Böen wie die Bäume) |
+| `wind_stark` | Wind stark – kräftige Böen (Schleife, kommt bei starkem Wind/Böen dazu) |
 | `sturm` | Sturm – starker, böiger Wind (Schleife; Wetter Sturm/Gewitter) |
 | `schneesturm` | Schneesturm – heulender, kalter Wind (Schleife) |
 | `tag` | Tag draußen – Vogelkulisse (Schleife, nur bei gutem Wetter, nicht in Schneezonen) |

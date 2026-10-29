@@ -197,7 +197,10 @@ export class Sound {
   /** Eigene Datei für eine laufende Schleife nachgeladen → mit der Datei neu starten */
   #schleifeNeu(name) {
     if (this.#schichtStaerke.has(name) && !this.#schichten.has(name)) this.schicht(name, this.#schichtStaerke.get(name));
-    if (name === 'wind' && this.#wind?.synth) {
+    if (name === 'wind_leicht' && this.#wind) {
+      for (const knoten of this.#wind) knoten.stop();
+      this.#wind = null;
+    } else if (name === 'wind' && this.#wind?.synth) {
       this.stoppeAtmosphaere({ ohneRegen: true });
       this.starteAtmosphaere();
     } else if (name === 'regen' && this.#regen?.synth) {
@@ -431,6 +434,7 @@ export class Sound {
   starteAtmosphaere() {
     const ctx = this.#ctx;
     if (!ctx || this.#wind) return;
+    if (this.#eigene.wind_leicht?.length) return; // Runde 24: echte Windaufnahmen (Schichten wind_leicht/wind_stark) ersetzen die Synthese
     const pegel = this.#eigenePegel.wind ?? 1;
     const eigen = this.#eigeneSchleife('wind');
     if (eigen) {

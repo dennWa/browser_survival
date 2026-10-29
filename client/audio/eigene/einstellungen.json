@@ -123,5 +123,11 @@
   },
   "anziehen": {
     "lautstaerke": 0.6
+  },
+  "wind_leicht": {
+    "lautstaerke": 0.55
+  },
+  "wind_stark": {
+    "lautstaerke": 0.6
   }
 }

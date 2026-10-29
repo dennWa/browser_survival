@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { durchsichtFlaechen, durchsichtDeckkraft, verdecktFigur, DURCHSICHT_SEITE, DURCHSICHT_OBEN, DURCHSICHT_NAH } from '../client/darstellung/wandDurchsicht.js';
+import { durchsichtFlaechen, durchsichtDeckkraft, verdecktFigur, istSuedwand, DURCHSICHT_SEITE, DURCHSICHT_OBEN, DURCHSICHT_NAH } from '../client/darstellung/wandDurchsicht.js';
 
 const G = 32;
 const stueck = (tx, tz, unten = 0, hoehe = 84) => ({ x: tx * G + G / 2, z: tz * G + G / 2, unten, hoehe });
@@ -64,4 +64,16 @@ test('Wand-Durchsicht: Teilmenge mit Nachbarn – Fläche zum Nachbarn fällt au
   const b = stueck(4, 3);
   assert.equal(dreiecke(durchsichtFlaechen([a], G, [a, b]).seite), 6);
   assert.equal(dreiecke(durchsichtFlaechen([a], G).seite), 8);
+});
+
+test('Wand-Durchsicht (Runde 24): Seitenwände bleiben dicht, nur Südwand (+ Ecken) wird durchsichtig', () => {
+  // Raum innen x 1..3, y 1..2 auf einer 5 breiten Karte, Hülle rundherum
+  const B = 5;
+  const innen = new Set([1 * B + 1, 1 * B + 2, 1 * B + 3, 2 * B + 1, 2 * B + 2, 2 * B + 3]);
+  const istRaum = (i) => innen.has(i);
+  assert.equal(istSuedwand(3 * B + 2, B, istRaum), true, 'Südwand-Mitte');
+  assert.equal(istSuedwand(3 * B + 0, B, istRaum), true, 'Südwest-Ecke');
+  assert.equal(istSuedwand(2 * B + 0, B, istRaum), false, 'Westwand');
+  assert.equal(istSuedwand(2 * B + 4, B, istRaum), false, 'Ostwand');
+  assert.equal(istSuedwand(0 * B + 2, B, istRaum), false, 'Nordwand');
 });

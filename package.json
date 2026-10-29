@@ -23,6 +23,7 @@
     "test": "node --test \"tests/**/*.test.js\"",
     "karte:editor": "node werkzeuge/karten/editorImport.mjs",
     "rauchtest:r23": "node werkzeuge/test/rauchtestRunde23.mjs",
+    "rauchtest:r24": "node werkzeuge/test/rauchtestRunde24.mjs",
     "rauchtest:editor": "node werkzeuge/test/editorRauchtest.mjs",
     "editor:lokal": "node werkzeuge/editor/lokalerServer.mjs"
   },

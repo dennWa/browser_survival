@@ -883,6 +883,7 @@ export class ClientSpiel {
     }
 
     this.wetter = n.wetter ?? 'klar';
+    if (Number.isFinite(n.wind) && this.renderer?.wetterEffekt) this.renderer.wetterEffekt.grundWind = n.wind;
     const entitaeten = new Map(n.entitaeten.map((e) => [e.id, e]));
     this.schnappschuesse.push({ empfangen: jetzt, tick: n.tick, entitaeten });
     // Fahrzeuge blockieren ihre Kacheln – auch für die eigene Laufvorhersage
@@ -1494,13 +1495,16 @@ export class ClientSpiel {
       schneesturm: schneesturm * daempfung,
       regen_stark: w.regen * w.gewitter * daempfung,
       tag: !this.welt.schnee && !drinnen ? Math.max(0, (hell - 0.55) / 0.45) * (1 - Math.max(w.regen, w.sturm, w.nebel * 0.5)) : 0,
-      nacht_wind: Math.max(0, (0.55 - hell) / 0.55) * (1 - w.sturm) * daempfung,
+      nacht_wind: Math.max(0, (0.55 - hell) / 0.55) * (1 - w.sturm) * daempfung * 0.6,
+      // Runde 24: Wind aus derselben Stufe wie die Bäume (0..3): leicht trägt bis ~1,5, stark kommt mit Böen/Starkwind dazu
+      wind_leicht: Math.min(1, w.windStufe / 1.1) * (1 - 0.5 * Math.max(0, Math.min(1, (w.windStufe - 1.8) / 1.2))) * (drinnen ? 0.3 : 1),
+      wind_stark: Math.max(0, Math.min(1, (w.windStufe - 1.1) / 1.6)) ** 1.3 * (1 - 0.6 * w.sturm) * (drinnen ? 0.3 : 1),
     };
     for (const [name, wert] of Object.entries(schichten)) {
-      const r = Math.round(wert * 20) / 20;
+      const r = Math.round(wert * 40) / 40;
       if (this.#schichtStand[name] === r) continue;
       this.#schichtStand[name] = r;
-      this.sound.schicht(name, r);
+      this.sound.schicht(name, r, name.startsWith('wind_') ? 0.9 : 1.8);
     }
   }
 

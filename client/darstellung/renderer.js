@@ -503,7 +503,7 @@ export class Renderer {
     this.karte.aktualisiereDurchsicht(dt, fokus.x, fokus.y, !this.egoHaken);
     this.natur?.aktualisiere(fokus, this.welt.bauwerkeVersion, !!this.egoHaken);
     const tuerAbstand = this.karte.aktualisiereTuerSchimmer(fokus);
-    this.blaetter?.aktualisiere(dt, fokus, jetzt, dunkel, this.wetterEffekt.sturm);
+    this.blaetter?.aktualisiere(dt, fokus, jetzt, dunkel, Math.max(this.wetterEffekt.sturm, (this.wetterEffekt.windStufe - 1.2) / 3));
     this.#aktualisiereFahrzeuge(entitaeten, fokus);
     this.#aktualisiereFiguren(entitaeten, fokus, dt, jetzt);
     this.egoHaken?.(this.kamera3d, fokus); // EGO-PROTOTYP (client/ego/, siehe EGO_PROTOTYP.md)

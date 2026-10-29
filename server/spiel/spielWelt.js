@@ -300,7 +300,7 @@ export class SpielWelt {
       const serialisierer = NETZWERK_SERIALISIERER[e.typ];
       if (serialisierer) entitaeten.push(serialisierer(e));
     }
-    return { tick: this.tick, zeit: Math.round(this.zeit * 10) / 10, tag: this.tag, wetter: this.wetter.art, entitaeten, ereignisse: this.ereignisse };
+    return { tick: this.tick, zeit: Math.round(this.zeit * 10) / 10, tag: this.tag, wetter: this.wetter.art, wind: Math.round((this.wetter.wind ?? 0.35) * 100) / 100, entitaeten, ereignisse: this.ereignisse };
   }
 
   /** Bauwerke fürs Netz: ohne privaten Kisten-Inhalt (der geht nur per KISTE an den, der die Kiste offen hat). */
