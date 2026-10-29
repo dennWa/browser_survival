@@ -325,3 +325,6 @@ Zonen-Grundlage steht (2 Zonen, Waldweg groß mit See). Nächstes sinnvoll: Basi
 - Modelle: Kenney Furniture Kit (CC0) `client/assets/eigene/kenney-*.glb`; Größen-Audit in `werkzeuge/assets/eigene_kategorien.mjs` HOEHEN (typ-IDs `sf_<name>_<dm>` → bestehende Karten unverändert).
 - Tests `tests/tutorial.test.js` (Skript-Verweise, Erreichbarkeit, Durchspiel-Bot bis „fertig“, Gates, Sicherheitsnetz, echte Mechanik Hof/Garten).
 - **Audio-Zentrale Wiedergabe (Runde 22):** `audioZentrale.js` Stopp hart (`stoppe`, `abspielNr` verwirft ladende), Live-Regler (`#pegelLive`: Pegel/Variante/Streuung) und `Sound.stoppeKurze()`/`#kurz` für Synth-Kurzgeräusche. Auto-Lenkung: `FAHRZEUG.lenkWinkel` 0.95, `lenkAbfall` 250.
+
+## 23 · Runde 23 (Konzept 2026-10-29, noch nicht umgesetzt)
+- Plan `KONZEPT_RUNDE23.md` (9 Phasen: 1 Kleinkram/Fixes · 2 UI (Inventar mit Charakter links, Icons, Popups `+N`, Chat Tab Direkt/Global, M-Karte) · 3 Wetter gewitter/sturm/schneesturm · 4 Tag/Nacht-Ambient · 5 Zombie/Spieler/Auto/Abbau-Sounds + Panner-Proximity · 6 Hase 2.0 · 7 Häuser-Optik · 8 Bots (`botSystem`, Admin setzen/entfernen) · 9 Kälte + Kleidung (`ausruestung`, `PROTOKOLL_VERSION`++)). Offene Fragen am Dokumentende.
