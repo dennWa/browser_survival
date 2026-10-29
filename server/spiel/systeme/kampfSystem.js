@@ -11,6 +11,7 @@ import { planeTierRespawn } from './tierSystem.js';
 import { schuereFeuer, sitztAmFeuer } from './stationSystem.js';
 import { tutorialVorSchaden } from './tutorialSystem.js';
 import { lasseBossLootFallen, lasseZombieLootFallen } from './lootSystem.js';
+import { explodiere } from './sonderZombieSystem.js';
 
 /**
  * (Linksklick am Ufer mit Angel im Inventar ist KEIN Angriff: behandleAngelKlick läuft zuerst, siehe angelSystem.js.)
@@ -162,10 +163,12 @@ export function fuegeSchadenZu(spielWelt, ziel, menge, quelle, winkel = 0, optio
     return;
   }
   if (ziel.typ === 'spieler' && tutorialVorSchaden(spielWelt, ziel, menge)) return; // Tutorial: Ohnmacht statt Tod
+  // Runde 24: Panzerung (gepanzerte Zombies) schluckt einen Teil – Explosionen und Waffen mit `durchschlag` nicht
+  if (ziel.panzer > 0 && !optionen.explosion) menge *= 1 - ziel.panzer * (1 - Math.min(1, optionen.durchschlag ?? 0));
   ziel.leben -= menge;
   if (ziel.angeln) brecheAngelnAb(ziel);
   if (ziel.arbeit) brecheArbeitAb(spielWelt, ziel, ziel.arbeit.art === 'schlafen' ? 'Aufgeschreckt!' : null);
-  spielWelt.ereignis({ typ: 'treffer', x: ziel.x, y: ziel.y, winkel, ziel: ziel.typ });
+  spielWelt.ereignis({ typ: 'treffer', x: ziel.x, y: ziel.y, winkel, ziel: ziel.typ, ...(ziel.panzer > 0 ? { panzer: true } : {}) });
 
   if (ziel.typ === 'zombie') {
     const r = spielWelt.konfiguration.kampf.rueckstoss * ziel.rueckstossFaktor;
@@ -195,6 +198,7 @@ export function toeten(spielWelt, ziel, quelle = null, optionen = {}) {
     }
     spielWelt.entfernen(ziel.id);
     spielWelt.planeZombieRespawn(ziel.spawnIndex);
+    if (ziel.variante === 'explosiv' && !optionen.explosion) explodiere(spielWelt, ziel); // Treffer bringt ihn zum Platzen
     lasseZombieLootFallen(spielWelt, ziel.x, ziel.y);
     const waffenChance = k.zombie.varianten?.[ziel.variante]?.waffenChance ?? 0;
     if (waffenChance > 0 && spielWelt.zufall.zahl() < waffenChance) lasseBossLootFallen(spielWelt, ziel.x, ziel.y);

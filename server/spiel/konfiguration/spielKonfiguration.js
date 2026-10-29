@@ -87,6 +87,11 @@ export const STANDARD_KONFIGURATION = Object.freeze({
       // Brocken: selten (gewicht) und exakt 10 Pistolentreffer stark (Pistole 25 Schaden → 250 Leben; Schüsse ignorieren Skills)
       // Runde 20: „Halber Zombie“ (nur Beine + Bauch, Modell zombie-half.glb) – langsam, schwach, tritt zu
       halb: { gewicht: 1, xp: 6, leben: 30, jagdGeschwindigkeit: 90, angriffsSchaden: 6, angriffsAbklingzeit: 1.1, groesse: 1 },
+      // Runde 24 (abTag = erst ab diesem Spieltag; Verhalten: systeme/sonderZombieSystem.js)
+      sprinter: { gewicht: 1.2, abTag: 3, xp: 14, leben: 40, jagdGeschwindigkeit: 158, angriffsSchaden: 7, angriffsAbklingzeit: 0.6, groesse: 0.95 },
+      spucker: { gewicht: 1, abTag: 5, xp: 18, leben: 50, jagdGeschwindigkeit: 95, angriffsSchaden: 6, spuckReichweite: 260, halteAbstand: 150, spuckSchaden: 11, spuckAbklingzeit: 3.2 },
+      gepanzert: { gewicht: 0.8, abTag: 8, xp: 25, leben: 140, jagdGeschwindigkeit: 78, angriffsSchaden: 16, angriffsAbklingzeit: 1.3, panzer: 0.55, groesse: 1.12, radius: 14, rueckstossFaktor: 0.3 },
+      explosiv: { gewicht: 0.6, abTag: 10, xp: 20, leben: 45, jagdGeschwindigkeit: 105, angriffsSchaden: 5, zuendZeit: 1.2, sprengRadius: 95, sprengSchaden: 45, sprengKachelRadius: 1.5 },
       brocken: { gewicht: 0.2, xp: 40, leben: 250, jagdGeschwindigkeit: 90, angriffsSchaden: 40, angriffsAbklingzeit: 1.5, radius: 15, groesse: 1.3, rueckstossFaktor: 0.15, waffenChance: 0.5 },
     },
   },
@@ -159,6 +164,16 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     feuerRadius: 150,
     schadenProSekunde: 0.4,
     keineHeilungAb: 75,
+  },
+  /** Runde 24 – Progression der Nacht-Horde (systeme/tageszeitSystem.js hordeFuer) */
+  horde: {
+    wachstumProTag: 0.12, // +12 % Horde je Spieltag …
+    maxFaktor: 3, // … höchstens dreimal so groß
+    staerkeAbTag: 20, // ab Tag 20 halten Horden-Zombies mehr aus
+    staerkeFaktor: 1.5,
+    bossAlle: 7, // jede 7. Nacht: Boss-Nacht (zusätzliche Brocken)
+    blutmondAlle: 10, // jede 10. Nacht: Blutmond (doppelte Horde, roter Mond)
+    blutmondFaktor: 2,
   },
   /** Wetter: wechselt zufällig zwischen klar, Regen, Gewitter, Sturm und Nebel (Dauer 1–5 Minuten). Regen halbiert die Wachstumszeit. */
   wetter: {

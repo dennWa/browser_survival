@@ -84,6 +84,21 @@ Tipp: kurze Dateien (< 3 s), Lautstärke der Aufnahme selbst eher normalisiert.
 | `zombie_angriff` | Zombie jagt / greift an |
 | `zombie_tod` | Zombie stirbt |
 | `zombie_schrei` | Zombie entdeckt dich – Schrei/Brüllen (räumlich) |
+| `spucke` | Spucker spuckt Säure (Gurgeln) |
+| `spucke_trifft` | Säure klatscht auf den Boden |
+| `zuendung` | Explosiv-Zombie zündet – Zischen der Lunte |
+
+### Waffen & Kampf
+
+| Dateiname (ohne Endung) | Wann? |
+|---|---|
+| `explosion` | Explosion (Explosiv-Zombie, später Granaten/Sprengfallen) |
+
+### Zombies
+
+| Dateiname (ohne Endung) | Wann? |
+|---|---|
+| `treffer_panzer` | Treffer auf einen gepanzerten Zombie (Metall) |
 | `zombie_ferne` | Fernes Zombie-Stöhnen in der Nacht (Horror-Kulisse) |
 | `tuer_schlag` | Zombie schlägt auf Tür |
 | `tuer_bricht` | Tür bricht auf |

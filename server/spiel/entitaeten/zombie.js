@@ -2,7 +2,8 @@
  * Zombie-Entität. Verhalten (Aggro, Verfolgen, Angriff, Umherschlurfen) → server/spiel/systeme/zombieSystem.js
  *
  * zustand:  'ruhend' | 'verfolgend' | 'angreifend'
- * variante: 'normal' | 'laeufer' | 'brocken' | 'halb' (Werte aus konfiguration.zombie.varianten)
+ * variante: 'normal' | 'laeufer' | 'brocken' | 'halb' | Runde 24: 'sprinter' | 'spucker' | 'gepanzert' | 'explosiv'
+ *           (Werte aus konfiguration.zombie.varianten; `abTag` = erst ab diesem Spieltag, Verhalten → systeme/sonderZombieSystem.js)
  */
 export function erzeugeZombie({ id, x, y, konfiguration, spawnIndex = null, blick = Math.random() * Math.PI * 2, variante = 'normal' }) {
   const k = konfiguration.zombie;
@@ -31,6 +32,7 @@ export function erzeugeZombie({ id, x, y, konfiguration, spawnIndex = null, blic
     angriffsSchaden: v.angriffsSchaden,
     angriffsAbklingzeitMax: v.angriffsAbklingzeit,
     rueckstossFaktor: v.rueckstossFaktor ?? 1,
+    panzer: v.panzer ?? 0, // Anteil Schaden, den die Panzerung schluckt (gepanzert)
     // [intern] – Zustand
     spawnIndex,
     spawnX: x,
@@ -46,9 +48,14 @@ export function erzeugeZombie({ id, x, y, konfiguration, spawnIndex = null, blic
   };
 }
 
-/** Zufällige Variante nach Gewicht (konfiguration.zombie.varianten). */
-export function waehleZombieVariante(zufall, konfiguration) {
-  const eintraege = Object.entries(konfiguration.zombie.varianten ?? { normal: { gewicht: 1 } }).map(([name, v]) => ({ name, gewicht: v.gewicht ?? 1 }));
+/**
+ * Zufällige Variante nach Gewicht (konfiguration.zombie.varianten). Runde 24: `tag` = Spieltag der Zone – Varianten mit
+ * `abTag` kommen erst ab diesem Tag dazu (ohne Tag nur die Grundvarianten). `extra` = {variante: Zusatzgewicht} (Horden).
+ */
+export function waehleZombieVariante(zufall, konfiguration, tag = 1, extra = {}) {
+  const eintraege = Object.entries(konfiguration.zombie.varianten ?? { normal: { gewicht: 1 } })
+    .filter(([, v]) => (v.abTag ?? 1) <= tag)
+    .map(([name, v]) => ({ name, gewicht: (v.gewicht ?? 1) + (extra[name] ?? 0) }));
   return zufall.gewichteteAuswahl(eintraege).name;
 }
 
@@ -65,6 +72,7 @@ export function zombieZuNetzwerk(z) {
     leben: Math.round(z.leben * 10) / 10,
     maxLeben: z.maxLeben,
     zustand: z.zustand,
+    ...(z.zuendung !== undefined ? { zuendet: 1 } : {}),
     aktion: z.aktion,
     aktionTick: z.aktionTick,
     aktionDauer: z.aktionDauer,

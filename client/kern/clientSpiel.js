@@ -22,7 +22,7 @@ import { Schritte } from '../audio/schritte.js';
 const MAX_OFFENE_EINGABEN = 120;
 const STOEHN_REICHWEITE = 650; // Zombies in diesem Umkreis stöhnen gelegentlich
 const STOEHN_PAUSE_MS = 900; // höchstens ein Stöhnen pro Pause (sonst Chor)
-const ZOMBIE_TONHOEHE = { normal: 1, laeufer: 1.35, brocken: 0.7, halb: 1.2 };
+const ZOMBIE_TONHOEHE = { normal: 1, laeufer: 1.35, brocken: 0.7, halb: 1.2, sprinter: 1.45, spucker: 1.15, gepanzert: 0.8, explosiv: 0.95 };
 const AUTOLAUF_ANKUNFT_PX = 9; // so nah an der Kachelmitte des Ziels gilt man als angekommen
 const AUTOLAUF_WEGPUNKT_PX = 10;
 const AUTOLAUF_STECKT_S = 1.2; // so lange ohne Fortschritt → Weg neu suchen, dann aufgeben
@@ -884,6 +884,8 @@ export class ClientSpiel {
 
     this.wetter = n.wetter ?? 'klar';
     if (Number.isFinite(n.wind) && this.renderer?.wetterEffekt) this.renderer.wetterEffekt.grundWind = n.wind;
+    this.nachtArt = n.nachtArt ?? 'normal'; // Runde 24: 'boss' | 'blutmond' (nur nachts)
+    if (this.renderer) this.renderer.blutmondZiel = this.nachtArt === 'blutmond' ? 1 : 0;
     const entitaeten = new Map(n.entitaeten.map((e) => [e.id, e]));
     this.schnappschuesse.push({ empfangen: jetzt, tick: n.tick, entitaeten });
     // Fahrzeuge blockieren ihre Kacheln – auch für die eigene Laufvorhersage
@@ -1057,7 +1059,7 @@ export class ClientSpiel {
         this.#kampfInDerNaehe(e);
         break;
       case 'treffer':
-        this.sound.spiele(e.ziel === 'zombie' ? 'treffer_zombie' : 'treffer_spieler', { x: e.x, y: e.y });
+        this.sound.spiele(e.panzer ? 'treffer_panzer' : e.ziel === 'zombie' ? 'treffer_zombie' : 'treffer_spieler', { x: e.x, y: e.y });
         this.#kampfInDerNaehe(e);
         break;
       case 'tod':
@@ -1067,6 +1069,20 @@ export class ClientSpiel {
         break;
       case 'nahkampf':
         this.sound.spiele('nahkampf', { x: e.x, y: e.y });
+        break;
+      // Runde 24: Sonder-Zombies
+      case 'spucke':
+        this.sound.spiele('spucke', { x: e.x, y: e.y, raeumlich: true });
+        break;
+      case 'spuckeTrifft':
+        this.sound.spiele('spucke_trifft', { x: e.x, y: e.y });
+        break;
+      case 'zuendung':
+        this.sound.spiele('zuendung', { x: e.x, y: e.y, raeumlich: true });
+        break;
+      case 'explosion':
+        this.sound.spiele('explosion', { x: e.x, y: e.y, weite: 2400, kurve: 1.2 });
+        this.#kampfInDerNaehe(e);
         break;
       case 'leer':
         if (e.von === this.eigeneId) this.sound.spiele('leer');

@@ -2,6 +2,7 @@ import { ADMIN_BEFEHLE } from '../../../gemeinsam/protokoll.js';
 import { wegFrei } from '../../../gemeinsam/physik/strahl.js';
 import { GEGENSTAENDE } from '../konfiguration/gegenstaende.js';
 import { erzeugeZombie, waehleZombieVariante } from '../entitaeten/zombie.js';
+import { hordeFuer } from './tageszeitSystem.js';
 import { fuegeZumInventarHinzu } from './inventarSystem.js';
 import { toeten } from './kampfSystem.js';
 import { setzeWetter, wetterDerZone } from './wetterSystem.js';
@@ -72,6 +73,12 @@ export function fuehreAdminBefehlAus(spielWelt, spieler, befehl, aktion = {}) {
       if (spieler.unendlichAusdauer) Object.assign(spieler, { ausdauer: k.ausdauerMax, erschoepft: false });
       spielWelt.melde(spieler.id, spieler.unendlichAusdauer ? 'Unendlich Ausdauer AN' : 'Unendlich Ausdauer aus');
       break;
+    case ADMIN_BEFEHLE.SPIELTAG_VOR: {
+      spielWelt.tag++;
+      const plan = hordeFuer(spielWelt.konfiguration, spielWelt.tag);
+      spielWelt.melde(spieler.id, `Tag ${spielWelt.tag}: nächste Nacht ${plan.art === 'blutmond' ? 'BLUTMOND' : plan.art === 'boss' ? 'Boss-Nacht' : 'normal'} (${plan.anzahl + plan.bosse} Horden-Zombies)`);
+      break;
+    }
     case ADMIN_BEFEHLE.ZEIT_VORSTELLEN:
       spuleZeitVor(spielWelt, ZEIT_VORSTELLEN_STUNDEN);
       spielWelt.zeitSprung = ZEIT_VORSTELLEN_STUNDEN; // SpielServer zieht die übrigen aktiven Zonen mit
@@ -171,7 +178,7 @@ function spawneVorSpieler(spielWelt, spieler) {
       y,
       konfiguration: spielWelt.konfiguration,
       blick: spieler.blick + Math.PI,
-      variante: waehleZombieVariante(spielWelt.zufall, spielWelt.konfiguration),
+      variante: waehleZombieVariante(spielWelt.zufall, spielWelt.konfiguration, spielWelt.tag ?? 1),
     }),
   );
 }

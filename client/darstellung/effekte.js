@@ -2,6 +2,7 @@
  * Kurzlebige Effekte – rein optisch, ohne Einfluss auf das Spiel:
  * Mündungsfeuer, Leuchtspuren, Blutspritzer, Funken, Nahkampf-Schwung, Blutflecken am Boden,
  * roter Bildschirmblitz bei Schaden.
+ * Runde 24: Spucke der Spucker (Bogen, `spucken`), Säurespritzer, Explosionen (`explosionen`, großes Mündungslicht), Zündfunken.
  *
  * Gefüttert mit den Server-Ereignissen aus ZUSTAND.ereignisse (siehe gemeinsam/protokoll.js).
  */
@@ -21,6 +22,8 @@ export class Effekte {
   #partikel = [];
   #flecken = [];
   #schwuenge = [];
+  #spucken = [];
+  #explosionen = [];
   #schadenBlitz = 0;
 
   /** Wird für jedes Ereignis aufgerufen, sobald es angezeigt wird (z. B. für Sound). */
@@ -39,6 +42,8 @@ export class Effekte {
       partikel: this.#partikel,
       flecken: this.#flecken,
       schwuenge: this.#schwuenge,
+      spucken: this.#spucken,
+      explosionen: this.#explosionen,
       schadenBlitz: this.#schadenBlitz,
     };
   }
@@ -71,6 +76,8 @@ export class Effekte {
     altern(this.#partikel);
     altern(this.#flecken);
     altern(this.#schwuenge);
+    altern(this.#spucken);
+    altern(this.#explosionen);
     this.#schadenBlitz = Math.max(0, this.#schadenBlitz - dt * 1.8);
   }
 
@@ -105,6 +112,26 @@ export class Effekte {
       case 'nahkampf':
         this.#schwuenge.push({ x: e.x, y: e.y, winkel: e.winkel, alter: 0, dauer: SCHWUNG_DAUER });
         break;
+      case 'spucke':
+        this.#spucken.push({ x: e.x, y: e.y, zx: e.zx, zy: e.zy, alter: 0, dauer: e.dauer ?? 0.75 });
+        break;
+      case 'spuckeTrifft':
+        this.#spritzer(e.x, e.y, Math.random() * Math.PI * 2, 16, '#8fd13a', 80, 2.4, Math.PI);
+        this.#fleck(e.x, e.y, 'blutfleck', 30, '#7fc23a');
+        break;
+      case 'zuendung':
+        this.#spritzer(e.x, e.y, -Math.PI / 2, 8, '#ffd27a', 60, 1.6, Math.PI);
+        break;
+      case 'explosion': {
+        const r = e.radius ?? 90;
+        this.#explosionen.push({ x: e.x, y: e.y, radius: r, alter: 0, dauer: 0.9 });
+        this.#feuer.push({ x: e.x, y: e.y, winkel: 0, alter: 0, dauer: 0.45, staerke: 16000, hoehe: 40 });
+        this.#spritzer(e.x, e.y, 0, 40, '#ff9a3a', r * 3, 3.2, Math.PI);
+        this.#spritzer(e.x, e.y, 0, 24, '#3a3330', r * 1.6, 3.8, Math.PI);
+        this.#fleck(e.x, e.y, 'blutlache', r * 1.1, '#1d1a18');
+        this.schaden(0); // Kamera-Wackeln kommt vom Renderer (explosionen)
+        break;
+      }
     }
   }
 
@@ -119,9 +146,9 @@ export class Effekte {
     }
   }
 
-  #fleck(x, y, sprite, groesse) {
+  #fleck(x, y, sprite, groesse, farbe = null) {
     if (this.#flecken.length >= MAX_FLECKEN) this.#flecken.shift();
-    this.#flecken.push({ x, y, sprite, groesse: groesse * (0.8 + Math.random() * 0.4), winkel: Math.random() * Math.PI * 2, alter: 0, dauer: FLECK_LEBENSDAUER });
+    this.#flecken.push({ x, y, sprite, farbe, groesse: groesse * (0.8 + Math.random() * 0.4), winkel: Math.random() * Math.PI * 2, alter: 0, dauer: FLECK_LEBENSDAUER });
   }
 
   /** Roter Bildschirmrand bei Schaden (in Bildschirmpixeln). */

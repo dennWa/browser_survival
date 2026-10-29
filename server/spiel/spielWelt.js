@@ -78,6 +78,7 @@ export class SpielWelt {
     this.ereignisse = [];
     this.meldungen = [];
     this.zombieRespawns = []; // [{ spawnIndex, rest }]
+    this.spuckeFluege = []; // Runde 24: fliegende Spucke der Spucker (sonderZombieSystem)
     this.tierRespawns = []; // [{ rest, bereich }] Sekunden bis ein erlegter Hase nachkommt (bereich = Index in karte.tierBereiche oder null)
     /** Wetter dieser Zone (systeme/wetterSystem.js): art 'klar' | 'regen' | 'schnee' (nur Schneezonen) | 'nebel', rest = Sekunden bis zum Wechsel */
     this.wetter = { art: 'klar', rest: 30 + this.zufall.zahl() * 120 };
@@ -222,7 +223,7 @@ export class SpielWelt {
         y: spawn.y,
         konfiguration: this.konfiguration,
         spawnIndex,
-        variante: waehleZombieVariante(this.zufall, this.konfiguration),
+        variante: waehleZombieVariante(this.zufall, this.konfiguration, this.tag ?? 1),
       }),
     );
   }
@@ -300,7 +301,7 @@ export class SpielWelt {
       const serialisierer = NETZWERK_SERIALISIERER[e.typ];
       if (serialisierer) entitaeten.push(serialisierer(e));
     }
-    return { tick: this.tick, zeit: Math.round(this.zeit * 10) / 10, tag: this.tag, wetter: this.wetter.art, wind: Math.round((this.wetter.wind ?? 0.35) * 100) / 100, entitaeten, ereignisse: this.ereignisse };
+    return { tick: this.tick, zeit: Math.round(this.zeit * 10) / 10, tag: this.tag, ...(this.istNacht && this.nachtArt && this.nachtArt !== 'normal' ? { nachtArt: this.nachtArt } : {}), wetter: this.wetter.art, wind: Math.round((this.wetter.wind ?? 0.35) * 100) / 100, entitaeten, ereignisse: this.ereignisse };
   }
 
   /** Bauwerke fürs Netz: ohne privaten Kisten-Inhalt (der geht nur per KISTE an den, der die Kiste offen hat). */

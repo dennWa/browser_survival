@@ -23,6 +23,7 @@ import { erzeugeAngel } from './angelModell.js';
 import { WetterEffekt } from './wetterEffekt.js';
 import { BAUM_WIND } from './baumModell.js';
 import { BlaetterEffekt } from './blaetterEffekt.js';
+import { SonderEffekte } from './sonderEffekte.js';
 import { erkenneGeraet, merkeAutoProfil } from './geraet.js';
 
 /**
@@ -122,6 +123,14 @@ const ZOMBIE_MODELLE = {
   koloss: { datei: 'eigene/zombie.glb', hoehe: 1.05, klips: { stehen: 'Idle', gehen: 'Walk', rennen: 'Run', angriff: 'Punch' }, tempo: { gehen: 50, rennen: 115 } },
   halb: { datei: 'eigene/zombie-half.glb', hoehe: 0.62, klips: { stehen: 'Idle', gehen: 'Walk', rennen: 'Run', angriff: 'HitReact' }, tempo: { gehen: 40, rennen: 95 } },
 };
+/** Runde 24: Hautfarbe (+ Glühen) der Sonder-Zombies auf der Kenney-Figur */
+const SONDER_TOENE = {
+  sprinter: { farbe: [1.05, 0.95, 0.9] },
+  spucker: { farbe: [0.75, 0.95, 0.45], leuchten: [0.25, 0.5, 0.05] },
+  gepanzert: { farbe: [0.6, 0.62, 0.66] },
+  explosiv: { farbe: [1, 0.62, 0.5], leuchten: [0.5, 0.12, 0] },
+};
+const SONDER_MATERIAL = {};
 /** Welches Modell trägt welche Zombie-Variante? normal: abwechselnd alte Kenney-Figur und grüner Zombie (Abwechslung) */
 function zombieModellFuer(e) {
   if (e.variante === 'brocken') return 'koloss';
@@ -182,6 +191,9 @@ const REGEN_WOLKEN = new THREE.Color(0x62666e);
 
 const _ziel = new THREE.Vector3();
 const _kameraZiel = new THREE.Vector3();
+const _blutRot = new THREE.Color(1, 0.16, 0.1);
+const _blutHimmel = new THREE.Color(0.2, 0.02, 0.02);
+const _wackelVersatz = new THREE.Vector3();
 
 const ITEM_NAMEN_RADIUS = 58; // px: Namen von Bodenitems erscheinen erst, wenn man (fast) davor steht
 const PARTIKEL_FARBE = new THREE.Color();
@@ -487,6 +499,8 @@ export class Renderer {
     if (this.egoHaken || !Number.isFinite(kp.x + kp.y + kp.z)) kp.copy(_kameraZiel);
     else kp.lerp(_kameraZiel, Math.min(1, dt * 8) || 1);
     this.kamera3d.lookAt(_ziel.x, _ziel.y, _ziel.z - 20);
+    const wackeln = this.egoHaken ? 0 : (this.sonderEffekte?.wackeln ?? 0); // Runde 24: Explosion in der Nähe
+    if (wackeln > 0.01) kp.add(_wackelVersatz.set((Math.random() - 0.5) * 14 * wackeln, (Math.random() - 0.5) * 8 * wackeln, (Math.random() - 0.5) * 14 * wackeln));
     // Tatsächlicher Abstand (Kamera gleitet weich nach): Nebel/Ferne/Himmel daran koppeln, nicht an den Zielzoom –
     // sonst endet die Welt beim Reinzoomen kurz zu früh und der Himmel legt sich wie ein heller Schleier von oben drüber
     this.istAbstand = this.kamera3d.position.distanceTo(_ziel) / KAMERA_VERSATZ.length();
@@ -925,7 +939,7 @@ export class Renderer {
     probe.position.set(this.welt.pixelBreite / 2, 0, this.welt.pixelHoehe / 2);
     const figuren = [
       ...Object.keys(AUSSEHEN.koerper.optionen).map((koerper) => ({ id: -1, typ: 'spieler', aussehen: { koerper } })),
-      ...['normal', 'laeufer', 'brocken', 'halb'].map((variante) => ({ id: 2, typ: 'zombie', variante })),
+      ...['normal', 'laeufer', 'brocken', 'halb', 'sprinter', 'spucker', 'gepanzert', 'explosiv'].map((variante) => ({ id: 2, typ: 'zombie', variante })),
       { id: 1, typ: 'zombie', variante: 'normal' }, // grüner Zombie (zombieModellFuer)
     ];
     for (const e of figuren) {
@@ -1144,6 +1158,8 @@ export class Renderer {
     this.partikel = new THREE.Points(this.partikelGeometrie, new THREE.PointsMaterial({ vertexColors: true, size: 3 }));
     this.partikel.frustumCulled = false;
     this.blutFlecken = new Map(); // Effekt-Objekt → Mesh
+    this.sonderEffekte = new SonderEffekte(this.szene); // Runde 24: Spucke, Explosionen
+    this.blutmond = 0; // Runde 24: 0..1 (weich), Ziel `blutmondZiel` setzt clientSpiel aus ZUSTAND.nachtArt
     this.szene.add(this.spuren, this.partikel, this.markierRing, this.zielRing);
   }
 
@@ -1307,6 +1323,7 @@ export class Renderer {
         f.gruppe.rotation.set(0, Math.PI / 2 - e.blick, 0, 'YXZ');
       }
 
+      if (f.beulen) f.beulen.emissiveIntensity = e.zuendet ? (Math.sin(jetzt / 45) > 0 ? 4 : 0.3) : 0.6 + 0.4 * Math.sin(jetzt / 400 + e.id);
       const tempo = e.geschwindigkeit ?? 0;
       let name;
       let zeitfaktor = 1;
@@ -1417,6 +1434,15 @@ export class Renderer {
         this.spielerMaterialien.push(material);
       }
       if (e.variante === 'brocken') material.color.setRGB(0.75, 0.6, 0.55);
+      // Runde 24: Sonder-Zombies an der Hautfarbe erkennbar (+ Anbauteile in #sonderTeile)
+      const ton = SONDER_TOENE[e.variante];
+      if (ton) {
+        material.color.setRGB(...ton.farbe);
+        if (ton.leuchten) {
+          material.emissive.setRGB(...ton.leuchten);
+          material.emissiveIntensity = 0.35;
+        }
+      }
       this.figurMaterialien.set(schluessel, material);
     }
     return this.figurMaterialien.get(schluessel);
@@ -1673,7 +1699,49 @@ export class Renderer {
     const figur = { gruppe, mixer, aktionen, aktuell: 'stehen', koerper: e.aussehen?.koerper ?? AUSSEHEN.koerper.standard };
     richteFigurEin(figur, modell);
     if (e.typ === 'spieler') this.#setzeFrisur(gruppe, modell, AUSSEHEN.koerper.optionen[e.aussehen?.koerper]?.frisur);
+    if (e.typ === 'zombie') this.#sonderTeile(figur, e);
     return figur;
+  }
+
+  /**
+   * Runde 24: Anbauteile der Sonder-Zombies (an der Figurgruppe, in Welt-Pixeln; Figur ≈ FIGUR_HOEHE hoch):
+   * gepanzert = Helm + Brust-/Schulterplatten, explosiv = glühende Beulen (blinken beim Zünden, `figur.beulen`), spucker = Giftblase am Hals.
+   */
+  #sonderTeile(figur, e) {
+    const g = e.groesse ?? 1;
+    const teile = [];
+    if (e.variante === 'gepanzert') {
+      const metall = (SONDER_MATERIAL.metall ??= new THREE.MeshStandardMaterial({ color: 0x5d646b, metalness: 0.7, roughness: 0.45 }));
+      const helm = new THREE.Mesh(new THREE.SphereGeometry(8.5, 10, 6, 0, Math.PI * 2, 0, Math.PI * 0.55), metall);
+      helm.position.set(0, 58, 0);
+      const brust = new THREE.Mesh(new THREE.BoxGeometry(20, 16, 12), metall);
+      brust.position.set(0, 40, 0);
+      const schulterL = new THREE.Mesh(new THREE.BoxGeometry(8, 5, 10), metall);
+      schulterL.position.set(-12, 48, 0);
+      const schulterR = schulterL.clone();
+      schulterR.position.x = 12;
+      teile.push(helm, brust, schulterL, schulterR);
+    } else if (e.variante === 'explosiv') {
+      const glut = new THREE.MeshStandardMaterial({ color: 0xff7a2a, emissive: 0xff4a00, emissiveIntensity: 0.8, roughness: 0.5 });
+      figur.beulen = glut;
+      for (const [x, y, z, r] of [[5, 42, 6, 4.5], [-6, 36, 5, 3.6], [3, 30, -6, 4], [-4, 47, -5, 3.2], [8, 34, -2, 3]]) {
+        const beule = new THREE.Mesh(new THREE.SphereGeometry(r, 8, 6), glut);
+        beule.position.set(x, y, z);
+        teile.push(beule);
+      }
+    } else if (e.variante === 'spucker') {
+      const gift = (SONDER_MATERIAL.gift ??= new THREE.MeshStandardMaterial({ color: 0xa6e84e, emissive: 0x4f9a14, emissiveIntensity: 0.9, roughness: 0.25 }));
+      const blase = new THREE.Mesh(new THREE.SphereGeometry(6, 10, 8), gift);
+      blase.position.set(0, 50, 5);
+      blase.scale.set(1.1, 0.8, 1);
+      teile.push(blase);
+    }
+    for (const t of teile) {
+      t.position.multiplyScalar(g);
+      t.scale.multiplyScalar(g);
+      t.castShadow = true;
+      figur.gruppe.add(t);
+    }
   }
 
   /** Taschenlampen der nächsten Spieler (eigene zuerst, mit Schatten) – nur wenn deren Lampe an ist. */
@@ -1939,6 +2007,16 @@ export class Renderer {
       this.szene.background.lerp(_blitzFarbe, 0.6 * blitz);
       this.szene.fog.color.copy(this.szene.background);
     }
+    // Runde 24: Blutmond – rotes Mondlicht, rötlicher Nachthimmel (blendet weich, nur nachts)
+    this.blutmond += ((this.blutmondZiel ?? 0) * dunkel - this.blutmond) * 0.02;
+    if (this.blutmond > 0.005) {
+      const b = this.blutmond;
+      this.mond.color.lerp(_blutRot, b);
+      this.mond.intensity *= 1 + 0.9 * b;
+      this.umgebung.color.lerp(_blutRot, 0.5 * b);
+      this.szene.background.lerp(_blutHimmel, 0.8 * b);
+      this.szene.fog.color.copy(this.szene.background);
+    }
     const dicht = Math.min(1, nebel + 0.35 * regen);
     // Dichter Nebel darf kräftig sein, aber nie die Figur selbst verschlucken (Top-Down: Kamera ~677 px × Zoom entfernt)
     const kamAbstand = KAMERA_VERSATZ.length() * abstand;
@@ -1948,6 +2026,7 @@ export class Renderer {
     this.szene.fog.near = nah * reingezoomt;
     this.szene.fog.far = Math.max((1500 + hell * 1500) * abstand * (1 - 0.62 * dicht), nah + kamAbstand * (0.5 + 0.3 * hell)) * reingezoomt;
     this.#zeichneHimmel(hell, daemmerung, regen, nebel, abstand, kamAbstand);
+    if (this.blutmond > 0.005) this.himmel.uniforms.uZenit?.value.lerp(_blutHimmel, 0.7 * this.blutmond);
     return dunkel;
   }
 
@@ -2016,14 +2095,15 @@ export class Renderer {
   #blutMesh(fleck) {
     const mesh = new THREE.Mesh(
       new THREE.PlaneGeometry(fleck.groesse, fleck.groesse),
-      new THREE.MeshStandardMaterial({ map: this.karte.sprite(fleck.sprite), transparent: true, depthWrite: false, roughness: 0.4 }),
+      new THREE.MeshStandardMaterial({ map: this.karte.sprite(fleck.sprite), transparent: true, depthWrite: false, roughness: 0.4, ...(fleck.farbe ? { color: fleck.farbe } : {}) }),
     );
     mesh.rotation.set(-Math.PI / 2, 0, fleck.winkel);
     mesh.position.set(fleck.x, 0.6 + this.#hy(fleck.x, fleck.y), fleck.y);
     return mesh;
   }
 
-  #aktualisiereEffekte({ leuchtspuren, feuer, partikel, flecken, schadenBlitz }) {
+  #aktualisiereEffekte({ leuchtspuren, feuer, partikel, flecken, schadenBlitz, spucken, explosionen }) {
+    this.sonderEffekte.aktualisiere(spucken ?? [], explosionen ?? [], (x, y) => this.#hy(x, y), this.letzterFokus);
     // Leuchtspuren als Linien in Brusthöhe (fester Puffer, keine neuen Arrays pro Frame)
     const spuren = Math.min(leuchtspuren.length, 64);
     for (let i = 0; i < spuren; i++) {
@@ -2042,8 +2122,8 @@ export class Renderer {
     // Mündungsfeuer als kurze Punktlichter
     this.muendungslichter.forEach((licht, i) => {
       const f = feuer[i];
-      licht.intensity = f ? 1400 * (1 - f.alter / f.dauer) : 0;
-      if (f) licht.position.set(f.x, ZIELHOEHE + 6 + this.#hy(f.x, f.y), f.y);
+      licht.intensity = f ? (f.staerke ?? 1400) * (1 - f.alter / f.dauer) : 0;
+      if (f) licht.position.set(f.x, (f.hoehe ?? ZIELHOEHE + 6) + this.#hy(f.x, f.y), f.y);
     });
     // Blutspritzer
     const anzahl = Math.min(partikel.length, 400);

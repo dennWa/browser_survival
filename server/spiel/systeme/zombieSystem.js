@@ -6,6 +6,7 @@ import { findePfad } from '../../../gemeinsam/physik/pfadfindung.js';
 import { fuegeSchadenZu } from './kampfSystem.js';
 import { schlageTuer } from './tuerSystem.js';
 import { abstandZumFahrzeug } from '../../../gemeinsam/physik/fahrzeug.js';
+import { sonderVerhalten, aktualisiereSpucke } from './sonderZombieSystem.js';
 
 /**
  * Zombie-KI pro Tick:
@@ -63,6 +64,8 @@ export function aktualisiereZombies(spielWelt, dt) {
     }
     if (z.nacht) wittere(spielWelt, z, lebendeSpieler, dt);
     const ziel = waehleZiel(spielWelt, z, lebendeSpieler, k);
+    // Runde 24: Spucker/Explosiv steuern sich (teilweise) selbst
+    if (z.variante !== 'normal' && sonderVerhalten(spielWelt, z, ziel, ziel ? Math.hypot(ziel.x - z.x, ziel.y - z.y) : Infinity, ziel ? siehtZiel(spielWelt.welt, z, ziel) : false, dt)) continue;
     if (!ziel) {
       z.zustand = 'ruhend';
       z.zielId = null;
@@ -109,6 +112,7 @@ export function aktualisiereZombies(spielWelt, dt) {
     pruefeObSteckt(spielWelt, z, Math.hypot(z.x - z.tickStartX, z.y - z.tickStartY), dt);
   }
   aktualisiereRespawns(spielWelt, dt, k);
+  aktualisiereSpucke(spielWelt, dt);
 }
 
 /** Nächster Punkt rund ums Auto (außerhalb der Karosserie, im Abstand des Zombie-Radius) – dorthin läuft der Zombie. */

@@ -49,6 +49,15 @@
     ],
     "lautstaerke": 0.6
   },
+  "explosion": {
+    "dateien": [
+      "explosion_0.ogg",
+      "explosion_1.ogg",
+      "explosion_2.ogg"
+    ],
+    "lautstaerke": 1.4,
+    "streuung": 0.05
+  },
   "fahrzeug_kaputt": {
     "dateien": [
       "fahrzeug_kaputt_0.ogg",
@@ -249,6 +258,24 @@
     ],
     "lautstaerke": 1
   },
+  "spucke": {
+    "dateien": [
+      "spucke_0.ogg",
+      "spucke_1.ogg",
+      "spucke_2.ogg"
+    ],
+    "lautstaerke": 0.7,
+    "streuung": 0.08
+  },
+  "spucke_trifft": {
+    "dateien": [
+      "spucke_trifft_0.ogg",
+      "spucke_trifft_1.ogg",
+      "spucke_trifft_2.ogg"
+    ],
+    "lautstaerke": 0.6,
+    "streuung": 0.08
+  },
   "stein_bricht": {
     "dateien": [
       "stein_bricht_0.ogg"
@@ -266,6 +293,15 @@
       "tag.ogg"
     ],
     "lautstaerke": 0.5
+  },
+  "treffer_panzer": {
+    "dateien": [
+      "treffer_panzer_0.ogg",
+      "treffer_panzer_1.ogg",
+      "treffer_panzer_2.ogg"
+    ],
+    "lautstaerke": 0.6,
+    "streuung": 0.1
   },
   "ueberfahren": {
     "dateien": [
@@ -368,6 +404,13 @@
     ],
     "lautstaerke": 0.9,
     "streuung": 0.05
+  },
+  "zuendung": {
+    "dateien": [
+      "zuendung_0.ogg",
+      "zuendung_1.ogg"
+    ],
+    "lautstaerke": 0.8
   },
   "wind": {
     "dateien": [],

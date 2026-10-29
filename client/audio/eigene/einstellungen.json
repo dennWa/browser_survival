@@ -129,5 +129,24 @@
   },
   "wind_stark": {
     "lautstaerke": 0.6
+  },
+  "spucke": {
+    "lautstaerke": 0.7,
+    "streuung": 0.08
+  },
+  "spucke_trifft": {
+    "lautstaerke": 0.6,
+    "streuung": 0.08
+  },
+  "zuendung": {
+    "lautstaerke": 0.8
+  },
+  "explosion": {
+    "lautstaerke": 1.4,
+    "streuung": 0.05
+  },
+  "treffer_panzer": {
+    "lautstaerke": 0.6,
+    "streuung": 0.1
   }
 }

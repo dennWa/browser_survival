@@ -100,6 +100,42 @@ try {
     pruefe(stark > 2, `starker Wind → Bäume schwanken stark (Stufe ${stark.toFixed(2)})`);
     await bild('1_wind_stark');
   }
+  // ---------------------------------------------------------------- Phase 2 (Progression & Sonder-Zombies)
+  if (phaseAn(2)) {
+    const gesetzt = await seite.evaluate(async () => {
+      const { erzeugeZombie } = await import('/server/spiel/entitaeten/zombie.js');
+      const srv = browserSurvival.server;
+      for (const z of srv.zonen.values()) {
+        if (z.spielWelt.karte.daten.id !== browserSurvival.spiel.welt.id) continue;
+        const w = z.spielWelt;
+        const ich = w.holen(browserSurvival.spiel.eigeneId);
+        ['sprinter', 'spucker', 'gepanzert', 'explosiv'].forEach((v, i) => {
+          const zz = erzeugeZombie({ id: w.neueId(), x: ich.x - 90 + i * 60, y: ich.y - 70, konfiguration: w.konfiguration, variante: v });
+          zz.gefesselt = true;
+          w.hinzufuegen(zz);
+        });
+        return true;
+      }
+      return false;
+    });
+    pruefe(gesetzt, 'vier Sonder-Zombies gesetzt');
+    await seite.waitForTimeout(2500);
+    await bild('2_sonderzombies');
+    // Explosion auslösen
+    await amServer(`for (const z of welt.alleVomTyp('zombie')) if (z.variante === 'explosiv') { z.gefesselt = false; z.zuendung = 0.6; }`);
+    await seite.waitForTimeout(350);
+    await bild('2_zuendung');
+    await seite.waitForTimeout(500);
+    await bild('2_explosion');
+    pruefe(await amServer(`return ![...welt.alleVomTyp('zombie')].some((z) => z.variante === 'explosiv');`), 'Explosiv-Zombie explodiert');
+    // Blutmond
+    await amServer(`welt.istNacht = true; welt.nachtArt = 'blutmond'; const { tagSekunden } = welt.tageszeitDauer(); welt.zeit = tagSekunden + 30;`);
+    await seite.waitForTimeout(5000);
+    pruefe(await seite.evaluate(() => browserSurvival.spiel.renderer.blutmond > 0.2), 'Blutmond färbt die Nacht');
+    await bild('2_blutmond');
+    await amServer(`welt.nachtArt = 'normal'; welt.zeit = 10; for (const z of [...welt.alleVomTyp('zombie')]) if (z.gefesselt) welt.entfernen(z.id);`);
+  }
+
   const info = await seite.evaluate(() => browserSurvival.spiel?.renderer.statistik() ?? '');
   if (info) console.log(`  Grafik: ${info}`);
 } catch (e) {
