@@ -127,3 +127,33 @@ test('Überfahren: Aufprall-Ereignis trägt das Ziel (Matsch-Sound im Client)', 
   assert.match(quelle, /ziel: 'zombie'/);
   assert.match(quelle, /ziel: 'tier'/);
 });
+
+test('Hase 2.0: sehr scheu, flieht weit (auch ohne Verfolger), erschrickt bei Schüssen', async () => {
+  const { spawneHase, aktualisiereTiere } = await import('../server/spiel/systeme/tierSystem.js');
+  const KARTE_WEIT = { id: 'weit', name: 'Weit', kacheln: ['#'.repeat(80), `#S${','.repeat(77)}#`, ...Array.from({ length: 39 }, () => `#${','.repeat(78)}#`), '#'.repeat(80)], raeume: {}, objekte: [] };
+  const konfiguration = erstelleKonfiguration({ server: { zufallsStartwert: 9 }, tiere: { hasenProTausend: 0 }, wetter: { aktiv: false }, spieler: { startInventar: [] } });
+  const welt = new SpielWelt(konfiguration, { kartenDefinition: KARTE_WEIT });
+  for (const z of [...welt.alleVomTyp('zombie')]) welt.entfernen(z.id);
+  const spieler = welt.spielerBetrittWelt('Tester');
+  spieler.gottmodus = true;
+  spieler.x = mitte(10);
+  spieler.y = mitte(20);
+  const hase = spawneHase(welt, 0);
+  hase.x = mitte(17); // ~224 px entfernt: früher (150 px) ruhig, jetzt Flucht
+  hase.y = mitte(20);
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(hase.zustand, 'flucht');
+  const start = { x: hase.x, y: hase.y };
+  spieler.x = mitte(2); // Spieler bleibt weit weg – Hase rennt trotzdem weiter
+  ticks(welt, 30 * 3);
+  assert.ok(Math.hypot(hase.x - start.x, hase.y - start.y) > 300, `weit geflohen (${Math.round(Math.hypot(hase.x - start.x, hase.y - start.y))} px)`);
+  ticks(welt, 30 * 10);
+  assert.equal(hase.zustand, 'ruhend');
+  // Schuss in der Nähe → Flucht
+  spieler.x = hase.x - 500;
+  spieler.y = hase.y;
+  welt.ereignisse.length = 0;
+  welt.ereignis({ typ: 'feuer', von: spieler.id, x: spieler.x, y: spieler.y, winkel: 0 });
+  aktualisiereTiere(welt, TICK_DAUER_S); // Schuss-Ereignis liegt im selben Tick vor
+  assert.equal(hase.zustand, 'flucht');
+});

@@ -1,10 +1,82 @@
 import * as THREE from 'three';
+import { SkeletonUtils } from '../vendor/three/addons.js';
+import { ladeEigenesModell } from './eigeneModelle.js';
 
 /**
- * Tiere (bisher: Hase) – prozedurale Platzhalter im Comic-Stil: einfache Formen mit gemalten
- * Comic-Texturen (Fell mit Flecken, dicke Kontur-Optik). Später durch echte Modelle/Texturen ersetzbar:
- * nur diese Datei anfassen (erzeugeTier). Front = +z (wie die Figuren), Ursprung = Füße am Boden.
+ * Tiere (bisher: Hase). Runde 23: echtes, animiertes Hasenmodell `assets/eigene/hase.glb` (CC0, „Rabbit“ von CDmir via
+ * OpenGameArt; aus FBX umgewandelt, Clips sitzen/hoppeln/springen/sterben, Fell-Hülle entfernt, Textur 256 px) – Höhe HASE_HOEHE,
+ * Front automatisch über den Kopf-Knochen. Bis das GLB geladen ist (oder falls es fehlt) steht der prozedurale Comic-Hase da.
+ * Front = +z (wie die Figuren), Ursprung = Füße am Boden.
  */
+const HASE_GLB = new URL('../assets/eigene/hase.glb', import.meta.url).href;
+const HASE_HOEHE = 18; // Weltmaß in Ruhepose mit Ohren (Figur 64 ≈ 1,8 m → Hase ≈ 0,5 m; etwas größer als echt, damit man ihn von oben sieht)
+let haseVorlage = null; // { szene, massstab, versatz: Vector3, drehung }
+let haseLaden = null;
+
+function ladeHase() {
+  haseLaden ??= ladeEigenesModell(HASE_GLB)
+    .then((szene) => {
+      const probe = SkeletonUtils.clone(szene);
+      probe.updateMatrixWorld(true);
+      probe.traverse((t) => t.isSkinnedMesh && t.skeleton.update());
+      const box = new THREE.Box3().setFromObject(probe, true);
+      const groesse = box.getSize(new THREE.Vector3());
+      const mitte = box.getCenter(new THREE.Vector3());
+      // Kopf-Knochen zeigt, wo vorne ist (Modell liegt längs der z-Achse)
+      let vorne = 1;
+      probe.traverse((t) => {
+        if (t.isBone && /head/i.test(t.name)) vorne = Math.sign(t.getWorldPosition(new THREE.Vector3()).z - mitte.z) || 1;
+      });
+      haseVorlage = { szene, massstab: HASE_HOEHE / groesse.y, versatz: new THREE.Vector3(-mitte.x, -box.min.y, -mitte.z), drehung: vorne > 0 ? 0 : Math.PI };
+      return haseVorlage;
+    })
+    .catch(() => null);
+  return haseLaden;
+}
+
+/** Tier-Modell: sofort der Comic-Hase, sobald das GLB da ist der echte Hase (Animation je Zustand). */
+export function erzeugeTier(art = 'hase') {
+  const comic = baueComicHase(art);
+  const gruppe = new THREE.Group();
+  gruppe.add(comic.gruppe);
+  const tier = { gruppe, aktualisiere: (e, jetzt) => comic.aktualisiere(e, jetzt) };
+  ladeHase().then((v) => {
+    if (!v) return;
+    const modell = SkeletonUtils.clone(v.szene);
+    modell.traverse((t) => {
+      if (!t.isMesh) return;
+      t.castShadow = true;
+      t.frustumCulled = false;
+    });
+    const innen = new THREE.Group();
+    modell.position.copy(v.versatz);
+    innen.add(modell);
+    innen.scale.setScalar(v.massstab);
+    innen.rotation.y = v.drehung;
+    gruppe.remove(comic.gruppe);
+    gruppe.add(innen);
+    const mixer = new THREE.AnimationMixer(modell);
+    const clips = Object.fromEntries((v.szene.animations ?? []).map((c) => [c.name, mixer.clipAction(c)]));
+    let aktuell = null;
+    let letzte = null;
+    mixer.setTime(Math.random() * 3);
+    tier.aktualisiere = (e, jetzt) => {
+      const dt = letzte === null ? 0 : Math.min(0.1, (jetzt - letzte) / 1000);
+      letzte = jetzt;
+      const tempo = e.geschwindigkeit ?? 0;
+      const name = tempo > 8 && clips.hoppeln ? 'hoppeln' : clips.sitzen ? 'sitzen' : null;
+      if (name && name !== aktuell) {
+        clips[name].reset().fadeIn(0.15).play();
+        if (aktuell) clips[aktuell].fadeOut(0.15);
+        aktuell = name;
+      }
+      // Hoppeln: Takt passt zum Tempo (Flucht ≈ 185 px/s = volle Clipgeschwindigkeit)
+      if (name === 'hoppeln') clips.hoppeln.timeScale = Math.max(0.45, Math.min(1.6, tempo / 170));
+      mixer.update(dt);
+    };
+  });
+  return tier;
+}
 let fellTextur = null;
 let ohrTextur = null;
 const FELL = new THREE.MeshStandardMaterial({ roughness: 0.9 });
@@ -74,7 +146,7 @@ function mulberry(a) {
 }
 
 /** Neues Tier. @returns { gruppe, aktualisiere(e, jetzt) } */
-export function erzeugeTier(art = 'hase') {
+function baueComicHase(art = 'hase') {
   if (art !== 'hase') art = 'hase';
   fellTextur ??= malFell();
   ohrTextur ??= malOhr();

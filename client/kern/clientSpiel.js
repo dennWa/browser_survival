@@ -1258,6 +1258,7 @@ export class ClientSpiel {
       neu.set(t.id, t.zustand);
       if (t.zustand === 'flucht' && this.#tierZustand.get(t.id) && this.#tierZustand.get(t.id) !== 'flucht' && Math.hypot(t.x - this.lokal.x, t.y - this.lokal.y) < 700) {
         this.sound.spiele('hase_flucht', { x: t.x, y: t.y });
+        this.sound.spiele('hase_schreck', { x: t.x, y: t.y, lautstaerke: 0.8 }); // Runde 23: kurzes Fiepen
       }
     }
     this.#tierZustand = neu;

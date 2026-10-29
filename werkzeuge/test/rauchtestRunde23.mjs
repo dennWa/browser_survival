@@ -264,6 +264,31 @@ try {
     }
   }
 
+  // ---------------------------------------------------------------- Phase 6 (Hase)
+  if (phaseAn(6)) {
+    const pos = await amServer(`
+      const t = [...welt.alleVomTyp('tier')][0];
+      if (!t) return null;
+      ich.x = t.x - 420; ich.y = t.y; // außerhalb des Scheu-Radius
+      return { x: t.x, y: t.y, id: t.id };`);
+    if (pos) {
+      await seite.waitForTimeout(3000);
+      const glb = await seite.evaluate((id) => {
+        const t = browserSurvival.spiel.renderer.tiere.get(id);
+        let skinned = 0;
+        t?.gruppe.traverse((o) => o.isSkinnedMesh && skinned++);
+        return skinned;
+      }, pos.id);
+      pruefe(glb > 0, 'Hase: echtes GLB-Modell (Skelett) geladen');
+      await bild('6_hase_ruhend');
+      await amServer(`const t = welt.holen(a.id); ich.x = t.x - 150; ich.y = t.y;`, pos);
+      await seite.waitForTimeout(1500);
+      const zustand = await amServer(`return welt.holen(a.id)?.zustand;`, pos);
+      pruefe(zustand === 'flucht', `Hase flieht bei 150 px (${zustand})`);
+      await bild('6_hase_flucht');
+    } else fehler.push('Prüfung: kein Hase in der Zone');
+  }
+
   const info = await seite.evaluate(() => browserSurvival.spiel?.renderer.statistik() ?? '');
   if (info) console.log(`  Grafik: ${info}`);
 } catch (e) {

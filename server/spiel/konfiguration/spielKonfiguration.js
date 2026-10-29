@@ -108,8 +108,13 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     hasenProTausend: 2,
     hasenMax: 12,
     hasenLeben: 10,
-    hasenTempo: 125, // Fluchttempo (Spieler: Gehen 80, Rennen 150)
-    hasenScheuRadius: 150,
+    hasenTempo: 185, // Fluchttempo (Runde 23: schneller als ein sprintender Spieler, 170)
+    hasenScheuRadius: 300, // Runde 23: viel scheuer (vorher 150); sprintende Spieler schrecken noch weiter (× sprintScheu)
+    sprintScheu: 1.4,
+    schussScheuRadius: 700, // Schuss in diesem Umkreis → Flucht
+    autoScheuRadius: 380, // fahrendes Auto in diesem Umkreis → Flucht
+    fluchtStrecke: [700, 1100], // so weit rennt ein erschreckter Hase (px), auch wenn der Spieler nicht folgt
+    fluchtZeitMax: 9, // spätestens nach so vielen Sekunden Flucht wird wieder geprüft
     hasenRespawn: 150,
   },
   /** Angeln: Angel im Inventar, Linksklick Richtung Wasser. Pose wackelt (biss) → in der Zeitspanne nochmal klicken. */
