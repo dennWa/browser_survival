@@ -6,7 +6,7 @@ import { uiIcon } from './uiIcons.js';
  * Inventar-Fenster (Taste Tab bzw. 🎒): Schnellleiste (Plätze 0–7), Tasche (8–15) und – mit Rucksack/Kleidung – weitere.
  * Runde 23: zweispaltig – links Charakter-Vorschau (ui/charakterVorschau.js) mit Ausrüstungs-Slots (Kopf, Oberkörper, Hände,
  * Beine, Füße, Rücken = Rucksack), rechts die Items. Item auf einen Ausrüstungs-Slot ziehen = anlegen (AKTION anlegen),
- * Klick auf belegten Slot = ausziehen (AKTION ausziehen; Rücken = Rucksack ablegen). Daten: spielerDaten.ausruestung.
+ * Klick auf belegten Slot = ausziehen (AKTION ausziehen; Rücken = Rucksack ablegen). Daten: spielerDaten.kleidung.
  *
  * Bedienung (Maus und Touch gleich, über Pointer-Events):
  *   antippen/klicken      → benutzen (essen, ausrüsten …) + Info unten anzeigen
@@ -65,7 +65,7 @@ export class InventarFenster {
       this.#ausrSlots[id] = { knopf, icon: knopf.querySelector('canvas'), defId: undefined };
       knopf.addEventListener('click', () => {
         if (id === 'ruecken') this.#aktionen.rucksackAblegen?.();
-        else if (this.#daten?.ausruestung?.[id]) this.#aktionen.ausziehen?.(id);
+        else if (this.#daten?.kleidung?.[id]) this.#aktionen.ausziehen?.(id);
       });
       knopf.addEventListener('pointerenter', () => this.#zeigeAusrInfo(id));
     }
@@ -224,7 +224,7 @@ export class InventarFenster {
   }
 
   #zeigeAusrInfo(id) {
-    const defId = id === 'ruecken' ? this.#daten?.rucksack : this.#daten?.ausruestung?.[id];
+    const defId = id === 'ruecken' ? this.#daten?.rucksack : this.#daten?.kleidung?.[id];
     const def = defId && this.#itemDefinitionen[defId];
     const namen = { kopf: 'Kopf', oberkoerper: 'Oberkörper', haende: 'Hände', beine: 'Beine', fuesse: 'Füße', ruecken: 'Rucksack' };
     this.info.textContent = def
@@ -235,7 +235,7 @@ export class InventarFenster {
   /** Ausrüstungs-Slots, Figur und Werte links */
   #zeichneCharakter() {
     const d = this.#daten;
-    const belegung = { ...(d.ausruestung ?? {}), ruecken: d.rucksack ?? null };
+    const belegung = { ...(d.kleidung ?? {}), ruecken: d.rucksack ?? null };
     for (const [id, s] of Object.entries(this.#ausrSlots)) {
       const defId = belegung[id] ?? null;
       s.knopf.classList.toggle('belegt', !!defId);
@@ -245,7 +245,7 @@ export class InventarFenster {
     }
     const figur = this.figurQuelle?.() ?? {};
     this.name.textContent = figur.name ?? '';
-    this.vorschau.setze(figur.aussehen, d.ausruestung ?? null);
+    this.vorschau.setze(figur.aussehen, d.kleidung ?? null);
     let waerme = 0;
     let platz = 0;
     for (const defId of Object.values(belegung)) {
@@ -254,7 +254,7 @@ export class InventarFenster {
       platz += def?.plaetze ?? 0;
     }
     const wert = (icon, text, zahl) => `<div class="inv-wert">${uiIcon(icon)}<span>${text}</span><b>${zahl}</b></div>`;
-    const html = wert('xp', 'Level', d.level ?? 1) + wert('kaelte', 'Wärme', `+${waerme}`) + wert('inventar', 'Plätze', `${d.inventar.length}${platz ? ` (+${platz})` : ''}`);
+    const html = wert('xp', 'Level', d.level ?? 1) + wert('kaelte', 'Wärme', `+${waerme}`) + wert('inventar', 'Plätze', `${d.inventar.length}${platz ? ` (+${platz})` : ''}`) + (d.kaelte > 0 ? wert('schneeflocke', 'Kälte', `${d.kaelte}%`) : '');
     if (this.werte.innerHTML !== html) this.werte.innerHTML = html;
   }
 

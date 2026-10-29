@@ -3,7 +3,9 @@ import { STAPEL_MUNITION, STAPEL_STANDARD } from '../../../gemeinsam/konstanten.
 /**
  * Gegenstands-Definitionen (Item-Datenbank).
  * Schlüssel = defId (muss zu einem Icon in client/assets/atlas.json → items.icons passen; ein Test prüft das).
- * Kategorien: nahrung, getraenk, medizin, nahkampf, fernkampf, munition, material, rucksack, bauwerk, werkzeug, samen.
+ * Kategorien: nahrung, getraenk, medizin, nahkampf, fernkampf, munition, material, rucksack, kleidung, bauwerk, werkzeug, samen.
+ * Kleidung: slot (kopf|oberkoerper|haende|beine|fuesse), waerme (gegen Kälte), plaetze (Taschen), farbe (Optik am Charakter);
+ * Icons selbst gezeichnet in werkzeuge/assets/baue_assets.py (prozedural 'kleidung:<form>:<farbe>').
  *
  * ausruestung = Haltung/Waffenart (taschenlampe | messer | pistole | schrotflinte)
  * (inHand: true = lässt sich ausrüsten, ohne Waffe zu sein – Angel, Samen)
@@ -68,6 +70,16 @@ const ROH_GEGENSTAENDE = {
   rucksack_klein: { name: 'Kleiner Rucksack', kategorie: 'rucksack', plaetze: 4, beschreibung: 'Anlegen: +4 Inventarplätze' },
   rucksack: { name: 'Rucksack', kategorie: 'rucksack', plaetze: 6, beschreibung: 'Anlegen: +6 Inventarplätze' },
   rucksack_gross: { name: 'Großer Rucksack', kategorie: 'rucksack', plaetze: 8, beschreibung: 'Anlegen: +8 Inventarplätze' },
+  // --- Kleidung (Runde 23): am Charakter anziehen (Inventar links, Slot = slot) – nur Wärme gegen Unterkühlung + Taschen (plaetze) ---
+  muetze: { name: 'Wollmütze', kategorie: 'kleidung', slot: 'kopf', waerme: 10, farbe: '#8a2f2f' },
+  kapuzenpulli: { name: 'Kapuzenpulli', kategorie: 'kleidung', slot: 'oberkoerper', waerme: 15, plaetze: 1, farbe: '#4f5f70' },
+  winterjacke: { name: 'Winterjacke', kategorie: 'kleidung', slot: 'oberkoerper', waerme: 32, plaetze: 2, farbe: '#2e4a6e' },
+  arbeitsweste: { name: 'Arbeitsweste', kategorie: 'kleidung', slot: 'oberkoerper', waerme: 6, plaetze: 4, farbe: '#c8782a' },
+  handschuhe: { name: 'Handschuhe', kategorie: 'kleidung', slot: 'haende', waerme: 8, farbe: '#33302c' },
+  jeans: { name: 'Jeans', kategorie: 'kleidung', slot: 'beine', waerme: 8, plaetze: 2, farbe: '#3d4f78' },
+  thermohose: { name: 'Thermohose', kategorie: 'kleidung', slot: 'beine', waerme: 18, plaetze: 1, farbe: '#26272c' },
+  stiefel: { name: 'Winterstiefel', kategorie: 'kleidung', slot: 'fuesse', waerme: 12, farbe: '#5a3c22' },
+  turnschuhe: { name: 'Turnschuhe', kategorie: 'kleidung', slot: 'fuesse', waerme: 3, farbe: '#d8d8d8' },
   // --- Bauwerke: benutzen → Vorschau, dann in die Welt setzen (gemeinsam/welt/bauwerke.js) ---
   werkbank: { name: 'Werkbank', kategorie: 'bauwerk', bauwerk: 'werkbank', beschreibung: 'Aufstellen und Werkzeug, Waffen & Fallen bauen' },
   lagerfeuer: { name: 'Lagerfeuer', kategorie: 'bauwerk', bauwerk: 'lagerfeuer', beschreibung: 'Draußen aufstellen, mit F und Feuerzeug anzünden, Essen braten' },
@@ -103,7 +115,8 @@ function normalisiere(roh) {
   const ergebnis = {};
   for (const [id, original] of Object.entries(roh)) {
     let def = original;
-    const einzeln = ['nahkampf', 'fernkampf', 'rucksack', 'werkzeug'].includes(def.kategorie) || def.werkzeug === true || id === 'erste_hilfe_kasten';
+    const einzeln = ['nahkampf', 'fernkampf', 'rucksack', 'werkzeug', 'kleidung'].includes(def.kategorie) || def.werkzeug === true || id === 'erste_hilfe_kasten';
+    if (def.kategorie === 'kleidung') def = { ...def, beschreibung: `Anziehen (ins Charakterfeld ziehen oder anklicken): +${def.waerme} Wärme${def.plaetze ? `, +${def.plaetze} Plätze` : ''}` };
     // Samen kann man in die Hand nehmen (Linksklick am Beet pflanzt)
     if (def.kategorie === 'samen') def = { ...def, inHand: true, ausruestung: 'samen' };
     // Essen, Trinken, Medizin: erst in die Hand nehmen (Zahlentaste), Linksklick verbraucht

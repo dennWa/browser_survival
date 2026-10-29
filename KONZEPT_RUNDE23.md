@@ -1,6 +1,6 @@
 # Konzept Runde 23 – Atmosphäre, Inventar-Umbau, Wetter, Bots, Kälte
 
-Stand 2026-10-29 · Status: **Konzept, noch nichts umgesetzt.** Wunschliste des Nutzers in 9 Phasen sortiert (Reihenfolge = Umsetzung).
+Stand 2026-10-29 · Status: **alle 9 Phasen umgesetzt** (Details & Abweichungen: KI_INDEX §23; Kleidung = Feld `spieler.kleidung`, Optik per Umfärben + Mütze/Handschuhe an Knochen). Wunschliste des Nutzers in 9 Phasen sortiert (Reihenfolge = Umsetzung).
 Regeln für alle Phasen: nur CC0/CC-BY, jede Quelle sofort in `client/assets/eigene/credits.json` bzw. `client/audio/eigene/LIZENZEN.md` + Credits-Dialog; kleine Dateien (Texturen ≤512 px, Sounds als kurze Ogg/WAV); Touch mitdenken; `npm test` vor jedem Commit; direkt auf `main`; KI_INDEX/Manifest pro Phase nachziehen.
 Statusmeldungen während der Arbeit: nur Stichpunkte am Phasenende.
 

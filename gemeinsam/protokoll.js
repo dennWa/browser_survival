@@ -83,6 +83,8 @@ export const AKTIONEN = Object.freeze({
   ABLEGEN: 'ablegen', // { slot, einzeln? } ganzen Stapel (einzeln: nur 1 Stück) auf den Boden legen
   TAUSCHEN: 'tauschen', // { slot, ziel } Inventarplätze tauschen bzw. gleiche Stapel zusammenlegen (Drag & Drop)
   RUCKSACK_ABLEGEN: 'rucksackAblegen', // Rucksack auf den Boden legen (Inhalt wandert ins Inventar oder fällt mit)
+  ANLEGEN: 'anlegen', // { slot } Runde 23: Kleidung (oder Rucksack) aus dem Inventar anziehen
+  AUSZIEHEN: 'ausziehen', // { stelle } Runde 23: Kleidung an kopf|oberkoerper|haende|beine|fuesse ausziehen (ruecken = Rucksack ablegen)
   PLATZIEREN: 'platzieren', // { slot, tx, ty } Bauwerk-Item (oder Hacke → Beet) auf Kachel tx/ty aufstellen
   FEUER: 'feuer', // F: nächstes Lagerfeuer anzünden (Feuerzeug nötig) / löschen – sonst wie 'tuer'
   BAUWERK: 'bauwerk', // E am nächsten Bauwerk: Falle aufnehmen/spannen, Feuer-/Ofen-Menü öffnen, pflanzen, ernten

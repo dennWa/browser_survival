@@ -347,6 +347,8 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
 @keyframes levelPuls { to { transform: scale(1.5); box-shadow: 0 0 12px #f2c94c; } }
 #wert-hunger .fuellung { background: #e0902b; }
 #wert-durst .fuellung { background: #3a9be0; }
+#wert-kaelte .fuellung { background: linear-gradient(90deg, #a8d8ff, #e8f6ff); }
+#wert-kaelte[hidden] { display: none; }
 #wert-ausdauer .fuellung { background: #c9d94a; transition: width 0.08s; }
 #wert-ausdauer.erschoepft .fuellung { background: #7a7f60; }
 #wert-ausdauer.kritisch .fuellung { animation: none; }

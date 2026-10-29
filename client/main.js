@@ -127,6 +127,8 @@ hud.beiAktionen({
   ablegen: (slot) => aktuellesSpiel?.ablegen(slot),
   tauschen: (von, nach) => aktuellesSpiel?.tauschen(von, nach),
   rucksackAblegen: () => aktuellesSpiel?.rucksackAblegen(),
+  anlegen: (slot) => aktuellesSpiel?.anlegen(slot),
+  ausziehen: (stelle) => aktuellesSpiel?.ausziehen(stelle),
   zoomStufe: () => renderer?.naechsteZoomStufe(),
   skill: (name) => aktuellesSpiel?.skill(name),
   feld: () => aktuellesSpiel?.feldEntfernen(),

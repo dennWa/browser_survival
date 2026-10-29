@@ -2,7 +2,7 @@ import { brecheArbeitAb, starteZerlegen, ZERLEGE_WERKZEUGE } from './arbeitSyste
 import { strahlGegenWaende, strahlTrifftKreis } from '../../../gemeinsam/physik/strahl.js';
 import { bewegeKoerper } from '../../../gemeinsam/physik/bewegung.js';
 import { NAHKAMPF_KEGEL, STANDARD_AUSRUESTUNG } from '../konfiguration/gegenstaende.js';
-import { aktuelleWaffe, konsumiere, legeAufBoden, pflanzeSamenAusHand, legeRucksackAb, starteNachladen, zaehleMunition } from './inventarSystem.js';
+import { aktuelleWaffe, konsumiere, legeAufBoden, pflanzeSamenAusHand, legeRucksackAb, legeKleidungAb, starteNachladen, zaehleMunition } from './inventarSystem.js';
 import { gibXp, setzeLevelZurueck } from './levelSystem.js';
 import { staerkeFaktor } from '../../../gemeinsam/spieler/skills.js';
 import { aussteigen, schlageFahrzeug } from './fahrzeugSystem.js';
@@ -211,8 +211,9 @@ export function toeten(spielWelt, ziel, quelle = null, optionen = {}) {
   ziel.statistik.ueberlebt = 0;
   if (ziel.fahrzeug) aussteigen(spielWelt, ziel, { erzwingen: true });
   raeumeZombiesWeg(spielWelt, ziel.x, ziel.y, spielWelt.konfiguration.spieler.todesZombieRadius);
-  // Spieler: alles fällt zu Boden (auch der Rucksack), nach respawnZeit geht's am Startpunkt weiter
+  // Spieler: alles fällt zu Boden (auch Rucksack und Kleidung), nach respawnZeit geht's am Startpunkt weiter
   legeRucksackAb(spielWelt, ziel, spielWelt.konfiguration.loot.todesVerfall);
+  legeKleidungAb(spielWelt, ziel, spielWelt.konfiguration.loot.todesVerfall);
   ziel.inventar.forEach((eintrag, slot) => {
     if (!eintrag) return;
     const w = (slot / ziel.inventar.length) * Math.PI * 2;

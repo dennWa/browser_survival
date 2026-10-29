@@ -3,7 +3,7 @@
  * Rauchtest Runde 23 (Lokal-Modus, echter Browser): prüft die Neuerungen je Phase und macht Screenshots.
  *
  *   npm run rauchtest:r23                 alle Phasen
- *   npm run rauchtest:r23 -- --phase 1    nur Phase 1 (mehrere: --phase 1,2)
+ *   npm run rauchtest:r23 -- --phase 1    nur Phase 1 (mehrere: --phase 1,2; Phasen 1–3, 6–9)
  *
  * Screenshots: werkzeuge/test/ausgabe/r23_*.png · Exit-Code 1 bei Seiten-/Konsolenfehlern oder fehlgeschlagener Prüfung.
  * Muster wie rauchtest.mjs (Server --gast, Playwright/Chromium mit SwiftShader, Gottmodus für die Testfigur).
@@ -62,8 +62,9 @@ try {
       ([quelle, a]) => {
         const srv = browserSurvival.server;
         for (const z of srv.zonen.values()) {
+          if (z.spielWelt.karte.daten.id !== browserSurvival.spiel.welt.id) continue; // IDs gibt es in jeder Zone
           const ich = z.spielWelt.holen(browserSurvival.spiel.eigeneId);
-          if (ich) return new Function('ich', 'welt', 'a', quelle)(ich, z.spielWelt, a);
+          if (ich?.typ === 'spieler') return new Function('ich', 'welt', 'a', quelle)(ich, z.spielWelt, a);
         }
         return null;
       },
@@ -342,6 +343,70 @@ try {
     await seite.evaluate(() => browserSurvival.spiel.admin('botsEntfernen'));
     await seite.waitForTimeout(800);
     pruefe((await amServer(`return [...welt.alleVomTyp('spieler')].filter((s) => s.bot).length;`)) === 0, 'Admin: alle Bots entfernt');
+  }
+
+  // ---------------------------------------------------------------- Phase 9 (Kleidung & Kälte)
+  if (phaseAn(9)) {
+    await zone('schneeland');
+    const grund = await amServer(`
+      ich.inventar[0] = { defId: 'winterjacke', menge: 1 };
+      ich.inventar[1] = { defId: 'muetze', menge: 1 };
+      ich.inventar[2] = { defId: 'handschuhe', menge: 1 };
+      ich.inventar[3] = { defId: 'thermohose', menge: 1 };
+      ich.inventar[4] = { defId: 'stiefel', menge: 1 };
+      return ich.inventar.length;`);
+    await seite.waitForTimeout(500);
+    for (let slot = 0; slot < 5; slot++) {
+      await seite.evaluate((s) => browserSurvival.spiel.anlegen(s), slot);
+      await seite.waitForTimeout(300);
+    }
+    await seite.waitForTimeout(800);
+    const k = await amServer('return { kleidung: ich.kleidung, plaetze: ich.inventar.length };');
+    pruefe(Object.values(k.kleidung).every(Boolean), `alles angezogen (${Object.values(k.kleidung).join(', ')})`);
+    pruefe(k.plaetze === grund + 3, `Taschen: ${grund} → ${k.plaetze} Plätze`);
+    pruefe(await seite.evaluate(() => browserSurvival.spiel.renderer.figuren.get(browserSurvival.spiel.eigeneId)?.kleidungTeile?.length === 3), 'Mütze + 2 Handschuhe an der Figur');
+    await seite.keyboard.press('Tab');
+    await seite.waitForTimeout(1500);
+    pruefe(await seite.evaluate(() => document.querySelectorAll('#inventar .ausr-slot.belegt').length === 5), 'Inventar: 5 Kleidungs-Slots belegt');
+    await bild('9_inventar_kleidung');
+    // Hose tauschen (Jeans = deutlich blau) → Figur färbt sich um
+    await amServer(`ich.inventar[0] = { defId: 'jeans', menge: 1 };`);
+    await seite.waitForTimeout(300);
+    await seite.evaluate(() => browserSurvival.spiel.anlegen(0));
+    await seite.waitForTimeout(1500);
+    const hose = await seite.evaluate(() => {
+      const sp = browserSurvival.spiel;
+      let farbe = null;
+      sp.renderer.figuren.get(sp.eigeneId)?.modell.traverse((t) => {
+        if (t.isMesh && t.name.includes('Legs') && !farbe) farbe = [].concat(t.material)[0].color.getHexString();
+      });
+      return farbe;
+    });
+    pruefe(hose && parseInt(hose.slice(4), 16) > parseInt(hose.slice(0, 2), 16), `Hose an der Figur blau umgefärbt (#${hose})`);
+    await bild('9_inventar_jeans');
+    // Ausziehen per Klick auf den Mützen-Slot
+    await seite.click('#inventar .ausr-slot[data-ausr="kopf"]');
+    await seite.waitForTimeout(800);
+    pruefe((await amServer('return ich.kleidung.kopf;')) === null, 'Klick auf Slot zieht aus');
+    await seite.keyboard.press('Tab');
+    // Kälte: draußen im Schneesturm steigt sie, HUD-Balken erscheint
+    const draussen = await amServer(`
+      const w = welt.welt, g = w.kachelGroesse;
+      for (let ty = 5; ty < w.hoehe - 5; ty++) for (let tx = 5; tx < w.breite - 5; tx++) {
+        const x = tx * g + g / 2, y = ty * g + g / 2;
+        if (!w.istBlockiert(tx, ty) && !w.istInnen(x, y)) { ich.x = x; ich.y = y; return { x, y }; }
+      }
+      return null;`);
+    pruefe(!!draussen, 'freie Stelle draußen gefunden');
+    await amServer(`ich.gottmodus = false; ich.hunger = ich.durst = 100; ich.kaelte = 0; for (const s of Object.keys(ich.kleidung)) ich.kleidung[s] = null; welt.konfiguration.wetter.aktiv = true; welt.wetter.art = 'schneesturm'; welt.wetter.rest = 999;`);
+    await seite.waitForTimeout(6000);
+    const kaelte = await amServer('return ich.kaelte;');
+    pruefe(kaelte > 2, `Kälte steigt draußen (${kaelte?.toFixed?.(1)})`);
+    await amServer('ich.kaelte = 92;');
+    await seite.waitForTimeout(1500);
+    pruefe(await seite.evaluate(() => !document.getElementById('wert-kaelte').hidden), 'Kälte-Balken im HUD sichtbar');
+    await bild('9_kaelte');
+    await amServer('ich.gottmodus = true; ich.kaelte = 0;');
   }
 
   const info = await seite.evaluate(() => browserSurvival.spiel?.renderer.statistik() ?? '');

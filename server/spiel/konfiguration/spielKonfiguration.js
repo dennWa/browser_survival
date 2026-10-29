@@ -136,6 +136,30 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     munition: { munition_9mm: 3, munition_12: 1 }, // Gewichte; Stückzahl siehe munitionMenge
     munitionMenge: [3, 8],
   },
+  /**
+   * Runde 23 – Kälte (0…100, ueberlebenSystem.aktualisiereKaelte): draußen steigt sie je nach Zone/Nacht/Wetter (Werte pro
+   * Sekunde, addiert), Kleidung bremst (× max(minFaktor, 1 − Wärme/100)). Drinnen, im Auto, im Bett und am Feuer wärmt man sich auf,
+   * sonst (Rate 0) kühlt sie langsam ab. Bei 100 nagt sie sanft am Leben, ab keineHeilungAb gibt's keine Regeneration.
+   */
+  kaelte: {
+    aktiv: true,
+    schneezone: 0.5,
+    nacht: 0.12,
+    schneeNacht: 0.25,
+    regen: 0.15,
+    gewitter: 0.25,
+    sturm: 0.12,
+    schnee: 0.2,
+    schneesturm: 0.6,
+    schneeSturm: 0.3, // Sturm in der Schneezone
+    minFaktor: 0.1,
+    abbau: 1.2, // draußen ohne Kälte
+    abbauDrinnen: 3,
+    abbauFeuer: 8,
+    feuerRadius: 150,
+    schadenProSekunde: 0.4,
+    keineHeilungAb: 75,
+  },
   /** Wetter: wechselt zufällig zwischen klar, Regen, Gewitter, Sturm und Nebel (Dauer 1–5 Minuten). Regen halbiert die Wachstumszeit. */
   wetter: {
     aktiv: true,

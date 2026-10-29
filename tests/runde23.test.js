@@ -215,3 +215,91 @@ test('Bots halten niemanden vom Schlafen ab', async () => {
   assert.equal(spieler.arbeit, null, 'aufgewacht');
   assert.ok(welt.zeit !== tagVorher, 'Zeit vorgespult');
 });
+
+test('Kleidung: anziehen per AKTION, Taschen vergrößern das Inventar, ausziehen gibt sie zurück', () => {
+  const { welt, spieler } = neueWelt();
+  const grund = spieler.inventar.length;
+  spieler.inventar[0] = { defId: 'winterjacke', menge: 1 };
+  spieler.inventar[1] = { defId: 'jeans', menge: 1 };
+  aktion(welt, spieler, { art: AKTIONEN.ANLEGEN, slot: 0 });
+  aktion(welt, spieler, { art: AKTIONEN.BENUTZEN, slot: 1 }); // Anklicken zieht auch an
+  assert.equal(spieler.kleidung.oberkoerper, 'winterjacke');
+  assert.equal(spieler.kleidung.beine, 'jeans');
+  assert.equal(spieler.inventar.length, grund + 4);
+  assert.equal(anzahl(spieler, 'winterjacke'), 0);
+  // Pulli statt Jacke: die Jacke kommt ins Inventar
+  spieler.inventar[0] = { defId: 'kapuzenpulli', menge: 1 };
+  aktion(welt, spieler, { art: AKTIONEN.ANLEGEN, slot: 0 });
+  assert.equal(spieler.kleidung.oberkoerper, 'kapuzenpulli');
+  assert.equal(anzahl(spieler, 'winterjacke'), 1);
+  assert.equal(spieler.inventar.length, grund + 3);
+  // Ausziehen: Taschen-Inhalt rückt nach vorn, nichts geht verloren
+  spieler.inventar.fill(null);
+  spieler.inventar[spieler.inventar.length - 1] = { defId: 'apfel', menge: 2 };
+  aktion(welt, spieler, { art: AKTIONEN.AUSZIEHEN, stelle: 'beine' });
+  assert.equal(spieler.kleidung.beine, null);
+  assert.equal(spieler.inventar.length, grund + 1);
+  assert.equal(anzahl(spieler, 'apfel'), 2);
+  assert.equal(anzahl(spieler, 'jeans'), 1);
+  // Falsche Stelle / kein Kleidungsstück: nichts passiert
+  spieler.inventar[0] = { defId: 'apfel', menge: 1 };
+  aktion(welt, spieler, { art: AKTIONEN.ANLEGEN, slot: 0 });
+  assert.equal(spieler.inventar[0]?.defId, 'apfel');
+});
+
+test('Kälte: steigt draußen in der Kälte, Kleidung bremst, drinnen/Feuer wärmt; bei 100 sanfter Schaden', async () => {
+  const { setzeWetter } = await import('../server/spiel/systeme/wetterSystem.js');
+  const { welt, spieler } = neueWelt();
+  spieler.gottmodus = false;
+  spieler.hunger = spieler.durst = 100;
+  spieler.x = mitte(8);
+  spieler.y = mitte(3);
+  welt.konfiguration.wetter.aktiv = true;
+  setzeWetter(welt, 'gewitter', 999);
+  welt.istNacht = true;
+  const sekunden = (s) => {
+    for (let i = 0; i < Math.round(s / TICK_DAUER_S); i++) welt.aktualisiere(TICK_DAUER_S);
+  };
+  sekunden(20);
+  const nackt = spieler.kaelte;
+  assert.ok(nackt > 5, `Kälte ${nackt}`);
+  // Gleiches mit Winterkleidung: deutlich langsamer
+  spieler.kaelte = 0;
+  spieler.kleidung = { kopf: 'muetze', oberkoerper: 'winterjacke', haende: 'handschuhe', beine: 'thermohose', fuesse: 'stiefel' };
+  sekunden(20);
+  assert.ok(spieler.kaelte < nackt * 0.4, `${spieler.kaelte} vs ${nackt}`);
+  // Bei 100: Schaden, aber sanft
+  spieler.kleidung = { kopf: null, oberkoerper: null, haende: null, beine: null, fuesse: null };
+  spieler.kaelte = 100;
+  spieler.leben = 100;
+  sekunden(5);
+  assert.ok(spieler.leben < 100 && spieler.leben > 95, `Leben ${spieler.leben}`);
+  // Bei klarem Tag erholt man sich langsam
+  setzeWetter(welt, 'klar', 999);
+  welt.istNacht = false;
+  const vorher = spieler.kaelte;
+  sekunden(5);
+  assert.ok(spieler.kaelte < vorher);
+});
+
+test('Kleidung: Tod lässt sie fallen, Spielstand speichert und prüft sie', async () => {
+  const { erstelleSpielstand, wendeSpielstandAn } = await import('../server/spiel/spielstand.js');
+  const { toeten } = await import('../server/spiel/systeme/kampfSystem.js');
+  const { welt, spieler } = neueWelt();
+  spieler.inventar[0] = { defId: 'arbeitsweste', menge: 1 };
+  aktion(welt, spieler, { art: AKTIONEN.ANLEGEN, slot: 0 });
+  spieler.kaelte = 42;
+  const stand = erstelleSpielstand(spieler, 'runde23');
+  assert.equal(stand.kleidung.oberkoerper, 'arbeitsweste');
+  const neu = welt.spielerBetrittWelt('Neu');
+  stand.kleidung.kopf = 'jeans'; // falsche Stelle → verworfen
+  assert.ok(wendeSpielstandAn(neu, stand, welt));
+  assert.equal(neu.kleidung.oberkoerper, 'arbeitsweste');
+  assert.equal(neu.kleidung.kopf, null);
+  assert.equal(neu.inventar.length, spieler.inventar.length);
+  assert.equal(neu.kaelte, 42);
+  spieler.gottmodus = false;
+  toeten(welt, spieler);
+  assert.equal(spieler.kleidung.oberkoerper, null);
+  assert.ok([...welt.alleVomTyp('gegenstand')].some((g) => g.defId === 'arbeitsweste'));
+});

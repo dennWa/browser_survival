@@ -171,6 +171,16 @@ ITEMS = {
     'schmelzofen': ('prozedural', 'schmelzofen', 30),
     'bretter': ('kenney_items', 'PNG/Colored/genericItem_color_133.png', 26),
     'rucksack': ('props', 'PNG/256px/backpack.png', 28),
+    # Runde 23: Kleidung – selbst gezeichnet (Form:Farbe, Farbe = gegenstaende.js `farbe`)
+    'muetze': ('prozedural', 'kleidung:muetze:#8a2f2f', 18),
+    'kapuzenpulli': ('prozedural', 'kleidung:pulli:#4f5f70', 24),
+    'winterjacke': ('prozedural', 'kleidung:jacke:#2e4a6e', 26),
+    'arbeitsweste': ('prozedural', 'kleidung:weste:#c8782a', 24),
+    'handschuhe': ('prozedural', 'kleidung:handschuhe:#33302c', 18),
+    'jeans': ('prozedural', 'kleidung:hose:#3d4f78', 24),
+    'thermohose': ('prozedural', 'kleidung:hose:#26272c', 24),
+    'stiefel': ('prozedural', 'kleidung:stiefel:#5a3c22', 20),
+    'turnschuhe': ('prozedural', 'kleidung:schuhe:#d8d8d8', 20),
 }
 ITEM_ICON_GROESSE = 72
 
@@ -368,6 +378,45 @@ def zeichne_prozedural(art, groesse):
         d.polygon([(32 * u, 60 * u), (36 * u, 48 * u), (40 * u, 60 * u)], fill=(255, 214, 90, 255))
         for x, y in ((14, 26), (30, 22), (50, 28), (16, 52)):
             d.line([x * u, y * u, (x + 8) * u, y * u], fill=(100, 102, 108, 255), width=int(2 * u))
+    elif art.startswith('kleidung:'):
+        _, form, farbe = art.split(':')
+        hell = tuple(min(255, int(farbe[i:i + 2], 16) + 40) for i in (1, 3, 5)) + (255,)
+        dick = int(2.5 * u)
+        if form == 'muetze':
+            d.chord(r(12, 14, 60, 66), 180, 360, fill=farbe, outline=rand, width=dick)
+            d.rounded_rectangle(r(10, 38, 62, 52), radius=4 * u, fill=hell, outline=rand, width=dick)
+            d.ellipse(r(29, 4, 43, 18), fill=hell, outline=rand, width=dick)
+        elif form in ('pulli', 'jacke', 'weste'):
+            koerper = [(22, 12), (50, 12), (60, 22), (58, 66), (14, 66), (12, 22)]
+            if form != 'weste':
+                d.polygon([(p * u, q * u) for p, q in [(22, 12), (6, 22), (2, 52), (12, 54), (16, 30)]], fill=farbe, outline=rand)
+                d.polygon([(p * u, q * u) for p, q in [(50, 12), (66, 22), (70, 52), (60, 54), (56, 30)]], fill=farbe, outline=rand)
+            d.polygon([(p * u, q * u) for p, q in koerper], fill=farbe, outline=rand)
+            if form == 'pulli':
+                d.chord(r(24, 4, 48, 26), 0, 180, fill=hell, outline=rand, width=dick)
+                d.rectangle(r(24, 46, 48, 56), fill=hell, outline=rand, width=int(1.5 * u))
+            elif form == 'jacke':
+                d.polygon([(p * u, q * u) for p, q in [(22, 12), (36, 24), (50, 12), (44, 8), (28, 8)]], fill=(220, 220, 214, 255), outline=rand)
+                d.line([36 * u, 24 * u, 36 * u, 66 * u], fill=rand, width=int(2 * u))
+            else:
+                d.line([36 * u, 14 * u, 36 * u, 66 * u], fill=rand, width=int(2 * u))
+                for y in (34, 46):
+                    d.line([14 * u, y * u, 58 * u, y * u], fill=(235, 235, 120, 255), width=int(3 * u))
+        elif form == 'hose':
+            d.polygon([(p * u, q * u) for p, q in [(16, 6), (56, 6), (60, 68), (40, 68), (36, 26), (32, 68), (12, 68)]], fill=farbe, outline=rand)
+            d.rectangle(r(16, 6, 56, 14), fill=hell, outline=rand, width=int(2 * u))
+        elif form == 'handschuhe':
+            for dx in (0, 30):
+                d.rounded_rectangle(r(8 + dx, 18, 32 + dx, 60), radius=8 * u, fill=farbe, outline=rand, width=dick)
+                d.rounded_rectangle(r(2 + dx, 30, 14 + dx, 44), radius=5 * u, fill=farbe, outline=rand, width=dick)
+                d.rectangle(r(8 + dx, 52, 32 + dx, 62), fill=hell, outline=rand, width=int(2 * u))
+        elif form in ('stiefel', 'schuhe'):
+            oben = 10 if form == 'stiefel' else 34
+            d.polygon([(p * u, q * u) for p, q in [(14, oben), (36, oben), (38, 44), (64, 50), (66, 62), (10, 62)]], fill=farbe, outline=rand)
+            d.rectangle(r(10, 58, 66, 66), fill=(40, 34, 30, 255) if form == 'stiefel' else (250, 250, 250, 255), outline=rand, width=int(2 * u))
+            if form == 'schuhe':
+                for x in (30, 38, 46):
+                    d.line([x * u, 42 * u, (x + 4) * u, 48 * u], fill=(200, 60, 60, 255), width=int(2 * u))
     else:
         raise ValueError(f'Unbekanntes prozedurales Icon: {art}')
     return bild.resize((groesse, groesse), Image.LANCZOS)
@@ -590,6 +639,14 @@ def schreibe_lizenzen():
     return [{'paket': p, 'urheber': u, 'lizenz': l, 'url': url} for p, u, l, url, _ in alle]
 
 
+def nur_items():
+    """`python3 baue_assets.py --nur-items`: nur items.webp + atlas.items neu (lässt eigene/ und 3d/ in Ruhe)."""
+    pfad = ZIEL / 'atlas.json'
+    atlas = json.loads(pfad.read_text(encoding='utf-8'))
+    atlas['items'] = baue_items()
+    pfad.write_text(json.dumps(atlas, ensure_ascii=False, indent=1), encoding='utf-8')
+
+
 def main():
     if ZIEL.exists():
         shutil.rmtree(ZIEL)
@@ -608,4 +665,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    import sys
+    nur_items() if '--nur-items' in sys.argv else main()

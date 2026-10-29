@@ -1,6 +1,6 @@
 import { INVENTAR_PLAETZE } from '../../gemeinsam/konstanten.js';
 import { GEGENSTAENDE } from './konfiguration/gegenstaende.js';
-import { aktualisiereAusruestung, fuegeZumInventarHinzu, legeRucksackAn } from './systeme/inventarSystem.js';
+import { KLEIDUNG_STELLEN, aktualisiereAusruestung, fuegeZumInventarHinzu, legeRucksackAn, passeInventarAn } from './systeme/inventarSystem.js';
 import { wendeSkillsAn } from './systeme/levelSystem.js';
 import { SKILLS, leereSkills } from '../../gemeinsam/spieler/skills.js';
 import { pruefeAussehen } from '../../gemeinsam/spieler/aussehen.js';
@@ -35,6 +35,8 @@ export function erstelleSpielstand(spieler, kartenId) {
     durst: spieler.durst,
     inventar: spieler.inventar.map((e) => (e ? { ...e } : null)),
     rucksack: spieler.rucksack,
+    kleidung: { ...spieler.kleidung },
+    kaelte: spieler.kaelte ?? 0,
     ausgeruestet: spieler.ausgeruestet,
     level: spieler.level,
     xp: spieler.xp,
@@ -89,6 +91,13 @@ export function wendeSpielstandAn(spieler, stand, spielWelt) {
   spieler.inventar = new Array(INVENTAR_PLAETZE).fill(null);
   spieler.rucksack = null;
   if (GEGENSTAENDE[stand.rucksack]?.kategorie === 'rucksack') legeRucksackAn(null, spieler, stand.rucksack);
+  // Runde 23: Kleidung (nur passende Stücke an passender Stelle) – Taschen vergrößern das Inventar vor dem Einräumen
+  for (const stelle of KLEIDUNG_STELLEN) {
+    const def = GEGENSTAENDE[stand.kleidung?.[stelle]];
+    spieler.kleidung[stelle] = def?.kategorie === 'kleidung' && def.slot === stelle ? stand.kleidung[stelle] : null;
+  }
+  passeInventarAn(null, spieler);
+  spieler.kaelte = begrenze(zahl(stand.kaelte) ?? 0, 0, 100);
   if (Array.isArray(stand.inventar)) {
     const ueberschuss = []; // alte Stände mit größeren Stapeln (z. B. 50 Holz): Rest in freie Plätze statt wegwerfen
     stand.inventar.slice(0, spieler.inventar.length).forEach((e, slot) => {

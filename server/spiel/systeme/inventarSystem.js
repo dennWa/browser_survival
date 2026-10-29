@@ -1,5 +1,5 @@
 import { tutorialAktion } from './tutorialSystem.js';
-import { AUFHEB_REICHWEITE, INVENTAR_PLAETZE } from '../../../gemeinsam/konstanten.js';
+import { AUFHEB_REICHWEITE, INVENTAR_MAX, INVENTAR_PLAETZE } from '../../../gemeinsam/konstanten.js';
 import { samenZiel } from '../../../gemeinsam/welt/bauwerke.js';
 import { AKTIONEN } from '../../../gemeinsam/protokoll.js';
 import { GEGENSTAENDE, STANDARD_AUSRUESTUNG, UNBEWAFFNET } from '../konfiguration/gegenstaende.js';
@@ -19,6 +19,7 @@ import { baue, reisseAb } from './basisbauSystem.js';
 
 /**
  * Inventar: Aufheben, Benutzen (Essen/Trinken/Medizin), Aus-/Abrüsten, Ablegen, Nachladen.
+ * Runde 23: Kleidung an-/ausziehen (zieheAn/zieheAus), Inventargröße = Grundplätze + Rucksack + Taschen (passeInventarAn).
  * Außerdem die übrigen AKTIONEN: Tür (→ tuerSystem.js), Taschenlampe, Wiederbeleben, Admin-Befehle (→ adminSystem.js).
  * Aktionen kommen als Nachricht AKTION, werden gepuffert und hier pro Tick abgearbeitet.
  */
@@ -91,6 +92,14 @@ export function verarbeiteAktionen(spielWelt) {
           break;
         case AKTIONEN.RUCKSACK_ABLEGEN:
           legeRucksackAb(spielWelt, spieler);
+          break;
+        case AKTIONEN.ANLEGEN: // Runde 23: Drag & Drop aufs Charakterbild / einen Ausrüstungsplatz
+          if (GEGENSTAENDE[spieler.inventar[aktion.slot]?.defId]?.kategorie === 'rucksack') benutzen(spielWelt, spieler, aktion.slot);
+          else zieheAn(spielWelt, spieler, aktion.slot);
+          break;
+        case AKTIONEN.AUSZIEHEN:
+          if (aktion.stelle === 'ruecken') legeRucksackAb(spielWelt, spieler);
+          else zieheAus(spielWelt, spieler, aktion.stelle);
           break;
         case AKTIONEN.PLATZIEREN:
           platziere(spielWelt, spieler, aktion.slot, aktion.tx, aktion.ty);
@@ -298,6 +307,9 @@ function benutzen(spielWelt, spieler, slot) {
       spieler.inventar[slot] = null;
       legeRucksackAn(spielWelt, spieler, eintrag.defId);
       break;
+    case 'kleidung': // Runde 23: anziehen (gleiche Stelle → tauschen)
+      zieheAn(spielWelt, spieler, slot);
+      break;
     case 'bauwerk':
     case 'werkzeug':
       if (def.inHand) {
@@ -451,32 +463,107 @@ export function wechsleRucksack(spielWelt, spieler, slot) {
   if (neuDef?.kategorie !== 'rucksack' || !spieler.rucksack) return;
   const alt = spieler.rucksack;
   spieler.inventar[slot] = null;
-  const mitnehmen = [];
-  for (let i = INVENTAR_PLAETZE; i < spieler.inventar.length; i++) {
-    if (spieler.inventar[i]) mitnehmen.push({ eintrag: spieler.inventar[i], warAusgeruestet: spieler.ausgeruestet === i });
-  }
-  if (spieler.ausgeruestet !== null && spieler.ausgeruestet >= INVENTAR_PLAETZE) spieler.ausgeruestet = null;
   spieler.rucksack = neu.defId;
-  spieler.inventar.length = INVENTAR_PLAETZE + neuDef.plaetze;
-  spieler.inventar.fill(null, INVENTAR_PLAETZE);
-  const frei = () => {
-    for (let i = INVENTAR_PLAETZE; i < spieler.inventar.length; i++) if (!spieler.inventar[i]) return i;
-    return spieler.inventar.findIndex((e, i) => i < INVENTAR_PLAETZE && !e);
-  };
-  for (const { eintrag, warAusgeruestet } of mitnehmen) {
-    const ziel = frei();
-    if (ziel < 0) {
-      legeAufBoden(spielWelt, eintrag, spieler.x, spieler.y);
-      continue;
-    }
-    spieler.inventar[ziel] = eintrag;
-    if (warAusgeruestet) spieler.ausgeruestet = ziel;
-  }
-  const platz = frei();
-  if (platz >= 0) spieler.inventar[platz] = { defId: alt, menge: 1 };
-  else legeAufBoden(spielWelt, { defId: alt, menge: 1 }, spieler.x, spieler.y);
+  passeInventarAn(spielWelt, spieler); // Inhalt bleibt liegen; wird es kleiner, rückt der Rest nach vorn bzw. fällt
+  insInventarOderBoden(spielWelt, spieler, { defId: alt, menge: 1 });
   aktualisiereAusruestung(spieler);
   spielWelt.melde(spieler.id, `${neuDef.name} angelegt (+${neuDef.plaetze} Plätze)`);
+}
+
+/** Runde 23: Stellen am Körper für Kleidung (Inventar links, gemeinsam mit dem Rucksack = Rücken). */
+export const KLEIDUNG_STELLEN = Object.freeze(['kopf', 'oberkoerper', 'haende', 'beine', 'fuesse']);
+
+/** Soll-Größe des Inventars: Grundplätze + Rucksack + Taschen der Kleidung. */
+export function inventarGroesse(spieler) {
+  let plaetze = INVENTAR_PLAETZE + (GEGENSTAENDE[spieler.rucksack]?.plaetze ?? 0);
+  for (const defId of Object.values(spieler.kleidung ?? {})) plaetze += GEGENSTAENDE[defId]?.plaetze ?? 0;
+  return Math.min(INVENTAR_MAX, plaetze);
+}
+
+/**
+ * Inventar auf die Soll-Größe bringen: wächst → leere Plätze hinten dran; schrumpft → was hinten liegt, rückt in freie
+ * Plätze nach vorn, der Rest fällt neben den Spieler (verfall wie legeAufBoden).
+ */
+export function passeInventarAn(spielWelt, spieler, verfall = null) {
+  const ziel = inventarGroesse(spieler);
+  while (spieler.inventar.length < ziel) spieler.inventar.push(null);
+  if (spieler.inventar.length === ziel) return;
+  const x = spieler.x + Math.cos(spieler.blick) * 18;
+  const y = spieler.y + Math.sin(spieler.blick) * 18;
+  for (let slot = ziel; slot < spieler.inventar.length; slot++) {
+    const e = spieler.inventar[slot];
+    if (!e) continue;
+    const frei = spieler.inventar.findIndex((f, i) => i < ziel && f === null);
+    if (frei >= 0) {
+      spieler.inventar[frei] = e;
+      if (spieler.ausgeruestet === slot) spieler.ausgeruestet = frei;
+    } else {
+      if (spieler.ausgeruestet === slot) spieler.ausgeruestet = null;
+      if (spielWelt) legeAufBoden(spielWelt, e, x + (slot % 3) * 6 - 6, y + 6, verfall);
+    }
+  }
+  spieler.inventar.length = ziel;
+  if (spieler.ausgeruestet !== null && spieler.ausgeruestet >= ziel) spieler.ausgeruestet = null;
+}
+
+/** Eintrag in einen freien Platz legen, sonst vor die Füße. */
+function insInventarOderBoden(spielWelt, spieler, eintrag) {
+  const frei = spieler.inventar.findIndex((e) => !e);
+  if (frei >= 0) spieler.inventar[frei] = eintrag;
+  else if (spielWelt) legeAufBoden(spielWelt, eintrag, spieler.x, spieler.y);
+}
+
+/**
+ * Runde 23: Kleidungsstück aus dem Inventar anziehen (AKTION anlegen bzw. benutzen). Was an der Stelle schon war, kommt
+ * ins Inventar (oder fällt). Taschen (plaetze) vergrößern das Inventar sofort.
+ */
+export function zieheAn(spielWelt, spieler, slot) {
+  const eintrag = spieler.inventar[slot];
+  const def = eintrag && GEGENSTAENDE[eintrag.defId];
+  if (def?.kategorie !== 'kleidung' || !KLEIDUNG_STELLEN.includes(def.slot)) return false;
+  spieler.kleidung ??= Object.fromEntries(KLEIDUNG_STELLEN.map((s) => [s, null]));
+  const alt = spieler.kleidung[def.slot];
+  spieler.inventar[slot] = null;
+  if (spieler.ausgeruestet === slot) spieler.ausgeruestet = null;
+  spieler.kleidung[def.slot] = eintrag.defId;
+  passeInventarAn(spielWelt, spieler);
+  if (alt) insInventarOderBoden(spielWelt, spieler, { defId: alt, menge: 1 });
+  aktualisiereAusruestung(spieler);
+  spielWelt?.ereignis({ typ: 'anziehen', von: spieler.id, x: spieler.x, y: spieler.y });
+  spielWelt?.melde(spieler.id, `${def.name} angezogen (+${def.waerme} Wärme${def.plaetze ? `, +${def.plaetze} Plätze` : ''})`);
+  return true;
+}
+
+/** Runde 23: Kleidung an `stelle` ausziehen → ins Inventar (Taschen-Inhalt rückt nach vorn bzw. fällt). */
+export function zieheAus(spielWelt, spieler, stelle) {
+  const defId = spieler.kleidung?.[stelle];
+  if (!defId) return false;
+  spieler.kleidung[stelle] = null;
+  passeInventarAn(spielWelt, spieler);
+  insInventarOderBoden(spielWelt, spieler, { defId, menge: 1 });
+  aktualisiereAusruestung(spieler);
+  spielWelt?.ereignis({ typ: 'anziehen', von: spieler.id, x: spieler.x, y: spieler.y });
+  return true;
+}
+
+/** Tod: alle Kleidung fällt (Taschen-Inhalt rückt vorher nach vorn bzw. fällt mit). */
+export function legeKleidungAb(spielWelt, spieler, verfall = null) {
+  const stuecke = Object.entries(spieler.kleidung ?? {}).filter(([, d]) => d);
+  if (!stuecke.length) return;
+  for (const [stelle] of stuecke) spieler.kleidung[stelle] = null;
+  passeInventarAn(spielWelt, spieler, verfall);
+  stuecke.forEach(([, defId], i) => {
+    const w = (i / stuecke.length) * Math.PI * 2 + 0.4;
+    legeAufBoden(spielWelt, { defId, menge: 1 }, spieler.x + Math.cos(w) * 20, spieler.y + Math.sin(w) * 20, verfall);
+  });
+  aktualisiereAusruestung(spieler);
+}
+
+/** Wärme der angezogenen Kleidung (Summe). */
+export function kleidungsWaerme(spieler) {
+  let w = 0;
+  for (const defId of Object.values(spieler.kleidung ?? {})) w += GEGENSTAENDE[defId]?.waerme ?? 0;
+  return w;
 }
 
 /** Rucksack anlegen: Inventar wächst um def.plaetze leere Plätze. */
@@ -484,8 +571,7 @@ export function legeRucksackAn(spielWelt, spieler, defId) {
   const def = GEGENSTAENDE[defId];
   if (def?.kategorie !== 'rucksack' || spieler.rucksack) return false;
   spieler.rucksack = defId;
-  spieler.inventar.length = INVENTAR_PLAETZE + def.plaetze;
-  spieler.inventar.fill(null, INVENTAR_PLAETZE); // neue Plätze leer
+  passeInventarAn(spielWelt, spieler); // neue Plätze leer
   spielWelt?.melde(spieler.id, `${def.name} angelegt: +${def.plaetze} Plätze (I = Inventar)`);
   return true;
 }
@@ -498,21 +584,10 @@ export function legeRucksackAb(spielWelt, spieler, verfall = null) {
   if (!spieler.rucksack) return;
   const x = spieler.x + Math.cos(spieler.blick) * 18;
   const y = spieler.y + Math.sin(spieler.blick) * 18;
-  for (let slot = INVENTAR_PLAETZE; slot < spieler.inventar.length; slot++) {
-    const e = spieler.inventar[slot];
-    if (!e) continue;
-    const frei = spieler.inventar.findIndex((f, i) => i < INVENTAR_PLAETZE && f === null);
-    if (frei >= 0) {
-      spieler.inventar[frei] = e;
-      if (spieler.ausgeruestet === slot) spieler.ausgeruestet = frei;
-    } else {
-      if (spieler.ausgeruestet === slot) spieler.ausgeruestet = null;
-      legeAufBoden(spielWelt, e, x + (slot % 3) * 6 - 6, y + 6, verfall);
-    }
-  }
-  spieler.inventar.length = INVENTAR_PLAETZE;
-  legeAufBoden(spielWelt, { defId: spieler.rucksack, menge: 1 }, x, y, verfall);
+  const rucksack = spieler.rucksack;
   spieler.rucksack = null;
+  passeInventarAn(spielWelt, spieler, verfall); // Inhalt rückt nach vorn, Rest fällt daneben
+  legeAufBoden(spielWelt, { defId: rucksack, menge: 1 }, x, y, verfall);
   aktualisiereAusruestung(spieler);
 }
 

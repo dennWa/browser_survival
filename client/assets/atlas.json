@@ -450,6 +450,69 @@
     "b": 72,
     "h": 67,
     "weltGroesse": 28
+   },
+   "muetze": {
+    "x": 0,
+    "y": 576,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 18
+   },
+   "kapuzenpulli": {
+    "x": 72,
+    "y": 576,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 24
+   },
+   "winterjacke": {
+    "x": 144,
+    "y": 576,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 26
+   },
+   "arbeitsweste": {
+    "x": 216,
+    "y": 576,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 24
+   },
+   "handschuhe": {
+    "x": 288,
+    "y": 576,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 18
+   },
+   "jeans": {
+    "x": 360,
+    "y": 576,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 24
+   },
+   "thermohose": {
+    "x": 432,
+    "y": 576,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 24
+   },
+   "stiefel": {
+    "x": 504,
+    "y": 576,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 20
+   },
+   "turnschuhe": {
+    "x": 0,
+    "y": 648,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 20
    }
   }
  },

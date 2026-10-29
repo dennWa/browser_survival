@@ -720,6 +720,15 @@ export class ClientSpiel {
     this.#aktion(AKTIONEN.RUCKSACK_ABLEGEN);
   }
 
+  /** Runde 23: Kleidung aus Inventarplatz `slot` anziehen bzw. an `stelle` ausziehen. */
+  anlegen(slot) {
+    this.#aktion(AKTIONEN.ANLEGEN, slot);
+  }
+
+  ausziehen(stelle) {
+    if (!this.spielerDaten?.tot) this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.AUSZIEHEN, stelle });
+  }
+
   ablegen(slot, einzeln = false) {
     this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.ABLEGEN, slot, einzeln });
   }
@@ -1061,6 +1070,9 @@ export class ClientSpiel {
       case 'leer':
         if (e.von === this.eigeneId) this.sound.spiele('leer');
         break;
+      case 'anziehen':
+        this.sound.spiele('anziehen', { x: e.x, y: e.y });
+        break;
       case 'tuer':
         this.sound.spiele(e.aufgebrochen ? 'tuer_bricht' : e.offen ? 'tuer_auf' : 'tuer_zu', { x: e.x, y: e.y });
         break;
@@ -1199,6 +1211,15 @@ export class ClientSpiel {
     else if (faellig('durst', 20, 45)) this.sound.spiele('durst');
     if (this.lokal.erschoepft && !this.warErschoepft) this.sound.spiele(this.#istFrau(this.eigeneId) ? 'keuchen_frau' : 'keuchen');
     this.warErschoepft = !!this.lokal.erschoepft;
+    // Runde 23: Kälte – ab 50 % Bibbern (Atem + Zähneklappern), ab 75 % auch Husten
+    const kaelte = d.kaelte ?? 0;
+    if (kaelte < 50) delete this.geraeuschUhr.zittern;
+    else if (faellig('zittern', kaelte >= 85 ? 6 : 12, kaelte >= 85 ? 12 : 24)) {
+      this.sound.spiele('zittern');
+      this.sound.spiele('zaehneklappern');
+    }
+    if (kaelte < 75) delete this.geraeuschUhr.husten;
+    else if (faellig('husten', 18, 40)) this.sound.spiele('husten');
     const draussen = !this.lokal.fahrzeug && !this.welt.istInnen(this.lokal.x, this.lokal.y);
     const vogelWetter = this.wetter === 'klar' || this.wetter === 'nebel';
     if (draussen && vogelWetter && !this.welt.schnee && (uhr.helligkeit ?? 1) > 0.6 && faellig('vogel', 8, 25)) {

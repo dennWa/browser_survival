@@ -81,6 +81,7 @@ export class Hud {
       schlafblende: el('schlafblende'),
       hunger: el('wert-hunger'),
       durst: el('wert-durst'),
+      kaelte: el('wert-kaelte'), // Runde 23: nur sichtbar, wenn man friert
       ausdauer: el('wert-ausdauer'),
       hotbar: el('hotbar'),
       munition: el('hud-munition'),
@@ -484,6 +485,12 @@ export class Hud {
     this.#zeigeLevel(daten);
     setzeBalken(this.el.hunger, daten.hunger / 100);
     setzeBalken(this.el.durst, daten.durst / 100);
+    const kaelte = daten.kaelte ?? 0;
+    this.el.kaelte.hidden = kaelte <= 0;
+    if (kaelte > 0) {
+      setzeBalken(this.el.kaelte, kaelte / 100);
+      this.el.kaelte.classList.toggle('kritisch', kaelte >= 85);
+    }
 
     for (let slot = 0; slot < HOTBAR_PLAETZE; slot++) {
       this.#zeichneSlot(this.#slots[slot], daten.inventar[slot], itemDefinitionen, slot === daten.ausgeruestet);

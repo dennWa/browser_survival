@@ -73,6 +73,8 @@ export function erzeugeSpieler({ id, benutzername, x, y, konfiguration, admin = 
      */
     inventar: new Array(INVENTAR_PLAETZE).fill(null),
     rucksack: null, // defId des getragenen Rucksacks oder null
+    kleidung: { kopf: null, oberkoerper: null, haende: null, beine: null, fuesse: null }, // Runde 23: angezogene Kleidung (defIds)
+    kaelte: 0, // Runde 23: Unterkühlung 0 (warm) … 100 (erfroren), ueberlebenSystem
     fahrzeug: null, // [intern] Fahrzeug-Entität, in der der Spieler sitzt (systeme/fahrzeugSystem.js)
     uebergang: null, // [intern] Zonenrand-Countdown { u, name, rest } (systeme/zonenSystem.js)
     ausgeruestet: null, // Inventarplatz der Waffe in der Hand
@@ -126,11 +128,20 @@ export function spielerZuNetzwerk(s) {
     ueberlebt: Math.floor(s.statistik.ueberlebt),
     angeln: s.angeln ? { phase: s.angeln.phase, x: Math.round(s.angeln.x), y: Math.round(s.angeln.y) } : null,
     rucksack: s.rucksack !== null, // Rucksack auf dem Rücken (3D-Modell)
+    kleidung: kleidungKompakt(s.kleidung), // Runde 23: angezogene Kleidung (nur belegte Stellen) – Optik am Charakter
     aussehen: aussehenKompakt(s.aussehen), // nur Abweichungen vom Standard (spart ~110 Bytes pro Spieler und Tick)
     // Im Auto: genauer Fahrzustand (der eigene Client rechnet damit die Vorhersage nach)
     fahrzeug: s.fahrzeug ? { id: s.fahrzeug.id, winkel: s.fahrzeug.winkel, tempo: s.fahrzeug.tempo, lenkung: s.fahrzeug.lenkung ?? 0, laenge: s.fahrzeug.laenge, breite: s.fahrzeug.breite, modell: s.fahrzeug.modell, leben: Math.round(s.fahrzeug.leben * 10) / 10, maxLeben: s.fahrzeug.maxLeben } : null,
     seq: s.letzteVerarbeiteteSeq,
   };
+}
+
+/** Kleidung fürs Netz: nur belegte Stellen ({} = nichts an), undefined spart Bytes. */
+function kleidungKompakt(kleidung) {
+  if (!kleidung) return undefined;
+  let kurz;
+  for (const [stelle, defId] of Object.entries(kleidung)) if (defId) (kurz ??= {})[stelle] = defId;
+  return kurz;
 }
 
 /** Private Daten nur für den Spieler selbst (Inventar, Hunger, Durst …). */
@@ -149,6 +160,8 @@ export function spielerDatenPrivat(s, konfiguration, spielWelt = null) {
     durst: Math.ceil(s.durst),
     inventar: s.inventar,
     rucksack: s.rucksack,
+    kleidung: s.kleidung,
+    kaelte: Math.round(s.kaelte ?? 0),
     ausgeruestet: s.ausgeruestet,
     nachladen: s.nachladenRest > 0,
     tot: s.tot,

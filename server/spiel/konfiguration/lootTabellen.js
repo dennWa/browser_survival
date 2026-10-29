@@ -22,6 +22,9 @@ export const LOOT_TABELLEN = Object.freeze({
     { id: 'skalpell', gewicht: 1 },
   ],
   lager: [
+    { id: 'arbeitsweste', gewicht: 1 },
+    { id: 'handschuhe', gewicht: 0.8 },
+    { id: 'stiefel', gewicht: 0.6 },
     { id: 'stoff', gewicht: 1.5 },
     { id: 'konservendose', gewicht: 4 },
     { id: 'wasserflasche', gewicht: 4 },
@@ -71,6 +74,9 @@ export const LOOT_TABELLEN = Object.freeze({
   ],
   // Was getötete Zombies manchmal fallen lassen
   zombie: [
+    { id: 'muetze', gewicht: 0.3 },
+    { id: 'handschuhe', gewicht: 0.3 },
+    { id: 'turnschuhe', gewicht: 0.3 },
     { id: 'munition_9mm', gewicht: 3 },
     { id: 'munition_12', gewicht: 2 },
     { id: 'verband', gewicht: 2 },
@@ -100,6 +106,12 @@ export const LOOT_TABELLEN = Object.freeze({
   ],
   // Wohnhäuser: vor allem Essen & Trinken, Waffen nur selten
   wohnung: [
+    { id: 'muetze', gewicht: 1 },
+    { id: 'kapuzenpulli', gewicht: 1 },
+    { id: 'jeans', gewicht: 1 },
+    { id: 'turnschuhe', gewicht: 1 },
+    { id: 'handschuhe', gewicht: 0.6 },
+    { id: 'winterjacke', gewicht: 0.4 },
     { id: 'stoff', gewicht: 3 },
     { id: 'apfel', gewicht: 4 },
     { id: 'broetchen', gewicht: 3 },
@@ -131,6 +143,9 @@ export const LOOT_TABELLEN = Object.freeze({
     { id: 'rucksack_klein', gewicht: 0.5 },
   ],
   werkstatt: [
+    { id: 'arbeitsweste', gewicht: 1.2 },
+    { id: 'handschuhe', gewicht: 1 },
+    { id: 'stiefel', gewicht: 0.6 },
     { id: 'hammer', gewicht: 4 },
     { id: 'feuerwehrbeil', gewicht: 1 },
     { id: 'machete', gewicht: 1 },
@@ -142,6 +157,8 @@ export const LOOT_TABELLEN = Object.freeze({
     { id: 'rucksack_gross', gewicht: 0.5 },
   ],
   supermarkt: [
+    { id: 'kapuzenpulli', gewicht: 0.5 },
+    { id: 'muetze', gewicht: 0.5 },
     { id: 'stoff', gewicht: 1 },
     { id: 'konservendose', gewicht: 4 },
     { id: 'wasserflasche', gewicht: 4 },
@@ -193,6 +210,11 @@ export const LOOT_TABELLEN = Object.freeze({
   ],
   // Zone "Waldweg": Försterhütte
   huette: [
+    { id: 'winterjacke', gewicht: 1.2 },
+    { id: 'thermohose', gewicht: 1 },
+    { id: 'muetze', gewicht: 1 },
+    { id: 'stiefel', gewicht: 1 },
+    { id: 'handschuhe', gewicht: 1 },
     { id: 'stoff', gewicht: 2 },
     { id: 'konservendose', gewicht: 3 },
     { id: 'wasserflasche', gewicht: 3 },

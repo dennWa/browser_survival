@@ -63,6 +63,16 @@ const BAUPLAENE = {
   // Rucksäcke liegen auf dem Rücken; Größe & Farbe je nach Variante
   rucksack: () => rucksackLiegend(1, null),
   rucksack_klein: () => rucksackLiegend(0.8, 0x9a7a3a),
+  // Runde 23: Kleidung – einfache Low-Poly-Formen in der Item-Farbe (gegenstaende.js `farbe`)
+  muetze: () => [box(6, 3.2, 6, 0x8a2f2f, 0, 0, 0), box(6.6, 1.4, 6.6, 0xb04848, 0, 0, 0), box(2, 1.8, 2, 0xc85a5a, 0, 3.2, 0)],
+  kapuzenpulli: () => gefaltet(0x4f5f70, 0x6c7d90),
+  winterjacke: () => gefaltet(0x2e4a6e, 0xdcdcd6),
+  arbeitsweste: () => gefaltet(0xc8782a, 0xe8e070),
+  handschuhe: () => [box(3, 1.2, 4.6, 0x33302c, -1.9, 0, 0, 0.2), box(3, 1.2, 4.6, 0x33302c, 1.9, 0, 0.4, -0.15)],
+  jeans: () => gefaltet(0x3d4f78, 0x5a6c96),
+  thermohose: () => gefaltet(0x26272c, 0x45464c),
+  stiefel: () => schuhPaar(0x5a3c22, 4.4),
+  turnschuhe: () => schuhPaar(0xd8d8d8, 1.6),
   rucksack_gross: () => rucksackLiegend(1.18, 0x2f4a6a),
   // Stoffballen: zwei gefaltete Lagen mit Band – matt, kein Eigenleuchten
   stoff: () => [box(9, 1.8, 7, 0xd7d2c4, 0, 0, 0, 0.1), box(8.2, 1.6, 6.4, 0xc9c3b3, 0.4, 1.7, -0.2, -0.12), box(7.2, 1.4, 5.6, 0xddd8ca, -0.3, 3.2, 0.2, 0.18), box(0.9, 4.6, 7.4, 0x6a7fa6, 0, 1.6, 0, 0.1)],
@@ -124,6 +134,20 @@ export const ITEM_MATERIAL = new THREE.MeshStandardMaterial({ vertexColors: true
 const cache = new Map();
 
 /** Geometrie fürs Item (gecacht) oder null, wenn es kein Modell gibt. */
+/** Zusammengelegtes Kleidungsstück: zwei Lagen + Kante in der Zweitfarbe. */
+function gefaltet(farbe, zweit) {
+  return [box(9, 1.6, 7, farbe, 0, 0, 0, 0.08), box(8.4, 1.5, 6.4, farbe, 0.2, 1.5, -0.1, -0.06), box(8.6, 0.6, 1.2, zweit, 0.2, 3, -2.4, -0.06)];
+}
+
+/** Zwei Schuhe nebeneinander (hoehe: Schaft – Stiefel hoch, Turnschuh flach). */
+function schuhPaar(farbe, hoehe) {
+  const teile = [];
+  for (const [x, w] of [[-2.2, 0.15], [2.2, -0.1]]) {
+    teile.push(box(3.2, 1.2, 6.4, 0x2a2420, x, 0, 0, w), box(3, hoehe, 3, farbe, x, 1.2, -1.6, w), box(3, 1.6, 3.6, farbe, x, 1.2, 1.4, w));
+  }
+  return teile;
+}
+
 export function itemGeometrie(defId) {
   if (cache.has(defId)) return cache.get(defId);
   let geometrie = null;

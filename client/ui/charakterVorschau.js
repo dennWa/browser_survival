@@ -3,7 +3,7 @@ import * as THREE from 'three';
 /**
  * Charakter-Vorschau im Inventar (Runde 23): die eigene Spielfigur (Quaternius-Adventurer, wie im Spiel) auf eigenem kleinen
  * WebGL-Kontext, Idle-Animation, mit Maus/Finger drehbar. Läuft nur, solange das Inventar offen ist (eigene RAF-Schleife).
- * Figur kommt vom Spiel-Renderer (`renderer.vorschauFigur(aussehen, ausruestung)`, gleiche Modelle/Materialien/Kleidung).
+ * Figur kommt vom Spiel-Renderer (`renderer.vorschauFigur(aussehen, kleidung)`, gleiche Modelle/Materialien/Kleidung).
  * Kein WebGL → Canvas bleibt leer (Ausrüstungs-Slots funktionieren trotzdem).
  */
 export class CharakterVorschau {
@@ -62,12 +62,12 @@ export class CharakterVorschau {
     return true;
   }
 
-  /** Figur zeigen bzw. neu bauen, wenn sich Aussehen/Ausrüstung geändert hat. */
-  setze(aussehen, ausruestung) {
-    const stand = JSON.stringify([aussehen ?? null, ausruestung ?? null]);
+  /** Figur zeigen bzw. neu bauen, wenn sich Aussehen/Kleidung geändert hat. */
+  setze(aussehen, kleidung) {
+    const stand = JSON.stringify([aussehen ?? null, kleidung ?? null]);
     if (stand === this.#stand && this.#figur) return;
     if (!this.spielRenderer?.vorschauFigur || !this.#aufbauen()) return;
-    const figur = this.spielRenderer.vorschauFigur(aussehen, ausruestung);
+    const figur = this.spielRenderer.vorschauFigur(aussehen, kleidung);
     if (!figur) return;
     this.#stand = stand;
     if (this.#figur) this.#szene.remove(this.#figur.gruppe);

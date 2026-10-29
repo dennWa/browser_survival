@@ -1,10 +1,11 @@
 import { STANDARD_AUSRUESTUNG } from '../konfiguration/gegenstaende.js';
 import { toeten } from './kampfSystem.js';
-import { gibStartausruestung } from './inventarSystem.js';
+import { gibStartausruestung, kleidungsWaerme } from './inventarSystem.js';
 import { bettFehlt, spawnPunkt } from './spawnSystem.js';
 
 /**
  * Überleben: Hunger & Durst sinken, bei 0 verliert man Leben; satt & getränkt heilt man langsam.
+ * Runde 23: Kälte (aktualisiereKaelte) – draußen in Kälte/Nacht/Unwetter steigt sie, Kleidung bremst, Wärme taut auf.
  * Tote Spieler werden nach respawnZeit an einem Startpunkt wiederbelebt – oder sofort per AKTION 'wiederbeleben'.
  */
 export function aktualisiereUeberleben(spielWelt, dt) {
@@ -16,17 +17,60 @@ export function aktualisiereUeberleben(spielWelt, dt) {
       continue;
     }
     spieler.statistik.ueberlebt += dt;
-    if (spieler.gottmodus) continue; // Götter essen nicht
+    if (spieler.gottmodus) {
+      spieler.kaelte = 0;
+      continue; // Götter essen nicht und frieren nicht
+    }
+    aktualisiereKaelte(spielWelt, spieler, dt);
     spieler.hunger = Math.max(0, spieler.hunger - (k.hungerProMinute / 60) * dt);
     spieler.durst = Math.max(0, spieler.durst - (k.durstProMinute / 60) * dt);
 
     if (spieler.hunger <= 0 || spieler.durst <= 0) {
       spieler.leben -= k.hungerSchadenProSekunde * dt;
       if (spieler.leben <= 0) toeten(spielWelt, spieler);
-    } else if (spieler.hunger >= k.regenerationAb && spieler.durst >= k.regenerationAb) {
+    } else if (spieler.hunger >= k.regenerationAb && spieler.durst >= k.regenerationAb && !(spieler.kaelte >= (spielWelt.konfiguration.kaelte?.keineHeilungAb ?? 101))) {
       spieler.leben = Math.min(spieler.maxLeben, spieler.leben + k.regenerationProSekunde * dt);
     }
   }
+}
+
+/** Kälte-Zuwachs pro Sekunde draußen ohne Kleidung (0 = mild, man wärmt sich langsam auf). */
+export function kaelteRate(spielWelt) {
+  const k = spielWelt.konfiguration.kaelte;
+  const schnee = spielWelt.welt?.schnee === true;
+  const art = spielWelt.wetter?.art;
+  let rate = schnee ? k.schneezone : 0;
+  if (spielWelt.istNacht) rate += schnee ? k.schneeNacht : k.nacht;
+  if (art === 'sturm') rate += schnee ? k.schneeSturm : k.sturm;
+  else if (art && k[art] !== undefined && art !== 'nebel' && art !== 'klar') rate += k[art];
+  return rate;
+}
+
+/**
+ * Runde 23: Unterkühlung. Drinnen, im Auto, im Bett oder am brennenden Lagerfeuer wärmt man sich auf; draußen steigt die
+ * Kälte je nach kaelteRate, gebremst durch die Wärme der Kleidung. Bei 100 sanfter Dauerschaden (Tutorial: aus).
+ */
+export function aktualisiereKaelte(spielWelt, spieler, dt) {
+  const k = spielWelt.konfiguration.kaelte;
+  if (!k?.aktiv || spielWelt.tutorial) {
+    spieler.kaelte = 0;
+    return;
+  }
+  const alt = spieler.kaelte ?? 0;
+  let neu;
+  const feuer = spielWelt.welt.naechstesBauwerk?.(spieler.x, spieler.y, k.feuerRadius, (b) => b.typ === 'lagerfeuer' && b.brennt);
+  if (feuer) neu = alt - k.abbauFeuer * dt;
+  else if (spieler.fahrzeug || spieler.arbeit?.art === 'schlafen' || spielWelt.welt.istInnen(spieler.x, spieler.y)) neu = alt - k.abbauDrinnen * dt;
+  else {
+    const rate = kaelteRate(spielWelt) * Math.max(k.minFaktor, 1 - kleidungsWaerme(spieler) / 100);
+    neu = rate > 0 ? alt + rate * dt : alt - k.abbau * dt;
+  }
+  spieler.kaelte = Math.max(0, Math.min(100, neu));
+  if (spieler.kaelte >= 100) {
+    if (alt < 100) spielWelt.melde(spieler.id, 'Du bist unterkühlt! Geh rein, ans Feuer oder zieh dich warm an');
+    spieler.leben -= k.schadenProSekunde * dt;
+    if (spieler.leben <= 0) toeten(spielWelt, spieler);
+  } else if (alt < 70 && spieler.kaelte >= 70) spielWelt.melde(spieler.id, 'Dir ist eiskalt – such dir Wärme');
 }
 
 /**
@@ -61,6 +105,7 @@ export function wiederbeleben(spielWelt, spieler) {
     ausgeruestet: null,
     ausruestung: STANDARD_AUSRUESTUNG,
     arbeit: null,
+    kaelte: 0,
   });
   // Neues Leben, neue Grundausrüstung (das alte Inventar liegt noch eine Weile am Todesort)
   if (spieler.inventar.every((e) => e === null)) gibStartausruestung(spieler, spielWelt.konfiguration);
