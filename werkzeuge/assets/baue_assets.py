@@ -210,6 +210,7 @@ ITEMS = {
     'fallgrube': ('prozedural', 'fallgrube', 28),
     'schwarzpulver': ('prozedural', 'schwarzpulver', 20),
     'alkohol': ('prozedural', 'flasche:#c9a24a', 20),
+    'benzin': ('prozedural', 'kanister', 24),
 }
 ITEM_ICON_GROESSE = 72
 
@@ -448,6 +449,12 @@ def zeichne_prozedural(art, groesse):
         d.rounded_rectangle(r(6, 24, 66, 46), radius=8 * u, fill=(36, 38, 42, 255), outline=rand, width=int(2.5 * u))
         for x in (20, 32, 44):
             d.line([x * u, 26 * u, x * u, 44 * u], fill=(70, 74, 80, 255), width=int(2 * u))
+    elif art == 'kanister':
+        d.rounded_rectangle(r(12, 16, 60, 68), radius=5 * u, fill=(200, 40, 34, 255), outline=rand, width=int(2.5 * u))
+        d.rectangle(r(18, 8, 34, 18), fill=(60, 60, 60, 255), outline=rand, width=int(2 * u))
+        d.line([40 * u, 12 * u, 56 * u, 12 * u], fill=(60, 60, 60, 255), width=int(4 * u))
+        d.line([18 * u, 30 * u, 54 * u, 60 * u], fill=(150, 26, 22, 255), width=int(3 * u))
+        d.line([54 * u, 30 * u, 18 * u, 60 * u], fill=(150, 26, 22, 255), width=int(3 * u))
     elif art == 'granate':
         d.ellipse(r(14, 20, 58, 68), fill=(84, 100, 60, 255), outline=rand, width=int(2.5 * u))
         for y in (32, 44, 56):

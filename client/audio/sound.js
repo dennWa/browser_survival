@@ -616,12 +616,14 @@ export class Sound {
    * Musikstück abspielen (Zonen-Musik, siehe audio/zonenMusik.js). Läuft über einen Audio-Tag, damit lange Dateien
    * gestreamt werden. @returns { stoppen(fadeSekunden), beiEnde(fn) } oder null (Ton noch gesperrt)
    */
-  spieleMusik(url, { fade = 3 } = {}) {
+  spieleMusik(url, { fade = 3, schleife = false, ab = 0 } = {}) {
     const ctx = this.#ctx;
     if (!ctx) return null;
     const audio = new Audio(url);
     audio.crossOrigin = 'anonymous';
     audio.preload = 'auto';
+    audio.loop = schleife; // Runde 24: Radio im Haus läuft in Schleife, Einstieg synchron (ab Sekunden, modulo Länge)
+    if (ab > 0) audio.addEventListener('loadedmetadata', () => (audio.currentTime = audio.duration ? ab % audio.duration : 0), { once: true });
     const quelle = ctx.createMediaElementSource(audio);
     const gain = ctx.createGain();
     gain.gain.value = 0;
@@ -630,8 +632,15 @@ export class Sound {
     audio.addEventListener('ended', () => endeHoerer?.());
     audio.addEventListener('error', () => endeHoerer?.(true));
     audio.play().then(() => gain.gain.setTargetAtTime(1, ctx.currentTime, fade / 3)).catch(() => endeHoerer?.(true));
+    let ziel = 1;
     return {
       beiEnde: (fn) => (endeHoerer = fn),
+      /** Runde 24: Lautstärke 0..1 (Abstand zum Radio) */
+      lautstaerke: (wert) => {
+        if (Math.abs(wert - ziel) < 0.01) return;
+        ziel = wert;
+        gain.gain.setTargetAtTime(wert, ctx.currentTime, 0.25);
+      },
       stoppen: (fadeSekunden = fade) => {
         endeHoerer = null;
         gain.gain.setTargetAtTime(0, ctx.currentTime, Math.max(0.05, fadeSekunden / 3));

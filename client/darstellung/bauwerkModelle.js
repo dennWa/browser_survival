@@ -3,6 +3,7 @@ import { vereineGeometrien, matrixAus } from './geometrie.js';
 import { TUER_EBENE, werkbankTeile } from './kartenModell.js';
 import { PFLANZEN, feldKacheln } from '../../gemeinsam/welt/bauwerke.js';
 import { BASIS_MATERIAL, IST_AUSGERICHTET, bauteilGeometrie } from './basisbauModelle.js';
+import { baueMoebel } from './moebelModelle.js';
 
 /**
  * 3D-Modelle der Bauwerke (gemeinsam/welt/bauwerke.js): Werkbank, Lagerfeuer, Bärenfalle, Beet, Lagerkiste und die
@@ -287,6 +288,11 @@ export function erzeugeBauwerk(b) {
         pflanzen.rotation.z = stufe >= 4 ? Math.sin(jetzt / 400) * 0.03 : 0;
       };
       break;
+    }
+    default: {
+      // Runde 24 (Cozy): Möbel, Deko, Lichter, Kamin, Radio … (moebelModelle.js)
+      const zusatz = baueMoebel(b, gruppe);
+      if (zusatz) aktualisiere = zusatz;
     }
   }
   return { gruppe, aktualisiere };

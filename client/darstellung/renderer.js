@@ -24,6 +24,7 @@ import { WetterEffekt } from './wetterEffekt.js';
 import { BAUM_WIND } from './baumModell.js';
 import { BlaetterEffekt } from './blaetterEffekt.js';
 import { SonderEffekte } from './sonderEffekte.js';
+import { LICHTER, hatStrom, leuchtet } from '../../gemeinsam/welt/einrichtung.js';
 import { erkenneGeraet, merkeAutoProfil } from './geraet.js';
 
 /**
@@ -760,13 +761,19 @@ export class Renderer {
         this.szene.add(neu.gruppe);
         this.bauwerke.set(b.id, neu);
       }
-      // Brennende Lagerfeuer leuchten (über den Lampen-Pool)
+      // Brennende Lagerfeuer leuchten (über den Lampen-Pool) – Runde 24: auch Kamin, Kerzen, Öllampen und Strom-Lampen (einrichtung.js)
+      this.stromAn = new Set([...welt.bauwerke.values()].filter((b) => LICHTER[b.typ]?.strom && hatStrom(welt, b.tx, b.ty)).map((b) => b.id));
       this.feuerLampen = [...welt.bauwerke.values()]
-        .filter((b) => b.typ === 'lagerfeuer' && b.brennt)
-        .map((b) => ({ x: (b.tx + 0.5) * g, y: 22, z: (b.ty + 0.5) * g, farbe: new THREE.Color(0xff9a40), reichweite: 300, staerke: 320, objekt: { feuer: true, x: b.tx, y: b.ty } }));
+        .filter((b) => (b.typ === 'lagerfeuer' && b.brennt) || leuchtet(welt, b))
+        .map((b) => {
+          const l = LICHTER[b.typ];
+          return l
+            ? { x: (b.tx + 0.5) * g, y: l.hoehe, z: (b.ty + 0.5) * g, farbe: new THREE.Color(l.farbe), reichweite: l.reichweite, staerke: l.staerke, objekt: { feuer: !!l.flackern, x: b.tx, y: b.ty } }
+            : { x: (b.tx + 0.5) * g, y: 22, z: (b.ty + 0.5) * g, farbe: new THREE.Color(0xff9a40), reichweite: 300, staerke: 320, objekt: { feuer: true, x: b.tx, y: b.ty } };
+        });
       this.naechsteLampen = null;
     }
-    for (const [id, b] of this.bauwerke) b.aktualisiere(welt.bauwerke.get(id), jetzt);
+    for (const [id, b] of this.bauwerke) b.aktualisiere(welt.bauwerke.get(id), jetzt, this.stromAn?.has(id) ?? false);
   }
 
   /**

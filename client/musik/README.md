@@ -21,3 +21,7 @@ kürzen/einblenden, Reihenfolge, entfernen – Dateien, `einstellungen.json` und
 Ordner auflisten dürfen), dann committen.
 
 Bitte nur Musik mit passender Lizenz (CC0 / CC-BY mit Namensnennung im Credits-Dialog / selbst gemacht).
+
+## Radio (Runde 24)
+
+Ordner `radio/`: Stücke, die Radio und Plattenspieler im Spiel anbieten (alle anderen Ordner erscheinen dort auch). Nach dem Hinzufügen `npm run musik:index`.

@@ -129,8 +129,44 @@ function hackeSchlag(spielWelt, spieler, tx, ty) {
   spielWelt.setzeAktion(spieler, 'hacke', HACKE_ANIMATION);
 }
 
+/** Runde 24: Kamin an (Feuerzeug) / aus – brennt `kaminDauer` s, Holz in der Hand legt nach (stationSystem.schuereFeuer). */
+function zuendeKamin(spielWelt, spieler, b) {
+  if (b.brennt) Object.assign(b, { brennt: false, brennRest: 0 });
+  else if (!spieler.inventar.some((e) => e?.defId === 'feuerzeug')) {
+    spielWelt.melde(spieler.id, 'Du brauchst ein Feuerzeug');
+    return;
+  } else Object.assign(b, { brennt: true, brennRest: spielWelt.konfiguration.bauen.kaminDauer });
+  spielWelt.welt.setzeBauwerk(b);
+  spielWelt.ereignis({ typ: 'lagerfeuer', an: b.brennt, x: mitteX(spielWelt, b), y: mitteY(spielWelt, b) });
+}
+
+/** Runde 24: Generator starten (verbraucht 1 Benzin, falls der Tank leer ist) / ausschalten. */
+function schalteGenerator(spielWelt, spieler, b) {
+  if (b.laeuft) b.laeuft = false;
+  else {
+    if ((b.brennRest ?? 0) <= 0) {
+      const slot = spieler.inventar.findIndex((e) => e?.defId === 'benzin');
+      if (slot < 0) {
+        spielWelt.melde(spieler.id, 'Der Tank ist leer – du brauchst Benzin');
+        return;
+      }
+      verbrauche(spieler, slot);
+      b.brennRest = spielWelt.konfiguration.bauen.generatorDauer;
+    }
+    b.laeuft = true;
+    spielWelt.melde(spieler.id, `⚡ Generator läuft (${Math.ceil(b.brennRest / 60)} min Benzin)`);
+  }
+  spielWelt.welt.setzeBauwerk(b);
+  spielWelt.ereignis({ typ: 'generator', an: b.laeuft, x: mitteX(spielWelt, b), y: mitteY(spielWelt, b) });
+}
+
 /** F am Lagerfeuer: anzünden (nur mit Feuerzeug) bzw. löschen. @returns true, wenn ein Feuer in Reichweite war */
 export function feuer(spielWelt, spieler) {
+  const kamin = spielWelt.welt.naechstesBauwerk(spieler.x, spieler.y, BAUWERK_REICHWEITE, (x) => x.typ === 'kamin');
+  if (kamin) {
+    zuendeKamin(spielWelt, spieler, kamin); // Runde 24: F geht auch am Kamin
+    return true;
+  }
   const b = spielWelt.welt.naechstesBauwerk(spieler.x, spieler.y, BAUWERK_REICHWEITE, (x) => x.typ === 'lagerfeuer');
   if (!b) return false;
   if (b.brennt) {
@@ -202,6 +238,20 @@ export function benutzeBauwerk(spielWelt, spieler, bauwerkId = null, wunschPflan
     case 'oeffnen':
       oeffneKiste(spielWelt, spieler, b);
       return;
+    // Runde 24 (Cozy)
+    case 'licht':
+      b.an = b.an === false;
+      welt.setzeBauwerk(b);
+      spielWelt.ereignis({ typ: 'schalter', x: mitteX(spielWelt, b), y: mitteY(spielWelt, b) });
+      return;
+    case 'kamin':
+      zuendeKamin(spielWelt, spieler, b);
+      return;
+    case 'generator':
+      schalteGenerator(spielWelt, spieler, b);
+      return;
+    case 'musik':
+      return; // Auswahl-Fenster im Client → AKTION musik (musikSystem)
     case 'pflanzen': {
       const hatSamen = (x) => spieler.inventar.some((e) => e?.defId === x.samen);
       const [pflanze, p] =
@@ -257,6 +307,14 @@ export function aktualisiereBauwerke(spielWelt, dt, spielSekunden = dt) {
         }
       }
       if (dt > 0) aktualisiereStation(spielWelt, b, dt);
+    } else if ((b.typ === 'kamin' && b.brennt) || (b.typ === 'generator' && b.laeuft)) {
+      // Runde 24: Kamin brennt herunter, Generator verbraucht Benzin
+      b.brennRest -= dt;
+      if (b.brennRest <= 0) {
+        Object.assign(b, b.typ === 'kamin' ? { brennt: false, brennRest: 0 } : { laeuft: false, brennRest: 0 });
+        welt.setzeBauwerk(b);
+        spielWelt.ereignis({ typ: b.typ === 'kamin' ? 'lagerfeuer' : 'generator', an: false, x: mitteX(spielWelt, b), y: mitteY(spielWelt, b) });
+      }
     } else if (b.typ === 'falle' && b.gespannt) {
       pruefeFalle(spielWelt, b);
     } else if (FALLEN_TYPEN.has(b.typ) && dt > 0) {

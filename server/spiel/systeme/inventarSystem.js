@@ -4,6 +4,7 @@ import { samenZiel } from '../../../gemeinsam/welt/bauwerke.js';
 import { AKTIONEN } from '../../../gemeinsam/protokoll.js';
 import { GEGENSTAENDE, STANDARD_AUSRUESTUNG, UNBEWAFFNET, waffenWerte } from '../konfiguration/gegenstaende.js';
 import { bringeModAn, nimmModsAb, passenderMod, repariere } from './waffenSystem.js';
+import { waehleMusik } from './musikSystem.js';
 import { erzeugeGegenstand } from '../entitaeten/gegenstand.js';
 import { wiederbeleben } from './ueberlebenSystem.js';
 import { fuehreAdminBefehlAus } from './adminSystem.js';
@@ -98,6 +99,9 @@ export function verarbeiteAktionen(spielWelt) {
           break;
         case AKTIONEN.MODS_ABNEHMEN:
           nimmModsAb(spielWelt, spieler, aktion.slot);
+          break;
+        case AKTIONEN.MUSIK:
+          waehleMusik(spielWelt, spieler, aktion);
           break;
         case AKTIONEN.RUCKSACK_ABLEGEN:
           legeRucksackAb(spielWelt, spieler);

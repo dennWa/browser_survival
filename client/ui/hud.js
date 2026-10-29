@@ -82,6 +82,7 @@ export class Hud {
       hunger: el('wert-hunger'),
       durst: el('wert-durst'),
       kaelte: el('wert-kaelte'), // Runde 23: nur sichtbar, wenn man friert
+      gemuetlich: el('hud-gemuetlich'), // Runde 24: Cozy-Bonus
       ausdauer: el('wert-ausdauer'),
       hotbar: el('hotbar'),
       munition: el('hud-munition'),
@@ -487,6 +488,7 @@ export class Hud {
     this.#zeigeLevel(daten);
     setzeBalken(this.el.hunger, daten.hunger / 100);
     setzeBalken(this.el.durst, daten.durst / 100);
+    if (this.el.gemuetlich) this.el.gemuetlich.hidden = !daten.gemuetlich;
     const kaelte = daten.kaelte ?? 0;
     this.el.kaelte.hidden = kaelte <= 0;
     if (kaelte > 0) {

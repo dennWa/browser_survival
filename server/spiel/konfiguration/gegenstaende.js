@@ -124,6 +124,7 @@ const ROH_GEGENSTAENDE = {
   granate: { name: 'Rohrbombe', kategorie: 'wurf', wurf: 'granate', inHand: true, ausruestung: 'wurf', wurfweite: 320, zuender: 1, sprengRadius: 105, sprengSchaden: 80, beschreibung: 'Werfen (Linksklick): explodiert nach 1 Sekunde' },
   molotow: { name: 'Molotowcocktail', kategorie: 'wurf', wurf: 'molotow', inHand: true, ausruestung: 'wurf', wurfweite: 300, brandRadius: 64, brandDauer: 9, brandSchaden: 14, beschreibung: 'Werfen (Linksklick): setzt den Boden 9 Sekunden in Brand' },
   schwarzpulver: { name: 'Schwarzpulver', kategorie: 'material', beschreibung: 'Aus Kohle (verkohltes Essen) und Stein – für Sprengstoff' },
+  benzin: { name: 'Benzinkanister', kategorie: 'material', beschreibung: 'Treibstoff für den Generator (15 min Strom)' },
   alkohol: { name: 'Hochprozentiges', kategorie: 'material', beschreibung: 'Brennt gut – für Molotowcocktails' },
   // --- Werkzeug & Garten ---
   feuerzeug: { name: 'Feuerzeug', kategorie: 'werkzeug', beschreibung: 'Zum Anzünden von Lagerfeuern (F)' },

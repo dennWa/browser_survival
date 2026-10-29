@@ -1371,3 +1371,17 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
 .welt-balken { position: absolute; left: 0; top: 0; width: 54px; height: 6px; padding: 1px; background: rgba(0, 0, 0, 0.65); border-radius: 4px; pointer-events: none; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); }
 .welt-balken-fuellung { height: 100%; width: 0; background: linear-gradient(90deg, #9bd35a, #d7f27a); border-radius: 3px; transition: width 0.15s linear; }
 #inventar-info .inv-mod-ab { margin-left: 4px; padding: 1px 8px; font-size: 0.8em; border-radius: 6px; border: 1px solid #8a7a50; background: #3a3424; color: #f0e6c4; cursor: pointer; }
+#hud-gemuetlich { margin-top: 4px; padding: 1px 8px; width: fit-content; border-radius: 10px; font-size: 0.75rem; color: #ffe2b0; background: rgba(120, 70, 20, 0.55); border: 1px solid rgba(255, 190, 110, 0.5); }
+/* Runde 24: Radio/Plattenspieler */
+.musik-fenster { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 40; width: min(420px, calc(100vw - 32px)); max-height: 80vh; overflow: auto; padding: 14px; border-radius: 12px; background: rgba(28, 24, 20, 0.95); color: #f0e6d0; border: 1px solid #6a5a40; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5); }
+.musik-kopf { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.musik-kopf button, .musik-knoepfe button, .musik-stueck { cursor: pointer; border-radius: 8px; border: 1px solid #7a6a4a; background: #3a3224; color: #f0e6d0; padding: 6px 10px; font: inherit; }
+.musik-jetzt { font-size: 0.85rem; opacity: 0.8; margin-bottom: 8px; }
+.musik-liste { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.musik-stueck { text-align: left; }
+.musik-stueck:hover, .musik-knoepfe button:hover { background: #4a4030; }
+.musik-yt { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; }
+.musik-yt input { padding: 7px; border-radius: 6px; border: 1px solid #7a6a4a; background: #1a1612; color: #f0e6d0; font: inherit; }
+.musik-yt input.fehler { border-color: #d04030; }
+.musik-knoepfe { display: flex; gap: 8px; margin: 8px 0; flex-wrap: wrap; }
+.musik-hinweis { font-size: 0.75rem; opacity: 0.6; }

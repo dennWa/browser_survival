@@ -163,7 +163,7 @@ export function sitztAmFeuer(spieler) {
 
 /** Holz in der Hand, Linksklick aufs Lagerfeuer: +brennDauer (stapelt bis brennMax). @returns true, wenn ein Feuer getroffen wurde */
 export function schuereFeuer(spielWelt, spieler, slot) {
-  const b = spielWelt.welt.naechstesBauwerk(spieler.x, spieler.y, BAUWERK_REICHWEITE, (x) => x.typ === 'lagerfeuer');
+  const b = spielWelt.welt.naechstesBauwerk(spieler.x, spieler.y, BAUWERK_REICHWEITE, (x) => x.typ === 'lagerfeuer' || x.typ === 'kamin'); // Runde 24: auch Kamin
   if (!b) {
     spielWelt.melde(spieler.id, 'Hier ist kein Lagerfeuer in der Nähe');
     return false;
@@ -173,7 +173,7 @@ export function schuereFeuer(spielWelt, spieler, slot) {
     return false;
   }
   const k = spielWelt.konfiguration.bauen;
-  b.brennRest = Math.min(k.brennMax, b.brennRest + k.brennDauer);
+  b.brennRest = b.typ === 'kamin' ? Math.min(k.kaminDauer * 2, b.brennRest + k.kaminDauer / 2) : Math.min(k.brennMax, b.brennRest + k.brennDauer);
   verbrauchEins(spieler, slot);
   spielWelt.welt.setzeBauwerk(b);
   spielWelt.ereignis({ typ: 'holzNachgelegt', x: (b.tx + 0.5) * spielWelt.welt.kachelGroesse, y: (b.ty + 0.5) * spielWelt.welt.kachelGroesse });

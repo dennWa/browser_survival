@@ -1,3 +1,4 @@
+import { BAUTEILE } from '../../gemeinsam/basisbau/teile.js';
 import * as THREE from 'three';
 import { vereineGeometrien, matrixAus } from './geometrie.js';
 import { ebeneVon } from '../../gemeinsam/welt/bauwerke.js';
@@ -32,7 +33,8 @@ export const INSTANZ_TYPEN = Object.freeze({
 });
 
 /** Hat der Typ eine Richtung (Rotation um y = drehung × 90°)? */
-export const IST_AUSGERICHTET = new Set(['holzwand_fenster', 'holzwand_tuer', 'holztuer', 'bett', 'zauntor']);
+// Runde 24: alle Bauteile mit `ausrichtung` (auch Möbel) drehen mit R
+export const IST_AUSGERICHTET = new Set(['holzwand_fenster', 'holzwand_tuer', 'holztuer', 'bett', 'zauntor', ...Object.entries(BAUTEILE).filter(([, t]) => t.ausrichtung).map(([id]) => id)]);
 
 export function initialisiereBasisbauModelle({ mitSchnitt }) {
   mitSchnitt(BASIS_MATERIAL);

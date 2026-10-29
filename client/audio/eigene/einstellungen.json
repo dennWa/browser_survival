@@ -181,5 +181,14 @@
   "grube": {
     "lautstaerke": 0.8,
     "streuung": 0.08
+  },
+  "regen_dach": {
+    "lautstaerke": 1
+  },
+  "kamin": {
+    "lautstaerke": 0.9
+  },
+  "generator": {
+    "lautstaerke": 0.6
   }
 }

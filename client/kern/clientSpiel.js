@@ -17,6 +17,8 @@ import { Karte } from '../ui/karte.js';
 import { BauModus } from './bauModus.js';
 import { Klanglandschaft } from '../audio/klaenge.js';
 import { Schritte } from '../audio/schritte.js';
+import { HausMusik } from '../audio/hausMusik.js';
+import { MusikFenster } from '../ui/musikFenster.js';
 
 /** Maximal gemerkte, vom Server noch nicht bestätigte Eingaben (~4 s). */
 const MAX_OFFENE_EINGABEN = 120;
@@ -172,6 +174,10 @@ export class ClientSpiel {
       zeichne: (alpha, jetzt) => this.#zeichne(alpha, jetzt),
     });
     this.schleife.starten();
+    // Runde 24: Radio/Plattenspieler im Haus + Auswahlfenster
+    this.hausMusik = new HausMusik(this.sound, this.musik);
+    this.musikFenster = new MusikFenster(document);
+    this.musikFenster.beiWahl((wahl) => this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.MUSIK, ...wahl }));
     this.sound?.starteAtmosphaere();
     if (this.klaenge.ersetztMusik) this.musik?.stoppen(); // Karte bringt eigene Hintergrundmusik mit
     else this.musik?.setzeZone(this.musikOrdner);
@@ -209,6 +215,8 @@ export class ClientSpiel {
     this.sound?.stoppeAtmosphaere();
     this.sound?.motor(null);
     this.klaenge?.stoppe();
+    this.hausMusik?.stoppen();
+    this.musikFenster?.zeige(null);
     clearInterval(this.pingTimer);
     for (const ab of this.abmelden) ab();
   }
@@ -231,6 +239,7 @@ export class ClientSpiel {
     if (was.art === 'fahrzeug') return this.#aktion(AKTIONEN.FAHRZEUG);
     if (was.art === 'aufheben') this.#aktion(AKTIONEN.AUFHEBEN);
     else if (was.art === 'abbauen') this.#aktion(AKTIONEN.ABBAUEN);
+    else if (was.art === 'bauwerk' && was.bauwerkArt === 'musik') this.musikFenster.zeige(this.welt.bauwerke.get(was.bauwerkId)); // Runde 24
     else if (was.art === 'bauwerk') this.#aktion(AKTIONEN.BAUWERK);
     else if (was.art === 'schlafen') this.#aktion(AKTIONEN.SCHLAFEN);
     else if (was.art === 'werkbank') this.werkbankUmschalten(true);
@@ -391,19 +400,20 @@ export class ClientSpiel {
   /** Ist irgendein Fenster/Modus offen, den Esc zuerst schließen soll? */
   etwasOffen() {
     const h = this.hud;
-    return !!(this.karte.offen || h.inventar.offen || h.skills.offen || h.einstellungen.offen || h.kiste.offen || h.station.offen || this.werkbankOffen || this.bau.aktiv || this.platzierung || this.autoLauf);
+    return !!(this.karte.offen || h.inventar.offen || h.skills.offen || h.einstellungen.offen || h.kiste.offen || h.station.offen || this.werkbankOffen || this.musikFenster?.offen || this.bau.aktiv || this.platzierung || this.autoLauf);
   }
 
   /** Fenster offen, durch das ein Klick ins Spiel NICHT schießen soll (Bau-/Platzier-Modus brauchen den Klick). */
   fensterOffen() {
     const h = this.hud;
-    return !!(this.karte.offen || h.inventar.offen || h.skills.offen || h.einstellungen.offen || h.kiste.offen || h.station.offen || this.werkbankOffen);
+    return !!(this.karte.offen || h.inventar.offen || h.skills.offen || h.einstellungen.offen || h.kiste.offen || h.station.offen || this.werkbankOffen || this.musikFenster?.offen);
   }
 
   menuesSchliessen() {
     // Esc im Bett (nichts anderes offen): aufstehen
     if (this.schlaeft && !this.etwasOffen()) this.#aktion(AKTIONEN.SCHLAFEN);
     this.karte.zeige(false);
+    this.musikFenster?.zeige(null);
     this.hud.entwickler.zeige(false);
     this.hud.inventar.zeige(false);
     this.hud.skills.zeige(false);
@@ -542,7 +552,10 @@ export class ClientSpiel {
     const bauwerk =
       this.welt.naechstesBauwerk(x, y, BAUWERK_REICHWEITE, (b) => aktionFuer(b)?.art !== undefined && aktionFuer(b).art !== 'gesperrt') ??
       this.welt.naechstesBauwerk(x, y, BAUWERK_REICHWEITE, (b) => aktionFuer(b) !== null);
-    if (bauwerk) return { ...aktionFuer(bauwerk), art: 'bauwerk' };
+    if (bauwerk) {
+      const a = aktionFuer(bauwerk);
+      return { ...a, art: 'bauwerk', bauwerkArt: a.art, bauwerkId: bauwerk.id };
+    }
     if (this.#naheWerkbank()) return { art: 'werkbank', text: 'Werkbank benutzen', symbol: '🔨' };
     if (this.welt.naechstesObjekt(x, y, BETT_REICHWEITE, (o) => o.typ.startsWith('bett'))) return { art: 'schlafen', text: 'Schlafen', symbol: '🛏' };
     return null;
@@ -1332,7 +1345,7 @@ export class ClientSpiel {
   #feuerKnistern() {
     if (!this.sound || Math.random() > 0.12) return;
     const g = this.welt.kachelGroesse;
-    const feuer = this.welt.naechstesBauwerk(this.lokal.x, this.lokal.y, 500, (b) => b.typ === 'lagerfeuer' && b.brennt);
+    const feuer = this.welt.naechstesBauwerk(this.lokal.x, this.lokal.y, 500, (b) => (b.typ === 'lagerfeuer' || b.typ === 'kamin') && b.brennt);
     if (feuer) this.sound.spiele('knistern', { x: (feuer.tx + 0.5) * g, y: (feuer.ty + 0.5) * g, lautstaerke: 0.8 });
   }
 
@@ -1516,7 +1529,9 @@ export class ClientSpiel {
       this.letzteListe = jetzt;
       this.hud.zeigeSpielerliste(this.spielerStatistik());
     }
-    const regen = Math.round(this.renderer.wetterEffekt.regen * 20) / 20;
+    // Runde 24: drinnen hört man den Regen gedämpft – dafür prasselt er aufs Dach (Schicht regen_dach)
+    const drinnenRegen = !this.lokal.fahrzeug && this.welt.istInnen(this.lokal.x, this.lokal.y);
+    const regen = Math.round(this.renderer.wetterEffekt.regen * (drinnenRegen ? 0.2 : 1) * 20) / 20;
     if (regen !== this.letzterRegenTon) {
       this.letzterRegenTon = regen;
       this.sound?.regen(regen);
@@ -1546,7 +1561,12 @@ export class ClientSpiel {
       // Runde 24: Wind aus derselben Stufe wie die Bäume (0..3): leicht trägt bis ~1,5, stark kommt mit Böen/Starkwind dazu
       wind_leicht: Math.min(1, w.windStufe / 1.1) * (1 - 0.5 * Math.max(0, Math.min(1, (w.windStufe - 1.8) / 1.2))) * (drinnen ? 0.3 : 1),
       wind_stark: Math.max(0, Math.min(1, (w.windStufe - 1.1) / 1.6)) ** 1.3 * (1 - 0.6 * w.sturm) * (drinnen ? 0.3 : 1),
+      // Runde 24 (Cozy): Regen aufs Dach (nur drinnen), Kaminknistern und Generator nach Abstand
+      regen_dach: !this.lokal.fahrzeug && this.welt.istInnen(this.lokal.x, this.lokal.y) ? w.regen : 0,
+      kamin: this.#naehe((b) => b.typ === 'kamin' && b.brennt, 420),
+      generator: this.#naehe((b) => b.typ === 'generator' && b.laeuft, 520) * 0.8,
     };
+    this.hausMusik?.aktualisiere({ welt: this.welt, x: this.lokal.x, y: this.lokal.y, tick: this.letzterTick, tickDauerS: this.#tickMs / 1000, zone: this.musikOrdner });
     for (const [name, wert] of Object.entries(schichten)) {
       const r = Math.round(wert * 40) / 40;
       if (this.#schichtStand[name] === r) continue;
@@ -1556,6 +1576,15 @@ export class ClientSpiel {
   }
 
   #schichtStand = {};
+
+  /** Runde 24: 0..1 je nach Abstand zum nächsten passenden Bauwerk (1 = direkt daneben, 0 = weiter als `weite`). */
+  #naehe(bedingung, weite) {
+    const b = this.welt.naechstesBauwerk(this.lokal.x, this.lokal.y, weite, bedingung);
+    if (!b) return 0;
+    const g = this.welt.kachelGroesse;
+    const d = Math.hypot((b.tx + 0.5) * g - this.lokal.x, (b.ty + 0.5) * g - this.lokal.y);
+    return Math.max(0, 1 - d / weite) ** 1.4;
+  }
 
   /** Zombies, Tiere und Mitspieler im Umkreis (letzter Schnappschuss) für die Minikarte. */
   #minikartenPunkte() {

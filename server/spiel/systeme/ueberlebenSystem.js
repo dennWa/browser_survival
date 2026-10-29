@@ -2,6 +2,7 @@ import { STANDARD_AUSRUESTUNG } from '../konfiguration/gegenstaende.js';
 import { toeten } from './kampfSystem.js';
 import { gibStartausruestung, kleidungsWaerme, kleidungsRegenschutz } from './inventarSystem.js';
 import { bettFehlt, spawnPunkt } from './spawnSystem.js';
+import { istGemuetlich } from '../../../gemeinsam/welt/einrichtung.js';
 
 /**
  * Überleben: Hunger & Durst sinken, bei 0 verliert man Leben; satt & getränkt heilt man langsam.
@@ -17,6 +18,12 @@ export function aktualisiereUeberleben(spielWelt, dt) {
       continue;
     }
     spieler.statistik.ueberlebt += dt;
+    // Runde 24: gemütlich (drinnen am Kamin oder zwischen Möbeln) → heilt schneller, wärmt mit (welt/einrichtung.js)
+    spieler.gemuetlichPruefung = (spieler.gemuetlichPruefung ?? 0) - dt;
+    if (spieler.gemuetlichPruefung <= 0) {
+      spieler.gemuetlichPruefung = 1;
+      spieler.gemuetlich = istGemuetlich(spielWelt.welt, spieler.x, spieler.y, spielWelt.welt.istInnen(spieler.x, spieler.y));
+    }
     if (spieler.gottmodus) {
       spieler.kaelte = 0;
       continue; // Götter essen nicht und frieren nicht
@@ -29,7 +36,7 @@ export function aktualisiereUeberleben(spielWelt, dt) {
       spieler.leben -= k.hungerSchadenProSekunde * dt;
       if (spieler.leben <= 0) toeten(spielWelt, spieler);
     } else if (spieler.hunger >= k.regenerationAb && spieler.durst >= k.regenerationAb && !(spieler.kaelte >= (spielWelt.konfiguration.kaelte?.keineHeilungAb ?? 101))) {
-      spieler.leben = Math.min(spieler.maxLeben, spieler.leben + k.regenerationProSekunde * dt);
+      spieler.leben = Math.min(spieler.maxLeben, spieler.leben + k.regenerationProSekunde * (spieler.gemuetlich ? (k.gemuetlichFaktor ?? 2) : 1) * dt);
     }
   }
 }
@@ -58,7 +65,7 @@ export function aktualisiereKaelte(spielWelt, spieler, dt) {
   }
   const alt = spieler.kaelte ?? 0;
   let neu;
-  const feuer = spielWelt.welt.naechstesBauwerk?.(spieler.x, spieler.y, k.feuerRadius, (b) => b.typ === 'lagerfeuer' && b.brennt);
+  const feuer = spielWelt.welt.naechstesBauwerk?.(spieler.x, spieler.y, k.feuerRadius, (b) => (b.typ === 'lagerfeuer' || b.typ === 'kamin') && b.brennt); // Runde 24: Kamin wärmt
   if (feuer) neu = alt - k.abbauFeuer * dt;
   else if (spieler.fahrzeug || spieler.arbeit?.art === 'schlafen' || spielWelt.welt.istInnen(spieler.x, spieler.y)) neu = alt - k.abbauDrinnen * dt;
   else {

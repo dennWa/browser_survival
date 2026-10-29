@@ -163,6 +163,7 @@ export function spielerDatenPrivat(s, konfiguration, spielWelt = null) {
     rucksack: s.rucksack,
     kleidung: s.kleidung,
     kaelte: Math.round(s.kaelte ?? 0),
+    ...(s.gemuetlich ? { gemuetlich: true } : {}), // Runde 24: Cozy-Bonus (HUD-Chip)
     ausgeruestet: s.ausgeruestet,
     nachladen: s.nachladenRest > 0,
     tot: s.tot,

@@ -147,6 +147,7 @@ export const LOOT_TABELLEN = Object.freeze({
     { id: 'samen_paprika', gewicht: 1 },
   ],
   tankstelle: [
+    { id: 'benzin', gewicht: 3 },
     { id: 'energydrink', gewicht: 4 },
     { id: 'muesliriegel', gewicht: 4 },
     { id: 'wasserflasche', gewicht: 3 },
@@ -156,6 +157,7 @@ export const LOOT_TABELLEN = Object.freeze({
     { id: 'rucksack_klein', gewicht: 0.5 },
   ],
   werkstatt: [
+    { id: 'benzin', gewicht: 1 },
     { id: 'helm', gewicht: 0.8 },
     { id: 'lederhandschuhe', gewicht: 0.8 },
     { id: 'kampfhose', gewicht: 0.5 },

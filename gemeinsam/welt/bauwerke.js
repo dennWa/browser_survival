@@ -31,6 +31,7 @@ export const EBENEN = Object.freeze(['boden', 'objekt', 'wand', 'tuer', 'dach'])
 /** Worauf gebaut werden darf (Kachelnamen aus KACHELN). Später z. B. 'erde', 'sand' ergänzen. */
 export const BAUBARER_UNTERGRUND = Object.freeze(['gras', 'schnee']);
 const BASIS = { item: null, nurAuf: BAUBARER_UNTERGRUND };
+const MOEBEL = { item: null, moebel: true }; // Runde 24: Einrichtung – jeder freie Boden, auch drinnen
 
 export const BAUWERKE = Object.freeze({
   werkbank: { name: 'Werkbank', item: 'werkbank', blockiert: true },
@@ -56,6 +57,25 @@ export const BAUWERKE = Object.freeze({
   // Lagerkiste: 16 Plätze, Inhalt steht in b.inhalt (nur der Server kennt ihn – geht per KISTE-Nachricht an den, der sie öffnet)
   kiste: { ...BASIS, name: 'Lagerkiste', blockiert: true, geschuetzt: true },
   bett: { ...BASIS, name: 'Bett', blockiert: true, geschuetzt: true },
+  // Runde 24 (Cozy): Möbel & Deko – auch in Karten-Häusern auf jedem freien Boden (kein nurAuf), Licht/Strom: welt/einrichtung.js
+  sofa: { ...MOEBEL, name: 'Sofa', blockiert: true },
+  sessel: { ...MOEBEL, name: 'Sessel', blockiert: true },
+  stuhl: { ...MOEBEL, name: 'Stuhl', blockiert: true },
+  tisch: { ...MOEBEL, name: 'Couchtisch', blockiert: true },
+  esstisch: { ...MOEBEL, name: 'Esstisch', blockiert: true },
+  regal: { ...MOEBEL, name: 'Bücherregal', blockiert: true, sichtBlockiert: false },
+  teppich: { ...MOEBEL, name: 'Teppich', blockiert: false },
+  bild: { ...MOEBEL, name: 'Gemälde', blockiert: false },
+  pflanze: { ...MOEBEL, name: 'Zimmerpflanze', blockiert: true },
+  vorhang: { ...MOEBEL, name: 'Vorhang', blockiert: false },
+  kerze: { ...MOEBEL, name: 'Kerzen', blockiert: false, schaltbarLicht: true },
+  oellampe: { ...MOEBEL, name: 'Öllampe', blockiert: false, schaltbarLicht: true },
+  stehlampe: { ...MOEBEL, name: 'Stehlampe', blockiert: true, schaltbarLicht: true },
+  lichterkette: { ...MOEBEL, name: 'Lichterkette', blockiert: false, schaltbarLicht: true },
+  kamin: { ...MOEBEL, name: 'Kamin', blockiert: true },
+  generator: { ...MOEBEL, name: 'Generator', blockiert: true, geschuetzt: true },
+  radio: { ...MOEBEL, name: 'Radio', blockiert: false },
+  plattenspieler: { ...MOEBEL, name: 'Plattenspieler', blockiert: false },
 });
 
 /** Ebene eines Bauwerk-Typs. */
@@ -213,6 +233,19 @@ export function bauwerkAktion(b, inventar, name = null, flaggeDort = null) {
       return { art: 'tuerSchalten', text: b.offen ? 'Tor schließen' : 'Tor öffnen', symbol: '🚧' };
     case 'bett':
       return { art: 'spawn', text: 'Spawn Point setzen (Unterkunft)', symbol: '🛏' };
+    // Runde 24 (Cozy)
+    case 'kerze':
+    case 'oellampe':
+    case 'stehlampe':
+    case 'lichterkette':
+      return { art: 'licht', text: b.an === false ? 'Licht an' : 'Licht aus', symbol: '💡' };
+    case 'kamin':
+      return { art: 'kamin', text: b.brennt ? 'Kaminfeuer löschen' : hat('feuerzeug') ? 'Kamin anzünden' : 'Kamin (Feuerzeug nötig)', symbol: '🔥' };
+    case 'generator':
+      return { art: 'generator', text: b.laeuft ? 'Generator aus' : hat('benzin') || (b.brennRest ?? 0) > 0 ? 'Generator starten' : 'Generator (Benzin nötig)', symbol: '⚡' };
+    case 'radio':
+    case 'plattenspieler':
+      return { art: 'musik', text: b.musik ? 'Musik ändern / aus' : 'Musik auflegen', symbol: '🎵' };
     case 'beet': {
       if (!b.pflanze) {
         const samen = Object.entries(PFLANZEN).find(([, p]) => hat(p.samen));

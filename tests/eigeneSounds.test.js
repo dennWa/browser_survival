@@ -31,7 +31,7 @@ test('Phase 10.2: Gruppen, Schleifen, Einstellungen im Index', async () => {
   const { SOUND_GRUPPEN, LOOP_EREIGNISSE, pruefeSoundEinstellungen } = await import('../client/audio/eigeneSounds.js');
   for (const [name, [gruppe]] of Object.entries(EREIGNISSE)) assert.ok(SOUND_GRUPPEN.includes(gruppe), `${name}: ${gruppe}`);
   for (const n of ['wind', 'regen', 'nacht', 'motor', 'hase_flucht', 'hase_tod', 'ui_klick', 'inventar_auf', 'inventar_zu']) assert.ok(n in EREIGNISSE, n);
-  assert.deepEqual([...LOOP_EREIGNISSE].sort(), ['motor', 'nacht', 'nacht_wind', 'regen', 'regen_stark', 'schneesturm', 'sturm', 'tag', 'wind', 'wind_leicht', 'wind_stark']);
+  assert.deepEqual([...LOOP_EREIGNISSE].sort(), ['generator', 'kamin', 'motor', 'nacht', 'nacht_wind', 'regen', 'regen_dach', 'regen_stark', 'schneesturm', 'sturm', 'tag', 'wind', 'wind_leicht', 'wind_stark']);
   const w = [];
   assert.deepEqual(pruefeSoundEinstellungen({ pistole: { lautstaerke: 9, streuung: 0.1, verzoegerung: 9, maxDauer: 2, loop: 'ja' }, '../x': {}, wind: { loop: true } }, w), { pistole: { lautstaerke: 3, streuung: 0.1, verzoegerung: 5, maxDauer: 2 }, wind: { loop: true } });
   assert.deepEqual(pruefeSoundEinstellungen({ holz: { einmal: true }, tuer: { einmal: 'ja' } }, w), { holz: { einmal: true } }); // „nur einmal“ nur als echtes true

@@ -32,6 +32,19 @@ Tipp: kurze Dateien (< 3 s), Lautstärke der Aufnahme selbst eher normalisiert.
 | `regen_stark` | Starkregen bei Gewitter (Schleife, zusätzlich zum Regen) |
 | `wind_leicht` | Wind leicht – sanftes Rauschen draußen (Schleife, Stärke folgt Wind + Böen wie die Bäume) |
 | `wind_stark` | Wind stark – kräftige Böen (Schleife, kommt bei starkem Wind/Böen dazu) |
+| `regen_dach` | Drinnen: Regen prasselt aufs Dach (Schleife) |
+| `kamin` | Kaminfeuer knistert (Schleife, lauter je näher) |
+
+### Bauen, Handwerk & Arbeit
+
+| Dateiname (ohne Endung) | Wann? |
+|---|---|
+| `generator` | Generator tuckert (Schleife, lauter je näher) |
+
+### Atmosphäre & Wetter
+
+| Dateiname (ohne Endung) | Wann? |
+|---|---|
 | `sturm` | Sturm – starker, böiger Wind (Schleife; Wetter Sturm/Gewitter) |
 | `schneesturm` | Schneesturm – heulender, kalter Wind (Schleife) |
 | `tag` | Tag draußen – Vogelkulisse (Schleife, nur bei gutem Wetter, nicht in Schneezonen) |

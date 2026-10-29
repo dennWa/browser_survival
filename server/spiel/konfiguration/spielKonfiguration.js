@@ -33,6 +33,7 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     durstProMinute: 4, // 100 → 0 in 25 min
     hungerSchadenProSekunde: 0.5, // Schaden, wenn Hunger ODER Durst bei 0
     regenerationProSekunde: 0.25, // Heilung, wenn satt und getränkt
+    gemuetlichFaktor: 2, // Runde 24: Heilung ×2, wenn es gemütlich ist (Kamin/Möbel drinnen, gemeinsam/welt/einrichtung.js)
     regenerationAb: 70, // ab diesem Hunger- UND Durstwert
     respawnZeit: 6, // Sekunden bis zur Wiederbelebung
     todesZombieRadius: 480, // px: beim Tod verschwinden alle Zombies in diesem Umkreis (kommen später regulär wieder)
@@ -239,6 +240,8 @@ export const STANDARD_KONFIGURATION = Object.freeze({
   },
   /** Bauwerke (gemeinsam/welt/bauwerke.js): Lagerfeuer, Kochen, Beete */
   bauen: {
+    kaminDauer: 600, // Runde 24: Sekunden, die ein angezündeter Kamin brennt (Holz nachlegen +½)
+    generatorDauer: 900, // Runde 24: Sekunden Strom je Benzin
     brennDauer: 180, // Sekunden, die ein angezündetes Lagerfeuer brennt (3 Minuten); jedes Holz in der Hand (Linksklick) verlängert um so viel
     brennMax: 1800, // so lange kann ein Feuer höchstens am Stück brennen (durch Nachlegen)
     kochDauer: 20, // Sekunden, bis Fleisch/Fisch/Gemüse am Feuer fertig gebraten ist

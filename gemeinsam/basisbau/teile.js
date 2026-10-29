@@ -12,7 +12,7 @@
  *   block       = true: wird (bei konfiguration.basisbau.blockGroesse = 2) als Block 2×2 Kacheln gesetzt, Preis siehe kostenFuer()
  *   ausrichtung = true: Teil hat eine Richtung (Öffnung/Rahmen) → Taste R dreht, sonst automatisch (platzierung.js)
  */
-export const KATEGORIEN = Object.freeze(['Basis', 'Struktur', 'Einrichtung']);
+export const KATEGORIEN = Object.freeze(['Basis', 'Struktur', 'Einrichtung', 'Gemütlich']);
 
 export const BAUTEILE = Object.freeze({
   flagge: {
@@ -33,6 +33,25 @@ export const BAUTEILE = Object.freeze({
   zauntor: { art: 'bauwerk', name: 'Zauntor', symbol: '⛩', kategorie: 'Struktur', tier: 2, kosten: { eisenerz: 4, holz: 2 }, ausrichtung: true, beschreibung: 'Tor im Zaun – nur du darfst es öffnen (E).' },
   kiste: { art: 'bauwerk', name: 'Lagerkiste', symbol: '📦', kategorie: 'Einrichtung', tier: 1, kosten: { holz: 8 }, beschreibung: '16 Plätze. Nur du kommst dran (E).' },
   bett: { art: 'bauwerk', name: 'Bett', symbol: '🛏', kategorie: 'Einrichtung', tier: 1, kosten: { holz: 5, stein: 2, stoff: 2 }, ausrichtung: true, beschreibung: 'E: Spawn Point setzen – hier wachst du nach dem Tod wieder auf.' },
+  // Runde 24 (Cozy): Möbel & Deko (auch in Karten-Häusern), Licht, Wärme, Musik – Kategorie „Gemütlich“
+  sofa: { art: 'bauwerk', name: 'Sofa', symbol: '🛋', kategorie: 'Gemütlich', tier: 1, kosten: { holz: 6, stoff: 3 }, ausrichtung: true, beschreibung: 'Bequem. Drei Möbel im Raum machen ihn gemütlich (heilt schneller).' },
+  sessel: { art: 'bauwerk', name: 'Sessel', symbol: '💺', kategorie: 'Gemütlich', tier: 1, kosten: { holz: 4, stoff: 2 }, ausrichtung: true, beschreibung: 'Ohrensessel für lange Abende.' },
+  stuhl: { art: 'bauwerk', name: 'Stuhl', symbol: '🪑', kategorie: 'Gemütlich', tier: 1, kosten: { holz: 3 }, ausrichtung: true, beschreibung: 'Ein einfacher Holzstuhl.' },
+  tisch: { art: 'bauwerk', name: 'Couchtisch', symbol: '🟤', kategorie: 'Gemütlich', tier: 1, kosten: { holz: 4 }, beschreibung: 'Runder Tisch fürs Wohnzimmer.' },
+  esstisch: { art: 'bauwerk', name: 'Esstisch', symbol: '🍽', kategorie: 'Gemütlich', tier: 1, kosten: { holz: 6 }, beschreibung: 'Großer Tisch für die Küche.' },
+  regal: { art: 'bauwerk', name: 'Bücherregal', symbol: '📚', kategorie: 'Gemütlich', tier: 1, kosten: { holz: 6 }, ausrichtung: true, beschreibung: 'Voller Bücher – sieht nach Zuhause aus.' },
+  teppich: { art: 'bauwerk', name: 'Teppich', symbol: '🟥', kategorie: 'Gemütlich', tier: 1, kosten: { stoff: 4 }, ausrichtung: true, beschreibung: 'Wollteppich – darüber kann man laufen.' },
+  bild: { art: 'bauwerk', name: 'Gemälde', symbol: '🖼', kategorie: 'Gemütlich', tier: 1, kosten: { holz: 1, stoff: 1 }, ausrichtung: true, beschreibung: 'Ein Bild auf der Staffelei.' },
+  pflanze: { art: 'bauwerk', name: 'Zimmerpflanze', symbol: '🪴', kategorie: 'Gemütlich', tier: 1, kosten: { stein: 2, holz: 1 }, beschreibung: 'Ein bisschen Grün im Haus.' },
+  vorhang: { art: 'bauwerk', name: 'Vorhang', symbol: '🪟', kategorie: 'Gemütlich', tier: 1, kosten: { stoff: 3 }, ausrichtung: true, beschreibung: 'Vor ein Fenster stellen.' },
+  kerze: { art: 'bauwerk', name: 'Kerzen', symbol: '🕯', kategorie: 'Gemütlich', tier: 1, kosten: { stoff: 1 }, beschreibung: 'Warmes, kleines Licht. E: an/aus.' },
+  oellampe: { art: 'bauwerk', name: 'Öllampe', symbol: '🏮', kategorie: 'Gemütlich', tier: 2, kosten: { eisenbarren: 1, alkohol: 1 }, beschreibung: 'Helles, warmes Licht ohne Strom. E: an/aus.' },
+  kamin: { art: 'bauwerk', name: 'Kamin', symbol: '🔥', kategorie: 'Gemütlich', tier: 2, kosten: { stein: 12, eisenbarren: 1 }, ausrichtung: true, beschreibung: 'Wärmt, leuchtet und knistert – auch drinnen. E mit Feuerzeug anzünden, Holz in der Hand + Klick legt nach.' },
+  generator: { art: 'bauwerk', name: 'Generator', symbol: '⚡', kategorie: 'Gemütlich', tier: 3, kosten: { eisenbarren: 4, schrott: 4 }, beschreibung: `Strom für Stehlampen und Lichterketten im Umkreis. Läuft mit Benzin (E).` },
+  stehlampe: { art: 'bauwerk', name: 'Stehlampe', symbol: '💡', kategorie: 'Gemütlich', tier: 3, kosten: { eisenbarren: 1, schrott: 1 }, beschreibung: 'Helles Licht – braucht einen laufenden Generator.' },
+  lichterkette: { art: 'bauwerk', name: 'Lichterkette', symbol: '✨', kategorie: 'Gemütlich', tier: 3, kosten: { schrott: 2 }, ausrichtung: true, beschreibung: 'Gemütliches Funkeln – braucht einen laufenden Generator.' },
+  radio: { art: 'bauwerk', name: 'Radio', symbol: '📻', kategorie: 'Gemütlich', tier: 2, kosten: { schrott: 3 }, beschreibung: 'E: Musik aus dem Musik-Ordner oder einen YouTube-Link abspielen – alle in der Nähe hören mit.' },
+  plattenspieler: { art: 'bauwerk', name: 'Plattenspieler', symbol: '💿', kategorie: 'Gemütlich', tier: 2, kosten: { holz: 3, schrott: 2 }, beschreibung: 'E: Platte auflegen (Musik-Ordner oder YouTube-Link).' },
 });
 
 /** Blöcke (Boden, Wand, Dach) kosten als 2×2-Block nur die Hälfte der vier Einzelteile – und geben beim Abriss pro Kachel entsprechend weniger zurück. */

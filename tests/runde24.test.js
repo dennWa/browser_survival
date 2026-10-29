@@ -407,3 +407,69 @@ test('P6 Rüstung schluckt Schaden, Regenmantel hilft gegen Regen-Kälte', () =>
   const mit = kaelteRate(welt, 0.8);
   assert.ok(mit < ohne);
 });
+
+// ---------------------------------------------------------------- Phase 7+8: Cozy & Musik
+import { BAUTEILE } from '../gemeinsam/basisbau/teile.js';
+import { BAUWERKE, bauwerkAktion } from '../gemeinsam/welt/bauwerke.js';
+import { hatStrom, istGemuetlich, leuchtet } from '../gemeinsam/welt/einrichtung.js';
+import { pruefeMusikWahl } from '../server/spiel/systeme/musikSystem.js';
+import { youtubeId } from '../client/audio/hausMusik.js';
+
+test('P7 Möbel/Lichter: Registry vollständig, Kamin wärmt + brennt herunter, Strom nur mit Generator', () => {
+  for (const [id, t] of Object.entries(BAUTEILE)) if (t.art === 'bauwerk') assert.ok(BAUWERKE[id], `BAUWERKE.${id}`);
+  const { welt, spieler } = neueWelt();
+  const setze = (typ, tx, ty, extra = {}) => {
+    const b = { ...neuesBauwerk(welt, typ, tx, ty, 'Tester'), ...extra };
+    welt.welt.setzeBauwerk(b);
+    return b;
+  };
+  // Kamin: E mit Feuerzeug zündet
+  spieler.x = mitte(6);
+  spieler.y = mitte(4);
+  spieler.inventar[0] = { defId: 'feuerzeug', menge: 1 };
+  const kamin = setze('kamin', 7, 4);
+  assert.equal(bauwerkAktion(kamin, spieler.inventar, 'Tester').art, 'kamin');
+  aktion(welt, spieler, { art: AKTIONEN.BAUWERK });
+  assert.equal(kamin.brennt, true);
+  assert.ok(leuchtet(welt.welt, kamin));
+  kamin.brennRest = 0.05;
+  ticks(welt, 3);
+  assert.equal(kamin.brennt, false, 'heruntergebrannt');
+  // Stehlampe braucht Strom
+  const lampe = setze('stehlampe', 20, 4);
+  assert.equal(leuchtet(welt.welt, lampe), false);
+  const gen = setze('generator', 22, 4);
+  spieler.x = mitte(23);
+  spieler.inventar[1] = { defId: 'benzin', menge: 1 };
+  aktion(welt, spieler, { art: AKTIONEN.BAUWERK });
+  assert.equal(gen.laeuft, true, 'Generator läuft');
+  assert.equal(spieler.inventar[1], null, 'Benzin verbraucht');
+  assert.ok(hatStrom(welt.welt, 20, 4) && leuchtet(welt.welt, lampe));
+});
+
+test('P7 Gemütlich: drinnen + 3 Möbel oder brennender Kamin', () => {
+  const { welt } = neueWelt();
+  const w = welt.welt;
+  for (const [typ, tx] of [['sofa', 3], ['regal', 4], ['pflanze', 5]]) w.setzeBauwerk(neuesBauwerk(welt, typ, tx, 3, 'X'));
+  assert.equal(istGemuetlich(w, mitte(4), mitte(4), true), true);
+  assert.equal(istGemuetlich(w, mitte(4), mitte(4), false), false, 'nicht draußen');
+  assert.equal(istGemuetlich(w, mitte(20), mitte(4), true), false, 'zu weit weg');
+});
+
+test('P8 Musik: Wahl prüfen, YouTube-Links erkennen', () => {
+  assert.deepEqual(pruefeMusikWahl('youtube', 'dQw4w9WgXcQ'), { quelle: 'youtube', wert: 'dQw4w9WgXcQ' });
+  assert.equal(pruefeMusikWahl('youtube', 'javascript:alert(1)'), null);
+  assert.ok(pruefeMusikWahl('ordner', 'radio/Kevin MacLeod - Carefree.ogg'));
+  assert.equal(pruefeMusikWahl('ordner', '../server/daten/konten.json'), null);
+  assert.equal(youtubeId('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=10'), 'dQw4w9WgXcQ');
+  assert.equal(youtubeId('https://youtu.be/dQw4w9WgXcQ'), 'dQw4w9WgXcQ');
+  assert.equal(youtubeId('https://youtube.com/shorts/dQw4w9WgXcQ'), 'dQw4w9WgXcQ');
+  assert.equal(youtubeId('hallo'), null);
+  const { welt, spieler } = neueWelt();
+  const radio = neuesBauwerk(welt, 'radio', Math.floor(spieler.x / 32) + 1, Math.floor(spieler.y / 32), 'X');
+  welt.welt.setzeBauwerk(radio);
+  aktion(welt, spieler, { art: AKTIONEN.MUSIK, ziel: radio.id, quelle: 'ordner', wert: 'radio/Kevin MacLeod - Carefree.ogg' });
+  assert.equal(radio.musik?.wert, 'radio/Kevin MacLeod - Carefree.ogg');
+  aktion(welt, spieler, { art: AKTIONEN.MUSIK, ziel: radio.id, quelle: 'aus', wert: null });
+  assert.equal(radio.musik, undefined);
+});

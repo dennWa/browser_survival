@@ -105,6 +105,12 @@
     ],
     "lautstaerke": 1
   },
+  "generator": {
+    "dateien": [
+      "generator.ogg"
+    ],
+    "lautstaerke": 0.6
+  },
   "gewehr": {
     "dateien": [
       "gewehr_0.ogg",
@@ -195,6 +201,12 @@
     ],
     "lautstaerke": 0.6
   },
+  "kamin": {
+    "dateien": [
+      "kamin.ogg"
+    ],
+    "lautstaerke": 0.9
+  },
   "keuchen": {
     "dateien": [
       "keuchen_0.ogg",
@@ -243,6 +255,12 @@
   "pistole": {
     "dateien": [
       "pistole.ogg"
+    ],
+    "lautstaerke": 1
+  },
+  "regen_dach": {
+    "dateien": [
+      "regen_dach.ogg"
     ],
     "lautstaerke": 1
   },

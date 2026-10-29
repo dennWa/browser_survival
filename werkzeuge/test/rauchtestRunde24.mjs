@@ -197,6 +197,43 @@ try {
     await seite.keyboard.press('Tab');
   }
 
+  // ---------------------------------------------------------------- Phase 7+8 (Cozy, Musik)
+  if (phaseAn(7) || phaseAn(8)) {
+    await seite.evaluate(async () => {
+      const { neuesBauwerk } = await import('/server/spiel/systeme/bauSystem.js');
+      const srv = browserSurvival.server;
+      for (const z of srv.zonen.values()) {
+        if (z.spielWelt.karte.daten.id !== browserSurvival.spiel.welt.id) continue;
+        const w = z.spielWelt;
+        const ich = w.holen(browserSurvival.spiel.eigeneId);
+        const tx = Math.floor(ich.x / 32);
+        const ty = Math.floor(ich.y / 32);
+        const frei = (x, y) => !w.welt.istBlockiert(x, y) && !w.welt.bauwerkeAn(x, y).length;
+        const typen = ['sofa', 'teppich', 'kamin', 'regal', 'pflanze', 'stehlampe', 'kerze', 'radio', 'tisch', 'sessel', 'lichterkette', 'generator', 'bild', 'oellampe'];
+        let i = 0;
+        for (let r = 1; r < 6 && i < typen.length; r++)
+          for (let dy = -r; dy <= r && i < typen.length; dy++)
+            for (let dx = -r; dx <= r && i < typen.length; dx++) {
+              if (Math.max(Math.abs(dx), Math.abs(dy)) !== r || !frei(tx + dx, ty + dy)) continue;
+              const b = neuesBauwerk(w, typen[i++], tx + dx, ty + dy, ich.name);
+              if (b.typ === 'kamin') Object.assign(b, { brennt: true, brennRest: 600 });
+              if (b.typ === 'generator') Object.assign(b, { laeuft: true, brennRest: 600 });
+              if (b.typ === 'radio') b.musik = { quelle: 'ordner', wert: 'radio/Kevin MacLeod - Carefree.ogg', startTick: w.tick };
+              w.welt.setzeBauwerk(b);
+            }
+        const { tagSekunden } = w.tageszeitDauer();
+        w.zeit = tagSekunden + 40;
+      }
+    });
+    await seite.waitForTimeout(6000);
+    await bild('7_wohnzimmer_nacht');
+    pruefe(await amServer(`return ich.gemuetlich === true || !welt.welt.istInnen(ich.x, ich.y);`), 'gemütlich (wenn drinnen)');
+    pruefe(await seite.evaluate(() => browserSurvival.spiel.renderer.feuerLampen.length >= 4), 'Kamin/Kerzen/Lampen leuchten');
+    await amServer(`const { tagSekunden } = welt.tageszeitDauer(); welt.zeit = 30;`);
+    await seite.waitForTimeout(3000);
+    await bild('7_wohnzimmer_tag');
+  }
+
   const info = await seite.evaluate(() => browserSurvival.spiel?.renderer.statistik() ?? '');
   if (info) console.log(`  Grafik: ${info}`);
 } catch (e) {
