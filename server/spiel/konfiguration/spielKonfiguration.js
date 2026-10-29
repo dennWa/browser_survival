@@ -236,6 +236,7 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     spawnChance: 0.7,
     /** Sekunden, bis an einem geplünderten Loot-Punkt neu gewürfelt wird */
     respawnZeit: 300,
+    behaelterNachfuellen: 1800, // Runde 25: Sekunden, bis ein leer geräumter Schrank/eine Kiste der Karte neu gefüllt ist
     /** Sekunden, die das Inventar eines Toten am Boden liegt, bevor es verschwindet */
     todesVerfall: 180,
   },

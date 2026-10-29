@@ -2,6 +2,7 @@ import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
 import { BAUWERKE, ebeneVon } from '../../gemeinsam/welt/bauwerke.js';
 import { RESSOURCEN_OBJEKTE } from '../../gemeinsam/welt/ressourcen.js';
 import { FAHRZEUG_MODELLE } from '../../gemeinsam/physik/fahrzeug.js';
+import { BEHAELTER, BEHAELTER_TYPEN } from '../../gemeinsam/welt/behaelter.js';
 import { KACHEL_FARBEN } from '../../client/darstellung/farben.js';
 
 /**
@@ -120,6 +121,8 @@ export const OBJEKT_TYPEN = Object.freeze({
   kueche_spuele: { name: 'Spüle', kategorie: 'Möbel', b: 1, h: 1, ...M, symbol: '🚰', farbe: '#aab' },
   kueche_kochfeld: { name: 'Kochfeld', kategorie: 'Möbel', b: 1, h: 1, ...M, symbol: '♨', farbe: '#444' },
   fass: { name: 'Fass', kategorie: 'Möbel', b: 0.9, h: 0.9, ...M, symbol: '🛢', farbe: '#7a4a2a' },
+  // Runde 25: durchsuchbare Behälter mit Modell (gemeinsam/welt/behaelter.js; der Kartenlader ergänzt ihr glb unter `typen`)
+  ...Object.fromEntries(Object.entries(BEHAELTER_TYPEN).map(([id, t]) => [id, { name: `${BEHAELTER[id].name} (durchsuchbar)`, kategorie: 'Möbel', b: t.b, h: t.h, ...M, symbol: BEHAELTER[id].symbol, farbe: '#8a6a4a' }])),
   // Wege / Böden (Deko)
   pylone: { name: 'Pylone', kategorie: 'Wege', b: 0.8, h: 0.8, symbol: '🔺', farbe: '#ff7a1a' },
   markierung: { name: 'Fahrbahnmarkierung', kategorie: 'Wege', b: 0.12, h: 3.4, ebene: 'boden', symbol: '┃', farbe: '#eeeedc' },

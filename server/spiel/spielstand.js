@@ -12,6 +12,7 @@ import { entpackeErkundet, packeErkundet } from '../../gemeinsam/welt/erkundung.
  * Gespeichert/geladen über eine Speicher-Schnittstelle (siehe speicher/arbeitsspeicherSpeicher.js).
  *
  * Beim Laden wird ALLES geprüft – ein Spielstand kann alt, kaputt oder manipuliert sein.
+ * Runde 25: auch Gesundheit (zustand, muedigkeit, buffs) und Niedergestreckt – kein Logout-Trick gegen Verletzungen.
  */
 export const SPIELSTAND_VERSION = 1;
 /** Höchstens so viele Karten-Erkundungen pro Spielstand (Schutz gegen aufgeblähte/manipulierte Stände). */
@@ -38,6 +39,11 @@ export function erstelleSpielstand(spieler, kartenId) {
     rucksack: spieler.rucksack,
     kleidung: { ...spieler.kleidung },
     kaelte: spieler.kaelte ?? 0,
+    // Gesundheit: Verletzungen/Krankheiten, Müdigkeit, Buffs und Niedergestreckt überleben Logout & Zonenwechsel
+    zustand: spieler.zustand ? { ...spieler.zustand } : null,
+    muedigkeit: spieler.muedigkeit ?? 0,
+    buffs: { ...spieler.buffs },
+    niedergestreckt: spieler.niedergestreckt > 0 ? spieler.niedergestreckt : 0,
     haustiere: (spieler.haustiere ?? []).map((h) => ({ ...h })), // Runde 24
     ausgeruestet: spieler.ausgeruestet,
     level: spieler.level,
@@ -100,6 +106,7 @@ export function wendeSpielstandAn(spieler, stand, spielWelt) {
   }
   passeInventarAn(null, spieler);
   spieler.kaelte = begrenze(zahl(stand.kaelte) ?? 0, 0, 100);
+  ladeGesundheit(spieler, stand, spielWelt.konfiguration);
   // Runde 24: Haustiere (Hund/Katze, je Art höchstens 3, Name ≤ 20 Zeichen)
   spieler.haustiere = Array.isArray(stand.haustiere)
     ? stand.haustiere.filter((h) => (h?.art === 'hund' || h?.art === 'katze') && typeof h.name === 'string' && h.name.length <= 20).slice(0, 6).map((h) => ({ art: h.art, name: h.name }))
@@ -119,6 +126,31 @@ export function wendeSpielstandAn(spieler, stand, spielWelt) {
   spieler.ausgeruestet = kategorie === 'nahkampf' || kategorie === 'fernkampf' || (waffe && GEGENSTAENDE[waffe.defId].inHand) ? slot : null;
   aktualisiereAusruestung(spieler);
   return true;
+}
+
+/** Gesundheit (Verletzungen, Müdigkeit, Buffs, Niedergestreckt) – Werte begrenzt, Unbekanntes verworfen. */
+function ladeGesundheit(spieler, stand, konfiguration) {
+  const z = stand.zustand;
+  if (z && typeof z === 'object') {
+    const bruch = [0, 1, 2].includes(z.bruch) ? z.bruch : 0;
+    spieler.zustand = {
+      blutung: z.blutung === true,
+      infektion: begrenze(zahl(z.infektion) ?? 0, 0, 100),
+      bruch,
+      schieneRest: bruch === 2 ? begrenze(zahl(z.schieneRest) ?? 0, 0, 1e6) : 0,
+      vergiftung: begrenze(zahl(z.vergiftung) ?? 0, 0, 1e6),
+    };
+  }
+  spieler.muedigkeit = begrenze(zahl(stand.muedigkeit) ?? 0, 0, 100);
+  spieler.buffs = {};
+  for (const name of ['satt', 'warm', 'kraft']) {
+    const rest = zahl(stand.buffs?.[name]);
+    if (rest > 0) spieler.buffs[name] = Math.min(rest, 1e5);
+  }
+  // Niedergestreckt bleibt man auch nach dem Ausloggen (kein Logout-Trick) – mit der Restzeit von damals
+  const nieder = zahl(stand.niedergestreckt);
+  const max = konfiguration.mehrspieler?.niederDauer ?? 0;
+  if (nieder > 0 && max > 0) Object.assign(spieler, { niedergestreckt: Math.min(nieder, max), leben: 1 });
 }
 
 /** Basisbau: Respawn-Bett und Zone der Basis-Flagge (nur wohlgeformte Werte). */

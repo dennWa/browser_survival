@@ -9,6 +9,8 @@ import * as THREE from 'three';
  * Donner im clientSpiel), Sturm = starker Wind (Bäume, schräger Niederschlag), Schneesturm = dichter, waagerecht treibender Schnee.
  * Runde 24: `grundWind` (0..1, Server ZUSTAND.wind) + Böen-Kurve `boe` → `windStufe` (0..3). Dieselbe Stufe steuert
  * Bäume/Gras (BAUM_WIND), Blätter und den Windton (clientSpiel #atmosphaereSchichten) – man hört die Böe, wenn sich die Bäume biegen.
+ * Runde 25: Innen-Maske (`setzeInnenMaske(welt)`, DataTexture 1 Texel/Kachel) – kein Regen/Schnee über Innenräumen und Dächern;
+ * steht der Spieler drinnen (`aktualisiere(…, drinnen)`), blendet der Niederschlag ganz aus (Ton/Licht bleiben).
  */
 const TROPFEN = 1200; // bei normalem Regen nur ~55 % sichtbar (uAnteil), bei Gewitter alle
 const RADIUS = 760; // px um den Fokus, in denen es regnet (Kamera sieht ~±900 px)
@@ -18,6 +20,18 @@ const BLENDE_PRO_SEKUNDE = 0.35;
 const FLOCKEN = 1700; // normaler Schneefall ~50 %, Schneesturm alle
 const FLOCKEN_HOEHE = 480;
 
+// Runde 25: Innen-Maske (1 Texel je Kachel, rot 1 = drinnen) – über Innenräumen/Dächern fällt kein Regen/Schnee,
+// sonst regnet es im Haus vor der Kamera. Draußen sieht man ihn weiter durch Türen und Fenster.
+const MASKE = `
+  uniform sampler2D uMaske;
+  uniform vec2 uKartenPx; // Kartengröße in px (0 = keine Maske)
+  float drinnen(vec2 xz) {
+    if (uKartenPx.x <= 0.0) return 0.0;
+    vec2 uv = xz / uKartenPx;
+    if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) return 0.0;
+    return step(0.5, texture2D(uMaske, uv).r);
+  }`;
+
 // Der Regen fällt komplett auf der Grafikkarte (Position aus Zeit + Zufallswerten): kein Puffer-Upload, keine Schleife pro Frame.
 const VERTEX = `
   attribute vec4 tropfen; // x, z (Versatz), y0 (Starthöhe), v (Fallgeschwindigkeit)
@@ -26,12 +40,14 @@ const VERTEX = `
   uniform float uZeit;
   uniform float uAnteil;
   uniform float uWind; // seitliche Neigung (Sturm/Gewitter)
+  ${MASKE}
   void main() {
     float y = mod(tropfen.z - uZeit * tropfen.w, ${HOEHE.toFixed(1)});
     float schraeg = (${HOEHE.toFixed(1)} - y) * uWind * 0.45;
-    vec3 p = vec3(uFokus.x + tropfen.x + schraeg, y, uFokus.z + tropfen.y) + ende * vec3(-2.0 - uWind * ${(LAENGE * 0.45).toFixed(1)}, ${LAENGE.toFixed(1)}, -1.0);
-    // Anteil: Bei leichtem Regen werden Tropfen mit hoher Kennung weggeklappt
-    if (fract(tropfen.z * 0.01731 + tropfen.x * 0.00317) > uAnteil) p.y = -1000.0;
+    vec3 fuss = vec3(uFokus.x + tropfen.x + schraeg, y, uFokus.z + tropfen.y);
+    vec3 p = fuss + ende * vec3(-2.0 - uWind * ${(LAENGE * 0.45).toFixed(1)}, ${LAENGE.toFixed(1)}, -1.0);
+    // Anteil: Bei leichtem Regen werden Tropfen mit hoher Kennung weggeklappt; über Innenräumen gar keine
+    if (fract(tropfen.z * 0.01731 + tropfen.x * 0.00317) > uAnteil || drinnen(fuss.xz) > 0.5) p.y = -1000.0;
     gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
   }`;
 const FRAGMENT = `
@@ -48,6 +64,7 @@ const SCHNEE_VERTEX = `
   uniform float uSkala;
   uniform float uWind; // Schneesturm: Flocken treiben fast waagerecht
   varying float vAlpha;
+  ${MASKE}
   void main() {
     float y = mod(flocke.z - uZeit * flocke.w * (1.0 + uWind * 0.8), ${FLOCKEN_HOEHE.toFixed(1)});
     float phase = flocke.x * 0.037 + flocke.y * 0.021;
@@ -57,7 +74,7 @@ const SCHNEE_VERTEX = `
     float drift = mod((${FLOCKEN_HOEHE.toFixed(1)} - y) * uWind * 2.2 + ${RADIUS.toFixed(1)}, ${(RADIUS * 2).toFixed(1)}) - ${RADIUS.toFixed(1)};
     vec3 p = vec3(bx + sin(uZeit * 0.8 + phase) * 22.0 + drift * step(0.01, uWind), y, bz + cos(uZeit * 0.6 + phase * 1.7) * 16.0);
     // Anteil: bei leichtem Schneefall bleiben Flocken mit hoher Kennung weg
-    vAlpha = fract(flocke.z * 0.01731 + flocke.x * 0.00317) > uAnteil ? 0.0 : 1.0;
+    vAlpha = fract(flocke.z * 0.01731 + flocke.x * 0.00317) > uAnteil || drinnen(p.xz) > 0.5 ? 0.0 : 1.0;
     vec4 mv = viewMatrix * vec4(p, 1.0);
     gl_Position = projectionMatrix * mv;
     gl_PointSize = groesse * uSkala * clamp(780.0 / max(-mv.z, 1.0), 0.5, 1.4);
@@ -90,6 +107,10 @@ export class WetterEffekt {
     this.blitzFolge = []; // Zeitpunkte (s) der Nachblitze
     /** Haken: (staerke 0..1, nah true/false) bei jedem Blitz – clientSpiel spielt den Donner (verzögert) */
     this.beiBlitz = null;
+    // Innen-Maske (setzeInnenMaske): von Regen- und Schnee-Shader geteilt
+    this.maske = { uMaske: { value: null }, uKartenPx: { value: new THREE.Vector2(0, 0) } };
+    this.maskeVersion = null;
+    this.aussen = 1; // 1 = Spieler draußen, 0 = drinnen (weich überblendet)
     const tropfen = new Float32Array(TROPFEN * 2 * 4);
     const ende = new Float32Array(TROPFEN * 2);
     const position = new Float32Array(TROPFEN * 2 * 3); // wird nie genutzt, three.js braucht das Attribut für die Zählung
@@ -106,7 +127,7 @@ export class WetterEffekt {
     this.material = new THREE.ShaderMaterial({
       vertexShader: VERTEX,
       fragmentShader: FRAGMENT,
-      uniforms: { uFokus: { value: new THREE.Vector3() }, uZeit: { value: 0 }, uAnteil: { value: 1 }, uDeckkraft: { value: 0 }, uWind: { value: 0 } },
+      uniforms: { uFokus: { value: new THREE.Vector3() }, uZeit: { value: 0 }, uAnteil: { value: 1 }, uDeckkraft: { value: 0 }, uWind: { value: 0 }, ...this.maske },
       transparent: true,
       depthWrite: false,
     });
@@ -129,7 +150,7 @@ export class WetterEffekt {
     this.schneeMaterial = new THREE.ShaderMaterial({
       vertexShader: SCHNEE_VERTEX,
       fragmentShader: SCHNEE_FRAGMENT,
-      uniforms: { uFokus: { value: new THREE.Vector3() }, uZeit: { value: 0 }, uAnteil: { value: 1 }, uSkala: { value: Math.min(2, globalThis.devicePixelRatio || 1) }, uDeckkraft: { value: 0 }, uWind: { value: 0 } },
+      uniforms: { uFokus: { value: new THREE.Vector3() }, uZeit: { value: 0 }, uAnteil: { value: 1 }, uSkala: { value: Math.min(2, globalThis.devicePixelRatio || 1) }, uDeckkraft: { value: 0 }, uWind: { value: 0 }, ...this.maske },
       transparent: true,
       depthWrite: false,
     });
@@ -138,6 +159,28 @@ export class WetterEffekt {
     this.schneeFlocken.visible = false;
     this.schneeFlocken.renderOrder = 5;
     szene.add(this.schneeFlocken);
+  }
+
+  /**
+   * Innen-Maske aus der Welt (Innenböden + selbstgebaute Dächer). Nur neu, wenn sich die Bauwerke geändert haben und es
+   * gerade überhaupt regnet/schneit (welt.bauwerkeVersion). Ein Texel je Kachel → winzig, auch bei großen Karten.
+   */
+  setzeInnenMaske(welt) {
+    if (!welt || (this.regen <= 0.01 && this.schnee <= 0.01)) return;
+    const version = `${welt.breite}x${welt.hoehe}:${welt.bauwerkeVersion ?? 0}`;
+    if (this.maskeVersion === version && this.maskeWelt === welt) return;
+    this.maskeVersion = version;
+    this.maskeWelt = welt;
+    const { breite, hoehe, kachelGroesse: g } = welt;
+    const daten = new Uint8Array(breite * hoehe);
+    for (let ty = 0; ty < hoehe; ty++) for (let tx = 0; tx < breite; tx++) if (welt.istInnen((tx + 0.5) * g, (ty + 0.5) * g)) daten[ty * breite + tx] = 255;
+    this.maske.uMaske.value?.dispose();
+    const textur = new THREE.DataTexture(daten, breite, hoehe, THREE.RedFormat, THREE.UnsignedByteType);
+    textur.magFilter = textur.minFilter = THREE.NearestFilter;
+    textur.unpackAlignment = 1; // Kartenbreite muss kein Vielfaches von 4 sein
+    textur.needsUpdate = true;
+    this.maske.uMaske.value = textur;
+    this.maske.uKartenPx.value.set(breite * g, hoehe * g);
   }
 
   setzeArt(art) {
@@ -149,7 +192,8 @@ export class WetterEffekt {
     return Math.max(this.regen, this.nebel, this.schnee * 0.6, this.sturm * 0.35);
   }
 
-  aktualisiere(dt, fokusX, fokusY) {
+  /** @param drinnen  Spieler steht im Haus → Regen/Schnee blenden ganz aus (sonst fallen Tropfen von draußen optisch ins Zimmer) */
+  aktualisiere(dt, fokusX, fokusY, drinnen = false) {
     const a = this.art;
     const zielRegen = a === 'regen' || a === 'gewitter' ? 1 : 0;
     const zielSchnee = a === 'schnee' || a === 'schneesturm' ? 1 : 0;
@@ -176,7 +220,8 @@ export class WetterEffekt {
     this.windStufe += (zielWind - this.windStufe) * Math.min(1, dt * 0.9);
     const windSchraeg = this.sturm * (0.55 + 0.45 * boeSchnell);
     this.#blitze(dt);
-    const schneit = this.schnee > 0.01;
+    this.aussen += ((drinnen ? 0 : 1) - this.aussen) * Math.min(1, dt * 4);
+    const schneit = this.schnee > 0.01 && this.aussen > 0.01;
     this.schneeFlocken.visible = schneit;
     if (schneit) {
       this.schneeZeit += dt;
@@ -184,10 +229,10 @@ export class WetterEffekt {
       s.uZeit.value = this.schneeZeit;
       s.uFokus.value.set(fokusX, 0, fokusY);
       s.uAnteil.value = Math.min(1, this.schnee * (0.5 + 0.5 * this.sturm) + 0.05);
-      s.uDeckkraft.value = 0.85 * this.schnee;
+      s.uDeckkraft.value = 0.85 * this.schnee * this.aussen;
       s.uWind.value = windSchraeg;
     }
-    const sichtbar = this.regen > 0.01;
+    const sichtbar = this.regen > 0.01 && this.aussen > 0.01;
     this.linien.visible = sichtbar;
     if (!sichtbar) return;
     this.zeit += dt;
@@ -195,7 +240,7 @@ export class WetterEffekt {
     u.uZeit.value = this.zeit;
     u.uFokus.value.set(fokusX, 0, fokusY);
     u.uAnteil.value = Math.min(1, this.regen * (0.55 + 0.45 * this.gewitter) + 0.05);
-    u.uDeckkraft.value = (0.5 + 0.12 * this.gewitter) * this.regen;
+    u.uDeckkraft.value = (0.5 + 0.12 * this.gewitter) * this.regen * this.aussen;
     u.uWind.value = windSchraeg;
   }
 

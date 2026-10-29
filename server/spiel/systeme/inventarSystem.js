@@ -15,7 +15,7 @@ import { stelleHer } from './craftingSystem.js';
 import { benutzeBauwerk, feuer, platziere } from './bauSystem.js';
 import { setzeSkillpunkt } from './levelSystem.js';
 import { fahrzeugAktion } from './fahrzeugSystem.js';
-import { legeInKiste, nimmAusKiste, oeffneKofferraum, schliesseKiste } from './kistenSystem.js';
+import { legeInKiste, nimmAusKiste, oeffneBehaelter, oeffneKofferraum, schliesseKiste } from './kistenSystem.js';
 import { entferneFeld, legeFeldAn } from './bauSystem.js';
 import { legeInStation, nimmAusStation, schliesseStation, setzeAmFeuer, setzeHin } from './stationSystem.js';
 import { baue, reisseAb } from './basisbauSystem.js';
@@ -174,6 +174,9 @@ export function verarbeiteAktionen(spielWelt) {
           break;
         case AKTIONEN.KISTE_NEHMEN:
           nimmAusKiste(spielWelt, spieler, aktion.slot);
+          break;
+        case AKTIONEN.BEHAELTER:
+          oeffneBehaelter(spielWelt, spieler, aktion.ziel);
           break;
         case AKTIONEN.KOFFERRAUM:
           oeffneKofferraum(spielWelt, spieler);

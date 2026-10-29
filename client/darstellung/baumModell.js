@@ -1,119 +1,122 @@
 import * as THREE from 'three';
 import { vereineGeometrien, matrixAus } from './geometrie.js';
-import { BAUM_DATEN } from '../assets/3d/baumDaten.js';
 import { ladeEigenesModell } from './eigeneModelle.js';
 
 /**
- * Prozedurale Cartoon-Bäume und -Büsche (kein Bild-Asset nötig): Stamm mit Wurzelansatz und Ästen,
- * Krone aus mehreren runden "Wolken" in zwei Grüntönen, dazu ein schwarzer Umriss (Inverted Hull).
- * Gezeichnet mit Toon-Material → harte Licht-Stufen wie im Comic.
+ * Bäume und Büsche für die Karte.
  *
- * Bäume ('baum', 'baum_herbst') nutzen das Nutzer-Modell tree.glb (statische Ruhepose, siehe werkzeuge/assets/baue_baum.py);
- * Attribut `kronenMaske` (1 = Laub) erlaubt pro Instanz eine Laubfarb-Variation (BAUM_LAUB_TOENE). Büsche bleiben prozedural.
- * Maße in Weltpixeln für einen Baum mit 112 px Grundfläche (3,5 Kacheln); kartenModell skaliert passend.
- * Die Krone sitzt komplett ÜBER dem Stamm (Stamm endet in der Krone) – nichts ragt oben heraus.
+ * Runde 25 – Bäume ('baum', 'baum_herbst') sind echte Low-Poly-Modelle aus dem Quaternius „Stylized Nature MegaKit“ (CC0),
+ * aufbereitet von werkzeuge/assets/baue_baeume.py → client/assets/3d/baeume/<variante>.glb (Rinde mit Vertexfarben,
+ * Laub als 256-px-Alpha-Cutout). Je Karte eine eigene Mischung (`baumVarianten(typ, kartenId)`): Stadtrand = Laubbäume,
+ * Waldweg = Laubbäume + Kiefern (+ vereinzelt tote Bäume im Herbstwald). Herbst = dieselben Laubbäume, Laub per Instanzfarbe
+ * getönt (BAUM_LAUB_TOENE). Wind: Shader-Schwanken (`baumWindMaterial`, BAUM_WIND), stärker nach oben, Laub flattert zusätzlich.
+ * `ladeBaumVariante(name)` liefert { rinde, laub, laubTextur } in Weltpixeln (Stammfuß = Ursprung, Grundfläche BAUM_GRUNDFLAECHE).
+ * Die alten Rig-Bäume (baumDaten.js / baue_baum.py) sind entfernt.
  *
+ * Büsche bleiben prozedural (Cartoon-Wolken + schwarzer Umriss, Toon-Material).
  * Tanne ('tanne', Schneezonen): Modell client/assets/eigene/tanne_schnee.glb (Pine Tree with Snow, Chris Lee, CC-BY – siehe credits.json);
  * `baueBaum('tanne')` liefert sofort eine prozedurale Ersatz-Tanne, `ladeTanneAusGlb()` die Geometrie aus der Datei
  * (Materialfarben → Vertexfarben, auf `TANNE_BREITE` × `TANNE_HOEHE` eingepasst) – kartenModell tauscht sie nach dem Laden ein.
- * Eine neue Textur/ein neues Modell: einfach die .glb ersetzen (Farben stammen aus den Materialien der Datei).
  */
 export const BAUM_GRUNDFLAECHE = 112;
 export const BUSCH_GRUNDFLAECHE = 48;
 export const TANNE_BREITE = 100; // Grundfläche der Tanne in Weltpixeln (Instanz-Skalierung: Objektbreite / TANNE_BREITE)
 export const TANNE_HOEHE = 190;
 export const TANNE_GLB = new URL('../assets/eigene/tanne_schnee.glb', import.meta.url).href;
-const UMRISS = 1.6;
-const BAUM_MASSSTAB = 0.5; // tree.glb ist ~254 hoch → ~127 (wie der alte Cartoon-Baum) // Dicke des schwarzen Umrisses
+const UMRISS = 1.6; // Dicke des schwarzen Umrisses (Busch, Tanne)
+/** Weltpixel je Modell-Meter für die Baum-Modelle (Kachel = 32 px = 1 m; Bäume bewusst etwas kleiner, damit die Kamera nicht im Laub hängt) */
+const BAUM_PX_JE_METER = 19;
+
+/** Baum-Mischung je Karte (Gewichte = Häufigkeit). Unbekannte Karten (Editor, Tutorial) → `standard`. */
+const BAUM_MISCHUNG = {
+  standard: { baum: { laubbaum_a: 3, laubbaum_b: 2, laubbaum_c: 2, laubbaum_d: 3 }, baum_herbst: { laubbaum_a: 3, laubbaum_b: 2, laubbaum_c: 2, laubbaum_d: 3 } },
+  waldweg: {
+    baum: { laubbaum_a: 2, laubbaum_d: 2, laubbaum_c: 1, kiefer_a: 2, kiefer_b: 2, kiefer_c: 2 },
+    baum_herbst: { laubbaum_a: 3, laubbaum_b: 2, laubbaum_d: 3, totbaum_a: 1 },
+  },
+};
+
+/** Je Variante: Größenfaktor und eigene Laub-Töne (statt BAUM_LAUB_TOENE des Typs; null = ungetönt). */
+export const BAUM_VARIANTE_INFO = {
+  kiefer_a: { toene: [[1.25, 1.45, 1.3], [1.1, 1.35, 1.35], [1.35, 1.5, 1.15]] },
+  kiefer_b: { toene: [[1.25, 1.45, 1.3], [1.1, 1.35, 1.35], [1.35, 1.5, 1.15]], massstab: 0.9 },
+  kiefer_c: { toene: [[1.25, 1.45, 1.3], [1.1, 1.35, 1.35], [1.35, 1.5, 1.15]] },
+  totbaum_a: { toene: null, massstab: 0.62 },
+};
+
+/** Liste [[variante, gewicht], …] für einen Baumtyp auf einer Karte – null, wenn der Typ kein Modellbaum ist (Busch, Tanne). */
+export function baumVarianten(typ, kartenId) {
+  const mischung = BAUM_MISCHUNG[kartenId]?.[typ] ?? BAUM_MISCHUNG.standard[typ];
+  return mischung ? Object.entries(mischung) : null;
+}
+
+/** Wählt per Zufallswert 0..1 eine Variante (gewichtet). */
+export function waehleBaumVariante(varianten, zufall) {
+  const summe = varianten.reduce((s, [, g]) => s + g, 0);
+  let rest = zufall * summe;
+  for (const [name, gewicht] of varianten) if ((rest -= gewicht) < 0) return name;
+  return varianten[varianten.length - 1][0];
+}
+
+const baumCache = new Map();
+/**
+ * Lädt eine Baum-Variante (einmal je Name). Geometrien in Weltpixeln, Stammfuß im Ursprung.
+ * @returns {Promise<{ rinde: THREE.BufferGeometry, laub: THREE.BufferGeometry | null, laubTextur: THREE.Texture | null } | null>}
+ */
+export function ladeBaumVariante(name) {
+  if (!baumCache.has(name)) {
+    const url = new URL(`../assets/3d/baeume/${name}.glb`, import.meta.url).href;
+    baumCache.set(
+      name,
+      ladeEigenesModell(url).then(
+        (szene) => {
+          szene.updateMatrixWorld(true);
+          const ergebnis = { rinde: null, laub: null, laubTextur: null };
+          szene.traverse((t) => {
+            if (!t.isMesh) return;
+            const geometrie = t.geometry.clone().applyMatrix4(t.matrixWorld).scale(BAUM_PX_JE_METER, BAUM_PX_JE_METER, BAUM_PX_JE_METER);
+            geometrie.computeBoundingSphere();
+            if (t.material?.name === 'laub') {
+              ergebnis.laub = geometrie;
+              ergebnis.laubTextur = t.material.map;
+            } else ergebnis.rinde = geometrie;
+          });
+          return ergebnis.rinde ? ergebnis : null;
+        },
+        () => null,
+      ),
+    );
+  }
+  return baumCache.get(name);
+}
+
+/** Leere Geometrie (bis das Baum-Modell geladen ist – zeichnet nichts). */
+export function leereBaumGeometrie() {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute([], 3));
+  return g;
+}
+
+let platzhalterTextur = null;
+/** Material fürs Laub: Toon + Blatt-Textur (Alpha-Cutout, doppelseitig) + Vertexfarbe; Textur wird nach dem Laden gesetzt. */
+export function laubMaterial() {
+  platzhalterTextur ??= Object.assign(new THREE.DataTexture(new Uint8Array([90, 140, 60, 255]), 1, 1), { needsUpdate: true });
+  return toonMaterial({ vertexColors: true, map: platzhalterTextur, alphaTest: 0.5, side: THREE.DoubleSide });
+}
 
 const STAMM = new THREE.Color(0x7a4a26);
 const STAMM_DUNKEL = new THREE.Color(0x5c3519);
 
 const FARBEN = {
-  baum: [0x5cab2f, 0x438a24, 0x6fc23a],
-  baum_herbst: [0xe0892c, 0xc0602a, 0xe8b23c],
   busch: [0x4f9c2c, 0x3d8124, 0x63b336],
 };
 
-/** Laub-Farbtöne je Baumtyp (Faktoren auf das Palettengrün, linear); kartenModell wählt per Zufall einen Ton. */
+/** Laub-Farbtöne je Baumtyp (Faktoren auf das Grün der Blatt-Textur, linear); kartenModell wählt per Zufall einen Ton. */
 export const BAUM_LAUB_TOENE = {
-  baum: [[1, 1, 1], [0.85, 1.05, 0.8], [1.2, 1.12, 0.7], [0.8, 0.95, 1.1], [1.1, 1.2, 0.85], [0.9, 0.9, 0.75]],
-  baum_herbst: [[2.6, 1.15, 0.25], [2.2, 0.8, 0.3], [2.4, 1.5, 0.3], [1.9, 1.0, 0.4]],
+  baum: [[1.15, 1.18, 1.05], [0.95, 1.15, 0.9], [1.3, 1.25, 0.8], [0.9, 1.1, 1.15], [1.2, 1.3, 0.95], [1.0, 1.0, 0.8]],
+  baum_herbst: [[8.0, 1.4, 0.6], [6.8, 0.8, 0.5], [7.5, 2.0, 0.5], [5.4, 1.2, 0.7], [8.5, 2.5, 0.4]],
 };
 
-const base64Zu = (text, Typ) => {
-  const roh = atob(text);
-  const bytes = new Uint8Array(roh.length);
-  for (let i = 0; i < roh.length; i++) bytes[i] = roh.charCodeAt(i);
-  return new Typ(bytes.buffer);
-};
-
-/**
- * Wind (aus den 4 Animationen des Modells vorberechnet): DataTexture, Reihe = Stufe·Frames + Frame, Spalte = Vertex, RGB = Verschiebung (Weltpixel).
- * Uniforms gemeinsam für alle Bäume: uWindZeit (Sekunden, mod 600), uWindStufe (0 keiner … 3 stark, fließend). Setzt der Renderer pro Bild.
- */
-export const BAUM_WIND = { uWindZeit: { value: 0 }, uWindStufe: { value: 1 }, uWindTex: { value: null } };
-function baueWindTextur() {
-  const roh = base64Zu(BAUM_DATEN.wind, Int16Array);
-  const anzahl = BAUM_DATEN.position.length ? roh.length / 3 / (4 * BAUM_DATEN.windFrames) : 0;
-  const daten = new Float32Array((roh.length / 3) * 4);
-  const faktor = (BAUM_DATEN.windGrenze / 32767) * BAUM_MASSSTAB;
-  for (let i = 0; i < roh.length / 3; i++) for (let a = 0; a < 3; a++) daten[i * 4 + a] = roh[i * 3 + a] * faktor;
-  const tex = new THREE.DataTexture(daten, anzahl, 4 * BAUM_DATEN.windFrames, THREE.RGBAFormat, THREE.FloatType);
-  tex.minFilter = tex.magFilter = THREE.NearestFilter;
-  tex.needsUpdate = true;
-  return tex;
-}
-
-/** Baum aus tree.glb: Körper mit Vertexfarben + kronenMaske, Umriss aus verschweißten (geglätteten) Normalen. */
-function baueModellBaum() {
-  const position = base64Zu(BAUM_DATEN.position, Float32Array).map((v) => v * BAUM_MASSSTAB);
-  const normale = base64Zu(BAUM_DATEN.normale, Float32Array);
-  const koerper = new THREE.BufferGeometry();
-  koerper.setAttribute('position', new THREE.BufferAttribute(position, 3));
-  koerper.setAttribute('normal', new THREE.BufferAttribute(normale, 3));
-  koerper.setAttribute('color', new THREE.BufferAttribute(base64Zu(BAUM_DATEN.farbe, Float32Array), 3));
-  koerper.setAttribute('kronenMaske', new THREE.BufferAttribute(base64Zu(BAUM_DATEN.maske, Float32Array), 1));
-  koerper.setIndex(new THREE.BufferAttribute(base64Zu(BAUM_DATEN.index, Uint16Array), 1));
-  const anzahl = position.length / 3;
-  const vertexNr = new THREE.BufferAttribute(Float32Array.from({ length: anzahl }, (_, i) => i), 1);
-  koerper.setAttribute('vertexNr', vertexNr);
-  koerper.computeBoundingSphere();
-
-  // Umriss: Eckpunkte gleicher Position teilen sich eine gemittelte Normale, sonst reißt der aufgeblasene Rand an Kanten auf
-  const glatt = new Map();
-  const schluessel = (i) => `${position[i * 3].toFixed(2)},${position[i * 3 + 1].toFixed(2)},${position[i * 3 + 2].toFixed(2)}`;
-  for (let i = 0; i < position.length / 3; i++) {
-    const k = schluessel(i);
-    const n = glatt.get(k) ?? [0, 0, 0];
-    for (let a = 0; a < 3; a++) n[a] += normale[i * 3 + a];
-    glatt.set(k, n);
-  }
-  const umrissPosition = position.slice();
-  for (let i = 0; i < position.length / 3; i++) {
-    const n = glatt.get(schluessel(i));
-    const laenge = Math.hypot(n[0], n[1], n[2]) || 1;
-    for (let a = 0; a < 3; a++) umrissPosition[i * 3 + a] += (n[a] / laenge) * UMRISS;
-  }
-  const umriss = new THREE.BufferGeometry();
-  umriss.setAttribute('position', new THREE.BufferAttribute(umrissPosition, 3));
-  umriss.setIndex(koerper.index);
-  umriss.setAttribute('vertexNr', vertexNr);
-  umriss.computeBoundingSphere();
-  return { koerper, umriss, grundflaeche: BAUM_GRUNDFLAECHE };
-}
-
-/** Krone: [x, y, z, radius, farbIndex] */
-const BAUM_KRONE = [
-  [0, 84, 0, 34, 0],
-  [-27, 72, 6, 25, 1],
-  [26, 74, 4, 25, 1],
-  [2, 72, -27, 24, 1],
-  [-4, 76, 26, 23, 0],
-  [12, 102, 8, 24, 2],
-  [-15, 98, -10, 22, 0],
-  [20, 88, -18, 19, 2],
-];
 const BUSCH_KRONE = [
   [0, 13, 0, 15, 0],
   [-11, 10, 5, 10, 1],
@@ -196,25 +199,11 @@ export async function ladeTanneAusGlb(url = TANNE_GLB) {
  */
 export function baueBaum(typ) {
   if (typ === 'tanne') return baueErsatzTanne();
-  if (typ !== 'busch') return baueModellBaum();
-  const istBusch = true;
-  const farben = (FARBEN[typ] ?? FARBEN.baum).map((f) => new THREE.Color(f));
+  // Busch (und Rückfall für unbekannte Typen): prozedurale Cartoon-Krone
+  const farben = (FARBEN[typ] ?? FARBEN.busch).map((f) => new THREE.Color(f));
   const teile = [];
 
-  if (!istBusch) {
-    // Stamm (endet bei 80 – mitten in der Krone), Wurzelansatz, drei Äste
-    teile.push({ geometrie: new THREE.CylinderGeometry(6, 9, 80, 9, 1), matrix: matrixAus(0, 40, 0), farbe: STAMM });
-    teile.push({ geometrie: new THREE.CylinderGeometry(9, 14, 8, 9, 1), matrix: matrixAus(0, 4, 0), farbe: STAMM_DUNKEL });
-    for (const [winkel, hoehe, laenge] of [[0.3, 46, 30], [2.4, 52, 28], [4.3, 42, 26]]) {
-      const ast = new THREE.CylinderGeometry(2.4, 3.6, laenge, 6, 1).translate(0, laenge / 2, 0);
-      const m = new THREE.Matrix4()
-        .makeTranslation(0, hoehe, 0)
-        .multiply(new THREE.Matrix4().makeRotationY(winkel))
-        .multiply(new THREE.Matrix4().makeRotationZ(-0.85));
-      teile.push({ geometrie: ast, matrix: m, farbe: STAMM });
-    }
-  }
-  for (const [x, y, z, r, f] of istBusch ? BUSCH_KRONE : BAUM_KRONE) {
+  for (const [x, y, z, r, f] of BUSCH_KRONE) {
     teile.push({ geometrie: new THREE.IcosahedronGeometry(r, 1), matrix: matrixAus(x, y, z), farbe: farben[f] });
   }
 
@@ -236,56 +225,37 @@ export function baueBaum(typ) {
   for (let i = 0; i < p.length; i++) p[i] += un[i] * UMRISS;
   umriss.deleteAttribute('uv');
   umriss.computeBoundingSphere();
-  return { koerper, umriss, grundflaeche: istBusch ? BUSCH_GRUNDFLAECHE : BAUM_GRUNDFLAECHE };
+  return { koerper, umriss, grundflaeche: BUSCH_GRUNDFLAECHE };
 }
 
+/** Wind-Uniforms für Bäume und Gras (naturModell). Setzt der Renderer pro Bild: uWindZeit (s, mod 600), uWindStufe (0 … 3, fließend). */
+export const BAUM_WIND = { uWindZeit: { value: 0 }, uWindStufe: { value: 1 } };
+
 /**
- * Baum-Material: Wind-Schwanken per Vertex-Shader (BAUM_WIND, je Baum zeitversetzt) und – mit `laub` – die Instanzfarbe (instanceColor)
- * nur auf das Laub (kronenMaske = 1), der Stamm behält seine Farbe. Muss NACH #mitSchnitt aufgerufen werden (verkettet dessen onBeforeCompile).
+ * Wind für die Modell-Bäume: ganzer Baum neigt sich (∝ Höhe², je Baum zeitversetzt über die Instanzposition), Laub flattert
+ * zusätzlich. Muss NACH #mitSchnitt aufgerufen werden (verkettet dessen onBeforeCompile).
  */
-export function baumMaterial(material, { laub = true } = {}) {
-  BAUM_WIND.uWindTex.value ??= baueWindTextur();
+export function baumWindMaterial(material, { laub = false } = {}) {
   const vorher = material.onBeforeCompile;
-  const frames = BAUM_DATEN.windFrames;
   material.onBeforeCompile = (shader, renderer) => {
     vorher?.(shader, renderer);
     Object.assign(shader.uniforms, BAUM_WIND);
     shader.vertexShader = shader.vertexShader
-      .replace(
-        '#include <common>',
-        `#include <common>
-attribute float vertexNr;
-attribute float kronenMaske;
-uniform sampler2D uWindTex;
-uniform float uWindZeit;
-uniform float uWindStufe;
-const float WIND_PERIODE[4] = float[4](${BAUM_DATEN.windPerioden.map((p) => p.toFixed(3)).join(', ')});
-vec3 windAnim(int s, float t, float nr) {
-  float ph = fract(t / WIND_PERIODE[s]) * ${frames}.0;
-  int a = int(floor(ph));
-  int b = (a + 1) % ${frames};
-  return mix(texelFetch(uWindTex, ivec2(int(nr), s * ${frames} + a), 0).xyz, texelFetch(uWindTex, ivec2(int(nr), s * ${frames} + b), 0).xyz, ph - floor(ph));
-}`,
-      )
+      .replace('#include <common>', '#include <common>\nuniform float uWindZeit;\nuniform float uWindStufe;')
       .replace(
         '#include <begin_vertex>',
         `#include <begin_vertex>
 #ifdef USE_INSTANCING
   float windStufe = clamp(uWindStufe, 0.0, 3.0);
-  int windS0 = int(floor(windStufe));
-  int windS1 = min(windS0 + 1, 3);
-  float windT = uWindZeit + fract(sin(instanceMatrix[3].x * 0.0131 + instanceMatrix[3].z * 0.0317) * 43758.5453) * 15.0;
-  transformed += mix(windAnim(windS0, windT, vertexNr), windAnim(windS1, windT, vertexNr), windStufe - float(windS0));
+  float windPhase = fract(sin(instanceMatrix[3].x * 0.0131 + instanceMatrix[3].z * 0.0317) * 43758.5453) * 6.2832;
+  float windH = max(position.y, 0.0) / 170.0;
+  float windSchwung = sin(uWindZeit * (0.8 + 0.25 * windStufe) + windPhase) * (0.65 + 0.35 * sin(uWindZeit * 2.1 + windPhase * 1.7));
+  transformed.xz += vec2(0.94, 0.34) * (windSchwung * (1.0 + 4.5 * windStufe) + windStufe * 3.0) * windH * windH;
+  ${laub ? 'transformed += vec3(sin(uWindZeit * 5.3 + position.x * 0.11 + windPhase), sin(uWindZeit * 4.1 + position.z * 0.09) * 0.5, cos(uWindZeit * 6.1 + position.z * 0.13 + windPhase)) * windH * (0.4 + 0.9 * windStufe);' : ''}
 #endif`,
       );
-    if (laub) {
-      shader.vertexShader = shader.vertexShader.replace(
-        '#include <color_vertex>',
-        '#include <color_vertex>\n#ifdef USE_INSTANCING_COLOR\n  vColor.xyz = mix(color.xyz, color.xyz * instanceColor.xyz, kronenMaske);\n#endif',
-      );
-    }
   };
-  material.customProgramCacheKey = () => (laub ? 'schnitt_baum_laub' : 'schnitt_baum');
+  material.customProgramCacheKey = () => (laub ? 'schnitt_baum_laub2' : 'schnitt_baum_rinde2');
   return material;
 }
 

@@ -126,6 +126,31 @@ test('Spielstand: Rucksack, Rucksack-Inhalt, Level und XP bleiben erhalten', () 
   assert.equal(ohne.inventar.length, 16);
 });
 
+test('Spielstand: Verletzungen, Müdigkeit, Buffs und Niedergestreckt bleiben erhalten', () => {
+  const welt = new SpielWelt(erstelleKonfiguration({}));
+  const spieler = welt.spielerBetrittWelt('Patient');
+  spieler.zustand = { blutung: true, infektion: 37.5, bruch: 2, schieneRest: 40, vergiftung: 12 };
+  spieler.muedigkeit = 81;
+  spieler.buffs = { warm: 90, unsinn: 5 };
+  spieler.niedergestreckt = 20;
+  spieler.leben = 1;
+  const stand = JSON.parse(JSON.stringify(erstelleSpielstand(spieler, 'stadtrand')));
+  const neu = welt.spielerBetrittWelt('Patient2');
+  assert.equal(wendeSpielstandAn(neu, stand, welt), true);
+  assert.deepEqual(neu.zustand, { blutung: true, infektion: 37.5, bruch: 2, schieneRest: 40, vergiftung: 12 });
+  assert.equal(neu.muedigkeit, 81);
+  assert.deepEqual(neu.buffs, { warm: 90 });
+  assert.equal(neu.niedergestreckt, 20);
+  assert.equal(neu.leben, 1);
+  // Manipuliert → begrenzt/verworfen
+  const kaputt = welt.spielerBetrittWelt('Patient3');
+  wendeSpielstandAn(kaputt, { ...stand, zustand: { bruch: 7, infektion: 900 }, muedigkeit: -5, niedergestreckt: 1e9 }, welt);
+  assert.equal(kaputt.zustand.bruch, 0);
+  assert.equal(kaputt.zustand.infektion, 100);
+  assert.equal(kaputt.muedigkeit, 0);
+  assert.equal(kaputt.niedergestreckt, welt.konfiguration.mehrspieler.niederDauer);
+});
+
 test('Toter Spielstand → frischer Start; falsche Version wird ignoriert', () => {
   const welt = new SpielWelt(erstelleKonfiguration({}));
   const spieler = welt.spielerBetrittWelt('Neu');

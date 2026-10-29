@@ -1,0 +1,74 @@
+{
+ "laubbaum_a": {
+  "datei": "laubbaum_a.glb",
+  "quelle": "tree.glb",
+  "hoehe": 9.182,
+  "breite": 4.241,
+  "dreiecke": 3505,
+  "laub": true,
+  "bytes": 187384
+ },
+ "laubbaum_b": {
+  "datei": "laubbaum_b.glb",
+  "quelle": "tree-4.glb",
+  "hoehe": 6.763,
+  "breite": 4.22,
+  "dreiecke": 3182,
+  "laub": true,
+  "bytes": 152904
+ },
+ "laubbaum_c": {
+  "datei": "laubbaum_c.glb",
+  "quelle": "tree-5.glb",
+  "hoehe": 9.196,
+  "breite": 3.826,
+  "dreiecke": 4066,
+  "laub": true,
+  "bytes": 146960
+ },
+ "laubbaum_d": {
+  "datei": "laubbaum_d.glb",
+  "quelle": "tree-2.glb",
+  "hoehe": 7.4,
+  "breite": 4.464,
+  "dreiecke": 5648,
+  "laub": true,
+  "bytes": 213212
+ },
+ "kiefer_a": {
+  "datei": "kiefer_a.glb",
+  "quelle": "pine.glb",
+  "hoehe": 7.141,
+  "breite": 5.728,
+  "dreiecke": 3648,
+  "laub": true,
+  "bytes": 115036
+ },
+ "kiefer_b": {
+  "datei": "kiefer_b.glb",
+  "quelle": "pine-3.glb",
+  "hoehe": 10.001,
+  "breite": 5.802,
+  "dreiecke": 3370,
+  "laub": true,
+  "bytes": 119060
+ },
+ "kiefer_c": {
+  "datei": "kiefer_c.glb",
+  "quelle": "pine-b.glb",
+  "hoehe": 8.489,
+  "breite": 6.42,
+  "dreiecke": 1646,
+  "laub": true,
+  "bytes": 71544
+ },
+ "totbaum_a": {
+  "datei": "totbaum_a.glb",
+  "quelle": "dead-tree-4.glb",
+  "hoehe": 9.16,
+  "breite": 6.149,
+  "dreiecke": 6169,
+  "laub": false,
+  "bytes": 148568
+ }
+}

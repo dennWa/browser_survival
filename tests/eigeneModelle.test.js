@@ -6,8 +6,11 @@ import path from 'node:path';
 import { verarbeiteKarte } from '../server/spiel/karten/kartenLader.js';
 import { STADTRAND } from '../server/spiel/karten/stadtrand.js';
 import { schreibeEigeneModelle } from '../werkzeuge/karten/eigeneModelle.mjs';
+import { BEHAELTER_TYPEN } from '../gemeinsam/welt/behaelter.js';
 
 const GLB = 'data:model/gltf-binary;base64,AAAA';
+// Stadtrand ohne die eingebauten Behälter-Modelle (die ergänzt der Lader selbst unter `typen`, Runde 25)
+const OHNE_BEHAELTER = { ...STADTRAND, objekte: STADTRAND.objekte.filter((o) => !BEHAELTER_TYPEN[o.typ]) };
 
 test('Spiel bekommt nur eigene Typen mit gültigem Modell (Pfad oder eingebettet)', () => {
   const typen = {
@@ -16,12 +19,18 @@ test('Spiel bekommt nur eigene Typen mit gültigem Modell (Pfad oder eingebettet
     ohneModell: { name: 'Platzhalter' },
     ein: { glb: GLB },
   };
-  const daten = verarbeiteKarte({ ...STADTRAND, typen }).daten;
+  const daten = verarbeiteKarte({ ...OHNE_BEHAELTER, typen }).daten;
   assert.deepEqual(daten.typen, { dreieck: { glbDatei: 'assets/eigene/stadtrand_dreieck.glb', hoehe3d: 1.2 }, ein: { glb: GLB } });
 });
 
 test('ohne eigene Modelle kein typen-Feld im Spiel', () => {
-  assert.equal(verarbeiteKarte(STADTRAND).daten.typen, undefined);
+  assert.equal(verarbeiteKarte(OHNE_BEHAELTER).daten.typen, undefined);
+});
+
+test('Runde 25: eingebaute Behälter-Modelle (Truhe, Schrank …) ergänzt der Lader unter typen', () => {
+  const daten = verarbeiteKarte(STADTRAND).daten;
+  assert.deepEqual(daten.typen.truhe, { glbDatei: BEHAELTER_TYPEN.truhe.glbDatei, hoehe3d: BEHAELTER_TYPEN.truhe.hoehe3d });
+  assert.ok(daten.typen.kleiderschrank.glbDatei.endsWith('.glb'));
 });
 
 test('schreibeEigeneModelle legt die .glb ab und ersetzt die Daten durch den Pfad', () => {

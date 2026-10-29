@@ -101,6 +101,7 @@ export const AKTIONEN = Object.freeze({
   STATION_SCHLIESSEN: 'stationSchliessen', // geöffnete Station schließen
   STATION_SITZEN: 'stationSitzen', // am geöffneten (brennenden) Lagerfeuer hinsetzen
   SITZEN: 'sitzen', // Taste Ä: überall hinsetzen bzw. wieder aufstehen; am brennenden Lagerfeuer = Feuer-Sitzen (heilt, Zombies übersehen einen)
+  BEHAELTER: 'behaelter', // Runde 25: E an Schrank/Kiste der Karte { ziel: Nr } – Inhalt über die Kisten-Oberfläche (offeneKiste 'm<Nr>')
   KOFFERRAUM: 'kofferraum', // G: Kofferraum des nächsten Autos (oder des eigenen, wenn man drin sitzt) öffnen – danach kisteLegen/kisteNehmen/kisteSchliessen
   FELD_ENTFERNEN: 'feldEntfernen', // { tx, ty } mit der Hacke in der Hand ein Ackerfeld (Beet) wieder zu Rasen machen (Rechtsklick)
   SKILL: 'skill', // { skill } einen Skillpunkt verteilen (gemeinsam/spieler/skills.js)

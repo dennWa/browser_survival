@@ -35,6 +35,7 @@ import { erkenneGeraet, merkeAutoProfil } from './geraet.js';
  *
  * Runde 20: zwei Scheinwerfer je Auto, Karosserie neigt sich (Kurve/Bremsen), Reifenspuren (reifenspuren.js), Geisterschatten-Fix
  *   (Taschenlampen-Schattenkarte nie eingefroren benutzen).
+ * Runde 25: Streulicht (STREULICHT) – drinnen hellt die Taschenlampe den Raum indirekt auf; Regen/Schnee blenden drinnen aus (wetterEffekt).
  * v0.10: Tiere (Hase), Angel (Rute/Schnur/Pose), Wetter (wetterEffekt.js: Regen, Nebel, Licht), Wracks, Erdfeld-Vorschau.
  * v0.11 Basisbau: Böden/Wände/Dächer als instanzierte Schicht (basisbauModelle.js → BasisbauSchicht), Bau-Hologramm (zeigeVorschau mit
  *   drehung, 'abriss'-Markierung, 'flagge'), roter Baugebiet-Ring (zeigeGebiet, nur Besitzer) + Flaggen-Ring (zeigeGebietVorschau).
@@ -108,6 +109,8 @@ const LICHT_BUDGET = {
 // Fokussierter Strahl: schmaler Kegel (~11°), 520 px Reichweite, weicher Rand (penumbra) und Abfall mit decay 1,5 statt hartem Schnitt.
 // Bei decay > 1 fällt das Licht schneller ab → Stärken entsprechend höher (≈ ×16 gegenüber decay 1 bei 250 px). Tagsüber aus.
 // Runde 18: kürzer und breiter, Rand sehr weich (penumbra 0,95) – der Lichtfleck läuft zu den Seiten aus statt hart abzuschneiden
+/** Streulicht (Runde 25): drinnen hellt die Taschenlampe den Raum indirekt auf – schattenloses Punktlicht am Auftreffpunkt des Strahls (Fake-Bounce). */
+const STREULICHT = { staerke: 150, reichweite: 230, hoehe: 46, zurueck: 0.35 };
 const TASCHENLAMPE = { winkel: 0.56, rand: 0.95, reichweite: 330, decay: 1.5, staerke: 0, staerkeNacht: 26000, kegelLaenge: 200, ziel: 120 }; // ziel = px vor dem Spieler (näher = Lichtkreis beginnt dichter an der Figur)
 // Je Scheinwerfer (zwei pro Auto, Runde 20): etwas mehr als die Hälfte des früheren Einzel-Lichts, Ziel = px vor der Front
 const SCHEINWERFER = { decay: 1, winkel: 0.4, rand: 0.55, reichweite: 620, staerke: 280, staerkeNacht: 1500, ziel: 360 };
@@ -467,7 +470,7 @@ export class Renderer {
   statistik() {
     const info = this.gl.info.render;
     const profil = this.grafik === 'auto' ? `Auto→${this.autoProfil}` : this.grafik;
-    const lichter = this.taschenlampen.length + this.lampenPool.length + this.kegelPool.length + this.muendungslichter.length + this.scheinwerfer.length;
+    const lichter = this.taschenlampen.length + this.lampenPool.length + this.kegelPool.length + this.muendungslichter.length + this.scheinwerfer.length + 1;
     return `Draw-Calls ${info.calls} · Dreiecke ${Math.round(info.triangles / 1000)}k · ${profil} · Qualität ${this.stufe} · Auflösung ${this.aufloesung.toFixed(2)} · Lichter ${lichter} · Zoom ${this.zoom.toFixed(2)}\nGPU ${this.geraet.gpu || '?'}`;
   }
 
@@ -507,7 +510,8 @@ export class Renderer {
     this.istAbstand = this.kamera3d.position.distanceTo(_ziel) / KAMERA_VERSATZ.length();
     this.schnitt.uFokus.value.set(fokus.x, _ziel.y, fokus.y);
     this.wetterEffekt.setzeArt(wetter);
-    this.wetterEffekt.aktualisiere(dt, fokus.x, fokus.y);
+    this.wetterEffekt.aktualisiere(dt, fokus.x, fokus.y, !!this.welt?.istInnen(fokus.x, fokus.y) && !fokus.fahrzeugId);
+    this.wetterEffekt.setzeInnenMaske(this.welt); // kein Regen im Haus (nur bei Niederschlag und geänderten Bauwerken neu)
     BAUM_WIND.uWindStufe.value = this.wetterEffekt.windStufe;
     BAUM_WIND.uWindZeit.value = this.wetterEffekt.windZeit % 600;
     const dunkel = this.#tageslicht(tageszeit, _ziel);
@@ -1042,7 +1046,7 @@ export class Renderer {
     this.lichtProfil = name;
     const budget = LICHT_BUDGET[name];
     const art = this.istHandy ? 'handy' : 'desktop';
-    for (const l of [...(this.taschenlampen ?? []), ...(this.lampenPool ?? []), ...(this.kegelPool ?? []), ...(this.muendungslichter ?? []), ...(this.scheinwerfer ?? [])]) {
+    for (const l of [...(this.taschenlampen ?? []), ...(this.lampenPool ?? []), ...(this.kegelPool ?? []), ...(this.muendungslichter ?? []), ...(this.scheinwerfer ?? []), ...(this.streuLicht ? [this.streuLicht] : [])]) {
       this.szene.remove(l);
       if (l.target) this.szene.remove(l.target);
       l.dispose();
@@ -1058,6 +1062,7 @@ export class Renderer {
     this.kegelPool = Array.from({ length: budget.kegel[art] }, () => this.#neuesKegellicht());
     this.muendungslichter = Array.from({ length: budget.muendung }, () => this.#neuesPunktlicht(0xffc070, 380));
     this.scheinwerfer = [0, 1].map(() => this.#neuerScheinwerfer());
+    this.streuLicht = this.#neuesPunktlicht(0xffe2b0, STREULICHT.reichweite); // immer da (feste Lichtanzahl → keine Shader-Neubauten)
     this.naechsteLampen = null;
     return true;
   }
@@ -1756,6 +1761,7 @@ export class Renderer {
     const spieler = [];
     for (const e of entitaeten) if (e.typ === 'spieler' && !e.tot && e.lichtAn !== false && e.arbeit !== 'schlafen') spieler.push(e);
     spieler.sort((a, b) => (b.istEigener ? 1 : 0) - (a.istEigener ? 1 : 0) || Math.hypot(a.x - fokus.x, a.y - fokus.y) - Math.hypot(b.x - fokus.x, b.y - fokus.y));
+    this.streuLicht.intensity = 0;
     this.taschenlampen.forEach((spot, i) => {
       const s = spieler[i];
       const kegel = this.taschenKegel[i];
@@ -1792,6 +1798,14 @@ export class Renderer {
         kegel.position.set(s.x + vx * TASCHENLAMPEN_ANSATZ.vorn, 30 + this.#hy(s.x, s.y), s.y + vz * TASCHENLAMPEN_ANSATZ.vorn);
         kegel.rotation.y = -s.blick;
         kegel.material.uniforms.deckkraft.value = 0.09 * dunkel;
+        // Drinnen streut der Strahl von Wänden/Möbeln zurück → der ganze Raum wird schwach mit aufgehellt (nur nächste Lampe)
+        if (i === 0 && this.welt?.istInnen(s.x, s.y)) {
+          const weg = TASCHENLAMPEN_ANSATZ.vorn + Math.max(0, frei) * (1 - STREULICHT.zurueck);
+          const lx = s.x + vx * weg;
+          const lz = s.y + vz * weg;
+          this.streuLicht.position.set(lx, STREULICHT.hoehe + this.#hy(lx, lz), lz);
+          this.streuLicht.intensity = (this.nachtsicht ? 0.3 : 1) * STREULICHT.staerke * dunkel;
+        }
       }
     });
   }

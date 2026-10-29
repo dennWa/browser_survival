@@ -372,6 +372,13 @@ for y0 in (8, 28):
     o('kiste_klein', 8, y0 + 13, 1, 1)
     o('pflanze', 13, y0 + 13, 1, 1)
     o('sofa_dunkel', 15, y0 + 13, 3, 1, drehung=180)
+    # Runde 25: durchsuchbare Behälter (gemeinsam/welt/behaelter.js) – Modelle aus client/assets/eigene
+    o('kleiderschrank', 9.5, y0 + 9.1, 2, 0.8)
+    o('kommode', 12.5, y0 + 9.2, 1.5, 0.6)
+    o('kuehlschrank', 19.1, y0 + 6.05, 0.8, 1.1, drehung=270)
+    if y0 == 8:
+        o('truhe', 11, y0 + 13.2, 1, 0.7, drehung=180)
+        o('werkzeugkiste', 17.2, y0 + 8.3, 0.6, 0.4)
 # --- Werkbänke (Crafting) ---
 for y0 in (8, 28):
     o('werkbank', 18, y0 + 8, 2, 1)
@@ -604,7 +611,7 @@ nord_y = 8
 haus(mx(38), nord_y, 11, 9, '+', 'w', wohn_loot, wohn_mobel)
 haus(mx(70), nord_y + 1, 11, 9, '+', 'x', wohn_loot, wohn_mobel)
 haus(mx(4), nord_y, 10, 8, ':', 'y', [(2, 2), (6, 2), (4, 5), (7, 5)],
-     [('werkbank', 1, 6, 2, 1), ('kiste', 8, 1, 1, 1), ('kiste', 8, 2, 1, 1), ('fass', 5, 5, 0.9, 0.9)])
+     [('werkbank', 1, 6, 2, 1), ('kiste', 8, 1, 1, 1), ('kiste', 8, 2, 1, 1), ('fass', 5, 5, 0.9, 0.9), ('holzkiste', 1, 1, 0.9, 0.9)])
 haus(mx(109) + 8, my(36), 11, 9, '+', 'z', wohn_loot,
      [('bett', 1, 1, 2, 4), ('tisch', 5, 3, 2, 1), ('kiste_klein', 9, 6, 1, 1), ('kiste', 9, 1, 1, 1)])
 RAEUME.update({'w': ('Gehöft Wagner', 'wohnung'), 'x': ('Gehöft Schmidt', 'wohnung'),

@@ -10,7 +10,7 @@ import { fuegeZumInventarHinzu, legeAufBoden, nutzeWerkzeug, verbrauche } from '
 import { lasseVerderben } from './gesundheitSystem.js';
 import { aktualisiereStation, aktualisiereStationen, leerePlaetze, oeffneStation } from './stationSystem.js';
 import { toeten } from './kampfSystem.js';
-import { aktualisiereKisten, leererKistenInhalt, oeffneKiste } from './kistenSystem.js';
+import { aktualisiereBehaelter, aktualisiereKisten, leererKistenInhalt, oeffneKiste } from './kistenSystem.js';
 import { WACHSTUM_REGEN_FAKTOR, regnet } from './wetterSystem.js';
 
 /**
@@ -332,6 +332,11 @@ function fuelleFlasche(spielWelt, spieler, b) {
 export function aktualisiereBauwerke(spielWelt, dt, spielSekunden = dt) {
   const welt = spielWelt.welt;
   if (dt > 0) aktualisiereKisten(spielWelt);
+  spielWelt.behaelterTakt = (spielWelt.behaelterTakt ?? 0) - dt;
+  if (spielWelt.behaelterTakt <= 0) {
+    aktualisiereBehaelter(spielWelt, 1 - spielWelt.behaelterTakt);
+    spielWelt.behaelterTakt = 1;
+  }
   if (dt > 0) aktualisiereStationen(spielWelt);
   if (welt.bauwerke.size === 0) return;
   const wachstumFaktor = regnet(spielWelt.wetter?.art) ? WACHSTUM_REGEN_FAKTOR : 1;

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
 import { RESSOURCEN_OBJEKTE } from '../../gemeinsam/welt/ressourcen.js';
-import { baueBaum, baueStumpf, toonMaterial, baumMaterial, ladeTanneAusGlb, BAUM_LAUB_TOENE } from './baumModell.js';
+import { baueBaum, baueStumpf, toonMaterial, ladeTanneAusGlb, BAUM_LAUB_TOENE, BAUM_VARIANTE_INFO, BAUM_GRUNDFLAECHE, baumVarianten, waehleBaumVariante, ladeBaumVariante, leereBaumGeometrie, laubMaterial, baumWindMaterial } from './baumModell.js';
 import { BodenTextur } from './bodenTextur.js';
 import { Daecher } from './dachModell.js';
 import { WandDurchsicht } from './wandDurchsicht.js';
@@ -688,7 +688,7 @@ export class KartenModell {
   }
 
   /**
-   * Bäume, Büsche (prozedurale 3D-Cartoon-Modelle aus baumModell.js) und Steine als InstancedMesh. Abbaubare (welt.ressourcen) können ausgeblendet
+   * Bäume (Modell-Varianten je Karte, Runde 25), Büsche (prozedural) und Steine als InstancedMesh. Abbaubare (welt.ressourcen) können ausgeblendet
    * werden – an ihrer Stelle erscheint ein Stumpf bzw. nichts. Büsche sind Deko.
    */
   #baueRessourcen() {
@@ -717,39 +717,63 @@ export class KartenModell {
       return mesh;
     };
 
-    // Pro Baumtyp: Körper (Toon, Vertexfarben) + schwarzer Umriss – je Block ein InstancedMesh
+    // Runde 25: Modellbäume ('baum', 'baum_herbst') – je Karte eine Mischung aus Varianten (baumModell.baumVarianten); jede Variante
+    // = Rinde + Laub als eigene InstancedMeshes je Block. Geometrie kommt asynchron aus der .glb (bis dahin leer → unsichtbar).
+    // Büsche/Tannen: Körper (Toon, Vertexfarben) + schwarzer Umriss wie gehabt.
     const umrissMaterial = this.mitSchnitt(new THREE.MeshBasicMaterial({ color: 0x14100c, side: THREE.BackSide }));
-    const baumUmrissMaterial = baumMaterial(this.mitSchnitt(new THREE.MeshBasicMaterial({ color: 0x14100c, side: THREE.BackSide })), { laub: false });
     this.baumArten = new Map();
     const stumpfGeo = baueStumpf();
     const stumpfMaterial = toonMaterial({ vertexColors: true });
     const stuempfe = new Map(); // Block → { mesh, naechster }
-    const typen = [...new Set(baeume.map((o) => o.typ))];
-    for (const typ of typen) {
+    const artVon = new Map(); // Objekt → Schlüssel in baumArten ('busch', 'tanne' oder 'baum|laubbaum_a' …)
+    for (const o of baeume) {
+      const varianten = baumVarianten(o.typ, this.welt.id);
+      artVon.set(o, varianten ? `${o.typ}|${waehleBaumVariante(varianten, streuung(o.x + 11, o.y + 5))}` : o.typ);
+    }
+    const rindeMaterial = baumWindMaterial(this.mitSchnitt(toonMaterial({ vertexColors: true })));
+    const laubMat = baumWindMaterial(this.mitSchnitt(laubMaterial()), { laub: true });
+    for (const schluesselArt of new Set(artVon.values())) {
+      const [typ, variante] = schluesselArt.split('|');
+      const bloecke = new Map();
+      for (const o of baeume) if (artVon.get(o) === schluesselArt) bloecke.set(blockVon(o), (bloecke.get(blockVon(o)) ?? 0) + 1);
+      const teile = new Map();
+      if (variante) {
+        const leer = leereBaumGeometrie();
+        for (const [schluessel, anzahl] of bloecke) {
+          const rinde = neuesMesh(leer, rindeMaterial, anzahl, schluessel);
+          const laub = neuesMesh(leer, laubMat, anzahl, schluessel);
+          teile.set(schluessel, { meshes: [rinde, laub], laub, naechster: 0 });
+        }
+        const info = BAUM_VARIANTE_INFO[variante] ?? {};
+        const toene = info.toene === undefined ? BAUM_LAUB_TOENE[typ] : info.toene;
+        this.baumArten.set(schluesselArt, { teile, grundflaeche: BAUM_GRUNDFLAECHE / (info.massstab ?? 1), toene, modell: true });
+        ladeBaumVariante(variante).then((modell) => {
+          if (!modell) return;
+          if (modell.laubTextur && laubMat.map !== modell.laubTextur) laubMat.map = modell.laubTextur; // gleiche Shader-Variante (map war schon gesetzt)
+          for (const t of teile.values()) {
+            t.meshes[0].geometry = modell.rinde;
+            t.meshes[1].geometry = modell.laub ?? leer;
+          }
+        });
+        continue;
+      }
       const { koerper, umriss, grundflaeche } = baueBaum(typ);
       const material = this.mitSchnitt(toonMaterial({ vertexColors: true }));
-      const istModellBaum = typ in BAUM_LAUB_TOENE;
-      if (istModellBaum) baumMaterial(material);
-      const bloecke = new Map();
-      for (const o of baeume) if (o.typ === typ) bloecke.set(blockVon(o), (bloecke.get(blockVon(o)) ?? 0) + 1);
-      const teile = new Map();
       for (const [schluessel, anzahl] of bloecke) {
         const mesh = neuesMesh(koerper, material, anzahl, schluessel);
-        const rand = neuesMesh(umriss, istModellBaum ? baumUmrissMaterial : umrissMaterial, anzahl, schluessel, { schatten: false });
-        rand.castShadow = false;
-        rand.receiveShadow = false;
-        teile.set(schluessel, { mesh, rand, naechster: 0 });
+        const rand = neuesMesh(umriss, umrissMaterial, anzahl, schluessel, { schatten: false });
+        teile.set(schluessel, { meshes: [mesh, rand], rand, naechster: 0 });
       }
-      this.baumArten.set(typ, { teile, grundflaeche, toene: BAUM_LAUB_TOENE[typ] });
+      this.baumArten.set(schluesselArt, { teile, grundflaeche });
       if (typ === 'tanne') {
         // Ersatz-Tanne steht sofort; sobald die .glb da ist, wird die Geometrie getauscht (gleiche Materialien → kein Shader-Neubau)
         ladeTanneAusGlb().then((modell) => {
           if (!modell) return;
           for (const t of teile.values()) {
-            t.mesh.geometry.dispose();
-            t.rand.geometry.dispose();
-            t.mesh.geometry = modell.koerper;
-            t.rand.geometry = modell.umriss;
+            t.meshes[0].geometry.dispose();
+            t.meshes[1].geometry.dispose();
+            t.meshes[0].geometry = modell.koerper;
+            t.meshes[1].geometry = modell.umriss;
           }
         });
       }
@@ -796,18 +820,18 @@ export class KartenModell {
         const ziel = (erz ? erzMeshes : steinMeshes).get(block);
         eintrag.teile.push({ mesh: ziel.mesh, index: ziel.naechster++, matrix: m });
       } else {
-        const art = this.baumArten.get(o.typ);
+        const art = this.baumArten.get(artVon.get(o));
         // Größe passend zur Grundfläche, dazu etwas Zufall in Größe und Drehung – kein Baum gleicht dem anderen
-        const groesse = ((Math.min(o.b, o.h) * g) / art.grundflaeche) * (art.toene ? 0.78 + zufall * 0.5 : 0.9 + zufall * 0.22) * (o.groesse === 'gross' ? 1.25 : o.groesse === 'klein' ? 0.8 : 1);
+        const groesse = ((Math.min(o.b, o.h) * g) / art.grundflaeche) * (art.modell ? 0.82 + zufall * 0.36 : 0.9 + zufall * 0.22) * (o.groesse === 'gross' ? 1.25 : o.groesse === 'klein' ? 0.8 : 1);
         const matrix = matrixAus(x, this.hy(x, z), z, zufall * Math.PI * 2, groesse);
         const teil = art.teile.get(block);
         const index = teil.naechster++;
-        eintrag.teile.push({ mesh: teil.mesh, index, matrix }, { mesh: teil.rand, index, matrix });
-        if (art.toene) {
-          // Laubfarbe je Baum leicht anders (Ton aus der Liste × kleine Helligkeitsschwankung)
+        for (const mesh of teil.meshes) eintrag.teile.push({ mesh, index, matrix });
+        if (art.toene && teil.laub) {
+          // Laubfarbe je Baum leicht anders (Ton aus der Liste × kleine Helligkeitsschwankung) – nur das Laub, die Rinde bleibt
           const ton = art.toene[Math.floor(streuung(o.y, o.x) * art.toene.length)];
           const hell = 0.9 + streuung(o.x + 3, o.y + 7) * 0.2;
-          teil.mesh.setColorAt(index, new THREE.Color().setRGB(ton[0] * hell, ton[1] * hell, ton[2] * hell, THREE.LinearSRGBColorSpace));
+          teil.laub.setColorAt(index, new THREE.Color().setRGB(ton[0] * hell, ton[1] * hell, ton[2] * hell, THREE.LinearSRGBColorSpace));
         }
         if (o.typ !== 'busch') {
           const st = stuempfe.get(block);
@@ -819,7 +843,7 @@ export class KartenModell {
       if (r) this.ressourcenInstanzen.set(r.id, eintrag);
     }
     const meshes = [...stuempfe.values(), ...steinMeshes.values(), ...erzMeshes.values()].map((e) => e.mesh);
-    for (const art of this.baumArten.values()) for (const t of art.teile.values()) meshes.push(t.mesh, t.rand);
+    for (const art of this.baumArten.values()) for (const t of art.teile.values()) meshes.push(...t.meshes);
     for (const m of meshes) {
       m.instanceMatrix.needsUpdate = true;
       if (m.instanceColor) m.instanceColor.needsUpdate = true;
@@ -856,8 +880,9 @@ export class KartenModell {
   setzeBaumDetail(an) {
     for (const art of this.baumArten.values()) {
       for (const t of art.teile.values()) {
-        t.rand.visible = an;
-        t.mesh.castShadow = an;
+        if (t.rand) t.rand.visible = an;
+        t.meshes[0].castShadow = an;
+        if (t.laub) t.laub.castShadow = an;
       }
     }
   }

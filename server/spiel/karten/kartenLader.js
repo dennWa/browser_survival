@@ -1,6 +1,7 @@
 import { KACHEL_GROESSE, ZONE_MAX_KACHELN } from '../../../gemeinsam/konstanten.js';
 import { KACHELN, MARKER, istKachel, istLootMarker } from '../../../gemeinsam/welt/kacheln.js';
 import { BAUWERKE } from '../../../gemeinsam/welt/bauwerke.js';
+import { BEHAELTER_TYPEN } from '../../../gemeinsam/welt/behaelter.js';
 import { liesHoehen, klippenFuesse } from '../../../gemeinsam/welt/gelaende.js';
 import { pruefeKlang } from '../../../gemeinsam/audio/klanglandschaft.js';
 import { pruefeLootZone, punkteDerZone } from './lootZonen.js';
@@ -173,8 +174,10 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE, { au
   const daten = { id: definition.id, name: definition.name, breite, hoehe, kachelGroesse, kacheln, raeume, objekte, uebergaenge };
   if (hoehen) daten.hoehen = hoehen;
   if (definition.schnee === true) daten.schnee = true; // Schneezone: Schneefall statt Regen, Schritte knirschen, Straßen verschneit (Optik)
-  const typen = pruefeTypen(definition.typen);
-  if (typen) daten.typen = typen;
+  const typen = pruefeTypen(definition.typen) ?? {};
+  // Runde 25: eingebaute Behälter-Modelle (Truhe, Kleiderschrank …), die die Karte benutzt, ohne sie selbst zu definieren
+  for (const o of objekte) if (BEHAELTER_TYPEN[o.typ] && !typen[o.typ]) typen[o.typ] = { glbDatei: BEHAELTER_TYPEN[o.typ].glbDatei, hoehe3d: BEHAELTER_TYPEN[o.typ].hoehe3d };
+  if (Object.keys(typen).length) daten.typen = typen;
   if (typeof definition.musik === 'string' && /^[a-z0-9_-]{1,40}$/i.test(definition.musik)) daten.musik = definition.musik;
   const klaenge = (Array.isArray(definition.klaenge) ? definition.klaenge : []).map((k) => pruefeKlang(k, { breite, hoehe })).filter((k) => k && (k.datei || k.daten));
   if (klaenge.length) daten.klaenge = klaenge;

@@ -6,6 +6,7 @@ import { wurfZiel } from '../../gemeinsam/welt/wasser.js';
 import { findePfad } from '../../gemeinsam/physik/pfadfindung.js';
 import { tageszeit } from '../../gemeinsam/tageszeit.js';
 import { ADMIN_BEFEHLE, AKTIONEN, NACHRICHT } from '../../gemeinsam/protokoll.js';
+import { BEHAELTER, abstandZumBehaelter, findeBehaelter, naechsterBehaelter } from '../../gemeinsam/welt/behaelter.js';
 import { Welt } from '../../gemeinsam/welt/welt.js';
 import { wendeEingabeAn } from '../../gemeinsam/physik/bewegung.js';
 import { sichtlinieFrei } from '../../gemeinsam/physik/strahl.js';
@@ -82,6 +83,7 @@ export class ClientSpiel {
     this.serverName = anmeldeDaten.serverName;
     this.eigeneId = anmeldeDaten.spielerId;
     this.welt = welt ?? new Welt(anmeldeDaten.karte); // welt: schon vom Ladebildschirm gebaut (main.js)
+    this.behaelter = findeBehaelter(this.welt); // Runde 25: Schränke/Kisten der Karte (gleiche Nummern wie der Server)
     this.musikOrdner = anmeldeDaten.karte.musik ?? this.welt.id; // Musik-Ordner der Zone (Map-Editor: Feld musik)
     // Klanglandschaft der Karte (Map-Editor Phase 4: Punkt-/Bereichs-/Global-Klänge mit Auslösern)
     this.klaenge = new Klanglandschaft(sound, anmeldeDaten.karte.klaenge ?? [], { handy: globalThis.matchMedia?.('(pointer: coarse)').matches ?? false });
@@ -256,6 +258,7 @@ export class ClientSpiel {
     if (was.art === 'mitspieler') return this.mehrspieler.zeigeMenue({ id: was.id, name: was.name }); // Runde 24
     if (was.art === 'helfen') return this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.HELFEN, ziel: was.id });
     if (was.art === 'haustier') return this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.HAUSTIER, ziel: was.id });
+    if (was.art === 'behaelter') return this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.BEHAELTER, ziel: was.nr }); // Runde 25
     if (was.art === 'aufheben') this.#aktion(AKTIONEN.AUFHEBEN);
     else if (was.art === 'abbauen') this.#aktion(AKTIONEN.ABBAUEN);
     else if (was.art === 'bauwerk' && was.bauwerkArt === 'musik') this.musikFenster.zeige(this.welt.bauwerke.get(was.bauwerkId)); // Runde 24
@@ -575,6 +578,10 @@ export class ClientSpiel {
     if (mitspieler) return mitspieler;
     const tier = this.#naechstesHaustier(); // Runde 24: Hund/Katze/Huhn
     if (tier) return tier;
+    // Runde 25: Schrank/Kiste der Karte durchsuchen (E bzw. Aktions-Knopf am Handy)
+    const behaelter = naechsterBehaelter(this.behaelter, x, y, this.welt.kachelGroesse);
+    const bettNaeher = behaelter && this.welt.naechstesObjekt(x, y, Math.min(BETT_REICHWEITE, abstandZumBehaelter(behaelter, x, y, this.welt.kachelGroesse)), (o) => o.typ.startsWith('bett'));
+    if (behaelter && !bettNaeher) return { art: 'behaelter', nr: behaelter.nr, text: `${BEHAELTER[behaelter.art].name} durchsuchen`, symbol: BEHAELTER[behaelter.art].symbol };
     const ressource = this.welt.naechsteRessource(x, y, ABBAU_REICHWEITE);
     if (ressource) return { art: 'abbauen', text: RESSOURCEN_OBJEKTE[ressource.typ].aktion, symbol: ressource.art === 'holz' ? '🪓' : '⛏' };
     const inventar = this.spielerDaten?.inventar ?? [];
@@ -1204,6 +1211,10 @@ export class ClientSpiel {
         break;
       case 'anziehen':
         this.sound.spiele('anziehen', { x: e.x, y: e.y });
+        break;
+      case 'behaelterAuf': // Runde 25: Schrank/Kiste der Karte geöffnet – leises Knarzen + Wühlen
+        this.sound.spiele('tuer_auf', { x: e.x, y: e.y, lautstaerke: 0.55, tonhoehe: 1.35 });
+        if (e.von === this.eigeneId) this.sound.spiele('aufheben', { x: e.x, y: e.y, lautstaerke: 0.8 });
         break;
       case 'tuer':
         this.sound.spiele(e.aufgebrochen ? 'tuer_bricht' : e.offen ? 'tuer_auf' : 'tuer_zu', { x: e.x, y: e.y });

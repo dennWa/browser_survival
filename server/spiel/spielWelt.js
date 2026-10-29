@@ -18,6 +18,7 @@ import { verteileStartLoot, aktualisiereLoot } from './systeme/lootSystem.js';
 import { aktualisiereTageszeit } from './systeme/tageszeitSystem.js';
 import { aktualisiereArbeit } from './systeme/arbeitSystem.js';
 import { aktualisiereBauwerke, neuesBauwerk } from './systeme/bauSystem.js';
+import { behaelterLaden, behaelterSpeichern, initialisiereBehaelter } from './systeme/kistenSystem.js';
 import { aktualisiereWuerfe } from './systeme/explosionSystem.js';
 import { zonenKonfiguration } from './karten/zonenEinstellungen.js';
 import { pruefePlaetze } from './systeme/stationSystem.js';
@@ -117,6 +118,7 @@ export class SpielWelt {
     for (const o of autos) this.hinzufuegen(erzeugeFahrzeug({ id: this.neueId(), ...fahrzeugAusObjekt(o, this.welt.kachelGroesse), haltbarkeit: konfiguration.fahrzeug.haltbarkeit }));
     this.karte.zombieSpawns.forEach((spawn, spawnIndex) => this.spawneZombie(spawnIndex));
     verteileStartLoot(this);
+    initialisiereBehaelter(this); // Runde 25: Schränke/Kisten der Karte (Inhalt beim ersten Öffnen)
     spawneStartTiere(this);
   }
 
@@ -135,7 +137,7 @@ export class SpielWelt {
   weltzustand() {
     const fahrzeuge = [...this.alleVomTyp('fahrzeug')].map(({ modell, x, y, winkel, laenge, breite, leben, maxLeben, kaputt, kofferraum }) => ({ modell, x, y, winkel, laenge, breite, leben, maxLeben, kaputt, kofferraum }));
     // fahrzeugeAlle: die Liste ist vollständig (Autos können seit Runde 21 die Zone wechseln) – beim Laden ersetzt sie die Kartenautos
-    return { version: 1, karte: this.karte.daten.id, zeit: this.zeit, tag: this.tag, bauwerke: [...this.welt.bauwerke.values()], flaggen: territoriumSpeichern(this.territorium), fahrzeuge, fahrzeugeAlle: true };
+    return { version: 1, karte: this.karte.daten.id, zeit: this.zeit, tag: this.tag, bauwerke: [...this.welt.bauwerke.values()], flaggen: territoriumSpeichern(this.territorium), fahrzeuge, fahrzeugeAlle: true, behaelter: behaelterSpeichern(this) };
   }
 
   /** Gespeicherten Weltzustand übernehmen – alles wird geprüft (Datei kann alt oder kaputt sein). */
@@ -144,6 +146,7 @@ export class SpielWelt {
     if (Number.isFinite(stand.zeit) && stand.zeit >= 0) this.zeit = stand.zeit;
     if (Number.isInteger(stand.tag) && stand.tag >= 1) this.tag = stand.tag;
     territoriumLaden(this, stand.flaggen);
+    behaelterLaden(this, stand.behaelter);
     for (const roh of Array.isArray(stand.bauwerke) ? stand.bauwerke : []) {
       const b = pruefeBauwerk(roh, this.konfiguration);
       if (!b) continue;
