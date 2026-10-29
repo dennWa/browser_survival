@@ -3,9 +3,11 @@
  * Zutaten (grün = vorhanden, rot = fehlt) und "Herstellen"-Knopf. Rezepte kommen vom Server
  * (server/spiel/konfiguration/rezepte.js), der beim Herstellen auch alles nachprüft.
  * Runde 24: Reiter „Reparieren“ (nur wenn etwas abgenutzt ist): abgenutzte Waffen/Werkzeuge mit Haltbarkeit und Kosten
- * (gemeinsam/spieler/reparatur.js) → AKTION reparieren { slot }.
+ * (gemeinsam/spieler/reparatur.js) → AKTION reparieren { slot }. Dasselbe Menü dient Amboss, Webstuhl, Chemie-Tisch und
+ * Kochstelle (`ort`, gemeinsam/spieler/handwerk.js) – Titel wechselt, Reparieren nur an Werkbank/Amboss.
  */
 import { reparaturKostenFuer } from '../../gemeinsam/spieler/reparatur.js';
+import { HANDWERK_ORTE } from '../../gemeinsam/spieler/handwerk.js';
 
 const ICON = 48;
 const REPARIEREN = '🔧 Reparieren';
@@ -24,6 +26,7 @@ export class WerkbankMenue {
     this.el = dokument.getElementById('werkbank');
     this.reiter = dokument.getElementById('werkbank-reiter');
     this.liste = dokument.getElementById('werkbank-liste');
+    this.titel = this.el.querySelector('h2');
     dokument.getElementById('werkbank-schliessen').addEventListener('click', () => this.#beiSchliessen?.());
   }
 
@@ -44,20 +47,22 @@ export class WerkbankMenue {
   }
 
   /** @param rezepte null = schließen */
-  zeige(rezepte, spielerDaten, itemDefinitionen) {
+  zeige(rezepte, spielerDaten, itemDefinitionen, ort = 'werkbank') {
     if (!rezepte) {
       this.el.hidden = true;
       this.#schluessel = '';
       return;
     }
     this.el.hidden = false;
+    const ortDef = HANDWERK_ORTE[ort] ?? HANDWERK_ORTE.werkbank;
+    if (this.titel) this.titel.textContent = `${ortDef.symbol} ${ortDef.name}`;
     const bestand = zaehleInventar(spielerDaten?.inventar ?? []);
     // Nur neu aufbauen, wenn sich Inventar oder Reiter geändert haben
     this.#level = spielerDaten?.level ?? 1;
     const abgenutzt = (spielerDaten?.inventar ?? [])
       .map((e, slot) => ({ e, slot, def: itemDefinitionen?.[e?.defId] }))
-      .filter(({ e, def }) => def?.haltbarkeit && Number.isFinite(e.haltbarkeit) && e.haltbarkeit < def.haltbarkeit);
-    const schluessel = `${this.#kategorie}|${this.#level}|${JSON.stringify(bestand)}|${abgenutzt.map((a) => `${a.slot}:${a.e.haltbarkeit}`).join(',')}`;
+      .filter(({ e, def }) => ortDef.reparieren && def?.haltbarkeit && Number.isFinite(e.haltbarkeit) && e.haltbarkeit < def.haltbarkeit);
+    const schluessel = `${ort}|${this.#kategorie}|${this.#level}|${JSON.stringify(bestand)}|${abgenutzt.map((a) => `${a.slot}:${a.e.haltbarkeit}`).join(',')}`;
     if (schluessel === this.#schluessel) return;
     this.#schluessel = schluessel;
 
@@ -70,7 +75,7 @@ export class WerkbankMenue {
         knopf.addEventListener('click', () => {
           this.#kategorie = k;
           this.#schluessel = '';
-          this.zeige(rezepte, spielerDaten, itemDefinitionen);
+          this.zeige(rezepte, spielerDaten, itemDefinitionen, ort);
         });
         return knopf;
       }),

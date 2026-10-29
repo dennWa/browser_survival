@@ -52,6 +52,7 @@ export class Hud {
   #letzteUhr = '';
   #letzteArbeit = '';
   #letzteAusdauer = -1;
+  #zustandSchluessel = '';
   #letztErschoepft = false;
   #istAdmin = false;
   #nachtsicht = false;
@@ -83,6 +84,8 @@ export class Hud {
       durst: el('wert-durst'),
       kaelte: el('wert-kaelte'), // Runde 23: nur sichtbar, wenn man friert
       gemuetlich: el('hud-gemuetlich'), // Runde 24: Cozy-Bonus
+      muedigkeit: el('wert-muedigkeit'), // Runde 24 (P11)
+      zustand: el('hud-zustand'),
       ausdauer: el('wert-ausdauer'),
       hotbar: el('hotbar'),
       munition: el('hud-munition'),
@@ -218,6 +221,7 @@ export class Hud {
       schliessen: () => this.#aktionen.stationSchliessen?.(),
       feuer: () => this.#aktionen.tuer?.(),
       sitzen: () => this.#aktionen.stationSitzen?.(),
+      kochbuch: () => this.#aktionen.kochbuch?.(),
     });
     this.kiste = new KisteFenster(dokument, { zeichneIcon: (canvas, defId) => this.zeichneIcon(canvas, defId) });
     this.kiste.beiAktionen({
@@ -489,6 +493,7 @@ export class Hud {
     setzeBalken(this.el.hunger, daten.hunger / 100);
     setzeBalken(this.el.durst, daten.durst / 100);
     if (this.el.gemuetlich) this.el.gemuetlich.hidden = !daten.gemuetlich;
+    this.#zeigeZustand(daten);
     const kaelte = daten.kaelte ?? 0;
     this.el.kaelte.hidden = kaelte <= 0;
     if (kaelte > 0) {
@@ -711,8 +716,44 @@ export class Hud {
   }
 
   /** Werkbank-Menü zeigen (rezepte = null → schließen). */
-  zeigeWerkbank(rezepte, spielerDaten, itemDefinitionen) {
-    this.werkbank.zeige(rezepte, spielerDaten, itemDefinitionen);
+  zeigeWerkbank(rezepte, spielerDaten, itemDefinitionen, ort = 'werkbank') {
+    this.werkbank.zeige(rezepte, spielerDaten, itemDefinitionen, ort);
+  }
+
+  /** Runde 24 (P11): Müdigkeit (ab 40 sichtbar) + Chips für Blutung/Infektion/Bruch/Vergiftung/Buffs (Tippen = Erklärung). */
+  #zeigeZustand(daten) {
+    const m = daten.muedigkeit ?? 0;
+    if (this.el.muedigkeit) {
+      this.el.muedigkeit.hidden = m < 40;
+      if (m >= 40) {
+        setzeBalken(this.el.muedigkeit, m / 100);
+        this.el.muedigkeit.classList.toggle('kritisch', m >= 85);
+      }
+    }
+    if (!this.el.zustand) return;
+    const z = daten.zustand ?? {};
+    const chips = [];
+    if (z.blutung) chips.push(['schlecht', '🩸 Blutung', 'Du verlierst Leben – Verband oder Erste-Hilfe-Kasten benutzen']);
+    if (z.infektion) chips.push(['schlecht', `🦠 Infektion ${z.infektion} %`, 'Wird schlimmer – Antibiotika nehmen (Chemie-Tisch: Alkohol + Honig)']);
+    if (z.bruch === 1) chips.push(['schlecht', '🦴 Bein gebrochen', 'Du humpelst – eine Schiene hilft (Werkbank: Holz + Stoff)']);
+    if (z.bruch === 2) chips.push(['mittel', '🦴 Geschient', 'Heilt von selbst – noch etwas langsamer']);
+    if (z.vergiftung) chips.push(['schlecht', '🤢 Vergiftet', 'Übelkeit, Durst – Aktivkohle hilft. Fleisch/Fisch braten, Wasser abkochen!']);
+    const b = daten.buffs ?? {};
+    if (b.satt) chips.push(['gut', '🍲 Satt', `Hunger sinkt langsamer (${Math.ceil(b.satt / 60)} min)`]);
+    if (b.warm) chips.push(['gut', '♨ Warm', `Du frierst langsamer (${Math.ceil(b.warm / 60)} min)`]);
+    if (b.kraft) chips.push(['gut', '💪 Kraft', `Nahkampf +25 % (${Math.ceil(b.kraft / 60)} min)`]);
+    const schluessel = chips.map((c) => c[1]).join('|');
+    if (schluessel === this.#zustandSchluessel) return;
+    this.#zustandSchluessel = schluessel;
+    this.el.zustand.hidden = chips.length === 0;
+    this.el.zustand.replaceChildren(
+      ...chips.map(([art, text, hilfe]) => {
+        const c = document.createElement('button');
+        Object.assign(c, { type: 'button', className: `zustand-chip ${art}`, textContent: text, title: hilfe });
+        c.addEventListener('click', () => this.meldung(hilfe)); // Touch: Tippen erklärt
+        return c;
+      }),
+    );
   }
 
   /** Level-Plakette + XP-Balken; beim Aufstieg pulsiert die Plakette kurz. */

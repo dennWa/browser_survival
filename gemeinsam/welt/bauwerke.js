@@ -55,8 +55,18 @@ export const BAUWERKE = Object.freeze({
   zaun: { ...BASIS, name: 'Zaun', ebene: 'wand', blockiert: true },
   zauntor: { ...BASIS, name: 'Zauntor', ebene: 'wand', blockiert: true, schaltbar: true, geschuetzt: true },
   // Lagerkiste: 16 Plätze, Inhalt steht in b.inhalt (nur der Server kennt ihn – geht per KISTE-Nachricht an den, der sie öffnet)
-  kiste: { ...BASIS, name: 'Lagerkiste', blockiert: true, geschuetzt: true },
+  kiste: { ...BASIS, name: 'Lagerkiste', blockiert: true, geschuetzt: true, kiste: true },
+  // Runde 24 (P12): Vorratsschrank = Kiste, in der Essen kaum verdirbt (gesundheit.vorratFaktor)
+  vorratsschrank: { ...MOEBEL, name: 'Vorratsschrank', blockiert: true, geschuetzt: true, kiste: true },
+  // Runde 24 (P12/P13): Wasser & Handwerks-Stationen (gemeinsam/spieler/handwerk.js)
+  regentonne: { item: null, name: 'Regentonne', blockiert: true, draussen: true },
+  brunnen: { item: null, name: 'Brunnen', blockiert: true, draussen: true },
+  amboss: { ...MOEBEL, name: 'Amboss', blockiert: true, station: 'amboss' },
+  webstuhl: { ...MOEBEL, name: 'Webstuhl', blockiert: true, station: 'webstuhl' },
+  chemietisch: { ...MOEBEL, name: 'Chemie-Tisch', blockiert: true, station: 'chemie' },
   bett: { ...BASIS, name: 'Bett', blockiert: true, geschuetzt: true },
+  doppelbett: { ...BASIS, name: 'Doppelbett', blockiert: true, geschuetzt: true },
+  schlafsack: { item: null, name: 'Schlafsack', blockiert: false, geschuetzt: true },
   // Runde 24: Farm (Bau-Menü „Farm“)
   gewaechshaus: { item: null, name: 'Gewächshaus-Beet', blockiert: false, nurAuf: ['gras', 'schnee'] },
   huehnerstall: { item: null, name: 'Hühnerstall', blockiert: true, draussen: true },
@@ -166,6 +176,7 @@ export const KOCHBAR = Object.freeze({
   ei: 'spiegelei', // Runde 24
   karotte: 'karotte_gebraten',
   kuerbis: 'kuerbis_gebraten',
+  wasser_dreckig: 'wasserflasche', // Runde 24: abkochen
 });
 
 /**
@@ -242,12 +253,24 @@ export function bauwerkAktion(b, inventar, name = null, flaggeDort = null) {
       return { art: 'station', text: 'Schmelzofen benutzen', symbol: '🏭' };
     case 'kiste':
       return { art: 'oeffnen', text: 'Kiste öffnen', symbol: '📦' };
+    case 'vorratsschrank':
+      return { art: 'oeffnen', text: 'Vorratsschrank öffnen', symbol: '🗄' };
+    case 'regentonne':
+      return hat('leere_flasche') ? { art: 'wasser', text: (b.wasser ?? 0) >= 1 ? `Flasche füllen (${Math.floor(b.wasser)}× Wasser)` : 'Regentonne leer – warte auf Regen', symbol: '🛢' } : { art: 'info', text: `Regentonne: ${Math.floor(b.wasser ?? 0)}× Wasser (leere Flasche nötig)`, symbol: '🛢' };
+    case 'brunnen':
+      return hat('leere_flasche') ? { art: 'wasser', text: 'Flasche füllen (Brunnenwasser abkochen!)', symbol: '🪣' } : { art: 'info', text: 'Brunnen (leere Flasche nötig)', symbol: '🪣' };
+    case 'amboss':
+    case 'webstuhl':
+    case 'chemietisch':
+      return { art: 'handwerk', station: BAUWERKE[b.typ].station, text: `${BAUWERKE[b.typ].name} benutzen`, symbol: { amboss: '⚒', webstuhl: '🧵', chemietisch: '⚗' }[b.typ] };
     case 'holztuer':
       return { art: 'tuerSchalten', text: b.offen ? 'Tür schließen' : 'Tür öffnen', symbol: '🚪' };
     case 'zauntor':
       return { art: 'tuerSchalten', text: b.offen ? 'Tor schließen' : 'Tor öffnen', symbol: '🚧' };
     case 'bett':
-      return { art: 'spawn', text: 'Spawn Point setzen (Unterkunft)', symbol: '🛏' };
+    case 'doppelbett':
+    case 'schlafsack': // Runde 24: E = schlafen + Spawn Point (Qualität: konfiguration.gesundheit.bettQualitaet)
+      return { art: 'spawn', text: 'Schlafen (setzt Spawn Point)', symbol: '🛏' };
     // Runde 24 (Cozy)
     case 'kerze':
     case 'oellampe':
@@ -255,6 +278,7 @@ export function bauwerkAktion(b, inventar, name = null, flaggeDort = null) {
     case 'lichterkette':
       return { art: 'licht', text: b.an === false ? 'Licht an' : 'Licht aus', symbol: '💡' };
     case 'kamin':
+      if (b.brennt) return { art: 'handwerk', station: 'feuer', text: 'Am Kamin kochen', symbol: '🍲' }; // Runde 24: Kochstelle (brennt von selbst aus)
       return { art: 'kamin', text: b.brennt ? 'Kaminfeuer löschen' : hat('feuerzeug') ? 'Kamin anzünden' : 'Kamin (Feuerzeug nötig)', symbol: '🔥' };
     case 'generator':
       return { art: 'generator', text: b.laeuft ? 'Generator aus' : hat('benzin') || (b.brennRest ?? 0) > 0 ? 'Generator starten' : 'Generator (Benzin nötig)', symbol: '⚡' };

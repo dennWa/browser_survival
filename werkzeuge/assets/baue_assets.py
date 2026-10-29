@@ -225,6 +225,23 @@ ITEMS = {
     'ei': ('prozedural', 'ei:#f4ead8', 16),
     'spiegelei': ('prozedural', 'spiegelei', 20),
     'honig': ('prozedural', 'honig', 20),
+    # Runde 24 (P11/P12): Medizin, Wasser, Küche & Vorräte
+    'antibiotika': ('props', 'PNG/256px/pills_2.png', 18, (0.6, 1.2, 0.75)),
+    'schiene': ('prozedural', 'schiene', 26),
+    'aktivkohle': ('prozedural', 'aktivkohle', 20),
+    'leere_flasche': ('prozedural', 'flasche:#d8e6ee', 20),
+    'wasser_dreckig': ('prozedural', 'flasche:#7a6a3a', 20),
+    'verdorben': ('glitch_food', 'food/meat.svg', 22, (0.55, 0.78, 0.4)),
+    'mehl': ('glitch_food', 'food/flour.svg', 22),
+    'brot': ('glitch_food', 'food/swank_zucchini_loaf.svg', 26, (1.15, 0.85, 0.55)),
+    'eintopf': ('glitch_food', 'food/awesome_stew.svg', 24),
+    'fischsuppe': ('glitch_food', 'food/meat_gumbo.svg', 24, (1.1, 1.0, 0.8)),
+    'kuerbissuppe': ('glitch_food', 'food/awesome_stew.svg', 24, (1.35, 0.8, 0.4)),
+    'pfannkuchen': ('glitch_food', 'food/gammas_pancakes.svg', 24),
+    'doerrfleisch': ('glitch_food', 'food/meat.svg', 22, (0.62, 0.42, 0.3)),
+    'raeucherfisch': ('glitch_food', 'food/cedar_plank_salmon.svg', 26),
+    'eingelegte_gurken': ('glitch_food', 'food/pickle.svg', 20),
+    'trockenobst': ('glitch_food', 'food/apple.svg', 18, (0.8, 0.55, 0.35)),
 }
 ITEM_ICON_GROESSE = 72
 
@@ -552,6 +569,17 @@ def zeichne_prozedural(art, groesse):
         d.polygon([(10 * u, 62 * u), (36 * u, 20 * u), (62 * u, 62 * u)], fill=(40, 40, 44, 255), outline=rand)
         for x, y in ((28, 44), (40, 50), (34, 56), (46, 58)):
             d.ellipse(r(x, y, x + 3, y + 3), fill=(110, 110, 120, 255))
+    elif art == 'schiene':
+        # zwei Holzlatten mit Stoffbinden
+        for x in (22, 42):
+            d.rounded_rectangle(r(x, 6, x + 8, 66), radius=2 * u, fill=(190, 150, 96, 255), outline=rand, width=int(2 * u))
+        for y in (18, 36, 54):
+            d.rectangle(r(18, y, 54, y + 6), fill=(240, 236, 226, 255), outline=rand, width=int(1.5 * u))
+    elif art == 'aktivkohle':
+        d.rounded_rectangle(r(16, 22, 56, 66), radius=6 * u, fill=(220, 224, 228, 255), outline=rand, width=int(2.5 * u))
+        d.rectangle(r(20, 14, 52, 24), fill=(60, 120, 200, 255), outline=rand, width=int(2 * u))
+        for x, y in ((24, 36), (36, 44), (44, 34), (28, 52), (42, 56)):
+            d.ellipse(r(x, y, x + 7, y + 6), fill=(30, 30, 32, 255))
     elif art.startswith('flasche:'):
         farbe = art.split(':')[1]
         d.rounded_rectangle(r(22, 26, 50, 66), radius=8 * u, fill=farbe, outline=rand, width=int(2.5 * u))

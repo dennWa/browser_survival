@@ -1,3 +1,4 @@
+import { BETT_TYPEN } from '../../../gemeinsam/welt/einrichtung.js';
 /**
  * Spawn Point (Bett): E am eigenen Bett setzt den Respawn-Punkt (spieler.spawn = { karte, tx, ty }).
  * Nach dem Tod wacht man neben dem Bett auf (ueberlebenSystem.wiederbeleben); ist es in einer anderen Zone, zieht
@@ -6,12 +7,13 @@
  */
 
 /** E am Bett: Spawn Point setzen. (Rechte prüft bauSystem.benutzeBauwerk vorher.) */
-export function setzeSpawn(spielWelt, spieler, bett) {
+export function setzeSpawn(spielWelt, spieler, bett, leise = false) {
   const neu = { karte: spielWelt.karte.daten.id, tx: bett.tx, ty: bett.ty };
   const gleich = spieler.spawn && spieler.spawn.karte === neu.karte && spieler.spawn.tx === neu.tx && spieler.spawn.ty === neu.ty;
   spieler.spawn = neu;
   const g = spielWelt.welt.kachelGroesse;
   spielWelt.ereignis({ typ: 'spawnGesetzt', x: (bett.tx + 0.5) * g, y: (bett.ty + 0.5) * g, von: spieler.id });
+  if (gleich && leise) return;
   spielWelt.melde(spieler.id, gleich ? 'Spawn Point ist schon hier' : 'Spawn Point gesetzt – hier wachst du nach dem Tod wieder auf');
 }
 
@@ -22,7 +24,7 @@ export function setzeSpawn(spielWelt, spieler, bett) {
  */
 export function spawnPunkt(spielWelt, spawn) {
   const welt = spielWelt.welt;
-  if (!spawn || welt.bauwerkBei(spawn.tx, spawn.ty)?.typ !== 'bett') return null;
+  if (!spawn || !BETT_TYPEN.has(welt.bauwerkBei(spawn.tx, spawn.ty)?.typ)) return null;
   const g = welt.kachelGroesse;
   for (const [dx, dy] of [[0, 1], [1, 0], [-1, 0], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]]) {
     const tx = spawn.tx + dx;
@@ -34,7 +36,7 @@ export function spawnPunkt(spielWelt, spawn) {
 
 /** Steht das Bett noch? (Nur für Spawns in dieser Zone sinnvoll.) */
 export function bettFehlt(spielWelt, spawn) {
-  return spielWelt.welt.bauwerkBei(spawn.tx, spawn.ty)?.typ !== 'bett';
+  return !BETT_TYPEN.has(spielWelt.welt.bauwerkBei(spawn.tx, spawn.ty)?.typ);
 }
 
 /** Bett abgerissen: alle online-Spieler dieser Zone, deren Spawn darauf zeigt, verlieren ihn (Offline-Spieler merken es beim Respawn). */

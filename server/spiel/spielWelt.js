@@ -312,7 +312,7 @@ export class SpielWelt {
 
   /** Bauwerke fürs Netz: ohne privaten Kisten-Inhalt (der geht nur per KISTE an den, der die Kiste offen hat). */
   bauwerkeOeffentlich() {
-    return [...this.welt.bauwerke.values()].map(({ inhalt, plaetze, ...rest }) => rest);
+    return [...this.welt.bauwerke.values()].map(({ inhalt, plaetze, verderbTakt, ...rest }) => rest);
   }
 
   /**
@@ -329,7 +329,7 @@ export class SpielWelt {
       const b = this.welt.bauwerke.get(id);
       if (!b) entfernt.push(id);
       else {
-        const { inhalt, plaetze, ...rest } = b;
+        const { inhalt, plaetze, verderbTakt, ...rest } = b;
         gesetzt.push(rest);
       }
     }
@@ -355,12 +355,13 @@ function pruefeBauwerk(roh, konfiguration) {
   if (b.typ === 'stacheldraht') b.rest = Number.isFinite(roh.rest) ? Math.max(1, roh.rest) : 60;
   if (b.typ === 'fallgrube') b.bereit = roh.bereit !== false;
   if (b.typ === 'huehnerstall') b.eier = Number.isInteger(roh.eier) ? Math.min(20, Math.max(0, roh.eier)) : 0;
+  if (b.typ === 'regentonne') b.wasser = Number.isFinite(roh.wasser) ? Math.min(6, Math.max(0, roh.wasser)) : 0;
   if (b.typ === 'bienenstock') b.honig = Number.isInteger(roh.honig) ? Math.min(20, Math.max(0, roh.honig)) : 0;
   if (BEET_TYPEN.has(b.typ)) {
     b.pflanze = PFLANZEN[roh.pflanze] ? roh.pflanze : null;
     b.wachstum = b.pflanze && Number.isFinite(roh.wachstum) ? Math.min(1, Math.max(0, roh.wachstum)) : 0;
   }
-  if (b.typ === 'kiste') b.inhalt = pruefeKistenInhalt(roh.inhalt);
+  if (BAUWERKE[b.typ].kiste) b.inhalt = pruefeKistenInhalt(roh.inhalt);
   if (BAUWERKE[b.typ].schaltbar) b.offen = roh.offen === true;
   if (roh.drehung === 0 || roh.drehung === 1) b.drehung = roh.drehung;
   return b;

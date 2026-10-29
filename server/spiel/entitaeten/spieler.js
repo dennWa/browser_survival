@@ -145,6 +145,17 @@ function kleidungKompakt(kleidung) {
   return kurz;
 }
 
+/** Runde 24: nur aktive Zustände (Blutung, Infektion %, Bruch 1/2, Vergiftung) – undefined, wenn gesund. */
+function zustandKompakt(z) {
+  if (!z) return undefined;
+  const k = {};
+  if (z.blutung) k.blutung = true;
+  if (z.infektion > 0) k.infektion = Math.ceil(z.infektion);
+  if (z.bruch) k.bruch = z.bruch;
+  if (z.vergiftung > 0) k.vergiftung = true;
+  return Object.keys(k).length ? k : undefined;
+}
+
 /** Private Daten nur für den Spieler selbst (Inventar, Hunger, Durst …). */
 /** @param spielWelt  die Zone des Spielers (für das eigene Baugebiet) */
 export function spielerDatenPrivat(s, konfiguration, spielWelt = null) {
@@ -164,6 +175,9 @@ export function spielerDatenPrivat(s, konfiguration, spielWelt = null) {
     kleidung: s.kleidung,
     kaelte: Math.round(s.kaelte ?? 0),
     ...(s.gemuetlich ? { gemuetlich: true } : {}), // Runde 24: Cozy-Bonus (HUD-Chip)
+    muedigkeit: Math.round(s.muedigkeit ?? 0), // Runde 24 (P11): Müdigkeit, Zustände, Buffs → HUD
+    zustand: zustandKompakt(s.zustand),
+    buffs: s.buffs && Object.keys(s.buffs).length ? Object.fromEntries(Object.entries(s.buffs).map(([k, v]) => [k, Math.ceil(v)])) : undefined,
     ausgeruestet: s.ausgeruestet,
     nachladen: s.nachladenRest > 0,
     tot: s.tot,

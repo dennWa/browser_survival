@@ -180,6 +180,7 @@ export function pruefeEintrag(e) {
     return mods ? { defId: e.defId, menge: 1, magazin, mods } : { defId: e.defId, menge: 1, magazin };
   }
   if (def.haltbarkeit && Number.isFinite(e.haltbarkeit)) return { defId: e.defId, menge, haltbarkeit: begrenze(Math.round(e.haltbarkeit), 1, def.haltbarkeit) };
+  if (def.verdirbt && Number.isFinite(e.verderb)) return { defId: e.defId, menge, verderb: begrenze(e.verderb, 0, def.verdirbt) }; // Runde 24
   return { defId: e.defId, menge };
 }
 

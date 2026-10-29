@@ -60,6 +60,8 @@
         <div class="wert" id="wert-durst" title="Durst"><span class="symbol"><svg class="ui-icon" aria-hidden="true"><use href="#i-durst"/></svg></span><div class="balken"><div class="fuellung"></div></div><span class="warn" aria-hidden="true">!</span></div>
         <div class="wert" id="wert-ausdauer" title="Ausdauer (Shift = sprinten)"><span class="symbol"><svg class="ui-icon" aria-hidden="true"><use href="#i-ausdauer"/></svg></span><div class="balken"><div class="fuellung"></div></div></div>
         <div class="wert" id="wert-kaelte" title="Kälte – drinnen, am Feuer oder mit warmer Kleidung sinkt sie" hidden><span class="symbol"><svg class="ui-icon" aria-hidden="true"><use href="#i-schneeflocke"/></svg></span><div class="balken"><div class="fuellung"></div></div><span class="warn" aria-hidden="true">!</span></div>
+        <div class="wert" id="wert-muedigkeit" title="Müdigkeit – schlafen hilft (Doppelbett am besten). Ab 85: langsamer, keine Heilung" hidden><span class="symbol emoji-symbol">😴</span><div class="balken"><div class="fuellung"></div></div><span class="warn" aria-hidden="true">!</span></div>
+        <div id="hud-zustand" hidden></div>
       </div>
       <pre id="hud-debug" hidden></pre>
       <!-- Chat: T öffnet das Eingabefeld, Enter schickt ab -->
@@ -287,6 +289,7 @@
       <div id="station-knoepfe">
         <button id="station-feuer" type="button"></button>
         <button id="station-sitzen" type="button">🪑 Hinsetzen</button>
+        <button id="station-kochbuch" type="button" title="Eintopf, Brot, Suppen, Räuchern & Einmachen">📖 Kochbuch</button>
       </div>
       <h3 class="inv-titel">Dein Inventar <small>antippen = hineinlegen</small></h3>
       <div id="station-inventar" class="inv-raster"></div>

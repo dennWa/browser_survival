@@ -414,7 +414,7 @@ test('Bett: E setzt den Spawn Point – nach dem Tod wacht man neben dem Bett au
   const { welt, spieler, konfiguration } = neueWelt();
   flagge(welt, spieler);
   baue(welt, spieler, 'bett', 14, 14);
-  assert.equal(bauwerkAktion(welt.welt.bauwerkBei(14, 14), [], 'Bob').text, 'Spawn Point setzen (Unterkunft)');
+  assert.equal(bauwerkAktion(welt.welt.bauwerkBei(14, 14), [], 'Bob').text, 'Schlafen (setzt Spawn Point)');
   spieler.x = mitte(14);
   spieler.y = mitte(15.2);
   aktion(welt, spieler, { art: AKTIONEN.BAUWERK });

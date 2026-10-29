@@ -276,6 +276,54 @@ try {
     await bild('9_haustiere_farm');
   }
 
+  // ---------------------------------------------------------------- Phase 11–13 (Gesundheit, Wasser & Küche, Handwerk)
+  if (phaseAn(11) || phaseAn(12) || phaseAn(13)) {
+    await seite.evaluate(async () => {
+      const { neuesBauwerk } = await import('/server/spiel/systeme/bauSystem.js');
+      const srv = browserSurvival.server;
+      for (const z of srv.zonen.values()) {
+        if (z.spielWelt.karte.daten.id !== browserSurvival.spiel.welt.id) continue;
+        const w = z.spielWelt;
+        const ich = w.holen(browserSurvival.spiel.eigeneId);
+        const tx = Math.floor(ich.x / 32);
+        const ty = Math.floor(ich.y / 32);
+        const frei = (x, y) => !w.welt.istBlockiert(x, y) && !w.welt.bauwerkeAn(x, y).length;
+        let n = 0;
+        for (const typ of ['doppelbett', 'schlafsack', 'vorratsschrank', 'regentonne', 'brunnen', 'amboss', 'webstuhl', 'chemietisch']) {
+          for (let r = 2; r < 9; r++) {
+            const x = tx - 4 + (n % 4) * 2;
+            const y = ty - r + (n < 4 ? 0 : 3);
+            if (frei(x, y)) {
+              const b = neuesBauwerk(w, typ, x, y, ich.name);
+              if (typ === 'regentonne') b.wasser = 4;
+              w.welt.setzeBauwerk(b);
+              break;
+            }
+          }
+          n++;
+        }
+        Object.assign(ich, { gottmodus: false, muedigkeit: 90, zustand: { blutung: true, infektion: 30, bruch: 1, schieneRest: 0, vergiftung: 20 }, buffs: { warm: 300 } });
+      }
+    });
+    await seite.waitForTimeout(2500);
+    const chips = await seite.evaluate(() => [...document.querySelectorAll('#hud-zustand .zustand-chip')].map((c) => c.textContent));
+    pruefe(chips.length >= 5, `Zustands-Chips im HUD: ${chips.join(', ')}`);
+    pruefe(await seite.evaluate(() => !document.getElementById('wert-muedigkeit').hidden), 'Müdigkeits-Balken sichtbar');
+    pruefe(await amServer('return ich.tempoFaktor < 0.6;'), 'Bruch + Erschöpfung bremsen');
+    await bild('11_zustaende_stationen');
+    // Amboss-Menü öffnen (vorher neben den Amboss stellen – Server und Client-Vorhersage)
+    const pos = await amServer(`const b = [...welt.welt.bauwerke.values()].find((b) => b.typ === 'amboss'); ich.x = (b.tx + 0.5) * 32; ich.y = (b.ty + 1.6) * 32; return { x: ich.x, y: ich.y };`);
+    await seite.evaluate((p) => Object.assign(browserSurvival.spiel.lokal, p), pos);
+    await seite.waitForTimeout(500);
+    await seite.evaluate(() => browserSurvival.spiel.werkbankUmschalten(true, 'amboss'));
+    await seite.waitForTimeout(400);
+    const titel = await seite.evaluate(() => (document.getElementById('werkbank').hidden ? null : document.querySelector('#werkbank h2').textContent));
+    pruefe(titel?.includes('Amboss'), `Amboss-Menü (${titel})`);
+    await bild('13_amboss_menue');
+    await seite.evaluate(() => browserSurvival.spiel.werkbankUmschalten(false));
+    await amServer('ich.zustand = null; ich.muedigkeit = 0; ich.gottmodus = true;');
+  }
+
   const info = await seite.evaluate(() => browserSurvival.spiel?.renderer.statistik() ?? '');
   if (info) console.log(`  Grafik: ${info}`);
 } catch (e) {

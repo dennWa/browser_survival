@@ -1,6 +1,6 @@
 import { GEGENSTAENDE, MODS } from '../konfiguration/gegenstaende.js';
 import { REZEPTE } from '../konfiguration/rezepte.js';
-import { naeheWerkbank } from './craftingSystem.js';
+import { naheHandwerk } from '../../../gemeinsam/spieler/handwerk.js';
 import { reparaturKostenFuer } from '../../../gemeinsam/spieler/reparatur.js';
 import { entferneItems, fuegeZumInventarHinzu, legeAufBoden } from './inventarSystem.js';
 
@@ -26,8 +26,8 @@ export function repariere(spielWelt, spieler, slot) {
     spielWelt.melde(spieler.id, `${def.name} ist heil`);
     return false;
   }
-  if (!naeheWerkbank(spielWelt.welt, spieler.x, spieler.y)) {
-    spielWelt.melde(spieler.id, 'Reparieren geht nur an einer Werkbank');
+  if (!naheHandwerk(spielWelt.welt, spieler.x, spieler.y, 'werkbank') && !naheHandwerk(spielWelt.welt, spieler.x, spieler.y, 'amboss')) {
+    spielWelt.melde(spieler.id, 'Reparieren geht nur an Werkbank oder Amboss');
     return false;
   }
   const fehlt = Object.entries(kosten).filter(([id, n]) => zaehle(spieler, id) < n);

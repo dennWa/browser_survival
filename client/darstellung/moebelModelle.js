@@ -5,6 +5,7 @@ import { eigenesModellInhalt, ladeEigenesModell } from './eigeneModelle.js';
  * Runde 24 (Cozy): 3D-Modelle der Möbel/Deko/Lichter (Bauwerke mit `moebel: true`, gemeinsam/welt/bauwerke.js).
  * Die meisten kommen als GLB aus dem Spielordner (client/assets/eigene/<datei>.glb, eingepasst in b × h × hoehe Kacheln);
  * Platzhalter-Kasten bis das Modell geladen ist. Prozedural: Plattenspieler, Lichterkette, Vorhang, Generator, Kerzen-/Kaminflammen.
+ * Runde 24 (P11–P13): Doppelbett, Schlafsack, Vorratsschrank, Regentonne (Wasserstand), Brunnen, Amboss, Webstuhl, Chemie-Tisch.
  * Licht selbst kommt aus dem Lampen-Pool des Renderers (gemeinsam/welt/einrichtung.js LICHTER) – hier nur leuchtende Flächen.
  * `baueMoebel(b, gruppe)` → aktualisiere(b, jetzt, strom) oder null (kein Möbel); `strom` = hatStrom (Renderer).
  */
@@ -25,13 +26,17 @@ const MODELLE = {
   stehlampe: { datei: 'floor-lamp', b: 0.5, h: 0.5, hoehe: 1.8 },
   radio: { datei: 'radio', b: 0.55, h: 0.3, hoehe: 0.4 },
 };
-export const MOEBEL_NAMEN = Object.freeze([...Object.keys(MODELLE), 'plattenspieler', 'lichterkette', 'vorhang', 'generator', 'huehnerstall', 'bienenstock']);
+export const MOEBEL_NAMEN = Object.freeze([...Object.keys(MODELLE), 'plattenspieler', 'lichterkette', 'vorhang', 'generator', 'huehnerstall', 'bienenstock', 'doppelbett', 'schlafsack', 'vorratsschrank', 'regentonne', 'brunnen', 'amboss', 'webstuhl', 'chemietisch']);
 
 const holz = new THREE.MeshStandardMaterial({ color: 0x6b4426, roughness: 0.8 });
 const dunkel = new THREE.MeshStandardMaterial({ color: 0x202226, roughness: 0.5, metalness: 0.3 });
 const metall = new THREE.MeshStandardMaterial({ color: 0x8a8f96, roughness: 0.45, metalness: 0.6 });
 const rotLack = new THREE.MeshStandardMaterial({ color: 0xa8321e, roughness: 0.5, metalness: 0.3 });
 const stoffRot = new THREE.MeshStandardMaterial({ color: 0x8a2a2a, roughness: 0.9, side: THREE.DoubleSide });
+const holzHell = new THREE.MeshStandardMaterial({ color: 0x8a6038, roughness: 0.8 });
+const stoffHell = new THREE.MeshStandardMaterial({ color: 0xe8e2d4, roughness: 0.95 });
+const stoffBlau = new THREE.MeshStandardMaterial({ color: 0x3a5a8a, roughness: 0.95 });
+const stoffGruen = new THREE.MeshStandardMaterial({ color: 0x4a6a3a, roughness: 0.9 });
 const glut = () => new THREE.MeshBasicMaterial({ color: 0xffd08a });
 const flammenMaterial = new THREE.MeshBasicMaterial({ color: 0xff8a2a, transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending });
 
@@ -200,6 +205,92 @@ export function baueMoebel(b, gruppe) {
         lampe.visible = z.laeuft === true;
         gruppe.children[0].position.x = z.laeuft ? Math.sin(jetzt / 25) * 0.25 : 0; // rüttelt
       };
+      break;
+    }
+    // Runde 24 (P11–P13): Schlafplätze, Vorräte, Wasser, Handwerks-Stationen – prozedural
+    case 'doppelbett': {
+      gruppe.add(box(30, 6, 30, holz, 0, 3, 0), box(30, 12, 3, holz, 0, 9, -14));
+      gruppe.add(box(28, 4, 27, stoffHell, 0, 8, 1), box(28, 2, 17, stoffBlau, 0, 10.5, 6));
+      gruppe.add(box(11, 3, 6, stoffHell, -7, 11, -9), box(11, 3, 6, stoffHell, 7, 11, -9));
+      break;
+    }
+    case 'schlafsack': {
+      const sack = box(14, 4, 28, stoffGruen, 0, 2, 2);
+      gruppe.add(sack, box(13, 3, 7, stoffBlau, 0, 3, -11), box(10, 3, 5, stoffHell, 0, 5, -11));
+      break;
+    }
+    case 'vorratsschrank': {
+      gruppe.add(box(28, 40, 14, holz, 0, 20, -6), box(13, 36, 1, holzHell, -7, 21, 1.2), box(13, 36, 1, holzHell, 7, 21, 1.2));
+      gruppe.add(box(2, 6, 1.5, metall, -1.5, 22, 2.2), box(2, 6, 1.5, metall, 1.5, 22, 2.2));
+      break;
+    }
+    case 'regentonne': {
+      const tonne = new THREE.Mesh(new THREE.CylinderGeometry(10, 9, 22, 14), holz);
+      tonne.position.y = 11;
+      tonne.castShadow = true;
+      const wasser = new THREE.Mesh(new THREE.CircleGeometry(9.2, 14), new THREE.MeshStandardMaterial({ color: 0x3a7ab0, roughness: 0.15, metalness: 0.2 }));
+      wasser.rotation.x = -Math.PI / 2;
+      gruppe.add(tonne, wasser);
+      for (const y of [4, 18]) {
+        const reif = new THREE.Mesh(new THREE.TorusGeometry(9.9, 0.7, 4, 16), metall);
+        reif.rotation.x = Math.PI / 2;
+        reif.position.y = y;
+        gruppe.add(reif);
+      }
+      zusatz = (z) => {
+        const voll = Math.min(1, (z.wasser ?? 0) / 6);
+        wasser.visible = voll > 0.02;
+        wasser.position.y = 2 + voll * 19;
+      };
+      break;
+    }
+    case 'brunnen': {
+      const stein = new THREE.MeshStandardMaterial({ color: 0x8a8a84, roughness: 0.95 });
+      const ring = new THREE.Mesh(new THREE.CylinderGeometry(14, 14, 12, 12, 1, true), stein);
+      ring.position.y = 6;
+      ring.material.side = THREE.DoubleSide;
+      const wasser = new THREE.Mesh(new THREE.CircleGeometry(13, 12), new THREE.MeshStandardMaterial({ color: 0x24506a, roughness: 0.2 }));
+      wasser.rotation.x = -Math.PI / 2;
+      wasser.position.y = 3;
+      gruppe.add(ring, wasser, box(2.5, 30, 2.5, holz, -12, 15, 0), box(2.5, 30, 2.5, holz, 12, 15, 0), box(28, 2, 2, holz, 0, 28, 0));
+      const dach = new THREE.Mesh(new THREE.ConeGeometry(20, 10, 4, 1), rotLack);
+      dach.rotation.y = Math.PI / 4;
+      dach.position.y = 35;
+      dach.castShadow = true;
+      gruppe.add(dach, box(5, 6, 5, holz, 0, 21, 0));
+      break;
+    }
+    case 'amboss': {
+      gruppe.add(box(12, 10, 10, holz, 0, 5, 0), box(10, 4, 8, dunkel, 0, 12, 0), box(22, 5, 9, dunkel, 2, 16, 0));
+      const horn = new THREE.Mesh(new THREE.ConeGeometry(4, 10, 8), dunkel);
+      horn.rotation.z = Math.PI / 2;
+      horn.position.set(-13, 16, 0);
+      gruppe.add(horn, box(3, 1.5, 12, holz, 6, 19.5, 3), box(5, 4, 4, metall, 6, 20, 9));
+      break;
+    }
+    case 'webstuhl': {
+      gruppe.add(box(2.5, 26, 2.5, holz, -13, 13, -8), box(2.5, 26, 2.5, holz, 13, 13, -8), box(2.5, 14, 2.5, holz, -13, 7, 8), box(2.5, 14, 2.5, holz, 13, 7, 8));
+      gruppe.add(box(28, 2, 2.5, holz, 0, 25, -8), box(28, 2, 18, holz, 0, 13, 0));
+      const tuch = new THREE.Mesh(new THREE.PlaneGeometry(22, 11), stoffRot);
+      tuch.rotation.x = -Math.PI / 3;
+      tuch.position.set(0, 19, -4);
+      gruppe.add(tuch);
+      break;
+    }
+    case 'chemietisch': {
+      gruppe.add(box(30, 2, 16, holz, 0, 16, 0));
+      for (const [x, z] of [[-13, -6], [13, -6], [-13, 6], [13, 6]]) gruppe.add(box(2, 16, 2, holz, x, 8, z));
+      const glas = new THREE.MeshStandardMaterial({ color: 0x9fe0c0, transparent: true, opacity: 0.6, roughness: 0.1 });
+      const kolben = new THREE.Mesh(new THREE.SphereGeometry(4, 10, 8), glas);
+      kolben.position.set(-6, 21, 0);
+      const hals = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 6, 6), glas);
+      hals.position.set(-6, 26, 0);
+      const flasche = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 2.5, 8, 8), new THREE.MeshStandardMaterial({ color: 0xc9a24a, transparent: true, opacity: 0.75 }));
+      flasche.position.set(6, 21, -2);
+      const flamme = flammen(1, 4, 0);
+      flamme.position.set(-6, 17, 0);
+      gruppe.add(kolben, hals, flasche, flamme, box(3, 2, 3, metall, -6, 17.5, 0));
+      zusatz = (z, jetzt) => zucke(flamme, jetzt);
       break;
     }
   }

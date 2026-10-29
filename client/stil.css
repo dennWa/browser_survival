@@ -1385,3 +1385,12 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
 .musik-yt input.fehler { border-color: #d04030; }
 .musik-knoepfe { display: flex; gap: 8px; margin: 8px 0; flex-wrap: wrap; }
 .musik-hinweis { font-size: 0.75rem; opacity: 0.6; }
+/* Runde 24 (P11): Zustände & Buffs, Müdigkeit */
+#hud-zustand { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; max-width: 260px; }
+.zustand-chip { padding: 2px 8px; border-radius: 10px; font: inherit; font-size: 0.75rem; cursor: pointer; pointer-events: auto; border: 1px solid rgba(255, 255, 255, 0.25); color: #fff; }
+.zustand-chip.schlecht { background: rgba(140, 30, 30, 0.7); animation: zustand-puls 1.6s ease-in-out infinite; }
+.zustand-chip.mittel { background: rgba(130, 100, 30, 0.65); }
+.zustand-chip.gut { background: rgba(40, 110, 60, 0.65); }
+@keyframes zustand-puls { 50% { filter: brightness(1.35); } }
+#wert-muedigkeit .fuellung { background: #8a7ad0; }
+.emoji-symbol { font-size: 0.85rem; line-height: 1; }

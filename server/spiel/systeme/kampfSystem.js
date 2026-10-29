@@ -3,6 +3,7 @@ import { strahlGegenWaende, strahlTrifftKreis } from '../../../gemeinsam/physik/
 import { bewegeKoerper } from '../../../gemeinsam/physik/bewegung.js';
 import { NAHKAMPF_KEGEL, STANDARD_AUSRUESTUNG, waffenWerte } from '../konfiguration/gegenstaende.js';
 import { aktuelleWaffe, kleidungsSchutz, konsumiere, legeAufBoden, nutzeWerkzeug, pflanzeSamenAusHand, legeRucksackAb, legeKleidungAb, starteNachladen, zaehleMunition } from './inventarSystem.js';
+import { nachTreffer } from './gesundheitSystem.js';
 import { gibXp, setzeLevelZurueck } from './levelSystem.js';
 import { staerkeFaktor } from '../../../gemeinsam/spieler/skills.js';
 import { aussteigen, schlageFahrzeug } from './fahrzeugSystem.js';
@@ -153,7 +154,7 @@ function nahkampf(spielWelt, spieler, def) {
     const richtung = Math.atan2(ziel.y - spieler.y, ziel.x - spieler.x);
     const differenz = Math.abs(Math.atan2(Math.sin(richtung - spieler.blick), Math.cos(richtung - spieler.blick)));
     if (differenz > (def.kegel ?? NAHKAMPF_KEGEL)) continue; // Runde 24: Speer sticht schmal nach vorn
-    fuegeSchadenZu(spielWelt, ziel, def.schaden * staerkeFaktor(spieler.skills), spieler, richtung, { durchschlag: def.durchschlag ?? 0, rueckstoss: def.rueckstoss ?? 1 });
+    fuegeSchadenZu(spielWelt, ziel, def.schaden * staerkeFaktor(spieler.skills) * (spieler.buffs?.kraft ? spielWelt.konfiguration.gesundheit?.kraftFaktor ?? 1 : 1), spieler, richtung, { durchschlag: def.durchschlag ?? 0, rueckstoss: def.rueckstoss ?? 1 });
     getroffen = true;
   }
   // Runde 24: Nahkampfwaffen nutzen sich pro Schlag mit Treffer ab (Reparatur an der Werkbank)
@@ -202,6 +203,7 @@ export function fuegeSchadenZu(spielWelt, ziel, menge, quelle, winkel = 0, optio
       ziel.letztesZielY = quelle.y;
     }
   }
+  if (ziel.typ === 'spieler') nachTreffer(spielWelt, ziel, menge, quelle, optionen); // Runde 24: Blutung/Infektion/Bruch
   if (ziel.leben <= 0) toeten(spielWelt, ziel, quelle, optionen);
 }
 

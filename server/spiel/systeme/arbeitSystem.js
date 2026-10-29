@@ -7,6 +7,7 @@ import { GEGENSTAENDE } from '../konfiguration/gegenstaende.js';
 import { sammelFaktor } from '../../../gemeinsam/spieler/skills.js';
 import { aktualisiereBauwerke } from './bauSystem.js';
 import { BAUWERKE } from '../../../gemeinsam/welt/bauwerke.js';
+import { bettBei } from '../../../gemeinsam/welt/einrichtung.js';
 
 /**
  * Arbeiten, die Zeit brauchen: Bäume fällen / Steine abbauen (Werkzeug nötig, nutzt sich ab) und Schlafen im Bett; Sitzen am Feuer (start: stationSystem).
@@ -41,7 +42,7 @@ export function starteAbbau(spielWelt, spieler) {
 
 /** AKTION 'schlafen': in ein Bett in Reichweite legen (nicht, wenn Zombies hinter einem her sind). */
 export function starteSchlafen(spielWelt, spieler) {
-  const bett = naechstesBett(spielWelt.welt, spieler.x, spieler.y);
+  const bett = bettBei(spielWelt.welt, spieler.x, spieler.y, BETT_REICHWEITE + 8);
   if (!bett) {
     spielWelt.melde(spieler.id, 'Kein Bett in der Nähe');
     return;
@@ -181,11 +182,15 @@ function schlafe(spielWelt, spieler, dt) {
 }
 
 function wacheAuf(spielWelt, spieler, k, zeitVergangen) {
+  const g = spielWelt.konfiguration.gesundheit;
+  const qualitaet = g?.bettQualitaet?.[spieler.arbeit?.ort?.typ] ?? 1;
   spieler.arbeit = null;
   if (zeitVergangen) {
     spieler.hunger = Math.max(0, spieler.hunger - k.hungerKosten);
     spieler.durst = Math.max(0, spieler.durst - k.durstKosten);
   }
+  // Runde 24: Müdigkeit – gutes Bett erholt mehr (Doppelbett 1.3, Schlafsack 0.6)
+  if (g) spieler.muedigkeit = Math.max(0, (spieler.muedigkeit ?? 0) - g.schlafErholung * qualitaet);
   const { uhrzeit } = tageszeit(spielWelt.zeit, spielWelt.tageszeitDauer());
   spielWelt.melde(
     spieler.id,
@@ -253,10 +258,6 @@ function aktualisiereNachwachsen(spielWelt, dt) {
 }
 
 /** Nächstes Bett in Reichweite → { x, y, laengs } (laengs = Bett liegt in y-Richtung) oder null */
-function naechstesBett(welt, x, y) {
-  const treffer = welt.naechstesObjekt(x, y, BETT_REICHWEITE, (o) => o.typ.startsWith('bett'));
-  return treffer && { x: treffer.x, y: treffer.y, laengs: treffer.objekt.h >= treffer.objekt.b };
-}
 
 // ---------------------------------------------------------------------------
 // Zerlegen (Runde 18): selbst aufgestellte Objekte (Lagerfeuer, Werkbank, Schmelzofen, Falle) mit Axt, Spitzhacke oder

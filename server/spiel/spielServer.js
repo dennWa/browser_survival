@@ -1,3 +1,4 @@
+import { BETT_TYPEN } from '../../gemeinsam/welt/einrichtung.js';
 import { pruefeMusikWahl } from './systeme/musikSystem.js';
 import {
   BENUTZERNAME_MUSTER,
@@ -296,7 +297,7 @@ export class SpielServer {
     if (spawn) {
       punkt = spawnPunkt(zone.spielWelt, neu.spawn);
       if (!punkt) {
-        if (neu.spawn && zone.spielWelt.welt.bauwerkBei(neu.spawn.tx, neu.spawn.ty)?.typ !== 'bett') neu.spawn = null;
+        if (neu.spawn && !BETT_TYPEN.has(zone.spielWelt.welt.bauwerkBei(neu.spawn.tx, neu.spawn.ty)?.typ)) neu.spawn = null;
         zone.spielWelt.melde(neu.id, 'Dein Bett ist weg oder zugebaut – du startest am normalen Startpunkt');
       }
     }

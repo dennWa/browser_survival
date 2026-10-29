@@ -32,11 +32,13 @@ export class StationFenster {
     this.sitzKnopf = dokument.getElementById('station-sitzen');
     this.feuerKnopf.addEventListener('click', () => this.#aktionen.feuer?.());
     this.sitzKnopf.addEventListener('click', () => this.#aktionen.sitzen?.());
+    this.kochbuchKnopf = dokument.getElementById('station-kochbuch'); // Runde 24: Rezepte der Kochstelle
+    this.kochbuchKnopf?.addEventListener('click', () => this.#aktionen.kochbuch?.());
     for (let i = 0; i < 3; i++) this.#plaetze.push(this.#baueSlot(this.rasterPlaetze, i, (slot) => this.#aktionen.nehmen?.(slot), true));
     for (let i = 0; i < INVENTAR_MAX; i++) this.#inventar.push(this.#baueSlot(this.rasterInventar, i, (slot) => this.#aktionen.legen?.(slot), false));
   }
 
-  /** @param aktionen { legen(slot), nehmen(platz), schliessen(), feuer(), sitzen() } */
+  /** @param aktionen { legen(slot), nehmen(platz), schliessen(), feuer(), sitzen(), kochbuch() } */
   beiAktionen(aktionen) {
     this.#aktionen = aktionen;
   }
@@ -88,6 +90,10 @@ export class StationFenster {
     const lagerfeuer = s.art === 'lagerfeuer';
     this.feuerKnopf.hidden = !lagerfeuer;
     this.sitzKnopf.hidden = !lagerfeuer;
+    if (this.kochbuchKnopf) {
+      this.kochbuchKnopf.hidden = !lagerfeuer;
+      this.kochbuchKnopf.disabled = !s.brennt;
+    }
     if (lagerfeuer) {
       this.feuerKnopf.textContent = s.brennt ? '💧 Löschen' : '🔥 Anzünden (Feuerzeug)';
       this.sitzKnopf.disabled = !s.brennt;

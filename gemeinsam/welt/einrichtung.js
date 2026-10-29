@@ -3,6 +3,8 @@
  *   Möbel/Deko: BAUWERKE mit `moebel: true` (gemeinsam/welt/bauwerke.js), Kosten/Menü in gemeinsam/basisbau/teile.js (Kategorie „Einrichtung“).
  *   LICHTER: Bauwerk-Typ → Lichtwerte (Renderer: Lampen-Pool) und `strom` (leuchtet nur mit laufendem Generator in STROM_RADIUS).
  *   Schalter: b.an (Standard an) – E schaltet; Kamin brennt (b.brennt/brennRest), Generator läuft (b.laeuft/brennRest).
+ *   Betten (Runde 24, P11): BETT_TYPEN = gebaute Schlafplätze (Spawn + Schlafen, Qualität: konfiguration.gesundheit.bettQualitaet);
+ *   bettBei() findet Karten-Betten (Objekt-Typ bett*) UND gebaute.
  *   Gemütlichkeit: drinnen + (brennender Kamin in GEMUETLICH_KAMIN_RADIUS oder ≥ GEMUETLICH_DEKO Deko-Teile in GEMUETLICH_RADIUS).
  */
 export const STROM_RADIUS = 14; // Kacheln um einen laufenden Generator
@@ -54,3 +56,15 @@ export function istGemuetlich(welt, x, y, innen) {
 
 /** Alle Möbel-/Deko-Typen (zählen für die Gemütlichkeit). Lichter zählen mit. */
 export const MOEBEL_TYPEN = new Set(['sofa', 'sessel', 'stuhl', 'tisch', 'esstisch', 'regal', 'teppich', 'bild', 'pflanze', 'vorhang', 'kerze', 'oellampe', 'stehlampe', 'lichterkette', 'kamin', 'radio', 'plattenspieler']);
+
+/** Runde 24: gebaute Schlafplätze (E: Spawn Point + schlafen). */
+export const BETT_TYPEN = new Set(['bett', 'doppelbett', 'schlafsack']);
+
+/** Nächster Schlafplatz in `reichweite` px: { x, y, laengs, typ, bauwerkId? } oder null. Karten-Betten zählen als 'bett'. */
+export function bettBei(welt, x, y, reichweite) {
+  const g = welt.kachelGroesse;
+  const b = welt.naechstesBauwerk(x, y, reichweite, (b) => BETT_TYPEN.has(b.typ));
+  if (b) return { x: (b.tx + 0.5) * g, y: (b.ty + 0.5) * g, laengs: (b.drehung ?? 0) % 2 === 1, typ: b.typ, bauwerkId: b.id };
+  const o = welt.naechstesObjekt(x, y, reichweite, (o) => o.typ.startsWith('bett'));
+  return o && { x: o.x, y: o.y, laengs: o.objekt.h >= o.objekt.b, typ: 'bett' };
+}

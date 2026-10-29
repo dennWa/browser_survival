@@ -146,7 +146,7 @@ test('Essen, Trinken und Medizin wirken und werden verbraucht', () => {
   assert.ok(spieler.durst > 79);
   assert.ok(spieler.leben >= 65);
   assert.equal(spieler.inventar[0].menge, 1);
-  assert.equal(spieler.inventar[1], null);
+  assert.equal(spieler.inventar[1]?.defId, 'leere_flasche', 'Flasche bleibt (Runde 24)');
   assert.equal(spieler.inventar[2], null);
 });
 

@@ -814,6 +814,118 @@
     "b": 72,
     "h": 72,
     "weltGroesse": 20
+   },
+   "antibiotika": {
+    "x": 309,
+    "y": 1008,
+    "b": 30,
+    "h": 72,
+    "weltGroesse": 18
+   },
+   "schiene": {
+    "x": 360,
+    "y": 1008,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 26
+   },
+   "aktivkohle": {
+    "x": 432,
+    "y": 1008,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 20
+   },
+   "leere_flasche": {
+    "x": 504,
+    "y": 1008,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 20
+   },
+   "wasser_dreckig": {
+    "x": 0,
+    "y": 1080,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 20
+   },
+   "verdorben": {
+    "x": 72,
+    "y": 1094,
+    "b": 72,
+    "h": 43,
+    "weltGroesse": 22
+   },
+   "mehl": {
+    "x": 144,
+    "y": 1089,
+    "b": 72,
+    "h": 53,
+    "weltGroesse": 22
+   },
+   "brot": {
+    "x": 216,
+    "y": 1093,
+    "b": 72,
+    "h": 46,
+    "weltGroesse": 26
+   },
+   "eintopf": {
+    "x": 292,
+    "y": 1080,
+    "b": 63,
+    "h": 72,
+    "weltGroesse": 24
+   },
+   "fischsuppe": {
+    "x": 360,
+    "y": 1097,
+    "b": 72,
+    "h": 38,
+    "weltGroesse": 24
+   },
+   "kuerbissuppe": {
+    "x": 436,
+    "y": 1080,
+    "b": 63,
+    "h": 72,
+    "weltGroesse": 24
+   },
+   "pfannkuchen": {
+    "x": 504,
+    "y": 1094,
+    "b": 72,
+    "h": 43,
+    "weltGroesse": 24
+   },
+   "doerrfleisch": {
+    "x": 0,
+    "y": 1166,
+    "b": 72,
+    "h": 43,
+    "weltGroesse": 22
+   },
+   "raeucherfisch": {
+    "x": 72,
+    "y": 1172,
+    "b": 72,
+    "h": 31,
+    "weltGroesse": 26
+   },
+   "eingelegte_gurken": {
+    "x": 144,
+    "y": 1153,
+    "b": 72,
+    "h": 70,
+    "weltGroesse": 20
+   },
+   "trockenobst": {
+    "x": 216,
+    "y": 1163,
+    "b": 72,
+    "h": 49,
+    "weltGroesse": 18
    }
   }
  },

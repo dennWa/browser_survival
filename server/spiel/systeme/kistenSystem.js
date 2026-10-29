@@ -1,4 +1,5 @@
 import { zusatzVon } from './inventarSystem.js';
+import { BAUWERKE } from '../../../gemeinsam/welt/bauwerke.js';
 import { BAUWERK_REICHWEITE } from '../../../gemeinsam/welt/bauwerke.js';
 import { KISTE_PLAETZE } from '../../../gemeinsam/konstanten.js';
 import { GEGENSTAENDE } from '../konfiguration/gegenstaende.js';
@@ -62,7 +63,7 @@ function behaelterVon(spielWelt, ref) {
     return fz?.typ === 'fahrzeug' && fz.kofferraum ? { id: ref, inhalt: fz.kofferraum, titel: '🚗 Kofferraum', fahrzeug: fz } : null;
   }
   const b = spielWelt.welt.bauwerke.get(ref);
-  return b?.typ === 'kiste' && b.inhalt ? b : null;
+  return BAUWERKE[b?.typ]?.kiste && b.inhalt ? b : null; // Kiste oder Vorratsschrank
 }
 
 function sendeKiste(spielWelt, spieler, behaelter) {

@@ -262,6 +262,35 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     durstKosten: 10,
     zombieAbstand: 300, // so nah darf beim Hinlegen kein jagender Zombie sein
   },
+  /**
+   * Runde 24: Gesundheit & Müdigkeit (systeme/gesundheitSystem.js). Chancen je Zombie-Treffer, Schaden pro Sekunde.
+   * Müdigkeit 0..100 steigt pro Spielstunde, ab erschoepftAb langsamer + keine Heilung; Schlaf senkt sie um
+   * schlafErholung × Bett-Qualität (bettQualitaet: Basis-/Kartenbett 1, Doppelbett besser, Schlafsack schlechter).
+   */
+  gesundheit: {
+    blutungChance: 0.12,
+    blutungSchaden: 0.5,
+    infektionChance: 0.04,
+    infektionProStunde: 4, // Infektion wächst (0..100), bei 100 Dauerschaden
+    infektionSchaden: 0.4,
+    vergiftungDauer: 45,
+    vergiftungSchaden: 0.3,
+    vergiftungDurst: 0.25,
+    bruchAb: 25, // ab so viel Schaden auf einmal kann das Bein brechen (Brocken, Explosion, Sturz)
+    bruchChance: 0.35,
+    bruchTempo: 0.6,
+    schieneTempo: 0.85,
+    schieneDauer: 300,
+    muedigkeitProStunde: 3,
+    erschoepftAb: 85,
+    erschoepftTempo: 0.85,
+    schlafErholung: 70,
+    bettQualitaet: { bett: 1, doppelbett: 1.3, schlafsack: 0.6 },
+    vorratFaktor: 0.2, // Vorratsschrank: Essen verdirbt nur 20 % so schnell
+    sattFaktor: 0.5, // Buff „satt“: Hunger sinkt halb so schnell
+    warmFaktor: 0.5, // Buff „warm“: Kälte steigt halb so schnell
+    kraftFaktor: 1.25, // Buff „kraft“: Nahkampf +25 %
+  },
   /** Bauwerke (gemeinsam/welt/bauwerke.js): Lagerfeuer, Kochen, Beete */
   bauen: {
     kaminDauer: 600, // Runde 24: Sekunden, die ein angezündeter Kamin brennt (Holz nachlegen +½)

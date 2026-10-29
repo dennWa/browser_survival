@@ -4,8 +4,10 @@ import { BAUWERKE, BAUWERK_REICHWEITE, PFLANZEN, bauwerkAktion, feldKacheln, kac
 import { flaggeFuerBauteil, gebietBei } from './territoriumSystem.js';
 import { RECHT, hatRecht } from '../../../gemeinsam/basisbau/rechte.js';
 import { setzeSpawn } from './spawnSystem.js';
+import { starteSchlafen } from './arbeitSystem.js';
 import { GEGENSTAENDE } from '../konfiguration/gegenstaende.js';
 import { fuegeZumInventarHinzu, legeAufBoden, nutzeWerkzeug, verbrauche } from './inventarSystem.js';
+import { lasseVerderben } from './gesundheitSystem.js';
 import { aktualisiereStation, aktualisiereStationen, leerePlaetze, oeffneStation } from './stationSystem.js';
 import { toeten } from './kampfSystem.js';
 import { aktualisiereKisten, leererKistenInhalt, oeffneKiste } from './kistenSystem.js';
@@ -73,7 +75,7 @@ export function neuesBauwerk(spielWelt, typ, tx, ty, besitzer, zusatz = {}) {
   if (BEET_TYPEN.has(typ)) Object.assign(b, { pflanze: null, wachstum: 0 });
   if (typ === 'huehnerstall') b.eier = 0;
   if (typ === 'bienenstock') b.honig = 0;
-  if (typ === 'kiste') b.inhalt = leererKistenInhalt();
+  if (BAUWERKE[typ]?.kiste) b.inhalt = leererKistenInhalt();
   if (BAUWERKE[typ].schaltbar) b.offen = false;
   return b;
 }
@@ -217,7 +219,8 @@ export function benutzeBauwerk(spielWelt, spieler, bauwerkId = null, wunschPflan
       schalteTuer(spielWelt, spieler, b);
       return;
     case 'spawn':
-      setzeSpawn(spielWelt, spieler, b);
+      setzeSpawn(spielWelt, spieler, b, true);
+      starteSchlafen(spielWelt, spieler); // Runde 24: gebaute Betten/Schlafsack = schlafen (Bett-Qualität)
       return;
     case 'station':
       oeffneStation(spielWelt, spieler, b);
@@ -255,7 +258,10 @@ export function benutzeBauwerk(spielWelt, spieler, bauwerkId = null, wunschPflan
       return;
     case 'musik':
     case 'info':
-      return; // Auswahl-Fenster im Client → AKTION musik (musikSystem) bzw. nur Hinweis
+    case 'handwerk':
+      return; // Auswahl-Fenster im Client → AKTION musik (musikSystem) / herstellen (Station) bzw. nur Hinweis
+    case 'wasser':
+      fuelleFlasche(spielWelt, spieler, b);
     case 'eier':
     case 'honig': {
       const feld = aktion.art === 'eier' ? 'eier' : 'honig';
@@ -303,6 +309,26 @@ function schalteTuer(spielWelt, spieler, tuer) {
 }
 
 /** Pro Tick: Feuer, Fallen, Pflanzen. @param spielSekunden vergangene Spielzeit (Schlafen spult vor) */
+const REGENTONNE_MAX = 6;
+const REGENTONNE_PRO_STUNDE = 1;
+
+/** Runde 24 (P12): E an Regentonne/Brunnen mit leerer Flasche → Wasser (Tonne: sauber, Brunnen: dreckig – abkochen!). */
+function fuelleFlasche(spielWelt, spieler, b) {
+  const slot = spieler.inventar.findIndex((e) => e?.defId === 'leere_flasche');
+  if (slot < 0) return;
+  if (b.typ === 'regentonne') {
+    if ((b.wasser ?? 0) < 1) return spielWelt.melde(spieler.id, 'Die Tonne ist leer – warte auf Regen');
+    b.wasser -= 1;
+    spielWelt.welt.setzeBauwerk(b);
+  }
+  const ergebnis = b.typ === 'regentonne' ? 'wasserflasche' : 'wasser_dreckig';
+  verbrauche(spieler, slot);
+  const rest = fuegeZumInventarHinzu(spieler, ergebnis, 1);
+  if (rest > 0) legeAufBoden(spielWelt, { defId: ergebnis, menge: rest }, spieler.x, spieler.y);
+  spielWelt.ereignis({ typ: 'wasserFuellen', x: mitteX(spielWelt, b), y: mitteY(spielWelt, b), von: spieler.id });
+  spielWelt.melde(spieler.id, b.typ === 'regentonne' ? '💧 Sauberes Regenwasser abgefüllt' : '💧 Brunnenwasser abgefüllt – vor dem Trinken abkochen');
+}
+
 export function aktualisiereBauwerke(spielWelt, dt, spielSekunden = dt) {
   const welt = spielWelt.welt;
   if (dt > 0) aktualisiereKisten(spielWelt);
@@ -335,6 +361,18 @@ export function aktualisiereBauwerke(spielWelt, dt, spielSekunden = dt) {
       pruefeFalle(spielWelt, b);
     } else if (FALLEN_TYPEN.has(b.typ) && dt > 0) {
       aktualisiereFalle(spielWelt, b, dt);
+    } else if (b.typ === 'regentonne' && wachstumFaktor > 1) {
+      // Runde 24 (P12): Regen füllt die Tonne (REGENTONNE_PRO_STUNDE Flaschen je Spielstunde, max REGENTONNE_MAX)
+      const vorher = Math.floor(b.wasser ?? 0);
+      b.wasser = Math.min(REGENTONNE_MAX, (b.wasser ?? 0) + (spielSekunden * REGENTONNE_PRO_STUNDE * 24) / zyklus);
+      if (Math.floor(b.wasser) !== vorher) welt.setzeBauwerk(b);
+    } else if (BAUWERKE[b.typ].kiste && b.inhalt && spielSekunden > 0) {
+      // Runde 24 (P12): Essen in Kisten verdirbt (Vorratsschrank nur zu vorratFaktor)
+      b.verderbTakt = (b.verderbTakt ?? 0) + spielSekunden;
+      if (b.verderbTakt >= 5) {
+        lasseVerderben(b.inhalt, b.verderbTakt * (b.typ === 'vorratsschrank' ? spielWelt.konfiguration.gesundheit?.vorratFaktor ?? 1 : 1));
+        b.verderbTakt = 0;
+      }
     } else if (b.typ === 'huehnerstall' || b.typ === 'bienenstock') {
       // Runde 24: Eier/Honig sammeln sich an (spielSekunden → auch beim Schlafen)
       erzeugeErtrag(spielWelt, b, spielSekunden, zyklus);

@@ -12,7 +12,7 @@
  *   block       = true: wird (bei konfiguration.basisbau.blockGroesse = 2) als Block 2×2 Kacheln gesetzt, Preis siehe kostenFuer()
  *   ausrichtung = true: Teil hat eine Richtung (Öffnung/Rahmen) → Taste R dreht, sonst automatisch (platzierung.js)
  */
-export const KATEGORIEN = Object.freeze(['Basis', 'Struktur', 'Einrichtung', 'Gemütlich', 'Farm']);
+export const KATEGORIEN = Object.freeze(['Basis', 'Struktur', 'Einrichtung', 'Gemütlich', 'Farm', 'Handwerk']);
 
 export const BAUTEILE = Object.freeze({
   flagge: {
@@ -32,7 +32,15 @@ export const BAUTEILE = Object.freeze({
   zaun: { art: 'bauwerk', name: 'Zaun', symbol: '🚧', kategorie: 'Struktur', tier: 2, kosten: { eisenerz: 2 }, beschreibung: 'Hält Zombies fern (schießen und sehen geht durch). Schließt sich an Nachbarzäune und Wände an.' },
   zauntor: { art: 'bauwerk', name: 'Zauntor', symbol: '⛩', kategorie: 'Struktur', tier: 2, kosten: { eisenerz: 4, holz: 2 }, ausrichtung: true, beschreibung: 'Tor im Zaun – nur du darfst es öffnen (E).' },
   kiste: { art: 'bauwerk', name: 'Lagerkiste', symbol: '📦', kategorie: 'Einrichtung', tier: 1, kosten: { holz: 8 }, beschreibung: '16 Plätze. Nur du kommst dran (E).' },
-  bett: { art: 'bauwerk', name: 'Bett', symbol: '🛏', kategorie: 'Einrichtung', tier: 1, kosten: { holz: 5, stein: 2, stoff: 2 }, ausrichtung: true, beschreibung: 'E: Spawn Point setzen – hier wachst du nach dem Tod wieder auf.' },
+  bett: { art: 'bauwerk', name: 'Bett', symbol: '🛏', kategorie: 'Einrichtung', tier: 1, kosten: { holz: 5, stein: 2, stoff: 2 }, ausrichtung: true, beschreibung: 'E: schlafen & Spawn Point setzen – hier wachst du nach dem Tod wieder auf.' },
+  doppelbett: { art: 'bauwerk', name: 'Doppelbett', symbol: '🛏', kategorie: 'Einrichtung', tier: 2, kosten: { holz: 8, stein: 2, stoff: 5 }, ausrichtung: true, beschreibung: 'Erholsamster Schlaf (Müdigkeit sinkt am stärksten). Auch Spawn Point.' },
+  schlafsack: { art: 'bauwerk', name: 'Schlafsack', symbol: '🎒', kategorie: 'Einrichtung', tier: 1, kosten: { stoff: 3 }, ausrichtung: true, beschreibung: 'Billig, überall hinlegbar – aber man schläft schlecht. Auch Spawn Point.' },
+  vorratsschrank: { art: 'bauwerk', name: 'Vorratsschrank', symbol: '🗄', kategorie: 'Einrichtung', tier: 1, kosten: { holz: 10, stein: 2 }, beschreibung: '16 Plätze – Essen darin verdirbt fünfmal langsamer.' },
+  regentonne: { art: 'bauwerk', name: 'Regentonne', symbol: '🛢', kategorie: 'Farm', tier: 1, kosten: { holz: 6, schrott: 1 }, beschreibung: 'Sammelt bei Regen sauberes Wasser (E mit leerer Flasche).' },
+  brunnen: { art: 'bauwerk', name: 'Brunnen', symbol: '🪣', kategorie: 'Farm', tier: 2, kosten: { stein: 16, holz: 4 }, beschreibung: 'Unendlich Wasser – aber vorher abkochen oder filtern.' },
+  amboss: { art: 'bauwerk', name: 'Amboss', symbol: '⚒', kategorie: 'Handwerk', tier: 2, kosten: { eisenbarren: 4, stein: 4 }, beschreibung: 'Schmieden: Eisenbarren → Klingen, Werkzeug, Rüstung (E).' },
+  webstuhl: { art: 'bauwerk', name: 'Webstuhl', symbol: '🧵', kategorie: 'Handwerk', tier: 1, kosten: { holz: 10 }, beschreibung: 'Weben: Stoff aus Weizenfasern, Kleidung, Schlafsäcke (E).' },
+  chemietisch: { art: 'bauwerk', name: 'Chemie-Tisch', symbol: '⚗', kategorie: 'Handwerk', tier: 2, kosten: { holz: 4, eisenbarren: 2, schrott: 2 }, beschreibung: 'Brennen & Mischen: Alkohol, Benzin, Antibiotika, Schwarzpulver (E).' },
   // Runde 24 (Cozy): Möbel & Deko (auch in Karten-Häusern), Licht, Wärme, Musik – Kategorie „Gemütlich“
   sofa: { art: 'bauwerk', name: 'Sofa', symbol: '🛋', kategorie: 'Gemütlich', tier: 1, kosten: { holz: 6, stoff: 3 }, ausrichtung: true, beschreibung: 'Bequem. Drei Möbel im Raum machen ihn gemütlich (heilt schneller).' },
   sessel: { art: 'bauwerk', name: 'Sessel', symbol: '💺', kategorie: 'Gemütlich', tier: 1, kosten: { holz: 4, stoff: 2 }, ausrichtung: true, beschreibung: 'Ohrensessel für lange Abende.' },

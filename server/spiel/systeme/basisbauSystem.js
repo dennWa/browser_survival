@@ -1,3 +1,4 @@
+import { BETT_TYPEN } from '../../../gemeinsam/welt/einrichtung.js';
 import { BAUWERKE, ebeneVon, kachelInReichweite } from '../../../gemeinsam/welt/bauwerke.js';
 import { BAUTEILE, BAU_REICHWEITE_BASIS, fehlendesMaterial, fussabdruck, kostenFuer, kostenProKachel, rueckerstattung } from '../../../gemeinsam/basisbau/teile.js';
 import { autoDrehung, findeAbrissZiel, pruefeBauteil } from '../../../gemeinsam/basisbau/platzierung.js';
@@ -66,7 +67,7 @@ export function baue(spielWelt, spieler, { teil: teilId, tx, ty, drehung = null 
   ty = kacheln[0].ty;
   const g = welt.kachelGroesse;
   spielWelt.ereignis({ typ: 'gebaut', bauwerk: teilId, x: (tx + 0.5) * g, y: (ty + 0.5) * g, von: spieler.id });
-  if (teilId === 'bett') spielWelt.melde(spieler.id, 'Bett steht – mit E den Spawn Point setzen');
+  if (BETT_TYPEN.has(teilId)) spielWelt.melde(spieler.id, 'Schlafplatz steht – mit E schlafen & Spawn Point setzen');
 }
 
 /** AKTION abreissen. Eine Türöffnung nimmt ihre Tür mit. */
@@ -88,8 +89,8 @@ export function reisseAb(spielWelt, spieler, { tx, ty, ebene = null }) {
   const erhalten = new Map(); // defId → Menge (für die Meldung)
   const g = welt.kachelGroesse;
   for (const b of abzureissen) {
-    if (b.typ === 'kiste') leereKiste(spielWelt, spieler, b);
-    if (b.typ === 'bett') vergissSpawnBei(spielWelt, b);
+    if (BAUWERKE[b.typ]?.kiste) leereKiste(spielWelt, spieler, b);
+    if (BETT_TYPEN.has(b.typ)) vergissSpawnBei(spielWelt, b);
     for (const [defId, menge] of Object.entries(rueckerstattung(kostenProKachel(b.typ, spielWelt.konfiguration.basisbau.blockGroesse ?? 1), spielWelt.konfiguration.basisbau.rueckgabe))) {
       const rest = fuegeZumInventarHinzu(spieler, defId, menge);
       if (rest > 0) legeAufBoden(spielWelt, { defId, menge: rest }, spieler.x, spieler.y); // Inventar voll → vor die Füße

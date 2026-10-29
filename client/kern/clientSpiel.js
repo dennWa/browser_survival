@@ -1,4 +1,5 @@
 import { AUFHEB_REICHWEITE, BETT_REICHWEITE, TICK_DAUER_MS, TICK_DAUER_S, WERKBANK_REICHWEITE } from '../../gemeinsam/konstanten.js';
+import { naheHandwerk, rezepteFuerOrt } from '../../gemeinsam/spieler/handwerk.js';
 import { ABBAU_REICHWEITE, RESSOURCEN_OBJEKTE } from '../../gemeinsam/welt/ressourcen.js';
 import { BAUWERKE, BAUWERK_REICHWEITE, bauwerkAktion, feuerText, kachelInReichweite, pruefePlatz, samenZiel, zielKachel } from '../../gemeinsam/welt/bauwerke.js';
 import { wurfZiel } from '../../gemeinsam/welt/wasser.js';
@@ -121,6 +122,7 @@ export class ClientSpiel {
     this.karte.beiZielWahl = (tx, ty, erkundet) => this.autoLaufStarten(tx, ty, erkundet);
     if (anmeldeDaten.erkundet) this.karte.uebernimm(anmeldeDaten.erkundet); // vom Server (auch von anderen Geräten)
     this.werkbankOffen = false;
+    this.werkbankOrt = 'werkbank'; // Runde 24: welcher Handwerks-Ort gerade offen ist
     // Uhr: Serverzeit + seit Empfang vergangene Zeit (läuft zwischen den Schnappschüssen weich weiter)
     this.tageszeitDauer = anmeldeDaten.tageszeit ?? { tagSekunden: 600, nachtSekunden: 300 };
     this.serverZeit = anmeldeDaten.zeit ?? 0;
@@ -247,6 +249,7 @@ export class ClientSpiel {
     if (was.art === 'aufheben') this.#aktion(AKTIONEN.AUFHEBEN);
     else if (was.art === 'abbauen') this.#aktion(AKTIONEN.ABBAUEN);
     else if (was.art === 'bauwerk' && was.bauwerkArt === 'musik') this.musikFenster.zeige(this.welt.bauwerke.get(was.bauwerkId)); // Runde 24
+    else if (was.art === 'bauwerk' && was.bauwerkArt === 'handwerk') this.werkbankUmschalten(true, was.station); // Runde 24: Amboss, Webstuhl, Chemie, Kochstelle
     else if (was.art === 'bauwerk') this.#aktion(AKTIONEN.BAUWERK);
     else if (was.art === 'schlafen') this.#aktion(AKTIONEN.SCHLAFEN);
     else if (was.art === 'werkbank') this.werkbankUmschalten(true);
@@ -467,16 +470,23 @@ export class ClientSpiel {
     this.stationSchliessen();
   }
 
+  /** Runde 24: Kochbuch am brennenden Lagerfeuer → Rezepte der Kochstelle (ort 'feuer'). */
+  kochbuch() {
+    this.stationSchliessen();
+    this.werkbankUmschalten(true, 'feuer');
+  }
+
   kisteSchliessen() {
     if (!this.hud.kiste.offen) return;
     this.hud.kiste.zeige(null);
     this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.KISTE_SCHLIESSEN });
   }
 
-  /** Werkbank-Menü öffnen/schließen (nur in Reichweite einer Werkbank). */
-  werkbankUmschalten(offen = !this.werkbankOffen) {
-    this.werkbankOffen = offen && this.#naheWerkbank();
-    this.hud.zeigeWerkbank(this.werkbankOffen ? this.rezepte : null, this.spielerDaten, this.itemDefinitionen);
+  /** Werkbank-Menü öffnen/schließen (nur in Reichweite). Runde 24: `ort` = Handwerks-Ort (gemeinsam/spieler/handwerk.js). */
+  werkbankUmschalten(offen = !this.werkbankOffen, ort = 'werkbank') {
+    this.werkbankOrt = ort;
+    this.werkbankOffen = offen && naheHandwerk(this.welt, this.lokal.x, this.lokal.y, ort);
+    this.hud.zeigeWerkbank(this.werkbankOffen ? rezepteFuerOrt(this.rezepte, ort) : null, this.spielerDaten, this.itemDefinitionen, ort);
   }
 
   herstellen(rezept) {
@@ -565,7 +575,7 @@ export class ClientSpiel {
       const a = aktionFuer(bauwerk);
       return { ...a, art: 'bauwerk', bauwerkArt: a.art, bauwerkId: bauwerk.id };
     }
-    if (this.#naheWerkbank()) return { art: 'werkbank', text: 'Werkbank benutzen', symbol: '🔨' };
+    if (naheHandwerk(this.welt, x, y, 'werkbank')) return { art: 'werkbank', text: 'Werkbank benutzen', symbol: '🔨' };
     if (this.welt.naechstesObjekt(x, y, BETT_REICHWEITE, (o) => o.typ.startsWith('bett'))) return { art: 'schlafen', text: 'Schlafen', symbol: '🛏' };
     return null;
   }
@@ -609,14 +619,6 @@ export class ClientSpiel {
       }
     }
     return bestes;
-  }
-
-  #naheWerkbank() {
-    const { x, y } = this.lokal;
-    return (
-      this.welt.naechstesObjekt(x, y, WERKBANK_REICHWEITE, (o) => o.typ === 'werkbank') !== null ||
-      this.welt.naechstesBauwerk(x, y, WERKBANK_REICHWEITE + 8, (b) => b.typ === 'werkbank') !== null
-    );
   }
 
   // --- Platzieren (Bauwerke, Beet mit der Hacke) ------------------------------
@@ -922,7 +924,7 @@ export class ClientSpiel {
     this.bau.beiSpielerDaten(daten);
     this.lokal.tempoFaktor = daten.tempoFaktor ?? 1; // Skill "Schnelligkeit" → Vorhersage läuft gleich schnell wie der Server
     this.hud.setzeSpielerDaten(daten, this.itemDefinitionen);
-    if (this.werkbankOffen) this.hud.zeigeWerkbank(this.rezepte, daten, this.itemDefinitionen);
+    if (this.werkbankOffen) this.hud.zeigeWerkbank(rezepteFuerOrt(this.rezepte, this.werkbankOrt), daten, this.itemDefinitionen, this.werkbankOrt);
   }
 
   #zustandEmpfangen(n) {
@@ -1479,7 +1481,7 @@ export class ClientSpiel {
     }
     const interaktion = this.#interaktion();
     const aufhebbar = interaktion?.gegenstand ?? null;
-    if (this.werkbankOffen && !this.#naheWerkbank()) this.werkbankUmschalten(false); // weggegangen → zu
+    if (this.werkbankOffen && !naheHandwerk(this.welt, this.lokal.x, this.lokal.y, this.werkbankOrt)) this.werkbankUmschalten(false); // weggegangen/Feuer aus → zu // weggegangen → zu
     const uhr = tageszeit(this.serverZeit + (jetzt - this.zeitEmpfangen) / 1000, this.tageszeitDauer);
     // Nachtgeräusche (Grillen) nur draußen-unabhängig nach Dunkelheit, in 10-%-Stufen (Ereignis nacht); in Schneezonen keine Grillen
     const ruhig = !['regen', 'gewitter', 'sturm', 'schneesturm'].includes(this.wetter);

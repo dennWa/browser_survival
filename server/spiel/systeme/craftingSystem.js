@@ -1,11 +1,13 @@
 import { WERKBANK_REICHWEITE } from '../../../gemeinsam/konstanten.js';
+import { HANDWERK_ORTE, naheHandwerk, ortVon } from '../../../gemeinsam/spieler/handwerk.js';
 import { REZEPTE } from '../konfiguration/rezepte.js';
 import { GEGENSTAENDE } from '../konfiguration/gegenstaende.js';
 import { aktualisiereAusruestung, fuegeZumInventarHinzu, legeAufBoden } from './inventarSystem.js';
 
 /**
  * Crafting: AKTION 'herstellen' { rezept } an einer Werkbank (Kartenobjekt oder gebaute) in Reichweite –
- * Rezepte mit ort: 'inventar' gehen überall (Inventar-Fenster → Bauen).
+ * Rezepte mit ort: 'inventar' gehen überall (Inventar-Fenster → Bauen). Runde 24: weitere Orte (Amboss, Webstuhl,
+ * Chemie-Tisch, Kochstelle) → gemeinsam/spieler/handwerk.js.
  * Rezepte: server/spiel/konfiguration/rezepte.js. Der Server prüft Level (rezept.level), Werkbank-Nähe und Zutaten.
  */
 
@@ -16,8 +18,9 @@ export function stelleHer(spielWelt, spieler, rezeptName) {
     spielWelt.melde(spieler.id, `${rezept.name} kannst du erst ab Level ${rezept.level} herstellen`);
     return;
   }
-  if (rezept.ort !== 'inventar' && !naeheWerkbank(spielWelt.welt, spieler.x, spieler.y)) {
-    spielWelt.melde(spieler.id, 'Dafür brauchst du eine Werkbank');
+  const ort = ortVon(rezept);
+  if (!naheHandwerk(spielWelt.welt, spieler.x, spieler.y, ort)) {
+    spielWelt.melde(spieler.id, `Dafür brauchst du ${HANDWERK_ORTE[ort]?.hinweis ?? `eine(n) ${HANDWERK_ORTE[ort]?.name ?? 'Werkbank'}`}`);
     return;
   }
   const fehlt = Object.entries(rezept.zutaten).filter(([item, anzahl]) => zaehle(spieler, item) < anzahl);

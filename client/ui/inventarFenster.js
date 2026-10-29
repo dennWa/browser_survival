@@ -227,6 +227,7 @@ export class InventarFenster {
     if (!def) return;
     // Runde 24: Zustand und Aufsätze (Zielfernrohr …) – Knopf nimmt sie wieder ab
     if (def.haltbarkeit) this.info.append(` · Zustand ${Math.round(((e.haltbarkeit ?? def.haltbarkeit) / def.haltbarkeit) * 100)} %`);
+    if (def.verdirbt) this.info.append(` · ${(e.verderb ?? def.verdirbt) < def.verdirbt * 0.25 ? '⚠ bald verdorben' : 'frisch'} (noch ${Math.ceil((e.verderb ?? def.verdirbt) / 60)} min)`); // Runde 24 (P12)
     if (def.mods?.length) this.info.append(` · Aufsätze: ${e.mods?.length ? e.mods.map((m) => MOD_NAMEN[m] ?? m).join(', ') : `keine (passt: ${def.mods.map((m) => MOD_NAMEN[m] ?? m).join(', ')})`}`);
     if (e.mods?.length) {
       const knopf = Object.assign(this.dokument.createElement('button'), { type: 'button', className: 'inv-mod-ab', textContent: '🔧 abnehmen' });

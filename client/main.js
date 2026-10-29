@@ -141,6 +141,7 @@ hud.beiAktionen({
   stationNehmen: (platz) => aktuellesSpiel?.stationAktion(AKTIONEN.STATION_NEHMEN, platz),
   stationSchliessen: () => aktuellesSpiel?.stationSchliessen(),
   stationSitzen: () => aktuellesSpiel?.stationSitzen(),
+  kochbuch: () => aktuellesSpiel?.kochbuch(), // Runde 24: Lagerfeuer → Rezepte der Kochstelle
   platzierenOk: () => aktuellesSpiel?.platzierungBestaetigen(),
   platzierenAbbrechen: () => aktuellesSpiel?.platzierungAbbrechen(),
   licht: () => aktuellesSpiel?.licht(),

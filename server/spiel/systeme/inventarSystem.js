@@ -19,6 +19,8 @@ import { legeInKiste, nimmAusKiste, oeffneKofferraum, schliesseKiste } from './k
 import { entferneFeld, legeFeldAn } from './bauSystem.js';
 import { legeInStation, nimmAusStation, schliesseStation, setzeAmFeuer, setzeHin } from './stationSystem.js';
 import { baue, reisseAb } from './basisbauSystem.js';
+import { wendeItemAn } from './gesundheitSystem.js';
+import { istWasserKachel } from '../../../gemeinsam/welt/wasser.js';
 
 /**
  * Inventar: Aufheben, Benutzen (Essen/Trinken/Medizin), Aus-/Abrüsten, Ablegen, Nachladen.
@@ -202,6 +204,7 @@ export function zusatzVon(e) {
   const z = {};
   if (Number.isFinite(e?.haltbarkeit)) z.haltbarkeit = e.haltbarkeit;
   if (e?.mods?.length) z.mods = [...e.mods];
+  if (Number.isFinite(e?.verderb)) z.verderb = e.verderb; // Runde 24: Frische
   return z;
 }
 
@@ -216,6 +219,7 @@ export function fuegeZumInventarHinzu(spieler, defId, menge, magazin = 0, zusatz
       const passt = Math.min(rest, maxStapel - eintrag.menge);
       eintrag.menge += passt;
       rest -= passt;
+      if (Number.isFinite(zusatz?.verderb)) eintrag.verderb = Math.min(eintrag.verderb ?? Infinity, zusatz.verderb); // älteres zählt
     }
   }
   for (let slot = 0; slot < spieler.inventar.length && rest > 0; slot++) {
@@ -223,6 +227,7 @@ export function fuegeZumInventarHinzu(spieler, defId, menge, magazin = 0, zusatz
     const anzahl = Math.min(rest, maxStapel);
     spieler.inventar[slot] = def.kategorie === 'fernkampf' ? { defId, menge: 1, magazin } : { defId, menge: anzahl };
     if (zusatz && maxStapel === 1) Object.assign(spieler.inventar[slot], zusatz);
+    else if (Number.isFinite(zusatz?.verderb)) spieler.inventar[slot].verderb = zusatz.verderb;
     rest -= anzahl;
   }
   return rest;
@@ -384,21 +389,30 @@ export function konsumiere(spielWelt, spieler, slot) {
   const eintrag = spieler.inventar[slot];
   const def = eintrag && GEGENSTAENDE[eintrag.defId];
   if (!def) return false;
+  if (def.fuellen) return fuelleAmWasser(spielWelt, spieler, slot); // Runde 24: leere Flasche
   if (def.kategorie === 'medizin') {
-    if (spieler.leben >= spieler.maxLeben) {
-      spielWelt.melde(spieler.id, 'Du bist nicht verletzt');
+    // Runde 24: Medizin mit `heilt` (Blutung, Infektion, Bruch, Vergiftung) geht auch bei vollem Leben
+    const hilft = (def.heilt ?? []).some((was) => hatZustand(spieler, was));
+    if (spieler.leben >= spieler.maxLeben && !hilft) {
+      spielWelt.melde(spieler.id, def.heilt ? 'Das brauchst du gerade nicht' : 'Du bist nicht verletzt');
       return false;
     }
     spieler.leben = Math.min(spieler.maxLeben, spieler.leben + def.heilung);
+    wendeItemAn(spielWelt, spieler, def);
   } else if (def.kategorie === 'nahrung' || def.kategorie === 'getraenk') {
     if (def.naehrwert) spieler.hunger = Math.min(100, spieler.hunger + def.naehrwert);
     if (def.durstwert) spieler.durst = Math.min(100, spieler.durst + def.durstwert);
     if (def.boost) spieler.boostRest = def.boost;
+    wendeItemAn(spielWelt, spieler, def); // Vergiftung (roh/dreckig/verdorben), Buffs
   } else {
     return false;
   }
   spielWelt.ereignis({ typ: def.kategorie === 'getraenk' ? 'getrunken' : def.kategorie === 'medizin' ? 'geheilt' : 'gegessen', von: spieler.id, x: spieler.x, y: spieler.y });
   verbrauche(spieler, slot);
+  if (def.leer) {
+    const rest = fuegeZumInventarHinzu(spieler, def.leer, 1); // Runde 24: Flasche bleibt
+    if (rest > 0) legeAufBoden(spielWelt, { defId: def.leer, menge: rest }, spieler.x, spieler.y);
+  }
   return true;
 }
 
@@ -428,6 +442,34 @@ export function pflanzeSamenAusHand(spielWelt, spieler, def) {
     return false;
   }
   benutzeBauwerk(spielWelt, spieler, beet.id, def.pflanze);
+  return true;
+}
+
+function hatZustand(spieler, was) {
+  const z = spieler.zustand;
+  return !!z && (was === 'blutung' ? z.blutung : was === 'infektion' ? z.infektion > 0 : was === 'vergiftung' ? z.vergiftung > 0 : was === 'bruch' ? z.bruch === 1 : false);
+}
+
+/** Runde 24 (P12): leere Flasche in der Hand + Klick am Ufer → dreckiges Wasser (abkochen!). */
+function fuelleAmWasser(spielWelt, spieler, slot) {
+  const g = spielWelt.welt.kachelGroesse;
+  const tx = Math.floor(spieler.x / g);
+  const ty = Math.floor(spieler.y / g);
+  let wasser = false;
+  for (let dy = -2; dy <= 2 && !wasser; dy++) for (let dx = -2; dx <= 2 && !wasser; dx++) wasser = istWasserKachel(spielWelt.welt, tx + dx, ty + dy);
+  if (!wasser) {
+    spielWelt.melde(spieler.id, 'Kein Wasser in der Nähe – geh ans Ufer, zur Regentonne oder zum Brunnen');
+    return false;
+  }
+  if (spielWelt.welt.schnee) {
+    spielWelt.melde(spieler.id, 'Alles zugefroren');
+    return false;
+  }
+  verbrauche(spieler, slot);
+  const rest = fuegeZumInventarHinzu(spieler, 'wasser_dreckig', 1);
+  if (rest > 0) legeAufBoden(spielWelt, { defId: 'wasser_dreckig', menge: rest }, spieler.x, spieler.y);
+  spielWelt.ereignis({ typ: 'wasserFuellen', x: spieler.x, y: spieler.y, von: spieler.id });
+  spielWelt.melde(spieler.id, '💧 Flasche gefüllt – vor dem Trinken abkochen (Lagerfeuer) oder filtern');
   return true;
 }
 

@@ -130,6 +130,7 @@ test('P2 Spucker spuckt aus Abstand, Treffer nur wer stehen bleibt', () => {
   assert.ok(Math.hypot(z.x - spieler.x, z.y - spieler.y) > 100, 'hält Abstand');
   // Ausweichen: nach dem Abschuss weggehen
   spieler.leben = 100;
+  spieler.zustand = null; // Treffer davor kann bluten (P11)
   welt.spuckeFluege.length = 0;
   z.spuckRest = 0;
   welt.aktualisiere(TICK_DAUER_S);
@@ -410,7 +411,7 @@ test('P6 Rüstung schluckt Schaden, Regenmantel hilft gegen Regen-Kälte', () =>
 
 // ---------------------------------------------------------------- Phase 7+8: Cozy & Musik
 import { BAUTEILE } from '../gemeinsam/basisbau/teile.js';
-import { BAUWERKE, bauwerkAktion } from '../gemeinsam/welt/bauwerke.js';
+import { BAUWERKE, KOCHBAR, bauwerkAktion } from '../gemeinsam/welt/bauwerke.js';
 import { hatStrom, istGemuetlich, leuchtet } from '../gemeinsam/welt/einrichtung.js';
 import { pruefeMusikWahl } from '../server/spiel/systeme/musikSystem.js';
 import { youtubeId } from '../client/audio/hausMusik.js';
@@ -564,4 +565,179 @@ test('P10 Huhn fangen → Hühnerstall legt Eier; Bienenstock macht Honig; Gewä
   aktion(welt, spieler, { art: AKTIONEN.BAUWERK });
   assert.equal(stall.eier, 0);
   assert.equal(spieler.inventar.find((e) => e?.defId === 'ei')?.menge, eier);
+});
+
+// ---------------------------------------------------------------- Phase 11–13: Gesundheit, Wasser & Küche, Handwerk
+import { nachTreffer, lasseVerderben } from '../server/spiel/systeme/gesundheitSystem.js';
+import { naheHandwerk, rezepteFuerOrt } from '../gemeinsam/spieler/handwerk.js';
+import { spielerDatenPrivat } from '../server/spiel/entitaeten/spieler.js';
+
+const iss = (welt, spieler, defId, extra = {}) => {
+  spieler.inventar[3] = { defId, menge: 1, ...extra };
+  spieler.angriffsAbklingzeit = 0;
+  aktion(welt, spieler, { art: AKTIONEN.KONSUMIEREN, slot: 3 });
+};
+
+test('P11 Blutung kostet Leben und blockiert Heilung, Verband stillt sie; Infektion braucht Antibiotika', () => {
+  const { welt, spieler, konfiguration } = neueWelt({ gesundheit: { blutungChance: 1, infektionChance: 1, bruchChance: 0 } });
+  spieler.gottmodus = false;
+  const z = zombie(welt, 'normal', mitte(25), mitte(6));
+  nachTreffer(welt, spieler, 10, z);
+  assert.equal(spieler.zustand.blutung, true);
+  assert.ok(spieler.zustand.infektion > 0);
+  assert.deepEqual(spielerDatenPrivat(spieler, konfiguration, welt).zustand, { blutung: true, infektion: 1 });
+  const vorher = spieler.leben;
+  ticks(welt, 30 * 4);
+  assert.ok(spieler.leben < vorher - 1, 'blutet');
+  iss(welt, spieler, 'verband');
+  assert.equal(spieler.zustand.blutung, false, 'Verband stillt');
+  // Verband auch bei vollem Leben nutzbar, wenn er hilft – Schmerzmittel nicht
+  spieler.leben = spieler.maxLeben;
+  iss(welt, spieler, 'schmerzmittel');
+  assert.equal(spieler.inventar[3]?.defId, 'schmerzmittel', 'nicht verbraucht');
+  iss(welt, spieler, 'antibiotika');
+  assert.equal(spieler.zustand.infektion, 0);
+});
+
+test('P11 Beinbruch drückt das Tempo, Schiene hilft, verheilt; Rohes Fleisch kann vergiften, Aktivkohle hilft', () => {
+  const { welt, spieler } = neueWelt({ gesundheit: { bruchChance: 1, schieneDauer: 2 } });
+  spieler.gottmodus = false;
+  const tempo = spieler.tempoFaktor;
+  nachTreffer(welt, spieler, 40, null, { explosion: true });
+  assert.equal(spieler.zustand.bruch, 1);
+  ticks(welt, 2);
+  assert.ok(spieler.tempoFaktor < tempo * 0.7, `humpelt ${spieler.tempoFaktor}`);
+  iss(welt, spieler, 'schiene');
+  assert.equal(spieler.zustand.bruch, 2);
+  ticks(welt, 2);
+  assert.ok(spieler.tempoFaktor > tempo * 0.8 && spieler.tempoFaktor < tempo);
+  ticks(welt, 30 * 3);
+  assert.equal(spieler.zustand.bruch, 0, 'verheilt');
+  assert.equal(spieler.tempoFaktor, tempo);
+  // Vergiftung
+  welt.zufall.zahl = () => 0; // Pech garantiert
+  iss(welt, spieler, 'fleisch');
+  assert.ok(spieler.zustand.vergiftung > 0, 'vergiftet');
+  iss(welt, spieler, 'aktivkohle');
+  assert.equal(spieler.zustand.vergiftung, 0);
+});
+
+test('P11 Müdigkeit steigt, Erschöpfung bremst; Doppelbett erholt besser als Schlafsack, Spawn wird gesetzt', () => {
+  const { welt, spieler } = neueWelt({ schlafen: { dauer: 0.5, stunden: 0, heilung: 0, zombieAbstand: 300 } });
+  spieler.gottmodus = false;
+  const zyklus = welt.konfiguration.welt.tagSekunden + welt.konfiguration.welt.nachtSekunden;
+  for (let i = 0; i < 10; i++) welt.aktualisiere(zyklus / 24); // 10 Spielstunden
+  assert.ok(Math.abs(spieler.muedigkeit - 30) < 2, `Müdigkeit ${spieler.muedigkeit}`);
+  spieler.muedigkeit = 90;
+  ticks(welt, 1);
+  const erschoepft = spieler.tempoFaktor;
+  assert.ok(erschoepft < 0.9);
+  const schlafe = (typ, tx) => {
+    const b = neuesBauwerk(welt, typ, tx, 2, spieler.name);
+    welt.welt.setzeBauwerk(b);
+    spieler.x = mitte(tx);
+    spieler.y = mitte(3);
+    spieler.muedigkeit = 100;
+    aktion(welt, spieler, { art: AKTIONEN.BAUWERK, bauwerkId: b.id });
+    assert.equal(spieler.arbeit?.art, 'schlafen', `${typ}: schläft`);
+    ticks(welt, 30);
+    assert.equal(spieler.arbeit, null, 'aufgewacht');
+    return { rest: spieler.muedigkeit, b };
+  };
+  const sack = schlafe('schlafsack', 5);
+  const doppel = schlafe('doppelbett', 10);
+  assert.ok(doppel.rest < sack.rest - 20, `Doppelbett ${doppel.rest} < Schlafsack ${sack.rest}`);
+  assert.deepEqual(spieler.spawn, { karte: 'runde24', tx: 10, ty: 2 }, 'Spawn am Doppelbett');
+});
+
+test('P12 Essen verdirbt (Vorratsschrank bremst), Spielstand behält Frische, Buffs aus Eintopf', () => {
+  const { welt, spieler } = neueWelt();
+  spieler.gottmodus = false;
+  spieler.inventar[5] = { defId: 'fleisch', menge: 2 };
+  ticks(welt, 30 * 3);
+  assert.ok(spieler.inventar[5].verderb <= 898 && spieler.inventar[5].verderb >= 896, `verderb ${spieler.inventar[5].verderb}`);
+  lasseVerderben(spieler.inventar, 2000);
+  assert.equal(spieler.inventar[5].defId, 'verdorben');
+  assert.deepEqual(pruefeEintrag({ defId: 'fisch_barsch', menge: 1, verderb: 120 }), { defId: 'fisch_barsch', menge: 1, verderb: 120 });
+  // Kiste vs. Vorratsschrank
+  const kiste = neuesBauwerk(welt, 'kiste', 4, 6, spieler.name);
+  const schrank = neuesBauwerk(welt, 'vorratsschrank', 6, 6, spieler.name);
+  welt.welt.setzeBauwerk(kiste);
+  welt.welt.setzeBauwerk(schrank);
+  kiste.inhalt[0] = { defId: 'milch', menge: 1 };
+  schrank.inhalt[0] = { defId: 'milch', menge: 1 };
+  for (let i = 0; i < 100; i++) welt.aktualisiere(1);
+  const vk = 1200 - kiste.inhalt[0].verderb;
+  const vs = 1200 - schrank.inhalt[0].verderb;
+  assert.ok(vk >= 95 && vs <= vk * 0.25 + 1, `Kiste ${vk}, Schrank ${vs}`);
+  // Eintopf: satt-Buff halbiert Hungerverlust
+  iss(welt, spieler, 'eintopf');
+  assert.ok(spieler.buffs.satt > 590);
+  spieler.hunger = 80;
+  ticks(welt, 30 * 10);
+  const mitBuff = 80 - spieler.hunger;
+  spieler.buffs = {};
+  spieler.hunger = 80;
+  ticks(welt, 30 * 10);
+  const ohne = 80 - spieler.hunger;
+  assert.ok(Math.abs(mitBuff - ohne / 2) < 0.05, `${mitBuff} vs ${ohne}`);
+});
+
+test('P12 Wasser: Flasche bleibt nach dem Trinken, Regentonne füllt sich bei Regen, Brunnen gibt dreckiges Wasser, Abkochen', () => {
+  const { welt, spieler } = neueWelt({ wetter: { aktiv: true } });
+  spieler.gottmodus = false;
+  iss(welt, spieler, 'wasserflasche');
+  assert.ok(spieler.inventar.some((e) => e?.defId === 'leere_flasche'));
+  const tonne = neuesBauwerk(welt, 'regentonne', 4, 4, spieler.name);
+  welt.welt.setzeBauwerk(tonne);
+  assert.equal(bauwerkAktion(tonne, spieler.inventar, spieler.name).art, 'wasser');
+  setzeWetter(welt, 'regen', 9999);
+  const zyklus = welt.konfiguration.welt.tagSekunden + welt.konfiguration.welt.nachtSekunden;
+  for (let i = 0; i < 3; i++) welt.aktualisiere(zyklus / 24);
+  assert.ok(tonne.wasser >= 2.9, `Tonne ${tonne.wasser}`);
+  spieler.x = mitte(4);
+  spieler.y = mitte(5);
+  aktion(welt, spieler, { art: AKTIONEN.BAUWERK, bauwerkId: tonne.id });
+  assert.ok(spieler.inventar.some((e) => e?.defId === 'wasserflasche'), 'Regenwasser ist sauber');
+  spieler.inventar.fill(null);
+  spieler.inventar[0] = { defId: 'leere_flasche', menge: 1 };
+  const brunnen = neuesBauwerk(welt, 'brunnen', 8, 4, spieler.name);
+  welt.welt.setzeBauwerk(brunnen);
+  spieler.x = mitte(8);
+  aktion(welt, spieler, { art: AKTIONEN.BAUWERK, bauwerkId: brunnen.id });
+  assert.equal(spieler.inventar.find((e) => e)?.defId, 'wasser_dreckig');
+  assert.equal(KOCHBAR.wasser_dreckig, 'wasserflasche', 'abkochen');
+  // Ohne Wasser in der Nähe: leere Flasche bleibt leer
+  spieler.inventar[0] = { defId: 'leere_flasche', menge: 1 };
+  spieler.angriffsAbklingzeit = 0;
+  aktion(welt, spieler, { art: AKTIONEN.KONSUMIEREN, slot: 0 });
+  assert.equal(spieler.inventar[0]?.defId, 'leere_flasche');
+});
+
+test('P13 Handwerks-Orte: Amboss, Webstuhl, Chemie, Kochstelle nur in der Nähe (Feuer muss brennen)', () => {
+  const { welt, spieler } = neueWelt();
+  const orte = new Set(Object.values(REZEPTE).map((r) => r.ort ?? 'werkbank'));
+  for (const o of ['werkbank', 'inventar', 'amboss', 'webstuhl', 'chemie', 'feuer']) assert.ok(orte.has(o), o);
+  assert.ok(Object.keys(rezepteFuerOrt(REZEPTE, 'werkbank')).includes('mehl'), 'Werkbank zeigt Inventar-Rezepte');
+  assert.ok(!Object.keys(rezepteFuerOrt(REZEPTE, 'werkbank')).includes('eintopf'));
+  spieler.inventar[0] = { defId: 'weizen', menge: 6 };
+  aktion(welt, spieler, { art: AKTIONEN.HERSTELLEN, rezept: 'stoff_weben' });
+  assert.ok(!spieler.inventar.some((e) => e?.defId === 'stoff'), 'ohne Webstuhl nichts');
+  const web = neuesBauwerk(welt, 'webstuhl', 3, 1, spieler.name);
+  welt.welt.setzeBauwerk(web);
+  spieler.x = mitte(3);
+  spieler.y = mitte(2);
+  assert.equal(bauwerkAktion(web, [], spieler.name).station, 'webstuhl');
+  aktion(welt, spieler, { art: AKTIONEN.HERSTELLEN, rezept: 'stoff_weben' });
+  assert.equal(spieler.inventar.find((e) => e?.defId === 'stoff')?.menge, 2);
+  // Kochstelle: Lagerfeuer muss brennen
+  const feuer = neuesBauwerk(welt, 'lagerfeuer', 8, 2, spieler.name);
+  welt.welt.setzeBauwerk(feuer);
+  assert.equal(naheHandwerk(welt.welt, mitte(8), mitte(3), 'feuer'), false);
+  feuer.brennt = true;
+  assert.equal(naheHandwerk(welt.welt, mitte(8), mitte(3), 'feuer'), true);
+  for (const r of Object.values(REZEPTE)) {
+    assert.ok(GEGENSTAENDE[r.ergebnis], r.ergebnis);
+    for (const z of Object.keys(r.zutaten)) assert.ok(GEGENSTAENDE[z], z);
+  }
 });
