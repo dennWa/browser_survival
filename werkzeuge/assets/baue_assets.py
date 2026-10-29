@@ -181,6 +181,14 @@ ITEMS = {
     'thermohose': ('prozedural', 'kleidung:hose:#26272c', 24),
     'stiefel': ('prozedural', 'kleidung:stiefel:#5a3c22', 20),
     'turnschuhe': ('prozedural', 'kleidung:schuhe:#d8d8d8', 20),
+    'lederjacke': ('prozedural', 'kleidung:jacke:#4a3020', 26),
+    'schutzweste': ('prozedural', 'kleidung:weste:#2f3a2a', 24),
+    'regenmantel': ('prozedural', 'kleidung:jacke:#d8b020', 26),
+    'helm': ('prozedural', 'kleidung:helm:#e0a020', 20),
+    'motorradhelm': ('prozedural', 'kleidung:helm:#1f1f24', 22),
+    'kampfhose': ('prozedural', 'kleidung:hose:#4b5236', 24),
+    'gummistiefel': ('prozedural', 'kleidung:stiefel:#3c5a2c', 20),
+    'lederhandschuhe': ('prozedural', 'kleidung:handschuhe:#5a3a22', 18),
     # Runde 24: Waffen, Mods, Sprengstoff, Fallen (Kenney-Weapon-Pack wo vorhanden, sonst selbst gezeichnet)
     'baseballschlaeger': ('prozedural', 'schlaeger', 30),
     'brecheisen': ('prozedural', 'brecheisen', 28),
@@ -493,7 +501,11 @@ def zeichne_prozedural(art, groesse):
         _, form, farbe = art.split(':')
         hell = tuple(min(255, int(farbe[i:i + 2], 16) + 40) for i in (1, 3, 5)) + (255,)
         dick = int(2.5 * u)
-        if form == 'muetze':
+        if form == 'helm':
+            d.chord(r(10, 12, 62, 64), 180, 360, fill=farbe, outline=rand, width=dick)
+            d.rounded_rectangle(r(6, 36, 66, 46), radius=4 * u, fill=hell, outline=rand, width=dick)
+            d.line([36 * u, 14 * u, 36 * u, 36 * u], fill=hell, width=int(4 * u))
+        elif form == 'muetze':
             d.chord(r(12, 14, 60, 66), 180, 360, fill=farbe, outline=rand, width=dick)
             d.rounded_rectangle(r(10, 38, 62, 52), radius=4 * u, fill=hell, outline=rand, width=dick)
             d.ellipse(r(29, 4, 43, 18), fill=hell, outline=rand, width=dick)

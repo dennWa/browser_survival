@@ -167,5 +167,19 @@
   },
   "nachladen_gewehr": {
     "lautstaerke": 0.7
+  },
+  "molotow": {
+    "lautstaerke": 1
+  },
+  "brand": {
+    "lautstaerke": 0.8
+  },
+  "dosenalarm": {
+    "lautstaerke": 0.9,
+    "streuung": 0.06
+  },
+  "grube": {
+    "lautstaerke": 0.8,
+    "streuung": 0.08
   }
 }

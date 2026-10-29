@@ -165,6 +165,19 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     schadenProSekunde: 0.4,
     keineHeilungAb: 75,
   },
+  /** Runde 24 – Fallen (systeme/fallenSystem.js) */
+  fallen: {
+    sprengAusloeser: 24, // px um die Mitte, in denen ein Zombie die Sprengfalle auslöst
+    sprengRadius: 110,
+    sprengSchaden: 90,
+    drahtSchaden: 6, // pro Sekunde auf dem Stacheldraht
+    drahtBremse: 0.35, // Tempo-Faktor auf dem Draht
+    drahtHaltbarkeit: 60, // Zombie-Sekunden, dann ist der Draht durch
+    grubeFest: 6, // Sekunden, die ein Zombie in der Grube steckt
+    grubeSchaden: 35,
+    grubeLaden: 20, // Sekunden, bis die Grube wieder bereit ist
+    alarmPause: 8, // Sekunden zwischen zwei Dosenalarmen
+  },
   /** Runde 24 – Progression der Nacht-Horde (systeme/tageszeitSystem.js hordeFuer) */
   horde: {
     wachstumProTag: 0.12, // +12 % Horde je Spieltag …

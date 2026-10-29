@@ -240,7 +240,7 @@ export class InventarFenster {
     const def = defId && this.#itemDefinitionen[defId];
     const namen = { kopf: 'Kopf', oberkoerper: 'Oberkörper', haende: 'Hände', beine: 'Beine', fuesse: 'Füße', ruecken: 'Rucksack' };
     this.info.textContent = def
-      ? `${def.name}${def.waerme ? ` · Wärme +${def.waerme}` : ''}${def.plaetze ? ` · +${def.plaetze} Plätze` : ''} – Klick = ${id === 'ruecken' ? 'ablegen' : 'ausziehen'}`
+      ? `${def.name}${def.waerme ? ` · Wärme +${def.waerme}` : ''}${def.schutz ? ` · Schutz ${def.schutz} %` : ''}${def.regenschutz ? ` · Regenschutz` : ''}${def.plaetze ? ` · +${def.plaetze} Plätze` : ''} – Klick = ${id === 'ruecken' ? 'ablegen' : 'ausziehen'}`
       : `${namen[id]}: leer – passende Kleidung hierher ziehen`;
   }
 
@@ -259,14 +259,16 @@ export class InventarFenster {
     this.name.textContent = figur.name ?? '';
     this.vorschau.setze(figur.aussehen, d.kleidung ?? null);
     let waerme = 0;
+    let schutz = 0;
     let platz = 0;
     for (const defId of Object.values(belegung)) {
       const def = defId && this.#itemDefinitionen[defId];
       waerme += def?.waerme ?? 0;
+      schutz += def?.schutz ?? 0;
       platz += def?.plaetze ?? 0;
     }
     const wert = (icon, text, zahl) => `<div class="inv-wert">${uiIcon(icon)}<span>${text}</span><b>${zahl}</b></div>`;
-    const html = wert('xp', 'Level', d.level ?? 1) + wert('kaelte', 'Wärme', `+${waerme}`) + wert('inventar', 'Plätze', `${d.inventar.length}${platz ? ` (+${platz})` : ''}`) + (d.kaelte > 0 ? wert('schneeflocke', 'Kälte', `${d.kaelte}%`) : '');
+    const html = wert('xp', 'Level', d.level ?? 1) + wert('kaelte', 'Wärme', `+${waerme}`) + (schutz ? wert('leben', 'Schutz', `${Math.min(60, schutz)} %`) : '') + wert('inventar', 'Plätze', `${d.inventar.length}${platz ? ` (+${platz})` : ''}`) + (d.kaelte > 0 ? wert('schneeflocke', 'Kälte', `${d.kaelte}%`) : '');
     if (this.werte.innerHTML !== html) this.werte.innerHTML = html;
   }
 

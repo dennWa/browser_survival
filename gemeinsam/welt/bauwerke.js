@@ -37,6 +37,11 @@ export const BAUWERKE = Object.freeze({
   lagerfeuer: { name: 'Lagerfeuer', item: 'lagerfeuer', blockiert: true, draussen: true },
   schmelzofen: { name: 'Schmelzofen', item: 'schmelzofen', blockiert: true, draussen: true },
   falle: { name: 'Falle', item: 'falle', blockiert: false },
+  // Runde 24: Fallen (server/spiel/systeme/fallenSystem.js) – blockieren nicht, Zombies laufen hinein
+  sprengfalle: { name: 'Sprengfalle', item: 'sprengfalle', blockiert: false },
+  stacheldraht: { name: 'Stacheldraht', item: 'stacheldraht', blockiert: false },
+  fallgrube: { name: 'Fallgrube', item: 'fallgrube', blockiert: false, draussen: true },
+  dosenalarm: { name: 'Dosenalarm', item: 'dosenalarm', blockiert: false },
   beet: { name: 'Beet', item: null, blockiert: false, nurAuf: ['gras'] },
   // --- Basisbau (Teile mit Kosten: gemeinsam/basisbau/teile.js) ---
   holzboden: { ...BASIS, name: 'Holzboden', ebene: 'boden', blockiert: false },
@@ -188,6 +193,13 @@ export function bauwerkAktion(b, inventar, name = null, flaggeDort = null) {
   switch (b.typ) {
     case 'falle':
       return b.gespannt ? { art: 'aufnehmen', text: 'Falle aufnehmen', symbol: '🪤' } : { art: 'spannen', text: 'Falle spannen', symbol: '🪤' };
+    case 'sprengfalle':
+    case 'stacheldraht':
+    case 'fallgrube':
+    case 'dosenalarm':
+      // Runde 24: nur der Besitzer baut sie wieder ab (sonst „gesperrt“-Hinweis)
+      if (name !== null && b.besitzer && b.besitzer !== name) return { art: 'gesperrt', text: `Gehört ${b.besitzer}`, symbol: '🔒' };
+      return { art: 'aufnehmen', text: `${BAUWERKE[b.typ].name} abbauen`, symbol: '🪤' };
     case 'lagerfeuer': {
       return { art: 'station', text: b.brennt ? 'Feuer: braten & hinsetzen' : 'Lagerfeuer-Menü', symbol: '🔥' };
     }

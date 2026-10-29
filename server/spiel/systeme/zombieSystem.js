@@ -57,6 +57,13 @@ export function aktualisiereZombies(spielWelt, dt) {
     z.wartet = false;
     if (z.gibAuf > 0) z.gibAuf -= dt;
     z.angriffsAbklingzeit = Math.max(0, z.angriffsAbklingzeit - dt);
+    if (z.gefangen > 0) {
+      // Runde 24: steckt in einer Fallgrube fest
+      z.gefangen -= dt;
+      z.zustand = 'ruhend';
+      continue;
+    }
+    if (z.bremse > 0) z.bremse -= dt; // Stacheldraht (fallenSystem)
     if (z.gefesselt) {
       // Tutorial: festgeketteter Zombie – steht, zappelt, greift nicht an
       z.zustand = 'ruhend';
@@ -331,7 +338,7 @@ function schlurfe(spielWelt, z, dt, k) {
 
 function gehe(spielWelt, z, punkt, tempo, dt) {
   const winkel = Math.atan2(punkt.y - z.y, punkt.x - z.x);
-  const weg = tempo * dt;
+  const weg = tempo * dt * (z.bremse > 0 ? spielWelt.konfiguration.fallen.drahtBremse : 1);
   bewegeKoerper(z, Math.cos(winkel) * weg, Math.sin(winkel) * weg, z.radius, spielWelt.welt);
   z.blick = lerpWinkel(z.blick, winkel, Math.min(1, dt * DREHGESCHWINDIGKEIT));
 }

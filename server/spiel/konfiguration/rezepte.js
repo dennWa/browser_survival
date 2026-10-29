@@ -180,6 +180,64 @@ export const REZEPTE = {
     level: 2,
   },
 
+  // Runde 24: Fallen & Sprengstoff
+  stacheldraht: {
+    name: 'Stacheldraht',
+    kategorie: 'Fallen',
+    beschreibung: 'Bremst Zombies stark und verletzt sie. Nutzt sich ab.',
+    zutaten: { eisenbarren: 1, holz: 2 },
+    ergebnis: 'stacheldraht',
+    menge: 2,
+    level: 2,
+  },
+  fallgrube: {
+    name: 'Fallgrube',
+    kategorie: 'Fallen',
+    beschreibung: 'Spitze Pfähle: Zombies stecken 6 s fest. Nur draußen.',
+    zutaten: { holz: 6 },
+    ergebnis: 'fallgrube',
+  },
+  dosenalarm: {
+    name: 'Dosenalarm',
+    kategorie: 'Fallen',
+    beschreibung: 'Klappert bei Zombies in der Nähe – du bekommst eine Meldung.',
+    zutaten: { schrott: 2 },
+    ergebnis: 'dosenalarm',
+  },
+  schwarzpulver: {
+    name: 'Schwarzpulver',
+    kategorie: 'Fallen',
+    beschreibung: 'Aus verkohltem Essen (Kohle) und Stein.',
+    zutaten: { verkohlt: 1, stein: 2 },
+    ergebnis: 'schwarzpulver',
+    menge: 2,
+    level: 2,
+  },
+  granate: {
+    name: 'Rohrbombe',
+    kategorie: 'Fallen',
+    beschreibung: 'Werfen: explodiert nach 1 Sekunde (80 Schaden).',
+    zutaten: { schwarzpulver: 2, eisenbarren: 1 },
+    ergebnis: 'granate',
+    level: 3,
+  },
+  sprengfalle: {
+    name: 'Sprengfalle',
+    kategorie: 'Fallen',
+    beschreibung: 'Explodiert, wenn ein Zombie drauftritt.',
+    zutaten: { schwarzpulver: 3, eisenbarren: 1, holz: 1 },
+    ergebnis: 'sprengfalle',
+    level: 3,
+  },
+  molotow: {
+    name: 'Molotowcocktail',
+    kategorie: 'Fallen',
+    beschreibung: 'Werfen: Flammenmeer für 9 Sekunden.',
+    zutaten: { alkohol: 1, stoff: 1 },
+    ergebnis: 'molotow',
+    level: 2,
+  },
+
   // --- Munition ---
   munition_9mm: {
     name: 'Selbstgegossene 9-mm-Patronen',

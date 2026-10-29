@@ -490,6 +490,7 @@ export class SpielServer {
       sprint: n.sprint === true,
       // Ego-Ansicht: Blickneigung (Radiant, + = nach oben) – nur dann zählt die Höhe beim Schießen (Gelände, Editor 2.0)
       neigung: Number.isFinite(n.neigung) ? Math.max(-1.5, Math.min(1.5, n.neigung)) : null,
+      abstand: Number.isFinite(n.abstand) ? Math.max(0, Math.min(2000, n.abstand)) : null, // Runde 24: Mausabstand = Wurfweite
     });
   }
 

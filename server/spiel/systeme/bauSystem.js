@@ -1,3 +1,4 @@
+import { FALLEN_TYPEN, aktualisiereFalle, neueFallenWerte } from './fallenSystem.js';
 import { BAUWERKE, BAUWERK_REICHWEITE, PFLANZEN, bauwerkAktion, feldKacheln, kachelInReichweite, pruefePlatz } from '../../../gemeinsam/welt/bauwerke.js';
 import { flaggeFuerBauteil, gebietBei } from './territoriumSystem.js';
 import { RECHT, hatRecht } from '../../../gemeinsam/basisbau/rechte.js';
@@ -67,6 +68,7 @@ export function neuesBauwerk(spielWelt, typ, tx, ty, besitzer, zusatz = {}) {
   if (typ === 'lagerfeuer') Object.assign(b, { brennt: false, brennRest: 0, plaetze: leerePlaetze(typ) });
   if (typ === 'schmelzofen') Object.assign(b, { brennt: false, brennRest: 0, brennstoff: 0, plaetze: leerePlaetze(typ) });
   if (typ === 'falle') b.gespannt = true;
+  if (FALLEN_TYPEN.has(typ)) Object.assign(b, neueFallenWerte(typ, spielWelt.konfiguration.fallen));
   if (typ === 'beet') Object.assign(b, { pflanze: null, wachstum: 0 });
   if (typ === 'kiste') b.inhalt = leererKistenInhalt();
   if (BAUWERKE[typ].schaltbar) b.offen = false;
@@ -182,13 +184,13 @@ export function benutzeBauwerk(spielWelt, spieler, bauwerkId = null, wunschPflan
       oeffneStation(spielWelt, spieler, b);
       return;
     case 'aufnehmen': {
-      const rest = fuegeZumInventarHinzu(spieler, 'falle', 1);
+      const rest = fuegeZumInventarHinzu(spieler, BAUWERKE[b.typ].item ?? 'falle', 1);
       if (rest > 0) {
         spielWelt.melde(spieler.id, 'Inventar voll');
         return;
       }
       welt.entferneBauwerk(b.id);
-      spielWelt.melde(spieler.id, 'Falle eingepackt');
+      spielWelt.melde(spieler.id, `${BAUWERKE[b.typ].name} eingepackt`);
       return;
     }
     case 'spannen':
@@ -257,6 +259,8 @@ export function aktualisiereBauwerke(spielWelt, dt, spielSekunden = dt) {
       if (dt > 0) aktualisiereStation(spielWelt, b, dt);
     } else if (b.typ === 'falle' && b.gespannt) {
       pruefeFalle(spielWelt, b);
+    } else if (FALLEN_TYPEN.has(b.typ) && dt > 0) {
+      aktualisiereFalle(spielWelt, b, dt);
     } else if (b.typ === 'beet' && b.pflanze && b.wachstum < 1) {
       // 24 Spielstunden = ein ganzer Tag-Nacht-Zyklus (Faktor in konfiguration.bauen.wachstumsTage)
       const vorher = Math.floor(b.wachstum * 4);

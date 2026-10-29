@@ -12,6 +12,7 @@ const BOGEN_HOEHE = 70;
 
 export class SonderEffekte {
   constructor(szene) {
+    this.szene = szene;
     this.wackeln = 0;
     const kugel = new THREE.SphereGeometry(5, 10, 8);
     const spuckMaterial = new THREE.MeshStandardMaterial({ color: 0x9be04a, emissive: 0x5aa020, emissiveIntensity: 1.2, roughness: 0.3 });
@@ -38,6 +39,54 @@ export class SonderEffekte {
       m.visible = false;
       szene.add(m);
       return m;
+    });
+  }
+
+  /** Runde 24: geworfene Rohrbomben/Molotows (Bogen) und brennende Flächen (zuckende Flammenkegel) */
+  wuerfeUndBraende(wuerfe, braende, hy, jetzt) {
+    this.wurfMeshes ??= Array.from({ length: 8 }, () => {
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.4, 7, 8), new THREE.MeshStandardMaterial({ color: 0x55603f, roughness: 0.5 }));
+      m.visible = false;
+      m.castShadow = true;
+      this.szene.add(m);
+      return m;
+    });
+    this.wurfMeshes.forEach((m, i) => {
+      const w = wuerfe[i];
+      m.visible = !!w;
+      if (!w) return;
+      const t = Math.min(1, w.alter / w.dauer);
+      const x = w.x + (w.zx - w.x) * t;
+      const y = w.y + (w.zy - w.y) * t;
+      m.material.color.setHex(w.art === 'molotow' ? 0x6aa04a : 0x55603f);
+      m.position.set(x, 34 * (1 - t) + 4 + Math.sin(t * Math.PI) * 90 + hy(x, y), y);
+      m.rotation.set(t * 14, 0, t * 9);
+    });
+    this.brandGruppen ??= [];
+    while (this.brandGruppen.length < braende.length && this.brandGruppen.length < 6) {
+      const gruppe = new THREE.Group();
+      const flamme = new THREE.ConeGeometry(5, 18, 6).translate(0, 9, 0);
+      for (let i = 0; i < 14; i++) {
+        const m = new THREE.Mesh(flamme, new THREE.MeshBasicMaterial({ color: i % 3 ? 0xff7a1a : 0xffd070, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending }));
+        m.userData.w = Math.random() * Math.PI * 2;
+        m.userData.r = Math.sqrt(Math.random());
+        gruppe.add(m);
+      }
+      this.szene.add(gruppe);
+      this.brandGruppen.push(gruppe);
+    }
+    this.brandGruppen.forEach((gruppe, i) => {
+      const b = braende[i];
+      gruppe.visible = !!b;
+      if (!b) return;
+      gruppe.position.set(b.x, hy(b.x, b.y), b.y);
+      const rest = 1 - b.alter / b.dauer;
+      gruppe.children.forEach((m, k) => {
+        const t = jetzt / 1000 + k * 0.77;
+        m.position.set(Math.cos(m.userData.w) * m.userData.r * b.radius * 0.85, 0, Math.sin(m.userData.w) * m.userData.r * b.radius * 0.85);
+        m.scale.set(1, (0.6 + 0.5 * Math.abs(Math.sin(t * 7.3)) + 0.2 * Math.sin(t * 17)) * Math.min(1, rest * 3), 1);
+        m.material.opacity = 0.75 * Math.min(1, rest * 3);
+      });
     });
   }
 

@@ -97,6 +97,20 @@ Tipp: kurze Dateien (< 3 s), Lautstärke der Aufnahme selbst eher normalisiert.
 | `armbrust` | Armbrust – Sehne schnellt (leise) |
 | `schuss_leise` | Schuss mit Schalldämpfer |
 | `nachladen_gewehr` | Gewehr nachladen (Repetieren) |
+| `molotow` | Molotowcocktail zerspringt und entflammt |
+| `brand` | Brennende Fläche (Molotow) – Fauchen |
+
+### Bauen, Handwerk & Arbeit
+
+| Dateiname (ohne Endung) | Wann? |
+|---|---|
+| `dosenalarm` | Dosenalarm klappert (Zombie an der Basis) |
+| `grube` | Zombie fällt in die Fallgrube |
+
+### Waffen & Kampf
+
+| Dateiname (ohne Endung) | Wann? |
+|---|---|
 | `explosion` | Explosion (Explosiv-Zombie, später Granaten/Sprengfallen) |
 
 ### Zombies

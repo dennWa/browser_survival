@@ -2102,7 +2102,8 @@ export class Renderer {
     return mesh;
   }
 
-  #aktualisiereEffekte({ leuchtspuren, feuer, partikel, flecken, schadenBlitz, spucken, explosionen, pfeile }) {
+  #aktualisiereEffekte({ leuchtspuren, feuer, partikel, flecken, schadenBlitz, spucken, explosionen, pfeile, wuerfe, braende }) {
+    this.sonderEffekte.wuerfeUndBraende(wuerfe ?? [], braende ?? [], (x, y) => this.#hy(x, y), this.letzteZeit ?? performance.now());
     this.sonderEffekte.aktualisiere(spucken ?? [], explosionen ?? [], (x, y) => this.#hy(x, y), this.letzterFokus);
     this.sonderEffekte.pfeileZeigen(pfeile ?? [], (x, y) => this.#hy(x, y));
     // Leuchtspuren als Linien in Brusthöhe (fester Puffer, keine neuen Arrays pro Frame)

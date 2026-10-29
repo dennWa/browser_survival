@@ -309,6 +309,7 @@ function benutzen(spielWelt, spieler, slot) {
       break;
     case 'nahkampf':
     case 'fernkampf':
+    case 'wurf':
       // Gleiche Waffe nochmal → wegstecken
       spieler.ausgeruestet = spieler.ausgeruestet === slot ? null : slot;
       spieler.nachladenRest = 0;
@@ -581,6 +582,21 @@ export function legeKleidungAb(spielWelt, spieler, verfall = null) {
 }
 
 /** Wärme der angezogenen Kleidung (Summe). */
+/** Runde 24: Schutz der Kleidung in % (Summe, gedeckelt auf RUESTUNG_MAX) – kampfSystem.fuegeSchadenZu */
+export const RUESTUNG_MAX = 60;
+export function kleidungsSchutz(spieler) {
+  let s = 0;
+  for (const defId of Object.values(spieler.kleidung ?? {})) s += GEGENSTAENDE[defId]?.schutz ?? 0;
+  return Math.min(RUESTUNG_MAX, s);
+}
+
+/** Runde 24: Regenschutz 0..1 (Summe, gedeckelt auf 0,9) – ueberlebenSystem.aktualisiereKaelte */
+export function kleidungsRegenschutz(spieler) {
+  let r = 0;
+  for (const defId of Object.values(spieler.kleidung ?? {})) r += GEGENSTAENDE[defId]?.regenschutz ?? 0;
+  return Math.min(0.9, r);
+}
+
 export function kleidungsWaerme(spieler) {
   let w = 0;
   for (const defId of Object.values(spieler.kleidung ?? {})) w += GEGENSTAENDE[defId]?.waerme ?? 0;

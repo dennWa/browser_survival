@@ -178,6 +178,8 @@ import { GEGENSTAENDE, waffenWerte } from '../server/spiel/konfiguration/gegenst
 import { REZEPTE } from '../server/spiel/konfiguration/rezepte.js';
 import { pruefeEintrag } from '../server/spiel/spielstand.js';
 import { reparaturKostenFuer } from '../gemeinsam/spieler/reparatur.js';
+import { neuesBauwerk } from '../server/spiel/systeme/bauSystem.js';
+import { kaelteRate } from '../server/spiel/systeme/ueberlebenSystem.js';
 
 const aktion = (welt, spieler, a) => {
   spieler.aktionsPuffer.push({ slot: null, ...a });
@@ -320,4 +322,88 @@ test('P3 Haltbarkeit bleibt beim Ablegen erhalten', () => {
   aktion(welt, spieler, { art: AKTIONEN.ABLEGEN, slot: 3 });
   const boden = [...welt.alleVomTyp('gegenstand')].find((g) => g.defId === 'speer');
   assert.equal(boden.haltbarkeit, 7);
+});
+
+// ---------------------------------------------------------------- Phase 5+6: Sprengstoff, Fallen, Rüstung
+test('P5 Rohrbombe: fliegt Richtung Maus, explodiert nach dem Zünder, verletzt Zombies', () => {
+  const { welt, spieler } = neueWelt();
+  spieler.x = mitte(3);
+  spieler.y = mitte(4);
+  inDieHand(welt, spieler, 'granate');
+  spieler.zielAbstand = 200;
+  const z = zombie(welt, 'normal', spieler.x + 200, spieler.y);
+  z.leben = z.maxLeben = 500;
+  schlage(welt, spieler, 0);
+  assert.equal(spieler.inventar[0], null, 'verbraucht');
+  assert.equal(welt.wuerfe.length, 1);
+  ticks(welt, 30 * 3);
+  assert.ok(z.leben < 500 - 40, `Explosion getroffen (${z.leben})`);
+});
+
+test('P5 Molotow: Brandfläche verletzt, was drin steht, und erlischt', () => {
+  const { welt, spieler } = neueWelt();
+  spieler.x = mitte(3);
+  spieler.y = mitte(4);
+  inDieHand(welt, spieler, 'molotow');
+  spieler.zielAbstand = 220;
+  const z = zombie(welt, 'normal', spieler.x + 220, spieler.y);
+  z.gefesselt = true;
+  z.leben = z.maxLeben = 500;
+  schlage(welt, spieler, 0);
+  ticks(welt, 30 * 4);
+  assert.equal(welt.braende.length, 1);
+  assert.ok(z.leben < 500 - 30, `brennt (${z.leben})`);
+  ticks(welt, 30 * 8);
+  assert.equal(welt.braende.length, 0, 'erloschen');
+});
+
+test('P5 Fallen: Sprengfalle, Stacheldraht, Fallgrube, Dosenalarm', () => {
+  const { welt, spieler } = neueWelt();
+  const setze = (typ, tx, ty) => {
+    const b = neuesBauwerk(welt, typ, tx, ty, 'Tester');
+    welt.welt.setzeBauwerk(b);
+    return b;
+  };
+  // Sprengfalle
+  setze('sprengfalle', 20, 2);
+  const z1 = zombie(welt, 'normal', mitte(20), mitte(2));
+  z1.gefesselt = true;
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.ok(!welt.holen(z1.id) || z1.leben < z1.maxLeben, 'Sprengfalle trifft');
+  assert.ok(!welt.welt.bauwerkBei(20, 2), 'Sprengfalle verbraucht');
+  // Stacheldraht bremst + schadet
+  const draht = setze('stacheldraht', 10, 6);
+  const z2 = zombie(welt, 'normal', mitte(10), mitte(6));
+  z2.gefesselt = true;
+  ticks(welt, 30);
+  assert.ok(z2.leben < z2.maxLeben && z2.bremse > 0, 'Draht verletzt & bremst');
+  assert.ok(draht.rest < welt.konfiguration.fallen.drahtHaltbarkeit, 'nutzt sich ab');
+  // Fallgrube hält fest
+  setze('fallgrube', 25, 6);
+  const z3 = zombie(welt, 'normal', mitte(25), mitte(6));
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.ok(z3.gefangen > 0, 'steckt fest');
+  const x = z3.x;
+  ticks(welt, 30);
+  assert.equal(z3.x, x, 'bewegt sich nicht');
+  // Dosenalarm meldet dem Besitzer
+  spieler.name = 'Tester';
+  setze('dosenalarm', 5, 2);
+  zombie(welt, 'normal', mitte(5) + 20, mitte(2)).gefesselt = true;
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.ok(welt.ereignisse.some((e) => e.typ === 'dosenalarm'));
+});
+
+test('P6 Rüstung schluckt Schaden, Regenmantel hilft gegen Regen-Kälte', () => {
+  const { welt, spieler } = neueWelt();
+  spieler.gottmodus = false;
+  spieler.kleidung = { kopf: 'helm', oberkoerper: 'schutzweste', haende: null, beine: null, fuesse: null };
+  const z = zombie(welt, 'normal', spieler.x + 30, spieler.y);
+  const leben = spieler.leben;
+  fuegeSchadenZu(welt, spieler, 20, z, 0);
+  assert.ok(Math.abs(leben - spieler.leben - 20 * (1 - 0.42)) < 1e-6, `Schutz 42 % (${leben - spieler.leben})`);
+  welt.wetter.art = 'regen';
+  const ohne = kaelteRate(welt, 0);
+  const mit = kaelteRate(welt, 0.8);
+  assert.ok(mit < ohne);
 });

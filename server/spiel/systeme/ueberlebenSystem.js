@@ -1,6 +1,6 @@
 import { STANDARD_AUSRUESTUNG } from '../konfiguration/gegenstaende.js';
 import { toeten } from './kampfSystem.js';
-import { gibStartausruestung, kleidungsWaerme } from './inventarSystem.js';
+import { gibStartausruestung, kleidungsWaerme, kleidungsRegenschutz } from './inventarSystem.js';
 import { bettFehlt, spawnPunkt } from './spawnSystem.js';
 
 /**
@@ -35,14 +35,14 @@ export function aktualisiereUeberleben(spielWelt, dt) {
 }
 
 /** Kälte-Zuwachs pro Sekunde draußen ohne Kleidung (0 = mild, man wärmt sich langsam auf). */
-export function kaelteRate(spielWelt) {
+export function kaelteRate(spielWelt, regenschutz = 0) {
   const k = spielWelt.konfiguration.kaelte;
   const schnee = spielWelt.welt?.schnee === true;
   const art = spielWelt.wetter?.art;
   let rate = schnee ? k.schneezone : 0;
   if (spielWelt.istNacht) rate += schnee ? k.schneeNacht : k.nacht;
   if (art === 'sturm') rate += schnee ? k.schneeSturm : k.sturm;
-  else if (art && k[art] !== undefined && art !== 'nebel' && art !== 'klar') rate += k[art];
+  else if (art && k[art] !== undefined && art !== 'nebel' && art !== 'klar') rate += k[art] * (1 - regenschutz); // Runde 24: Regenmantel
   return rate;
 }
 
@@ -62,7 +62,7 @@ export function aktualisiereKaelte(spielWelt, spieler, dt) {
   if (feuer) neu = alt - k.abbauFeuer * dt;
   else if (spieler.fahrzeug || spieler.arbeit?.art === 'schlafen' || spielWelt.welt.istInnen(spieler.x, spieler.y)) neu = alt - k.abbauDrinnen * dt;
   else {
-    const rate = kaelteRate(spielWelt) * Math.max(k.minFaktor, 1 - kleidungsWaerme(spieler) / 100);
+    const rate = kaelteRate(spielWelt, kleidungsRegenschutz(spieler)) * Math.max(k.minFaktor, 1 - kleidungsWaerme(spieler) / 100);
     neu = rate > 0 ? alt + rate * dt : alt - k.abbau * dt;
   }
   spieler.kaelte = Math.max(0, Math.min(100, neu));

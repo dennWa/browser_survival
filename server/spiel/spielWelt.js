@@ -16,6 +16,7 @@ import { verteileStartLoot, aktualisiereLoot } from './systeme/lootSystem.js';
 import { aktualisiereTageszeit } from './systeme/tageszeitSystem.js';
 import { aktualisiereArbeit } from './systeme/arbeitSystem.js';
 import { aktualisiereBauwerke, neuesBauwerk } from './systeme/bauSystem.js';
+import { aktualisiereWuerfe } from './systeme/explosionSystem.js';
 import { zonenKonfiguration } from './karten/zonenEinstellungen.js';
 import { pruefePlaetze } from './systeme/stationSystem.js';
 import { aktualisiereFahrzeuge, aussteigen } from './systeme/fahrzeugSystem.js';
@@ -79,6 +80,8 @@ export class SpielWelt {
     this.meldungen = [];
     this.zombieRespawns = []; // [{ spawnIndex, rest }]
     this.spuckeFluege = []; // Runde 24: fliegende Spucke der Spucker (sonderZombieSystem)
+    this.wuerfe = []; // Runde 24: fliegende Rohrbomben/Molotows (explosionSystem)
+    this.braende = []; // Runde 24: brennende Flächen (Molotow)
     this.tierRespawns = []; // [{ rest, bereich }] Sekunden bis ein erlegter Hase nachkommt (bereich = Index in karte.tierBereiche oder null)
     /** Wetter dieser Zone (systeme/wetterSystem.js): art 'klar' | 'regen' | 'schnee' (nur Schneezonen) | 'nebel', rest = Sekunden bis zum Wechsel */
     this.wetter = { art: 'klar', rest: 30 + this.zufall.zahl() * 120 };
@@ -272,6 +275,7 @@ export class SpielWelt {
     aktualisiereKampf(this, dt);
     aktualisiereArbeit(this, dt);
     aktualisiereBauwerke(this, dt);
+    aktualisiereWuerfe(this, dt);
     aktualisiereTueren(this, dt);
     aktualisiereZombies(this, dt);
     aktualisiereTiere(this, dt);

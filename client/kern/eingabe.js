@@ -167,7 +167,10 @@ export class Eingabe {
     }
     if (this.mausBenutzt) {
       const punkt = kamera.bildschirmZuWelt(this.mausX, this.mausY);
-      if (punkt) return Math.atan2(punkt.y - spieler.y, punkt.x - spieler.x);
+      if (punkt) {
+        this.zielAbstand = Math.hypot(punkt.x - spieler.x, punkt.y - spieler.y); // Runde 24: Wurfweite (Granate, Molotow)
+        return Math.atan2(punkt.y - spieler.y, punkt.x - spieler.x);
+      }
     }
     return null;
   }

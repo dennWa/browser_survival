@@ -3,8 +3,10 @@ import { STAPEL_MUNITION, STAPEL_STANDARD } from '../../../gemeinsam/konstanten.
 /**
  * Gegenstands-Definitionen (Item-Datenbank).
  * Schlüssel = defId (muss zu einem Icon in client/assets/atlas.json → items.icons passen; ein Test prüft das).
- * Kategorien: nahrung, getraenk, medizin, nahkampf, fernkampf, munition, material, rucksack, kleidung, bauwerk, werkzeug, samen.
- * Kleidung: slot (kopf|oberkoerper|haende|beine|fuesse), waerme (gegen Kälte), plaetze (Taschen), farbe (Optik am Charakter);
+ * Kategorien: nahrung, getraenk, medizin, nahkampf, fernkampf, munition, material, rucksack, kleidung, bauwerk, werkzeug, samen,
+ *   Runde 24: mod (Waffen-Aufsätze), wurf (Rohrbombe, Molotow – kampfSystem → explosionSystem.werfe).
+ * Kleidung: slot (kopf|oberkoerper|haende|beine|fuesse), waerme (gegen Kälte), plaetze (Taschen), farbe (Optik am Charakter),
+ *   Runde 24: schutz (% weniger Schaden, Summe ≤ RUESTUNG_MAX), regenschutz (0..1 weniger Kälte durch Niederschlag);
  * Icons selbst gezeichnet in werkzeuge/assets/baue_assets.py (prozedural 'kleidung:<form>:<farbe>').
  *
  * ausruestung = Haltung/Waffenart (taschenlampe | messer | pistole | schrotflinte | gewehr)
@@ -99,11 +101,30 @@ const ROH_GEGENSTAENDE = {
   thermohose: { name: 'Thermohose', kategorie: 'kleidung', slot: 'beine', waerme: 18, plaetze: 1, farbe: '#26272c' },
   stiefel: { name: 'Winterstiefel', kategorie: 'kleidung', slot: 'fuesse', waerme: 12, farbe: '#5a3c22' },
   turnschuhe: { name: 'Turnschuhe', kategorie: 'kleidung', slot: 'fuesse', waerme: 3, farbe: '#d8d8d8' },
+  // Runde 24: Rüstung (schutz = % weniger Schaden, Summe gedeckelt) und Regenschutz (0..1: Kälte durch Regen/Schnee sinkt)
+  lederjacke: { name: 'Lederjacke', kategorie: 'kleidung', slot: 'oberkoerper', waerme: 14, schutz: 10, plaetze: 1, farbe: '#4a3020' },
+  schutzweste: { name: 'Schutzweste', kategorie: 'kleidung', slot: 'oberkoerper', waerme: 4, schutz: 30, plaetze: 2, farbe: '#2f3a2a' },
+  regenmantel: { name: 'Regenmantel', kategorie: 'kleidung', slot: 'oberkoerper', waerme: 10, regenschutz: 0.8, farbe: '#d8b020' },
+  helm: { name: 'Bauhelm', kategorie: 'kleidung', slot: 'kopf', waerme: 2, schutz: 12, farbe: '#e0a020' },
+  motorradhelm: { name: 'Motorradhelm', kategorie: 'kleidung', slot: 'kopf', waerme: 6, schutz: 20, regenschutz: 0.2, farbe: '#1f1f24' },
+  kampfhose: { name: 'Cargohose mit Polstern', kategorie: 'kleidung', slot: 'beine', waerme: 10, schutz: 8, plaetze: 3, farbe: '#4b5236' },
+  gummistiefel: { name: 'Gummistiefel', kategorie: 'kleidung', slot: 'fuesse', waerme: 6, regenschutz: 0.3, farbe: '#3c5a2c' },
+  lederhandschuhe: { name: 'Lederhandschuhe', kategorie: 'kleidung', slot: 'haende', waerme: 6, schutz: 5, farbe: '#5a3a22' },
   // --- Bauwerke: benutzen → Vorschau, dann in die Welt setzen (gemeinsam/welt/bauwerke.js) ---
   werkbank: { name: 'Werkbank', kategorie: 'bauwerk', bauwerk: 'werkbank', beschreibung: 'Aufstellen und Werkzeug, Waffen & Fallen bauen' },
   lagerfeuer: { name: 'Lagerfeuer', kategorie: 'bauwerk', bauwerk: 'lagerfeuer', beschreibung: 'Draußen aufstellen, mit F und Feuerzeug anzünden, Essen braten' },
   schmelzofen: { name: 'Schmelzofen', kategorie: 'bauwerk', bauwerk: 'schmelzofen', beschreibung: 'Aufstellen, Holz als Brennstoff und Eisenerz hineinlegen: ergibt Eisenbarren' },
   falle: { name: 'Bärenfalle', kategorie: 'bauwerk', bauwerk: 'falle', stapelbar: 3, beschreibung: 'Auf den Boden legen – tritt ein Zombie hinein, ist er sofort tot' },
+  // Runde 24: Fallen für die Basis (systeme/fallenSystem.js)
+  sprengfalle: { name: 'Sprengfalle', kategorie: 'bauwerk', bauwerk: 'sprengfalle', beschreibung: 'Explodiert, wenn ein Zombie drauftritt (verletzt auch dich!)' },
+  stacheldraht: { name: 'Stacheldraht', kategorie: 'bauwerk', bauwerk: 'stacheldraht', beschreibung: 'Zombies kommen nur langsam durch und verletzen sich – nutzt sich ab' },
+  fallgrube: { name: 'Fallgrube (Bausatz)', kategorie: 'bauwerk', bauwerk: 'fallgrube', beschreibung: 'Grube mit Pfählen: Zombies stecken fest und verletzen sich' },
+  dosenalarm: { name: 'Dosenalarm', kategorie: 'bauwerk', bauwerk: 'dosenalarm', beschreibung: 'Klappert, wenn Zombies vorbeikommen – du bekommst eine Meldung' },
+  // Runde 24: Wurfwaffen (in die Hand nehmen, Linksklick wirft dorthin, wo die Maus zeigt)
+  granate: { name: 'Rohrbombe', kategorie: 'wurf', wurf: 'granate', inHand: true, ausruestung: 'wurf', wurfweite: 320, zuender: 1, sprengRadius: 105, sprengSchaden: 80, beschreibung: 'Werfen (Linksklick): explodiert nach 1 Sekunde' },
+  molotow: { name: 'Molotowcocktail', kategorie: 'wurf', wurf: 'molotow', inHand: true, ausruestung: 'wurf', wurfweite: 300, brandRadius: 64, brandDauer: 9, brandSchaden: 14, beschreibung: 'Werfen (Linksklick): setzt den Boden 9 Sekunden in Brand' },
+  schwarzpulver: { name: 'Schwarzpulver', kategorie: 'material', beschreibung: 'Aus Kohle (verkohltes Essen) und Stein – für Sprengstoff' },
+  alkohol: { name: 'Hochprozentiges', kategorie: 'material', beschreibung: 'Brennt gut – für Molotowcocktails' },
   // --- Werkzeug & Garten ---
   feuerzeug: { name: 'Feuerzeug', kategorie: 'werkzeug', beschreibung: 'Zum Anzünden von Lagerfeuern (F)' },
   samen_tomate: { name: 'Tomatensamen', kategorie: 'samen', pflanze: 'tomate', stapelbar: 10, beschreibung: 'In ein Beet pflanzen (E am Beet)' },
@@ -135,7 +156,7 @@ function normalisiere(roh) {
   for (const [id, original] of Object.entries(roh)) {
     let def = original;
     const einzeln = ['nahkampf', 'fernkampf', 'rucksack', 'werkzeug', 'kleidung', 'mod'].includes(def.kategorie) || def.werkzeug === true || id === 'erste_hilfe_kasten';
-    if (def.kategorie === 'kleidung') def = { ...def, beschreibung: `Anziehen (ins Charakterfeld ziehen oder anklicken): +${def.waerme} Wärme${def.plaetze ? `, +${def.plaetze} Plätze` : ''}` };
+    if (def.kategorie === 'kleidung') def = { ...def, beschreibung: `Anziehen (ins Charakterfeld ziehen oder anklicken): +${def.waerme} Wärme${def.schutz ? `, ${def.schutz} % Schutz` : ''}${def.regenschutz ? `, Regenschutz ${Math.round(def.regenschutz * 100)} %` : ''}${def.plaetze ? `, +${def.plaetze} Plätze` : ''}` };
     // Samen kann man in die Hand nehmen (Linksklick am Beet pflanzt)
     if (def.kategorie === 'samen') def = { ...def, inHand: true, ausruestung: 'samen' };
     // Essen, Trinken, Medizin: erst in die Hand nehmen (Zahlentaste), Linksklick verbraucht

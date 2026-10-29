@@ -29,6 +29,41 @@ function geometrie(name, bauen) {
 }
 
 const GEOMETRIEN = {
+  // Runde 24: Fallen
+  sprengfalle: () =>
+    geometrie('sprengfalle', () => [
+      teil(new THREE.BoxGeometry(16, 4, 12), matrixAus(0, 2, 0), 0x5f6b45),
+      ...[-5, 0, 5].map((x) => teil(new THREE.CylinderGeometry(1.8, 1.8, 7, 8), matrixAus(x, 6, 0), 0xa33a28)),
+      teil(new THREE.CylinderGeometry(0.4, 0.4, 14, 4).rotateZ(Math.PI / 2), matrixAus(4, 1, 8, 0.4), 0x222222),
+      teil(new THREE.SphereGeometry(1.2, 6, 4), matrixAus(9, 2, 10), 0xd02020),
+    ]),
+  stacheldraht: () =>
+    geometrie('stacheldraht', () => {
+      const teile = [];
+      for (const x of [-14, 14]) teile.push(teil(new THREE.CylinderGeometry(1.4, 1.6, 22, 6), matrixAus(x, 11, 0), 0x6b4a2a));
+      for (const y of [6, 13, 19]) {
+        const draht = new THREE.TorusGeometry(4, 0.35, 4, 8);
+        for (let i = -3; i <= 3; i++) teile.push(teil(draht, matrixAus(i * 4, y, 0, Math.PI / 2 + i * 0.4), 0xa8adb3));
+      }
+      return teile;
+    }),
+  dosenalarm: () =>
+    geometrie('dosenalarm', () => {
+      const teile = [];
+      for (const x of [-13, 13]) teile.push(teil(new THREE.CylinderGeometry(0.9, 1, 18, 5), matrixAus(x, 9, 0), 0x6b4a2a));
+      teile.push(teil(new THREE.CylinderGeometry(0.2, 0.2, 26, 3).rotateZ(Math.PI / 2), matrixAus(0, 17, 0), 0xdedad0));
+      for (const x of [-7, 0, 7]) teile.push(teil(new THREE.CylinderGeometry(2, 2, 5, 8), matrixAus(x, 12, 0), 0xb8bcc2), teil(new THREE.CylinderGeometry(2.05, 2.05, 1.6, 8), matrixAus(x, 12, 0), 0xc0392b));
+      return teile;
+    }),
+  grube: () =>
+    geometrie('grube', () => [
+      teil(new THREE.CylinderGeometry(14, 12, 0.6, 14), matrixAus(0, 0.35, 0), 0x2a1d12),
+      teil(new THREE.TorusGeometry(14, 1.6, 4, 14).rotateX(Math.PI / 2), matrixAus(0, 0.6, 0), 0x6a4a2c),
+    ]),
+  pfaehle: () =>
+    geometrie('pfaehle', () =>
+      [[-6, -4], [5, -6], [0, 2], [-4, 7], [7, 5], [-9, 1]].map(([x, z]) => teil(new THREE.ConeGeometry(1.4, 9, 5), matrixAus(x, 4, z), 0xb98a55)),
+    ),
   werkbank: () => geometrie('werkbank', () => werkbankTeile(0, 0, 30, 22, 26, 0)),
   feuerstelle: () =>
     geometrie('feuerstelle', () => {
@@ -149,6 +184,25 @@ export function erzeugeBauwerk(b) {
     case 'kiste':
       gruppe.add(mesh(GEOMETRIEN.kiste()));
       break;
+    // Runde 24: Fallen (server/spiel/systeme/fallenSystem.js)
+    case 'sprengfalle':
+      gruppe.add(mesh(GEOMETRIEN.sprengfalle()));
+      break;
+    case 'stacheldraht':
+      gruppe.add(mesh(GEOMETRIEN.stacheldraht(), METALL));
+      break;
+    case 'dosenalarm':
+      gruppe.add(mesh(GEOMETRIEN.dosenalarm(), METALL));
+      break;
+    case 'fallgrube': {
+      gruppe.add(mesh(GEOMETRIEN.grube()));
+      const pfaehle = mesh(GEOMETRIEN.pfaehle());
+      gruppe.add(pfaehle);
+      aktualisiere = (zustand) => {
+        pfaehle.visible = zustand.bereit !== false; // ausgelöst: Grube leer, Pfähle werden neu gesetzt
+      };
+      break;
+    }
     case 'schmelzofen': {
       // Steinofen mit Schornstein; wenn er heiß ist, glüht die Öffnung
       gruppe.add(mesh(GEOMETRIEN.ofen()));

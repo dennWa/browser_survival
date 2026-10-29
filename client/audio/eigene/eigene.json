@@ -39,6 +39,12 @@
     "lautstaerke": 0.5,
     "streuung": 0.1
   },
+  "brand": {
+    "dateien": [
+      "brand_0.ogg"
+    ],
+    "lautstaerke": 0.8
+  },
   "donner": {
     "dateien": [
       "donner_0.ogg",
@@ -56,6 +62,15 @@
       "donner_nah_3.ogg"
     ],
     "lautstaerke": 1.1
+  },
+  "dosenalarm": {
+    "dateien": [
+      "dosenalarm_0.ogg",
+      "dosenalarm_1.ogg",
+      "dosenalarm_2.ogg"
+    ],
+    "lautstaerke": 0.9,
+    "streuung": 0.06
   },
   "eule": {
     "dateien": [
@@ -97,6 +112,14 @@
     ],
     "lautstaerke": 1.1,
     "streuung": 0.04
+  },
+  "grube": {
+    "dateien": [
+      "grube_0.ogg",
+      "grube_1.ogg"
+    ],
+    "lautstaerke": 0.8,
+    "streuung": 0.08
   },
   "hack_felsen": {
     "dateien": [
@@ -184,6 +207,13 @@
       "keuchen_frau_0.ogg"
     ],
     "lautstaerke": 0.6
+  },
+  "molotow": {
+    "dateien": [
+      "molotow_0.ogg",
+      "molotow_1.ogg"
+    ],
+    "lautstaerke": 1
   },
   "nachladen_gewehr": {
     "dateien": [

@@ -1005,6 +1005,7 @@ export class ClientSpiel {
     // Ego-Ansicht: Blickneigung mitschicken (Server prüft damit Treffer auf Gelände in der Höhe)
     const neigung = this.eingabe.neigung?.();
     if (Number.isFinite(neigung)) eingabe.neigung = neigung;
+    if (Number.isFinite(this.eingabe.zielAbstand)) eingabe.abstand = Math.round(this.eingabe.zielAbstand); // Runde 24: Wurfweite
 
     this.lokalVorher.x = this.lokal.x;
     this.lokalVorher.y = this.lokal.y;
@@ -1087,6 +1088,21 @@ export class ClientSpiel {
         break;
       case 'zuendung':
         this.sound.spiele('zuendung', { x: e.x, y: e.y, raeumlich: true });
+        break;
+      case 'wurf':
+        this.sound.spiele('bogen', { x: e.x, y: e.y, tonhoehe: 0.7 });
+        break;
+      case 'molotow':
+        this.sound.spiele('molotow', { x: e.x, y: e.y, weite: 1600 });
+        break;
+      case 'brand':
+        this.sound.spiele('brand', { x: e.x, y: e.y });
+        break;
+      case 'dosenalarm':
+        this.sound.spiele('dosenalarm', { x: e.x, y: e.y, weite: 1400, kurve: 1.1 });
+        break;
+      case 'grube':
+        this.sound.spiele('grube', { x: e.x, y: e.y });
         break;
       case 'explosion':
         this.sound.spiele('explosion', { x: e.x, y: e.y, weite: 2400, kurve: 1.2 });

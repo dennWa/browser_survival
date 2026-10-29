@@ -1,6 +1,7 @@
 import { bewegeKoerper } from '../../../gemeinsam/physik/bewegung.js';
 import { lerpWinkel } from '../../../gemeinsam/mathe.js';
 import { fuegeSchadenZu } from './kampfSystem.js';
+import { explosion } from './explosionSystem.js';
 
 /**
  * Runde 24: Sonder-Zombies (Werte in konfiguration.zombie.varianten):
@@ -107,28 +108,8 @@ export function explodiere(spielWelt, z) {
   if (z.explodiert) return;
   z.explodiert = true;
   const v = variantenWerte(spielWelt, z) ?? {};
-  const radius = v.sprengRadius ?? 90;
-  spielWelt.ereignis({ typ: 'explosion', x: z.x, y: z.y, radius });
   if (spielWelt.holen(z.id)) spielWelt.entfernen(z.id);
-  for (const e of [...spielWelt.alleVomTyp('spieler'), ...spielWelt.alleVomTyp('zombie'), ...spielWelt.alleVomTyp('tier')]) {
-    if (e.id === z.id || e.tot) continue;
-    const d = Math.hypot(e.x - z.x, e.y - z.y);
-    if (d > radius) continue;
-    fuegeSchadenZu(spielWelt, e, (v.sprengSchaden ?? 45) * (1 - (d / radius) * 0.6), z, Math.atan2(e.y - z.y, e.x - z.x), { explosion: true });
-  }
-  const welt = spielWelt.welt;
-  const g = welt.kachelGroesse;
-  const r = v.sprengKachelRadius ?? 1.5;
-  const mx = Math.floor(z.x / g);
-  const my = Math.floor(z.y / g);
-  const weg = new Set();
-  for (let ty = my - Math.ceil(r); ty <= my + Math.ceil(r); ty++) {
-    for (let tx = mx - Math.ceil(r); tx <= mx + Math.ceil(r); tx++) {
-      if (Math.hypot(tx + 0.5 - z.x / g, ty + 0.5 - z.y / g) > r + 0.5) continue;
-      for (const b of welt.bauwerkeAn(tx, ty)) if (b.besitzer != null && b.typ !== 'erdfeld') weg.add(b.id);
-    }
-  }
-  for (const id of weg) welt.entferneBauwerk(id);
+  explosion(spielWelt, z.x, z.y, { radius: v.sprengRadius ?? 90, schaden: v.sprengSchaden ?? 45, kachelRadius: v.sprengKachelRadius ?? 1.5, quelle: z, ohneId: z.id });
 }
 
 /** Fliegende Spucke: landet nach SPUCK_FLUGZEIT, trifft Spieler im Radius. Einmal pro Tick aus zombieSystem. */

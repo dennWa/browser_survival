@@ -25,6 +25,8 @@ export class Effekte {
   #spucken = [];
   #explosionen = [];
   #pfeile = [];
+  #wuerfe = [];
+  #braende = [];
   #schadenBlitz = 0;
 
   /** Wird für jedes Ereignis aufgerufen, sobald es angezeigt wird (z. B. für Sound). */
@@ -46,6 +48,8 @@ export class Effekte {
       spucken: this.#spucken,
       explosionen: this.#explosionen,
       pfeile: this.#pfeile,
+      wuerfe: this.#wuerfe,
+      braende: this.#braende,
       schadenBlitz: this.#schadenBlitz,
     };
   }
@@ -81,6 +85,8 @@ export class Effekte {
     altern(this.#spucken);
     altern(this.#explosionen);
     altern(this.#pfeile);
+    altern(this.#wuerfe);
+    altern(this.#braende);
     this.#schadenBlitz = Math.max(0, this.#schadenBlitz - dt * 1.8);
   }
 
@@ -127,6 +133,21 @@ export class Effekte {
         break;
       case 'zuendung':
         this.#spritzer(e.x, e.y, -Math.PI / 2, 8, '#ffd27a', 60, 1.6, Math.PI);
+        break;
+      case 'wurf':
+        this.#wuerfe.push({ art: e.art, x: e.x, y: e.y, zx: e.zx, zy: e.zy, alter: 0, dauer: e.dauer ?? 0.6 });
+        break;
+      case 'molotow':
+        this.#spritzer(e.x, e.y, 0, 18, '#ffb050', 120, 2.6, Math.PI);
+        this.#spritzer(e.x, e.y, 0, 10, '#9fd0a0', 90, 1.8, Math.PI);
+        break;
+      case 'brand':
+        this.#braende.push({ x: e.x, y: e.y, radius: e.radius ?? 64, alter: 0, dauer: e.dauer ?? 9 });
+        this.#feuer.push({ x: e.x, y: e.y, winkel: 0, alter: 0, dauer: e.dauer ?? 9, staerke: 5000, hoehe: 30 });
+        this.#fleck(e.x, e.y, 'blutlache', (e.radius ?? 64) * 1.5, '#1d1a18');
+        break;
+      case 'grube':
+        this.#spritzer(e.x, e.y, -Math.PI / 2, 12, '#6a4a2c', 70, 2.2, Math.PI);
         break;
       case 'explosion': {
         const r = e.radius ?? 90;

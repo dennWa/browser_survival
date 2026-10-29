@@ -2,7 +2,7 @@ import { brecheArbeitAb, starteZerlegen, ZERLEGE_WERKZEUGE } from './arbeitSyste
 import { strahlGegenWaende, strahlTrifftKreis } from '../../../gemeinsam/physik/strahl.js';
 import { bewegeKoerper } from '../../../gemeinsam/physik/bewegung.js';
 import { NAHKAMPF_KEGEL, STANDARD_AUSRUESTUNG, waffenWerte } from '../konfiguration/gegenstaende.js';
-import { aktuelleWaffe, konsumiere, legeAufBoden, nutzeWerkzeug, pflanzeSamenAusHand, legeRucksackAb, legeKleidungAb, starteNachladen, zaehleMunition } from './inventarSystem.js';
+import { aktuelleWaffe, kleidungsSchutz, konsumiere, legeAufBoden, nutzeWerkzeug, pflanzeSamenAusHand, legeRucksackAb, legeKleidungAb, starteNachladen, zaehleMunition } from './inventarSystem.js';
 import { gibXp, setzeLevelZurueck } from './levelSystem.js';
 import { staerkeFaktor } from '../../../gemeinsam/spieler/skills.js';
 import { aussteigen, schlageFahrzeug } from './fahrzeugSystem.js';
@@ -12,6 +12,7 @@ import { schuereFeuer, sitztAmFeuer } from './stationSystem.js';
 import { tutorialVorSchaden } from './tutorialSystem.js';
 import { lasseBossLootFallen, lasseZombieLootFallen } from './lootSystem.js';
 import { explodiere } from './sonderZombieSystem.js';
+import { werfe } from './explosionSystem.js';
 
 /**
  * (Linksklick am Ufer mit Angel im Inventar ist KEIN Angriff: behandleAngelKlick läuft zuerst, siehe angelSystem.js.)
@@ -29,6 +30,11 @@ export function aktualisiereKampf(spielWelt, dt) {
     if (spieler.tot || !spieler.angriff || spieler.angriffsAbklingzeit > 0 || spieler.nachladenRest > 0) continue;
     const { eintrag, def } = aktuelleWaffe(spieler);
     if (def.kategorie === 'fernkampf') schiessen(spielWelt, spieler, eintrag, def);
+    else if (def.kategorie === 'wurf') {
+      // Runde 24: Rohrbombe/Molotow werfen (explosionSystem)
+      werfe(spielWelt, spieler, spieler.ausgeruestet, def);
+      spieler.angriffsAbklingzeit = 0.9;
+    }
     else if (def.kategorie === 'samen') {
       // Samen in der Hand: Linksklick pflanzt ins nächste freie Beet (kein Angriff)
       spieler.angriffsAbklingzeit = pflanzeSamenAusHand(spielWelt, spieler, def) ? 0.5 : 1.2;
@@ -179,6 +185,7 @@ export function fuegeSchadenZu(spielWelt, ziel, menge, quelle, winkel = 0, optio
   if (ziel.typ === 'spieler' && tutorialVorSchaden(spielWelt, ziel, menge)) return; // Tutorial: Ohnmacht statt Tod
   // Runde 24: Panzerung (gepanzerte Zombies) schluckt einen Teil – Explosionen und Waffen mit `durchschlag` nicht
   if (ziel.panzer > 0 && !optionen.explosion) menge *= 1 - ziel.panzer * (1 - Math.min(1, optionen.durchschlag ?? 0));
+  if (ziel.typ === 'spieler' && ziel.kleidung) menge *= 1 - kleidungsSchutz(ziel) / 100; // Runde 24: Rüstung
   ziel.leben -= menge;
   if (ziel.angeln) brecheAngelnAb(ziel);
   if (ziel.arbeit) brecheArbeitAb(spielWelt, ziel, ziel.arbeit.art === 'schlafen' ? 'Aufgeschreckt!' : null);

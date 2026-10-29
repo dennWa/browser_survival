@@ -161,6 +161,42 @@ try {
     await seite.keyboard.press('Tab');
   }
 
+  // ---------------------------------------------------------------- Phase 5+6 (Sprengstoff, Fallen, Rüstung)
+  if (phaseAn(5) || phaseAn(6)) {
+    // Fallen rund um die Figur
+    await seite.evaluate(async () => {
+      const { neuesBauwerk } = await import('/server/spiel/systeme/bauSystem.js');
+      const srv = browserSurvival.server;
+      for (const z of srv.zonen.values()) {
+        if (z.spielWelt.karte.daten.id !== browserSurvival.spiel.welt.id) continue;
+        const w = z.spielWelt;
+        const ich = w.holen(browserSurvival.spiel.eigeneId);
+        const tx = Math.floor(ich.x / 32);
+        const ty = Math.floor(ich.y / 32);
+        ['sprengfalle', 'stacheldraht', 'fallgrube', 'dosenalarm'].forEach((typ, i) => w.welt.setzeBauwerk(neuesBauwerk(w, typ, tx - 2 + i * 1, ty + 2, ich.name)));
+      }
+    });
+    await seite.waitForTimeout(1500);
+    await bild('5_fallen');
+    // Molotow werfen
+    await amServer(`ich.inventar[0] = { defId: 'molotow', menge: 2 }; ich.ausgeruestet = 0; ich.ausruestung = 'wurf'; ich.zielAbstand = 150;`);
+    await seite.mouse.move(850, 340);
+    await seite.mouse.down();
+    await seite.waitForTimeout(650);
+    await seite.mouse.up();
+    await seite.waitForTimeout(1200);
+    pruefe(await amServer(`return welt.braende.length > 0;`), 'Molotow brennt');
+    await bild('5_molotow');
+    await seite.waitForTimeout(9000);
+    // Rüstung anziehen
+    await amServer(`ich.kleidung.kopf = 'motorradhelm'; ich.kleidung.oberkoerper = 'schutzweste';`);
+    await seite.keyboard.press('Tab');
+    await seite.waitForTimeout(1200);
+    pruefe(await seite.evaluate(() => /Schutz/.test(document.getElementById('inventar-werte').textContent)), 'Inventar zeigt Schutz');
+    await bild('6_ruestung');
+    await seite.keyboard.press('Tab');
+  }
+
   const info = await seite.evaluate(() => browserSurvival.spiel?.renderer.statistik() ?? '');
   if (info) console.log(`  Grafik: ${info}`);
 } catch (e) {

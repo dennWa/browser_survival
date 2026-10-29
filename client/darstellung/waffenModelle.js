@@ -211,6 +211,22 @@ const BAUPLAENE = {
     g.userData.muendung = new THREE.Vector3(0, 1, 12);
     return g;
   },
+  // Runde 24: Wurfwaffen in der Hand
+  granate() {
+    const g = new THREE.Group();
+    g.add(rohr(1.6, 6, new THREE.MeshStandardMaterial({ color: 0x55603f, roughness: 0.6, metalness: 0.4 }), 0, 0, 2));
+    g.add(rohr(1.8, 0.8, metall, 0, 0, -1.2));
+    g.add(rohr(1.8, 0.8, metall, 0, 0, 5.2));
+    g.add(rohr(0.2, 3, gummi, 0, 0.8, 6.8));
+    return g;
+  },
+  molotow() {
+    const g = new THREE.Group();
+    g.add(rohr(1.7, 6, new THREE.MeshStandardMaterial({ color: 0x6aa04a, roughness: 0.15, transparent: true, opacity: 0.85 }), 0, 0, 2));
+    g.add(rohr(0.8, 3, new THREE.MeshStandardMaterial({ color: 0x6aa04a, roughness: 0.15 }), 0, 0, 6.2));
+    g.add(rohr(0.6, 2.4, new THREE.MeshStandardMaterial({ color: 0xe8e0d0, roughness: 0.9 }), 0, 0, 8.4));
+    return g;
+  },
   taschenlampe() {
     const g = new THREE.Group();
     g.add(rohr(1.2, 7, gummi, 0, 0, 1.5));
@@ -261,6 +277,6 @@ export function haltungFuer(name) {
   if (name === 'pistole') return 'pistole';
   if (name === 'schrotflinte' || name === 'gewehr' || name === 'bogen' || name === 'armbrust') return 'gewehr';
   if (name === 'taschenlampe') return 'lampe';
-  if (name === 'essen' || name === 'trinken' || name === 'holz' || name === 'samen') return 'seitlich'; // entspannt neben dem Körper tragen, kein Schwung (Runde 19)
+  if (name === 'essen' || name === 'trinken' || name === 'holz' || name === 'samen' || name === 'granate' || name === 'molotow') return 'seitlich'; // entspannt neben dem Körper tragen, kein Schwung (Runde 19)
   return 'nahkampf';
 }
