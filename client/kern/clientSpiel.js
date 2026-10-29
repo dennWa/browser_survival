@@ -21,6 +21,7 @@ import { Schritte } from '../audio/schritte.js';
 import { HausMusik } from '../audio/hausMusik.js';
 import { MusikFenster } from '../ui/musikFenster.js';
 import { MehrspielerFenster } from '../ui/mehrspielerFenster.js';
+import { StimmChat } from '../audio/stimmChat.js';
 
 /** Maximal gemerkte, vom Server noch nicht bestätigte Eingaben (~4 s). */
 const MAX_OFFENE_EINGABEN = 120;
@@ -187,6 +188,7 @@ export class ClientSpiel {
     this.hausMusik = new HausMusik(this.sound, this.musik);
     this.musikFenster = new MusikFenster(document);
     this.musikFenster.beiWahl((wahl) => this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.MUSIK, ...wahl }));
+    this.stimme = new StimmChat(document, (an, signal) => this.#senden({ typ: NACHRICHT.STIMME, an, signal })); // Runde 24 (P15)
     this.mehrspieler = new MehrspielerFenster(document, { senden: (a) => this.#senden({ typ: NACHRICHT.AKTION, ...a }), zeichneIcon: (c, id) => this.hud.zeichneIcon(c, id) }); // Runde 24 (P14)
     this.sound?.starteAtmosphaere();
     if (this.klaenge.ersetztMusik) this.musik?.stoppen(); // Karte bringt eigene Hintergrundmusik mit
@@ -210,6 +212,9 @@ export class ClientSpiel {
 
   #aufraeumen() {
     this.beendet = true;
+    this.stimme?.beenden(); // Runde 24: Mikro aus, Verbindungen zu; eigene DOM-Teile weg (nächste Sitzung baut neu)
+    this.stimme?.knopf.remove();
+    this.mehrspieler?.el.remove();
     this.tutorialAnzeige?.stoppe();
     this.schleife?.stoppen();
     this.karte.speichern();
@@ -894,6 +899,9 @@ export class ClientSpiel {
       case NACHRICHT.SPIELER_LISTE:
         if (Array.isArray(n.liste)) this.spielerListe = n.liste;
         break;
+      case NACHRICHT.STIMME:
+        this.stimme?.beiSignal(n.von, n.signal);
+        break;
       case NACHRICHT.CHAT:
         this.hud.chatNachricht(n);
         if (!n.system && n.von) this.renderer.zeigeSprechblase(n.von, n.text); // Sprechblase über dem Kopf (nur sichtbar, wenn in dieser Zone)
@@ -1497,6 +1505,16 @@ export class ClientSpiel {
     if (!this.spielerDaten?.tot) this.karte.aktualisiere(eigen, jetzt);
     if (this.physik.ausdauerMax) this.hud.setzeAusdauer(this.lokal.ausdauer / this.physik.ausdauerMax, this.lokal.erschoepft);
     const andere = this.#interpolierteEntitaeten(jetzt);
+    if (this.stimme?.modus !== 'aus') {
+      // Runde 24 (P15): Sprachchat – Push-to-talk (C) und Abstand der Mitspieler
+      const c = this.eingabe.sprechen();
+      if (c !== this.pttVorher) this.stimme.sprechen(c);
+      this.pttVorher = c;
+      const mit = [];
+      for (const e of andere) if (e.typ === 'spieler' && e.id !== this.eigeneId && !e.bot) mit.push(e);
+      this.stimme.aktualisiere({ id: this.eigeneId, x: eigen.x, y: eigen.y }, mit, (jetzt - (this.stimmZeit ?? jetzt)) / 1000);
+      this.stimmZeit = jetzt;
+    }
     // Eigenes Auto: aus der Vorhersage (weich interpoliert) statt aus den verzögerten Schnappschüssen
     const fz = this.lokal.fahrzeug;
     if (fz) {

@@ -1411,3 +1411,8 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
 .ms-icon { width: 40px; height: 40px; }
 .ms-raster .menge { position: absolute; right: 3px; bottom: 1px; font-size: 0.7rem; }
 .ms-bereit { width: 100%; margin-top: 10px; }
+/* Runde 24 (P15): Sprachchat-Knopf (Touch: halten = sprechen) */
+#stimm-knopf { position: fixed; right: 16px; bottom: 150px; z-index: 30; width: 52px; height: 52px; border-radius: 50%; font-size: 1.4rem; border: 2px solid rgba(255, 255, 255, 0.35); background: rgba(30, 30, 34, 0.7); color: #fff; cursor: pointer; touch-action: none; user-select: none; }
+#stimm-knopf[hidden] { display: none; }
+#stimm-knopf.sendet { background: rgba(40, 150, 70, 0.85); box-shadow: 0 0 14px rgba(80, 220, 120, 0.8); }
+.einst-knopf.aktiv { outline: 2px solid #e0b040; }

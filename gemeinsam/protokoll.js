@@ -23,6 +23,8 @@ export const NACHRICHT = Object.freeze({
   PING: 'ping',
   /** { text } – Chatnachricht an die eigene Zone; beginnt sie mit „/a “, an alle Zonen (max. CHAT_MAX_LAENGE Zeichen) */
   CHAT: 'chat',
+  /** Runde 24: { an: spielerId, signal } – WebRTC-Signal für den Sprachchat; Server reicht es als { von, signal } weiter */
+  STIMME: 'stimme',
   /** {} – Developer-Modus: aktuelle Werte anfordern (nur Admins) */
   DEV_ABFRAGEN: 'devAbfragen',
   /** { werte: { pfad: zahl } } – Developer-Modus: Werte setzen (nur Admins; Pfade aus entwicklerFelder.js) */

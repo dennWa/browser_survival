@@ -375,6 +375,9 @@ export class SpielServer {
       case NACHRICHT.CHAT:
         if (sitzung.status === 'imSpiel') this.#chat(sitzung, nachricht);
         break;
+      case NACHRICHT.STIMME:
+        if (sitzung.status === 'imSpiel') this.#stimme(sitzung, nachricht);
+        break;
       case NACHRICHT.DEV_ABFRAGEN:
       case NACHRICHT.DEV_SETZEN:
       case NACHRICHT.DEV_ZURUECKSETZEN:
@@ -562,6 +565,19 @@ export class SpielServer {
     const nachricht = { typ: NACHRICHT.CHAT, von: sitzung.benutzername, text, admin: !!spieler?.admin };
     if (global) this.#anAlle({ ...nachricht, global: true, zone: sitzung.zone?.name ?? null });
     else this.#anZone(sitzung.zone, nachricht);
+  }
+
+  /** Runde 24 (P15): WebRTC-Signal an einen Spieler derselben Zone weiterreichen (Sprachchat, client/audio/stimmChat.js). */
+  #stimme(sitzung, n) {
+    if (!Number.isInteger(n.an) || !n.signal || typeof n.signal !== 'object') return;
+    const jetzt = Date.now();
+    if (jetzt - (sitzung.stimmFenster ?? 0) > 1000) Object.assign(sitzung, { stimmFenster: jetzt, stimmZahl: 0 });
+    if (++sitzung.stimmZahl > 60) return; // Flut-Schutz
+    if (JSON.stringify(n.signal).length > 12000) return;
+    for (const s of this.sitzungen) {
+      if (s.status !== 'imSpiel' || s.zone !== sitzung.zone || s.spielerId !== n.an || s === sitzung) continue;
+      this.#senden(s, { typ: NACHRICHT.STIMME, von: sitzung.spielerId, signal: n.signal });
+    }
   }
 
   /** Spielerliste (Tab) über alle Zonen – an alle, nur wenn sich etwas geändert hat */

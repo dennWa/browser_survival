@@ -50,7 +50,7 @@ const schritt = (text) => {
 };
 const pruefe = (ok, text) => (ok ? schritt(text) : fehler.push(`Prüfung: ${text}`));
 
-const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
+const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
 try {
   const seite = await browser.newPage({ viewport: { width: 1100, height: 680 } });
   seite.on('pageerror', (e) => fehler.push(`pageerror: ${e.message}`));
@@ -355,6 +355,41 @@ try {
     await seite.waitForSelector('.ms-nieder[hidden]', { state: 'attached', timeout: 5000 });
     pruefe(await amServer('return !ich.tot && !(ich.niedergestreckt > 0);'), 'von Bob gerettet');
     await amServer(`ich.gottmodus = true; const bob = [...welt.alleVomTyp('spieler')].find((s) => s.name === 'Bob'); welt.entfernen(bob.id);`);
+  }
+
+  // ---------------------------------------------------------------- Phase 15 (Sprachchat: zwei StimmChats im selben Browser, Signal direkt verbunden)
+  if (phaseAn(15)) {
+    const ergebnis = await seite.evaluate(async () => {
+      const { StimmChat } = await import('/client/audio/stimmChat.js');
+      const chats = {};
+      chats[1] = new StimmChat(document, (an, sig) => setTimeout(() => chats[an].beiSignal(1, sig), 5));
+      chats[2] = new StimmChat(document, (an, sig) => setTimeout(() => chats[an].beiSignal(2, sig), 5));
+      await chats[1].setzeModus('offen');
+      await chats[2].setzeModus('offen');
+      const a = { id: 1, x: 100, y: 100 };
+      const b = { id: 2, x: 200, y: 100 };
+      for (let i = 0; i < 60 && (chats[1].verbindungen < 1 || chats[2].verbindungen < 1); i++) {
+        chats[1].aktualisiere(a, [b], 1.1);
+        chats[2].aktualisiere(b, [a], 1.1);
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      const ok = [chats[1].verbindungen, chats[2].verbindungen];
+      chats[1].aktualisiere(a, [{ ...b, x: 2000 }], 1.1); // weit weg → trennt
+      const getrennt = chats[1].verbindungen;
+      for (const c of Object.values(chats)) {
+        await c.setzeModus('aus');
+        c.knopf.remove();
+      }
+      browserSurvival.spiel.stimme?.setzeModus('aus');
+      return { ok, getrennt };
+    });
+    pruefe(ergebnis.ok[0] >= 1 && ergebnis.ok[1] >= 1, `WebRTC verbunden (${ergebnis.ok})`);
+    pruefe(ergebnis.getrennt === 0, 'zu weit weg → getrennt');
+    await seite.evaluate(() => browserSurvival.spiel.stimme.setzeModus('ptt'));
+    await seite.waitForTimeout(500);
+    pruefe(await seite.evaluate(() => !document.getElementById('stimm-knopf').hidden), '🎤-Knopf sichtbar (Touch)');
+    await bild('15_sprachchat');
+    await seite.evaluate(() => browserSurvival.spiel.stimme.setzeModus('aus'));
   }
 
   const info = await seite.evaluate(() => browserSurvival.spiel?.renderer.statistik() ?? '');

@@ -24,6 +24,7 @@ export const TASTEN = Object.freeze({
   skills: ['KeyU'], // Fähigkeiten (Skillpunkte verteilen)
   fallenlassen: ['KeyQ'], // Item fallen lassen (unter der Maus im Inventar, sonst das in der Hand)
   chat: ['KeyT'], // Chat-Eingabe öffnen
+  sprechen: ['KeyC'], // Runde 24: Sprachchat Push-to-talk (halten)
   spielerliste: ['KeyI'], // Spieler-Info: wer ist online (Level, Kills, überlebte Zeit)
   kofferraum: ['KeyG'], // Kofferraum des Autos öffnen (daneben stehen oder drinsitzen)
   sitzen: ['Quote'], // Ä (deutsche Tastatur; physisch die '-Taste): hinsetzen/aufstehen – überall, am Lagerfeuer heilend
@@ -143,6 +144,11 @@ export class Eingabe {
   sprint() {
     if (!this.#aktiv) return false;
     return TASTEN.sprint.some((c) => this.#gedrueckt.has(c)) || this.touch.sprint();
+  }
+
+  /** Runde 24: Push-to-talk gehalten? */
+  sprechen() {
+    return this.#aktiv && TASTEN.sprechen.some((c) => this.#gedrueckt.has(c));
   }
 
   /** fn(slotIndex) bei Tasten 1–9 und 0 (= Platz 10) */
