@@ -92,6 +92,11 @@ Tipp: kurze Dateien (< 3 s), Lautstärke der Aufnahme selbst eher normalisiert.
 
 | Dateiname (ohne Endung) | Wann? |
 |---|---|
+| `gewehr` | Schuss Jagdgewehr (laut, hallt) |
+| `bogen` | Bogen – Pfeil schwirrt los (leise) |
+| `armbrust` | Armbrust – Sehne schnellt (leise) |
+| `schuss_leise` | Schuss mit Schalldämpfer |
+| `nachladen_gewehr` | Gewehr nachladen (Repetieren) |
 | `explosion` | Explosion (Explosiv-Zombie, später Granaten/Sprengfallen) |
 
 ### Zombies

@@ -181,6 +181,27 @@ ITEMS = {
     'thermohose': ('prozedural', 'kleidung:hose:#26272c', 24),
     'stiefel': ('prozedural', 'kleidung:stiefel:#5a3c22', 20),
     'turnschuhe': ('prozedural', 'kleidung:schuhe:#d8d8d8', 20),
+    # Runde 24: Waffen, Mods, Sprengstoff, Fallen (Kenney-Weapon-Pack wo vorhanden, sonst selbst gezeichnet)
+    'baseballschlaeger': ('prozedural', 'schlaeger', 30),
+    'brecheisen': ('prozedural', 'brecheisen', 28),
+    'speer': ('prozedural', 'speer', 36),
+    'gewehr': ('guns', 'PNG/sniper.png', 42),
+    'bogen': ('prozedural', 'bogen', 34),
+    'armbrust': ('prozedural', 'armbrust', 32),
+    'munition_gewehr': ('guns', 'PNG/large_bullet.png', 20),
+    'pfeil': ('prozedural', 'pfeil', 26),
+    'bolzen': ('prozedural', 'bolzen', 22),
+    'mod_zielfernrohr': ('prozedural', 'zielfernrohr', 24),
+    'mod_magazin': ('guns', 'PNG/magazine.png', 20),
+    'mod_schalldaempfer': ('prozedural', 'schalldaempfer', 22),
+    'granate': ('prozedural', 'granate', 18),
+    'molotow': ('prozedural', 'molotow', 20),
+    'sprengfalle': ('prozedural', 'sprengfalle', 24),
+    'stacheldraht': ('prozedural', 'stacheldraht', 28),
+    'dosenalarm': ('prozedural', 'dosenalarm', 24),
+    'fallgrube': ('prozedural', 'fallgrube', 28),
+    'schwarzpulver': ('prozedural', 'schwarzpulver', 20),
+    'alkohol': ('prozedural', 'flasche:#c9a24a', 20),
 }
 ITEM_ICON_GROESSE = 72
 
@@ -378,6 +399,96 @@ def zeichne_prozedural(art, groesse):
         d.polygon([(32 * u, 60 * u), (36 * u, 48 * u), (40 * u, 60 * u)], fill=(255, 214, 90, 255))
         for x, y in ((14, 26), (30, 22), (50, 28), (16, 52)):
             d.line([x * u, y * u, (x + 8) * u, y * u], fill=(100, 102, 108, 255), width=int(2 * u))
+    elif art == 'schlaeger':
+        d.line([12 * u, 62 * u, 60 * u, 12 * u], fill=(170, 120, 70, 255), width=int(6 * u))
+        d.line([40 * u, 33 * u, 62 * u, 10 * u], fill=(190, 140, 84, 255), width=int(11 * u))
+        d.line([12 * u, 62 * u, 20 * u, 54 * u], fill=(40, 34, 30, 255), width=int(7 * u))
+        d.line([44 * u, 26 * u, 58 * u, 12 * u], fill=(230, 200, 150, 160), width=int(2 * u))
+    elif art == 'brecheisen':
+        d.line([18 * u, 64 * u, 50 * u, 12 * u], fill=(170, 40, 34, 255), width=int(6 * u))
+        d.arc(r(42, 4, 64, 26), 180, 330, fill=(170, 40, 34, 255), width=int(6 * u))
+        d.line([14 * u, 62 * u, 22 * u, 66 * u], fill=(170, 40, 34, 255), width=int(6 * u))
+        d.line([20 * u, 58 * u, 48 * u, 14 * u], fill=(230, 120, 110, 200), width=int(1.5 * u))
+    elif art == 'speer':
+        d.line([6 * u, 68 * u, 56 * u, 16 * u], fill=(140, 96, 52, 255), width=int(5 * u))
+        d.polygon([(52 * u, 14 * u), (68 * u, 4 * u), (60 * u, 22 * u)], fill=(150, 150, 146, 255), outline=rand)
+        d.line([50 * u, 22 * u, 58 * u, 14 * u], fill=(90, 70, 50, 255), width=int(4 * u))
+    elif art == 'bogen':
+        d.arc(r(4, 6, 60, 66), 290, 70, fill=(130, 84, 40, 255), width=int(6 * u))
+        d.line([43 * u, 10 * u, 43 * u, 62 * u], fill=(230, 230, 220, 255), width=int(1.5 * u))
+        d.rectangle(r(54, 30, 62, 42), fill=(60, 46, 34, 255))
+    elif art == 'armbrust':
+        d.line([36 * u, 10 * u, 36 * u, 66 * u], fill=(120, 80, 42, 255), width=int(7 * u))
+        d.arc(r(8, 8, 64, 40), 200, 340, fill=(90, 94, 100, 255), width=int(5 * u))
+        d.line([12 * u, 20 * u, 36 * u, 34 * u], fill=(230, 230, 220, 255), width=int(1.5 * u))
+        d.line([60 * u, 20 * u, 36 * u, 34 * u], fill=(230, 230, 220, 255), width=int(1.5 * u))
+        d.rectangle(r(31, 44, 41, 56), fill=(60, 46, 34, 255))
+    elif art in ('pfeil', 'bolzen'):
+        laenge = 60 if art == 'pfeil' else 44
+        for dy in (0, 10):
+            x0, y0 = 10, 60 - dy
+            x1, y1 = x0 + laenge * 0.8, y0 - laenge * 0.6
+            d.line([x0 * u, y0 * u, x1 * u, y1 * u], fill=(170, 120, 64, 255), width=int(3 * u))
+            d.polygon([(x1 * u, y1 * u), ((x1 - 2) * u, (y1 + 7) * u), ((x1 + 6) * u, (y1 - 5) * u), ((x1 - 6) * u, (y1 + 2) * u)], fill=(160, 164, 170, 255), outline=rand)
+            d.polygon([(x0 * u, y0 * u), ((x0 - 4) * u, (y0 - 6) * u), ((x0 + 6) * u, (y0 - 6) * u)], fill=(200, 60, 50, 255) if art == 'pfeil' else (60, 60, 60, 255))
+    elif art == 'zielfernrohr':
+        d.rounded_rectangle(r(6, 26, 66, 42), radius=6 * u, fill=(46, 50, 56, 255), outline=rand, width=int(2.5 * u))
+        d.ellipse(r(4, 22, 18, 46), fill=(60, 66, 74, 255), outline=rand, width=int(2 * u))
+        d.ellipse(r(54, 22, 68, 46), fill=(120, 170, 220, 255), outline=rand, width=int(2 * u))
+        d.rectangle(r(28, 42, 40, 52), fill=(46, 50, 56, 255), outline=rand, width=int(2 * u))
+    elif art == 'schalldaempfer':
+        d.rounded_rectangle(r(6, 24, 66, 46), radius=8 * u, fill=(36, 38, 42, 255), outline=rand, width=int(2.5 * u))
+        for x in (20, 32, 44):
+            d.line([x * u, 26 * u, x * u, 44 * u], fill=(70, 74, 80, 255), width=int(2 * u))
+    elif art == 'granate':
+        d.ellipse(r(14, 20, 58, 68), fill=(84, 100, 60, 255), outline=rand, width=int(2.5 * u))
+        for y in (32, 44, 56):
+            d.line([16 * u, y * u, 56 * u, y * u], fill=(60, 72, 42, 255), width=int(2 * u))
+        d.line([36 * u, 22 * u, 36 * u, 66 * u], fill=(60, 72, 42, 255), width=int(2 * u))
+        d.rectangle(r(28, 10, 44, 22), fill=(120, 124, 130, 255), outline=rand, width=int(2 * u))
+        d.line([44 * u, 14 * u, 60 * u, 30 * u], fill=(150, 154, 160, 255), width=int(3 * u))
+        d.ellipse(r(18, 4, 30, 16), outline=(170, 174, 180, 255), width=int(2 * u))
+    elif art == 'molotow':
+        d.rounded_rectangle(r(22, 26, 50, 66), radius=8 * u, fill=(90, 150, 70, 220), outline=rand, width=int(2.5 * u))
+        d.rectangle(r(30, 12, 42, 28), fill=(90, 150, 70, 220), outline=rand, width=int(2 * u))
+        d.polygon([(32 * u, 12 * u), (36 * u, 0 * u), (42 * u, 12 * u)], fill=(240, 220, 200, 255), outline=rand)
+        d.polygon([(30 * u, 6 * u), (36 * u, -6 * u), (44 * u, 8 * u)], fill=(255, 140, 40, 230))
+        d.rectangle(r(24, 46, 48, 62), fill=(200, 150, 60, 200))
+    elif art == 'sprengfalle':
+        d.rounded_rectangle(r(10, 30, 62, 60), radius=4 * u, fill=(96, 110, 70, 255), outline=rand, width=int(2.5 * u))
+        for x in (18, 30, 42):
+            d.rectangle(r(x, 22, x + 10, 34), fill=(180, 60, 40, 255), outline=rand, width=int(2 * u))
+        d.line([56 * u, 30 * u, 66 * u, 12 * u], fill=(30, 30, 30, 255), width=int(2 * u))
+        d.ellipse(r(62, 8, 70, 16), fill=(220, 40, 30, 255))
+    elif art == 'stacheldraht':
+        for y in (26, 44):
+            d.line([4 * u, y * u, 68 * u, (y + 4) * u], fill=(130, 134, 140, 255), width=int(3 * u))
+            for x in range(10, 66, 12):
+                d.line([(x - 4) * u, (y - 4) * u, (x + 4) * u, (y + 6) * u], fill=(170, 174, 180, 255), width=int(2 * u))
+                d.line([(x + 4) * u, (y - 4) * u, (x - 4) * u, (y + 6) * u], fill=(170, 174, 180, 255), width=int(2 * u))
+        for x in (8, 64):
+            d.line([x * u, 14 * u, x * u, 64 * u], fill=(120, 84, 44, 255), width=int(5 * u))
+    elif art == 'dosenalarm':
+        d.line([4 * u, 18 * u, 68 * u, 18 * u], fill=(200, 200, 190, 255), width=int(1.5 * u))
+        for x in (14, 32, 50):
+            d.line([(x + 6) * u, 18 * u, (x + 6) * u, 30 * u], fill=(200, 200, 190, 255), width=int(1.5 * u))
+            d.rounded_rectangle(r(x, 30, x + 12, 52), radius=2 * u, fill=(180, 186, 194, 255), outline=rand, width=int(2 * u))
+            d.rectangle(r(x, 36, x + 12, 44), fill=(200, 60, 50, 255))
+    elif art == 'fallgrube':
+        d.ellipse(r(6, 24, 66, 62), fill=(70, 52, 34, 255), outline=rand, width=int(2.5 * u))
+        d.ellipse(r(16, 32, 56, 56), fill=(30, 22, 16, 255))
+        for x in (22, 32, 42, 50):
+            d.polygon([(x * u, 52 * u), ((x + 3) * u, 36 * u), ((x + 6) * u, 52 * u)], fill=(170, 130, 80, 255), outline=rand)
+    elif art == 'schwarzpulver':
+        d.polygon([(10 * u, 62 * u), (36 * u, 20 * u), (62 * u, 62 * u)], fill=(40, 40, 44, 255), outline=rand)
+        for x, y in ((28, 44), (40, 50), (34, 56), (46, 58)):
+            d.ellipse(r(x, y, x + 3, y + 3), fill=(110, 110, 120, 255))
+    elif art.startswith('flasche:'):
+        farbe = art.split(':')[1]
+        d.rounded_rectangle(r(22, 26, 50, 66), radius=8 * u, fill=farbe, outline=rand, width=int(2.5 * u))
+        d.rectangle(r(30, 8, 42, 28), fill=farbe, outline=rand, width=int(2 * u))
+        d.rectangle(r(29, 4, 43, 10), fill=(120, 80, 40, 255), outline=rand)
+        d.rectangle(r(24, 40, 48, 54), fill=(240, 236, 220, 255))
     elif art.startswith('kleidung:'):
         _, form, farbe = art.split(':')
         hell = tuple(min(255, int(farbe[i:i + 2], 16) + 40) for i in (1, 3, 5)) + (255,)

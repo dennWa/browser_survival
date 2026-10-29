@@ -26,6 +26,9 @@ export function slotBeschriftung(slot) {
   return String((slot + 1) % 10);
 }
 
+/** Runde 24: Anzeigenamen der Waffen-Aufsätze */
+const MOD_NAMEN = { zielfernrohr: 'Zielfernrohr', magazin: 'großes Magazin', schalldaempfer: 'Schalldämpfer' };
+
 /** Zwei Klicks/Tipps innerhalb dieser Zeit (ms) auf denselben Platz = Doppelklick */
 const DOPPELKLICK_MS = 380;
 
@@ -221,6 +224,15 @@ export class InventarFenster {
     const e = this.#daten?.inventar[slot];
     const def = e && this.#itemDefinitionen[e.defId];
     this.info.textContent = def ? `${def.name}${e.menge > 1 ? ` ×${e.menge}` : ''}${def.beschreibung ? ` – ${def.beschreibung}` : ''}` : '';
+    if (!def) return;
+    // Runde 24: Zustand und Aufsätze (Zielfernrohr …) – Knopf nimmt sie wieder ab
+    if (def.haltbarkeit) this.info.append(` · Zustand ${Math.round(((e.haltbarkeit ?? def.haltbarkeit) / def.haltbarkeit) * 100)} %`);
+    if (def.mods?.length) this.info.append(` · Aufsätze: ${e.mods?.length ? e.mods.map((m) => MOD_NAMEN[m] ?? m).join(', ') : `keine (passt: ${def.mods.map((m) => MOD_NAMEN[m] ?? m).join(', ')})`}`);
+    if (e.mods?.length) {
+      const knopf = Object.assign(this.dokument.createElement('button'), { type: 'button', className: 'inv-mod-ab', textContent: '🔧 abnehmen' });
+      knopf.addEventListener('click', () => this.#aktionen.modsAbnehmen?.(slot));
+      this.info.append(' ', knopf);
+    }
   }
 
   #zeigeAusrInfo(id) {

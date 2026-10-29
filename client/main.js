@@ -155,6 +155,8 @@ hud.beiAktionen({
   entwicklerSetzen: (werte) => aktuellesSpiel?.entwickler(NACHRICHT.DEV_SETZEN, { werte }),
   entwicklerZuruecksetzen: () => aktuellesSpiel?.entwickler(NACHRICHT.DEV_ZURUECKSETZEN),
   herstellen: (rezept) => aktuellesSpiel?.herstellen(rezept),
+  reparieren: (slot) => aktuellesSpiel?.slotAktion(AKTIONEN.REPARIEREN, slot),
+  modsAbnehmen: (slot) => aktuellesSpiel?.slotAktion(AKTIONEN.MODS_ABNEHMEN, slot),
   werkbankSchliessen: () => aktuellesSpiel?.werkbankUmschalten(false),
   wiederbeleben: () => aktuellesSpiel?.wiederbeleben(),
   admin: (befehl) => aktuellesSpiel?.admin(befehl),

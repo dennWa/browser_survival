@@ -136,6 +136,31 @@ try {
     await amServer(`welt.nachtArt = 'normal'; welt.zeit = 10; for (const z of [...welt.alleVomTyp('zombie')]) if (z.gefesselt) welt.entfernen(z.id);`);
   }
 
+  // ---------------------------------------------------------------- Phase 3+4 (Waffen, Reparatur, Mods)
+  if (phaseAn(3) || phaseAn(4)) {
+    for (const [waffe, extra] of [['baseballschlaeger', {}], ['speer', {}], ['gewehr', { mods: ['zielfernrohr', 'schalldaempfer', 'magazin'] }], ['bogen', {}], ['armbrust', {}]]) {
+      await amServer(`const def = a.def; ich.inventar[0] = { defId: a.waffe, menge: 1, ...(def.kategorie === 'fernkampf' ? { magazin: def.magazin } : {}), ...a.extra }; ich.ausgeruestet = 0; ich.ausruestung = def.ausruestung;`, { waffe, extra, def: await seite.evaluate((w) => browserSurvival.spiel.itemDefinitionen[w], waffe) });
+      await seite.waitForTimeout(900);
+      await bild(`3_${waffe}`);
+    }
+    // Bogen schießen: Pfeil fliegt, kein Fehler
+    await amServer(`ich.inventar[0] = { defId: 'bogen', menge: 1, magazin: 1 }; ich.inventar[1] = { defId: 'pfeil', menge: 10 }; ich.ausgeruestet = 0; ich.ausruestung = 'schrotflinte';`);
+    await seite.mouse.move(800, 300);
+    await seite.mouse.down();
+    await seite.waitForTimeout(700);
+    await seite.mouse.up();
+    pruefe((await amServer(`return ich.inventar[0].magazin;`)) === 0, 'Bogen hat geschossen');
+    // Inventar-Info zeigt Aufsätze
+    await amServer(`ich.inventar[2] = { defId: 'gewehr', menge: 1, magazin: 5, mods: ['zielfernrohr'] };`);
+    await seite.keyboard.press('Tab');
+    await seite.waitForTimeout(800);
+    await seite.hover('#inventar .inv-slot[data-slot="2"]');
+    await seite.waitForTimeout(300);
+    pruefe(await seite.evaluate(() => /Zielfernrohr/.test(document.getElementById('inventar-info').textContent) && !!document.querySelector('#inventar-info .inv-mod-ab')), 'Inventar zeigt Aufsatz + Abnehmen-Knopf');
+    await bild('4_inventar_mods');
+    await seite.keyboard.press('Tab');
+  }
+
   const info = await seite.evaluate(() => browserSurvival.spiel?.renderer.statistik() ?? '');
   if (info) console.log(`  Grafik: ${info}`);
 } catch (e) {

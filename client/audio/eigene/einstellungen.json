@@ -148,5 +148,24 @@
   "treffer_panzer": {
     "lautstaerke": 0.6,
     "streuung": 0.1
+  },
+  "gewehr": {
+    "lautstaerke": 1.1,
+    "streuung": 0.04
+  },
+  "bogen": {
+    "lautstaerke": 0.5,
+    "streuung": 0.1
+  },
+  "armbrust": {
+    "lautstaerke": 0.6,
+    "streuung": 0.06
+  },
+  "schuss_leise": {
+    "lautstaerke": 0.7,
+    "streuung": 0.08
+  },
+  "nachladen_gewehr": {
+    "lautstaerke": 0.7
   }
 }

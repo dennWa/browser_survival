@@ -1370,3 +1370,4 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
 .welt-plus canvas { width: 30px; height: 30px; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.9)); }
 .welt-balken { position: absolute; left: 0; top: 0; width: 54px; height: 6px; padding: 1px; background: rgba(0, 0, 0, 0.65); border-radius: 4px; pointer-events: none; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); }
 .welt-balken-fuellung { height: 100%; width: 0; background: linear-gradient(90deg, #9bd35a, #d7f27a); border-radius: 3px; transition: width 0.15s linear; }
+#inventar-info .inv-mod-ab { margin-left: 4px; padding: 1px 8px; font-size: 0.8em; border-radius: 6px; border: 1px solid #8a7a50; background: #3a3424; color: #f0e6c4; cursor: pointer; }

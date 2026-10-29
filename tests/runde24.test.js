@@ -171,3 +171,153 @@ test('P2 Explosiv-Zombie platzt beim Tod', () => {
   assert.ok(welt.ereignisse.some((e) => e.typ === 'explosion'));
   assert.ok(spieler.leben < leben);
 });
+
+// ---------------------------------------------------------------- Phase 3+4: Waffen, Reparatur, Mods
+import { AKTIONEN } from '../gemeinsam/protokoll.js';
+import { GEGENSTAENDE, waffenWerte } from '../server/spiel/konfiguration/gegenstaende.js';
+import { REZEPTE } from '../server/spiel/konfiguration/rezepte.js';
+import { pruefeEintrag } from '../server/spiel/spielstand.js';
+import { reparaturKostenFuer } from '../gemeinsam/spieler/reparatur.js';
+
+const aktion = (welt, spieler, a) => {
+  spieler.aktionsPuffer.push({ slot: null, ...a });
+  welt.aktualisiere(TICK_DAUER_S);
+};
+const inDieHand = (welt, spieler, defId, extra = {}) => {
+  spieler.inventar[0] = { defId, menge: 1, ...(GEGENSTAENDE[defId].kategorie === 'fernkampf' ? { magazin: GEGENSTAENDE[defId].magazin } : {}), ...extra };
+  spieler.ausgeruestet = 0;
+  spieler.ausruestung = GEGENSTAENDE[defId].ausruestung;
+};
+const schlage = (welt, spieler, blick = 0) => {
+  spieler.blick = blick;
+  spieler.angriffsAbklingzeit = 0;
+  spieler.angriff = true;
+  spieler.eingabePuffer.push({ seq: (spieler.letzteEmpfangeneSeq ?? 0) + 1, x: 0, y: 0, blick, angriff: true, sprint: false });
+  welt.aktualisiere(TICK_DAUER_S);
+  spieler.angriff = false;
+};
+
+test('P3 Neue Nahkampfwaffen + Rezepte existieren, Icons/Rezepte gültig', () => {
+  for (const id of ['baseballschlaeger', 'brecheisen', 'speer', 'gewehr', 'bogen', 'armbrust', 'pfeil', 'bolzen', 'munition_gewehr', 'mod_zielfernrohr', 'mod_magazin', 'mod_schalldaempfer']) assert.ok(GEGENSTAENDE[id], id);
+  for (const r of Object.values(REZEPTE)) for (const z of Object.keys(r.zutaten)) assert.ok(GEGENSTAENDE[z], `${r.name}: ${z}`);
+});
+
+test('P3 Schläger: Treffer kostet Haltbarkeit und stößt weiter zurück', () => {
+  const { welt, spieler } = neueWelt();
+  spieler.x = mitte(5);
+  spieler.y = mitte(4);
+  inDieHand(welt, spieler, 'baseballschlaeger');
+  const z = zombie(welt, 'normal', spieler.x + 50, spieler.y);
+  z.leben = z.maxLeben = 999;
+  schlage(welt, spieler, 0);
+  assert.ok(z.leben < 999, 'getroffen');
+  assert.equal(spieler.inventar[0].haltbarkeit, GEGENSTAENDE.baseballschlaeger.haltbarkeit - 1);
+  assert.ok(z.x - (spieler.x + 50) > welt.konfiguration.kampf.rueckstoss * 1.5, 'weit zurückgestoßen');
+});
+
+test('P3 Speer: lange Reichweite, aber schmaler Kegel', () => {
+  const { welt, spieler } = neueWelt();
+  spieler.x = mitte(5);
+  spieler.y = mitte(4);
+  inDieHand(welt, spieler, 'speer');
+  const vorn = zombie(welt, 'normal', spieler.x + 110, spieler.y);
+  const seitlich = zombie(welt, 'normal', spieler.x + 40, spieler.y + 45);
+  vorn.leben = seitlich.leben = 999;
+  schlage(welt, spieler, 0);
+  assert.ok(vorn.leben < 999, 'vorn weit weg getroffen');
+  assert.equal(seitlich.leben, 999, 'seitlich verfehlt');
+});
+
+test('P3 Brecheisen knackt Panzerung besser als Machete', () => {
+  const k = erstelleKonfiguration();
+  const panzer = k.zombie.varianten.gepanzert.panzer;
+  const brecheisen = GEGENSTAENDE.brecheisen.schaden * (1 - panzer * (1 - GEGENSTAENDE.brecheisen.durchschlag));
+  const machete = GEGENSTAENDE.machete.schaden * (1 - panzer);
+  assert.ok(brecheisen > machete);
+});
+
+test('P3 Reparatur nur an der Werkbank, kostet Material, macht heil', () => {
+  const { welt, spieler } = neueWelt();
+  inDieHand(welt, spieler, 'baseballschlaeger', { haltbarkeit: 10 });
+  spieler.inventar[1] = { defId: 'holz', menge: 5 };
+  aktion(welt, spieler, { art: AKTIONEN.REPARIEREN, slot: 0 });
+  assert.equal(spieler.inventar[0].haltbarkeit, 10, 'ohne Werkbank nicht');
+  welt.welt.setzeBauwerk({ id: welt.neueBauwerkId(), typ: 'werkbank', tx: Math.floor(spieler.x / 32) + 1, ty: Math.floor(spieler.y / 32), besitzer: 'Tester' });
+  aktion(welt, spieler, { art: AKTIONEN.REPARIEREN, slot: 0 });
+  assert.equal(spieler.inventar[0].haltbarkeit, undefined, 'repariert = voll');
+  assert.equal(spieler.inventar[1].menge, 5 - reparaturKostenFuer('baseballschlaeger', GEGENSTAENDE, REZEPTE).holz);
+  assert.deepEqual(reparaturKostenFuer('axt', GEGENSTAENDE, REZEPTE), { holz: 2, stein: 1 }, 'ohne eigene Kosten: halbes Rezept');
+});
+
+test('P4 Bogen ist leise, Pistole laut', () => {
+  for (const [waffe, munition, soll] of [['bogen', 'pfeil', 'ruhend'], ['pistole', 'munition_9mm', 'verfolgend']]) {
+    const { welt, spieler } = neueWelt();
+    spieler.x = mitte(3);
+    spieler.y = mitte(4);
+    inDieHand(welt, spieler, waffe);
+    spieler.inventar[1] = { defId: munition, menge: 10 };
+    const z = zombie(welt, 'normal', spieler.x + 330, spieler.y + 60);
+    z.gefesselt = false;
+    schlage(welt, spieler, Math.PI); // weg vom Zombie schießen
+    assert.equal(z.zielId === spieler.id ? 'verfolgend' : 'ruhend', soll, waffe);
+  }
+});
+
+test('P4 Pfeile lassen sich (oft) wieder einsammeln', () => {
+  const { welt, spieler } = neueWelt();
+  spieler.x = mitte(3);
+  spieler.y = mitte(4);
+  inDieHand(welt, spieler, 'bogen');
+  spieler.inventar[1] = { defId: 'pfeil', menge: 20 };
+  for (let i = 0; i < 12; i++) {
+    spieler.inventar[0].magazin = 1;
+    schlage(welt, spieler, 0);
+  }
+  const liegen = [...welt.alleVomTyp('gegenstand')].filter((g) => g.defId === 'pfeil').length;
+  assert.ok(liegen >= 2 && liegen <= 11, `geborgen: ${liegen}`);
+});
+
+test('P4 Mods: anbringen (benutzen + ziehen), Werte, bleiben beim Ablegen/Speichern, abnehmen', () => {
+  const { welt, spieler } = neueWelt();
+  inDieHand(welt, spieler, 'gewehr');
+  spieler.inventar[2] = { defId: 'mod_magazin', menge: 1 };
+  spieler.inventar[3] = { defId: 'mod_zielfernrohr', menge: 1 };
+  spieler.inventar[4] = { defId: 'mod_schalldaempfer', menge: 1 };
+  aktion(welt, spieler, { art: AKTIONEN.BENUTZEN, slot: 2 });
+  assert.deepEqual(spieler.inventar[0].mods, ['magazin']);
+  assert.equal(spieler.inventar[2], null);
+  aktion(welt, spieler, { art: AKTIONEN.TAUSCHEN, slot: 3, ziel: 0 });
+  assert.deepEqual(spieler.inventar[0].mods, ['magazin', 'zielfernrohr']);
+  const w = waffenWerte(spieler.inventar[0], GEGENSTAENDE.gewehr);
+  assert.ok(w.magazin > GEGENSTAENDE.gewehr.magazin && w.reichweite > GEGENSTAENDE.gewehr.reichweite && w.streuung < GEGENSTAENDE.gewehr.streuung);
+  // Schalldämpfer passt nicht an die Pistole? doch – an den Bogen nicht
+  inDieHand(welt, spieler, 'bogen');
+  aktion(welt, spieler, { art: AKTIONEN.BENUTZEN, slot: 4 });
+  assert.ok(spieler.inventar[4], 'Schalldämpfer passt nicht an den Bogen');
+  // Spielstand/Kiste behalten Aufsätze
+  assert.deepEqual(pruefeEintrag({ defId: 'gewehr', menge: 1, magazin: 8, mods: ['magazin', 'quatsch'] }), { defId: 'gewehr', menge: 1, magazin: 8, mods: ['magazin'] });
+  assert.equal(pruefeEintrag({ defId: 'gewehr', menge: 1, magazin: 8 }).magazin, GEGENSTAENDE.gewehr.magazin, 'ohne Magazin-Mod gekappt');
+  // Ablegen + Aufheben
+  spieler.inventar[5] = { defId: 'gewehr', menge: 1, magazin: 0, mods: ['zielfernrohr'] };
+  aktion(welt, spieler, { art: AKTIONEN.ABLEGEN, slot: 5 });
+  const boden = [...welt.alleVomTyp('gegenstand')].find((g) => g.defId === 'gewehr');
+  assert.deepEqual(boden.mods, ['zielfernrohr']);
+  boden.x = spieler.x;
+  boden.y = spieler.y;
+  aktion(welt, spieler, { art: AKTIONEN.AUFHEBEN });
+  const zurueck = spieler.inventar.find((e) => e?.defId === 'gewehr' && e.mods);
+  assert.deepEqual(zurueck?.mods, ['zielfernrohr']);
+  // Abnehmen
+  const slot = spieler.inventar.indexOf(zurueck);
+  aktion(welt, spieler, { art: AKTIONEN.MODS_ABNEHMEN, slot });
+  assert.equal(spieler.inventar[slot].mods, undefined);
+  assert.ok(spieler.inventar.some((e) => e?.defId === 'mod_zielfernrohr'));
+});
+
+test('P3 Haltbarkeit bleibt beim Ablegen erhalten', () => {
+  const { welt, spieler } = neueWelt();
+  spieler.inventar[3] = { defId: 'speer', menge: 1, haltbarkeit: 7 };
+  aktion(welt, spieler, { art: AKTIONEN.ABLEGEN, slot: 3 });
+  const boden = [...welt.alleVomTyp('gegenstand')].find((g) => g.defId === 'speer');
+  assert.equal(boden.haltbarkeit, 7);
+});

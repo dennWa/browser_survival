@@ -2,7 +2,8 @@ import { tutorialAktion } from './tutorialSystem.js';
 import { AUFHEB_REICHWEITE, INVENTAR_MAX, INVENTAR_PLAETZE } from '../../../gemeinsam/konstanten.js';
 import { samenZiel } from '../../../gemeinsam/welt/bauwerke.js';
 import { AKTIONEN } from '../../../gemeinsam/protokoll.js';
-import { GEGENSTAENDE, STANDARD_AUSRUESTUNG, UNBEWAFFNET } from '../konfiguration/gegenstaende.js';
+import { GEGENSTAENDE, STANDARD_AUSRUESTUNG, UNBEWAFFNET, waffenWerte } from '../konfiguration/gegenstaende.js';
+import { bringeModAn, nimmModsAb, passenderMod, repariere } from './waffenSystem.js';
 import { erzeugeGegenstand } from '../entitaeten/gegenstand.js';
 import { wiederbeleben } from './ueberlebenSystem.js';
 import { fuehreAdminBefehlAus } from './adminSystem.js';
@@ -88,7 +89,15 @@ export function verarbeiteAktionen(spielWelt) {
           ablegen(spielWelt, spieler, aktion.slot, aktion.einzeln === true);
           break;
         case AKTIONEN.TAUSCHEN:
-          tausche(spieler, aktion.slot, aktion.ziel);
+          // Runde 24: Aufsatz auf eine passende Waffe gezogen → anbringen statt tauschen
+          if (passenderMod(spieler.inventar[aktion.slot], spieler.inventar[aktion.ziel])) bringeModAn(spielWelt, spieler, aktion.slot, aktion.ziel);
+          else tausche(spieler, aktion.slot, aktion.ziel);
+          break;
+        case AKTIONEN.REPARIEREN:
+          repariere(spielWelt, spieler, aktion.slot);
+          break;
+        case AKTIONEN.MODS_ABNEHMEN:
+          nimmModsAb(spielWelt, spieler, aktion.slot);
           break;
         case AKTIONEN.RUCKSACK_ABLEGEN:
           legeRucksackAb(spielWelt, spieler);
@@ -172,7 +181,7 @@ export function aktualisiereNachladen(spielWelt, dt) {
     spieler.nachladenRest = 0;
     const { eintrag, def } = aktuelleWaffe(spieler);
     if (!eintrag || def.kategorie !== 'fernkampf') continue;
-    eintrag.magazin += entferneItems(spieler, def.munition, def.magazin - eintrag.magazin);
+    eintrag.magazin += entferneItems(spieler, def.munition, waffenWerte(eintrag, def).magazin - eintrag.magazin);
   }
 }
 
@@ -180,7 +189,15 @@ export function aktualisiereNachladen(spielWelt, dt) {
  * Legt Gegenstände ins Inventar: erst auf passende Stapel, dann in freie Plätze.
  * @returns Menge, die NICHT mehr hineingepasst hat
  */
-export function fuegeZumInventarHinzu(spieler, defId, menge, magazin = 0) {
+/** Runde 24: Zusatzdaten eines Eintrags/Gegenstands, die beim Umlagern mitwandern (Haltbarkeit, Aufsätze). */
+export function zusatzVon(e) {
+  const z = {};
+  if (Number.isFinite(e?.haltbarkeit)) z.haltbarkeit = e.haltbarkeit;
+  if (e?.mods?.length) z.mods = [...e.mods];
+  return z;
+}
+
+export function fuegeZumInventarHinzu(spieler, defId, menge, magazin = 0, zusatz = null) {
   const def = GEGENSTAENDE[defId];
   const maxStapel = def.stapelbar ?? 1;
   let rest = menge;
@@ -197,6 +214,7 @@ export function fuegeZumInventarHinzu(spieler, defId, menge, magazin = 0) {
     if (spieler.inventar[slot] !== null) continue;
     const anzahl = Math.min(rest, maxStapel);
     spieler.inventar[slot] = def.kategorie === 'fernkampf' ? { defId, menge: 1, magazin } : { defId, menge: anzahl };
+    if (zusatz && maxStapel === 1) Object.assign(spieler.inventar[slot], zusatz);
     rest -= anzahl;
   }
   return rest;
@@ -213,7 +231,7 @@ export function aktualisiereAusruestung(spieler) {
 export function starteNachladen(spielWelt, spieler) {
   const { eintrag, def } = aktuelleWaffe(spieler);
   if (!eintrag || def.kategorie !== 'fernkampf' || spieler.nachladenRest > 0) return false;
-  if (eintrag.magazin >= def.magazin) return false;
+  if (eintrag.magazin >= waffenWerte(eintrag, def).magazin) return false;
   if (zaehleMunition(spieler, def.munition) === 0) {
     spielWelt.melde(spieler.id, `Keine ${GEGENSTAENDE[def.munition].name}`);
     return false;
@@ -244,7 +262,7 @@ function aufheben(spielWelt, spieler) {
     legeRucksackAn(spielWelt, spieler, naechster.defId);
     return;
   }
-  const rest = fuegeZumInventarHinzu(spieler, naechster.defId, naechster.menge, naechster.magazin ?? 0);
+  const rest = fuegeZumInventarHinzu(spieler, naechster.defId, naechster.menge, naechster.magazin ?? 0, zusatzVon(naechster));
   if (rest === naechster.menge) {
     spielWelt.melde(spieler.id, 'Inventar voll');
     return;
@@ -298,6 +316,9 @@ function benutzen(spielWelt, spieler, slot) {
       break;
     case 'munition':
       spielWelt.melde(spieler.id, 'Munition wird beim Nachladen (R) verwendet');
+      break;
+    case 'mod':
+      bringeModAn(spielWelt, spieler, slot, spieler.ausgeruestet); // Runde 24: an die Waffe in der Hand
       break;
     case 'rucksack':
       if (spieler.rucksack) {
@@ -594,7 +615,7 @@ export function legeRucksackAb(spielWelt, spieler, verfall = null) {
 /** Legt einen Inventareintrag als Gegenstand in die Welt. @param verfall Sekunden bis er verschwindet (null = nie) */
 export function legeAufBoden(spielWelt, eintrag, x, y, verfall = null) {
   spielWelt.hinzufuegen(
-    erzeugeGegenstand({ id: spielWelt.neueId(), defId: eintrag.defId, x, y, menge: eintrag.menge, magazin: eintrag.magazin, verfall }),
+    erzeugeGegenstand({ id: spielWelt.neueId(), defId: eintrag.defId, x, y, menge: eintrag.menge, magazin: eintrag.magazin, verfall, ...zusatzVon(eintrag) }),
   );
 }
 

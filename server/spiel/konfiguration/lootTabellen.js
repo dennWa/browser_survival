@@ -74,6 +74,8 @@ export const LOOT_TABELLEN = Object.freeze({
   ],
   // Was getötete Zombies manchmal fallen lassen
   zombie: [
+    { id: 'pfeil', gewicht: 0.5 },
+    { id: 'munition_gewehr', gewicht: 0.4 },
     { id: 'muetze', gewicht: 0.3 },
     { id: 'handschuhe', gewicht: 0.3 },
     { id: 'turnschuhe', gewicht: 0.3 },
@@ -85,6 +87,9 @@ export const LOOT_TABELLEN = Object.freeze({
   ],
   // Beute der Boss-Zombies (Brocken): immer eine Waffe – die passende Munition kommt dazu (lootSystem.lasseBossLootFallen)
   boss: [
+    { id: 'gewehr', gewicht: 1 },
+    { id: 'armbrust', gewicht: 1 },
+    { id: 'brecheisen', gewicht: 1 },
     { id: 'pistole', gewicht: 3 },
     { id: 'schrotflinte', gewicht: 2 },
     { id: 'machete', gewicht: 2 },
@@ -106,6 +111,7 @@ export const LOOT_TABELLEN = Object.freeze({
   ],
   // Wohnhäuser: vor allem Essen & Trinken, Waffen nur selten
   wohnung: [
+    { id: 'baseballschlaeger', gewicht: 0.6 },
     { id: 'muetze', gewicht: 1 },
     { id: 'kapuzenpulli', gewicht: 1 },
     { id: 'jeans', gewicht: 1 },
@@ -143,6 +149,8 @@ export const LOOT_TABELLEN = Object.freeze({
     { id: 'rucksack_klein', gewicht: 0.5 },
   ],
   werkstatt: [
+    { id: 'brecheisen', gewicht: 1.5 },
+    { id: 'baseballschlaeger', gewicht: 0.6 },
     { id: 'arbeitsweste', gewicht: 1.2 },
     { id: 'handschuhe', gewicht: 1 },
     { id: 'stiefel', gewicht: 0.6 },
@@ -177,6 +185,9 @@ export const LOOT_TABELLEN = Object.freeze({
     { id: 'samen_paprika', gewicht: 1.5 },
   ],
   polizei: [
+    { id: 'mod_magazin', gewicht: 0.4 },
+    { id: 'mod_schalldaempfer', gewicht: 0.3 },
+    { id: 'brecheisen', gewicht: 0.6 },
     { id: 'munition_9mm', gewicht: 4 },
     { id: 'verband', gewicht: 2 },
     { id: 'kaffee', gewicht: 2 },
@@ -189,6 +200,11 @@ export const LOOT_TABELLEN = Object.freeze({
     { id: 'munition_12', gewicht: 4 },
     { id: 'pistole', gewicht: 2 },
     { id: 'schrotflinte', gewicht: 2 },
+    { id: 'gewehr', gewicht: 1 },
+    { id: 'munition_gewehr', gewicht: 2 },
+    { id: 'mod_magazin', gewicht: 0.6 },
+    { id: 'mod_zielfernrohr', gewicht: 0.5 },
+    { id: 'mod_schalldaempfer', gewicht: 0.4 },
   ],
   kiosk: [
     { id: 'energydrink', gewicht: 3 },
@@ -210,6 +226,13 @@ export const LOOT_TABELLEN = Object.freeze({
   ],
   // Zone "Waldweg": Försterhütte
   huette: [
+    { id: 'gewehr', gewicht: 0.5 },
+    { id: 'munition_gewehr', gewicht: 1.2 },
+    { id: 'bogen', gewicht: 0.6 },
+    { id: 'pfeil', gewicht: 1.2 },
+    { id: 'armbrust', gewicht: 0.3 },
+    { id: 'bolzen', gewicht: 0.6 },
+    { id: 'speer', gewicht: 0.6 },
     { id: 'winterjacke', gewicht: 1.2 },
     { id: 'thermohose', gewicht: 1 },
     { id: 'muetze', gewicht: 1 },

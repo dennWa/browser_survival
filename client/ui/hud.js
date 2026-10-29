@@ -129,6 +129,7 @@ export class Hud {
     this.el.aufheben.addEventListener('click', () => this.#aktionen.interagieren?.());
     this.werkbank = new WerkbankMenue(dokument, { zeichneIcon: (canvas, defId) => this.zeichneIcon(canvas, defId) });
     this.werkbank.beiHerstellen((rezept) => this.#aktionen.herstellen?.(rezept));
+    this.werkbank.beiReparieren((slot) => this.#aktionen.reparieren?.(slot));
     this.werkbank.beiSchliessen(() => this.#aktionen.werkbankSchliessen?.());
     this.el.tuer.addEventListener('click', () => this.#aktionen.tuer?.());
     this.el.nachladen.addEventListener('click', () => this.#aktionen.nachladen?.());
@@ -206,6 +207,7 @@ export class Hud {
       herstellen: (rezept) => this.#aktionen.herstellen?.(rezept),
       anlegen: (slot) => this.#aktionen.anlegen?.(slot), // Runde 23: Kleidung anziehen
       ausziehen: (stelle) => this.#aktionen.ausziehen?.(stelle),
+      modsAbnehmen: (slot) => this.#aktionen.modsAbnehmen?.(slot), // Runde 24: Aufsätze von der Waffe
     });
     el('hud-inventar').addEventListener('click', () => this.inventar.zeige());
     this.station = new StationFenster(dokument, { zeichneIcon: (canvas, defId) => this.zeichneIcon(canvas, defId) });

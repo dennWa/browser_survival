@@ -1,5 +1,6 @@
 import { INVENTAR_PLAETZE } from '../../gemeinsam/konstanten.js';
-import { GEGENSTAENDE } from './konfiguration/gegenstaende.js';
+import { GEGENSTAENDE, waffenWerte } from './konfiguration/gegenstaende.js';
+import { pruefeMods } from './systeme/waffenSystem.js';
 import { KLEIDUNG_STELLEN, aktualisiereAusruestung, fuegeZumInventarHinzu, legeRucksackAn, passeInventarAn } from './systeme/inventarSystem.js';
 import { wendeSkillsAn } from './systeme/levelSystem.js';
 import { SKILLS, leereSkills } from '../../gemeinsam/spieler/skills.js';
@@ -169,8 +170,9 @@ export function pruefeEintrag(e) {
   if (!def || !Number.isInteger(e.menge) || e.menge < 1) return null;
   const menge = Math.min(e.menge, def.stapelbar ?? 1);
   if (def.kategorie === 'fernkampf') {
-    const magazin = Number.isInteger(e.magazin) ? begrenze(e.magazin, 0, def.magazin) : 0;
-    return { defId: e.defId, menge: 1, magazin };
+    const mods = pruefeMods(e.defId, e.mods); // Runde 24: Aufsätze
+    const magazin = Number.isInteger(e.magazin) ? begrenze(e.magazin, 0, waffenWerte({ mods }, def).magazin) : 0;
+    return mods ? { defId: e.defId, menge: 1, magazin, mods } : { defId: e.defId, menge: 1, magazin };
   }
   if (def.haltbarkeit && Number.isFinite(e.haltbarkeit)) return { defId: e.defId, menge, haltbarkeit: begrenze(Math.round(e.haltbarkeit), 1, def.haltbarkeit) };
   return { defId: e.defId, menge };

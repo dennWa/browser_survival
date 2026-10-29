@@ -30,6 +30,29 @@ export class SonderEffekte {
       return { feuer, rauch };
     });
     this.gesehen = new WeakSet();
+    const schaft = new THREE.CylinderGeometry(0.5, 0.5, 22, 5);
+    schaft.rotateZ(Math.PI / 2);
+    const pfeilMaterial = new THREE.MeshStandardMaterial({ color: 0xb98a55, roughness: 0.7 });
+    this.pfeile = Array.from({ length: MAX_SPUCKE }, () => {
+      const m = new THREE.Mesh(schaft, pfeilMaterial);
+      m.visible = false;
+      szene.add(m);
+      return m;
+    });
+  }
+
+  /** Runde 24: Pfeile/Bolzen im Flug (effekte.pfeile) */
+  pfeileZeigen(pfeile, hy) {
+    this.pfeile.forEach((m, i) => {
+      const p = pfeile[i];
+      m.visible = !!p;
+      if (!p) return;
+      const t = Math.min(1, p.alter / p.dauer);
+      const x = p.x + (p.zx - p.x) * t;
+      const y = p.y + (p.zy - p.y) * t;
+      m.position.set(x, 34 + hy(x, y), y);
+      m.rotation.set(0, -p.winkel, 0);
+    });
   }
 
   /** @param fokus { x, y } – für das Wackeln (nahe Explosionen wackeln stärker) */

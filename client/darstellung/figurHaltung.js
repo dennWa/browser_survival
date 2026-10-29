@@ -92,6 +92,7 @@ export function richteFigurEin(figur, modell) {
   figur.armGesetzt = { rechts: false, links: false };
   figur.waffe = null;
   figur.waffenName = null;
+  figur.waffenSchluessel = undefined;
   figur.aktionSchluessel = null;
   figur.aktionStart = 0;
   figur.aktionDauer = 0;
@@ -136,7 +137,7 @@ export function aktualisiereHaltung(figur, e, jetzt, dunkel = 1) {
       haltungsName = e.aktion === 'nahkampf' && fortschritt !== null ? 'faust' : 'locker';
     }
   }
-  setzeWaffe(figur, waffenName);
+  setzeWaffe(figur, waffenName, e.waffeMods);
 
   // Sitzen mit eigenem Clip: Arme/Beine kommen ganz aus dem Clip
   if (haltungsName === 'sitzen' && klips.has('sitzen')) return loeseArme(figur);
@@ -380,11 +381,13 @@ function greifeMitLinkerHand(figur, gruppe) {
   }
 }
 
-function setzeWaffe(figur, name) {
-  if (figur.waffenName === name) return;
+function setzeWaffe(figur, name, mods = null) {
+  const schluessel = mods?.length ? `${name}|${mods.join(',')}` : name;
+  if (figur.waffenSchluessel === schluessel) return;
   if (figur.waffe) figur.gruppe.remove(figur.waffe);
-  figur.waffe = name ? erzeugeWaffe(name) : null;
+  figur.waffe = name ? erzeugeWaffe(name, mods) : null;
   figur.waffenName = name;
+  figur.waffenSchluessel = schluessel;
   if (figur.waffe) figur.gruppe.add(figur.waffe);
 }
 

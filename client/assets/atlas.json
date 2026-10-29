@@ -513,6 +513,146 @@
     "b": 72,
     "h": 72,
     "weltGroesse": 20
+   },
+   "baseballschlaeger": {
+    "x": 72,
+    "y": 648,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 30
+   },
+   "brecheisen": {
+    "x": 144,
+    "y": 648,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 28
+   },
+   "speer": {
+    "x": 216,
+    "y": 648,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 36
+   },
+   "gewehr": {
+    "x": 288,
+    "y": 670,
+    "b": 72,
+    "h": 27,
+    "weltGroesse": 42
+   },
+   "bogen": {
+    "x": 360,
+    "y": 648,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 34
+   },
+   "armbrust": {
+    "x": 432,
+    "y": 648,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 32
+   },
+   "munition_gewehr": {
+    "x": 533,
+    "y": 648,
+    "b": 14,
+    "h": 72,
+    "weltGroesse": 20
+   },
+   "pfeil": {
+    "x": 0,
+    "y": 720,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 26
+   },
+   "bolzen": {
+    "x": 72,
+    "y": 720,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 22
+   },
+   "mod_zielfernrohr": {
+    "x": 144,
+    "y": 720,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 24
+   },
+   "mod_magazin": {
+    "x": 234,
+    "y": 722,
+    "b": 35,
+    "h": 67,
+    "weltGroesse": 20
+   },
+   "mod_schalldaempfer": {
+    "x": 288,
+    "y": 720,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 22
+   },
+   "granate": {
+    "x": 360,
+    "y": 720,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 18
+   },
+   "molotow": {
+    "x": 432,
+    "y": 720,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 20
+   },
+   "sprengfalle": {
+    "x": 504,
+    "y": 720,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 24
+   },
+   "stacheldraht": {
+    "x": 0,
+    "y": 792,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 28
+   },
+   "dosenalarm": {
+    "x": 72,
+    "y": 792,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 24
+   },
+   "fallgrube": {
+    "x": 144,
+    "y": 792,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 28
+   },
+   "schwarzpulver": {
+    "x": 216,
+    "y": 792,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 20
+   },
+   "alkohol": {
+    "x": 288,
+    "y": 792,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 20
    }
   }
  },

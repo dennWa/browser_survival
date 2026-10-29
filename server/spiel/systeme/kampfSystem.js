@@ -1,8 +1,8 @@
 import { brecheArbeitAb, starteZerlegen, ZERLEGE_WERKZEUGE } from './arbeitSystem.js';
 import { strahlGegenWaende, strahlTrifftKreis } from '../../../gemeinsam/physik/strahl.js';
 import { bewegeKoerper } from '../../../gemeinsam/physik/bewegung.js';
-import { NAHKAMPF_KEGEL, STANDARD_AUSRUESTUNG } from '../konfiguration/gegenstaende.js';
-import { aktuelleWaffe, konsumiere, legeAufBoden, pflanzeSamenAusHand, legeRucksackAb, legeKleidungAb, starteNachladen, zaehleMunition } from './inventarSystem.js';
+import { NAHKAMPF_KEGEL, STANDARD_AUSRUESTUNG, waffenWerte } from '../konfiguration/gegenstaende.js';
+import { aktuelleWaffe, konsumiere, legeAufBoden, nutzeWerkzeug, pflanzeSamenAusHand, legeRucksackAb, legeKleidungAb, starteNachladen, zaehleMunition } from './inventarSystem.js';
 import { gibXp, setzeLevelZurueck } from './levelSystem.js';
 import { staerkeFaktor } from '../../../gemeinsam/spieler/skills.js';
 import { aussteigen, schlageFahrzeug } from './fahrzeugSystem.js';
@@ -51,7 +51,8 @@ export function aktualisiereKampf(spielWelt, dt) {
   }
 }
 
-function schiessen(spielWelt, spieler, eintrag, def) {
+function schiessen(spielWelt, spieler, eintrag, grundDef) {
+  const def = waffenWerte(eintrag, grundDef); // Runde 24: Aufsätze (Zielfernrohr, Magazin, Schalldämpfer)
   if (eintrag.magazin <= 0 && spieler.unendlichMunition) eintrag.magazin = def.magazin; // Admin: nie leer
   if (eintrag.magazin <= 0) {
     // Leer: automatisch nachladen, sonst "Klick"
@@ -67,13 +68,15 @@ function schiessen(spielWelt, spieler, eintrag, def) {
   spieler.angriffsAbklingzeit = def.abklingzeit;
   spielWelt.setzeAktion(spieler, 'schiessen', SCHUSS_ANIMATION);
   // Ein "feuer" pro Abzug (Knall, Mündungsfeuer) – die Projektile kommen als einzelne "schuss"-Ereignisse
-  spielWelt.ereignis({ typ: 'feuer', von: spieler.id, x: spieler.x, y: spieler.y, winkel: spieler.blick, waffe: def.ausruestung });
+  const leise = (def.laerm ?? 1) < 0.5;
+  spielWelt.ereignis({ typ: 'feuer', von: spieler.id, x: spieler.x, y: spieler.y, winkel: spieler.blick, waffe: def.ausruestung, item: eintrag.defId, ...(leise ? { leise: true } : {}) });
 
   for (let i = 0; i < (def.projektile ?? 1); i++) {
     const winkel = spieler.blick + (spielWelt.zufall.zahl() * 2 - 1) * (def.streuung ?? 0);
     feuereStrahl(spielWelt, spieler, winkel, def);
   }
-  alarmiereZombies(spielWelt, spieler.x, spieler.y, spielWelt.konfiguration.zombie.hoerRadius, spieler.id);
+  // Lärm lockt Zombies: Gewehr laut, Bogen/Armbrust/Schalldämpfer leise
+  alarmiereZombies(spielWelt, spieler.x, spieler.y, spielWelt.konfiguration.zombie.hoerRadius * (def.laerm ?? 1), spieler.id);
 }
 
 /** Ego-Ansicht auf Gelände: Augenhöhe des Schützen und Körperhöhe der Ziele (Weltpixel) */
@@ -108,8 +111,13 @@ function feuereStrahl(spielWelt, schuetze, winkel, def) {
   }
   // stoff = Material am Einschlag (Client färbt Staub/Splitter passend; Blut gibt es nur bei 'treffer')
   const stoff = ziel ? 'fleisch' : wand.getroffen ? stoffAm(spielWelt.welt, schuetze.x + dx * (bestT + 2), schuetze.y + dy * (bestT + 2)) : null;
-  spielWelt.ereignis({ typ: 'schuss', von: schuetze.id, x: schuetze.x, y: schuetze.y, zx: schuetze.x + dx * bestT, zy: schuetze.y + dy * bestT, stoff });
-  if (ziel) fuegeSchadenZu(spielWelt, ziel, def.schaden, schuetze, winkel);
+  spielWelt.ereignis({ typ: 'schuss', von: schuetze.id, x: schuetze.x, y: schuetze.y, zx: schuetze.x + dx * bestT, zy: schuetze.y + dy * bestT, stoff, ...(def.pfeil ? { pfeil: true } : {}) });
+  if (ziel) fuegeSchadenZu(spielWelt, ziel, def.schaden, schuetze, winkel, { durchschlag: def.durchschlag ?? 0 });
+  // Runde 24: Pfeile/Bolzen bleiben oft heil liegen (etwas vor dem Einschlag) und lassen sich wieder aufheben
+  if (def.pfeil && def.munition && spielWelt.zufall.zahl() < (def.bergen ?? 0)) {
+    const t = Math.max(0, bestT - 10);
+    legeAufBoden(spielWelt, { defId: def.munition, menge: 1 }, schuetze.x + dx * t, schuetze.y + dy * t, 600);
+  }
 }
 
 /** Material der getroffenen Kachel: Bauwerk-Typ oder Kartenzeichen → 'holz' | 'stein' | 'metall' | 'glas' | 'beton'. */
@@ -131,13 +139,19 @@ function nahkampf(spielWelt, spieler, def) {
   spieler.angriffsAbklingzeit = def.abklingzeit;
   spielWelt.setzeAktion(spieler, 'nahkampf', NAHKAMPF_ANIMATION);
   spielWelt.ereignis({ typ: 'nahkampf', von: spieler.id, x: spieler.x, y: spieler.y, winkel: spieler.blick });
+  let getroffen = false;
   for (const ziel of moeglicheZiele(spielWelt, spieler)) {
     const abstand = Math.hypot(ziel.x - spieler.x, ziel.y - spieler.y) - radiusVon(spielWelt, ziel);
     if (abstand > def.reichweite) continue;
     const richtung = Math.atan2(ziel.y - spieler.y, ziel.x - spieler.x);
     const differenz = Math.abs(Math.atan2(Math.sin(richtung - spieler.blick), Math.cos(richtung - spieler.blick)));
-    if (differenz <= NAHKAMPF_KEGEL) fuegeSchadenZu(spielWelt, ziel, def.schaden * staerkeFaktor(spieler.skills), spieler, richtung);
+    if (differenz > (def.kegel ?? NAHKAMPF_KEGEL)) continue; // Runde 24: Speer sticht schmal nach vorn
+    fuegeSchadenZu(spielWelt, ziel, def.schaden * staerkeFaktor(spieler.skills), spieler, richtung, { durchschlag: def.durchschlag ?? 0, rueckstoss: def.rueckstoss ?? 1 });
+    getroffen = true;
   }
+  // Runde 24: Nahkampfwaffen nutzen sich pro Schlag mit Treffer ab (Reparatur an der Werkbank)
+  const defId = spieler.ausgeruestet !== null ? spieler.inventar[spieler.ausgeruestet]?.defId : null;
+  if (getroffen && defId && def.haltbarkeit) nutzeWerkzeug(spielWelt, spieler, defId);
   alarmiereZombies(spielWelt, spieler.x, spieler.y, NAHKAMPF_HOERWEITE, spieler.id);
 }
 
@@ -171,7 +185,7 @@ export function fuegeSchadenZu(spielWelt, ziel, menge, quelle, winkel = 0, optio
   spielWelt.ereignis({ typ: 'treffer', x: ziel.x, y: ziel.y, winkel, ziel: ziel.typ, ...(ziel.panzer > 0 ? { panzer: true } : {}) });
 
   if (ziel.typ === 'zombie') {
-    const r = spielWelt.konfiguration.kampf.rueckstoss * ziel.rueckstossFaktor;
+    const r = spielWelt.konfiguration.kampf.rueckstoss * ziel.rueckstossFaktor * (optionen.rueckstoss ?? 1);
     bewegeKoerper(ziel, Math.cos(winkel) * r, Math.sin(winkel) * r, ziel.radius, spielWelt.welt);
     if (quelle?.typ === 'spieler') {
       ziel.zielId = quelle.id;

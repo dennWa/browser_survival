@@ -14,6 +14,7 @@ const holz = new THREE.MeshStandardMaterial({ color: 0x6b4426, roughness: 0.8 })
 const gummi = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.9 });
 const rot = new THREE.MeshStandardMaterial({ color: 0xa3231a, roughness: 0.6 });
 const glas = new THREE.MeshStandardMaterial({ color: 0xfff4d0, emissive: 0xfff1c0, emissiveIntensity: 1.2 });
+const helleresHolz = new THREE.MeshStandardMaterial({ color: 0xb98a55, roughness: 0.7 });
 
 function quader(b, h, t, material, x = 0, y = 0, z = 0) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(b, h, t), material);
@@ -143,6 +144,73 @@ const BAUPLAENE = {
     g.add(rohr(0.9, 0.5, new THREE.MeshStandardMaterial({ color: 0xd9b27a, roughness: 0.9 }), 0, 0, 9.2));
     return g;
   },
+  // Runde 24: Nahkampf-Arsenal + Fernkampf
+  baseballschlaeger() {
+    const g = new THREE.Group();
+    g.add(rohr(0.8, 6, gummi, 0, 0, 0.5)); // Griffband
+    const keule = new THREE.Mesh(new THREE.CylinderGeometry(1.7, 0.9, 16, 10), helleresHolz);
+    keule.rotation.x = Math.PI / 2;
+    keule.position.set(0, 0, 11);
+    keule.castShadow = true;
+    g.add(keule);
+    return g;
+  },
+  brecheisen() {
+    const g = new THREE.Group();
+    g.add(rohr(0.65, 19, rot, 0, 0, 6.5));
+    g.add(quader(0.9, 3.4, 1.2, rot, 0, 1.4, 16.4)); // Haken
+    g.add(quader(0.9, 1.1, 2.2, rot, 0, 2.6, 15.6));
+    g.add(quader(0.7, 0.5, 2.4, metall, 0, -0.6, -3.4)); // flaches Ende
+    return g;
+  },
+  speer() {
+    const g = new THREE.Group();
+    g.add(rohr(0.6, 34, holz, 0, 0, 9));
+    const spitze = new THREE.Mesh(new THREE.ConeGeometry(1.3, 5, 6), metallHell);
+    spitze.rotation.x = Math.PI / 2;
+    spitze.position.set(0, 0, 28.5);
+    spitze.castShadow = true;
+    g.add(spitze);
+    g.add(quader(1.2, 1.2, 1.6, gummi, 0, 0, 25.6)); // Bindung
+    return g;
+  },
+  gewehr() {
+    const g = new THREE.Group();
+    g.add(quader(2.4, 4.2, 10, holz, 0, -1.4, -7)); // Schaft
+    g.add(quader(2.2, 2.6, 8, metall, 0, 0.4, 2)); // Verschluss
+    g.add(rohr(0.7, 22, metall, 0, 1, 16)); // langer Lauf
+    g.add(quader(2.2, 1.8, 10, holz, 0, -0.9, 8)); // Vorderschaft
+    g.add(rohr(1.1, 7, metall, 0, 3.2, 2)); // Zielfernrohr-Sockel (Optik)
+    g.userData.muendung = new THREE.Vector3(0, 1, 27);
+    return g;
+  },
+  bogen() {
+    const g = new THREE.Group();
+    const bogen = new THREE.Mesh(new THREE.TorusGeometry(13, 0.7, 6, 18, Math.PI * 0.85), holz);
+    bogen.rotation.set(0, Math.PI / 2, Math.PI / 2 + Math.PI * 0.075);
+    bogen.position.set(0, 0, -6);
+    bogen.castShadow = true;
+    g.add(bogen);
+    const sehne = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 24.6, 4), new THREE.MeshBasicMaterial({ color: 0xe8e4d8 }));
+    sehne.position.set(0, 0, -6);
+    g.add(sehne);
+    g.add(rohr(0.35, 20, helleresHolz, 0, 0, 2)); // eingelegter Pfeil
+    g.userData.muendung = new THREE.Vector3(0, 0, 12);
+    return g;
+  },
+  armbrust() {
+    const g = new THREE.Group();
+    g.add(quader(2, 2.6, 18, holz, 0, -0.6, 2)); // Säule
+    const buegel = new THREE.Mesh(new THREE.TorusGeometry(9, 0.7, 6, 14, Math.PI * 0.7), metall);
+    buegel.rotation.set(-Math.PI / 2, 0, Math.PI * 0.15 + Math.PI / 2 - Math.PI * 0.35);
+    buegel.position.set(0, 0.6, 8);
+    buegel.castShadow = true;
+    g.add(buegel);
+    g.add(quader(0.4, 0.4, 7, new THREE.MeshStandardMaterial({ color: 0x777777 }), 0, 1.2, 8)); // Bolzen
+    g.add(quader(1.6, 4, 2.4, gummi, 0, -3, -4)); // Griff
+    g.userData.muendung = new THREE.Vector3(0, 1, 12);
+    return g;
+  },
   taschenlampe() {
     const g = new THREE.Group();
     g.add(rohr(1.2, 7, gummi, 0, 0, 1.5));
@@ -170,8 +238,19 @@ export function waffenModellName(waffeId, ausruestung) {
 const SICHTBARKEIT = 1.5;
 
 /** Neues Modell (jede Figur bekommt ihr eigenes, weil es mitbewegt wird). */
-export function erzeugeWaffe(name) {
+export function erzeugeWaffe(name, mods = null) {
   const modell = (BAUPLAENE[name] ?? BAUPLAENE.taschenlampe)();
+  // Runde 24: Aufsätze sichtbar machen (Schalldämpfer verlängert den Lauf, Zielfernrohr oben drauf, großes Magazin unten)
+  const m = modell.userData.muendung;
+  if (m && mods?.includes('schalldaempfer')) {
+    modell.add(rohr(1.2, 7, gummi, m.x, m.y, m.z + 3.5));
+    m.z += 7;
+  }
+  if (m && mods?.includes('zielfernrohr')) {
+    modell.add(rohr(1.1, 8, metall, 0, m.y + 2.6, 2));
+    modell.add(rohr(1.4, 1, glas, 0, m.y + 2.6, 6.2));
+  }
+  if (m && mods?.includes('magazin')) modell.add(quader(1.6, 5, 2.2, metall, 0, -3.5, 1.5));
   modell.name = name;
   modell.scale.setScalar(SICHTBARKEIT);
   return modell;
@@ -180,7 +259,7 @@ export function erzeugeWaffe(name) {
 /** Haltungsart pro Modell: 'pistole' | 'gewehr' | 'nahkampf' | 'lampe' (Werkzeuge bei der Arbeit: 'hacken') */
 export function haltungFuer(name) {
   if (name === 'pistole') return 'pistole';
-  if (name === 'schrotflinte') return 'gewehr';
+  if (name === 'schrotflinte' || name === 'gewehr' || name === 'bogen' || name === 'armbrust') return 'gewehr';
   if (name === 'taschenlampe') return 'lampe';
   if (name === 'essen' || name === 'trinken' || name === 'holz' || name === 'samen') return 'seitlich'; // entspannt neben dem Körper tragen, kein Schwung (Runde 19)
   return 'nahkampf';

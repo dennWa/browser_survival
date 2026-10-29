@@ -2,13 +2,19 @@
  * Werkbank-Menü (Crafting): Kategorien als Reiter, jedes Rezept als Karte mit Icon, Beschreibung,
  * Zutaten (grün = vorhanden, rot = fehlt) und "Herstellen"-Knopf. Rezepte kommen vom Server
  * (server/spiel/konfiguration/rezepte.js), der beim Herstellen auch alles nachprüft.
+ * Runde 24: Reiter „Reparieren“ (nur wenn etwas abgenutzt ist): abgenutzte Waffen/Werkzeuge mit Haltbarkeit und Kosten
+ * (gemeinsam/spieler/reparatur.js) → AKTION reparieren { slot }.
  */
+import { reparaturKostenFuer } from '../../gemeinsam/spieler/reparatur.js';
+
 const ICON = 48;
+const REPARIEREN = '🔧 Reparieren';
 
 export class WerkbankMenue {
   #kategorie = null;
   #beiHerstellen = null;
   #beiSchliessen = null;
+  #beiReparieren = null;
   #schluessel = '';
   #level = 1;
 
@@ -23,6 +29,10 @@ export class WerkbankMenue {
 
   beiHerstellen(fn) {
     this.#beiHerstellen = fn;
+  }
+
+  beiReparieren(fn) {
+    this.#beiReparieren = fn;
   }
 
   beiSchliessen(fn) {
@@ -44,11 +54,15 @@ export class WerkbankMenue {
     const bestand = zaehleInventar(spielerDaten?.inventar ?? []);
     // Nur neu aufbauen, wenn sich Inventar oder Reiter geändert haben
     this.#level = spielerDaten?.level ?? 1;
-    const schluessel = `${this.#kategorie}|${this.#level}|${JSON.stringify(bestand)}`;
+    const abgenutzt = (spielerDaten?.inventar ?? [])
+      .map((e, slot) => ({ e, slot, def: itemDefinitionen?.[e?.defId] }))
+      .filter(({ e, def }) => def?.haltbarkeit && Number.isFinite(e.haltbarkeit) && e.haltbarkeit < def.haltbarkeit);
+    const schluessel = `${this.#kategorie}|${this.#level}|${JSON.stringify(bestand)}|${abgenutzt.map((a) => `${a.slot}:${a.e.haltbarkeit}`).join(',')}`;
     if (schluessel === this.#schluessel) return;
     this.#schluessel = schluessel;
 
     const kategorien = [...new Set(Object.values(rezepte).map((r) => r.kategorie))];
+    if (abgenutzt.length) kategorien.push(REPARIEREN);
     if (!kategorien.includes(this.#kategorie)) this.#kategorie = kategorien[0];
     this.reiter.replaceChildren(
       ...kategorien.map((k) => {
@@ -62,10 +76,25 @@ export class WerkbankMenue {
       }),
     );
 
-    const karten = Object.entries(rezepte)
-      .filter(([, r]) => r.kategorie === this.#kategorie)
-      .map(([id, r]) => this.#karte(id, r, bestand, itemDefinitionen));
+    const karten =
+      this.#kategorie === REPARIEREN
+        ? abgenutzt.map(({ e, slot, def }) => this.#reparaturKarte(slot, e, def, reparaturKostenFuer(e.defId, itemDefinitionen, rezepte), bestand, itemDefinitionen))
+        : Object.entries(rezepte)
+            .filter(([, r]) => r.kategorie === this.#kategorie)
+            .map(([id, r]) => this.#karte(id, r, bestand, itemDefinitionen));
     this.liste.replaceChildren(...karten);
+  }
+
+  /** Karte im Reiter „Reparieren“: Zustand in %, Kosten als Zutaten, Knopf → AKTION reparieren */
+  #reparaturKarte(slot, eintrag, def, kosten, bestand, itemDefinitionen) {
+    const rezeptArtig = { name: def.name, beschreibung: `Zustand ${Math.round((eintrag.haltbarkeit / def.haltbarkeit) * 100)} % → wieder 100 %`, zutaten: kosten ?? {}, ergebnis: eintrag.defId };
+    const karte = this.#karte(`reparatur:${slot}`, rezeptArtig, bestand, itemDefinitionen);
+    const knopf = karte.querySelector('.herstellen');
+    knopf.textContent = 'Reparieren';
+    const neu = knopf.cloneNode(true); // Herstellen-Klick entfernen
+    neu.addEventListener('click', () => this.#beiReparieren?.(slot));
+    knopf.replaceWith(neu);
+    return karte;
   }
 
   #karte(id, rezept, bestand, itemDefinitionen) {

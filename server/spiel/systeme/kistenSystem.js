@@ -1,3 +1,4 @@
+import { zusatzVon } from './inventarSystem.js';
 import { BAUWERK_REICHWEITE } from '../../../gemeinsam/welt/bauwerke.js';
 import { KISTE_PLAETZE } from '../../../gemeinsam/konstanten.js';
 import { GEGENSTAENDE } from '../konfiguration/gegenstaende.js';
@@ -110,7 +111,7 @@ export function nimmAusKiste(spielWelt, spieler, slot) {
   const kiste = offeneKiste(spielWelt, spieler);
   const eintrag = kiste?.inhalt[slot];
   if (!eintrag) return;
-  const rest = fuegeZumInventarHinzu(spieler, eintrag.defId, eintrag.menge, eintrag.magazin ?? 0);
+  const rest = fuegeZumInventarHinzu(spieler, eintrag.defId, eintrag.menge, eintrag.magazin ?? 0, zusatzVon(eintrag));
   if (rest === eintrag.menge) {
     spielWelt.melde(spieler.id, 'Inventar voll');
     return;

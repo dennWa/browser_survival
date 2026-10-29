@@ -7,7 +7,11 @@ import { STAPEL_MUNITION, STAPEL_STANDARD } from '../../../gemeinsam/konstanten.
  * Kleidung: slot (kopf|oberkoerper|haende|beine|fuesse), waerme (gegen Kälte), plaetze (Taschen), farbe (Optik am Charakter);
  * Icons selbst gezeichnet in werkzeuge/assets/baue_assets.py (prozedural 'kleidung:<form>:<farbe>').
  *
- * ausruestung = Haltung/Waffenart (taschenlampe | messer | pistole | schrotflinte)
+ * ausruestung = Haltung/Waffenart (taschenlampe | messer | pistole | schrotflinte | gewehr)
+ * Runde 24 – Waffenwerte: haltbarkeit (Nahkampf nutzt sich pro Treffer ab, Reparatur an der Werkbank: `reparatur` = Kosten),
+ *   rueckstoss (Faktor), durchschlag (0..1 gegen Panzer), kegel (± rad Trefferkegel, Standard NAHKAMPF_KEGEL),
+ *   laerm (Faktor auf den Hör-Radius der Zombies; Bogen/Armbrust leise), pfeil (Geschoss bleibt mit `bergen`-Chance liegen),
+ *   mods (erlaubte Aufsätze: zielfernrohr | magazin | schalldaempfer – Item-Kategorie 'mod', Werte in MODS)
  * (inHand: true = lässt sich ausrüsten, ohne Waffe zu sein – Angel, Samen)
  * werkzeug    = Werkzeug zum Abbauen (Axt → Bäume, Spitzhacke → Steine; siehe gemeinsam/welt/ressourcen.js)
  *
@@ -44,18 +48,33 @@ const ROH_GEGENSTAENDE = {
   skalpell: { name: 'Skalpell', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 15, reichweite: 62, abklingzeit: 0.35 },
   kuechenmesser: { name: 'Küchenmesser', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 20, reichweite: 65, abklingzeit: 0.4 },
   hammer: { name: 'Hammer', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 30, reichweite: 70, abklingzeit: 0.7 },
-  machete: { name: 'Machete', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 40, reichweite: 81, abklingzeit: 0.8 },
-  feuerwehrbeil: { name: 'Feuerwehrbeil', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 50, reichweite: 81, abklingzeit: 1.0 },
+  machete: { name: 'Machete', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 40, reichweite: 81, abklingzeit: 0.8, haltbarkeit: 70, reparatur: { stein: 2 } },
+  feuerwehrbeil: { name: 'Feuerwehrbeil', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 50, reichweite: 81, abklingzeit: 1.0, haltbarkeit: 80, durchschlag: 0.3, reparatur: { holz: 1, stein: 2 } },
+  // Runde 24: Nahkampf-Arsenal
+  baseballschlaeger: { name: 'Baseballschläger', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 26, reichweite: 82, abklingzeit: 0.6, haltbarkeit: 90, rueckstoss: 2.6, beschreibung: 'Wuchtig: stößt Zombies weit zurück', reparatur: { holz: 2 } },
+  brecheisen: { name: 'Brecheisen', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 30, reichweite: 74, abklingzeit: 0.7, haltbarkeit: 140, durchschlag: 0.7, beschreibung: 'Fast unkaputtbar, knackt Panzerung', reparatur: { eisenbarren: 1 } },
+  speer: { name: 'Speer', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 32, reichweite: 112, abklingzeit: 0.75, haltbarkeit: 45, kegel: 0.5, beschreibung: 'Große Reichweite, aber schmaler Stoß nach vorn', reparatur: { holz: 1, stein: 1 } },
   // --- Werkzeuge (auch als schwache Waffen nutzbar) ---
   axt: { name: 'Axt', kategorie: 'nahkampf', ausruestung: 'messer', werkzeug: true, schaden: 18, reichweite: 70, abklingzeit: 0.7, haltbarkeit: 40 },
   spitzhacke: { name: 'Spitzhacke', kategorie: 'nahkampf', ausruestung: 'messer', werkzeug: true, beschreibung: 'Steine und Eisenerz abbauen', schaden: 16, reichweite: 70, abklingzeit: 0.75, haltbarkeit: 40 },
   hacke: { name: 'Hacke', kategorie: 'nahkampf', ausruestung: 'hacke', werkzeug: true, beschreibung: 'In die Hand nehmen: Linksklick legt ein Ackerfeld an, Rechtsklick macht wieder Rasen daraus', schaden: 10, reichweite: 68, abklingzeit: 0.7, haltbarkeit: 30 },
   // --- Fernkampf ---
-  pistole: { name: 'Pistole (9 mm)', kategorie: 'fernkampf', ausruestung: 'pistole', schaden: 25, munition: 'munition_9mm', magazin: 15, abklingzeit: 0.28, reichweite: 520, streuung: 0.03, nachladezeit: 1.1 },
-  schrotflinte: { name: 'Schrotflinte (Kal. 12)', kategorie: 'fernkampf', ausruestung: 'schrotflinte', schaden: 16, projektile: 7, munition: 'munition_12', magazin: 5, abklingzeit: 0.85, reichweite: 280, streuung: 0.2, nachladezeit: 1.8 },
+  pistole: { name: 'Pistole (9 mm)', kategorie: 'fernkampf', ausruestung: 'pistole', schaden: 25, munition: 'munition_9mm', magazin: 15, abklingzeit: 0.28, reichweite: 520, streuung: 0.03, nachladezeit: 1.1, mods: ['magazin', 'schalldaempfer'] },
+  schrotflinte: { name: 'Schrotflinte (Kal. 12)', kategorie: 'fernkampf', ausruestung: 'schrotflinte', schaden: 16, projektile: 7, munition: 'munition_12', magazin: 5, abklingzeit: 0.85, reichweite: 280, streuung: 0.2, nachladezeit: 1.8, laerm: 1.3, mods: ['magazin'] },
+  // Runde 24: Fernkampf
+  gewehr: { name: 'Jagdgewehr', kategorie: 'fernkampf', ausruestung: 'schrotflinte', schaden: 75, munition: 'munition_gewehr', magazin: 5, abklingzeit: 1.1, reichweite: 900, streuung: 0.008, nachladezeit: 2.2, laerm: 1.6, durchschlag: 0.6, mods: ['zielfernrohr', 'magazin', 'schalldaempfer'], beschreibung: 'Weit und tödlich – aber laut' },
+  bogen: { name: 'Bogen', kategorie: 'fernkampf', ausruestung: 'schrotflinte', schaden: 40, munition: 'pfeil', magazin: 1, abklingzeit: 0.5, reichweite: 600, streuung: 0.02, nachladezeit: 0.7, laerm: 0.12, pfeil: true, bergen: 0.6, beschreibung: 'Leise – Pfeile kann man oft wieder einsammeln' },
+  armbrust: { name: 'Armbrust', kategorie: 'fernkampf', ausruestung: 'schrotflinte', schaden: 65, munition: 'bolzen', magazin: 1, abklingzeit: 0.4, reichweite: 700, streuung: 0.01, nachladezeit: 1.8, laerm: 0.18, pfeil: true, bergen: 0.5, durchschlag: 0.5, mods: ['zielfernrohr'], beschreibung: 'Leise und stark, langsames Spannen' },
   // --- Munition ---
   munition_9mm: { name: 'Munition 9 mm', kategorie: 'munition', stapelbar: 60, mengeBeimFund: [5, 15] },
   munition_12: { name: 'Schrotpatronen Kal. 12', kategorie: 'munition', stapelbar: 30, mengeBeimFund: [2, 6] },
+  munition_gewehr: { name: 'Gewehrpatronen', kategorie: 'munition', mengeBeimFund: [2, 5] },
+  pfeil: { name: 'Pfeile', kategorie: 'munition', mengeBeimFund: [3, 6], beschreibung: 'Für den Bogen – an der Werkbank selbst bauen' },
+  bolzen: { name: 'Armbrustbolzen', kategorie: 'munition', mengeBeimFund: [2, 4] },
+  // --- Waffen-Mods (Runde 24): mit der Waffe in der Hand „benutzen“ oder im Inventar auf die Waffe ziehen ---
+  mod_zielfernrohr: { name: 'Zielfernrohr', kategorie: 'mod', mod: 'zielfernrohr', beschreibung: 'Aufsatz: +50 % Reichweite, viel genauer (Gewehr, Armbrust)' },
+  mod_magazin: { name: 'Erweitertes Magazin', kategorie: 'mod', mod: 'magazin', beschreibung: 'Aufsatz: +60 % Magazin (Pistole, Gewehr, Schrotflinte)' },
+  mod_schalldaempfer: { name: 'Schalldämpfer', kategorie: 'mod', mod: 'schalldaempfer', beschreibung: 'Aufsatz: Schüsse locken kaum Zombies an (Pistole, Gewehr)' },
   // --- Material (Abbau & Crafting) ---
   holz: { name: 'Holz', kategorie: 'material', stapelbar: 50, inHand: true, ausruestung: 'holz', beschreibung: 'In die Hand nehmen, Linksklick aufs Lagerfeuer: +3 Minuten Brenndauer' },
   stein: { name: 'Stein', kategorie: 'material', stapelbar: 50 },
@@ -115,7 +134,7 @@ function normalisiere(roh) {
   const ergebnis = {};
   for (const [id, original] of Object.entries(roh)) {
     let def = original;
-    const einzeln = ['nahkampf', 'fernkampf', 'rucksack', 'werkzeug', 'kleidung'].includes(def.kategorie) || def.werkzeug === true || id === 'erste_hilfe_kasten';
+    const einzeln = ['nahkampf', 'fernkampf', 'rucksack', 'werkzeug', 'kleidung', 'mod'].includes(def.kategorie) || def.werkzeug === true || id === 'erste_hilfe_kasten';
     if (def.kategorie === 'kleidung') def = { ...def, beschreibung: `Anziehen (ins Charakterfeld ziehen oder anklicken): +${def.waerme} Wärme${def.plaetze ? `, +${def.plaetze} Plätze` : ''}` };
     // Samen kann man in die Hand nehmen (Linksklick am Beet pflanzt)
     if (def.kategorie === 'samen') def = { ...def, inHand: true, ausruestung: 'samen' };
@@ -127,6 +146,32 @@ function normalisiere(roh) {
 }
 
 export const GEGENSTAENDE = Object.freeze(normalisiere(ROH_GEGENSTAENDE));
+
+/**
+ * Runde 24: Waffen-Mods – wirken auf die Werte der Waffe (waffenWerte). Ein Mod je Art und Waffe; nur, wenn die Waffe ihn in `mods` erlaubt.
+ */
+export const MODS = Object.freeze({
+  zielfernrohr: { item: 'mod_zielfernrohr', reichweite: 1.5, streuung: 0.35 },
+  magazin: { item: 'mod_magazin', magazin: 1.6 },
+  schalldaempfer: { item: 'mod_schalldaempfer', laerm: 0.25, schaden: 0.9 },
+});
+
+/** Werte einer Waffe samt angebrachter Mods (eintrag.mods) – überall nutzen, wo Magazin/Reichweite/Lärm zählen. */
+export function waffenWerte(eintrag, def) {
+  const mods = eintrag?.mods;
+  if (!mods?.length || !def) return def;
+  const w = { ...def };
+  for (const name of mods) {
+    const m = MODS[name];
+    if (!m || !def.mods?.includes(name)) continue;
+    if (m.reichweite) w.reichweite = Math.round(w.reichweite * m.reichweite);
+    if (m.streuung) w.streuung = (w.streuung ?? 0) * m.streuung;
+    if (m.magazin) w.magazin = Math.round(w.magazin * m.magazin);
+    if (m.laerm) w.laerm = (w.laerm ?? 1) * m.laerm;
+    if (m.schaden) w.schaden = w.schaden * m.schaden;
+  }
+  return w;
+}
 
 /** Ausrüstung ohne Waffe in der Hand. */
 export const STANDARD_AUSRUESTUNG = 'taschenlampe';

@@ -22,6 +22,8 @@ import { Schritte } from '../audio/schritte.js';
 const MAX_OFFENE_EINGABEN = 120;
 const STOEHN_REICHWEITE = 650; // Zombies in diesem Umkreis stöhnen gelegentlich
 const STOEHN_PAUSE_MS = 900; // höchstens ein Stöhnen pro Pause (sonst Chor)
+/** Runde 24: Schussgeräusch je Waffe (eigene/…); Schalldämpfer → schuss_leise, sonst nach Ausrüstung */
+const SCHUSS_KLANG = { gewehr: 'gewehr', bogen: 'bogen', armbrust: 'armbrust' };
 const ZOMBIE_TONHOEHE = { normal: 1, laeufer: 1.35, brocken: 0.7, halb: 1.2, sprinter: 1.45, spucker: 1.15, gepanzert: 0.8, explosiv: 0.95 };
 const AUTOLAUF_ANKUNFT_PX = 9; // so nah an der Kachelmitte des Ziels gilt man als angekommen
 const AUTOLAUF_WEGPUNKT_PX = 10;
@@ -462,6 +464,11 @@ export class ClientSpiel {
 
   herstellen(rezept) {
     this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.HERSTELLEN, rezept });
+  }
+
+  /** Runde 24: Aktion mit Inventarplatz (reparieren, modsAbnehmen) */
+  slotAktion(art, slot) {
+    this.#senden({ typ: NACHRICHT.AKTION, art, slot });
   }
 
   /** G: Kofferraum des nächsten Autos (oder des eigenen) öffnen. */
@@ -1055,7 +1062,8 @@ export class ClientSpiel {
     if (!this.sound) return;
     switch (e.typ) {
       case 'feuer':
-        this.sound.spiele(e.waffe === 'schrotflinte' || e.waffe === 'automatikgewehr' ? e.waffe : 'pistole', { x: e.x, y: e.y });
+        // Runde 24: eigener Klang je Waffe; Schalldämpfer = gedämpftes „Plopp“
+        this.sound.spiele(SCHUSS_KLANG[e.item] ?? (e.leise ? 'schuss_leise' : e.waffe === 'schrotflinte' || e.waffe === 'automatikgewehr' ? e.waffe : 'pistole'), { x: e.x, y: e.y });
         this.#kampfInDerNaehe(e);
         break;
       case 'treffer':
@@ -1149,6 +1157,10 @@ export class ClientSpiel {
       case 'holzNachgelegt':
         this.sound.spiele('holz_nachlegen', { x: e.x, y: e.y });
         break;
+      case 'repariert':
+      case 'modAngebracht':
+        this.sound.spiele('werkeln', { x: e.x, y: e.y, tonhoehe: e.typ === 'modAngebracht' ? 1.4 : 1 });
+        break;
       case 'werkzeugKaputt':
         this.sound.spiele('tuer_bricht', { x: e.x, y: e.y, tonhoehe: 1.3, lautstaerke: 0.7 });
         break;
@@ -1196,7 +1208,10 @@ export class ClientSpiel {
     else if (daten.durst > vorher.durst + 1) this.sound.spiele('trinken');
     else if (daten.leben > vorher.leben + 5 && !vorher.tot) this.sound.spiele('heilen');
     else if (anzahl(daten) > anzahl(vorher) && !daten.nachladen) this.sound.spiele('aufheben');
-    if (daten.nachladen && !vorher.nachladen) this.sound.spiele('nachladen');
+    if (daten.nachladen && !vorher.nachladen) {
+      const waffe = daten.ausgeruestet !== null ? daten.inventar[daten.ausgeruestet]?.defId : null;
+      this.sound.spiele(waffe === 'gewehr' ? 'nachladen_gewehr' : waffe === 'bogen' || waffe === 'armbrust' ? 'werkeln' : 'nachladen', waffe === 'bogen' ? { tonhoehe: 1.6, lautstaerke: 0.4 } : {});
+    }
     // Runde 18: eigener Schaden → Aufschrei je Figur (höchstens alle 0,7 s)
     const jetzt = performance.now();
     if (daten.leben < vorher.leben - 0.5 && !daten.tot && jetzt - (this.letzterSchadenTon ?? 0) > 700) {

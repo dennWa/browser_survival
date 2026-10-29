@@ -104,6 +104,7 @@ export function spielerZuNetzwerk(s) {
     ausruestung: s.ausruestung,
     // Item in der Hand (z. B. 'hammer') – der Renderer zeigt das passende Waffenmodell
     waffe: s.ausgeruestet !== null ? (s.inventar[s.ausgeruestet]?.defId ?? null) : null,
+    ...(s.ausgeruestet !== null && s.inventar[s.ausgeruestet]?.mods?.length ? { waffeMods: s.inventar[s.ausgeruestet].mods } : {}), // Runde 24: Aufsätze sichtbar
     aktion: s.aktion,
     aktionTick: s.aktionTick,
     aktionDauer: s.aktionDauer,

@@ -7,6 +7,13 @@
     ],
     "lautstaerke": 0.6
   },
+  "armbrust": {
+    "dateien": [
+      "armbrust_0.ogg"
+    ],
+    "lautstaerke": 0.6,
+    "streuung": 0.06
+  },
   "aufprall": {
     "dateien": [
       "aufprall_0.ogg",
@@ -22,6 +29,15 @@
       "baum_faellt_1.ogg"
     ],
     "lautstaerke": 1
+  },
+  "bogen": {
+    "dateien": [
+      "bogen_0.ogg",
+      "bogen_1.ogg",
+      "bogen_2.ogg"
+    ],
+    "lautstaerke": 0.5,
+    "streuung": 0.1
   },
   "donner": {
     "dateien": [
@@ -73,6 +89,14 @@
       "felsen_bricht_3.ogg"
     ],
     "lautstaerke": 1
+  },
+  "gewehr": {
+    "dateien": [
+      "gewehr_0.ogg",
+      "gewehr_1.ogg"
+    ],
+    "lautstaerke": 1.1,
+    "streuung": 0.04
   },
   "hack_felsen": {
     "dateien": [
@@ -161,6 +185,12 @@
     ],
     "lautstaerke": 0.6
   },
+  "nachladen_gewehr": {
+    "dateien": [
+      "nachladen_gewehr_0.ogg"
+    ],
+    "lautstaerke": 0.7
+  },
   "nachladen": {
     "dateien": [
       "nachladen.ogg"
@@ -241,6 +271,13 @@
       "schritt_gras_5.wav"
     ],
     "lautstaerke": 0.5,
+    "streuung": 0.08
+  },
+  "schuss_leise": {
+    "dateien": [
+      "schuss_leise_0.ogg"
+    ],
+    "lautstaerke": 0.7,
     "streuung": 0.08
   },
   "spieler_tod": {

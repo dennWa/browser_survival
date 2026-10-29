@@ -108,6 +108,8 @@ export const AKTIONEN = Object.freeze({
   ABBAUEN: 'abbauen', // nächsten Baum/Stein abbauen (Axt/Spitzhacke nötig, dauert)
   SCHLAFEN: 'schlafen', // in ein Bett in Reichweite legen (heilt)
   HERSTELLEN: 'herstellen', // { rezept } an einer Werkbank in Reichweite (siehe server/spiel/konfiguration/rezepte.js)
+  REPARIEREN: 'reparieren', // Runde 24: { slot } Waffe/Werkzeug an der Werkbank reparieren (waffenSystem)
+  MODS_ABNEHMEN: 'modsAbnehmen', // Runde 24: { slot } alle Aufsätze (Zielfernrohr …) von der Waffe nehmen
   LICHT: 'licht', // Taschenlampe an/aus (aus = Zombies bemerken einen erst aus der Nähe)
   WIEDERBELEBEN: 'wiederbeleben', // tot → sofort am Startpunkt neu spawnen (statt Countdown abzuwarten)
   ADMIN: 'admin', // Admin-Befehl (nur für Accounts mit Admin-Recht, prüft der Server)
