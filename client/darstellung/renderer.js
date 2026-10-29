@@ -693,7 +693,7 @@ export class Renderer {
       gesehen.add(e.id);
       let t = this.tiere.get(e.id);
       if (!t) {
-        t = erzeugeTier(e.art);
+        t = erzeugeTier(e.art, e.id);
         this.tiere.set(e.id, t);
         this.szene.add(t.gruppe);
       }
@@ -2192,9 +2192,9 @@ export class Renderer {
     const blasen = [];
     for (const [name, b] of this.sprechblasen) if (b.bis <= jetzt) this.sprechblasen.delete(name);
     for (const e of entitaeten) {
-      if (e.tot || (e.typ !== 'spieler' && e.typ !== 'zombie')) continue;
+      if (e.tot || (e.typ !== 'spieler' && e.typ !== 'zombie' && !(e.typ === 'tier' && e.name))) continue;
       if (Math.abs(e.x - fokus.x) > SICHTWEITE || Math.abs(e.y - fokus.y) > SICHTWEITE) continue;
-      const braucht = e.typ === 'spieler' ? !e.istEigener : e.leben < e.maxLeben;
+      const braucht = e.typ === 'spieler' ? !e.istEigener : e.typ === 'tier' ? true : e.leben < e.maxLeben; // Runde 24: Haustiere mit Namen
       if (braucht) zuZeichnen.push(e);
       const blase = e.typ === 'spieler' && !this.egoHaken ? this.sprechblasen.get(e.name) : null;
       if (blase) blasen.push({ e, blase });
@@ -2214,7 +2214,7 @@ export class Renderer {
     ctx.clearRect(0, 0, this.overlay.width, this.overlay.height);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     for (const e of zuZeichnen) {
-      const kopf = this.kamera.weltZuBildschirm(e.x, e.y, FIGUR_HOEHE * (e.groesse ?? 1) + 8);
+      const kopf = this.kamera.weltZuBildschirm(e.x, e.y, e.typ === 'tier' ? 30 : FIGUR_HOEHE * (e.groesse ?? 1) + 8);
       zeichneBeschriftung(ctx, { ...e, x: kopf.x, y: kopf.y + 30 });
     }
     for (const g of beschriftet) {

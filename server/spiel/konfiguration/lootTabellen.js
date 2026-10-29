@@ -113,6 +113,10 @@ export const LOOT_TABELLEN = Object.freeze({
   ],
   // Wohnhäuser: vor allem Essen & Trinken, Waffen nur selten
   wohnung: [
+    { id: 'samen_weizen', gewicht: 0.8 },
+    { id: 'samen_karotte', gewicht: 0.8 },
+    { id: 'samen_kuerbis', gewicht: 0.6 },
+    { id: 'samen_erdbeere', gewicht: 0.6 },
     { id: 'regenmantel', gewicht: 0.6 },
     { id: 'gummistiefel', gewicht: 0.5 },
     { id: 'lederjacke', gewicht: 0.4 },
@@ -180,6 +184,10 @@ export const LOOT_TABELLEN = Object.freeze({
     { id: 'rucksack_gross', gewicht: 0.5 },
   ],
   supermarkt: [
+    { id: 'samen_weizen', gewicht: 0.8 },
+    { id: 'samen_karotte', gewicht: 0.8 },
+    { id: 'samen_kuerbis', gewicht: 0.6 },
+    { id: 'samen_erdbeere', gewicht: 0.6 },
     { id: 'alkohol', gewicht: 1.5 },
     { id: 'kapuzenpulli', gewicht: 0.5 },
     { id: 'muetze', gewicht: 0.5 },
@@ -246,6 +254,10 @@ export const LOOT_TABELLEN = Object.freeze({
   ],
   // Zone "Waldweg": Försterhütte
   huette: [
+    { id: 'samen_weizen', gewicht: 0.8 },
+    { id: 'samen_karotte', gewicht: 0.8 },
+    { id: 'samen_kuerbis', gewicht: 0.6 },
+    { id: 'samen_erdbeere', gewicht: 0.6 },
     { id: 'regenmantel', gewicht: 0.8 },
     { id: 'gummistiefel', gewicht: 0.8 },
     { id: 'gewehr', gewicht: 0.5 },

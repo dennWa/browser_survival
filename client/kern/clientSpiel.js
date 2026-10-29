@@ -25,6 +25,12 @@ const MAX_OFFENE_EINGABEN = 120;
 const STOEHN_REICHWEITE = 650; // Zombies in diesem Umkreis stöhnen gelegentlich
 const STOEHN_PAUSE_MS = 900; // höchstens ein Stöhnen pro Pause (sonst Chor)
 /** Runde 24: Schussgeräusch je Waffe (eigene/…); Schalldämpfer → schuss_leise, sonst nach Ausrüstung */
+/** Runde 24: welches Futter zähmt welches Tier (gleich wie server/spiel/systeme/haustierSystem.js FUTTER) */
+const HAUSTIER_FUTTER = {
+  hund: ['fleisch', 'fleisch_gebraten'],
+  katze: ['fisch_barsch', 'fisch_forelle', 'fisch_hecht', 'milch'],
+  huhn: ['samen_tomate', 'samen_gurke', 'samen_kartoffel', 'samen_paprika', 'samen_weizen', 'samen_karotte', 'samen_kuerbis', 'samen_erdbeere'],
+};
 const SCHUSS_KLANG = { gewehr: 'gewehr', bogen: 'bogen', armbrust: 'armbrust' };
 const ZOMBIE_TONHOEHE = { normal: 1, laeufer: 1.35, brocken: 0.7, halb: 1.2, sprinter: 1.45, spucker: 1.15, gepanzert: 0.8, explosiv: 0.95 };
 const AUTOLAUF_ANKUNFT_PX = 9; // so nah an der Kachelmitte des Ziels gilt man als angekommen
@@ -237,6 +243,7 @@ export class ClientSpiel {
     const was = this.#interaktion();
     if (!was) return;
     if (was.art === 'fahrzeug') return this.#aktion(AKTIONEN.FAHRZEUG);
+    if (was.art === 'haustier') return this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.HAUSTIER, ziel: was.id });
     if (was.art === 'aufheben') this.#aktion(AKTIONEN.AUFHEBEN);
     else if (was.art === 'abbauen') this.#aktion(AKTIONEN.ABBAUEN);
     else if (was.art === 'bauwerk' && was.bauwerkArt === 'musik') this.musikFenster.zeige(this.welt.bauwerke.get(was.bauwerkId)); // Runde 24
@@ -544,6 +551,8 @@ export class ClientSpiel {
     if (gegenstand) return { art: 'aufheben', text: `${gegenstand.menge > 1 ? `${gegenstand.name} ×${gegenstand.menge}` : gegenstand.name} aufheben`, gegenstand };
     const auto = this.#naechstesFreiesFahrzeug();
     if (auto) return { art: 'fahrzeug', text: `Einsteigen (${FAHRZEUG_MODELLE[auto.modell]?.name ?? 'Auto'})`, symbol: '🚗' };
+    const tier = this.#naechstesHaustier(); // Runde 24: Hund/Katze/Huhn
+    if (tier) return tier;
     const ressource = this.welt.naechsteRessource(x, y, ABBAU_REICHWEITE);
     if (ressource) return { art: 'abbauen', text: RESSOURCEN_OBJEKTE[ressource.typ].aktion, symbol: ressource.art === 'holz' ? '🪓' : '⛏' };
     const inventar = this.spielerDaten?.inventar ?? [];
@@ -559,6 +568,30 @@ export class ClientSpiel {
     if (this.#naheWerkbank()) return { art: 'werkbank', text: 'Werkbank benutzen', symbol: '🔨' };
     if (this.welt.naechstesObjekt(x, y, BETT_REICHWEITE, (o) => o.typ.startsWith('bett'))) return { art: 'schlafen', text: 'Schlafen', symbol: '🛏' };
     return null;
+  }
+
+  /** Runde 24: Haustier/Huhn in Reichweite → Interaktion (zähmen mit Futter, eigenes: Bleib/Bei Fuß) */
+  #naechstesHaustier() {
+    const letzter = this.schnappschuesse[this.schnappschuesse.length - 1];
+    if (!letzter) return null;
+    let bestes = null;
+    let bestAbstand = 60;
+    for (const e of letzter.entitaeten.values()) {
+      if (e.typ !== 'tier' || !HAUSTIER_FUTTER[e.art]) continue;
+      const d = Math.hypot(e.x - this.lokal.x, e.y - this.lokal.y);
+      if (d < bestAbstand) {
+        bestes = e;
+        bestAbstand = d;
+      }
+    }
+    if (!bestes) return null;
+    const symbol = { hund: '🐕', katze: '🐈', huhn: '🐔' }[bestes.art];
+    if (bestes.besitzer === this.bau.name) return { art: 'haustier', id: bestes.id, text: bestes.zustand === 'bleib' ? `${bestes.name}: Bei Fuß!` : `${bestes.name}: Bleib!`, symbol };
+    if (bestes.besitzer) return null;
+    const futter = HAUSTIER_FUTTER[bestes.art];
+    const hat = (this.spielerDaten?.inventar ?? []).some((i) => i && futter.includes(i.defId));
+    const text = { hund: hat ? 'Hund mit Fleisch zähmen' : 'Streunender Hund (mag Fleisch)', katze: hat ? 'Katze anlocken' : 'Streunende Katze (mag Fisch/Milch)', huhn: hat ? 'Huhn mit Samen einfangen' : 'Huhn (mit Samen fangen)' }[bestes.art];
+    return hat ? { art: 'haustier', id: bestes.id, text, symbol } : null;
   }
 
   /** Freies Fahrzeug in Einstiegsreichweite (aus dem letzten Schnappschuss) */
@@ -1102,6 +1135,11 @@ export class ClientSpiel {
       case 'zuendung':
         this.sound.spiele('zuendung', { x: e.x, y: e.y, raeumlich: true });
         break;
+      case 'bellen':
+      case 'miau':
+      case 'gackern':
+        this.sound.spiele(e.typ, { x: e.x, y: e.y, raeumlich: true, weite: e.typ === 'bellen' ? 1100 : 600 });
+        break;
       case 'wurf':
         this.sound.spiele('bogen', { x: e.x, y: e.y, tonhoehe: 0.7 });
         break;
@@ -1565,6 +1603,9 @@ export class ClientSpiel {
       regen_dach: !this.lokal.fahrzeug && this.welt.istInnen(this.lokal.x, this.lokal.y) ? w.regen : 0,
       kamin: this.#naehe((b) => b.typ === 'kamin' && b.brennt, 420),
       generator: this.#naehe((b) => b.typ === 'generator' && b.laeuft, 520) * 0.8,
+      // Runde 24: Bienen am Stock, schlafende eigene Katze schnurrt
+      summen: this.#naehe((b) => b.typ === 'bienenstock', 220),
+      schnurren: this.#katzeSchnurrt(),
     };
     this.hausMusik?.aktualisiere({ welt: this.welt, x: this.lokal.x, y: this.lokal.y, tick: this.letzterTick, tickDauerS: this.#tickMs / 1000, zone: this.musikOrdner });
     for (const [name, wert] of Object.entries(schichten)) {
@@ -1576,6 +1617,18 @@ export class ClientSpiel {
   }
 
   #schichtStand = {};
+
+  /** Runde 24: eigene Katze schläft ≤ 120 px neben einem → 0..1 */
+  #katzeSchnurrt() {
+    const letzter = this.schnappschuesse[this.schnappschuesse.length - 1];
+    if (!letzter) return 0;
+    for (const e of letzter.entitaeten.values()) {
+      if (e.typ !== 'tier' || e.art !== 'katze' || e.zustand !== 'schlaeft' || e.besitzer !== this.bau.name) continue;
+      const d = Math.hypot(e.x - this.lokal.x, e.y - this.lokal.y);
+      if (d < 120) return 1 - d / 120;
+    }
+    return 0;
+  }
 
   /** Runde 24: 0..1 je nach Abstand zum nächsten passenden Bauwerk (1 = direkt daneben, 0 = weiter als `weite`). */
   #naehe(bedingung, weite) {

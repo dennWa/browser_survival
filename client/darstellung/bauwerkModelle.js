@@ -271,8 +271,18 @@ export function erzeugeBauwerk(b) {
       };
       break;
     }
+    case 'gewaechshaus':
     case 'beet': {
       gruppe.add(mesh(GEOMETRIEN.beet()));
+      if (b.typ === 'gewaechshaus') {
+        // Runde 24: Glashaube mit Holzrahmen
+        const glas = new THREE.Mesh(new THREE.BoxGeometry(30, 22, 30), new THREE.MeshStandardMaterial({ color: 0xcfe8f0, transparent: true, opacity: 0.25, roughness: 0.1, depthWrite: false }));
+        glas.position.y = 11;
+        gruppe.add(glas);
+        const rahmen = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(30, 22, 30)), new THREE.LineBasicMaterial({ color: 0x6b4426 }));
+        rahmen.position.y = 11;
+        gruppe.add(rahmen);
+      }
       const pflanzen = new THREE.Group();
       gruppe.add(pflanzen);
       let stand = '';

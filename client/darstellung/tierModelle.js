@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { SkeletonUtils } from '../vendor/three/addons.js';
 import { ladeEigenesModell } from './eigeneModelle.js';
+import { erzeugeHaustier } from './haustierModelle.js';
 
 /**
  * Tiere (bisher: Hase). Runde 23: echtes, animiertes Hasenmodell `assets/eigene/hase.glb` (CC0, „Rabbit“ von CDmir via
@@ -35,7 +36,9 @@ function ladeHase() {
 }
 
 /** Tier-Modell: sofort der Comic-Hase, sobald das GLB da ist der echte Hase (Animation je Zustand). */
-export function erzeugeTier(art = 'hase') {
+export function erzeugeTier(art = 'hase', id = 0) {
+  const haustier = erzeugeHaustier(art, id); // Runde 24: Hund, Katze, Huhn
+  if (haustier) return haustier;
   const comic = baueComicHase(art);
   const gruppe = new THREE.Group();
   gruppe.add(comic.gruppe);

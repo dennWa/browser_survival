@@ -211,6 +211,20 @@ ITEMS = {
     'schwarzpulver': ('prozedural', 'schwarzpulver', 20),
     'alkohol': ('prozedural', 'flasche:#c9a24a', 20),
     'benzin': ('prozedural', 'kanister', 24),
+    'huhn': ('prozedural', 'huhn', 22),
+    'samen_weizen': ('prozedural', 'samen:#d8b84a', 16),
+    'samen_karotte': ('prozedural', 'samen:#e8761e', 16),
+    'samen_kuerbis': ('prozedural', 'samen:#e07a1a', 16),
+    'samen_erdbeere': ('prozedural', 'samen:#d02a3a', 16),
+    'weizen': ('prozedural', 'weizen', 24),
+    'karotte': ('prozedural', 'karotte:#e8761e', 20),
+    'karotte_gebraten': ('prozedural', 'karotte:#a0501a', 20),
+    'kuerbis': ('prozedural', 'kuerbis:#e07a1a', 24),
+    'kuerbis_gebraten': ('prozedural', 'kuerbis:#9a4a16', 24),
+    'erdbeere': ('prozedural', 'erdbeere', 18),
+    'ei': ('prozedural', 'ei:#f4ead8', 16),
+    'spiegelei': ('prozedural', 'spiegelei', 20),
+    'honig': ('prozedural', 'honig', 20),
 }
 ITEM_ICON_GROESSE = 72
 
@@ -449,6 +463,46 @@ def zeichne_prozedural(art, groesse):
         d.rounded_rectangle(r(6, 24, 66, 46), radius=8 * u, fill=(36, 38, 42, 255), outline=rand, width=int(2.5 * u))
         for x in (20, 32, 44):
             d.line([x * u, 26 * u, x * u, 44 * u], fill=(70, 74, 80, 255), width=int(2 * u))
+    elif art == 'weizen':
+        for dx in (-10, 0, 10):
+            d.line([(36 + dx) * u, 68 * u, (36 + dx * 0.4) * u, 22 * u], fill=(170, 140, 60, 255), width=int(2.5 * u))
+            for k in range(5):
+                y = 10 + k * 6
+                d.ellipse(r(36 + dx * 0.4 - 4, y, 36 + dx * 0.4 + 4, y + 7), fill=(225, 190, 80, 255), outline=rand)
+    elif art.startswith('karotte:'):
+        f = art.split(':')[1]
+        d.polygon([(20 * u, 22 * u), (44 * u, 22 * u), (34 * u, 70 * u)], fill=f, outline=rand)
+        for x in (26, 32, 38):
+            d.line([x * u, 22 * u, (x - 4 + (x - 32)) * u, 4 * u], fill=(70, 150, 50, 255), width=int(3 * u))
+    elif art.startswith('kuerbis:'):
+        f = art.split(':')[1]
+        for dx in (-14, 0, 14):
+            d.ellipse(r(20 + dx, 22, 52 + dx, 66), fill=f, outline=rand, width=int(2 * u))
+        d.rectangle(r(33, 10, 39, 24), fill=(90, 120, 50, 255), outline=rand)
+    elif art == 'erdbeere':
+        d.polygon([(14 * u, 24 * u), (58 * u, 24 * u), (36 * u, 68 * u)], fill=(210, 40, 55, 255), outline=rand)
+        d.ellipse(r(14, 16, 58, 36), fill=(210, 40, 55, 255))
+        for x, y in ((26, 32), (40, 34), (32, 46), (44, 26), (22, 26)):
+            d.ellipse(r(x, y, x + 3, y + 4), fill=(250, 230, 120, 255))
+        d.polygon([(26 * u, 18 * u), (36 * u, 8 * u), (46 * u, 18 * u), (36 * u, 22 * u)], fill=(70, 150, 50, 255))
+    elif art.startswith('ei:'):
+        d.ellipse(r(20, 10, 52, 64), fill=art.split(':')[1], outline=rand, width=int(2.5 * u))
+        d.ellipse(r(28, 18, 36, 30), fill=(255, 255, 255, 200))
+    elif art == 'spiegelei':
+        d.ellipse(r(6, 16, 66, 60), fill=(250, 250, 245, 255), outline=rand, width=int(2.5 * u))
+        d.ellipse(r(26, 26, 46, 46), fill=(250, 190, 40, 255), outline=rand, width=int(2 * u))
+    elif art == 'honig':
+        d.rounded_rectangle(r(16, 24, 56, 66), radius=8 * u, fill=(230, 160, 30, 230), outline=rand, width=int(2.5 * u))
+        d.rectangle(r(18, 14, 54, 26), fill=(150, 100, 60, 255), outline=rand, width=int(2 * u))
+        d.polygon([(28 * u, 44 * u), (36 * u, 38 * u), (44 * u, 44 * u), (44 * u, 52 * u), (36 * u, 58 * u), (28 * u, 52 * u)], outline=(140, 80, 10, 255), width=int(2 * u))
+    elif art == 'huhn':
+        d.ellipse(r(10, 26, 58, 62), fill=(245, 240, 228, 255), outline=rand, width=int(2.5 * u))
+        d.ellipse(r(40, 10, 62, 34), fill=(245, 240, 228, 255), outline=rand, width=int(2.5 * u))
+        d.polygon([(60 * u, 20 * u), (70 * u, 23 * u), (60 * u, 26 * u)], fill=(240, 160, 40, 255), outline=rand)
+        d.polygon([(46 * u, 8 * u), (50 * u, 2 * u), (54 * u, 8 * u), (58 * u, 3 * u), (58 * u, 12 * u)], fill=(210, 40, 40, 255))
+        d.ellipse(r(52, 16, 56, 20), fill=(20, 20, 20, 255))
+        for x in (26, 38):
+            d.line([x * u, 62 * u, x * u, 70 * u], fill=(240, 160, 40, 255), width=int(2.5 * u))
     elif art == 'kanister':
         d.rounded_rectangle(r(12, 16, 60, 68), radius=5 * u, fill=(200, 40, 34, 255), outline=rand, width=int(2.5 * u))
         d.rectangle(r(18, 8, 34, 18), fill=(60, 60, 60, 255), outline=rand, width=int(2 * u))

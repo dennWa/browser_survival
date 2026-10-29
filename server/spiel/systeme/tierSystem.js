@@ -1,6 +1,7 @@
 import { bewegeKoerper } from '../../../gemeinsam/physik/bewegung.js';
 import { KACHELN } from '../../../gemeinsam/welt/kacheln.js';
 import { erzeugeTier } from '../entitaeten/tier.js';
+import { aktualisiereHaustier, begleite, spawneWildeTiere } from './haustierSystem.js';
 
 /**
  * Hasen: hoppeln auf Rasen umher und rennen vor Spielern weg (scheuRadius). Runde 23: wie echte Hasen – sehr scheu
@@ -25,6 +26,7 @@ export function spawneStartTiere(spielWelt) {
     });
     return;
   }
+  spawneWildeTiere(spielWelt); // Runde 24: streunende Hunde/Katzen, Hühner
   let gras = 0;
   for (let ty = 0; ty < welt.hoehe; ty++) for (let tx = 0; tx < welt.breite; tx++) if (istTierBoden(welt, tx, ty)) gras++;
   const anzahl = Math.min(k.hasenMax, Math.round((gras / 1000) * k.hasenProTausend));
@@ -66,7 +68,17 @@ export function aktualisiereTiere(spielWelt, dt) {
   // Schreckquellen dieses Ticks: Schüsse (Ereignis feuer) und fahrende Autos
   const schuesse = spielWelt.ereignisse.filter((e) => e.typ === 'feuer');
   const autos = [...spielWelt.alleVomTyp('fahrzeug')].filter((f) => Math.abs(f.tempo ?? 0) > 40);
-  for (const t of spielWelt.alleVomTyp('tier')) {
+  // Runde 24: Haustiere/Hühner haben eigenes Verhalten; alle 2 s eigene Tiere zum Besitzer holen
+  spielWelt.begleitTakt = (spielWelt.begleitTakt ?? 0) - dt;
+  if (spielWelt.begleitTakt <= 0) {
+    spielWelt.begleitTakt = 2;
+    for (const s of lebende) begleite(spielWelt, s);
+  }
+  for (const t of [...spielWelt.alleVomTyp('tier')]) {
+    if (t.art !== 'hase') {
+      aktualisiereHaustier(spielWelt, t, dt);
+      continue;
+    }
     const quelle = schreckQuelle(t, k, lebende, schuesse, autos);
     if (quelle) erschrecke(spielWelt, t, quelle);
     if (t.zustand === 'flucht') {

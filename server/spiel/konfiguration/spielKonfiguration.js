@@ -166,6 +166,30 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     schadenProSekunde: 0.4,
     keineHeilungAb: 75,
   },
+  /** Runde 24 – Farm (Hühnerstall, Bienenstock; bauSystem.erzeugeErtrag) */
+  farm: {
+    eierStunden: 6, // Spielstunden je Ei
+    eierMax: 6,
+    honigStunden: 10, // Spielstunden je Honig (mit ≥2 bepflanzten Beeten in der Nähe doppelt so schnell)
+    honigMax: 5,
+  },
+  /** Runde 24 – Haustiere & Hühner (systeme/haustierSystem.js) */
+  haustiere: {
+    wildeHunde: 1,
+    wildeKatzen: 1,
+    wildeHuehner: 4,
+    mindestKacheln: 4000, // erst ab dieser Kartengröße streunen wilde Tiere (Test-/Mini-Karten bleiben leer)
+    maxJeArt: 1, // so viele Hunde bzw. Katzen darf man haben
+    wachRadius: 300, // px: Zombies so nah am Hund/Besitzer → bellen + angreifen
+    bissSchaden: 14,
+    bissPause: 0.9,
+    teleportAb: 520, // px: weiter weg vom Besitzer → taucht neben ihm auf
+    arten: {
+      hund: { leben: 90, radius: 9, tempo: 110, rennTempo: 190, folgeAbstand: 48 },
+      katze: { leben: 40, radius: 7, tempo: 80, rennTempo: 160, folgeAbstand: 70 },
+      huhn: { leben: 15, radius: 6, tempo: 50, rennTempo: 120, folgeAbstand: 40 },
+    },
+  },
   /** Runde 24 – Fallen (systeme/fallenSystem.js) */
   fallen: {
     sprengAusloeser: 24, // px um die Mitte, in denen ein Zombie die Sprengfalle auslöst

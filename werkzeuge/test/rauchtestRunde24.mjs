@@ -234,6 +234,48 @@ try {
     await bild('7_wohnzimmer_tag');
   }
 
+  // ---------------------------------------------------------------- Phase 9+10 (Haustiere, Farm)
+  if (phaseAn(9) || phaseAn(10)) {
+    await seite.evaluate(async () => {
+      const { erzeugeTier } = await import('/server/spiel/entitaeten/tier.js');
+      const { neuesBauwerk } = await import('/server/spiel/systeme/bauSystem.js');
+      const srv = browserSurvival.server;
+      for (const z of srv.zonen.values()) {
+        if (z.spielWelt.karte.daten.id !== browserSurvival.spiel.welt.id) continue;
+        const w = z.spielWelt;
+        const ich = w.holen(browserSurvival.spiel.eigeneId);
+        for (const [art, dx] of [['hund', 40], ['katze', -40], ['huhn', 70]]) {
+          const t = w.hinzufuegen(erzeugeTier({ id: w.neueId(), art, x: ich.x + dx, y: ich.y + 30, konfiguration: w.konfiguration }));
+          if (art !== 'huhn') {
+            Object.assign(t, { besitzer: ich.name, name: art === 'hund' ? 'Bello' : 'Mia', zustand: 'folgen' });
+            ich.haustiere = [...(ich.haustiere ?? []), { art, name: t.name }];
+          }
+        }
+        const tx = Math.floor(ich.x / 32);
+        const ty = Math.floor(ich.y / 32);
+        const frei = (x, y) => !w.welt.istBlockiert(x, y) && !w.welt.bauwerkeAn(x, y).length;
+        let n = 0;
+        for (const typ of ['huehnerstall', 'bienenstock', 'gewaechshaus']) {
+          for (let r = 2; r < 8; r++) {
+            const x = tx + r;
+            const y = ty - 1 + n;
+            if (frei(x, y)) {
+              const b = neuesBauwerk(w, typ, x, y, ich.name);
+              if (typ === 'huehnerstall') b.eier = 3;
+              if (typ === 'gewaechshaus') Object.assign(b, { pflanze: 'kuerbis', wachstum: 1 });
+              w.welt.setzeBauwerk(b);
+              break;
+            }
+          }
+          n++;
+        }
+      }
+    });
+    await seite.waitForTimeout(5000);
+    pruefe(await amServer(`return [...welt.alleVomTyp('tier')].filter((t) => t.besitzer === ich.name).length === 2;`), 'Hund + Katze folgen');
+    await bild('9_haustiere_farm');
+  }
+
   const info = await seite.evaluate(() => browserSurvival.spiel?.renderer.statistik() ?? '');
   if (info) console.log(`  Grafik: ${info}`);
 } catch (e) {

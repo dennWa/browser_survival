@@ -513,6 +513,7 @@ export class SpielServer {
     if (n.art === AKTIONEN.ADMIN && !GUELTIGE_ADMIN_BEFEHLE.has(n.befehl)) return;
     if (n.art === AKTIONEN.HERSTELLEN && !Object.hasOwn(REZEPTE, n.rezept)) return;
     if (n.art === AKTIONEN.MUSIK && !(Number.isInteger(n.ziel) && pruefeMusikWahl(n.quelle, n.wert))) return;
+    if (n.art === AKTIONEN.HAUSTIER && !Number.isInteger(n.ziel)) return;
     if (spieler.aktionsPuffer.length >= MAX_AKTIONS_PUFFER) return;
     const aktion = { art: n.art, slot };
     if (n.art === AKTIONEN.ADMIN) aktion.befehl = n.befehl;
@@ -522,6 +523,7 @@ export class SpielServer {
     }
     if (n.art === AKTIONEN.HERSTELLEN) aktion.rezept = n.rezept;
     if (n.art === AKTIONEN.MUSIK) Object.assign(aktion, { ziel: n.ziel, quelle: n.quelle, wert: n.wert ?? null });
+    if (n.art === AKTIONEN.HAUSTIER) aktion.ziel = n.ziel;
     if (n.art === AKTIONEN.TAUSCHEN) aktion.ziel = n.ziel;
     if (n.art === AKTIONEN.AUSZIEHEN) aktion.stelle = n.stelle;
     if (n.art === AKTIONEN.ABLEGEN) aktion.einzeln = n.einzeln === true;

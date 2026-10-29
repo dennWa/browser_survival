@@ -32,6 +32,18 @@ Tipp: kurze Dateien (< 3 s), Lautstärke der Aufnahme selbst eher normalisiert.
 | `regen_stark` | Starkregen bei Gewitter (Schleife, zusätzlich zum Regen) |
 | `wind_leicht` | Wind leicht – sanftes Rauschen draußen (Schleife, Stärke folgt Wind + Böen wie die Bäume) |
 | `wind_stark` | Wind stark – kräftige Böen (Schleife, kommt bei starkem Wind/Böen dazu) |
+
+### Tiere
+
+| Dateiname (ohne Endung) | Wann? |
+|---|---|
+| `schnurren` | Katze schnurrt (Schleife, wenn sie neben dir schläft) |
+| `summen` | Bienen summen am Bienenstock (Schleife, nach Abstand) |
+
+### Atmosphäre & Wetter
+
+| Dateiname (ohne Endung) | Wann? |
+|---|---|
 | `regen_dach` | Drinnen: Regen prasselt aufs Dach (Schleife) |
 | `kamin` | Kaminfeuer knistert (Schleife, lauter je näher) |
 
@@ -96,6 +108,19 @@ Tipp: kurze Dateien (< 3 s), Lautstärke der Aufnahme selbst eher normalisiert.
 | `zombie_stoehnen` | Zombie ruhend / schlurfend (Stöhnen, zufällig in der Nähe) |
 | `zombie_angriff` | Zombie jagt / greift an |
 | `zombie_tod` | Zombie stirbt |
+
+### Tiere
+
+| Dateiname (ohne Endung) | Wann? |
+|---|---|
+| `bellen` | Hund bellt (Zombie in der Nähe oder gerade gezähmt) |
+| `miau` | Katze maunzt |
+| `gackern` | Huhn gackert |
+
+### Zombies
+
+| Dateiname (ohne Endung) | Wann? |
+|---|---|
 | `zombie_schrei` | Zombie entdeckt dich – Schrei/Brüllen (räumlich) |
 | `spucke` | Spucker spuckt Säure (Gurgeln) |
 | `spucke_trifft` | Säure klatscht auf den Boden |

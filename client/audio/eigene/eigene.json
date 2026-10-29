@@ -30,6 +30,16 @@
     ],
     "lautstaerke": 1
   },
+  "bellen": {
+    "dateien": [
+      "bellen_0.ogg",
+      "bellen_1.ogg",
+      "bellen_2.ogg",
+      "bellen_3.ogg"
+    ],
+    "lautstaerke": 0.8,
+    "streuung": 0.08
+  },
   "bogen": {
     "dateien": [
       "bogen_0.ogg",
@@ -104,6 +114,15 @@
       "felsen_bricht_3.ogg"
     ],
     "lautstaerke": 1
+  },
+  "gackern": {
+    "dateien": [
+      "gackern_0.ogg",
+      "gackern_1.ogg",
+      "gackern_2.ogg"
+    ],
+    "lautstaerke": 0.6,
+    "streuung": 0.1
   },
   "generator": {
     "dateien": [
@@ -220,6 +239,15 @@
     ],
     "lautstaerke": 0.6
   },
+  "miau": {
+    "dateien": [
+      "miau_0.ogg",
+      "miau_1.ogg",
+      "miau_2.ogg"
+    ],
+    "lautstaerke": 0.7,
+    "streuung": 0.1
+  },
   "molotow": {
     "dateien": [
       "molotow_0.ogg",
@@ -309,6 +337,12 @@
     ],
     "lautstaerke": 0.9
   },
+  "schnurren": {
+    "dateien": [
+      "schnurren.ogg"
+    ],
+    "lautstaerke": 0.8
+  },
   "schritt_gras": {
     "dateien": [
       "schritt_gras_0.wav",
@@ -372,6 +406,12 @@
       "sturm.ogg"
     ],
     "lautstaerke": 0.9
+  },
+  "summen": {
+    "dateien": [
+      "summen.ogg"
+    ],
+    "lautstaerke": 0.5
   },
   "tag": {
     "dateien": [

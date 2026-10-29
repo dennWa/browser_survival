@@ -57,6 +57,10 @@ export const BAUWERKE = Object.freeze({
   // Lagerkiste: 16 Plätze, Inhalt steht in b.inhalt (nur der Server kennt ihn – geht per KISTE-Nachricht an den, der sie öffnet)
   kiste: { ...BASIS, name: 'Lagerkiste', blockiert: true, geschuetzt: true },
   bett: { ...BASIS, name: 'Bett', blockiert: true, geschuetzt: true },
+  // Runde 24: Farm (Bau-Menü „Farm“)
+  gewaechshaus: { item: null, name: 'Gewächshaus-Beet', blockiert: false, nurAuf: ['gras', 'schnee'] },
+  huehnerstall: { item: null, name: 'Hühnerstall', blockiert: true, draussen: true },
+  bienenstock: { item: null, name: 'Bienenstock', blockiert: true, draussen: true },
   // Runde 24 (Cozy): Möbel & Deko – auch in Karten-Häusern auf jedem freien Boden (kein nurAuf), Licht/Strom: welt/einrichtung.js
   sofa: { ...MOEBEL, name: 'Sofa', blockiert: true },
   sessel: { ...MOEBEL, name: 'Sessel', blockiert: true },
@@ -115,7 +119,7 @@ export function samenZiel(welt, x, y, blick) {
   let bestes = null;
   let bestAbstand = Infinity;
   for (const b of welt.bauwerke.values()) {
-    if (b.typ !== 'beet' || b.pflanze) continue;
+    if (!BEET_TYPEN.has(b.typ) || b.pflanze) continue;
     const bx = (b.tx + 0.5) * g;
     const by = (b.ty + 0.5) * g;
     if (Math.hypot(bx - x, by - y) > BAUWERK_REICHWEITE + 12) continue;
@@ -139,7 +143,15 @@ export const PFLANZEN = Object.freeze({
   gurke: { name: 'Gurke', samen: 'samen_gurke', ernte: 'gurke', farbe: 0x4f9a2a },
   kartoffel: { name: 'Kartoffel', samen: 'samen_kartoffel', ernte: 'kartoffel', farbe: 0xc9a26a },
   paprika: { name: 'Paprika', samen: 'samen_paprika', ernte: 'paprika', farbe: 0xe8a317 },
+  // Runde 24: mehr Pflanzen
+  weizen: { name: 'Weizen', samen: 'samen_weizen', ernte: 'weizen', farbe: 0xd8b84a },
+  karotte: { name: 'Karotte', samen: 'samen_karotte', ernte: 'karotte', farbe: 0xe8761e },
+  kuerbis: { name: 'Kürbis', samen: 'samen_kuerbis', ernte: 'kuerbis', farbe: 0xe07a1a },
+  erdbeere: { name: 'Erdbeere', samen: 'samen_erdbeere', ernte: 'erdbeere', farbe: 0xd02a3a },
 });
+
+/** Runde 24: Bauwerke, die wie ein Beet funktionieren (pflanzen/ernten). Gewächshaus = Beet unter Glas: wächst doppelt so schnell, auch im Schnee. */
+export const BEET_TYPEN = new Set(['beet', 'gewaechshaus']);
 
 /** Kochen am brennenden Lagerfeuer: roh → gebraten (gebraten macht 30 % mehr satt, siehe gegenstaende.js). */
 export const KOCHBAR = Object.freeze({
@@ -151,6 +163,9 @@ export const KOCHBAR = Object.freeze({
   fisch_barsch: 'fisch_barsch_gebraten',
   fisch_forelle: 'fisch_forelle_gebraten',
   fisch_hecht: 'fisch_hecht_gebraten',
+  ei: 'spiegelei', // Runde 24
+  karotte: 'karotte_gebraten',
+  kuerbis: 'kuerbis_gebraten',
 });
 
 /**
@@ -246,6 +261,12 @@ export function bauwerkAktion(b, inventar, name = null, flaggeDort = null) {
     case 'radio':
     case 'plattenspieler':
       return { art: 'musik', text: b.musik ? 'Musik ändern / aus' : 'Musik auflegen', symbol: '🎵' };
+    // Runde 24: Farm
+    case 'huehnerstall':
+      return (b.eier ?? 0) > 0 ? { art: 'eier', text: `${b.eier} Eier einsammeln`, symbol: '🥚' } : { art: 'info', text: 'Hühnerstall – die Hühner legen bald', symbol: '🐔' };
+    case 'bienenstock':
+      return (b.honig ?? 0) > 0 ? { art: 'honig', text: `${b.honig} Honig ernten`, symbol: '🍯' } : { art: 'info', text: 'Bienenstock – die Bienen sammeln (Beete in der Nähe helfen)', symbol: '🐝' };
+    case 'gewaechshaus':
     case 'beet': {
       if (!b.pflanze) {
         const samen = Object.entries(PFLANZEN).find(([, p]) => hat(p.samen));

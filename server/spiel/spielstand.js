@@ -38,6 +38,7 @@ export function erstelleSpielstand(spieler, kartenId) {
     rucksack: spieler.rucksack,
     kleidung: { ...spieler.kleidung },
     kaelte: spieler.kaelte ?? 0,
+    haustiere: (spieler.haustiere ?? []).map((h) => ({ ...h })), // Runde 24
     ausgeruestet: spieler.ausgeruestet,
     level: spieler.level,
     xp: spieler.xp,
@@ -99,6 +100,10 @@ export function wendeSpielstandAn(spieler, stand, spielWelt) {
   }
   passeInventarAn(null, spieler);
   spieler.kaelte = begrenze(zahl(stand.kaelte) ?? 0, 0, 100);
+  // Runde 24: Haustiere (Hund/Katze, je Art höchstens 3, Name ≤ 20 Zeichen)
+  spieler.haustiere = Array.isArray(stand.haustiere)
+    ? stand.haustiere.filter((h) => (h?.art === 'hund' || h?.art === 'katze') && typeof h.name === 'string' && h.name.length <= 20).slice(0, 6).map((h) => ({ art: h.art, name: h.name }))
+    : [];
   if (Array.isArray(stand.inventar)) {
     const ueberschuss = []; // alte Stände mit größeren Stapeln (z. B. 50 Holz): Rest in freie Plätze statt wegwerfen
     stand.inventar.slice(0, spieler.inventar.length).forEach((e, slot) => {

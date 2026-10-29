@@ -1,3 +1,4 @@
+import { BEET_TYPEN } from '../../../gemeinsam/welt/bauwerke.js';
 import { FALLEN_TYPEN, aktualisiereFalle, neueFallenWerte } from './fallenSystem.js';
 import { BAUWERKE, BAUWERK_REICHWEITE, PFLANZEN, bauwerkAktion, feldKacheln, kachelInReichweite, pruefePlatz } from '../../../gemeinsam/welt/bauwerke.js';
 import { flaggeFuerBauteil, gebietBei } from './territoriumSystem.js';
@@ -69,7 +70,9 @@ export function neuesBauwerk(spielWelt, typ, tx, ty, besitzer, zusatz = {}) {
   if (typ === 'schmelzofen') Object.assign(b, { brennt: false, brennRest: 0, brennstoff: 0, plaetze: leerePlaetze(typ) });
   if (typ === 'falle') b.gespannt = true;
   if (FALLEN_TYPEN.has(typ)) Object.assign(b, neueFallenWerte(typ, spielWelt.konfiguration.fallen));
-  if (typ === 'beet') Object.assign(b, { pflanze: null, wachstum: 0 });
+  if (BEET_TYPEN.has(typ)) Object.assign(b, { pflanze: null, wachstum: 0 });
+  if (typ === 'huehnerstall') b.eier = 0;
+  if (typ === 'bienenstock') b.honig = 0;
   if (typ === 'kiste') b.inhalt = leererKistenInhalt();
   if (BAUWERKE[typ].schaltbar) b.offen = false;
   return b;
@@ -251,7 +254,20 @@ export function benutzeBauwerk(spielWelt, spieler, bauwerkId = null, wunschPflan
       schalteGenerator(spielWelt, spieler, b);
       return;
     case 'musik':
-      return; // Auswahl-Fenster im Client → AKTION musik (musikSystem)
+    case 'info':
+      return; // Auswahl-Fenster im Client → AKTION musik (musikSystem) bzw. nur Hinweis
+    case 'eier':
+    case 'honig': {
+      const feld = aktion.art === 'eier' ? 'eier' : 'honig';
+      const defId = aktion.art === 'eier' ? 'ei' : 'honig';
+      const rest = fuegeZumInventarHinzu(spieler, defId, b[feld]);
+      if (rest > 0) legeAufBoden(spielWelt, { defId, menge: rest }, spieler.x, spieler.y);
+      spielWelt.melde(spieler.id, `+${b[feld]} ${GEGENSTAENDE[defId].name}`);
+      b[feld] = 0;
+      welt.setzeBauwerk(b);
+      spielWelt.ereignis({ typ: aktion.art === 'eier' ? 'gackern' : 'summen', x: mitteX(spielWelt, b), y: mitteY(spielWelt, b) });
+      return;
+    }
     case 'pflanzen': {
       const hatSamen = (x) => spieler.inventar.some((e) => e?.defId === x.samen);
       const [pflanze, p] =
@@ -319,14 +335,38 @@ export function aktualisiereBauwerke(spielWelt, dt, spielSekunden = dt) {
       pruefeFalle(spielWelt, b);
     } else if (FALLEN_TYPEN.has(b.typ) && dt > 0) {
       aktualisiereFalle(spielWelt, b, dt);
-    } else if (b.typ === 'beet' && b.pflanze && b.wachstum < 1) {
-      // 24 Spielstunden = ein ganzer Tag-Nacht-Zyklus (Faktor in konfiguration.bauen.wachstumsTage)
+    } else if (b.typ === 'huehnerstall' || b.typ === 'bienenstock') {
+      // Runde 24: Eier/Honig sammeln sich an (spielSekunden → auch beim Schlafen)
+      erzeugeErtrag(spielWelt, b, spielSekunden, zyklus);
+    } else if (BEET_TYPEN.has(b.typ) && b.pflanze && b.wachstum < 1) {
+      // 24 Spielstunden = ein ganzer Tag-Nacht-Zyklus (Faktor in konfiguration.bauen.wachstumsTage); Gewächshaus doppelt so schnell
       const vorher = Math.floor(b.wachstum * 4);
-      b.wachstum = Math.min(1, b.wachstum + (spielSekunden * wachstumFaktor) / (zyklus * k.wachstumsTage));
+      const faktor = b.typ === 'gewaechshaus' ? 2 : wachstumFaktor;
+      b.wachstum = Math.min(1, b.wachstum + (spielSekunden * faktor) / (zyklus * k.wachstumsTage));
       // Nur bei sichtbaren Stufen (Keimling, klein, groß, reif) neu verschicken
       if (Math.floor(b.wachstum * 4) !== vorher || b.wachstum >= 1) welt.setzeBauwerk(b);
     }
   }
+}
+
+/** Runde 24: Hühnerstall legt alle `farm.eierStunden` Spielstunden ein Ei (max. eierMax), Bienenstock Honig (Beete in der Nähe ×2). */
+function erzeugeErtrag(spielWelt, b, spielSekunden, zyklus) {
+  const f = spielWelt.konfiguration.farm;
+  const ei = b.typ === 'huehnerstall';
+  const feld = ei ? 'eier' : 'honig';
+  if ((b[feld] ?? 0) >= (ei ? f.eierMax : f.honigMax)) return;
+  let tempo = 1;
+  if (!ei) {
+    const welt = spielWelt.welt;
+    let bluehend = 0;
+    for (const x of welt.bauwerke.values()) if (BEET_TYPEN.has(x.typ) && x.pflanze && Math.hypot(x.tx - b.tx, x.ty - b.ty) <= 6) bluehend++;
+    tempo = bluehend >= 2 ? 2 : 1;
+  }
+  b.fortschritt = (b.fortschritt ?? 0) + (spielSekunden * tempo) / ((zyklus / 24) * (ei ? f.eierStunden : f.honigStunden));
+  if (b.fortschritt < 1) return;
+  b.fortschritt -= 1;
+  b[feld] = (b[feld] ?? 0) + 1;
+  spielWelt.welt.setzeBauwerk(b);
 }
 
 function pruefeFalle(spielWelt, b) {

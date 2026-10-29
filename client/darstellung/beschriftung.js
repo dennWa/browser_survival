@@ -10,6 +10,10 @@ export function zeichneBeschriftung(ctx, e) {
     lebensbalken(ctx, e, e.y - 24);
   } else if (e.typ === 'zombie' && e.leben < e.maxLeben) {
     lebensbalken(ctx, e, e.y - 26);
+  } else if (e.typ === 'tier' && e.name) {
+    // Runde 24: Haustier – Name (+ Lebensbalken, wenn verletzt)
+    beschriftung(ctx, `${e.art === 'hund' ? '🐕' : '🐈'} ${e.name}`, e.x, e.y - 30);
+    if (e.leben < e.maxLeben) lebensbalken(ctx, e, e.y - 24);
   }
 }
 

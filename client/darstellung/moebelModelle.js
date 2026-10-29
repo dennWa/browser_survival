@@ -25,7 +25,7 @@ const MODELLE = {
   stehlampe: { datei: 'floor-lamp', b: 0.5, h: 0.5, hoehe: 1.8 },
   radio: { datei: 'radio', b: 0.55, h: 0.3, hoehe: 0.4 },
 };
-export const MOEBEL_NAMEN = Object.freeze([...Object.keys(MODELLE), 'plattenspieler', 'lichterkette', 'vorhang', 'generator']);
+export const MOEBEL_NAMEN = Object.freeze([...Object.keys(MODELLE), 'plattenspieler', 'lichterkette', 'vorhang', 'generator', 'huehnerstall', 'bienenstock']);
 
 const holz = new THREE.MeshStandardMaterial({ color: 0x6b4426, roughness: 0.8 });
 const dunkel = new THREE.MeshStandardMaterial({ color: 0x202226, roughness: 0.5, metalness: 0.3 });
@@ -150,6 +150,43 @@ export function baueMoebel(b, gruppe) {
         gruppe.add(tuch);
       }
       gruppe.add(box(32, 1.4, 1.4, holz, 0, 43, 13));
+      break;
+    }
+    // Runde 24: Farm
+    case 'huehnerstall': {
+      gruppe.add(box(28, 14, 20, holz, 0, 9, -2));
+      const dach = new THREE.Mesh(new THREE.ConeGeometry(21, 10, 4, 1), rotLack);
+      dach.rotation.y = Math.PI / 4;
+      dach.position.set(0, 21, -2);
+      dach.castShadow = true;
+      gruppe.add(dach, box(6, 7, 1, dunkel, 0, 6, 8.2));
+      const eier = [];
+      for (const x of [-9, -4, 4, 9]) {
+        const ei = new THREE.Mesh(new THREE.SphereGeometry(1.5, 8, 6), new THREE.MeshStandardMaterial({ color: 0xf4ead8 }));
+        ei.scale.y = 1.3;
+        ei.position.set(x, 2, 11);
+        gruppe.add(ei);
+        eier.push(ei);
+      }
+      zusatz = (z) => eier.forEach((e, i) => (e.visible = (z.eier ?? 0) > i));
+      break;
+    }
+    case 'bienenstock': {
+      const gelb = new THREE.MeshStandardMaterial({ color: 0xe0b040, roughness: 0.7 });
+      gruppe.add(box(4, 6, 4, holz, -7, 3, -7), box(4, 6, 4, holz, 7, 3, 7), box(4, 6, 4, holz, 7, 3, -7), box(4, 6, 4, holz, -7, 3, 7));
+      for (let i = 0; i < 3; i++) gruppe.add(box(20 - i, 6, 20 - i, i % 2 ? gelb : holz, 0, 9 + i * 6, 0));
+      gruppe.add(box(22, 1.5, 22, dunkel, 0, 26, 0));
+      const bienen = [];
+      for (let i = 0; i < 5; i++) {
+        const biene = new THREE.Mesh(new THREE.SphereGeometry(0.8, 5, 4), new THREE.MeshBasicMaterial({ color: 0x2a2010 }));
+        gruppe.add(biene);
+        bienen.push(biene);
+      }
+      zusatz = (z, jetzt) =>
+        bienen.forEach((m, i) => {
+          const t = jetzt / 1000 + i * 1.9;
+          m.position.set(Math.cos(t * 1.7 + i) * (10 + i * 2), 14 + Math.sin(t * 3.1) * 6, Math.sin(t * 2.3 + i) * (10 + i * 2));
+        });
       break;
     }
     case 'generator': {

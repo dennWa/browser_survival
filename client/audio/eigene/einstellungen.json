@@ -190,5 +190,23 @@
   },
   "generator": {
     "lautstaerke": 0.6
+  },
+  "bellen": {
+    "lautstaerke": 0.8,
+    "streuung": 0.08
+  },
+  "miau": {
+    "lautstaerke": 0.7,
+    "streuung": 0.1
+  },
+  "gackern": {
+    "lautstaerke": 0.6,
+    "streuung": 0.1
+  },
+  "schnurren": {
+    "lautstaerke": 0.8
+  },
+  "summen": {
+    "lautstaerke": 0.5
   }
 }

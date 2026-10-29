@@ -124,6 +124,7 @@ const ROH_GEGENSTAENDE = {
   granate: { name: 'Rohrbombe', kategorie: 'wurf', wurf: 'granate', inHand: true, ausruestung: 'wurf', wurfweite: 320, zuender: 1, sprengRadius: 105, sprengSchaden: 80, beschreibung: 'Werfen (Linksklick): explodiert nach 1 Sekunde' },
   molotow: { name: 'Molotowcocktail', kategorie: 'wurf', wurf: 'molotow', inHand: true, ausruestung: 'wurf', wurfweite: 300, brandRadius: 64, brandDauer: 9, brandSchaden: 14, beschreibung: 'Werfen (Linksklick): setzt den Boden 9 Sekunden in Brand' },
   schwarzpulver: { name: 'Schwarzpulver', kategorie: 'material', beschreibung: 'Aus Kohle (verkohltes Essen) und Stein – für Sprengstoff' },
+  huhn: { name: 'Huhn', kategorie: 'material', beschreibung: 'Eingefangenes Huhn – für einen Hühnerstall (Bau-Menü → Farm)' },
   benzin: { name: 'Benzinkanister', kategorie: 'material', beschreibung: 'Treibstoff für den Generator (15 min Strom)' },
   alkohol: { name: 'Hochprozentiges', kategorie: 'material', beschreibung: 'Brennt gut – für Molotowcocktails' },
   // --- Werkzeug & Garten ---
@@ -134,6 +135,20 @@ const ROH_GEGENSTAENDE = {
   samen_paprika: { name: 'Paprikasamen', kategorie: 'samen', pflanze: 'paprika', beschreibung: 'In ein Beet pflanzen (E am Beet)' },
   paprika: { name: 'Paprika', kategorie: 'nahrung', naehrwert: 13, durstwert: 4, beschreibung: 'Am Lagerfeuer braten: macht 30 % mehr satt' },
   paprika_gebraten: { name: 'Gebratene Paprika', kategorie: 'nahrung', naehrwert: 17, durstwert: 6 },
+  // Runde 24: Farm
+  samen_weizen: { name: 'Weizenkörner', kategorie: 'samen', pflanze: 'weizen', beschreibung: 'In ein Beet pflanzen (E am Beet)' },
+  samen_karotte: { name: 'Karottensamen', kategorie: 'samen', pflanze: 'karotte', beschreibung: 'In ein Beet pflanzen (E am Beet)' },
+  samen_kuerbis: { name: 'Kürbiskerne', kategorie: 'samen', pflanze: 'kuerbis', beschreibung: 'In ein Beet pflanzen (E am Beet)' },
+  samen_erdbeere: { name: 'Erdbeersamen', kategorie: 'samen', pflanze: 'erdbeere', beschreibung: 'In ein Beet pflanzen (E am Beet)' },
+  weizen: { name: 'Weizen', kategorie: 'material', beschreibung: 'Zu Mehl mahlen – für Brot (Werkbank/Kochstelle)' },
+  karotte: { name: 'Karotte', kategorie: 'nahrung', naehrwert: 11, durstwert: 4 },
+  karotte_gebraten: { name: 'Gebratene Karotte', kategorie: 'nahrung', naehrwert: 15, durstwert: 5 },
+  kuerbis: { name: 'Kürbis', kategorie: 'nahrung', naehrwert: 24, durstwert: 8, beschreibung: 'Am Feuer backen: noch sättigender' },
+  kuerbis_gebraten: { name: 'Ofenkürbis', kategorie: 'nahrung', naehrwert: 32, durstwert: 8 },
+  erdbeere: { name: 'Erdbeeren', kategorie: 'nahrung', naehrwert: 8, durstwert: 5 },
+  ei: { name: 'Ei', kategorie: 'nahrung', naehrwert: 6, beschreibung: 'Roh geht – gebraten (Lagerfeuer) ist besser' },
+  spiegelei: { name: 'Spiegelei', kategorie: 'nahrung', naehrwert: 20 },
+  honig: { name: 'Honig', kategorie: 'nahrung', naehrwert: 16, beschreibung: 'Süß und hält ewig' },
   // --- Jagen & Angeln ---
   fleisch: { name: 'Hasenfleisch', kategorie: 'nahrung', naehrwert: 14, beschreibung: 'Am Lagerfeuer braten: macht deutlich satter' },
   fleisch_gebraten: { name: 'Hasenbraten', kategorie: 'nahrung', naehrwert: 32 },

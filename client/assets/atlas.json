@@ -716,6 +716,104 @@
     "b": 72,
     "h": 72,
     "weltGroesse": 24
+   },
+   "huhn": {
+    "x": 432,
+    "y": 864,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 22
+   },
+   "samen_weizen": {
+    "x": 504,
+    "y": 864,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 16
+   },
+   "samen_karotte": {
+    "x": 0,
+    "y": 936,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 16
+   },
+   "samen_kuerbis": {
+    "x": 72,
+    "y": 936,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 16
+   },
+   "samen_erdbeere": {
+    "x": 144,
+    "y": 936,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 16
+   },
+   "weizen": {
+    "x": 216,
+    "y": 936,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 24
+   },
+   "karotte": {
+    "x": 288,
+    "y": 936,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 20
+   },
+   "karotte_gebraten": {
+    "x": 360,
+    "y": 936,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 20
+   },
+   "kuerbis": {
+    "x": 432,
+    "y": 936,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 24
+   },
+   "kuerbis_gebraten": {
+    "x": 504,
+    "y": 936,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 24
+   },
+   "erdbeere": {
+    "x": 0,
+    "y": 1008,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 18
+   },
+   "ei": {
+    "x": 72,
+    "y": 1008,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 16
+   },
+   "spiegelei": {
+    "x": 144,
+    "y": 1008,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 20
+   },
+   "honig": {
+    "x": 216,
+    "y": 1008,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 20
    }
   }
  },

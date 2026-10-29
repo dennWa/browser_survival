@@ -13,6 +13,7 @@ import { tutorialVorSchaden } from './tutorialSystem.js';
 import { lasseBossLootFallen, lasseZombieLootFallen } from './lootSystem.js';
 import { explodiere } from './sonderZombieSystem.js';
 import { werfe } from './explosionSystem.js';
+import { haustierGestorben } from './haustierSystem.js';
 
 /**
  * (Linksklick am Ufer mit Angel im Inventar ist KEIN Angriff: behandleAngelKlick läuft zuerst, siehe angelSystem.js.)
@@ -163,7 +164,7 @@ function nahkampf(spielWelt, spieler, def) {
 
 function* moeglicheZiele(spielWelt, angreifer) {
   yield* spielWelt.alleVomTyp('zombie');
-  yield* spielWelt.alleVomTyp('tier');
+  for (const t of spielWelt.alleVomTyp('tier')) if (!t.besitzer) yield t; // Runde 24: gezähmte Haustiere trifft man nicht
   if (!spielWelt.konfiguration.kampf.pvp) return;
   for (const s of spielWelt.alleVomTyp('spieler')) if (s !== angreifer && !s.tot) yield s;
 }
@@ -223,6 +224,13 @@ export function toeten(spielWelt, ziel, quelle = null, optionen = {}) {
     lasseZombieLootFallen(spielWelt, ziel.x, ziel.y);
     const waffenChance = k.zombie.varianten?.[ziel.variante]?.waffenChance ?? 0;
     if (waffenChance > 0 && spielWelt.zufall.zahl() < waffenChance) lasseBossLootFallen(spielWelt, ziel.x, ziel.y);
+    return;
+  }
+  if (ziel.typ === 'tier' && ziel.art !== 'hase') {
+    // Runde 24: Haustier/Huhn
+    spielWelt.entfernen(ziel.id);
+    if (ziel.besitzer) haustierGestorben(spielWelt, ziel);
+    else if (ziel.art === 'huhn') legeAufBoden(spielWelt, { defId: 'fleisch', menge: 1 }, ziel.x, ziel.y);
     return;
   }
   if (ziel.typ === 'tier') {

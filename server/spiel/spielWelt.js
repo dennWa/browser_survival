@@ -1,3 +1,5 @@
+import { pruefeMusikWahl } from './systeme/musikSystem.js';
+import { BEET_TYPEN } from '../../gemeinsam/welt/bauwerke.js';
 import { KISTE_PLAETZE, TICK_DAUER_S } from '../../gemeinsam/konstanten.js';
 import { Welt } from '../../gemeinsam/welt/welt.js';
 import { ladeKarte, verarbeiteKarte } from './karten/kartenLader.js';
@@ -346,7 +348,15 @@ function pruefeBauwerk(roh, konfiguration) {
   if (b.typ === 'lagerfeuer') Object.assign(b, { brennt: roh.brennt === true, brennRest: Number.isFinite(roh.brennRest) ? Math.max(0, roh.brennRest) : 0, plaetze: pruefePlaetze(b.typ, roh.plaetze, konfiguration.bauen) });
   if (b.typ === 'schmelzofen') Object.assign(b, { brennt: roh.brennt === true, brennRest: Number.isFinite(roh.brennRest) ? Math.max(0, roh.brennRest) : 0, brennstoff: Number.isInteger(roh.brennstoff) ? Math.min(10, Math.max(0, roh.brennstoff)) : 0, plaetze: pruefePlaetze(b.typ, roh.plaetze, konfiguration.bauen) });
   if (b.typ === 'falle') b.gespannt = roh.gespannt !== false;
-  if (b.typ === 'beet') {
+  // Runde 24: Kamin/Generator, Lichter, Musik, Fallen, Farm
+  if (b.typ === 'kamin' || b.typ === 'generator') Object.assign(b, { brennt: b.typ === 'kamin' && roh.brennt === true, laeuft: b.typ === 'generator' && roh.laeuft === true, brennRest: Number.isFinite(roh.brennRest) ? Math.max(0, roh.brennRest) : 0 });
+  if (BAUWERKE[b.typ].schaltbarLicht && roh.an === false) b.an = false;
+  if (roh.musik && pruefeMusikWahl(roh.musik.quelle, roh.musik.wert)) b.musik = { quelle: roh.musik.quelle, wert: roh.musik.wert, startTick: 0 };
+  if (b.typ === 'stacheldraht') b.rest = Number.isFinite(roh.rest) ? Math.max(1, roh.rest) : 60;
+  if (b.typ === 'fallgrube') b.bereit = roh.bereit !== false;
+  if (b.typ === 'huehnerstall') b.eier = Number.isInteger(roh.eier) ? Math.min(20, Math.max(0, roh.eier)) : 0;
+  if (b.typ === 'bienenstock') b.honig = Number.isInteger(roh.honig) ? Math.min(20, Math.max(0, roh.honig)) : 0;
+  if (BEET_TYPEN.has(b.typ)) {
     b.pflanze = PFLANZEN[roh.pflanze] ? roh.pflanze : null;
     b.wachstum = b.pflanze && Number.isFinite(roh.wachstum) ? Math.min(1, Math.max(0, roh.wachstum)) : 0;
   }

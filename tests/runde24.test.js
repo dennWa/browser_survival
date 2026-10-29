@@ -473,3 +473,95 @@ test('P8 Musik: Wahl prüfen, YouTube-Links erkennen', () => {
   aktion(welt, spieler, { art: AKTIONEN.MUSIK, ziel: radio.id, quelle: 'aus', wert: null });
   assert.equal(radio.musik, undefined);
 });
+
+// ---------------------------------------------------------------- Phase 9+10: Haustiere & Farm
+import { erzeugeTier } from '../server/spiel/entitaeten/tier.js';
+import { erstelleSpielstand, wendeSpielstandAn } from '../server/spiel/spielstand.js';
+
+const tier = (welt, art, x, y) => welt.hinzufuegen(erzeugeTier({ id: welt.neueId(), art, x, y, konfiguration: welt.konfiguration }));
+
+test('P9 Hund: mit Fleisch zähmen, folgt, Bleib/Bei Fuß, bellt + beißt Zombies, kommt mit (Spielstand)', () => {
+  const { welt, spieler } = neueWelt();
+  spieler.x = mitte(5);
+  spieler.y = mitte(4);
+  const hund = tier(welt, 'hund', spieler.x + 30, spieler.y);
+  aktion(welt, spieler, { art: AKTIONEN.HAUSTIER, ziel: hund.id });
+  assert.equal(hund.besitzer, undefined, 'ohne Fleisch nicht');
+  spieler.inventar[0] = { defId: 'fleisch', menge: 1 };
+  aktion(welt, spieler, { art: AKTIONEN.HAUSTIER, ziel: hund.id });
+  assert.equal(hund.besitzer, spieler.name);
+  assert.equal(spieler.haustiere.length, 1);
+  // folgt
+  spieler.x = mitte(15);
+  ticks(welt, 30 * 4);
+  assert.ok(Math.hypot(hund.x - spieler.x, hund.y - spieler.y) < 120, 'folgt dem Besitzer');
+  // Bleib
+  aktion(welt, spieler, { art: AKTIONEN.HAUSTIER, ziel: hund.id });
+  assert.equal(hund.zustand, 'bleib');
+  aktion(welt, spieler, { art: AKTIONEN.HAUSTIER, ziel: hund.id });
+  // Zombie in der Nähe → bellen + Biss
+  const z = zombie(welt, 'normal', hund.x + 60, hund.y);
+  z.gefesselt = true;
+  z.leben = z.maxLeben = 500;
+  let gebellt = false;
+  for (let i = 0; i < 30 * 4; i++) {
+    welt.aktualisiere(TICK_DAUER_S);
+    gebellt ||= welt.ereignisse.some((e) => e.typ === 'bellen');
+  }
+  assert.ok(gebellt, 'bellt');
+  assert.ok(z.leben < 500, 'beißt');
+  // Eigenes Haustier trifft man nicht
+  welt.entfernen(z.id);
+  // Spielstand → neue Welt: Hund taucht neben dem Besitzer auf
+  const stand = JSON.parse(JSON.stringify(erstelleSpielstand(spieler, 'runde24')));
+  const { welt: welt2, spieler: neu } = neueWelt();
+  wendeSpielstandAn(neu, stand, welt2);
+  ticks(welt2, 30 * 3);
+  const mitgekommen = [...welt2.alleVomTyp('tier')].find((t) => t.besitzer === neu.name && t.art === 'hund');
+  assert.ok(mitgekommen, 'Hund kommt mit');
+});
+
+test('P9 Katze: mit Fisch zähmen, rollt sich neben dem sitzenden Besitzer ein', () => {
+  const { welt, spieler } = neueWelt();
+  const katze = tier(welt, 'katze', spieler.x + 30, spieler.y);
+  spieler.inventar[0] = { defId: 'fisch_barsch', menge: 1 };
+  aktion(welt, spieler, { art: AKTIONEN.HAUSTIER, ziel: katze.id });
+  assert.equal(katze.besitzer, spieler.name);
+  spieler.arbeit = { art: 'sitzen' };
+  ticks(welt, 10);
+  assert.equal(katze.zustand, 'schlaeft');
+});
+
+test('P10 Huhn fangen → Hühnerstall legt Eier; Bienenstock macht Honig; Gewächshaus wächst doppelt so schnell', () => {
+  const { welt, spieler } = neueWelt();
+  const huhn = tier(welt, 'huhn', spieler.x + 30, spieler.y);
+  spieler.inventar[0] = { defId: 'samen_weizen', menge: 2 };
+  aktion(welt, spieler, { art: AKTIONEN.HAUSTIER, ziel: huhn.id });
+  assert.ok(!welt.holen(huhn.id), 'eingefangen');
+  assert.ok(spieler.inventar.some((e) => e?.defId === 'huhn'));
+  // Stall + Stock + zwei Beete
+  const setze = (typ, tx, ty) => {
+    const b = neuesBauwerk(welt, typ, tx, ty, spieler.name);
+    welt.welt.setzeBauwerk(b);
+    return b;
+  };
+  const stall = setze('huehnerstall', 10, 2);
+  const stock = setze('bienenstock', 12, 2);
+  const normal = setze('beet', 14, 2);
+  const glas = setze('gewaechshaus', 15, 2);
+  Object.assign(normal, { pflanze: 'weizen', wachstum: 0 });
+  Object.assign(glas, { pflanze: 'weizen', wachstum: 0 });
+  const zyklus = welt.konfiguration.welt.tagSekunden + welt.konfiguration.welt.nachtSekunden;
+  const sekundenJeStunde = zyklus / 24;
+  for (let i = 0; i < 30 * 12 * sekundenJeStunde / 30; i++) welt.aktualisiere(1); // 12 Spielstunden in 1-s-Schritten
+  assert.ok(stall.eier >= 1, `Eier ${stall.eier}`);
+  assert.ok(stock.honig >= 1, `Honig ${stock.honig}`);
+  assert.ok(glas.wachstum > normal.wachstum * 1.9, `Gewächshaus ${glas.wachstum} vs ${normal.wachstum}`);
+  // Eier einsammeln
+  spieler.x = mitte(10);
+  spieler.y = mitte(3);
+  const eier = stall.eier;
+  aktion(welt, spieler, { art: AKTIONEN.BAUWERK });
+  assert.equal(stall.eier, 0);
+  assert.equal(spieler.inventar.find((e) => e?.defId === 'ei')?.menge, eier);
+});

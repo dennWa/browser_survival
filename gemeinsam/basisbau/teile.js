@@ -12,7 +12,7 @@
  *   block       = true: wird (bei konfiguration.basisbau.blockGroesse = 2) als Block 2×2 Kacheln gesetzt, Preis siehe kostenFuer()
  *   ausrichtung = true: Teil hat eine Richtung (Öffnung/Rahmen) → Taste R dreht, sonst automatisch (platzierung.js)
  */
-export const KATEGORIEN = Object.freeze(['Basis', 'Struktur', 'Einrichtung', 'Gemütlich']);
+export const KATEGORIEN = Object.freeze(['Basis', 'Struktur', 'Einrichtung', 'Gemütlich', 'Farm']);
 
 export const BAUTEILE = Object.freeze({
   flagge: {
@@ -50,6 +50,9 @@ export const BAUTEILE = Object.freeze({
   generator: { art: 'bauwerk', name: 'Generator', symbol: '⚡', kategorie: 'Gemütlich', tier: 3, kosten: { eisenbarren: 4, schrott: 4 }, beschreibung: `Strom für Stehlampen und Lichterketten im Umkreis. Läuft mit Benzin (E).` },
   stehlampe: { art: 'bauwerk', name: 'Stehlampe', symbol: '💡', kategorie: 'Gemütlich', tier: 3, kosten: { eisenbarren: 1, schrott: 1 }, beschreibung: 'Helles Licht – braucht einen laufenden Generator.' },
   lichterkette: { art: 'bauwerk', name: 'Lichterkette', symbol: '✨', kategorie: 'Gemütlich', tier: 3, kosten: { schrott: 2 }, ausrichtung: true, beschreibung: 'Gemütliches Funkeln – braucht einen laufenden Generator.' },
+  gewaechshaus: { art: 'bauwerk', name: 'Gewächshaus-Beet', symbol: '🪴', kategorie: 'Farm', tier: 1, kosten: { holz: 4, stein: 2, stoff: 1 }, beschreibung: 'Beet unter Glas: Pflanzen wachsen doppelt so schnell – auch im Schnee.' },
+  huehnerstall: { art: 'bauwerk', name: 'Hühnerstall', symbol: '🐔', kategorie: 'Farm', tier: 1, kosten: { holz: 8, huhn: 2 }, beschreibung: 'Zwei eingefangene Hühner legen Eier (E: einsammeln). Hühner fängst du mit Samen.' },
+  bienenstock: { art: 'bauwerk', name: 'Bienenstock', symbol: '🐝', kategorie: 'Farm', tier: 2, kosten: { holz: 6, stoff: 1 }, beschreibung: 'Bienen machen Honig – schneller, wenn Beete in der Nähe blühen (E: ernten).' },
   radio: { art: 'bauwerk', name: 'Radio', symbol: '📻', kategorie: 'Gemütlich', tier: 2, kosten: { schrott: 3 }, beschreibung: 'E: Musik aus dem Musik-Ordner oder einen YouTube-Link abspielen – alle in der Nähe hören mit.' },
   plattenspieler: { art: 'bauwerk', name: 'Plattenspieler', symbol: '💿', kategorie: 'Gemütlich', tier: 2, kosten: { holz: 3, schrott: 2 }, beschreibung: 'E: Platte auflegen (Musik-Ordner oder YouTube-Link).' },
 });

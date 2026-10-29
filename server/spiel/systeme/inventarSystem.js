@@ -5,6 +5,7 @@ import { AKTIONEN } from '../../../gemeinsam/protokoll.js';
 import { GEGENSTAENDE, STANDARD_AUSRUESTUNG, UNBEWAFFNET, waffenWerte } from '../konfiguration/gegenstaende.js';
 import { bringeModAn, nimmModsAb, passenderMod, repariere } from './waffenSystem.js';
 import { waehleMusik } from './musikSystem.js';
+import { haustierAktion } from './haustierSystem.js';
 import { erzeugeGegenstand } from '../entitaeten/gegenstand.js';
 import { wiederbeleben } from './ueberlebenSystem.js';
 import { fuehreAdminBefehlAus } from './adminSystem.js';
@@ -102,6 +103,9 @@ export function verarbeiteAktionen(spielWelt) {
           break;
         case AKTIONEN.MUSIK:
           waehleMusik(spielWelt, spieler, aktion);
+          break;
+        case AKTIONEN.HAUSTIER:
+          haustierAktion(spielWelt, spieler, aktion.ziel);
           break;
         case AKTIONEN.RUCKSACK_ABLEGEN:
           legeRucksackAb(spielWelt, spieler);
