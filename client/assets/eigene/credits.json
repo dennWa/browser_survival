@@ -12,12 +12,6 @@
     "url": "https://creativecommons.org/licenses/by/3.0/"
   },
   {
-    "paket": "Zombies (in Stöhnen/Angriff/Tod-Ausschnitte geschnitten)",
-    "urheber": "FunkyFilms via Freesound",
-    "lizenz": "siehe Freesound (Sound 338059)",
-    "url": "https://freesound.org/s/338059/"
-  },
-  {
     "paket": "Steps Grass (Schritte im Gras, in 6 Einzeltritte geschnitten)",
     "urheber": "yudena / Mondfisch89 via Freesound",
     "lizenz": "siehe Freesound (Sound 377591)",
@@ -52,5 +46,125 @@
     "urheber": "Lorc, Delapouite, Skoll & Mitwirkende – game-icons.net",
     "lizenz": "CC BY 3.0",
     "url": "https://game-icons.net"
+  },
+  {
+    "paket": "Red Library Sound Effects (Wind/Sturm/Schneesturm, Starkregen, Donner, Vögel, Eule, Grillen, Hundegeheul, Zombie-Schrei, Axt-/Spitzhacken-Schläge, Baumfall, Metall, Autocrash, Explosion, Keuchen, Husten, Atem, Spielertod, Anziehen, Rascheln)",
+    "urheber": "Red Library via Internet Archive (archive.org/details/Red_Library_*)",
+    "lizenz": "CC0",
+    "url": "https://archive.org/details/Red_Library_Nature_Wind"
+  },
+  {
+    "paket": "Zombie Moans (Stöhnen)",
+    "urheber": "EmoPreben via OpenGameArt",
+    "lizenz": "CC0",
+    "url": "https://opengameart.org/content/zombie-moans-01-by-emopreben"
+  },
+  {
+    "paket": "Hungry Ghoul / Zombie Moans (Stöhnen, ferne Zombies)",
+    "urheber": "Darsycho via OpenGameArt",
+    "lizenz": "CC0",
+    "url": "https://opengameart.org/content/hungry-ghoul"
+  },
+  {
+    "paket": "Zombies Sound Pack (Angriff)",
+    "urheber": "artisticdude via OpenGameArt",
+    "lizenz": "CC0",
+    "url": "https://opengameart.org/content/zombies-sound-pack"
+  },
+  {
+    "paket": "Voice Effects Zombie-Skeleton-Monster Human Male (Zombie-Angriff/-Tod, Spielertod)",
+    "urheber": "ArcadeParty via OpenGameArt",
+    "lizenz": "CC0",
+    "url": "https://opengameart.org/content/zombie-skeleton-monster-voice-effects"
+  },
+  {
+    "paket": "Zombie Pain (Zombie-Schrei)",
+    "urheber": "Vinrax via OpenGameArt",
+    "lizenz": "CC0",
+    "url": "https://opengameart.org/content/zombie-pain"
+  },
+  {
+    "paket": "80 CC0 Creature SFX 2 (Zombie-Tod) · 75 CC0 Breaking/Falling/Hit SFX (Fels bricht)",
+    "urheber": "rubberduck via OpenGameArt",
+    "lizenz": "CC0",
+    "url": "https://opengameart.org/content/80-cc0-creture-sfx-2"
+  },
+  {
+    "paket": "Pain Sounds (Schaden Mann)",
+    "urheber": "EmoPreben via OpenGameArt",
+    "lizenz": "CC0",
+    "url": "https://opengameart.org/content/pain-sounds-by-emopreben"
+  },
+  {
+    "paket": "Man Hurt Sounds (Schaden Mann)",
+    "urheber": "Aharabada via OpenGameArt",
+    "lizenz": "CC0",
+    "url": "https://opengameart.org/content/man-hurt-sounds"
+  },
+  {
+    "paket": "Female Hurt Grunts & Groans (Schaden/Tod Frau)",
+    "urheber": "Nocturnal_Vanguard via OpenGameArt",
+    "lizenz": "CC0",
+    "url": "https://opengameart.org/content/female-hurt-grunts-groans"
+  },
+  {
+    "paket": "Breathing Tired (Keuchen)",
+    "urheber": "mikeask via OpenGameArt",
+    "lizenz": "CC0",
+    "url": "https://opengameart.org/content/breathing-tired"
+  },
+  {
+    "paket": "Ambient Bird Sounds (Tag-Atmosphäre)",
+    "urheber": "isaiah658 via OpenGameArt",
+    "lizenz": "CC0",
+    "url": "https://opengameart.org/content/ambient-bird-sounds"
+  },
+  {
+    "paket": "Thunder (Donner)",
+    "urheber": "Jerimee via OpenGameArt",
+    "lizenz": "CC BY 3.0",
+    "url": "https://opengameart.org/content/thunder"
+  },
+  {
+    "paket": "Thunder, Very Close, Rain, 01 (naher Donner)",
+    "urheber": "InspectorJ (www.jshaw.co.uk) via OpenGameArt",
+    "lizenz": "CC BY 3.0",
+    "url": "https://opengameart.org/content/thunder-very-close-rain-01"
+  },
+  {
+    "paket": "Wolf howls (fernes Heulen nachts)",
+    "urheber": "Wikimedia Commons",
+    "lizenz": "Public Domain",
+    "url": "https://commons.wikimedia.org/wiki/File:Wolf_howls.ogg"
+  },
+  {
+    "paket": "Breaking Rock (Fels bricht)",
+    "urheber": "themightyglider via OpenGameArt",
+    "lizenz": "CC0",
+    "url": "https://opengameart.org/content/breaking-rock"
+  },
+  {
+    "paket": "Crash Collision (Autocrash)",
+    "urheber": "qubodup via OpenGameArt",
+    "lizenz": "CC0",
+    "url": "https://opengameart.org/content/crash-collision"
+  },
+  {
+    "paket": "8 Wet Squish Slurp Impacts (Zombie überfahren)",
+    "urheber": "qubodup / Independent.nu Ljudbank via OpenGameArt",
+    "lizenz": "CC0",
+    "url": "https://opengameart.org/content/8-wet-squish-slurp-impacts"
+  },
+  {
+    "paket": "Fleshy Bone Break/Snap SFX (Zombie überfahren)",
+    "urheber": "Zane Little Music via OpenGameArt",
+    "lizenz": "CC0",
+    "url": "https://opengameart.org/content/fleshy-bone-breaksnap-sfx"
+  },
+  {
+    "paket": "Squeaky Rat (Hase: Schreck/Tod, höher gepitcht)",
+    "urheber": "qubodup via OpenGameArt",
+    "lizenz": "CC0",
+    "url": "https://opengameart.org/content/squeaky-rat"
   }
 ]

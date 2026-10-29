@@ -5,8 +5,9 @@ import * as THREE from 'three';
  * hin und her schwingend zu Boden senkt (grün bei normalen Bäumen, orange/rot bei Herbstbäumen).
  * Ein InstancedMesh mit festem Pool – kostet keine Lichter/Shader-Wechsel und läuft auch auf Handys.
  * Nur Optik, keine Spiellogik. Gefällte Bäume (welt.istRessourceDa) lassen nichts mehr fallen.
+ * Runde 23: `sturm` (0..1, wetterEffekt) → viel mehr Blätter, die fast waagerecht davonwehen.
  */
-const POOL = 40;
+const POOL = 80;
 const REICHWEITE = 520; // px um den Fokus, in denen Bäume Blätter verlieren
 const FALL_TEMPO = 15; // px/s
 const BODEN = 0.6;
@@ -41,21 +42,22 @@ export class BlaetterEffekt {
   }
 
   /** @param dunkel 0 (Tag) .. 1 (Nacht): nachts sind Blätter kaum zu sehen */
-  aktualisiere(dt, fokus, jetzt, dunkel = 0) {
+  aktualisiere(dt, fokus, jetzt, dunkel = 0, sturm = 0) {
     if (this.baeume.length === 0) return;
     this.mesh.material.opacity = 0.92 * (1 - dunkel * 0.6);
     this.warte -= dt;
     if (this.warte <= 0) {
-      this.warte = 0.12 + Math.random() * 0.25;
+      this.warte = (0.12 + Math.random() * 0.25) / (1 + sturm * 5);
       this.#neuesBlatt(fokus);
     }
+    const sturmWind = sturm * 140;
     let n = 0;
     for (let i = 0; i < POOL; i++) {
       const b = this.blaetter[i];
       if (!b.aktiv) continue;
       b.y -= FALL_TEMPO * dt * (0.8 + 0.4 * Math.sin(b.phase * 0.7));
       b.phase += dt * b.tempo;
-      b.x += Math.cos(b.phase) * 14 * dt + b.wind * dt;
+      b.x += Math.cos(b.phase) * 14 * dt + (b.wind + sturmWind) * dt;
       b.z += Math.sin(b.phase * 0.8) * 10 * dt;
       if (b.y <= BODEN) {
         b.aktiv = false;

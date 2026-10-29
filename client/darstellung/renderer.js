@@ -68,6 +68,7 @@ const GEH_TEMPO = { mann: 47, frau: 38 };
 const GEH_GRENZE = 90; // darunter Geh-Clip, darüber Lauf-Clip (Grundtempo = leichtes Joggen 100, Joggen erschöpft 125, Rennen 170)
 const SCHLAG_KLIPS = new Set(['hacken', 'spitzhacke', 'abbauen', 'hacke', 'nahkampf']); // Clips, die ein Werkzeug schwingen (figurHaltung legt es in die Hände)
 const HACK_ARBEIT = new Set(['holz', 'stein', 'eisenerz']);
+const AUFSCHLAG = { hacken: 0.5, spitzhacke: 0.48, abbauen: 0.48 }; // Runde 23: Treffer-Zeitpunkt je Werkzeug-Clip (Anteil)
 const SCHNITT_RADIUS = 0; // 0 = aus: kein Durchschauen durch Wände mehr (verdeckte Figur zeigt stattdessen die Silhouette)
 const SCHNITT_HOEHE = 10; // bis zu dieser Höhe bleiben aufgeschnittene Wände als Sockel stehen
 const ZIELHOEHE = 36; // Mausstrahl trifft diese Höhe (Brust) → Zielen fühlt sich richtig an
@@ -75,12 +76,13 @@ const KAMERA_VERSATZ = new THREE.Vector3(0, 540, 400); // etwas flacher als frü
 const SKINS = { normal: 'zombieMaleA', laeufer: 'zombieFemaleA', brocken: 'zombieMaleA' }; // Zombies; Spieler: aussehen.js
 const KOPF = { hoehe: 1.22, breite: 0.9, tiefe: 1.07 }; // Schädelmaße im Verhältnis zum Abstand Kopfknochen → Head_end (gemessen)
 const _wetterGrau = new THREE.Color();
+const _blitzFarbe = new THREE.Color(0.82, 0.86, 1);
 const _zenit = new THREE.Color();
 const _buffer = new THREE.Vector2();
 const _blick = new THREE.Vector3();
 const _wolkenFarbe = new THREE.Color();
-const NACHT_MOND = 0.13; // Mondlicht bei voller Dunkelheit (vorher 0,07)
-const NACHT_UMGEBUNG = 0.12; // Himmelslicht bei voller Dunkelheit (vorher 0,06)
+const NACHT_MOND = 0.1; // Mondlicht bei voller Dunkelheit (Runde 23: 0,13 → 0,1, düsterer)
+const NACHT_UMGEBUNG = 0.095; // Himmelslicht bei voller Dunkelheit (Runde 23: 0,12 → 0,095)
 const NACHT_EIGENLEUCHTEN = 0.4; // (Runde 18: 0,2 → 0,4, eigene Figur bleibt nachts erkennbar) Emissive-Stärke der Spieler-Figur bei voller Dunkelheit (nur Orientierung, kein echtes Licht)
 const TASCHENLAMPEN_ANSATZ = { vorn: 16, hoehe: 36 }; // Lichtkegel beginnt knapp vor der Brust (px vor der Körpermitte, Höhe über Boden)
 // So viele Kartenlampen leuchten gleichzeitig echt (die nächsten); jede echte Lichtquelle kostet in jedem Pixel → klein halten,
@@ -162,7 +164,7 @@ const EGO_SICHT_ZOOM = 1.35; // Sichtweite der Ich-Ansicht = Draufsicht bei dies
 const EGO_SICHT_FAKTOR = 1;
 /** Lichtfarben für Tag, Nacht und Dämmerung (siehe #tageslicht) */
 const TAG = { sonne: new THREE.Color(0xfff1dc), himmel: new THREE.Color(0xbfd8ff), boden: new THREE.Color(0x4a4636), hintergrund: new THREE.Color(0x9cc3e4), zenit: new THREE.Color(0x2f78e0), wolken: new THREE.Color(0xffffff) };
-const NACHT = { sonne: new THREE.Color(0x8aa0d8), himmel: new THREE.Color(0x1f2842), boden: new THREE.Color(0x0a0b0e), hintergrund: new THREE.Color(0x02030a), zenit: new THREE.Color(0x000105), wolken: new THREE.Color(0x0b0e18) };
+const NACHT = { sonne: new THREE.Color(0x7489c8), himmel: new THREE.Color(0x1f2842), boden: new THREE.Color(0x0a0b0e), hintergrund: new THREE.Color(0x02030a), zenit: new THREE.Color(0x000105), wolken: new THREE.Color(0x0b0e18) };
 const DAEMMERUNG = { sonne: new THREE.Color(0xff9a4d), hintergrund: new THREE.Color(0xe08a5a), zenit: new THREE.Color(0x5a5aa8), wolken: new THREE.Color(0xffb48a) };
 /** Himmel (himmel.js): Die Welt endet per Kamera-Ferne (Vielfaches des Kameraabstands) – darüber, am oberen Bildrand, beginnt der Himmel. */
 const BODEN_SPEICHER_MB = { pc: 512, handy: 192 }; // Grafikspeicher für die Bodentextur einer Zone (wird hinter dem Ladebild komplett hochgeladen)
@@ -285,6 +287,7 @@ export class Renderer {
     this.tiere = new Map(); // Tier-ID → { gruppe, aktualisiere }
     this.angelnde = new Map(); // Spieler-ID → Angel-Darstellung (Rute, Schnur, Pose)
     this.wetterEffekt = new WetterEffekt(this.szene); // Regen-Striche + weiche Übergänge für Nebel/Licht
+    this.aufschlaege = []; // Werkzeug-Treffer der Figuren in diesem Bild (#merkeAufschlag → clientSpiel: Hack-Sound)
     this.fahrZoom = 1; // Kamera geht beim Fahren etwas weiter weg
 
     // Adaptive Qualität (siehe QUALITAETS_STUFEN)
@@ -492,7 +495,7 @@ export class Renderer {
     this.karte.aktualisiereDurchsicht(dt, fokus.x, fokus.y, !this.egoHaken);
     this.natur?.aktualisiere(fokus, this.welt.bauwerkeVersion, !!this.egoHaken);
     const tuerAbstand = this.karte.aktualisiereTuerSchimmer(fokus);
-    this.blaetter?.aktualisiere(dt, fokus, jetzt, dunkel);
+    this.blaetter?.aktualisiere(dt, fokus, jetzt, dunkel, this.wetterEffekt.sturm);
     this.#aktualisiereFahrzeuge(entitaeten, fokus);
     this.#aktualisiereFiguren(entitaeten, fokus, dt, jetzt);
     this.egoHaken?.(this.kamera3d, fokus); // EGO-PROTOTYP (client/ego/, siehe EGO_PROTOTYP.md)
@@ -1367,6 +1370,7 @@ export class Renderer {
       }
       f.mixer.update(dt + (f.animRest ?? 0));
       f.animRest = 0;
+      this.#merkeAufschlag(f, e, name);
       if (f.waffe) f.waffe.visible = !e.tot;
       if (!schlaeft && !e.tot) aktualisiereHaltung(f, e, jetzt, this.dunkel ?? 0);
     }
@@ -1484,6 +1488,26 @@ export class Renderer {
     figur.klipHacken = !!(figur.knochen.rechts && figur.knochen.links);
     figur.klips = new Set(Object.keys(aktionen));
     return figur;
+  }
+
+  /**
+   * Runde 23: Aufschlag eines Werkzeug-Clips (Axt/Spitzhacke/Abbauen) erkannt → `this.aufschlaege` (clientSpiel spielt den
+   * Hack-Sound genau dann – Ton passt zur Animation und endet mit ihr). AUFSCHLAG = Anteil der Clipdauer, an dem das Werkzeug trifft
+   * (aus der Armgeschwindigkeit der Clips gemessen).
+   */
+  #merkeAufschlag(f, e, name) {
+    const anteil = AUFSCHLAG[name];
+    if (!f.survivor || anteil === undefined || !e.arbeit) {
+      f.schlagAnteil = undefined;
+      return;
+    }
+    const aktion = f.aktionen[name];
+    const jetzt = aktion.time / aktion.getClip().duration;
+    const vorher = f.schlagAnteil;
+    f.schlagAnteil = jetzt;
+    if (vorher === undefined) return;
+    const getroffen = vorher <= jetzt ? vorher < anteil && jetzt >= anteil : vorher < anteil || jetzt >= anteil;
+    if (getroffen) this.aufschlaege.push({ id: e.id, x: e.x, y: e.y, arbeit: e.arbeit, blick: e.blick });
   }
 
   /**
@@ -1816,6 +1840,18 @@ export class Renderer {
       // „nach dem Respawn sieht man nichts mehr“ war nachts bei Regen/Nebel)
       _wetterGrau.setRGB(0.6, 0.64, 0.7).multiplyScalar(0.02 + 0.98 * hell * hell);
       this.szene.background.lerp(_wetterGrau, 0.7 * stimmung);
+      this.szene.fog.color.copy(this.szene.background);
+    }
+    // Runde 23: Gewitter dunkler, Blitz hellt alles kurz bläulich-weiß auf
+    const { gewitter, blitz } = this.wetterEffekt;
+    if (gewitter > 0.001) {
+      this.mond.intensity *= 1 - 0.3 * gewitter * hell;
+      this.umgebung.intensity *= 1 - 0.12 * gewitter;
+    }
+    if (blitz > 0.001) {
+      this.umgebung.intensity += blitz * 2.4;
+      this.mond.intensity += blitz * 1.5;
+      this.szene.background.lerp(_blitzFarbe, 0.6 * blitz);
       this.szene.fog.color.copy(this.szene.background);
     }
     const dicht = Math.min(1, nebel + 0.35 * regen);

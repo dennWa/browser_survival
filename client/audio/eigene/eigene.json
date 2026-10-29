@@ -1,11 +1,156 @@
 {
+  "anziehen": {
+    "dateien": [
+      "anziehen_0.ogg",
+      "anziehen_1.ogg",
+      "anziehen_2.ogg"
+    ],
+    "lautstaerke": 0.6
+  },
+  "aufprall": {
+    "dateien": [
+      "aufprall_0.ogg",
+      "aufprall_1.ogg",
+      "aufprall_2.ogg",
+      "aufprall_3.ogg"
+    ],
+    "lautstaerke": 0.9
+  },
+  "baum_faellt": {
+    "dateien": [
+      "baum_faellt_0.ogg",
+      "baum_faellt_1.ogg"
+    ],
+    "lautstaerke": 1
+  },
+  "donner": {
+    "dateien": [
+      "donner_0.ogg",
+      "donner_1.ogg",
+      "donner_2.ogg",
+      "donner_3.ogg"
+    ],
+    "lautstaerke": 0.9
+  },
+  "donner_nah": {
+    "dateien": [
+      "donner_nah_0.ogg",
+      "donner_nah_1.ogg",
+      "donner_nah_2.ogg",
+      "donner_nah_3.ogg"
+    ],
+    "lautstaerke": 1.1
+  },
+  "eule": {
+    "dateien": [
+      "eule_0.ogg",
+      "eule_1.ogg",
+      "eule_2.ogg"
+    ],
+    "lautstaerke": 0.6
+  },
+  "fahrzeug_kaputt": {
+    "dateien": [
+      "fahrzeug_kaputt_0.ogg",
+      "fahrzeug_kaputt_1.ogg"
+    ],
+    "lautstaerke": 1
+  },
+  "felsen_bricht": {
+    "dateien": [
+      "felsen_bricht_0.ogg",
+      "felsen_bricht_1.ogg",
+      "felsen_bricht_2.ogg",
+      "felsen_bricht_3.ogg"
+    ],
+    "lautstaerke": 1
+  },
+  "hack_felsen": {
+    "dateien": [
+      "hack_felsen_0.ogg",
+      "hack_felsen_1.ogg",
+      "hack_felsen_2.ogg",
+      "hack_felsen_3.ogg",
+      "hack_felsen_4.ogg",
+      "hack_felsen_5.ogg"
+    ],
+    "lautstaerke": 0.8,
+    "streuung": 0.06
+  },
   "hack_holz": {
     "dateien": [
-      "hack_holz.ogg"
+      "hack_holz_0.ogg",
+      "hack_holz_1.ogg",
+      "hack_holz_2.ogg",
+      "hack_holz_3.ogg",
+      "hack_holz_4.ogg",
+      "hack_holz_5.ogg",
+      "hack_holz_6.ogg"
     ],
-    "lautstaerke": 1,
-    "maxDauer": 5,
-    "einmal": true
+    "lautstaerke": 0.8,
+    "streuung": 0.06
+  },
+  "hack_stein": {
+    "dateien": [
+      "hack_stein_0.ogg",
+      "hack_stein_1.ogg",
+      "hack_stein_2.ogg",
+      "hack_stein_3.ogg",
+      "hack_stein_4.ogg",
+      "hack_stein_5.ogg"
+    ],
+    "lautstaerke": 0.7,
+    "streuung": 0.06
+  },
+  "hase_flucht": {
+    "dateien": [
+      "hase_flucht_0.ogg",
+      "hase_flucht_1.ogg"
+    ],
+    "lautstaerke": 0.5,
+    "streuung": 0.08
+  },
+  "hase_schreck": {
+    "dateien": [
+      "hase_schreck_0.ogg",
+      "hase_schreck_1.ogg"
+    ],
+    "lautstaerke": 0.5,
+    "streuung": 0.1
+  },
+  "hase_tod": {
+    "dateien": [
+      "hase_tod_0.ogg"
+    ],
+    "lautstaerke": 0.6
+  },
+  "heulen": {
+    "dateien": [
+      "heulen_0.ogg",
+      "heulen_1.ogg",
+      "heulen_2.ogg"
+    ],
+    "lautstaerke": 0.35
+  },
+  "husten": {
+    "dateien": [
+      "husten_0.ogg",
+      "husten_1.ogg"
+    ],
+    "lautstaerke": 0.6
+  },
+  "keuchen": {
+    "dateien": [
+      "keuchen_0.ogg",
+      "keuchen_1.ogg"
+    ],
+    "lautstaerke": 0.6
+  },
+  "keuchen_frau": {
+    "dateien": [
+      "keuchen_frau_0.ogg"
+    ],
+    "lautstaerke": 0.6
   },
   "nachladen": {
     "dateien": [
@@ -14,17 +159,68 @@
     "lautstaerke": 1,
     "verzoegerung": 0.2
   },
+  "nacht_wind": {
+    "dateien": [
+      "nacht_wind.ogg"
+    ],
+    "lautstaerke": 0.5
+  },
+  "nacht": {
+    "dateien": [
+      "nacht.ogg"
+    ],
+    "lautstaerke": 0.6
+  },
   "pistole": {
     "dateien": [
       "pistole.ogg"
     ],
     "lautstaerke": 1
   },
+  "regen_stark": {
+    "dateien": [
+      "regen_stark.ogg"
+    ],
+    "lautstaerke": 1.2
+  },
   "regen": {
     "dateien": [
       "regen.ogg"
     ],
     "lautstaerke": 2
+  },
+  "schaden_frau": {
+    "dateien": [
+      "schaden_frau_0.ogg",
+      "schaden_frau_1.ogg",
+      "schaden_frau_2.ogg",
+      "schaden_frau_3.ogg",
+      "schaden_frau_4.ogg",
+      "schaden_frau_5.ogg"
+    ],
+    "lautstaerke": 0.8,
+    "streuung": 0.04
+  },
+  "schaden_mann": {
+    "dateien": [
+      "schaden_mann_0.ogg",
+      "schaden_mann_1.ogg",
+      "schaden_mann_2.ogg",
+      "schaden_mann_3.ogg",
+      "schaden_mann_4.ogg",
+      "schaden_mann_5.ogg",
+      "schaden_mann_6.ogg",
+      "schaden_mann_7.ogg",
+      "schaden_mann_8.ogg"
+    ],
+    "lautstaerke": 0.8,
+    "streuung": 0.04
+  },
+  "schneesturm": {
+    "dateien": [
+      "schneesturm.ogg"
+    ],
+    "lautstaerke": 0.9
   },
   "schritt_gras": {
     "dateien": [
@@ -38,43 +234,132 @@
     "lautstaerke": 0.5,
     "streuung": 0.08
   },
-  "zombie_angriff": {
+  "spieler_tod": {
     "dateien": [
-      "zombie_angriff_0.wav",
-      "zombie_angriff_1.wav",
-      "zombie_angriff_2.wav",
-      "zombie_angriff_3.wav"
+      "spieler_tod_0.ogg",
+      "spieler_tod_1.ogg",
+      "spieler_tod_2.ogg"
     ],
     "lautstaerke": 1
+  },
+  "spieler_tod_frau": {
+    "dateien": [
+      "spieler_tod_frau_0.ogg",
+      "spieler_tod_frau_1.ogg"
+    ],
+    "lautstaerke": 1
+  },
+  "stein_bricht": {
+    "dateien": [
+      "stein_bricht_0.ogg"
+    ],
+    "lautstaerke": 1
+  },
+  "sturm": {
+    "dateien": [
+      "sturm.ogg"
+    ],
+    "lautstaerke": 0.9
+  },
+  "tag": {
+    "dateien": [
+      "tag.ogg"
+    ],
+    "lautstaerke": 0.5
+  },
+  "ueberfahren": {
+    "dateien": [
+      "ueberfahren_0.ogg",
+      "ueberfahren_1.ogg",
+      "ueberfahren_2.ogg",
+      "ueberfahren_3.ogg",
+      "ueberfahren_4.ogg",
+      "ueberfahren_5.ogg"
+    ],
+    "lautstaerke": 1,
+    "streuung": 0.08
+  },
+  "vogel": {
+    "dateien": [
+      "vogel_0.ogg",
+      "vogel_1.ogg",
+      "vogel_2.ogg",
+      "vogel_3.ogg"
+    ],
+    "lautstaerke": 0.5,
+    "streuung": 0.05
+  },
+  "zittern": {
+    "dateien": [
+      "zittern_0.ogg",
+      "zittern_1.ogg",
+      "zittern_2.ogg"
+    ],
+    "lautstaerke": 0.6
+  },
+  "zombie_angriff": {
+    "dateien": [
+      "zombie_angriff_0.ogg",
+      "zombie_angriff_1.ogg",
+      "zombie_angriff_2.ogg",
+      "zombie_angriff_3.ogg",
+      "zombie_angriff_4.ogg",
+      "zombie_angriff_5.ogg",
+      "zombie_angriff_6.ogg",
+      "zombie_angriff_7.ogg",
+      "zombie_angriff_8.ogg",
+      "zombie_angriff_9.ogg"
+    ],
+    "lautstaerke": 1,
+    "streuung": 0.05
+  },
+  "zombie_ferne": {
+    "dateien": [
+      "zombie_ferne_0.ogg",
+      "zombie_ferne_1.ogg",
+      "zombie_ferne_2.ogg",
+      "zombie_ferne_3.ogg"
+    ],
+    "lautstaerke": 0.35
+  },
+  "zombie_schrei": {
+    "dateien": [
+      "zombie_schrei_0.ogg",
+      "zombie_schrei_1.ogg",
+      "zombie_schrei_2.ogg",
+      "zombie_schrei_3.ogg"
+    ],
+    "lautstaerke": 1,
+    "streuung": 0.05
   },
   "zombie_stoehnen": {
     "dateien": [
-      "zombie_stoehnen_0.wav",
-      "zombie_stoehnen_1.wav",
-      "zombie_stoehnen_2.wav"
+      "zombie_stoehnen_0.ogg",
+      "zombie_stoehnen_1.ogg",
+      "zombie_stoehnen_2.ogg",
+      "zombie_stoehnen_3.ogg",
+      "zombie_stoehnen_4.ogg",
+      "zombie_stoehnen_5.ogg",
+      "zombie_stoehnen_6.ogg",
+      "zombie_stoehnen_7.ogg"
     ],
-    "lautstaerke": 1,
-    "dateiPegel": {
-      "zombie_stoehnen_0.wav": 0.3,
-      "zombie_stoehnen_1.wav": 0.2,
-      "zombie_stoehnen_2.wav": 0.35
-    }
+    "lautstaerke": 0.8,
+    "streuung": 0.06
   },
   "zombie_tod": {
     "dateien": [
-      "zombie_tod_0.wav",
-      "zombie_tod_1.wav"
+      "zombie_tod_0.ogg",
+      "zombie_tod_1.ogg",
+      "zombie_tod_2.ogg",
+      "zombie_tod_3.ogg",
+      "zombie_tod_4.ogg"
     ],
-    "lautstaerke": 1
+    "lautstaerke": 0.9,
+    "streuung": 0.05
   },
   "wind": {
     "dateien": [],
     "lautstaerke": 0.05
-  },
-  "hase_flucht": {
-    "dateien": [],
-    "lautstaerke": 1,
-    "streuung": 0.06
   },
   "schritt_schnee": {
     "dateien": [],

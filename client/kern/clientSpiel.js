@@ -58,6 +58,7 @@ export class ClientSpiel {
     this.tutorialAnzeige = tutorial;
     this.eingabe = eingabe;
     this.renderer = renderer;
+    if (renderer?.wetterEffekt) renderer.wetterEffekt.beiBlitz = (staerke, nah) => this.#donner(staerke, nah); // Runde 23: Gewitter
     this.hud = hud;
     this.sound = sound;
     this.musik = musik; // Zonen-Musik (läuft über Zonenwechsel hinweg weiter, siehe audio/zonenMusik.js)
@@ -1030,7 +1031,9 @@ export class ClientSpiel {
         this.#kampfInDerNaehe(e);
         break;
       case 'tod':
-        this.sound.spiele(e.ziel === 'tier' ? 'hase_tod' : e.ziel === 'zombie' ? 'zombie_tod' : 'spieler_tod', { x: e.x, y: e.y }); // hase_tod: ohne eigene Datei lautlos
+        if (e.ziel === 'zombie') this.#zombieSound('zombie_tod', e);
+        else if (e.ziel === 'tier') this.sound.spiele('hase_tod', { x: e.x, y: e.y });
+        else this.sound.spiele(this.#istFrau(e.id) ? 'spieler_tod_frau' : 'spieler_tod', { x: e.x, y: e.y });
         break;
       case 'nahkampf':
         this.sound.spiele('nahkampf', { x: e.x, y: e.y });
@@ -1042,8 +1045,8 @@ export class ClientSpiel {
         this.sound.spiele(e.aufgebrochen ? 'tuer_bricht' : e.offen ? 'tuer_auf' : 'tuer_zu', { x: e.x, y: e.y });
         break;
       case 'hack':
-        // Holz: Hacken · Eisenerz: heller Klang (Sample) · Stein: dumpfes Pochen (kein Metallklang)
-        this.sound.spiele(e.art === 'holz' || e.art === 'zerlegen' ? 'hack_holz' : e.art === 'eisenerz' ? 'hack_stein' : 'hack_felsen', { x: e.x, y: e.y, tonhoehe: 0.9 + Math.random() * 0.2 });
+        // Runde 23: Hack-Geräusche kommen aus der Animation (renderer.aufschlaege → #aufschlagSounds), damit Ton und Schlag
+        // zusammenpassen und mit dem letzten Schlag enden. Das Server-Ereignis bleibt nur als Takt für Tests/Bots.
         break;
       case 'abgebaut':
         this.sound.spiele(e.art === 'holz' ? 'baum_faellt' : e.art === 'eisenerz' ? 'stein_bricht' : 'felsen_bricht', { x: e.x, y: e.y });
@@ -1064,7 +1067,11 @@ export class ClientSpiel {
         this.sound.spiele('aufprall', { x: e.x, y: e.y, lautstaerke: 0.6 });
         break;
       case 'aufprall':
-        this.sound.spiele('aufprall', { x: e.x, y: e.y, lautstaerke: Math.min(1, e.tempo / 250) });
+        // Runde 23: Zombie/Tier erwischt → matschiges Überfahren (+ dumpfer Schlag); sonst Blech-Crash je nach Tempo
+        if (e.ziel === 'zombie' || e.ziel === 'tier') {
+          this.sound.spiele('ueberfahren', { x: e.x, y: e.y, lautstaerke: Math.min(1, 0.5 + e.tempo / 300) });
+          this.sound.spiele('treffer_zombie', { x: e.x, y: e.y, lautstaerke: 0.6 });
+        } else this.sound.spiele('aufprall', { x: e.x, y: e.y, lautstaerke: Math.min(1, 0.25 + e.tempo / 250) });
         break;
       case 'gebaut':
         this.sound.spiele(e.bauwerk === 'beet' ? 'graben' : 'gebaut', { x: e.x, y: e.y });
@@ -1170,7 +1177,7 @@ export class ClientSpiel {
     else if (faellig('hunger', 20, 45)) this.sound.spiele('magen_knurren');
     if (d.durst >= 20) delete this.geraeuschUhr.durst;
     else if (faellig('durst', 20, 45)) this.sound.spiele('durst');
-    if (this.lokal.erschoepft && !this.warErschoepft) this.sound.spiele('keuchen');
+    if (this.lokal.erschoepft && !this.warErschoepft) this.sound.spiele(this.#istFrau(this.eigeneId) ? 'keuchen_frau' : 'keuchen');
     this.warErschoepft = !!this.lokal.erschoepft;
     const draussen = !this.lokal.fahrzeug && !this.welt.istInnen(this.lokal.x, this.lokal.y);
     const vogelWetter = this.wetter === 'klar' || this.wetter === 'nebel';
@@ -1180,7 +1187,54 @@ export class ClientSpiel {
       const r = 150 + Math.random() * 250;
       this.sound.spiele('vogel', { x: this.lokal.x + Math.cos(w) * r, y: this.lokal.y + Math.sin(w) * r, tonhoehe: 0.85 + Math.random() * 0.3 });
     }
-    if ((this.renderer.wetterEffekt?.regen ?? 0) > 0.5 && this.wetter === 'regen' && faellig('donner', 25, 70)) this.sound.spiele('donner', { lautstaerke: 0.5 + Math.random() * 0.5 });
+    // Runde 23: Donner kommt jetzt mit dem Blitz (wetterEffekt.beiBlitz → #donner). Nachts draußen: Eule, fernes Heulen,
+    // fernes Zombie-Stöhnen (Horror-Kulisse) – zufällig verteilt um den Spieler, leise und dumpf
+    const nacht = 1 - (uhr.helligkeit ?? 1);
+    const ruhigesWetter = !['regen', 'gewitter', 'sturm', 'schneesturm'].includes(this.wetter);
+    const irgendwo = (min, max) => {
+      const w = Math.random() * Math.PI * 2;
+      const r = min + Math.random() * (max - min);
+      return { x: this.lokal.x + Math.cos(w) * r, y: this.lokal.y + Math.sin(w) * r };
+    };
+    if (nacht > 0.5) {
+      if (ruhigesWetter && faellig('eule', 18, 55)) this.sound.spiele('eule', { ...irgendwo(350, 700), weite: 1100, kurve: 1.1 });
+      if (faellig('heulen', 70, 170)) this.sound.spiele('heulen', { ...irgendwo(800, 1000), weite: 1300, kurve: 1, lautstaerke: 0.8 });
+      if (faellig('zombieFerne', 30, 80)) this.sound.spiele('zombie_ferne', { ...irgendwo(650, 900), weite: 1200, kurve: 1, raeumlich: true, dumpf: true });
+    } else {
+      delete this.geraeuschUhr.eule;
+      delete this.geraeuschUhr.heulen;
+    }
+  }
+
+  /** Blitz (wetterEffekt): Donner verzögert wie in echt (Schall ist langsamer als Licht), nah = sofort & laut. */
+  #donner(staerke, nah) {
+    if (!this.sound) return;
+    const verzoegerung = nah ? 80 + Math.random() * 150 : 1200 + Math.random() * 3200;
+    setTimeout(() => this.sound?.spiele(nah ? 'donner_nah' : 'donner', { lautstaerke: nah ? 1 : 0.55 + staerke * 0.45 }), verzoegerung);
+  }
+
+  /** Spielt die Figur (Spieler-ID) eine Frau? (Schmerz-/Tod-/Keuch-Laute) */
+  #istFrau(id) {
+    if (id === this.eigeneId) return this.eigeneDaten?.aussehen?.koerper === 'frau';
+    const e = this.schnappschuesse[this.schnappschuesse.length - 1]?.entitaeten.get(id);
+    return e?.aussehen?.koerper === 'frau';
+  }
+
+  /** Zombie-Laut mit Richtung (HRTF) und Nähe; hinter Wänden dumpf. */
+  #zombieSound(name, z, lautstaerke = 1) {
+    const frei = sichtlinieFrei(this.welt, this.lokal.x, this.lokal.y, z.x, z.y);
+    this.sound.spiele(name, { x: z.x, y: z.y, lautstaerke, raeumlich: true, dumpf: !frei, weite: 780, kurve: 2, tonhoehe: ZOMBIE_TONHOEHE[z.variante] ?? 1 });
+  }
+
+  /** Runde 23: Werkzeug-Treffer aus der Animation (renderer.aufschlaege) → passender Hack-Sound am Ort des Schlags. */
+  #aufschlagSounds() {
+    const liste = this.renderer.aufschlaege;
+    if (!liste.length) return;
+    for (const a of liste) {
+      const name = a.arbeit === 'holz' || a.arbeit === 'zerlegen' ? 'hack_holz' : a.arbeit === 'eisenerz' ? 'hack_stein' : 'hack_felsen';
+      this.sound?.spiele(name, { x: a.x + Math.cos(a.blick ?? 0) * 20, y: a.y + Math.sin(a.blick ?? 0) * 20 });
+    }
+    liste.length = 0;
   }
 
   geraeuschUhr = {};
@@ -1218,21 +1272,36 @@ export class ClientSpiel {
     if (!this.sound || jetzt - this.letztesStoehnen < STOEHN_PAUSE_MS) return;
     const letzter = this.schnappschuesse[this.schnappschuesse.length - 1];
     if (!letzter) return;
+    // Runde 23: Zombie wechselt von ruhend auf Jagd → Schrei (räumlich), höchstens alle 2,5 s
+    if (letzter !== this.#zombieSchnappschuss) {
+      this.#zombieSchnappschuss = letzter;
+      const neu = new Map();
+      for (const z of letzter.entitaeten.values()) {
+        if (z.typ !== 'zombie' || z.tot) continue;
+        neu.set(z.id, z.zustand);
+        const vorher = this.#zombieZustand.get(z.id);
+        if (vorher === 'ruhend' && z.zustand !== 'ruhend' && jetzt - this.letzterSchrei > 2500 && Math.hypot(z.x - this.lokal.x, z.y - this.lokal.y) < 700) {
+          this.letzterSchrei = jetzt;
+          this.letztesStoehnen = jetzt;
+          this.#zombieSound('zombie_schrei', z);
+        }
+      }
+      this.#zombieZustand = neu;
+    }
     for (const z of letzter.entitaeten.values()) {
       if (z.typ !== 'zombie') continue;
       if (Math.hypot(z.x - this.lokal.x, z.y - this.lokal.y) > STOEHN_REICHWEITE) continue;
       const chance = z.zustand === 'ruhend' ? 0.003 : 0.012; // jagende Zombies sind lauter
       if (Math.random() > chance) continue;
       this.letztesStoehnen = jetzt;
-      this.sound.spiele(z.zustand === 'ruhend' ? 'zombie_stoehnen' : 'zombie_angriff', {
-        x: z.x,
-        y: z.y,
-        tonhoehe: ZOMBIE_TONHOEHE[z.variante] ?? 1,
-        lautstaerke: z.zustand === 'ruhend' ? 0.7 : 0.9,
-      });
+      this.#zombieSound(z.zustand === 'ruhend' ? 'zombie_stoehnen' : 'zombie_angriff', z, z.zustand === 'ruhend' ? 0.75 : 1);
       return;
     }
   }
+
+  #zombieZustand = new Map();
+  #zombieSchnappschuss = null;
+  letzterSchrei = 0;
 
   // ---------------------------------------------------------------------------
   // Darstellung
@@ -1272,7 +1341,8 @@ export class ClientSpiel {
     if (this.werkbankOffen && !this.#naheWerkbank()) this.werkbankUmschalten(false); // weggegangen → zu
     const uhr = tageszeit(this.serverZeit + (jetzt - this.zeitEmpfangen) / 1000, this.tageszeitDauer);
     // Nachtgeräusche (Grillen) nur draußen-unabhängig nach Dunkelheit, in 10-%-Stufen (Ereignis nacht); in Schneezonen keine Grillen
-    const nacht = this.welt.schnee ? 0 : Math.round((1 - (uhr.helligkeit ?? 1)) * 10) / 10;
+    const ruhig = !['regen', 'gewitter', 'sturm', 'schneesturm'].includes(this.wetter);
+    const nacht = this.welt.schnee || !ruhig ? 0 : Math.round((1 - (uhr.helligkeit ?? 1)) * 10) / 10; // Grillen nur bei ruhigem Wetter
     if (nacht !== this.letzteNachtStufe) {
       this.letzteNachtStufe = nacht;
       this.sound?.nacht(nacht);
@@ -1288,6 +1358,7 @@ export class ClientSpiel {
     }
     this.bau.aktualisiere();
     this.#abbauBalken();
+    this.#aufschlagSounds();
     this.#oberflaecheAktualisieren(eigen, jetzt);
     this.tutorialAnzeige?.frame(this, eigen, jetzt);
     this.renderer.zeichne({
@@ -1360,7 +1431,38 @@ export class ClientSpiel {
       this.letzterRegenTon = regen;
       this.sound?.regen(regen);
     }
+    this.#atmosphaereSchichten(jetzt);
   }
+
+  /**
+   * Runde 23: Wetter- und Tageszeit-Schichten (sound.schicht): Sturm, Schneesturm, Starkregen (Gewitter), Vogelkulisse am Tag,
+   * unheimlicher Nachtwind. Drinnen (Haus/Auto) gedämpft. Höchstens 4×/s neu berechnet.
+   */
+  #atmosphaereSchichten(jetzt) {
+    if (!this.sound || jetzt - (this.letzteSchichten ?? 0) < 250) return;
+    this.letzteSchichten = jetzt;
+    const w = this.renderer.wetterEffekt;
+    const uhr = tageszeit(this.serverZeit + (jetzt - this.zeitEmpfangen) / 1000, this.tageszeitDauer);
+    const hell = uhr.helligkeit ?? 1;
+    const drinnen = !!this.lokal.fahrzeug || this.welt.istInnen(this.lokal.x, this.lokal.y);
+    const daempfung = drinnen ? 0.4 : 1;
+    const schneesturm = this.wetter === 'schneesturm' || (this.welt.schnee && w.schnee > 0.1) ? w.sturm : 0;
+    const schichten = {
+      sturm: Math.max(0, w.sturm - schneesturm) * daempfung,
+      schneesturm: schneesturm * daempfung,
+      regen_stark: w.regen * w.gewitter * daempfung,
+      tag: !this.welt.schnee && !drinnen ? Math.max(0, (hell - 0.55) / 0.45) * (1 - Math.max(w.regen, w.sturm, w.nebel * 0.5)) : 0,
+      nacht_wind: Math.max(0, (0.55 - hell) / 0.55) * (1 - w.sturm) * daempfung,
+    };
+    for (const [name, wert] of Object.entries(schichten)) {
+      const r = Math.round(wert * 20) / 20;
+      if (this.#schichtStand[name] === r) continue;
+      this.#schichtStand[name] = r;
+      this.sound.schicht(name, r);
+    }
+  }
+
+  #schichtStand = {};
 
   /** Zombies, Tiere und Mitspieler im Umkreis (letzter Schnappschuss) für die Minikarte. */
   #minikartenPunkte() {

@@ -6,11 +6,8 @@
     "lautstaerke": 0.05
   },
   "hase_flucht": {
-    "streuung": 0.06
-  },
-  "hack_holz": {
-    "maxDauer": 5,
-    "einmal": true
+    "lautstaerke": 0.5,
+    "streuung": 0.08
   },
   "nachladen": {
     "verzoegerung": 0.2
@@ -22,11 +19,109 @@
     "lautstaerke": 0.5,
     "streuung": 0.08
   },
+  "sturm": {
+    "lautstaerke": 0.9
+  },
+  "schneesturm": {
+    "lautstaerke": 0.9
+  },
+  "nacht_wind": {
+    "lautstaerke": 0.5
+  },
+  "regen_stark": {
+    "lautstaerke": 1.2
+  },
+  "tag": {
+    "lautstaerke": 0.5
+  },
+  "nacht": {
+    "lautstaerke": 0.6
+  },
+  "vogel": {
+    "lautstaerke": 0.5,
+    "streuung": 0.05
+  },
+  "eule": {
+    "lautstaerke": 0.6
+  },
+  "heulen": {
+    "lautstaerke": 0.35
+  },
+  "donner": {
+    "lautstaerke": 0.9
+  },
+  "donner_nah": {
+    "lautstaerke": 1.1
+  },
   "zombie_stoehnen": {
-    "dateiPegel": {
-      "zombie_stoehnen_0.wav": 0.3,
-      "zombie_stoehnen_1.wav": 0.2,
-      "zombie_stoehnen_2.wav": 0.35
-    }
+    "lautstaerke": 0.8,
+    "streuung": 0.06
+  },
+  "zombie_angriff": {
+    "lautstaerke": 1.0,
+    "streuung": 0.05
+  },
+  "zombie_schrei": {
+    "lautstaerke": 1.0,
+    "streuung": 0.05
+  },
+  "zombie_tod": {
+    "lautstaerke": 0.9,
+    "streuung": 0.05
+  },
+  "zombie_ferne": {
+    "lautstaerke": 0.35
+  },
+  "hack_holz": {
+    "lautstaerke": 0.8,
+    "streuung": 0.06
+  },
+  "hack_felsen": {
+    "lautstaerke": 0.8,
+    "streuung": 0.06
+  },
+  "hack_stein": {
+    "lautstaerke": 0.7,
+    "streuung": 0.06
+  },
+  "ueberfahren": {
+    "lautstaerke": 1.0,
+    "streuung": 0.08
+  },
+  "aufprall": {
+    "lautstaerke": 0.9
+  },
+  "fahrzeug_kaputt": {
+    "lautstaerke": 1.0
+  },
+  "schaden_mann": {
+    "lautstaerke": 0.8,
+    "streuung": 0.04
+  },
+  "schaden_frau": {
+    "lautstaerke": 0.8,
+    "streuung": 0.04
+  },
+  "keuchen": {
+    "lautstaerke": 0.6
+  },
+  "keuchen_frau": {
+    "lautstaerke": 0.6
+  },
+  "zittern": {
+    "lautstaerke": 0.6
+  },
+  "husten": {
+    "lautstaerke": 0.6
+  },
+  "hase_schreck": {
+    "lautstaerke": 0.5,
+    "streuung": 0.1
+  },
+  "hase_tod": {
+    "lautstaerke": 0.6
+  },
+  "anziehen": {
+    "lautstaerke": 0.6
   }
 }

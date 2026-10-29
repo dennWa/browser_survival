@@ -50,7 +50,7 @@ const schritt = (text) => {
 };
 const pruefe = (ok, text) => (ok ? schritt(text) : fehler.push(`Prüfung: ${text}`));
 
-const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
 try {
   const seite = await browser.newPage({ viewport: { width: 1100, height: 680 } });
   seite.on('pageerror', (e) => fehler.push(`pageerror: ${e.message}`));
@@ -195,6 +195,72 @@ try {
       await seite.waitForTimeout(600);
       await bild('2_baum_plus');
       schritt('„+N“-Popup nach dem Fällen');
+    }
+  }
+
+  // ---------------------------------------------------------------- Phase 3 (Wetter) + 4/5 (Audio)
+  if (phaseAn(3) || phaseAn(4)) {
+    // Sounds aus dem Netz geladen (eigene Dateien haben Vorrang)?
+    await seite.waitForTimeout(2500);
+    const quellen = await seite.evaluate(() => {
+      const s = browserSurvival.spiel.sound;
+      return Object.fromEntries(['sturm', 'schneesturm', 'regen_stark', 'tag', 'nacht', 'donner', 'donner_nah', 'zombie_schrei', 'zombie_angriff', 'zombie_tod', 'hack_holz', 'hack_felsen', 'hack_stein', 'ueberfahren', 'aufprall', 'eule', 'zaehneklappern'].map((n) => [n, s?.quelleVon(n)]));
+    });
+    const fehlt = Object.entries(quellen).filter(([n, q]) => q !== 'eigen' && !(n === 'zaehneklappern' && q === 'synth'));
+    pruefe(fehlt.length === 0, `Sounds geladen (${fehlt.map(([n, q]) => `${n}:${q}`).join(', ') || 'alle eigen'})`);
+    for (const art of ['gewitter', 'sturm']) {
+      await seite.evaluate((a) => browserSurvival.wetter(a), art);
+      await seite.waitForTimeout(4500);
+      if (art === 'gewitter') {
+        await seite.evaluate(() => {
+          const w = browserSurvival.spiel.renderer.wetterEffekt;
+          const alt = w.beiBlitz;
+          w.blitzZaehler = 0;
+          w.beiBlitz = (...a) => {
+            w.blitzZaehler++;
+            alt?.(...a);
+          };
+          w.gewitter = 1;
+          w.naechsterBlitz = 0;
+        });
+        await seite.waitForTimeout(1500);
+        pruefe(await seite.evaluate(() => browserSurvival.spiel.renderer.wetterEffekt.blitzZaehler > 0), 'Gewitter: Blitz (+ Donner-Haken)');
+      }
+      const w = await seite.evaluate(() => {
+        const e = browserSurvival.spiel.renderer.wetterEffekt;
+        return { art: e.art, regen: e.regen, sturm: e.sturm, wind: e.windStufe };
+      });
+      pruefe(w.art === art && (art !== 'sturm' || w.sturm > 0.5), `Wetter ${art} (${JSON.stringify(w, (k, v) => (typeof v === 'number' ? Math.round(v * 100) / 100 : v))})`);
+      await bild(`3_wetter_${art}`);
+    }
+    await zone('schneeland');
+    await seite.evaluate(() => browserSurvival.wetter('schneesturm'));
+    await seite.waitForTimeout(4500);
+    pruefe(await seite.evaluate(() => browserSurvival.spiel.renderer.wetterEffekt.art === 'schneesturm' && browserSurvival.spiel.renderer.wetterEffekt.schnee > 0.1), 'Schneesturm: Schnee fällt');
+    await bild('3_wetter_schneesturm');
+    await seite.evaluate(() => browserSurvival.wetter('klar'));
+    await zone('stadtrand');
+    // Holzhacken: Hack-Sound kommt aus der Animation (renderer.aufschlaege)
+    const baum = await seite.evaluate(() => {
+      const ich = browserSurvival.spiel.lokal;
+      const r = browserSurvival.spiel.welt.ressourcen.filter((r) => r.art === 'holz' && browserSurvival.spiel.welt.istRessourceDa(r.id)).sort((a, b) => Math.hypot(a.x - ich.x, a.y - ich.y) - Math.hypot(b.x - ich.x, b.y - ich.y))[0];
+      return r ? { x: r.x, y: r.y } : null;
+    });
+    if (baum) {
+      await seite.evaluate(({ x, y }) => browserSurvival.tp((x + 30) / 32, y / 32), baum);
+      await seite.waitForTimeout(1200);
+      await seite.evaluate(() => {
+        const r = browserSurvival.spiel.renderer;
+        r.aufschlagZaehler = 0;
+        const alt = r.aufschlaege.push.bind(r.aufschlaege);
+        r.aufschlaege.push = (...a) => {
+          r.aufschlagZaehler++;
+          return alt(...a);
+        };
+      });
+      await seite.keyboard.press('KeyE');
+      await seite.waitForTimeout(4000);
+      pruefe((await seite.evaluate(() => browserSurvival.spiel.renderer.aufschlagZaehler)) > 0, 'Axt-Schläge aus der Animation erkannt (Hack-Sound synchron)');
     }
   }
 

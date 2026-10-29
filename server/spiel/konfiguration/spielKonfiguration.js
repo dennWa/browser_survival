@@ -127,14 +127,16 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     munition: { munition_9mm: 3, munition_12: 1 }, // Gewichte; Stückzahl siehe munitionMenge
     munitionMenge: [3, 8],
   },
-  /** Wetter: wechselt zufällig zwischen klar, Regen und Nebel (Dauer 1–5 Minuten). Regen halbiert die Wachstumszeit. */
+  /** Wetter: wechselt zufällig zwischen klar, Regen, Gewitter, Sturm und Nebel (Dauer 1–5 Minuten). Regen halbiert die Wachstumszeit. */
   wetter: {
     aktiv: true,
     dauerMin: 60,
     dauerMax: 300,
     pauseMin: 90,
     pauseMax: 420,
-    regenAnteil: 0.6, // Rest Nebel
+    regenAnteil: 0.6, // Anteil Niederschlag (Regen/Schnee), Rest Nebel bzw. Sturm
+    gewitterAnteil: 0.3, // vom Niederschlag: Gewitter (Schneezonen: Schneesturm)
+    sturmAnteil: 0.35, // vom Rest: Sturm statt Nebel
   },
   kampf: {
     pvp: false, // Spieler können sich gegenseitig verletzen

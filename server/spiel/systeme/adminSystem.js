@@ -4,7 +4,7 @@ import { GEGENSTAENDE } from '../konfiguration/gegenstaende.js';
 import { erzeugeZombie, waehleZombieVariante } from '../entitaeten/zombie.js';
 import { fuegeZumInventarHinzu } from './inventarSystem.js';
 import { toeten } from './kampfSystem.js';
-import { niederschlag, setzeWetter } from './wetterSystem.js';
+import { setzeWetter, wetterDerZone } from './wetterSystem.js';
 import { entferneFlagge } from './territoriumSystem.js';
 import { spuleZeitVor } from './arbeitSystem.js';
 
@@ -109,8 +109,9 @@ export function fuehreAdminBefehlAus(spielWelt, spieler, befehl) {
       break;
     }
     case ADMIN_BEFEHLE.WETTER: {
-      const nass = niederschlag(spielWelt);
-      const naechstes = { klar: nass, [nass]: 'nebel', nebel: 'klar' }[spielWelt.wetter.art] ?? 'klar';
+      // Runde 23: klar → Regen/Schnee → Gewitter/Schneesturm → Sturm → Nebel → klar
+      const arten = wetterDerZone(spielWelt);
+      const naechstes = arten[(arten.indexOf(spielWelt.wetter.art) + 1) % arten.length];
       setzeWetter(spielWelt, naechstes, 120);
       spielWelt.melde(spieler.id, `Wetter: ${naechstes}`);
       break;

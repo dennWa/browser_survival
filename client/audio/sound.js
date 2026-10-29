@@ -5,7 +5,10 @@
  * Einstellungen je Ereignis: lautstaerke (Faktor, alle Quellen), streuung (± Tonhöhe je Abspielen), loop.
  *
  * Räumlicher Klang: Lautstärke nimmt mit der Entfernung zum Hörer (eigener Spieler) ab,
- * links/rechts per Stereo-Panning.
+ * links/rechts per Stereo-Panning. Runde 23: ferne Geräusche klingen dumpfer (Tiefpass nach Entfernung), `dumpf` = hinter
+ * Wänden (stärkerer Tiefpass), `raeumlich` = 3D-Richtung per HRTF-Panner (Zombies: vorne/hinten/links/rechts mit Kopfhörer),
+ * `weite` = eigene Hörweite. Wetter-/Tageszeit-Schichten (sturm, schneesturm, regen_stark, tag, nacht_wind) laufen als
+ * Schleifen über `schicht(name, staerke)` (nur mit eigener Datei).
  *
  *
  * Browser erlauben Ton erst nach einer Nutzeraktion → entsperren() beim Login-Klick aufrufen.
@@ -193,6 +196,7 @@ export class Sound {
 
   /** Eigene Datei für eine laufende Schleife nachgeladen → mit der Datei neu starten */
   #schleifeNeu(name) {
+    if (this.#schichtStaerke.has(name) && !this.#schichten.has(name)) this.schicht(name, this.#schichtStaerke.get(name));
     if (name === 'wind' && this.#wind?.synth) {
       this.stoppeAtmosphaere({ ohneRegen: true });
       this.starteAtmosphaere();
@@ -231,7 +235,7 @@ export class Sound {
    * Spielt ein Geräusch. Ohne x/y: direkt "im Kopf" (eigene Aktionen).
    * @param optionen { x, y, lautstaerke = 1, tonhoehe = 1 }
    */
-  spiele(name, { x, y, lautstaerke = 1, tonhoehe = 1 } = {}) {
+  spiele(name, { x, y, lautstaerke = 1, tonhoehe = 1, dumpf = false, raeumlich = false, weite = HOERWEITE, kurve = 1.6 } = {}) {
     const ctx = this.#ctx;
     const rezept = REZEPTE[name];
     const proben = this.#proben[name];
@@ -242,13 +246,20 @@ export class Sound {
     const streuung = this.#streuung[name] ?? 0;
     const zufallsTon = () => 1 + (Math.random() * 2 - 1) * streuung;
     let pan = 0;
+    let dx = 0;
+    let dy = 0;
+    let tiefpass = 0; // 0 = kein Filter, sonst Grenzfrequenz (Hz)
     if (x !== undefined) {
-      const dx = x - this.#hoerer.x;
-      const dy = y - this.#hoerer.y;
+      dx = x - this.#hoerer.x;
+      dy = y - this.#hoerer.y;
       const abstand = Math.hypot(dx, dy);
-      if (abstand > HOERWEITE) return;
-      gain *= (1 - abstand / HOERWEITE) ** 1.6;
+      if (abstand > weite) return;
+      const nah = 1 - abstand / weite;
+      gain *= nah ** kurve;
       pan = Math.max(-1, Math.min(1, dx / 450));
+      // Ferne klingt dumpfer (Luft schluckt Höhen), hinter Wänden noch mehr
+      if (abstand > 120) tiefpass = 900 + 16000 * nah * nah;
+      if (dumpf) tiefpass = Math.min(tiefpass || 20000, 650 + 900 * nah);
     }
     if (gain < 0.01) return;
 
@@ -265,10 +276,33 @@ export class Sound {
       quelle.stop(beginn + maxDauer + 0.08);
     };
     let ziel = lautstaerkeKnoten;
-    if (ctx.createStereoPanner) {
+    if (tiefpass > 0 && tiefpass < 18000) {
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = tiefpass;
+      ziel.connect(filter);
+      ziel = filter;
+    }
+    if (raeumlich && x !== undefined && ctx.createPanner) {
+      // HRTF: Richtung (auch vorne/hinten) – Hörer schaut „nach oben“ auf dem Bildschirm (-z); Lautstärke rechnen wir selbst (rolloff 0)
+      const panner = ctx.createPanner();
+      panner.panningModel = 'HRTF';
+      panner.distanceModel = 'linear';
+      panner.rolloffFactor = 0;
+      const p = panner.positionX ? panner : null;
+      const px = dx / 120;
+      const pz = dy / 120;
+      if (p) {
+        p.positionX.value = px;
+        p.positionY.value = 0;
+        p.positionZ.value = pz;
+      } else panner.setPosition?.(px, 0, pz);
+      ziel.connect(panner);
+      ziel = panner;
+    } else if (ctx.createStereoPanner) {
       const panner = ctx.createStereoPanner();
       panner.pan.value = pan;
-      lautstaerkeKnoten.connect(panner);
+      ziel.connect(panner);
       ziel = panner;
     }
     ziel.connect(this.#effekte);
@@ -282,7 +316,7 @@ export class Sound {
       this.#letzteEigene[name] = i;
       const quelle = ctx.createBufferSource();
       quelle.buffer = eigene[i];
-      if (streuung) quelle.playbackRate.value = zufallsTon();
+      if (streuung || tonhoehe !== 1) quelle.playbackRate.value = tonhoehe * (streuung ? zufallsTon() : 1); // tonhoehe z. B. Boss-Zombie tiefer
       const dateiGain = this.#dateiPegel.get(eigene[i]);
       if (dateiGain !== undefined) {
         const dateiKnoten = ctx.createGain();
@@ -463,6 +497,7 @@ export class Sound {
     if (ohneRegen) return;
     this.regen(0);
     this.nacht(0);
+    for (const name of [...this.#schichten.keys()]) this.schicht(name, 0, 0.5);
   }
 
   /**
@@ -511,6 +546,37 @@ export class Sound {
 
   #regenStaerke = 0;
   #nachtStaerke = 0;
+  #schichten = new Map(); // Name → { quelle, gain } (laufende Wetter-/Tageszeit-Schleifen)
+  #schichtStaerke = new Map(); // Name → zuletzt gewünschte Stärke (startet nach, wenn die Datei später geladen ist)
+
+  /**
+   * Runde 23: Atmosphäre-Schicht als Schleife aus der eigenen Datei (sturm, schneesturm, regen_stark, tag, nacht_wind):
+   * staerke 0 = aus … 1 = voll; blendet weich (zeit s). Ohne Datei passiert nichts.
+   */
+  schicht(name, staerke, zeit = 1.8) {
+    const ctx = this.#ctx;
+    staerke = Math.max(0, Math.min(1, staerke || 0));
+    this.#schichtStaerke.set(name, staerke);
+    if (!ctx || ctx.state !== 'running') return;
+    let s = this.#schichten.get(name);
+    if (!s) {
+      if (staerke <= 0.001) return;
+      const quelle = this.#eigeneSchleife(name);
+      if (!quelle) return;
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      quelle.connect(gain).connect(this.#atmoBus);
+      // zufälliger Einstieg in die Schleife, damit es nicht jedes Mal gleich beginnt
+      quelle.start(0, Math.random() * (quelle.buffer?.duration ?? 0));
+      s = { quelle, gain };
+      this.#schichten.set(name, s);
+    }
+    s.gain.gain.setTargetAtTime(staerke * (this.#eigenePegel[name] ?? 1), ctx.currentTime, zeit / 3);
+    if (staerke <= 0.001) {
+      this.#schichten.delete(name);
+      setTimeout(() => s.quelle.stop(), zeit * 2500);
+    }
+  }
 
   /**
    * Nachtgeräusche (Grillen, Atmosphäre-Bus): staerke 0 = Tag … 1 = tiefe Nacht; blendet langsam ein/aus.
@@ -581,6 +647,27 @@ export class Sound {
 const REZEPTE = {
   pistole: (k) => schuss(k, { dauer: 0.22, hell: 5200, dumpf: 700, druck: 120, lautstaerke: 0.9 }),
   schrotflinte: (k) => schuss(k, { dauer: 0.42, hell: 3200, dumpf: 380, druck: 85, lautstaerke: 1.25 }),
+  // Runde 23: Zähneklappern bei Kälte (immer synthetisch; der Atem dazu kommt als Datei „zittern“): schnelle, unregelmäßige Klicks
+  zaehneklappern: ({ ctx, ausgang, t, rauschen }) => {
+    const dauer = 0.9 + Math.random() * 0.5;
+    let z = t;
+    while (z < t + dauer) {
+      const q = ctx.createBufferSource();
+      q.buffer = rauschen;
+      const f = ctx.createBiquadFilter();
+      f.type = 'bandpass';
+      f.frequency.value = 2400 + Math.random() * 1600;
+      f.Q.value = 9;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, z);
+      g.gain.linearRampToValueAtTime(0.35 + Math.random() * 0.25, z + 0.002);
+      g.gain.exponentialRampToValueAtTime(0.001, z + 0.018);
+      q.connect(f).connect(g).connect(ausgang);
+      q.start(z, Math.random() * 1.5, 0.03);
+      z += 0.045 + Math.random() * 0.035;
+    }
+    return dauer + 0.05;
+  },
   leer: ({ ctx, ausgang, t }) => {
     klick(ctx, ausgang, t, 2200, 0.25);
     return 0.05;

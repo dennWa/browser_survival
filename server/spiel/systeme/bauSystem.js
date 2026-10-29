@@ -7,7 +7,7 @@ import { fuegeZumInventarHinzu, legeAufBoden, nutzeWerkzeug, verbrauche } from '
 import { aktualisiereStation, aktualisiereStationen, leerePlaetze, oeffneStation } from './stationSystem.js';
 import { toeten } from './kampfSystem.js';
 import { aktualisiereKisten, leererKistenInhalt, oeffneKiste } from './kistenSystem.js';
-import { WACHSTUM_REGEN_FAKTOR } from './wetterSystem.js';
+import { WACHSTUM_REGEN_FAKTOR, regnet } from './wetterSystem.js';
 
 /**
  * Bauwerke (Werkbank, Lagerfeuer, Falle, Beet; Basisbau-Teile werden von basisbauSystem.js gesetzt) – Regeln & Daten:
@@ -139,7 +139,7 @@ export function feuer(spielWelt, spieler) {
       spielWelt.melde(spieler.id, 'Du brauchst ein Feuerzeug');
       return true;
     }
-    if (spielWelt.wetter?.art === 'regen') {
+    if (regnet(spielWelt.wetter?.art)) {
       spielWelt.melde(spieler.id, 'Bei Regen brennt nichts');
       return true;
     }
@@ -240,14 +240,14 @@ export function aktualisiereBauwerke(spielWelt, dt, spielSekunden = dt) {
   if (dt > 0) aktualisiereKisten(spielWelt);
   if (dt > 0) aktualisiereStationen(spielWelt);
   if (welt.bauwerke.size === 0) return;
-  const wachstumFaktor = spielWelt.wetter?.art === 'regen' ? WACHSTUM_REGEN_FAKTOR : 1;
+  const wachstumFaktor = regnet(spielWelt.wetter?.art) ? WACHSTUM_REGEN_FAKTOR : 1;
   const k = spielWelt.konfiguration.bauen;
   const zyklus = spielWelt.konfiguration.welt.tagSekunden + spielWelt.konfiguration.welt.nachtSekunden;
   for (const b of welt.bauwerke.values()) {
     if (b.typ === 'lagerfeuer' || b.typ === 'schmelzofen') {
       if (b.typ === 'lagerfeuer' && b.brennt) {
         b.brennRest -= dt;
-        const regen = spielWelt.wetter?.art === 'regen';
+        const regen = regnet(spielWelt.wetter?.art);
         if (b.brennRest <= 0 || regen) {
           Object.assign(b, { brennt: false, brennRest: 0 });
           welt.setzeBauwerk(b);

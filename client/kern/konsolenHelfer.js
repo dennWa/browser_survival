@@ -1,4 +1,5 @@
 import { fuegeZumInventarHinzu, legeAufBoden } from '../../server/spiel/systeme/inventarSystem.js';
+import { setzeWetter } from '../../server/spiel/systeme/wetterSystem.js';
 
 /**
  * Helfer für die Browser-Konsole (nur Lokal-Modus, der Server läuft dann im Tab) – zum Testen & Ausprobieren:
@@ -9,6 +10,7 @@ import { fuegeZumInventarHinzu, legeAufBoden } from '../../server/spiel/systeme/
  *   browserSurvival.ich()               eigene Spieler-Entität auf dem Server (zum Ändern: .leben = 1 …)
  *   browserSurvival.welt()              die SpielWelt der eigenen Zone
  *   browserSurvival.zone('waldweg')     sofort in eine andere Zone wechseln (Ankunft optional: zone('waldweg', 'sued'))
+ *   browserSurvival.wetter('gewitter')  Wetter der Zone setzen (klar regen gewitter sturm nebel schnee schneesturm), 5 min
  * Auch genutzt von den Playwright-Skripten in werkzeuge/test/.
  */
 export function konsolenHelfer({ spiel, server }) {
@@ -40,6 +42,11 @@ export function konsolenHelfer({ spiel, server }) {
       const s = ich();
       if (!s) return ohneServer();
       s.zonenwechsel = { ziel, ankunft, name: ziel };
+    },
+    wetter(art, sekunden = 300) {
+      const w = welt();
+      if (!w) return ohneServer();
+      setzeWetter(w, art, sekunden);
     },
     zeit(stunde) {
       const w = welt();

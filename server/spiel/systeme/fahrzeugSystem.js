@@ -192,7 +192,7 @@ function fahreTiereUeber(spielWelt, fz) {
   const fahrer = fz.fahrerId !== null ? spielWelt.holen(fz.fahrerId) : null;
   for (const t of [...spielWelt.alleVomTyp('tier')]) {
     if (abstandZumFahrzeug(fz, t.x, t.y) > t.radius + 4) continue;
-    spielWelt.ereignis({ typ: 'aufprall', x: t.x, y: t.y, tempo: 70 });
+    spielWelt.ereignis({ typ: 'aufprall', x: t.x, y: t.y, tempo: 70, ziel: 'tier' });
     toeten(spielWelt, t, fahrer);
   }
 }
@@ -205,7 +205,7 @@ function fahreZombiesAn(spielWelt, fz) {
     if (abstandZumFahrzeug(fz, z.x, z.y) > z.radius + 2) continue;
     fz.treffer.set(z.id, 0.6);
     const schaden = Math.abs(fz.tempo) * ANFAHR_SCHADEN;
-    spielWelt.ereignis({ typ: 'aufprall', x: z.x, y: z.y, tempo: Math.abs(fz.tempo) });
+    spielWelt.ereignis({ typ: 'aufprall', x: z.x, y: z.y, tempo: Math.abs(fz.tempo), ziel: 'zombie' }); // ziel → Client: Matsch-Sound
     fuegeSchadenZu(spielWelt, z, schaden, fahrer, fz.winkel + (fz.tempo < 0 ? Math.PI : 0), { ohneXp: true }); // Roadkill bringt 0 XP
     fz.tempo *= 0.8;
     schlageFahrzeug(spielWelt, fz, spielWelt.konfiguration.fahrzeug.ueberfahrSchaden);

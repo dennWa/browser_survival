@@ -91,3 +91,39 @@ test('Schlafen: zweite AKTION schlafen (Esc) lässt aufstehen', () => {
   aktion(welt, spieler, { art: AKTIONEN.SCHLAFEN });
   assert.equal(spieler.arbeit, null);
 });
+
+test('Wetter: Gewitter, Sturm, Nebel, Regen kommen vor; Gewitter löscht Feuer wie Regen', async () => {
+  const { regnet, wetterDerZone, WETTER_ARTEN } = await import('../server/spiel/systeme/wetterSystem.js');
+  const { welt } = neueWelt({ wetter: { aktiv: true, dauerMin: 1, dauerMax: 2, pauseMin: 1, pauseMax: 2 } });
+  const gesehen = new Set();
+  for (let i = 0; i < 30 * 600; i++) {
+    welt.aktualisiere(TICK_DAUER_S);
+    gesehen.add(welt.wetter.art);
+  }
+  for (const art of ['klar', 'regen', 'gewitter', 'sturm', 'nebel']) assert.ok(gesehen.has(art), `${art} (${[...gesehen]})`);
+  assert.ok(!gesehen.has('schnee') && !gesehen.has('schneesturm'));
+  assert.ok(regnet('gewitter') && regnet('regen') && !regnet('sturm') && !regnet('schneesturm'));
+  assert.deepEqual(wetterDerZone(welt), ['klar', 'regen', 'gewitter', 'sturm', 'nebel']);
+  assert.ok(WETTER_ARTEN.includes('schneesturm'));
+  welt.welt.schnee = true;
+  assert.deepEqual(wetterDerZone(welt), ['klar', 'schnee', 'schneesturm', 'sturm', 'nebel']);
+});
+
+test('Admin „Wetter wechseln“ schaltet alle Arten der Zone durch', async () => {
+  const { ADMIN_BEFEHLE } = await import('../gemeinsam/protokoll.js');
+  const { welt, spieler } = neueWelt({ wetter: { aktiv: true, pauseMin: 9999, pauseMax: 9999 } });
+  spieler.admin = true;
+  welt.wetter = { art: 'klar', rest: 9999 };
+  const folge = [];
+  for (let i = 0; i < 5; i++) {
+    aktion(welt, spieler, { art: AKTIONEN.ADMIN, befehl: ADMIN_BEFEHLE.WETTER });
+    folge.push(welt.wetter.art);
+  }
+  assert.deepEqual(folge, ['regen', 'gewitter', 'sturm', 'nebel', 'klar']);
+});
+
+test('Überfahren: Aufprall-Ereignis trägt das Ziel (Matsch-Sound im Client)', async () => {
+  const quelle = await import('node:fs').then((fs) => fs.readFileSync(new URL('../server/spiel/systeme/fahrzeugSystem.js', import.meta.url), 'utf8'));
+  assert.match(quelle, /ziel: 'zombie'/);
+  assert.match(quelle, /ziel: 'tier'/);
+});

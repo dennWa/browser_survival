@@ -3,15 +3,17 @@ import * as THREE from 'three';
 /**
  * Wetter (Darstellung): Regen = fallende Striche rund um den Spieler, Schnee = langsam taumelnde Flocken (nur Schneezonen,
  * lautlos), Nebel = dichterer Nebel + graue Stimmung.
- * Der Server schickt nur die Art ('klar' | 'regen' | 'schnee' | 'nebel', ZUSTAND.wetter); hier blenden sich die Werte weich
- * über (regen/nebel 0..1 → Renderer: Nebelweite, Lichtstärke, Himmelsfarbe, Regen-Ton).
+ * Der Server schickt nur die Art ('klar' | 'regen' | 'gewitter' | 'sturm' | 'nebel' | 'schnee' | 'schneesturm', ZUSTAND.wetter);
+ * hier blenden sich die Werte weich über (regen/nebel/schnee/sturm/gewitter 0..1 → Renderer: Nebelweite, Lichtstärke,
+ * Himmelsfarbe, Ton). Runde 23: Gewitter = dichter, schräger Regen + Blitze (`blitz` 0..1, Haken `beiBlitz(staerke, nah)` →
+ * Donner im clientSpiel), Sturm = starker Wind (Bäume, schräger Niederschlag), Schneesturm = dichter, waagerecht treibender Schnee.
  */
-const TROPFEN = 650;
+const TROPFEN = 1200; // bei normalem Regen nur ~55 % sichtbar (uAnteil), bei Gewitter alle
 const RADIUS = 760; // px um den Fokus, in denen es regnet (Kamera sieht ~±900 px)
 const HOEHE = 520;
 const LAENGE = 15;
 const BLENDE_PRO_SEKUNDE = 0.35;
-const FLOCKEN = 900;
+const FLOCKEN = 1700; // normaler Schneefall ~50 %, Schneesturm alle
 const FLOCKEN_HOEHE = 480;
 
 // Der Regen fällt komplett auf der Grafikkarte (Position aus Zeit + Zufallswerten): kein Puffer-Upload, keine Schleife pro Frame.
@@ -21,9 +23,11 @@ const VERTEX = `
   uniform vec3 uFokus;
   uniform float uZeit;
   uniform float uAnteil;
+  uniform float uWind; // seitliche Neigung (Sturm/Gewitter)
   void main() {
     float y = mod(tropfen.z - uZeit * tropfen.w, ${HOEHE.toFixed(1)});
-    vec3 p = vec3(uFokus.x + tropfen.x, y, uFokus.z + tropfen.y) + ende * vec3(-2.0, ${LAENGE.toFixed(1)}, -1.0);
+    float schraeg = (${HOEHE.toFixed(1)} - y) * uWind * 0.45;
+    vec3 p = vec3(uFokus.x + tropfen.x + schraeg, y, uFokus.z + tropfen.y) + ende * vec3(-2.0 - uWind * ${(LAENGE * 0.45).toFixed(1)}, ${LAENGE.toFixed(1)}, -1.0);
     // Anteil: Bei leichtem Regen werden Tropfen mit hoher Kennung weggeklappt
     if (fract(tropfen.z * 0.01731 + tropfen.x * 0.00317) > uAnteil) p.y = -1000.0;
     gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
@@ -40,14 +44,16 @@ const SCHNEE_VERTEX = `
   uniform float uZeit;
   uniform float uAnteil;
   uniform float uSkala;
+  uniform float uWind; // Schneesturm: Flocken treiben fast waagerecht
   varying float vAlpha;
   void main() {
-    float y = mod(flocke.z - uZeit * flocke.w, ${FLOCKEN_HOEHE.toFixed(1)});
+    float y = mod(flocke.z - uZeit * flocke.w * (1.0 + uWind * 0.8), ${FLOCKEN_HOEHE.toFixed(1)});
     float phase = flocke.x * 0.037 + flocke.y * 0.021;
     // Weltfest: Flocken liegen auf einem Gitter, das mit dem Fokus mitwandert (Spieler läuft durch den Schnee, nicht mit ihm)
     float bx = uFokus.x + mod(flocke.x - uFokus.x + ${RADIUS.toFixed(1)}, ${(RADIUS * 2).toFixed(1)}) - ${RADIUS.toFixed(1)};
     float bz = uFokus.z + mod(flocke.y - uFokus.z + ${RADIUS.toFixed(1)}, ${(RADIUS * 2).toFixed(1)}) - ${RADIUS.toFixed(1)};
-    vec3 p = vec3(bx + sin(uZeit * 0.8 + phase) * 22.0, y, bz + cos(uZeit * 0.6 + phase * 1.7) * 16.0);
+    float drift = mod((${FLOCKEN_HOEHE.toFixed(1)} - y) * uWind * 2.2 + ${RADIUS.toFixed(1)}, ${(RADIUS * 2).toFixed(1)}) - ${RADIUS.toFixed(1)};
+    vec3 p = vec3(bx + sin(uZeit * 0.8 + phase) * 22.0 + drift * step(0.01, uWind), y, bz + cos(uZeit * 0.6 + phase * 1.7) * 16.0);
     // Anteil: bei leichtem Schneefall bleiben Flocken mit hoher Kennung weg
     vAlpha = fract(flocke.z * 0.01731 + flocke.x * 0.00317) > uAnteil ? 0.0 : 1.0;
     vec4 mv = viewMatrix * vec4(p, 1.0);
@@ -73,6 +79,13 @@ export class WetterEffekt {
     this.schneeZeit = 0;
     this.windZeit = 0;
     this.windStufe = 1; // 0 windstill … 3 stark (fließend), steuert das Baum-Schwanken
+    this.sturm = 0; // 0..1 Sturmstärke (Sturm, Gewitter, Schneesturm)
+    this.gewitter = 0; // 0..1
+    this.blitz = 0; // 0..1 aktuelle Helligkeit eines Blitzes (Renderer hellt Licht/Himmel auf)
+    this.naechsterBlitz = 4;
+    this.blitzFolge = []; // Zeitpunkte (s) der Nachblitze
+    /** Haken: (staerke 0..1, nah true/false) bei jedem Blitz – clientSpiel spielt den Donner (verzögert) */
+    this.beiBlitz = null;
     const tropfen = new Float32Array(TROPFEN * 2 * 4);
     const ende = new Float32Array(TROPFEN * 2);
     const position = new Float32Array(TROPFEN * 2 * 3); // wird nie genutzt, three.js braucht das Attribut für die Zählung
@@ -89,7 +102,7 @@ export class WetterEffekt {
     this.material = new THREE.ShaderMaterial({
       vertexShader: VERTEX,
       fragmentShader: FRAGMENT,
-      uniforms: { uFokus: { value: new THREE.Vector3() }, uZeit: { value: 0 }, uAnteil: { value: 1 }, uDeckkraft: { value: 0 } },
+      uniforms: { uFokus: { value: new THREE.Vector3() }, uZeit: { value: 0 }, uAnteil: { value: 1 }, uDeckkraft: { value: 0 }, uWind: { value: 0 } },
       transparent: true,
       depthWrite: false,
     });
@@ -112,7 +125,7 @@ export class WetterEffekt {
     this.schneeMaterial = new THREE.ShaderMaterial({
       vertexShader: SCHNEE_VERTEX,
       fragmentShader: SCHNEE_FRAGMENT,
-      uniforms: { uFokus: { value: new THREE.Vector3() }, uZeit: { value: 0 }, uAnteil: { value: 1 }, uSkala: { value: Math.min(2, globalThis.devicePixelRatio || 1) }, uDeckkraft: { value: 0 } },
+      uniforms: { uFokus: { value: new THREE.Vector3() }, uZeit: { value: 0 }, uAnteil: { value: 1 }, uSkala: { value: Math.min(2, globalThis.devicePixelRatio || 1) }, uDeckkraft: { value: 0 }, uWind: { value: 0 } },
       transparent: true,
       depthWrite: false,
     });
@@ -124,27 +137,37 @@ export class WetterEffekt {
   }
 
   setzeArt(art) {
-    this.art = art === 'regen' || art === 'schnee' || art === 'nebel' ? art : 'klar';
+    this.art = ['regen', 'gewitter', 'sturm', 'nebel', 'schnee', 'schneesturm'].includes(art) ? art : 'klar';
   }
 
   /** Stärke des Wetters für Ton & Licht (0 = klar … 1 = voll). */
   get stimmung() {
-    return Math.max(this.regen, this.nebel, this.schnee * 0.6);
+    return Math.max(this.regen, this.nebel, this.schnee * 0.6, this.sturm * 0.35);
   }
 
   aktualisiere(dt, fokusX, fokusY) {
-    const zielRegen = this.art === 'regen' ? 1 : 0;
-    const zielSchnee = this.art === 'schnee' ? 1 : 0;
-    const zielNebel = this.art === 'nebel' ? 1 : this.art === 'regen' ? 0.3 : this.art === 'schnee' ? 0.4 : 0;
+    const a = this.art;
+    const zielRegen = a === 'regen' || a === 'gewitter' ? 1 : 0;
+    const zielSchnee = a === 'schnee' || a === 'schneesturm' ? 1 : 0;
+    const zielNebel = { nebel: 1, regen: 0.3, gewitter: 0.5, schnee: 0.4, schneesturm: 0.85, sturm: 0.12 }[a] ?? 0;
+    const zielSturm = { sturm: 1, gewitter: 0.6, schneesturm: 1 }[a] ?? 0;
+    const zielGewitter = a === 'gewitter' ? 1 : 0;
     const schritt = BLENDE_PRO_SEKUNDE * dt;
-    this.regen += Math.max(-schritt, Math.min(schritt, zielRegen - this.regen));
-    this.nebel += Math.max(-schritt, Math.min(schritt, zielNebel - this.nebel));
-    this.schnee += Math.max(-schritt, Math.min(schritt, zielSchnee - this.schnee));
-    // Wind passt sich dem Wetter an: Nebel = fast windstill, klar = leicht (mit Böen), Regen = mittel bis stark
+    const blende = (wert, ziel) => wert + Math.max(-schritt, Math.min(schritt, ziel - wert));
+    this.regen = blende(this.regen, zielRegen);
+    this.nebel = blende(this.nebel, zielNebel);
+    this.schnee = blende(this.schnee, zielSchnee);
+    this.sturm = blende(this.sturm, zielSturm);
+    this.gewitter = blende(this.gewitter, zielGewitter);
+    // Wind passt sich dem Wetter an: Nebel = fast windstill, klar = leicht (mit Böen), Regen = mittel, Sturm = stark mit Böen
     this.windZeit += dt;
     const boe = 0.5 + 0.5 * Math.sin(this.windZeit * 0.21) * Math.sin(this.windZeit * 0.067 + 1);
-    const zielWind = this.art === 'nebel' ? 0.15 : this.art === 'regen' ? 2 + boe : this.art === 'schnee' ? 0.4 + 0.6 * boe : 0.6 + 0.9 * boe;
+    const boeSchnell = 0.5 + 0.5 * Math.sin(this.windZeit * 0.9) * Math.sin(this.windZeit * 0.37 + 2);
+    const grundWind = a === 'nebel' ? 0.15 : a === 'regen' ? 2 + boe : a === 'schnee' ? 0.4 + 0.6 * boe : 0.6 + 0.9 * boe;
+    const zielWind = Math.max(grundWind * (1 - this.sturm), this.sturm * (2.4 + 0.6 * boeSchnell));
     this.windStufe += (zielWind - this.windStufe) * Math.min(1, dt * 0.4);
+    const windSchraeg = this.sturm * (0.55 + 0.45 * boeSchnell);
+    this.#blitze(dt);
     const schneit = this.schnee > 0.01;
     this.schneeFlocken.visible = schneit;
     if (schneit) {
@@ -152,8 +175,9 @@ export class WetterEffekt {
       const s = this.schneeMaterial.uniforms;
       s.uZeit.value = this.schneeZeit;
       s.uFokus.value.set(fokusX, 0, fokusY);
-      s.uAnteil.value = Math.min(1, this.schnee + 0.1);
+      s.uAnteil.value = Math.min(1, this.schnee * (0.5 + 0.5 * this.sturm) + 0.05);
       s.uDeckkraft.value = 0.85 * this.schnee;
+      s.uWind.value = windSchraeg;
     }
     const sichtbar = this.regen > 0.01;
     this.linien.visible = sichtbar;
@@ -162,7 +186,27 @@ export class WetterEffekt {
     const u = this.material.uniforms;
     u.uZeit.value = this.zeit;
     u.uFokus.value.set(fokusX, 0, fokusY);
-    u.uAnteil.value = Math.min(1, this.regen + 0.1);
-    u.uDeckkraft.value = 0.5 * this.regen;
+    u.uAnteil.value = Math.min(1, this.regen * (0.55 + 0.45 * this.gewitter) + 0.05);
+    u.uDeckkraft.value = (0.5 + 0.12 * this.gewitter) * this.regen;
+    u.uWind.value = windSchraeg;
+  }
+
+  /** Gewitter: in unregelmäßigen Abständen 1–3 kurze Blitze (Helligkeit klingt schnell ab), dazu der Donner-Haken. */
+  #blitze(dt) {
+    this.blitz = Math.max(0, this.blitz - dt * 5.5);
+    while (this.blitzFolge.length && this.blitzFolge[0] <= this.windZeit) {
+      this.blitzFolge.shift();
+      this.blitz = Math.max(this.blitz, 0.55 + Math.random() * 0.45);
+    }
+    if (this.gewitter < 0.6) return;
+    this.naechsterBlitz -= dt;
+    if (this.naechsterBlitz > 0) return;
+    this.naechsterBlitz = 7 + Math.random() * 16;
+    const nah = Math.random() < 0.35;
+    const staerke = nah ? 1 : 0.45 + Math.random() * 0.35;
+    this.blitz = staerke;
+    const nach = 1 + Math.floor(Math.random() * 2.5);
+    for (let i = 0; i < nach; i++) this.blitzFolge.push(this.windZeit + 0.09 + i * (0.07 + Math.random() * 0.12));
+    this.beiBlitz?.(staerke, nah);
   }
 }

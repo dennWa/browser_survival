@@ -27,7 +27,13 @@ Tipp: kurze Dateien (< 3 s), Lautstärke der Aufnahme selbst eher normalisiert.
 | `nacht` | Nachtgeräusche – Grillen (Schleife, nur nachts) |
 | `schritt_schnee` | Schritte im Schnee (Knirschen, jeder Tritt; Schneefall selbst ist lautlos) |
 | `schritt_gras` | Schritte im Gras (jeder Tritt; 6 Aufnahmen, zufällig) |
-| `donner` | Donner bei starkem Regen (zufällig, fern; Platzhalter) |
+| `donner` | Ferner Donner bei Gewitter (verzögert nach dem Blitz) |
+| `donner_nah` | Naher Donnerschlag (Blitz ganz in der Nähe) |
+| `regen_stark` | Starkregen bei Gewitter (Schleife, zusätzlich zum Regen) |
+| `sturm` | Sturm – starker, böiger Wind (Schleife; Wetter Sturm/Gewitter) |
+| `schneesturm` | Schneesturm – heulender, kalter Wind (Schleife) |
+| `tag` | Tag draußen – Vogelkulisse (Schleife, nur bei gutem Wetter, nicht in Schneezonen) |
+| `nacht_wind` | Nacht – leises, unheimliches Pfeifen des Windes (Schleife) |
 
 ### Tiere
 
@@ -36,6 +42,9 @@ Tipp: kurze Dateien (< 3 s), Lautstärke der Aufnahme selbst eher normalisiert.
 | `hase_flucht` | Hase erschrickt und hoppelt davon |
 | `vogel` | Vogelgezwitscher (tagsüber draußen, zufällig alle 8–25 s; nicht in Schneezonen) |
 | `hase_tod` | Hase wird erlegt (ohne eigene Datei lautlos) |
+| `hase_schreck` | Hase erschrickt – kurzes Fiepen (ohne eigene Datei lautlos) |
+| `eule` | Eule ruft (nachts draußen, zufällig, fern) |
+| `heulen` | Fernes Heulen (Wolf/Hund, nachts, selten) |
 
 ### Waffen & Kampf
 
@@ -51,8 +60,19 @@ Tipp: kurze Dateien (< 3 s), Lautstärke der Aufnahme selbst eher normalisiert.
 | `treffer_spieler` | Spieler wird getroffen |
 | `schaden_mann` | Eigene Figur (Mann) nimmt Schaden – Aufschrei |
 | `schaden_frau` | Eigene Figur (Frau) nimmt Schaden – Aufschrei |
-| `keuchen` | Keuchen, wenn die Ausdauer leer ist |
-| `spieler_tod` | Spieler stirbt |
+| `keuchen` | Keuchen, wenn die Ausdauer leer ist (Mann) |
+| `keuchen_frau` | Keuchen, wenn die Ausdauer leer ist (Frau) |
+| `spieler_tod` | Spieler stirbt (Mann) |
+| `spieler_tod_frau` | Spieler stirbt (Frau) |
+| `zittern` | Frierender Atem bei Unterkühlung (zusammen mit „zaehneklappern“) |
+| `zaehneklappern` | Zähneklappern bei Unterkühlung |
+| `husten` | Husten bei starker Kälte |
+
+### Inventar & Items
+
+| Dateiname (ohne Endung) | Wann? |
+|---|---|
+| `anziehen` | Kleidung an-/ausziehen |
 
 ### Zombies
 
@@ -61,6 +81,8 @@ Tipp: kurze Dateien (< 3 s), Lautstärke der Aufnahme selbst eher normalisiert.
 | `zombie_stoehnen` | Zombie ruhend / schlurfend (Stöhnen, zufällig in der Nähe) |
 | `zombie_angriff` | Zombie jagt / greift an |
 | `zombie_tod` | Zombie stirbt |
+| `zombie_schrei` | Zombie entdeckt dich – Schrei/Brüllen (räumlich) |
+| `zombie_ferne` | Fernes Zombie-Stöhnen in der Nacht (Horror-Kulisse) |
 | `tuer_schlag` | Zombie schlägt auf Tür |
 | `tuer_bricht` | Tür bricht auf |
 
@@ -72,7 +94,8 @@ Tipp: kurze Dateien (< 3 s), Lautstärke der Aufnahme selbst eher normalisiert.
 | `autotuer` | Ein-/Aussteigen |
 | `aufprall` | Auto kracht gegen Hindernis |
 | `fahrzeug_schaden` | Auto nimmt Schaden |
-| `fahrzeug_kaputt` | Auto geht kaputt |
+| `fahrzeug_kaputt` | Auto geht kaputt (Explosion/Blech) |
+| `ueberfahren` | Zombie/Tier wird überfahren (matschig) |
 
 ### Bauen, Handwerk & Arbeit
 
