@@ -38,33 +38,34 @@
         </div>
         <!-- Runde 23: Chat/Rucksack/Feld/Karte/Lampe nur noch auf Touch (am PC: T, Tab, Rechtsklick, M, L) -->
         <div class="hud-knoepfe">
-          <button id="hud-chat" class="nur-touch" type="button" title="Chat (T)">💬</button>
-          <button id="hud-inventar" class="nur-touch" type="button" title="Inventar (Tab)">🎒</button>
-          <button id="hud-bauen" type="button" title="Bauen (B): Basis-Flagge, Wände, Böden, Möbel – mit dem Hammer">🔨</button>
-          <button id="hud-skills" type="button" title="Fähigkeiten (U)">⭐</button>
-          <button id="hud-kofferraum" type="button" title="Kofferraum öffnen (G)" hidden>🧳</button>
-          <button id="hud-sitzen" class="nur-touch" type="button" title="Hinsetzen / aufstehen (Ä)">🪑</button>
-          <button id="hud-feld" class="nur-touch" type="button" title="Ackerfeld zurück zu Rasen (Rechtsklick) – Hacke in der Hand">🌱</button>
-          <button id="hud-zoom" class="nur-touch" type="button" title="Zoom (am PC: Mausrad)">🔍</button>
-          <button id="hud-karte" class="nur-touch" type="button" title="Karte (M)">🗺</button>
-          <button id="hud-licht" class="nur-touch" type="button" title="Taschenlampe an/aus (L) – aus = Zombies sehen dich schlechter">🔦</button>
-          <button id="hud-admin" type="button" title="Admin-Menü (P)" hidden>🛡</button>
-          <button id="hud-einstellungen" type="button" title="Einstellungen: Ton, Grafik, Abmelden">⚙</button>
+          <button id="hud-chat" class="nur-touch" type="button" title="Chat (T)"><svg class="ui-icon" aria-hidden="true"><use href="#i-chat"/></svg></button>
+          <button id="hud-inventar" class="nur-touch" type="button" title="Inventar (Tab)"><svg class="ui-icon" aria-hidden="true"><use href="#i-inventar"/></svg></button>
+          <button id="hud-bauen" type="button" title="Bauen (B): Basis-Flagge, Wände, Böden, Möbel – mit dem Hammer"><svg class="ui-icon" aria-hidden="true"><use href="#i-bauen"/></svg></button>
+          <button id="hud-skills" type="button" title="Fähigkeiten (U)"><svg class="ui-icon" aria-hidden="true"><use href="#i-skills"/></svg></button>
+          <button id="hud-kofferraum" type="button" title="Kofferraum öffnen (G)" hidden><svg class="ui-icon" aria-hidden="true"><use href="#i-kofferraum"/></svg></button>
+          <button id="hud-sitzen" class="nur-touch" type="button" title="Hinsetzen / aufstehen (Ä)"><svg class="ui-icon" aria-hidden="true"><use href="#i-sitzen"/></svg></button>
+          <button id="hud-feld" class="nur-touch" type="button" title="Ackerfeld zurück zu Rasen (Rechtsklick) – Hacke in der Hand"><svg class="ui-icon" aria-hidden="true"><use href="#i-feld"/></svg></button>
+          <button id="hud-zoom" class="nur-touch" type="button" title="Zoom (am PC: Mausrad)"><svg class="ui-icon" aria-hidden="true"><use href="#i-zoom"/></svg></button>
+          <button id="hud-karte" class="nur-touch" type="button" title="Karte (M)"><svg class="ui-icon" aria-hidden="true"><use href="#i-karte"/></svg></button>
+          <button id="hud-licht" class="nur-touch" type="button" title="Taschenlampe an/aus (L) – aus = Zombies sehen dich schlechter"><svg class="ui-icon" aria-hidden="true"><use href="#i-licht"/></svg></button>
+          <button id="hud-admin" type="button" title="Admin-Menü (P)" hidden><svg class="ui-icon" aria-hidden="true"><use href="#i-admin"/></svg></button>
+          <button id="hud-einstellungen" type="button" title="Einstellungen: Ton, Grafik, Abmelden"><svg class="ui-icon" aria-hidden="true"><use href="#i-einstellungen"/></svg></button>
         </div>
       </div>
       <div id="hud-werte">
-        <div class="wert" id="wert-level" title="Level – 10 XP pro Zombie, beim Tod ist alles weg"><span class="symbol" id="level-zahl">1</span><div class="balken"><div class="fuellung"></div></div><span id="level-xp"></span></div>
-        <div class="wert" id="wert-leben" title="Leben"><span class="symbol">❤</span><div class="balken"><div class="fuellung"></div></div><span class="warn" aria-hidden="true">!</span></div>
-        <div class="wert" id="wert-hunger" title="Hunger"><span class="symbol">🍖</span><div class="balken"><div class="fuellung"></div></div><span class="warn" aria-hidden="true">!</span></div>
-        <div class="wert" id="wert-durst" title="Durst"><span class="symbol">💧</span><div class="balken"><div class="fuellung"></div></div><span class="warn" aria-hidden="true">!</span></div>
-        <div class="wert" id="wert-ausdauer" title="Ausdauer (Shift = sprinten)"><span class="symbol">⚡</span><div class="balken"><div class="fuellung"></div></div></div>
+        <div class="wert" id="wert-level" title="Level – 10 XP pro Zombie, beim Tod ist alles weg"><span class="symbol xp-icon"><svg class="ui-icon" aria-hidden="true"><use href="#i-xp"/></svg></span><span class="symbol" id="level-zahl">1</span><div class="balken"><div class="fuellung"></div></div><span id="level-xp"></span></div>
+        <div class="wert" id="wert-leben" title="Leben"><span class="symbol"><svg class="ui-icon" aria-hidden="true"><use href="#i-leben"/></svg></span><div class="balken"><div class="fuellung"></div></div><span class="warn" aria-hidden="true">!</span></div>
+        <div class="wert" id="wert-hunger" title="Hunger"><span class="symbol"><svg class="ui-icon" aria-hidden="true"><use href="#i-hunger"/></svg></span><div class="balken"><div class="fuellung"></div></div><span class="warn" aria-hidden="true">!</span></div>
+        <div class="wert" id="wert-durst" title="Durst"><span class="symbol"><svg class="ui-icon" aria-hidden="true"><use href="#i-durst"/></svg></span><div class="balken"><div class="fuellung"></div></div><span class="warn" aria-hidden="true">!</span></div>
+        <div class="wert" id="wert-ausdauer" title="Ausdauer (Shift = sprinten)"><span class="symbol"><svg class="ui-icon" aria-hidden="true"><use href="#i-ausdauer"/></svg></span><div class="balken"><div class="fuellung"></div></div></div>
       </div>
       <pre id="hud-debug" hidden></pre>
       <!-- Chat: T öffnet das Eingabefeld, Enter schickt ab -->
       <div id="chat">
         <div id="chat-log" aria-live="polite"></div>
         <form id="chat-form" hidden autocomplete="off">
-          <input id="chat-eingabe" type="text" maxlength="160" placeholder="Nachricht an die Zone … (/a = an alle)" enterkeyhint="send" />
+          <button id="chat-modus" type="button" title="Tab = Direkt (nur diese Zone) ⇄ Global (alle)">Direkt</button>
+          <input id="chat-eingabe" type="text" maxlength="160" placeholder="Nachricht an die Zone … (Tab = Global)" enterkeyhint="send" />
         </form>
       </div>
       <!-- Spielerliste (I) -->
@@ -212,24 +213,48 @@
 
     <!-- Werkbank (Crafting) -->
     <!-- Inventar (Tab): Schnellleiste, Tasche, Rucksack – Ziehen zum Umsortieren, aus dem Fenster ziehen = fallen lassen -->
+    <!-- Inventar (Tab), Runde 23: links Charakter + Ausrüstung, rechts Items (ui/inventarFenster.js, ui/charakterVorschau.js) -->
     <div id="inventar" hidden>
       <div class="werkbank-kopf">
-        <h2>🎒 Inventar</h2>
+        <h2><svg class="ui-icon" aria-hidden="true"><use href="#i-inventar"/></svg> Inventar</h2>
         <button id="inventar-schliessen" type="button" aria-label="Schließen">✕</button>
       </div>
-      <h3 class="inv-titel">Schnellleiste <small>Tasten 1–9, 0 · Doppelklick auf Essen/Trinken = sofort verbrauchen</small></h3>
-      <div id="inventar-schnell" class="inv-raster"></div>
-      <h3 class="inv-titel">Tasche</h3>
-      <div id="inventar-tasche" class="inv-raster"></div>
-      <div id="inventar-rucksack-bereich">
-        <h3 class="inv-titel">Rucksack <button id="inventar-rucksack-ablegen" type="button" hidden>ablegen</button></h3>
-        <div id="inventar-rucksack" class="inv-raster"></div>
-        <p id="inventar-kein-rucksack">Kein Rucksack – finde einen (Wohnungen, Läden, Polizei) für +8 Plätze.</p>
+      <div class="inv-haupt">
+        <section class="inv-charakter">
+          <div class="inv-figur-bereich">
+            <div class="ausr-spalte">
+              <button type="button" class="ausr-slot" data-ausr="kopf" title="Kopf"><span class="ausr-leer"><svg class="ui-icon" aria-hidden="true"><use href="#i-kopf"/></svg></span><canvas class="slot-icon" width="96" height="96"></canvas><small>Kopf</small></button>
+              <button type="button" class="ausr-slot" data-ausr="oberkoerper" title="Oberkörper"><span class="ausr-leer"><svg class="ui-icon" aria-hidden="true"><use href="#i-oberkoerper"/></svg></span><canvas class="slot-icon" width="96" height="96"></canvas><small>Oberkörper</small></button>
+              <button type="button" class="ausr-slot" data-ausr="haende" title="Hände"><span class="ausr-leer"><svg class="ui-icon" aria-hidden="true"><use href="#i-haende"/></svg></span><canvas class="slot-icon" width="96" height="96"></canvas><small>Hände</small></button>
+            </div>
+            <div class="inv-figur-huelle">
+              <canvas id="inventar-figur" width="240" height="360" title="Ziehen = drehen"></canvas>
+              <div id="inventar-name"></div>
+            </div>
+            <div class="ausr-spalte">
+              <button type="button" class="ausr-slot" data-ausr="beine" title="Beine"><span class="ausr-leer"><svg class="ui-icon" aria-hidden="true"><use href="#i-beine"/></svg></span><canvas class="slot-icon" width="96" height="96"></canvas><small>Beine</small></button>
+              <button type="button" class="ausr-slot" data-ausr="fuesse" title="Füße"><span class="ausr-leer"><svg class="ui-icon" aria-hidden="true"><use href="#i-fuesse"/></svg></span><canvas class="slot-icon" width="96" height="96"></canvas><small>Füße</small></button>
+              <button type="button" class="ausr-slot" data-ausr="ruecken" title="Rucksack"><span class="ausr-leer"><svg class="ui-icon" aria-hidden="true"><use href="#i-ruecken"/></svg></span><canvas class="slot-icon" width="96" height="96"></canvas><small>Rucksack</small></button>
+            </div>
+          </div>
+          <div id="inventar-werte"></div>
+        </section>
+        <section class="inv-items">
+          <h3 class="inv-titel">Schnellleiste <small>Tasten 1–9, 0 · Doppelklick auf Essen/Trinken = sofort verbrauchen</small></h3>
+          <div id="inventar-schnell" class="inv-raster"></div>
+          <h3 class="inv-titel">Tasche</h3>
+          <div id="inventar-tasche" class="inv-raster"></div>
+          <div id="inventar-rucksack-bereich">
+            <h3 class="inv-titel">Rucksack &amp; Kleidung <button id="inventar-rucksack-ablegen" type="button" hidden>Rucksack ablegen</button></h3>
+            <div id="inventar-rucksack" class="inv-raster"></div>
+            <p id="inventar-kein-rucksack">Kein Rucksack – finde einen (Wohnungen, Läden, Polizei) für mehr Plätze. Kleidung mit Taschen gibt auch Platz.</p>
+          </div>
+          <p id="inventar-info"></p>
+          <h3 class="inv-titel">Bauen <small>ohne Werkbank – danach aus dem Inventar aufstellen</small></h3>
+          <div id="inventar-bauen"></div>
+          <p class="werkbank-hinweis inv-hilfe">Klick = benutzen · ziehen = umsortieren · Kleidung auf den Charakter ziehen = anziehen · aus dem Fenster ziehen = fallen lassen · Q = fallen lassen</p>
+        </section>
       </div>
-      <p id="inventar-info"></p>
-      <h3 class="inv-titel">Bauen <small>ohne Werkbank – danach aus dem Inventar aufstellen</small></h3>
-      <div id="inventar-bauen"></div>
-      <p class="werkbank-hinweis inv-hilfe">Klick = benutzen · ziehen = umsortieren · aus dem Fenster ziehen = fallen lassen · Q = fallen lassen</p>
     </div>
 
     <!-- Lagerkiste (E an der Kiste): 16 Plätze, Antippen schiebt Stapel hin und her -->

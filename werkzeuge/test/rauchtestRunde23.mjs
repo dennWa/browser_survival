@@ -145,6 +145,59 @@ try {
     await zone('stadtrand');
   }
 
+  // ---------------------------------------------------------------- Phase 2
+  if (phaseAn(2)) {
+    // Icons aus dem Sprite sind da
+    pruefe(await seite.evaluate(() => !!document.getElementById('i-leben') && !!document.getElementById('i-bauen')), 'UI-Icon-Sprite geladen');
+    pruefe(await seite.evaluate(() => !document.getElementById('hud-bauen').textContent.includes('BUILD')), 'kein „BUILD“-Text mehr');
+    pruefe(await seite.evaluate(() => getComputedStyle(document.getElementById('hud-karte')).display === 'none'), 'Karten-Knopf am PC ausgeblendet');
+    // Neues Inventar: Charakter links
+    await seite.keyboard.press('Tab');
+    await seite.waitForTimeout(1500);
+    pruefe(await seite.evaluate(() => document.querySelectorAll('#inventar .ausr-slot').length === 6), 'Inventar: 6 Ausrüstungs-Slots');
+    await bild('2_inventar');
+    await seite.keyboard.press('Tab');
+    // Minikarte anklicken → Karte
+    const mk = await seite.evaluate(() => {
+      const r = document.getElementById('minikarte').getBoundingClientRect();
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2, sichtbar: r.width > 0 };
+    });
+    if (mk.sichtbar) {
+      await seite.mouse.click(mk.x, mk.y);
+      await seite.waitForTimeout(500);
+      pruefe(await seite.evaluate(() => browserSurvival.spiel.karte.offen), 'Klick auf Minikarte öffnet die Karte');
+      await seite.keyboard.press('Escape');
+    }
+    // Chat: Tab schaltet Direkt ⇄ Global
+    await seite.keyboard.press('KeyT');
+    await seite.waitForTimeout(300);
+    const vorher = await seite.evaluate(() => document.getElementById('chat-modus').textContent);
+    await seite.keyboard.press('Tab');
+    const nachher = await seite.evaluate(() => document.getElementById('chat-modus').textContent);
+    pruefe(vorher !== nachher && !(await seite.evaluate(() => browserSurvival.spiel.hud.inventar.offen)), `Chat-Tab: ${vorher} → ${nachher} (Inventar bleibt zu)`);
+    await bild('2_chat');
+    await seite.keyboard.press('Tab');
+    await seite.keyboard.press('Escape');
+    // Baum fällen: Balken über dem Baum, danach „+N“-Popup
+    const baum = await seite.evaluate(() => {
+      const ich = browserSurvival.spiel.lokal;
+      const r = browserSurvival.spiel.welt.ressourcen.filter((r) => r.art === 'holz').sort((a, b) => Math.hypot(a.x - ich.x, a.y - ich.y) - Math.hypot(b.x - ich.x, b.y - ich.y))[0];
+      return r ? { x: r.x, y: r.y } : null;
+    });
+    if (baum) {
+      await seite.evaluate(({ x, y }) => browserSurvival.tp((x + 30) / 32, y / 32), baum);
+      await seite.waitForTimeout(1200);
+      await seite.keyboard.press('KeyE');
+      await seite.waitForTimeout(2500);
+      pruefe(await seite.evaluate(() => !document.querySelector('.welt-balken').hidden && document.getElementById('hud-arbeit').hidden), 'Abbau-Balken über dem Baum (kein Text)');
+      await bild('2_baum_balken');
+      await seite.waitForFunction(() => document.querySelector('.welt-plus'), null, { timeout: 15000 });
+      await seite.waitForTimeout(600);
+      await bild('2_baum_plus');
+      schritt('„+N“-Popup nach dem Fällen');
+    }
+  }
+
   const info = await seite.evaluate(() => browserSurvival.spiel?.renderer.statistik() ?? '');
   if (info) console.log(`  Grafik: ${info}`);
 } catch (e) {

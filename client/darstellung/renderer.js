@@ -1486,6 +1486,18 @@ export class Renderer {
     return figur;
   }
 
+  /**
+   * Runde 23: eigene Figur für die Charakter-Vorschau im Inventar (ui/charakterVorschau.js, eigener WebGL-Kontext) –
+   * gleiche Modelle/Materialien wie im Spiel, aber nicht in der Spielszene. null, solange die Figuren nicht geladen sind.
+   */
+  vorschauFigur(aussehen, ausruestung = null) {
+    if (!this.survivor) return null;
+    const figur = this.#neueSurvivorFigur({ typ: 'spieler', aussehen, ausruestung });
+    this.szene.remove(figur.gruppe);
+    figur.mixer.setTime(0);
+    return figur;
+  }
+
   /** Zombie-Figur aus dem Pool (gleiches Modell/Skin/Größe) oder neu; Spieler immer neu. */
   #holeFigur(e) {
     if (e.typ !== 'zombie') return this.#neueFigur(e);

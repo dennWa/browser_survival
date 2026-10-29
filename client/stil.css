@@ -203,6 +203,21 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
 
 .hud-knoepfe { display: flex; gap: 8px; }
 
+/* Runde 23: UI-Icons (game-icons.net, Sprite ui/uiIcons.js) */
+.ui-icon { width: 1.25em; height: 1.25em; fill: currentColor; vertical-align: middle; flex: none; }
+.hud-knoepfe button { display: inline-flex; align-items: center; justify-content: center; }
+.hud-knoepfe button .ui-icon { width: 20px; height: 20px; color: #e8dcc0; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.7)); }
+.hud-knoepfe button:hover .ui-icon { color: #ffd77a; }
+#hud-bauen.aktiv .ui-icon, .hud-knoepfe button.aktiv .ui-icon { color: #ffd77a; }
+#hud-licht.aus .ui-icon { color: #777; }
+.wert .symbol .ui-icon { width: 17px; height: 17px; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.8)); }
+#wert-leben .symbol { color: #ff5a55; }
+#wert-hunger .symbol { color: #f0a046; }
+#wert-durst .symbol { color: #4fb2ff; }
+#wert-ausdauer .symbol { color: #e3ec5c; }
+#wert-level .xp-icon { color: #f2c94c; }
+#wert-kaelte .symbol { color: #9fd8ff; }
+
 .hud-knoepfe button {
   pointer-events: auto;
   min-height: 34px;
@@ -569,7 +584,15 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
 .chat-zeile.alt { opacity: 0; }
 #chat.offen .chat-zeile.alt { opacity: 1; }
 
+#chat-form:not([hidden]) { display: flex; gap: 6px; }
+#chat-modus {
+  flex: none; pointer-events: auto; padding: 4px 10px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.03em;
+  color: #cfe9b9; background: rgba(40, 70, 30, 0.85); border: 1px solid rgba(160, 220, 120, 0.6); border-radius: 8px;
+}
+#chat-modus.global { color: #ffd3a8; background: rgba(90, 45, 10, 0.85); border-color: rgba(255, 159, 90, 0.7); }
 #chat-eingabe {
+  flex: 1;
+  min-width: 0;
   width: 100%;
   pointer-events: auto;
   padding: 8px 10px;
@@ -808,7 +831,7 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
   top: 50%;
   transform: translate(-50%, -50%);
   z-index: 5;
-  width: min(520px, calc(100vw - 24px));
+  width: min(960px, calc(100vw - 24px));
   max-height: calc(100dvh - 24px);
   overflow-y: auto;
   padding: 14px 16px;
@@ -1035,7 +1058,8 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
   border: 2px solid rgba(255, 255, 255, 0.35);
   background: #0a0c0f;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55);
-  pointer-events: none;
+  pointer-events: auto; /* Runde 23: Klick öffnet die große Karte */
+  cursor: pointer;
   opacity: 0.92;
 }
 @media (max-width: 700px), (max-height: 500px) {
@@ -1289,3 +1313,58 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
 .tut-box .tut-kapitelwahl button.aktiv { border-color: #f1c40f; color: #f1c40f; }
 #hud.touch ~ .tut .tut-panel, .tut-touch .tut-panel { top: calc(190px + env(safe-area-inset-top)); }
 @media (max-width: 700px) { .tut-panel { font-size: 0.78rem; width: min(260px, calc(100vw - 140px)); } .tut-funk { bottom: 150px; font-size: 0.85rem; } }
+
+/* ---------- Runde 23: Inventar mit Charakter (links) und Items (rechts) ---------- */
+#inventar .werkbank-kopf h2 { display: flex; align-items: center; gap: 8px; }
+.inv-haupt { display: grid; grid-template-columns: minmax(300px, 360px) 1fr; gap: 16px; align-items: start; }
+.inv-charakter {
+  display: flex; flex-direction: column; gap: 10px; padding: 10px;
+  background: radial-gradient(ellipse at 50% 35%, rgba(120, 150, 110, 0.18), rgba(0, 0, 0, 0.25) 70%);
+  border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px;
+}
+.inv-figur-bereich { display: grid; grid-template-columns: 64px 1fr 64px; gap: 8px; align-items: center; }
+.ausr-spalte { display: flex; flex-direction: column; gap: 10px; }
+.inv-figur-huelle { position: relative; display: flex; flex-direction: column; align-items: center; }
+#inventar-figur { width: 100%; max-width: 200px; aspect-ratio: 2 / 3; height: auto; cursor: grab; touch-action: none; }
+#inventar-figur:active { cursor: grabbing; }
+#inventar-name { font-size: 0.8rem; color: var(--text-gedimmt); text-align: center; }
+.ausr-slot {
+  position: relative; width: 64px; height: 64px; padding: 0; touch-action: none;
+  background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 10px; color: var(--text);
+}
+.ausr-slot:hover { border-color: rgba(255, 215, 122, 0.6); }
+.ausr-slot .ausr-leer { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: rgba(255, 255, 255, 0.18); pointer-events: none; }
+.ausr-slot .ausr-leer .ui-icon { width: 34px; height: 34px; }
+.ausr-slot.belegt .ausr-leer { display: none; }
+.ausr-slot.belegt { border-color: rgba(185, 224, 143, 0.55); background: rgba(40, 60, 30, 0.55); }
+.ausr-slot .slot-icon { position: absolute; inset: 4px; width: calc(100% - 8px); height: calc(100% - 8px); }
+.ausr-slot small { position: absolute; left: 0; right: 0; bottom: -1px; font-size: 0.55rem; color: var(--text-gedimmt); pointer-events: none; text-shadow: 0 1px 2px #000; }
+.ausr-slot.drop-ziel { border-color: #e8c35a; box-shadow: 0 0 0 2px rgba(232, 195, 90, 0.4); }
+#inventar-werte { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; font-size: 0.75rem; }
+#inventar-werte .inv-wert { display: flex; align-items: center; gap: 5px; padding: 5px 7px; background: rgba(255, 255, 255, 0.05); border-radius: 7px; }
+#inventar-werte .inv-wert b { margin-left: auto; color: #fff; }
+#inventar-werte .ui-icon { width: 16px; height: 16px; }
+.inv-items { min-width: 0; }
+.inv-items .inv-titel:first-child { margin-top: 0; }
+@media (max-width: 760px) {
+  .inv-haupt { grid-template-columns: 1fr; gap: 8px; }
+  .inv-figur-bereich { grid-template-columns: 52px 1fr 52px; }
+  .ausr-slot { width: 52px; height: 52px; }
+  #inventar-figur { max-width: 110px; }
+  #inventar-werte { font-size: 0.68rem; }
+}
+@media (max-height: 500px) {
+  .inv-haupt { grid-template-columns: 220px 1fr; gap: 8px; }
+  .inv-figur-bereich { grid-template-columns: 44px 1fr 44px; gap: 4px; }
+  .ausr-slot { width: 44px; height: 44px; }
+  .ausr-slot small { display: none; }
+  #inventar-figur { max-width: 90px; }
+  #inventar-werte { grid-template-columns: 1fr; gap: 3px; }
+}
+
+/* Runde 23: Welt-Popups („+2 Holz“) und Abbau-Balken über dem Objekt (ui/weltPopups.js) */
+.welt-plus { position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 2px; pointer-events: none; will-change: transform, opacity; }
+.welt-plus b { font-size: 1.15rem; font-weight: 800; color: #fff; text-shadow: 0 1px 0 #000, 0 0 6px rgba(0, 0, 0, 0.85); }
+.welt-plus canvas { width: 30px; height: 30px; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.9)); }
+.welt-balken { position: absolute; left: 0; top: 0; width: 54px; height: 6px; padding: 1px; background: rgba(0, 0, 0, 0.65); border-radius: 4px; pointer-events: none; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); }
+.welt-balken-fuellung { height: 100%; width: 0; background: linear-gradient(90deg, #9bd35a, #d7f27a); border-radius: 3px; transition: width 0.15s linear; }

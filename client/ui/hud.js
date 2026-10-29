@@ -8,6 +8,7 @@ import { KisteFenster } from './kisteFenster.js';
 import { StationFenster } from './stationFenster.js';
 import { setzeHaltbarkeit } from './haltbarkeit.js';
 import { SkillFenster } from './skillFenster.js';
+import { WeltPopups } from './weltPopups.js';
 import { EinstellungenFenster } from './einstellungen.js';
 import { BauMenue } from './bauMenue.js';
 
@@ -31,6 +32,7 @@ const LANGES_DRUECKEN_MS = 500;
 const ICON_GROESSE = 48;
 const CHAT_ZEILEN = 8;
 const CHAT_SICHTBAR_MS = 15000;
+const CHAT_MODUS_SCHLUESSEL = 'browserSurvival.chatModus';
 const MINIKARTE_SCHLUESSEL = 'browserSurvival.minikarte';
 const FPS_INTERVALL_MS = 500;
 
@@ -132,6 +134,7 @@ export class Hud {
     this.el.wiederbeleben.addEventListener('click', () => this.#aktionen.wiederbeleben?.());
     this.el.licht.addEventListener('click', () => this.#aktionen.licht?.());
     this.el.karte.addEventListener('click', () => this.#aktionen.karte?.());
+    this.el.minikarte.addEventListener('click', () => this.#aktionen.karte?.()); // Runde 23: Minikarte anklicken = große Karte
     this.el.feld.addEventListener('click', () => this.#aktionen.feld?.());
     this.el.kofferraum.addEventListener('click', () => this.#aktionen.kofferraum?.());
     this.el.sitzen.addEventListener('click', () => this.#aktionen.sitzen?.());
@@ -143,14 +146,29 @@ export class Hud {
     }
     this.el.chatKnopf.addEventListener('click', () => this.chatOeffnen());
     this.el.status.addEventListener('click', () => this.#aktionen.spielerliste?.()); // Touch: Statuszeile antippen
+    // Runde 23: Chat-Modus Direkt (nur eigene Zone) ⇄ Global (alle Zonen = „/a“ am Server); Tab im Eingabefeld schaltet um
+    this.el.chatModus = el('chat-modus');
+    try {
+      this.chatGlobal = localStorage.getItem(CHAT_MODUS_SCHLUESSEL) === 'global';
+    } catch {
+      this.chatGlobal = false;
+    }
+    this.#zeigeChatModus();
+    this.el.chatModus.addEventListener('pointerdown', (e) => e.preventDefault()); // Fokus bleibt im Eingabefeld
+    this.el.chatModus.addEventListener('click', () => this.chatModusUmschalten());
     this.el.chatForm.addEventListener('submit', (e) => {
       e.preventDefault();
       const text = this.el.chatEingabe.value.trim();
-      if (text) this.#aktionen.chat?.(text);
+      if (text) this.#aktionen.chat?.(this.chatGlobal && !text.startsWith('/') ? `/a ${text}` : text);
       this.chatSchliessen();
     });
     this.el.chatEingabe.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') this.chatSchliessen();
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        e.stopPropagation(); // kein Inventar
+        this.chatModusUmschalten();
+      }
     });
     this.el.chatEingabe.addEventListener('blur', () => setTimeout(() => this.chatSchliessen(), 0));
     this.el.admin.addEventListener('click', () => this.adminMenuUmschalten());
@@ -177,6 +195,7 @@ export class Hud {
     this.el.bauen = el('hud-bauen');
     this.el.bauen.addEventListener('click', () => this.#aktionen.bauen?.());
     this.inventar = new InventarFenster(dokument, { zeichneIcon: (canvas, defId) => this.zeichneIcon(canvas, defId) });
+    this.weltPopups = new WeltPopups(dokument, el('hud'), (canvas, defId) => this.zeichneIcon(canvas, defId)); // „+N“ & Abbau-Balken in der Welt
     this.inventar.beiAktionen({
       benutzen: (slot) => this.#aktionen.benutzen?.(slot),
       konsumieren: (slot) => this.#aktionen.konsumieren?.(slot),
@@ -184,6 +203,8 @@ export class Hud {
       ablegen: (slot) => this.#aktionen.ablegen?.(slot),
       rucksackAblegen: () => this.#aktionen.rucksackAblegen?.(),
       herstellen: (rezept) => this.#aktionen.herstellen?.(rezept),
+      anlegen: (slot) => this.#aktionen.anlegen?.(slot), // Runde 23: Kleidung anziehen
+      ausziehen: (stelle) => this.#aktionen.ausziehen?.(stelle),
     });
     el('hud-inventar').addEventListener('click', () => this.inventar.zeige());
     this.station = new StationFenster(dokument, { zeichneIcon: (canvas, defId) => this.zeichneIcon(canvas, defId) });
@@ -618,6 +639,22 @@ export class Hud {
     setTimeout(() => zeile.classList.add('alt'), CHAT_SICHTBAR_MS);
   }
 
+  chatModusUmschalten() {
+    this.chatGlobal = !this.chatGlobal;
+    try {
+      localStorage.setItem(CHAT_MODUS_SCHLUESSEL, this.chatGlobal ? 'global' : 'direkt');
+    } catch {
+      // egal
+    }
+    this.#zeigeChatModus();
+  }
+
+  #zeigeChatModus() {
+    this.el.chatModus.textContent = this.chatGlobal ? 'Global' : 'Direkt';
+    this.el.chatModus.classList.toggle('global', this.chatGlobal);
+    this.el.chatEingabe.placeholder = this.chatGlobal ? 'Nachricht an alle Zonen … (Tab = Direkt)' : 'Nachricht an diese Zone … (Tab = Global)';
+  }
+
   chatOeffnen() {
     this.el.chatForm.hidden = false;
     this.el.chat.classList.add('offen');
@@ -690,8 +727,10 @@ export class Hud {
     const schluessel = arbeit ? `${arbeit.art}${arbeit.fortschritt}${arbeit.wartet}${arbeit.amFeuer}` : '';
     if (schluessel === this.#letzteArbeit) return;
     this.#letzteArbeit = schluessel;
-    this.el.arbeit.hidden = !arbeit;
-    if (!arbeit) return;
+    // Abbau (Baum/Stein/Eisen): nur der kleine Balken direkt über dem Objekt (weltPopups, clientSpiel) – kein Text mehr
+    const abbau = arbeit && ['holz', 'stein', 'eisenerz'].includes(arbeit.art);
+    this.el.arbeit.hidden = !arbeit || abbau;
+    if (!arbeit || abbau) return;
     const text = arbeit.wartet
       ? '💤 Warte, bis alle schlafen …'
       : ({ angeln: '🎣 …', holz: '🪓 Baum fällen …', stein: '⛏ Stein abbauen …', eisenerz: '⛏ Eisenerz abbauen …', kochen: '🍳 Braten …', schlafen: '💤 Schlafen …', sitzen: arbeit.amFeuer ? '🔥 Am Feuer … (bewegen/Ä = aufstehen)' : '🪑 Sitzt … (bewegen/Ä = aufstehen)', zerlegen: '🔨 Abbauen …' }[arbeit.art] ?? '…');

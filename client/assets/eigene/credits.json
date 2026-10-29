@@ -46,5 +46,11 @@
     "urheber": "Thorsten Müller (Thorsten-Voice) / Piper (rhasspy)",
     "lizenz": "CC0 (Stimme), MIT (Piper, nur Werkzeug)",
     "url": "https://huggingface.co/rhasspy/piper-voices/tree/main/de/de_DE/thorsten/medium"
+  },
+  {
+    "paket": "Game Icons (UI-Icons: Leben, Hunger, Durst, Energie, XP, Kälte, Leiste, Ausrüstungs-Slots)",
+    "urheber": "Lorc, Delapouite, Skoll & Mitwirkende – game-icons.net",
+    "lizenz": "CC BY 3.0",
+    "url": "https://game-icons.net"
   }
 ]

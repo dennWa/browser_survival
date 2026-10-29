@@ -9,6 +9,7 @@ import { konsolenHelfer } from './kern/konsolenHelfer.js';
 import { LoginBildschirm, gastName } from './ui/loginBildschirm.js';
 import { Hud } from './ui/hud.js';
 import { zeigeCredits } from './ui/credits.js';
+import { ladeUiIcons } from './ui/uiIcons.js';
 import { Sound } from './audio/sound.js';
 import { ZonenMusik } from './audio/zonenMusik.js';
 import { lokalerServer, setzeTestKarten, beendeTutorial, tutorialServerInstanz } from './netzwerk/lokalerServer.js';
@@ -31,6 +32,7 @@ import { Karte } from './ui/karte.js';
  */
 const leinwand = document.getElementById('spielflaeche');
 let renderer = null;
+ladeUiIcons(); // Runde 23: Icon-Sprite (game-icons.net) für HUD/Inventar
 const eingabe = new Eingabe(window, leinwand);
 eingabe.klickGesperrt = () => !!aktuellesSpiel?.fensterOffen(); // Klick ins Spiel bei offenem Fenster schießt nicht
 // Touch-Gesten: zwei Finger = Zoom, Tippen = Zombie anvisieren
@@ -50,6 +52,7 @@ leinwand.addEventListener(
 );
 const login = new LoginBildschirm(document, SERVER_LISTE);
 const hud = new Hud(document, { debug: DEBUG_START });
+hud.inventar.figurQuelle = () => ({ aussehen: aktuellesSpiel?.eigeneDaten?.aussehen, name: aktuellesSpiel?.benutzername }); // Inventar-Charakter
 const sound = new Sound();
 const musik = new ZonenMusik(sound); // Zonen-Musik aus client/musik/<zone>/ (läuft über Zonenwechsel weiter)
 // Phase 10.2 (Audio-Zentrale): Klick-Sound für Knöpfe (nicht für Aktionsknöpfe im Spiel), Inventar auf/zu, Hauptmenü-Musik
@@ -316,6 +319,7 @@ async function starten() {
     zeigeLaden('Lade 3D-Figuren …', 85);
     renderer = await Renderer.erstelle(leinwand, assets);
     renderer.verbergen();
+    hud.inventar.vorschau.spielRenderer = renderer; // Charakter-Vorschau im Inventar (Runde 23)
     zeigeLaden('Fertig', 100);
   } catch (fehler) {
     console.warn('[3D] nicht verfügbar:', fehler);
