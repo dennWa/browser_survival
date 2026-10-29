@@ -37,7 +37,8 @@ const eingabe = new Eingabe(window, leinwand);
 eingabe.klickGesperrt = () => !!aktuellesSpiel?.fensterOffen(); // Klick ins Spiel bei offenem Fenster schießt nicht
 // Touch-Gesten: zwei Finger = Zoom, Tippen = Zombie anvisieren
 eingabe.touch.beiZoom = (faktor) => renderer?.zoomen(faktor);
-eingabe.touch.beiTipp = (x, y) => aktuellesSpiel?.zielAntippen(x, y);
+eingabe.touch.beiTipp = (x, y) => aktuellesSpiel?.weltKlick(x, y) || aktuellesSpiel?.zielAntippen(x, y);
+eingabe.weltKlick = (x, y) => !!aktuellesSpiel?.weltKlick(x, y); // Runde 23: Admin-Klickmodus (Bots)
 // Rechtsklick bricht das Aufstellen (Platzier-Modus) ab
 leinwand.addEventListener('contextmenu', () => aktuellesSpiel?.rechtsklick());
 // Mausrad: rein-/rauszoomen (nur im Spiel)

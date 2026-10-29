@@ -11,7 +11,7 @@ export function pruefeUebergaenge(spielWelt, dt = 0) {
   if (!liste?.length) return;
   const wartezeit = spielWelt.konfiguration.welt.uebergangSekunden ?? 0;
   for (const s of spielWelt.alleVomTyp('spieler')) {
-    if (s.tot || s.zonenwechsel) {
+    if (s.tot || s.zonenwechsel || s.bot) {
       s.uebergang = null;
       continue;
     }

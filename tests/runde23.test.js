@@ -157,3 +157,61 @@ test('Hase 2.0: sehr scheu, flieht weit (auch ohne Verfolger), erschrickt bei Sc
   aktualisiereTiere(welt, TICK_DAUER_S); // Schuss-Ereignis liegt im selben Tick vor
   assert.equal(hase.zustand, 'flucht');
 });
+
+test('Bots: laufen herum, sammeln Items auf, bekämpfen Zombies – über denselben Eingabeweg wie Spieler', async () => {
+  const { spawneBot, botsDerZone } = await import('../server/spiel/systeme/botSystem.js');
+  const { erzeugeZombie } = await import('../server/spiel/entitaeten/zombie.js');
+  const { legeAufBoden } = await import('../server/spiel/systeme/inventarSystem.js');
+  const KARTE_BOT = { id: 'bot', name: 'Bot', kacheln: ['#'.repeat(60), `#S${','.repeat(57)}#`, ...Array.from({ length: 28 }, () => `#${','.repeat(58)}#`), '#'.repeat(60)], raeume: {}, objekte: [] };
+  const konfiguration = erstelleKonfiguration({ server: { zufallsStartwert: 4 }, tiere: { hasenProTausend: 0 }, wetter: { aktiv: false } });
+  const welt = new SpielWelt(konfiguration, { kartenDefinition: KARTE_BOT });
+  for (const z of [...welt.alleVomTyp('zombie')]) welt.entfernen(z.id);
+  const bot = spawneBot(welt, { x: mitte(30), y: mitte(15) });
+  assert.ok(bot.bot && bot.name.startsWith('Bot '));
+  assert.equal(botsDerZone(welt).length, 1);
+  // läuft herum
+  ticks(welt, 30 * 8);
+  assert.ok(Math.hypot(bot.x - mitte(30), bot.y - mitte(15)) > 40, 'bewegt sich');
+  // Item in Sichtweite → aufheben
+  legeAufBoden(welt, { defId: 'apfel', menge: 2 }, bot.x + 120, bot.y);
+  for (let i = 0; i < 30 * 12 && anzahl(bot, 'apfel') === 0; i++) welt.aktualisiere(TICK_DAUER_S);
+  assert.ok(anzahl(bot, 'apfel') >= 1, 'Apfel aufgehoben');
+  // Zombie in Sicht → wird erschossen
+  const zombie = welt.hinzufuegen(erzeugeZombie({ id: welt.neueId(), x: bot.x + 260, y: bot.y, konfiguration, variante: 'normal' }));
+  zombie.zielId = null;
+  for (let i = 0; i < 30 * 20 && welt.holen(zombie.id); i++) welt.aktualisiere(TICK_DAUER_S);
+  assert.equal(welt.holen(zombie.id), undefined, 'Zombie tot');
+  assert.ok(bot.statistik.zombies >= 1);
+});
+
+test('Admin: Bot per Klick setzen und wieder entfernen', async () => {
+  const { ADMIN_BEFEHLE } = await import('../gemeinsam/protokoll.js');
+  const { botsDerZone } = await import('../server/spiel/systeme/botSystem.js');
+  const { welt, spieler } = neueWelt();
+  spieler.admin = true;
+  aktion(welt, spieler, { art: AKTIONEN.ADMIN, befehl: ADMIN_BEFEHLE.BOT_SETZEN, tx: 6, ty: 3 });
+  assert.equal(botsDerZone(welt).length, 1);
+  aktion(welt, spieler, { art: AKTIONEN.ADMIN, befehl: ADMIN_BEFEHLE.BOT_SETZEN, tx: 0, ty: 0 }); // Wand
+  assert.equal(botsDerZone(welt).length, 1);
+  const bot = botsDerZone(welt)[0];
+  const g = welt.welt.kachelGroesse;
+  aktion(welt, spieler, { art: AKTIONEN.ADMIN, befehl: ADMIN_BEFEHLE.BOT_ENTFERNEN, tx: Math.floor(bot.x / g), ty: Math.floor(bot.y / g) });
+  assert.equal(botsDerZone(welt).length, 0);
+  aktion(welt, spieler, { art: AKTIONEN.ADMIN, befehl: ADMIN_BEFEHLE.BOT_SETZEN, tx: 8, ty: 3 });
+  aktion(welt, spieler, { art: AKTIONEN.ADMIN, befehl: ADMIN_BEFEHLE.BOT_SETZEN, tx: 9, ty: 3 });
+  aktion(welt, spieler, { art: AKTIONEN.ADMIN, befehl: ADMIN_BEFEHLE.BOTS_ENTFERNEN });
+  assert.equal(botsDerZone(welt).length, 0);
+});
+
+test('Bots halten niemanden vom Schlafen ab', async () => {
+  const { spawneBot } = await import('../server/spiel/systeme/botSystem.js');
+  const { welt, spieler } = neueWelt({ schlafen: { dauer: 0.5, stunden: 6 } });
+  spawneBot(welt);
+  spieler.x = mitte(11);
+  spieler.y = mitte(2);
+  const tagVorher = welt.zeit;
+  aktion(welt, spieler, { art: AKTIONEN.SCHLAFEN });
+  ticks(welt, 30 * 2);
+  assert.equal(spieler.arbeit, null, 'aufgewacht');
+  assert.ok(welt.zeit !== tagVorher, 'Zeit vorgespult');
+});

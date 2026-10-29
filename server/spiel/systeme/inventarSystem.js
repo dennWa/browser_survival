@@ -45,7 +45,7 @@ export function verarbeiteAktionen(spielWelt) {
         continue;
       }
       if (aktion.art === AKTIONEN.ADMIN) {
-        fuehreAdminBefehlAus(spielWelt, spieler, aktion.befehl); // geht auch im Tod (z. B. Zombies wegräumen)
+        fuehreAdminBefehlAus(spielWelt, spieler, aktion.befehl, aktion); // geht auch im Tod (z. B. Zombies wegräumen)
         continue;
       }
       if (spieler.tot) continue;

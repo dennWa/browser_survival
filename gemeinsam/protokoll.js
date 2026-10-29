@@ -127,6 +127,9 @@ export const ADMIN_BEFEHLE = Object.freeze({
   UNENDLICH_AUSDAUER: 'unendlichAusdauer', // an/aus: Sprinten kostet keine Ausdauer
   ZEIT_VORSTELLEN: 'zeitVor12', // Uhr um 12 Spielstunden vorstellen (Pflanzen wachsen mit) – zum Testen von Wachstum und Tag/Nacht
   FLAGGE_ENTFERNEN: 'flaggeEntfernen', // eigene Basis-Flagge zurücknehmen (Bauteile bleiben stehen, gehören aber niemandem mehr)
+  BOT_SETZEN: 'botSetzen', // Runde 23: Test-Bot an Kachel { tx, ty } setzen (Client: Linksklick in die Welt)
+  BOT_ENTFERNEN: 'botEntfernen', // nächsten Bot bei { tx, ty } entfernen (≤ 4 Kacheln)
+  BOTS_ENTFERNEN: 'botsEntfernen', // alle Bots der Zone entfernen
 });
 
 /**

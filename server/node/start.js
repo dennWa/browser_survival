@@ -39,7 +39,7 @@ const authentifizierung = gastModus
 const spielServer = new SpielServer({
   authentifizierung,
   speicher: new DateiSpeicher(process.env.SPIELSTAENDE || path.join(SCHREIBBAR, 'spielstaende')),
-  konfiguration: mitUmgebung(ladeEinstellungen(path.join(SCHREIBBAR, 'einstellungen.json'))),
+  konfiguration: { bots: { proKarte: Number(process.env.BOTS ?? 2) }, ...mitUmgebung(ladeEinstellungen(path.join(SCHREIBBAR, 'einstellungen.json'))) }, // Runde 23: 2 Test-Bots je Zone (BOTS=0 = aus)
   // Developer-Modus speichert Änderungen dorthin zurück
   einstellungsSpeicher: dateiEinstellungsSpeicher(path.join(SCHREIBBAR, 'einstellungen.json')),
 });

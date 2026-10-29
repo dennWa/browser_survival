@@ -51,6 +51,8 @@ export class Eingabe {
   #fokusWeg = false; // Fenster hatte keinen Fokus → erster Klick holt nur den Fokus zurück (kein Schuss)
   /** Optionaler Haken: true = Linksklick ins Spiel löst gerade keinen Angriff aus (Fenster offen, Chat-Feld aktiv) */
   klickGesperrt = null;
+  /** Optionaler Haken: (x, y) → true = Klick wurde für etwas anderes verbraucht (kein Angriff) */
+  weltKlick = null;
 
   constructor(fenster, leinwand, dokument = document) {
     this.mausX = 0; // Bildschirmkoordinaten (CSS-Pixel)
@@ -92,6 +94,7 @@ export class Eingabe {
         e.preventDefault(); // kein Text-Markieren/Drag-Start, der die Maus "festhält"
         mausBewegt(e);
         // Klick, der nur den Fokus zurückholt oder ein Eingabefeld verlässt, schießt nicht
+        if (this.weltKlick?.(e.clientX, e.clientY)) return; // z. B. Admin: Bot an diese Stelle setzen
         const feld = istEingabefeld(dokument.activeElement);
         if (feld) dokument.activeElement.blur();
         if (this.#fokusWeg || feld || this.klickGesperrt?.()) {

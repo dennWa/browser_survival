@@ -4,7 +4,7 @@ import { BAUWERKE, BAUWERK_REICHWEITE, bauwerkAktion, feuerText, kachelInReichwe
 import { wurfZiel } from '../../gemeinsam/welt/wasser.js';
 import { findePfad } from '../../gemeinsam/physik/pfadfindung.js';
 import { tageszeit } from '../../gemeinsam/tageszeit.js';
-import { AKTIONEN, NACHRICHT } from '../../gemeinsam/protokoll.js';
+import { ADMIN_BEFEHLE, AKTIONEN, NACHRICHT } from '../../gemeinsam/protokoll.js';
 import { Welt } from '../../gemeinsam/welt/welt.js';
 import { wendeEingabeAn } from '../../gemeinsam/physik/bewegung.js';
 import { sichtlinieFrei } from '../../gemeinsam/physik/strahl.js';
@@ -752,7 +752,27 @@ export class ClientSpiel {
 
   /** Admin-Befehl (siehe ADMIN_BEFEHLE) – der Server prüft das Recht, der Client zeigt den Knopf nur Admins. */
   admin(befehl) {
-    if (this.spielerDaten?.admin) this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.ADMIN, befehl });
+    if (!this.spielerDaten?.admin) return;
+    // Runde 23: Bot setzen/entfernen → erst die Stelle anklicken (weltKlick)
+    if (befehl === ADMIN_BEFEHLE.BOT_SETZEN || befehl === ADMIN_BEFEHLE.BOT_ENTFERNEN) {
+      this.adminKlick = befehl;
+      this.hud.adminMenuUmschalten(false);
+      this.hud.meldung?.(befehl === ADMIN_BEFEHLE.BOT_SETZEN ? '🤖 Klicke auf die Stelle für den Bot' : '🤖 Klicke auf den Bot, der weg soll');
+      return;
+    }
+    this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.ADMIN, befehl });
+  }
+
+  /** Klick/Tipp in die Welt, der etwas anderes als Schießen bedeutet (Admin: Bot setzen/entfernen). true = verbraucht. */
+  weltKlick(sx, sy) {
+    if (!this.adminKlick) return false;
+    const punkt = this.renderer.kamera.bildschirmZuWelt(sx, sy);
+    const befehl = this.adminKlick;
+    this.adminKlick = null;
+    if (!punkt) return true;
+    const g = this.welt.kachelGroesse;
+    this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.ADMIN, befehl, tx: Math.floor(punkt.x / g), ty: Math.floor(punkt.y / g) });
+    return true;
   }
 
   #aktion(art, slot) {

@@ -7,6 +7,7 @@ import { erzeugeZombie, waehleZombieVariante, zombieZuNetzwerk } from './entitae
 import { tierZuNetzwerk } from './entitaeten/tier.js';
 import { gegenstandZuNetzwerk } from './entitaeten/gegenstand.js';
 import { verarbeiteSpielerEingaben } from './systeme/bewegungsSystem.js';
+import { aktualisiereBots } from './systeme/botSystem.js';
 import { verarbeiteAktionen, aktualisiereNachladen, gibStartausruestung } from './systeme/inventarSystem.js';
 import { aktualisiereKampf } from './systeme/kampfSystem.js';
 import { aktualisiereZombies } from './systeme/zombieSystem.js';
@@ -261,6 +262,7 @@ export class SpielWelt {
     this.tick++;
     this.ereignisse = []; // Meldungen leert der SpielServer nach dem Versand
     this.#beendeAbgelaufeneAktionen();
+    aktualisiereBots(this, dt); // Runde 23: Bots füllen ihre Eingabe-/Aktionspuffer wie echte Spieler
     verarbeiteSpielerEingaben(this);
     aktualisiereFahrzeuge(this, dt);
     pruefeUebergaenge(this, dt);

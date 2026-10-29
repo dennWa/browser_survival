@@ -1,5 +1,6 @@
 import { NACHRICHT, kodiere } from '../../gemeinsam/protokoll.js';
 import { SpielWelt } from './spielWelt.js';
+import { spawneBot } from './systeme/botSystem.js';
 
 /**
  * Interest Management: Zombies & Autos gehen nur an Spieler, die sie sehen könnten (Quadrat ± NETZ_SICHTWEITE px).
@@ -26,6 +27,8 @@ export class Zone {
    */
   constructor({ konfiguration, kartenDefinition, speicher, log }) {
     this.spielWelt = new SpielWelt(konfiguration, { kartenDefinition });
+    // Runde 23: Test-Bots (konfiguration.bots.proKarte), nicht im Tutorial
+    if (!this.spielWelt.tutorial) for (let i = 0; i < (konfiguration.bots?.proKarte ?? 0); i++) spawneBot(this.spielWelt);
     this.id = this.spielWelt.karte.daten.id;
     this.name = this.spielWelt.karte.daten.name;
     this.weltSchluessel = `welt:${this.id}`;

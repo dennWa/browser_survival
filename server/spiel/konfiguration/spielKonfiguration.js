@@ -103,6 +103,10 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     laterneSchaden: 0.5, // Schaden am Auto, wenn es eine Straßenlaterne umfährt (ab 70 km/h, LATERNE_MIN_KMH)
     laterneNachwachsen: 600, // Sekunden, bis eine umgefahrene Straßenlaterne wieder steht (Bäume: ressourcen.holz.nachwachsen)
   },
+  /** Runde 23: Test-Bots (systeme/botSystem.js) – so viele laufen je Zone herum; Admin kann welche setzen/entfernen. */
+  bots: {
+    proKarte: 0, // Standard aus (Tests); start.js und der Lokal-Modus setzen 2
+  },
   /** Kleintiere (Hasen): Anzahl je 1000 Gras-Kacheln der Karte, scheu, geben 1× Fleisch. */
   tiere: {
     hasenProTausend: 2,

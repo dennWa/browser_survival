@@ -512,6 +512,10 @@ export class SpielServer {
     if (spieler.aktionsPuffer.length >= MAX_AKTIONS_PUFFER) return;
     const aktion = { art: n.art, slot };
     if (n.art === AKTIONEN.ADMIN) aktion.befehl = n.befehl;
+    if (n.art === AKTIONEN.ADMIN && (n.befehl === ADMIN_BEFEHLE.BOT_SETZEN || n.befehl === ADMIN_BEFEHLE.BOT_ENTFERNEN)) {
+      if (!(Number.isInteger(n.tx) && Number.isInteger(n.ty))) return;
+      Object.assign(aktion, { tx: n.tx, ty: n.ty });
+    }
     if (n.art === AKTIONEN.HERSTELLEN) aktion.rezept = n.rezept;
     if (n.art === AKTIONEN.TAUSCHEN) aktion.ziel = n.ziel;
     if (n.art === AKTIONEN.ABLEGEN) aktion.einzeln = n.einzeln === true;
@@ -551,6 +555,11 @@ export class SpielServer {
     for (const s of this.sitzungen) {
       const sp = this.#spieler(s);
       if (sp) liste.push({ name: sp.name, level: sp.level, zombies: sp.statistik.zombies, spieler: sp.statistik.spieler, ueberlebt: Math.floor(sp.statistik.ueberlebt), tot: !!sp.tot, zone: s.zone.name });
+    }
+    // Runde 23: Bots aktiver Zonen mit in die Liste (Name beginnt mit „Bot “)
+    for (const zone of this.zonen.values()) {
+      if (!zone.aktiv) continue;
+      for (const sp of zone.spielWelt.alleVomTyp('spieler')) if (sp.bot) liste.push({ name: sp.name, level: sp.level, zombies: sp.statistik.zombies, spieler: sp.statistik.spieler, ueberlebt: Math.floor(sp.statistik.ueberlebt), tot: !!sp.tot, zone: zone.name, bot: true });
     }
     const text = kodiere({ typ: NACHRICHT.SPIELER_LISTE, liste });
     if (text === this.letzteSpielerListe) return;

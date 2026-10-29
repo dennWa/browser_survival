@@ -318,6 +318,32 @@ try {
     }
   }
 
+  // ---------------------------------------------------------------- Phase 8 (Bots)
+  if (phaseAn(8)) {
+    const bots = await amServer(`return [...welt.alleVomTyp('spieler')].filter((s) => s.bot).map((s) => ({ name: s.name, x: s.x, y: s.y }));`);
+    pruefe(bots.length === 2, `2 Bots in der Zone (${bots.map((b) => b.name).join(', ')})`);
+    await seite.waitForTimeout(5000);
+    const spaeter = await amServer(`return [...welt.alleVomTyp('spieler')].filter((s) => s.bot).map((s) => ({ x: s.x, y: s.y }));`);
+    pruefe(spaeter.some((b, i) => Math.hypot(b.x - bots[i].x, b.y - bots[i].y) > 20), 'Bots bewegen sich');
+    // Admin-Klickmodus: Bot vor die eigene Figur setzen
+    await amServer('ich.admin = true;');
+    await seite.waitForTimeout(400);
+    await seite.evaluate(() => browserSurvival.spiel.admin('botSetzen'));
+    await seite.mouse.click(620, 340);
+    await seite.waitForTimeout(1200);
+    const jetzt = await amServer(`return [...welt.alleVomTyp('spieler')].filter((s) => s.bot).length;`);
+    pruefe(jetzt === 3, `Admin: Bot per Klick gesetzt (${jetzt})`);
+    await seite.waitForTimeout(1500);
+    await bild('8_bot_gesetzt');
+    await seite.keyboard.press('KeyI');
+    await seite.waitForTimeout(600);
+    await bild('8_spielerliste');
+    await seite.keyboard.press('KeyI');
+    await seite.evaluate(() => browserSurvival.spiel.admin('botsEntfernen'));
+    await seite.waitForTimeout(800);
+    pruefe((await amServer(`return [...welt.alleVomTyp('spieler')].filter((s) => s.bot).length;`)) === 0, 'Admin: alle Bots entfernt');
+  }
+
   const info = await seite.evaluate(() => browserSurvival.spiel?.renderer.statistik() ?? '');
   if (info) console.log(`  Grafik: ${info}`);
 } catch (e) {

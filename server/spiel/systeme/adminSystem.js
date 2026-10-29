@@ -5,6 +5,7 @@ import { erzeugeZombie, waehleZombieVariante } from '../entitaeten/zombie.js';
 import { fuegeZumInventarHinzu } from './inventarSystem.js';
 import { toeten } from './kampfSystem.js';
 import { setzeWetter, wetterDerZone } from './wetterSystem.js';
+import { botsDerZone, entferneBot, spawneBot } from './botSystem.js';
 import { entferneFlagge } from './territoriumSystem.js';
 import { spuleZeitVor } from './arbeitSystem.js';
 
@@ -42,7 +43,7 @@ function landeAufFreiemBoden(spielWelt, spieler) {
   }
 }
 
-export function fuehreAdminBefehlAus(spielWelt, spieler, befehl) {
+export function fuehreAdminBefehlAus(spielWelt, spieler, befehl, aktion = {}) {
   if (!spieler.admin) {
     spielWelt.melde(spieler.id, 'Keine Admin-Rechte');
     return;
@@ -106,6 +107,35 @@ export function fuehreAdminBefehlAus(spielWelt, spieler, befehl) {
       const { tagSekunden, nachtSekunden } = spielWelt.tageszeitDauer();
       spielWelt.zeit = (spielWelt.istNacht ? tagSekunden + nachtSekunden : tagSekunden) - 3;
       spielWelt.melde(spieler.id, spielWelt.istNacht ? 'Gleich wird es hell …' : 'Gleich wird es dunkel …');
+      break;
+    }
+    case ADMIN_BEFEHLE.BOT_SETZEN: {
+      const g = spielWelt.welt.kachelGroesse;
+      if (spielWelt.welt.istBlockiert(aktion.tx, aktion.ty)) {
+        spielWelt.melde(spieler.id, 'Da ist kein Platz für einen Bot');
+        break;
+      }
+      const bot = spawneBot(spielWelt, { x: (aktion.tx + 0.5) * g, y: (aktion.ty + 0.5) * g });
+      spielWelt.melde(spieler.id, `${bot.name} gesetzt`);
+      break;
+    }
+    case ADMIN_BEFEHLE.BOT_ENTFERNEN: {
+      const g = spielWelt.welt.kachelGroesse;
+      const x = (aktion.tx + 0.5) * g;
+      const y = (aktion.ty + 0.5) * g;
+      const bot = botsDerZone(spielWelt).sort((a, b) => Math.hypot(a.x - x, a.y - y) - Math.hypot(b.x - x, b.y - y))[0];
+      if (!bot || Math.hypot(bot.x - x, bot.y - y) > g * 4) {
+        spielWelt.melde(spieler.id, 'Kein Bot in der Nähe der Klickstelle');
+        break;
+      }
+      entferneBot(spielWelt, bot);
+      spielWelt.melde(spieler.id, `${bot.name} entfernt`);
+      break;
+    }
+    case ADMIN_BEFEHLE.BOTS_ENTFERNEN: {
+      const bots = botsDerZone(spielWelt);
+      for (const bot of bots) entferneBot(spielWelt, bot);
+      spielWelt.melde(spieler.id, `${bots.length} Bot(s) entfernt`);
       break;
     }
     case ADMIN_BEFEHLE.WETTER: {

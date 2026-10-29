@@ -165,9 +165,9 @@ function schlafe(spielWelt, spieler, dt) {
   a.fertig = true; // wartet evtl. noch auf die anderen (Zeit läuft nur, wenn ALLE schlafen)
   a.rest = 0;
 
-  const lebende = [...spielWelt.alleVomTyp('spieler')].filter((s) => !s.tot);
+  const lebende = [...spielWelt.alleVomTyp('spieler')].filter((s) => !s.tot && !s.bot); // Bots schlafen nicht und halten niemanden wach
   // Die Uhr ist für alle Zonen gleich → auch die Spieler der anderen Zonen müssen schlafen (Hook vom SpielServer)
-  const andere = (spielWelt.spielerAndererZonen?.() ?? []).filter((s) => !s.tot);
+  const andere = (spielWelt.spielerAndererZonen?.() ?? []).filter((s) => !s.tot && !s.bot);
   const alleFertig = [...lebende, ...andere].every((s) => s.arbeit?.art === 'schlafen' && s.arbeit.fertig);
   const alleSchlafen = [...lebende, ...andere].every((s) => s.arbeit?.art === 'schlafen');
   if (alleFertig) {

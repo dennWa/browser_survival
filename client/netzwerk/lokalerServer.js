@@ -49,7 +49,7 @@ export function oeffneLokalenKanal() {
   if (!server) {
     server = new SpielServer({
       authentifizierung: new GastAuthentifizierung({ admin: true }), // lokal = eigenes Spiel → Admin-Menü frei
-      konfiguration: { ...ladeLokaleEinstellungen(), server: { name: testKarten ? 'Editor-Test' : 'Lokaler Server' } },
+      konfiguration: { bots: { proKarte: testKarten ? 0 : 2 }, ...ladeLokaleEinstellungen(), server: { name: testKarten ? 'Editor-Test' : 'Lokaler Server' } }, // Runde 23: 2 Test-Bots je Zone
       speicher: testKarten ? new ArbeitsspeicherSpeicher() : new BrowserSpeicher(),
       einstellungsSpeicher: lokalerEinstellungsSpeicher,
       ...(testKarten ? { kartenDefinition: testKarten.karten[testKarten.start], kartenDefinitionen: testKarten.karten } : {}),
