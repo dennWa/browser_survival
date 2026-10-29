@@ -391,7 +391,15 @@ export class ClientSpiel {
     return !!(this.karte.offen || h.inventar.offen || h.skills.offen || h.einstellungen.offen || h.kiste.offen || h.station.offen || this.werkbankOffen || this.bau.aktiv || this.platzierung || this.autoLauf);
   }
 
+  /** Fenster offen, durch das ein Klick ins Spiel NICHT schießen soll (Bau-/Platzier-Modus brauchen den Klick). */
+  fensterOffen() {
+    const h = this.hud;
+    return !!(this.karte.offen || h.inventar.offen || h.skills.offen || h.einstellungen.offen || h.kiste.offen || h.station.offen || this.werkbankOffen);
+  }
+
   menuesSchliessen() {
+    // Esc im Bett (nichts anderes offen): aufstehen
+    if (this.schlaeft && !this.etwasOffen()) this.#aktion(AKTIONEN.SCHLAFEN);
     this.karte.zeige(false);
     this.hud.entwickler.zeige(false);
     this.hud.inventar.zeige(false);
@@ -476,6 +484,14 @@ export class ClientSpiel {
       this.#aktion(AKTIONEN.KOFFERRAUM);
       return true;
     }
+    return false;
+  }
+
+  /** Steht man zu Fuß hinter einem Auto (Tab = Kofferraum)? → Hinweis im HUD */
+  #hinterAuto() {
+    if (this.spielerDaten?.tot || this.lokal.fahrzeug || this.hud.kiste.offen) return false;
+    const letzter = this.schnappschuesse[this.schnappschuesse.length - 1];
+    for (const e of letzter?.entitaeten.values() ?? []) if (e.typ === 'fahrzeug' && hinterFahrzeug(e, this.lokal.x, this.lokal.y)) return true;
     return false;
   }
 
@@ -1304,7 +1320,11 @@ export class ClientSpiel {
             ? '🎣 Linksklick: Angel auswerfen'
             : !touch && hand?.art === 'samen'
               ? '🌱 Linksklick: Samen pflanzen'
-              : null,
+              : this.#hinterAuto()
+                ? touch
+                  ? '🧳 Kofferraum: Knopf oben'
+                  : '🧳 [Tab] Kofferraum öffnen'
+                : null,
       angel === 'biss',
     );
     if (this.hud.minikarteAn && jetzt - this.letzteMiniKarte > 180) {

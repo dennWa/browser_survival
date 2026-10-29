@@ -16,18 +16,19 @@ const ROH_GEGENSTAENDE = {
   // --- Essen ---
   konservendose: { name: 'Konservendose', kategorie: 'nahrung', naehrwert: 35, stapelbar: 5 },
   marmelade: { name: 'Glas Marmelade', kategorie: 'nahrung', naehrwert: 20, stapelbar: 5 },
-  apfel: { name: 'Äpfel', kategorie: 'nahrung', naehrwert: 12, stapelbar: 5 },
+  apfel: { name: 'Äpfel', kategorie: 'nahrung', naehrwert: 12, durstwert: 4, stapelbar: 5 },
   broetchen: { name: 'Brötchen', kategorie: 'nahrung', naehrwert: 15, stapelbar: 5 },
   kaese: { name: 'Käse', kategorie: 'nahrung', naehrwert: 20, stapelbar: 5 },
   muesliriegel: { name: 'Müsliriegel', kategorie: 'nahrung', naehrwert: 15, stapelbar: 10 },
   sandwich: { name: 'Sandwich', kategorie: 'nahrung', naehrwert: 30, stapelbar: 3 },
+  // Obst & Gemüse löschen nebenbei etwas Durst (durstwert ≈ ⅓ naehrwert; Gurke bewusst 1:1)
   // Ernte vom Beet – am Lagerfeuer gebraten/gebacken machen sie 30 % mehr satt (gemeinsam/welt/bauwerke.js → KOCHBAR)
-  tomate: { name: 'Tomate', kategorie: 'nahrung', naehrwert: 12, stapelbar: 10, beschreibung: 'Am Lagerfeuer braten: macht 30 % mehr satt' },
+  tomate: { name: 'Tomate', kategorie: 'nahrung', naehrwert: 12, durstwert: 4, stapelbar: 10, beschreibung: 'Am Lagerfeuer braten: macht 30 % mehr satt' },
   gurke: { name: 'Gurke', kategorie: 'nahrung', naehrwert: 12, durstwert: 12, stapelbar: 10, beschreibung: 'Am Lagerfeuer braten: macht 30 % mehr satt' },
-  kartoffel: { name: 'Kartoffel', kategorie: 'nahrung', naehrwert: 14, stapelbar: 10, beschreibung: 'Am Lagerfeuer backen: macht 30 % mehr satt' },
-  tomate_gebraten: { name: 'Gebratene Tomate', kategorie: 'nahrung', naehrwert: 16, stapelbar: 10 },
+  kartoffel: { name: 'Kartoffel', kategorie: 'nahrung', naehrwert: 14, durstwert: 5, stapelbar: 10, beschreibung: 'Am Lagerfeuer backen: macht 30 % mehr satt' },
+  tomate_gebraten: { name: 'Gebratene Tomate', kategorie: 'nahrung', naehrwert: 16, durstwert: 5, stapelbar: 10 },
   gurke_gebraten: { name: 'Gebratene Gurke', kategorie: 'nahrung', naehrwert: 16, durstwert: 16, stapelbar: 10 },
-  ofenkartoffel: { name: 'Ofenkartoffel', kategorie: 'nahrung', naehrwert: 18, stapelbar: 10 },
+  ofenkartoffel: { name: 'Ofenkartoffel', kategorie: 'nahrung', naehrwert: 18, durstwert: 6, stapelbar: 10 },
   // --- Trinken ---
   wasserflasche: { name: 'Wasserflasche', kategorie: 'getraenk', durstwert: 40, stapelbar: 5 },
   energydrink: { name: 'Energydrink', kategorie: 'getraenk', durstwert: 20, stapelbar: 5, boost: 5, beschreibung: '5 Sekunden Sprinten ohne Ausdauerverbrauch' },
@@ -78,8 +79,8 @@ const ROH_GEGENSTAENDE = {
   samen_gurke: { name: 'Gurkensamen', kategorie: 'samen', pflanze: 'gurke', stapelbar: 10, beschreibung: 'In ein Beet pflanzen (E am Beet)' },
   samen_kartoffel: { name: 'Saatkartoffeln', kategorie: 'samen', pflanze: 'kartoffel', stapelbar: 10, beschreibung: 'In ein Beet pflanzen (E am Beet)' },
   samen_paprika: { name: 'Paprikasamen', kategorie: 'samen', pflanze: 'paprika', beschreibung: 'In ein Beet pflanzen (E am Beet)' },
-  paprika: { name: 'Paprika', kategorie: 'nahrung', naehrwert: 13, beschreibung: 'Am Lagerfeuer braten: macht 30 % mehr satt' },
-  paprika_gebraten: { name: 'Gebratene Paprika', kategorie: 'nahrung', naehrwert: 17 },
+  paprika: { name: 'Paprika', kategorie: 'nahrung', naehrwert: 13, durstwert: 4, beschreibung: 'Am Lagerfeuer braten: macht 30 % mehr satt' },
+  paprika_gebraten: { name: 'Gebratene Paprika', kategorie: 'nahrung', naehrwert: 17, durstwert: 6 },
   // --- Jagen & Angeln ---
   fleisch: { name: 'Hasenfleisch', kategorie: 'nahrung', naehrwert: 14, beschreibung: 'Am Lagerfeuer braten: macht deutlich satter' },
   fleisch_gebraten: { name: 'Hasenbraten', kategorie: 'nahrung', naehrwert: 32 },

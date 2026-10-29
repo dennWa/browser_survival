@@ -32,6 +32,7 @@ import { Karte } from './ui/karte.js';
 const leinwand = document.getElementById('spielflaeche');
 let renderer = null;
 const eingabe = new Eingabe(window, leinwand);
+eingabe.klickGesperrt = () => !!aktuellesSpiel?.fensterOffen(); // Klick ins Spiel bei offenem Fenster schießt nicht
 // Touch-Gesten: zwei Finger = Zoom, Tippen = Zombie anvisieren
 eingabe.touch.beiZoom = (faktor) => renderer?.zoomen(faktor);
 eingabe.touch.beiTipp = (x, y) => aktuellesSpiel?.zielAntippen(x, y);

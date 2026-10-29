@@ -7,6 +7,7 @@ import { ladeEigenesModell } from './eigeneModelle.js';
  * Autos: sofort ein prozedurales Low-Poly-Auto (Karosserie, Kabine, Räder, Lichter – eine Geometrie mit Vertexfarben,
  * pro Modell & Größe gecacht); ist das GLB aus `GLB_AUTOS` (Quaternius-Autos, CC0) geladen, ersetzt es den Platzhalter.
  * gruppe.children[0] = Karosserie (Neigung im Renderer, Wrack-Material). Lokal: Front nach +z, Breite entlang x, Boden y = 0.
+ * Runde 23: alle Auto-Materialien laufen durch `altere()` (Rost, Dreck, ausgeblichener Lack – Shader-Haken, keine Texturen).
  * GLB-Größe: gleichmäßig in Länge × Breite des Fahrzeugs (Physik) eingepasst → Höhe ≈ 1,2 m bei ~36 px/m (Figur 64 px ≈ 1,8 m).
  */
 const GLB_AUTOS = {
@@ -17,7 +18,72 @@ const GLB_AUTOS = {
   auto_gelb: { datei: 'taxi.glb' },
   transporter: { datei: 'suv.glb' },
 };
-const MATERIAL = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, metalness: 0.25 });
+const MATERIAL = altere(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.75, metalness: 0.15 }), 'lack', 0.18); // Platzhalter: Maße in px
+
+/** Materialname (Quaternius-Autos) → Alterungsart: Glas staubig, Lichter trüb, Rest = Lack/Plastik mit Rost & Dreck. */
+function art(name = '') {
+  if (/window|glass/i.test(name)) return 'glas';
+  if (/light/i.test(name)) return 'licht';
+  if (/black|tire|wheel/i.test(name)) return 'gummi';
+  return 'lack';
+}
+
+/**
+ * Runde 23: Autos alt & abgeranzt – ausgeblichener Lack, Rostflecken, Dreck an Schwellern/Radkästen, staubige Scheiben.
+ * Ohne Textur/UVs: prozedurales Rauschen im Objekt-Raum (Shader-Haken onBeforeCompile), Dreck nach Welthöhe.
+ */
+function altere(material, artWert, skala = 6) {
+  const rost = artWert === 'lack' ? 1 : 0;
+  const staub = artWert === 'glas' ? 1 : 0;
+  if (material.color && !material.vertexColors) {
+    const hsl = {};
+    material.color.getHSL(hsl);
+    if (artWert === 'lack') material.color.setHSL(hsl.h, hsl.s * 0.62, Math.min(0.75, hsl.l * 0.92 + 0.03)); // ausgeblichen
+    if (artWert === 'licht') material.color.multiplyScalar(0.7); // trübe Scheinwerfer
+  }
+  material.roughness = Math.max(material.roughness ?? 0.8, artWert === 'glas' ? 0.55 : 0.85);
+  material.metalness = Math.min(material.metalness ?? 0, 0.1);
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uRost = { value: rost };
+    shader.uniforms.uStaub = { value: staub };
+    shader.uniforms.uAltSkala = { value: skala };
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vAltPos;\nvarying float vAltHoehe;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvAltPos = position;\nvAltHoehe = (modelMatrix * vec4(position, 1.0)).y;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        '#include <common>',
+        `#include <common>
+uniform float uRost; uniform float uStaub; uniform float uAltSkala; varying vec3 vAltPos; varying float vAltHoehe;
+float altHash(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
+float altRausch(vec3 p) {
+  vec3 i = floor(p); vec3 f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(altHash(i), altHash(i + vec3(1,0,0)), f.x), mix(altHash(i + vec3(0,1,0)), altHash(i + vec3(1,1,0)), f.x), f.y),
+             mix(mix(altHash(i + vec3(0,0,1)), altHash(i + vec3(1,0,1)), f.x), mix(altHash(i + vec3(0,1,1)), altHash(i + vec3(1,1,1)), f.x), f.y), f.z);
+}`,
+      )
+      .replace(
+        '#include <color_fragment>',
+        `#include <color_fragment>
+{
+  vec3 q = vAltPos * uAltSkala;
+  float n = altRausch(q) * 0.6 + altRausch(q * 2.7) * 0.3 + altRausch(q * 7.0) * 0.1;
+  float rostMaske = smoothstep(0.66, 0.73, n) * uRost * 0.85;
+  vec3 rostFarbe = mix(vec3(0.33, 0.17, 0.08), vec3(0.5, 0.27, 0.11), altRausch(q * 11.0));
+  diffuseColor.rgb = mix(diffuseColor.rgb, rostFarbe, rostMaske);
+  // Kratzer/Abnutzung: feine hellere Sprenkel
+  diffuseColor.rgb *= 0.9 + 0.12 * altRausch(q * 19.0);
+  // Dreck & Schlamm unten (Schweller, Radkästen) – nach Welthöhe
+  float dreck = (1.0 - smoothstep(4.0, 17.0, vAltHoehe)) * (0.55 + 0.45 * altRausch(q * 3.3));
+  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.24, 0.2, 0.15), dreck * 0.7);
+  // Scheiben: Staubschleier
+  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.42, 0.4, 0.36), uStaub * (0.25 + 0.25 * n));
+}`,
+      );
+  };
+  material.customProgramCacheKey = () => `altauto-${rost}-${staub}-${skala}`;
+  return material;
+}
 const cache = new Map();
 
 export function erzeugeFahrzeugModell(modell, laenge, breite) {
@@ -55,12 +121,11 @@ function glbKarosserie(szene, glb, L, B) {
     t.castShadow = true;
     t.receiveShadow = true;
     const farbe = glb.lack?.[t.material?.name];
-    if (farbe === undefined) return;
-    const schluessel = `${t.material.name}|${farbe}`;
+    const schluessel = `${glb.datei}|${t.material?.name}|${farbe ?? ''}`;
     if (!lackCache.has(schluessel)) {
       const m = t.material.clone();
-      m.color.set(farbe);
-      lackCache.set(schluessel, m);
+      if (farbe !== undefined) m.color.set(farbe);
+      lackCache.set(schluessel, altere(m, art(t.material?.name)));
     }
     t.material = lackCache.get(schluessel);
   });

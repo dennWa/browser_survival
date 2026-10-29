@@ -13,6 +13,7 @@ export const KACHEL_FARBEN = {
   holz: '#c9925a',
   tuer: '#8a5a33',
   wand: '#3b4048',
+  wandBoden: '#24272c', // Boden unter Wänden (sichtbar, wenn die Wand ausgeblendet ist)
   fenster: '#3b4048',
   wasser: '#2d78b0',
 };

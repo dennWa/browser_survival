@@ -58,6 +58,15 @@ export class BodenTextur {
       for (let tx = xa; tx < xe; tx++) this.#grasRand(ctx, tx, ty);
       if (ty % 8 === 7) yield;
     }
+    // Runde 23: Boden unter Wänden/Fenstern einfarbig zuletzt – sonst lagen Schnee-/Rasen-Ränder der Nachbarn darin und
+    // tauchten als Flecken auf, sobald die Wand beim Betreten des Hauses durchsichtig wird
+    ctx.fillStyle = FARBEN.wandBoden;
+    for (let ty = ya; ty < ye; ty++) {
+      for (let tx = xa; tx < xe; tx++) {
+        const name = KACHELN[this.welt.kachelAn(tx, ty)]?.name;
+        if (name === 'wand' || name === 'fenster') ctx.fillRect(tx * this.g, ty * this.g, this.g + 0.25, this.g + 0.25);
+      }
+    }
     if (this.bemalung) {
       ctx.globalAlpha = 0.55;
       for (const [farbe, rechtecke] of Object.entries(this.bemalung)) {

@@ -29,8 +29,8 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     geschwindigkeit: 100, // Pixel pro Sekunde ohne Shift = leichtes Joggen (Runde 21: vorher 80 Gehen, war zu lahm)
     radius: 12,
     leben: 100,
-    hungerProMinute: 4, // Sättigung 100 → 0 in 25 min
-    durstProMinute: 6, // 100 → 0 in ~17 min
+    hungerProMinute: 2.7, // Sättigung 100 → 0 in ~37 min (Runde 23: seltener essen)
+    durstProMinute: 4, // 100 → 0 in 25 min
     hungerSchadenProSekunde: 0.5, // Schaden, wenn Hunger ODER Durst bei 0
     regenerationProSekunde: 0.25, // Heilung, wenn satt und getränkt
     regenerationAb: 70, // ab diesem Hunger- UND Durstwert
@@ -153,7 +153,7 @@ export const STANDARD_KONFIGURATION = Object.freeze({
    * nachwachsen in Sekunden. Welche Objekte abbaubar sind: gemeinsam/welt/ressourcen.js
    */
   ressourcen: {
-    holz: { menge: 1, mengeGross: 2, chanceAufMehr: 0.2, dauer: 6, nachwachsen: 300 },
+    holz: { menge: 1, mengeGross: 2, chanceAufMehr: 0.2, dauer: 6, nachwachsen: 300, apfelChance: 0.1 },
     stein: { menge: 1, mengeGross: 2, chanceAufMehr: 0.2, dauer: 8, nachwachsen: 240 },
     eisenerz: { menge: 1, chanceAufMehr: 0.2, dauer: 10, nachwachsen: 420 },
   },

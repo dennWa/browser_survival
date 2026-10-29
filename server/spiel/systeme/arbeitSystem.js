@@ -21,7 +21,7 @@ import { BAUWERKE } from '../../../gemeinsam/welt/bauwerke.js';
  */
 const ABBRUCH_WEG = 6;
 const SITZ_HEILUNG = 0.5; // Leben pro Sekunde am Lagerfeuer
-const SCHLAG_TAKT = 0.85; // Sekunden zwischen zwei Hack-Geräuschen (passt zur Animation)
+export const SCHLAG_TAKT = 0.85; // Sekunden zwischen zwei Hack-Geräuschen (passt zur Animation)
 
 /** AKTION 'abbauen': nächsten Baum/Stein in Reichweite bearbeiten. */
 export function starteAbbau(spielWelt, spieler) {
@@ -57,6 +57,14 @@ export function starteSchlafen(spielWelt, spieler) {
   const dauer = Math.max(0.5, k.dauer);
   spieler.arbeit = { art: 'schlafen', dauer, rest: dauer, x: spieler.x, y: spieler.y, ort: bett };
   spieler.nachladenRest = 0;
+}
+
+/** AKTION 'schlafen' während man schon schläft (Esc): aufstehen – bereits vorgespulte Zeit bleibt, keine Kosten. */
+export function brecheSchlafAb(spielWelt, spieler) {
+  if (spieler.arbeit?.art !== 'schlafen') return false;
+  spieler.arbeit = null;
+  spielWelt.melde(spieler.id, 'Aufgestanden');
+  return true;
 }
 
 /** Bricht eine laufende Arbeit ab (z. B. bei Schaden). */
@@ -131,8 +139,14 @@ function schliesseAbbauAb(spielWelt, spieler, r) {
   spielWelt.welt.setzeRessource(r.id, false);
   spielWelt.ressourcenNachwuchs.set(r.id, nachwachsen);
   gibXp(spielWelt, spieler, spielWelt.konfiguration.level.xpProAbbau ?? 0);
-  spielWelt.ereignis({ typ: 'abgebaut', art: r.art, x: r.x, y: r.y, id: r.id, von: spieler.id, sx: spieler.x, sy: spieler.y });
-  spielWelt.melde(spieler.id, `+${menge} ${GEGENSTAENDE[r.art]?.name ?? r.art}${menge > 1 ? ' – Glück gehabt!' : ''}`);
+  // Bäume werfen manchmal einen Apfel ab (konfiguration.ressourcen.holz.apfelChance)
+  const apfel = r.art === 'holz' && spielWelt.zufall.zahl() < (k.apfelChance ?? 0);
+  if (apfel) {
+    const apfelRest = fuegeZumInventarHinzu(spieler, 'apfel', 1);
+    if (apfelRest > 0) legeAufBoden(spielWelt, { defId: 'apfel', menge: apfelRest }, spieler.x, spieler.y);
+  }
+  // menge/bonus: Client zeigt „+N <Icon>“ an der Abbaustelle (ui/weltPopups.js) statt einer Textmeldung
+  spielWelt.ereignis({ typ: 'abgebaut', art: r.art, x: r.x, y: r.y, id: r.id, von: spieler.id, sx: spieler.x, sy: spieler.y, menge, bonus: apfel ? 'apfel' : undefined });
 }
 
 /** Ein Tick Schlaf: Heilung verteilt sich über die Schlafdauer; am Ende aufwachen (und evtl. Zeit vorspulen). */

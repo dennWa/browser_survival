@@ -16,7 +16,7 @@ export const TASTEN = Object.freeze({
   sprint: ['ShiftLeft', 'ShiftRight'],
   aufheben: ['KeyE'], // Aufheben / Abbauen / Werkbank / Schlafen – je nachdem, was in der Nähe ist
   menue: ['Escape'], // offene Menüs schließen
-  karte: ['KeyK'], // Karte auf/zu
+  karte: ['KeyM', 'KeyK'], // Karte auf/zu (Runde 23: M, K bleibt als Zweitbelegung)
   inventar: ['Tab'], // Inventar-Fenster auf/zu
   bauen: ['KeyB'], // Bau-Modus (BUILD) an/aus – R dreht dort das Bauteil; Admin: Umschalt+B = Flugmodus
   abriss: ['KeyX'], // im Bau-Modus: Abriss-Werkzeug
@@ -32,7 +32,7 @@ export const TASTEN = Object.freeze({
   licht: ['KeyL'], // Taschenlampe an/aus
   wiederbeleben: ['Enter'], // tot → sofort neu spawnen
   admin: ['KeyP'], // Admin-Menü (nur Admins)
-  ton: ['KeyM'], // Ton an/aus
+  ton: [], // Ton an/aus (M ist seit Runde 23 die Karte; Ton im ⚙-Menü)
   debug: ['F3'],
 });
 
@@ -48,6 +48,9 @@ export class Eingabe {
   #slotHoerer = [];
   #aktiv = false;
   #mausGedrueckt = false;
+  #fokusWeg = false; // Fenster hatte keinen Fokus → erster Klick holt nur den Fokus zurück (kein Schuss)
+  /** Optionaler Haken: true = Linksklick ins Spiel löst gerade keinen Angriff aus (Fenster offen, Chat-Feld aktiv) */
+  klickGesperrt = null;
 
   constructor(fenster, leinwand, dokument = document) {
     this.mausX = 0; // Bildschirmkoordinaten (CSS-Pixel)
@@ -67,7 +70,12 @@ export class Eingabe {
       this.#gedrueckt.add(e.code);
     });
     fenster.addEventListener('keyup', (e) => this.#gedrueckt.delete(e.code));
-    fenster.addEventListener('blur', () => this.zuruecksetzen());
+    fenster.addEventListener('blur', () => {
+      this.zuruecksetzen();
+      this.#fokusWeg = true;
+    });
+    // Fokus kam per Tastatur/Alt-Tab zurück → nächster Klick schießt wieder normal (pointerdown kommt nach focus)
+    fenster.addEventListener('focus', () => setTimeout(() => (this.#fokusWeg = false), 250));
     // Auf dem ganzen Fenster: auch über HUD/Schnellleiste soll weiter gezielt werden
     // mousemove statt nur pointermove: manche Stifte/Touchpads melden pointerType 'pen' o. Ä. – Hauptsache, es zielt
     const mausBewegt = (e) => {
@@ -82,8 +90,15 @@ export class Eingabe {
     leinwand.addEventListener('pointerdown', (e) => {
       if (e.pointerType !== 'touch' && e.button === 0 && this.#aktiv) {
         e.preventDefault(); // kein Text-Markieren/Drag-Start, der die Maus "festhält"
-        this.#mausGedrueckt = true;
         mausBewegt(e);
+        // Klick, der nur den Fokus zurückholt oder ein Eingabefeld verlässt, schießt nicht
+        const feld = istEingabefeld(dokument.activeElement);
+        if (feld) dokument.activeElement.blur();
+        if (this.#fokusWeg || feld || this.klickGesperrt?.()) {
+          this.#fokusWeg = false;
+          return;
+        }
+        this.#mausGedrueckt = true;
       }
     });
     const losgelassen = (e) => {

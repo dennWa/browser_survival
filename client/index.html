@@ -36,17 +36,18 @@
           <span id="hud-uhr" title="Tag 10 Minuten, Nacht 5 Minuten – nachts kommt die Horde">☀ 06:00</span>
           <span id="hud-status"></span>
         </div>
+        <!-- Runde 23: Chat/Rucksack/Feld/Karte/Lampe nur noch auf Touch (am PC: T, Tab, Rechtsklick, M, L) -->
         <div class="hud-knoepfe">
-          <button id="hud-chat" type="button" title="Chat (T)">💬</button>
-          <button id="hud-inventar" type="button" title="Inventar (Tab)">🎒</button>
-          <button id="hud-bauen" type="button" title="Bauen (B): Basis-Flagge, Wände, Böden, Möbel – mit dem Hammer">🔨 BUILD</button>
+          <button id="hud-chat" class="nur-touch" type="button" title="Chat (T)">💬</button>
+          <button id="hud-inventar" class="nur-touch" type="button" title="Inventar (Tab)">🎒</button>
+          <button id="hud-bauen" type="button" title="Bauen (B): Basis-Flagge, Wände, Böden, Möbel – mit dem Hammer">🔨</button>
           <button id="hud-skills" type="button" title="Fähigkeiten (U)">⭐</button>
           <button id="hud-kofferraum" type="button" title="Kofferraum öffnen (G)" hidden>🧳</button>
           <button id="hud-sitzen" class="nur-touch" type="button" title="Hinsetzen / aufstehen (Ä)">🪑</button>
-          <button id="hud-feld" type="button" title="Ackerfeld zurück zu Rasen (Rechtsklick) – Hacke in der Hand">🌱</button>
+          <button id="hud-feld" class="nur-touch" type="button" title="Ackerfeld zurück zu Rasen (Rechtsklick) – Hacke in der Hand">🌱</button>
           <button id="hud-zoom" class="nur-touch" type="button" title="Zoom (am PC: Mausrad)">🔍</button>
-          <button id="hud-karte" type="button" title="Karte (K)">🗺</button>
-          <button id="hud-licht" type="button" title="Taschenlampe an/aus (L) – aus = Zombies sehen dich schlechter">🔦</button>
+          <button id="hud-karte" class="nur-touch" type="button" title="Karte (M)">🗺</button>
+          <button id="hud-licht" class="nur-touch" type="button" title="Taschenlampe an/aus (L) – aus = Zombies sehen dich schlechter">🔦</button>
           <button id="hud-admin" type="button" title="Admin-Menü (P)" hidden>🛡</button>
           <button id="hud-einstellungen" type="button" title="Einstellungen: Ton, Grafik, Abmelden">⚙</button>
         </div>
@@ -151,7 +152,7 @@
       </div>
       <div class="einst-spalten">
         <div>
-          <h3 class="inv-titel">Ton <small>M = Ton an/aus</small></h3>
+          <h3 class="inv-titel">Ton</h3>
           <button id="hud-ton" type="button" class="einst-knopf">🔊 Ton an</button>
           <div id="einstellungen-regler"></div>
         </div>

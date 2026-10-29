@@ -7,7 +7,7 @@ import { erzeugeGegenstand } from '../entitaeten/gegenstand.js';
 import { wiederbeleben } from './ueberlebenSystem.js';
 import { fuehreAdminBefehlAus } from './adminSystem.js';
 import { verstaerkeTuer as verstaerkeNaechsteTuer } from './tuerSystem.js';
-import { starteAbbau, starteSchlafen } from './arbeitSystem.js';
+import { brecheSchlafAb, starteAbbau, starteSchlafen } from './arbeitSystem.js';
 import { stelleHer } from './craftingSystem.js';
 import { benutzeBauwerk, feuer, platziere } from './bauSystem.js';
 import { setzeSkillpunkt } from './levelSystem.js';
@@ -60,8 +60,8 @@ export function verarbeiteAktionen(spielWelt) {
         case AKTIONEN.ABBAUEN:
           starteAbbau(spielWelt, spieler);
           break;
-        case AKTIONEN.SCHLAFEN:
-          starteSchlafen(spielWelt, spieler);
+        case AKTIONEN.SCHLAFEN: // im Bett nochmal = aufstehen (Esc)
+          if (!brecheSchlafAb(spielWelt, spieler)) starteSchlafen(spielWelt, spieler);
           break;
         case AKTIONEN.HERSTELLEN:
           stelleHer(spielWelt, spieler, aktion.rezept);
