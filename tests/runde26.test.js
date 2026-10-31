@@ -37,3 +37,13 @@ test('R26 Innen-Abschirmung: Renderer hält die Anzahl der Schnittebenen konstan
   assert.match(quelle, /this\.gl\.clippingPlanes = this\.innenEbenen/);
   assert.match(quelle, /#innenAbschirmung\(dt, fokus\)/);
 });
+
+test('R26 Grafik-Absturz: verlorener WebGL-Kontext wird abgefangen und gemeldet (sonst bleibt alles grau)', () => {
+  const quelle = readFileSync('client/darstellung/renderer.js', 'utf8');
+  assert.match(quelle, /addEventListener\('webglcontextlost'[\s\S]{0,80}preventDefault\(\)/);
+  assert.match(quelle, /addEventListener\('webglcontextrestored'/);
+  assert.match(quelle, /if \(this\.kontextVerloren\) return;/);
+  const main = readFileSync('client/main.js', 'utf8');
+  assert.match(main, /renderer\.beiKontext = grafikAbsturz/);
+  assert.match(readFileSync('client/index.html', 'utf8'), /id="grafik-neu-laden"/);
+});

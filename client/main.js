@@ -310,6 +310,30 @@ function versteckeLaden() {
     if (ladeBildschirm.classList.contains('weg')) ladeBildschirm.hidden = true;
   }, 350);
 }
+/**
+ * Grafiktreiber-Absturz: Der Browser hat den WebGL-Kontext entzogen (Bild bleibt grau). Meist kommt er nach 1–2 s zurück;
+ * wenn nicht, bieten wir „Neu laden“ an (lokaler Spielstand wird beim Verlassen gespeichert – lokalerServer pagehide).
+ */
+let grafikAbsturzZeit = null;
+function grafikAbsturz(wiederDa) {
+  const kasten = document.getElementById('grafik-absturz');
+  const text = document.getElementById('grafik-absturz-text');
+  const knopf = document.getElementById('grafik-neu-laden');
+  clearTimeout(grafikAbsturzZeit);
+  if (wiederDa) {
+    kasten.hidden = true;
+    return;
+  }
+  text.textContent = 'Die Grafik ist kurz ausgefallen (Grafiktreiber) – wird wiederhergestellt …';
+  knopf.hidden = true;
+  kasten.hidden = false;
+  grafikAbsturzZeit = setTimeout(() => {
+    text.textContent = 'Die Grafik kommt nicht von selbst zurück. Bitte neu laden – dein Fortschritt bleibt erhalten.';
+    knopf.hidden = false;
+  }, 5000);
+}
+document.getElementById('grafik-neu-laden').addEventListener('click', () => location.reload());
+
 const naechsterFrame = () => new Promise((r) => requestAnimationFrame(() => r()));
 
 async function starten() {
@@ -325,6 +349,7 @@ async function starten() {
     zeigeLaden('Lade 3D-Figuren …', 85);
     renderer = await Renderer.erstelle(leinwand, assets);
     renderer.verbergen();
+    renderer.beiKontext = grafikAbsturz;
     hud.inventar.vorschau.spielRenderer = renderer; // Charakter-Vorschau im Inventar (Runde 23)
     zeigeLaden('Fertig', 100);
   } catch (fehler) {

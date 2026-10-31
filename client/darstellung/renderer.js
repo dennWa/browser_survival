@@ -249,6 +249,25 @@ export class Renderer {
     this.autoProfil = this.geraet.profil;
 
     this.gl = new THREE.WebGLRenderer({ canvas: this.leinwand, antialias: !this.istHandy && this.#basisProfil() !== 'niedrig', stencil: true, powerPreference: 'high-performance' });
+    // Grafiktreiber-Absturz (WebGL-Kontext verloren, oft nach einem Ruckler): Ohne Behandlung bleibt das Bild dauerhaft grau –
+    // „alles neblig, man sieht nix“. Three.js baut beim Wiederherstellen alles neu hoch; wir melden es dem HUD (beiKontext).
+    this.kontextVerloren = false;
+    this.kontextVerluste = 0;
+    this.leinwand.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault(); // nur dann stellt der Browser den Kontext wieder her
+      this.kontextVerloren = true;
+      this.kontextVerluste++;
+      console.warn(`[3D] WebGL-Kontext verloren (${this.kontextVerluste}×) – warte auf Wiederherstellung`);
+      this.beiKontext?.(false);
+    });
+    this.leinwand.addEventListener('webglcontextrestored', () => {
+      this.kontextVerloren = false;
+      console.warn('[3D] WebGL-Kontext wiederhergestellt');
+      this.#groesseAnpassen();
+      this.messung = { frames: 0, zeit: 0, seit: 0 }; // der Hänger zählt nicht als „Gerät zu langsam“
+      this.messenAb = performance.now() + 3000;
+      this.beiKontext?.(true);
+    });
     // Runde 26: Innen-Abschirmung – 4 globale Schnitt-Ebenen um das betretene Gebäude (#innenAbschirmung). Immer aktiv (draußen
     // weit weg), damit sich die Ebenen-Anzahl nie ändert → kein Shader-Neubau/Ruckler beim Betreten.
     this.innenEbenen = [new THREE.Plane(new THREE.Vector3(1, 0, 0), INNEN_WEIT), new THREE.Plane(new THREE.Vector3(-1, 0, 0), INNEN_WEIT), new THREE.Plane(new THREE.Vector3(0, 0, 1), INNEN_WEIT), new THREE.Plane(new THREE.Vector3(0, 0, -1), INNEN_WEIT)];
@@ -483,13 +502,15 @@ export class Renderer {
     const info = this.gl.info.render;
     const profil = this.grafik === 'auto' ? `Auto→${this.autoProfil}` : this.grafik;
     const lichter = this.taschenlampen.length + this.lampenPool.length + this.kegelPool.length + this.muendungslichter.length + this.scheinwerfer.length + 1;
-    return `Draw-Calls ${info.calls} · Dreiecke ${Math.round(info.triangles / 1000)}k · ${profil} · Qualität ${this.stufe} · Auflösung ${this.aufloesung.toFixed(2)} · Lichter ${lichter} · Zoom ${this.zoom.toFixed(2)}\nGPU ${this.geraet.gpu || '?'}`;
+    const abstuerze = this.kontextVerluste ? ` · Grafik-Abstürze ${this.kontextVerluste}` : '';
+    return `Draw-Calls ${info.calls} · Dreiecke ${Math.round(info.triangles / 1000)}k · ${profil} · Qualität ${this.stufe} · Auflösung ${this.aufloesung.toFixed(2)} · Lichter ${lichter} · Zoom ${this.zoom.toFixed(2)}${abstuerze}\nGPU ${this.geraet.gpu || '?'}`;
   }
 
   /**
    * @param tageszeit  { helligkeit 0..1, istNacht, anteil } (gemeinsam/tageszeit.js)
    */
   zeichne({ fokus, entitaeten, gegenstaende, itemDefinitionen = {}, jetzt, effekte = null, markiertId = null, zielId = null, tageszeit = null, wetter = 'klar' }) {
+    if (this.kontextVerloren) return; // ohne Kontext zeichnet Three.js nichts – auch keine Zustände weiterschieben
     const roh = this.letzteZeit ? (jetzt - this.letzteZeit) / 1000 : 0;
     const dt = Number.isFinite(roh) ? Math.max(0, Math.min(0.1, roh)) : 0; // Runde 26: nie negativ/NaN (sonst kippen Wetter/Nebel dauerhaft)
     this.letzteZeit = jetzt;
