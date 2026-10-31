@@ -39,7 +39,7 @@ export function kiUi({ zustand, panel, aktionen, layout, zeichner }) {
     const name = `${k.id}_x${a.bereich.x0}-${a.bereich.x1}_y${a.bereich.y0}-${a.bereich.y1}`;
     const hinweis = { ki: '🤖 KI-Bereich', auswahl: '⬚ Auswahl', zone: 'Kein Bereich markiert – das ist die ganze Zone (Rechtsklick → ⬚ KI-Bereich markieren)' }[quelle];
     const knoten = document.createElement('div');
-    knoten.innerHTML = `<p class="leise">${esc(hinweis)}${a.aussen ? ' · ragt über die Zone – die KI darf dort neu bauen, beim Einfügen wächst die Zone' : ''}${schutz.length ? ` · 🛡 ${schutz.length} geschützte Fläche(n)` : ''}. Text in den KI-Chat kopieren; die Antwort (JSON) über <b>Datei → 📥 KI-Bereich einfügen</b> zurückholen.</p>
+    knoten.innerHTML = `<p class="leise">${esc(hinweis)}${a.aussen ? ' · ragt über die Zone – die KI darf dort neu bauen, beim Einfügen wächst die Zone' : ''}${schutz.length ? ` · 🛡 ${schutz.length} geschützte Fläche(n)` : ''}. Text + <b>📘 Anleitung</b> (Regeln &amp; Katalog) an die KI schicken; die Antwort (JSON) über <b>Datei → 📥 KI-Bereich einfügen</b> zurückholen.</p>
       <label class="feld" style="grid-template-columns:1fr"><span>Dein Auftrag an die KI (kommt oben in den Text)</span><textarea name="auftrag" style="min-height:70px" placeholder="z. B. Baue einen Waldweg zum Haus und passe die Umgebung an das Gebäude an"></textarea></label>
       <textarea name="text" readonly style="min-height:260px"></textarea>`;
     const feldAuftrag = knoten.querySelector('[name=auftrag]');
@@ -52,8 +52,19 @@ export function kiUi({ zustand, panel, aktionen, layout, zeichner }) {
     const w = await dialog({
       titel: `🤖 Ausschnitt für KI: „${k.name}“ ${bereichText(a.bereich)}`,
       knoten,
-      knoepfe: [{ text: 'Schließen', wert: null }, { text: '⬇ JSON', wert: 'json' }, { text: '⬇ Text (.md)', wert: 'md' }, { text: '📋 Text kopieren', wert: 'kopieren', art: 'akzent' }],
+      knoepfe: [{ text: 'Schließen', wert: null }, { text: '📘 Anleitung (.md)', wert: 'anleitung' }, { text: '⬇ JSON', wert: 'json' }, { text: '⬇ Text (.md)', wert: 'md' }, { text: '📋 Text kopieren', wert: 'kopieren', art: 'akzent' }],
     });
+    // Runde 26: die feste KI-Anleitung (Regeln + Katalog) – immer zusammen mit dem Ausschnitt an die KI schicken
+    if (w === 'anleitung') {
+      try {
+        const antwort = await fetch(new URL('../KI_KARTEN_ANLEITUNG.md', import.meta.url));
+        if (!antwort.ok) throw new Error(antwort.status);
+        herunterladen('KI_KARTEN_ANLEITUNG.md', await antwort.text(), 'text/markdown');
+        zustand.meldung('📘 Anleitung heruntergeladen – zusammen mit dem Ausschnitt an die KI schicken', 'ok');
+      } catch (e) {
+        zustand.meldung(`Anleitung nicht ladbar (${e.message})`, 'fehler');
+      }
+    }
     letzterAuftrag = feldAuftrag.value;
     const text = ausschnittText(baue(letzterAuftrag));
     if (w === 'json') herunterladen(`${name}.ausschnitt.json`, JSON.stringify(baue(letzterAuftrag), null, 1));

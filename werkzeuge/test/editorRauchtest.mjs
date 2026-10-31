@@ -792,7 +792,9 @@ try {
     await seite.click('#links .inhalt button:has-text("Aus Übergängen anordnen")');
     const layout = await seite.evaluate(() => window.mapEditor.zustand.layout);
     pruefe(layout.waldweg && layout.stadtrand && layout.waldweg.y === layout.stadtrand.y - 120 && layout.waldweg.x === layout.stadtrand.x + 89, `Waldweg nördlich angeordnet (${JSON.stringify(layout)})`);
-    pruefe((await seite.evaluate(() => window.mapEditor.zeichner.nachbarn.length)) === 1, 'Nachbarzone wird am Rand gezeigt');
+    // Runde 26: Prüfung auf „Waldweg ist dabei“ statt „genau 1“ (die Test-Zone aus Phase 5 liegt inzwischen auch daneben)
+    const nachbarIds = await seite.evaluate(() => window.mapEditor.zeichner.nachbarn.map((n) => n.karte?.id));
+    pruefe(nachbarIds.includes('waldweg'), `Nachbarzone wird am Rand gezeigt (${JSON.stringify(nachbarIds)})`);
     await seite.evaluate(() => window.mapEditor.zeichner.springeZu(120, 2, 6));
     await seite.waitForTimeout(400);
     await seite.screenshot({ path: path.join(AUSGABE, 'editor-6-zonen.png') });
@@ -806,8 +808,8 @@ try {
     const rechteck = await seite.evaluate(() => window.mapEditor.zustand.auswahlRechteck);
     pruefe(rechteck?.x === 30 && rechteck?.b === 21, `Bereich markiert (${JSON.stringify(rechteck)})`);
     await menue('Datei', 'ki.ausschnitt');
-    const text = await seite.inputValue('#dialog textarea');
-    pruefe(text.includes('x 30–50, y 10–22') && text.includes('## So antwortest du'), 'Ausschnitt-Text mit Bereich + Anleitung');
+    const text = await seite.inputValue('#dialog textarea[name=text]'); // Runde 26: erstes Feld ist „Dein Auftrag“
+    pruefe(text.includes('x 30–50, y 10–22') && text.includes('## So antwortest du') && text.includes('KI_KARTEN_ANLEITUNG.md'), `Ausschnitt-Text mit Bereich + Anleitung (${text.split('\n')[0]})`);
     await seite.click('#dialog button:has-text("Schließen")');
     await menue('KI', 'ki.import');
     await seite.fill('#dialog [name="text"]', 'Gerne:\n```json\n[{"aktion":"setze","typ":"busch","x":32,"y":20},{"aktion":"setze","typ":"palme","x":33,"y":20},{"aktion":"marker","art":"zombie","x":80,"y":80}]\n```');

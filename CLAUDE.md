@@ -11,6 +11,6 @@
    **Sounddateien bearbeiten (schneiden/umwandeln):** Lokal gibt es weder ffmpeg noch einen Python-Ogg-Decoder. Nimm den Browser als Decoder: Datei kurz unter `client/` ablegen, im Browser-Pane per `fetch` + `AudioContext.decodeAudioData` dekodieren, Ausschnitte als WAV bauen und per `PUT /api/editor/datei?pfad=client/audio/eigene/<name>.wav` (Kopf `X-Editor: 1`, Spielserver läuft lokal) speichern; danach `npm run sounds`, Temp-Datei löschen. Beispiel: `schritt_gras_0-5.wav`.
    Darstellung ist **nur 3D** (Three.js, `client/darstellung/renderer.js`) – kein 2D-Renderer mehr.
 7. Touch-Bedienung (Handy/Tablet) bei jeder neuen Aktion mitdenken.
-8. Vor jedem Commit: `npm test`.
+8. Vor jedem Commit: `npm test`. **Neue Modelle/Texturen/Sounds/Items/Kacheln → `npm run ki:anleitung`** (schreibt `editor/KI_KARTEN_ANLEITUNG.md` = Regeln + Katalog für fremde KIs; ein Test schlägt sonst fehl).
 9. **Immer direkt auf `main` arbeiten, committen und pushen** (keine Feature-Branches, keine PRs) – GitHub Pages liefert `main` aus.
 10. Am Ende jeder Antwort den Link zum Spiel posten: https://dennwa.github.io/browser_survival/

@@ -14,6 +14,8 @@ import { schutzText } from './kiSchutz.js';
  *   marker, bauwerke, uebergaenge, ankuenfte, tierBereiche, raumFlaechen, raeume (nur benutzte)
  *   pruefsumme  Hash des Bereichs beim Export → der Import warnt, wenn sich dort inzwischen etwas geändert hat
  * Antwort der KI: Aktionsliste (siehe AKTIONEN_ANLEITUNG, kern/kiImport.js).
+ * Runde 26: zusätzlich lootZonen, klaenge (ohne Audiodaten), bemalung, eigeneTypen (ohne Bilddaten), zonenWerte, Höhen im Text;
+ *   Verweis auf editor/KI_KARTEN_ANLEITUNG.md (kern/kiAnleitung.js) – die zweite Datei, die man der KI schickt.
  * Runde 19: Option `aussen` – der Bereich darf über die Zone ragen (Kacheln dort = AUSSEN '?', „noch keine Zone“; beim
  * Einfügen wächst die Zone mit, ui/kiUi.js). `schutz` = geschützte Flächen (kern/kiSchutz.js), `auftrag` = Text des Nutzers.
  */
@@ -96,7 +98,14 @@ export function inhaltDesBereichs(karte, b) {
     zeilen.push(z);
     hoehen.push(h);
   }
-  return { zeilen, hoehen, objekte, marker, bauwerke, uebergaenge: bereiche('uebergaenge'), tierBereiche: bereiche('tierBereiche'), raumFlaechen: bereiche('raumFlaechen'), ankuenfte: [...karte.s('ankuenfte')].filter(([, p]) => imBereich(b, p.x, p.y)).map(([name, p]) => ({ name, ...p })) };
+  // Runde 26: wirklich ALLES im Bereich – Loot-Zonen, Klänge, Bodenfarbe (Bemalung)
+  const sammlung = (s) => (karte.s(s) ? [...karte.s(s)] : []);
+  const lootZonen = sammlung('lootZonen').filter(([, r]) => r.x <= b.x1 && r.x + r.b - 1 >= b.x0 && r.y <= b.y1 && r.y + r.h - 1 >= b.y0).map(([id, r]) => ({ id, ...kopie(r) }));
+  const klaenge = sammlung('klaenge')
+    .filter(([, c]) => (c.art === 'punkt' ? imBereich(b, Math.floor(c.x), Math.floor(c.y)) : c.art === 'bereich' ? c.x <= b.x1 && c.x + c.b - 1 >= b.x0 && c.y <= b.y1 && c.y + c.h - 1 >= b.y0 : false))
+    .map(([id, c]) => ({ id, ...Object.fromEntries(Object.entries(kopie(c)).filter(([k]) => k !== 'daten')) })); // Audiodaten nicht mitschicken
+  const bemalung = sammlung('bemalung').map(([k, f]) => [ausSchluessel(k), f]).filter(([[x, y]]) => imBereich(b, x, y)).map(([[x, y], farbe]) => ({ x, y, farbe }));
+  return { zeilen, hoehen, objekte, marker, bauwerke, uebergaenge: bereiche('uebergaenge'), tierBereiche: bereiche('tierBereiche'), raumFlaechen: bereiche('raumFlaechen'), ankuenfte: [...karte.s('ankuenfte')].filter(([, p]) => imBereich(b, p.x, p.y)).map(([name, p]) => ({ name, ...p })), lootZonen, klaenge, bemalung };
 }
 
 export function bereichsPruefsumme(karte, b) {
@@ -174,6 +183,12 @@ export function ausschnitt(karte, rechteck, { jetzt = new Date().toISOString(), 
     tierBereiche: inhalt.tierBereiche,
     raumFlaechen: inhalt.raumFlaechen,
     raeume,
+    lootZonen: inhalt.lootZonen,
+    klaenge: inhalt.klaenge,
+    bemalung: inhalt.bemalung,
+    // Runde 26: eigene Typen der benutzten Objekte (ohne Bild-/Modelldaten) + Zonen-Werte (Wetter, Zombies, Musik …)
+    eigeneTypen: Object.fromEntries([...new Set(inhalt.objekte.map((o) => o.typ))].filter((t) => karte.s('typen')?.has(t)).map((t) => [t, Object.fromEntries(Object.entries(kopie(karte.s('typen').get(t))).filter(([k]) => !['bild', 'glb', 'daten'].includes(k)))])),
+    zonenWerte: kopie(karte.werte ?? {}),
     anleitung: AKTIONEN_ANLEITUNG,
   };
   const rand = { links: Math.max(0, -b.x0), oben: Math.max(0, -b.y0), rechts: Math.max(0, b.x1 - karte.breite + 1), unten: Math.max(0, b.y1 - karte.hoehe + 1) };
@@ -191,6 +206,7 @@ export function ausschnittText(a) {
   const geschuetzt = a.geschuetzt?.length ? `,"geschuetzt":${JSON.stringify(a.geschuetzt)}` : '';
   return [
     `# Ausschnitt „${a.zone.name}“ (Zone-ID ${a.zone.id}) – ${a.bereich.text}`,
+    '> Regeln, Kartenaufbau und Katalog (alle Kacheln, Objekte, Modelle, Items, Sounds): siehe die mitgeschickte Datei **KI_KARTEN_ANLEITUNG.md**.',
     `Zone ${a.zone.breite} × ${a.zone.hoehe} Kacheln, Format ${a.format} v${a.formatVersion}, Prüfsumme ${a.pruefsumme}.`,
     'Koordinaten = Kacheln (1 Kachel = 1 m), x nach rechts, y nach unten. Bearbeite NUR diesen Bereich.',
     '',
@@ -216,6 +232,12 @@ export function ausschnittText(a) {
     ...liste('Ankünfte', a.ankuenfte, (p) => `- ${JSON.stringify(p)}`),
     ...liste('Hasen-Bereiche', a.tierBereiche, (t) => `- ${JSON.stringify(t)}`),
     ...liste('Räume', Object.entries(a.raeume), ([k, r]) => `- ${k}: ${JSON.stringify(r)}`),
+    ...liste('Loot-Zonen', a.lootZonen ?? [], (z) => `- id ${z.id}: ${JSON.stringify(z)}`),
+    ...liste('Klänge', a.klaenge ?? [], (c) => `- id ${c.id}: ${JSON.stringify(c)}`),
+    ...liste('Bodenfarbe (Bemalung, x,y → Farbe)', a.bemalung?.length ? [a.bemalung.map((p) => `${p.x},${p.y}:${p.farbe}`).join(' ')] : [], (t) => t),
+    ...liste('Eigene Objekttypen (im Bereich benutzt)', Object.entries(a.eigeneTypen ?? {}), ([t, d]) => `- ${t}: ${JSON.stringify(d)}`),
+    ...(a.hoehen ? ['## Geländehöhen in m (Zeile für Zeile, von y0)', '```', ...a.hoehen, '```', ''] : []),
+    ...(a.zonenWerte ? ['## Zonen-Werte', '```json', JSON.stringify(a.zonenWerte), '```', ''] : []),
     '## So antwortest du',
     ...a.anleitung.map((z) => `- ${z}`),
     `- Gib als erste Aktion {"aktion":"bereich","zone":"${a.zone.id}","x0":${a.bereich.x0},"x1":${a.bereich.x1},"y0":${a.bereich.y0},"y1":${a.bereich.y1},"pruefsumme":"${a.pruefsumme}"${geschuetzt}} an (genau so übernehmen).`,
