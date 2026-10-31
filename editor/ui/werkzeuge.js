@@ -149,6 +149,27 @@ export class Werkzeuge {
     return this.z.vorschau;
   }
 
+  /**
+   * Runde 26: Verschieben aus der 3D-Ansicht (Ziehen am Objekt). Gleiche Logik/Undo wie 2D (#bewege, 1 Verlaufsschritt).
+   * @param raster  Schrittweite in Kacheln (3D: frei 0,01 bzw. Umschalt = 1)
+   */
+  starteVerschiebenAn(ziel, wx, wy, umschalt = false) {
+    if (!this.zustand.istGewaehlt(ziel.s, ziel.k)) this.zustand.waehle([ziel], umschalt);
+    this.zustand.verlauf.beginne('Verschieben (3D)');
+    this.ziehen = { art: 'bewegen', start: this.punktAn(wx, wy), dx: 0, dy: 0 };
+  }
+
+  verschiebeAn(wx, wy, raster) {
+    if (this.ziehen?.art !== 'bewegen') return;
+    this.#bewege(this.ziehen, this.punktAn(wx, wy), false, raster);
+  }
+
+  beendeVerschieben() {
+    if (this.ziehen?.art !== 'bewegen') return;
+    this.ziehen = null;
+    this.zustand.verlauf.beende();
+  }
+
   /** 7.6: von ui/touchBauen.js aufbereitete Finger-Ereignisse (Fadenkreuz-Versatz, verzögerter Start) */
   runterRoh(e) {
     this.#runter(e);
@@ -578,14 +599,14 @@ export class Werkzeuge {
   }
 
   /** Gewähltes um ganze Kacheln verschieben (Alt = 0,1-Schritte für Objekte, Free-Modus = stufenlos 0,01) */
-  #bewege(d, p, fein) {
-    const raster = this.amFinger && this.zustand.frei ? touchRaster(true) : this.zustand.frei ? 0.01 : fein ? 0.1 : 1;
+  #bewege(d, p, fein, rasterVorgabe = null) {
+    const raster = rasterVorgabe ?? (this.amFinger && this.zustand.frei ? touchRaster(true) : this.zustand.frei ? 0.01 : fein ? 0.1 : 1);
     let dx = Math.round((p.wx - d.start.wx) / raster) * raster;
     let dy = Math.round((p.wy - d.start.wy) / raster) * raster;
     // Einrasten: das zuerst gewählte Objekt bestimmt den Fang (alle bewegen sich gleich)
     const gew = this.zustand.gewaehlte();
     const erstes = gew.find((e) => e.s === 'objekte');
-    if (erstes && gew.length) {
+    if (erstes && gew.length && raster >= 0.1) {
       const o = erstes.wert;
       const sx0 = o.x - d.dx;
       const sy0 = o.y - d.dy;

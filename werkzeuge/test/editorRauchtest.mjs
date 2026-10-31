@@ -868,6 +868,30 @@ try {
     pruefe(await seite.isVisible('#leinwand3d'), '3D-Fläche sichtbar');
     pruefe((await seite.evaluate(() => window.mapEditor.zustand.auswahl.size)) === 1, 'Auswahl bleibt beim Umschalten erhalten');
     await seite.screenshot({ path: path.join(AUSGABE, 'editor-3-3d.png') });
+    // Runde 26: gewähltes Objekt in 3D frei verschieben (Ziehen, 1 Undo-Schritt)
+    const zug = await seite.evaluate(() => {
+      const ed = window.mapEditor;
+      const a3 = ed.teile.ansicht3d;
+      const [{ k }] = ed.zustand.gewaehlte();
+      const box = a3.boxen.get(`objekte|${k}`);
+      if (!box) return null;
+      const v = new a3.kamera.position.constructor(box.x, box.y + box.hoehe / 2, box.z).project(a3.kamera);
+      const r = a3.leinwand.getBoundingClientRect();
+      const o = ed.zustand.karte.s('objekte').get(k);
+      return { k, x0: o.x, y0: o.y, sx: r.left + ((v.x + 1) / 2) * r.width, sy: r.top + ((1 - v.y) / 2) * r.height };
+    });
+    if (zug) {
+      await seite.mouse.move(zug.sx, zug.sy);
+      await seite.mouse.down();
+      for (let i = 1; i <= 6; i++) await seite.mouse.move(zug.sx + i * 9, zug.sy + i * 4);
+      await seite.mouse.up();
+      const nach = await seite.evaluate((k) => window.mapEditor.zustand.karte.s('objekte').get(k), zug.k);
+      const bewegt = Math.hypot(nach.x - zug.x0, nach.y - zug.y0);
+      pruefe(bewegt > 0.2 && !Number.isInteger(nach.x * 10), `3D: Objekt frei verschoben (${zug.x0},${zug.y0} → ${nach.x},${nach.y})`);
+      await seite.keyboard.press('Control+z');
+      const zurueck = await seite.evaluate((k) => window.mapEditor.zustand.karte.s('objekte').get(k), zug.k);
+      pruefe(zurueck.x === zug.x0 && zurueck.y === zug.y0, '3D-Verschieben = 1 Undo-Schritt');
+    } else pruefe(false, '3D: Box des gewählten Objekts fehlt');
     await seite.keyboard.press('3');
   }
 

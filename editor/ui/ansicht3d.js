@@ -23,9 +23,13 @@ import { mitModell } from '../kern/bibliothek.js';
  *   Rechtsklick ohne Ziehen bzw. Langdruck = Kontextmenü (Löschen, Drehen, Kopieren …), Entf löscht Gewähltes, Esc beendet.
  *   Hooks (main.js): `beiPlatzieren(wx, wy, umschalt)`, `beiVorschau(wx, wy)` → Vorschau {rechtecke, gueltig, text},
  *   `beiKontext(x, y, ziel)`.
+ * Runde 26: Objekte/Bauwerke/Klänge mit links ziehen = verschieben (frei 0,01, Umschalt = Kachelraster; Touch nur gewählte),
+ *   über `beiVerschieben` → werkzeuge.starteVerschiebenAn/verschiebeAn/beendeVerschieben (1 Undo-Schritt).
  * Gezeichnet wird nur bei Bedarf (anfordern), neu gebaut nur, wenn sich die Karte geändert hat und die Ansicht sichtbar ist.
  */
 const PX = 32; // Spiel-Pixel je Kachel
+/** Runde 26: diese Sammlungen lassen sich in 3D per Ziehen verschieben */
+const VERSCHIEBBAR = new Set(['objekte', 'bauwerke', 'klaenge']);
 const WAND_HOEHE = 84 / PX;
 const TUER_HOEHE = 64 / PX;
 const SPIEL_NEIGUNG = Math.atan2(540, 400); // KAMERA_VERSATZ (0, 540, 400) im Spiel
@@ -52,6 +56,7 @@ export class Ansicht3D {
     this.beiPlatzieren = null; // (wx, wy, umschalt) → setzt wie in 2D (main.js → werkzeuge.platziereAn)
     this.beiVorschau = null; // (wx, wy) → { rechtecke, gueltig, text } | null
     this.beiKontext = null; // (clientX, clientY, { treffer }) → Kontextmenü
+    this.beiVerschieben = null; // Runde 26: { start(ziel, wx, wy, umschalt), ziehe(wx, wy, raster), ende() } (main.js → werkzeuge)
     this.letzterBoden = null; // letzter Bodenpunkt unter der Maus { x, z }
     this.touchGeist = null; // Touch: erster Tipp zeigt den Geist { x, z }, zweiter auf ihn setzt
     this.blick = { x: 20, z: 15, abstand: 30, gier: 0, neigung: SPIEL_NEIGUNG };
@@ -494,6 +499,11 @@ export class Ansicht3D {
         p.langdruck = true;
         this.#kontext(p.startX, p.startY);
       }, 550);
+      // Runde 26: linke Taste auf einem Objekt (Touch: nur auf einem schon gewählten) = verschieben statt schwenken
+      if (!p.drehen && !this.#platzierModus() && this.beiVerschieben && this.#zeiger.size === 0) {
+        const t = this.#treffer(e.clientX, e.clientY);
+        if (t && VERSCHIEBBAR.has(t.s) && (!p.touch || this.zustand.istGewaehlt(t.s, t.k))) p.anfassen = t;
+      }
       this.#zeiger.set(e.pointerId, p);
     });
     l.addEventListener('pointermove', (e) => {
@@ -510,6 +520,20 @@ export class Ansicht3D {
       const dy = e.clientY - p.y;
       p.x = e.clientX;
       p.y = e.clientY;
+      if (p.anfassen && this.#zeiger.size === 1) {
+        const b = this.bodenPunkt(e.clientX, e.clientY);
+        if (!b) return;
+        if (!p.zieht) {
+          if (Math.hypot(p.x - p.startX, p.y - p.startY) < 5) return;
+          const start = this.bodenPunkt(p.startX, p.startY) ?? b;
+          clearTimeout(p.timer);
+          p.zieht = true;
+          this.beiVerschieben.start(p.anfassen, start.x, start.z, p.umschalt);
+        }
+        this.beiVerschieben.ziehe(b.x, b.z, e.shiftKey || p.anfassen.s === 'bauwerke' ? 1 : 0.01); // Bauwerke nur ganze Kacheln
+        this.zustand.meldung(`3D: verschieben ${e.shiftKey ? '(Kachelraster)' : '(frei – Umschalt = Raster)'} · R dreht · Strg+Z rückgängig`);
+        return;
+      }
       if (this.#zeiger.size === 2) {
         const [a, b] = [...this.#zeiger.values()];
         const abstand = Math.hypot(a.x - b.x, a.y - b.y);
@@ -527,6 +551,7 @@ export class Ansicht3D {
       this.#zeiger.delete(e.pointerId);
       clearTimeout(p?.timer);
       if (this.#zeiger.size < 2) this.letzterAbstand = null;
+      if (p?.zieht) return this.beiVerschieben.ende();
       if (!p || p.langdruck) return;
       const klick = Math.hypot(e.clientX - p.startX, e.clientY - p.startY) < 5;
       if (!klick) return;
@@ -537,6 +562,7 @@ export class Ansicht3D {
     };
     l.addEventListener('pointerup', hoch);
     l.addEventListener('pointercancel', (e) => {
+      if (this.#zeiger.get(e.pointerId)?.zieht) this.beiVerschieben.ende();
       clearTimeout(this.#zeiger.get(e.pointerId)?.timer);
       this.#zeiger.delete(e.pointerId);
     });

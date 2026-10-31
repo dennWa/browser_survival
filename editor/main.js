@@ -134,6 +134,12 @@ if (webglVerfuegbar()) {
     teile.ansicht3d.beiPlatzieren = (wx, wy, umschalt) => werkzeuge.platziereAn(wx, wy, umschalt);
     teile.ansicht3d.beiVorschau = (wx, wy) => werkzeuge.vorschauAn(wx, wy);
     teile.ansicht3d.beiKontext = (x, y, ziel) => kontextmenue(x, y, ziel);
+    // Runde 26: Objekte in 3D ziehen (frei, Umschalt = Kachelraster)
+    teile.ansicht3d.beiVerschieben = {
+      start: (ziel, wx, wy, umschalt) => werkzeuge.starteVerschiebenAn(ziel, wx, wy, umschalt),
+      ziehe: (wx, wy, raster) => werkzeuge.verschiebeAn(wx, wy, raster),
+      ende: () => werkzeuge.beendeVerschieben(),
+    };
     zustand.bei('ansicht', () => {
       // 3D → 2D: Blickpunkt mitnehmen (Auswahl ist ohnehin gemeinsam)
       if (zustand.ansicht === '2d') {
