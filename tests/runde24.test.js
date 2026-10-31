@@ -5,7 +5,7 @@ import { erstelleKonfiguration } from '../server/spiel/konfiguration/spielKonfig
 import { SpielWelt } from '../server/spiel/spielWelt.js';
 import { setzeWetter } from '../server/spiel/systeme/wetterSystem.js';
 
-/** Runde 24 (KONZEPT_RUNDE24.md): Wind, Progression, Waffen, Cozy, Überleben, Multiplayer. */
+/** Runde 24 (archiv/runden/KONZEPT_RUNDE24.md): Wind, Progression, Waffen, Cozy, Überleben, Multiplayer. */
 export const KARTE = {
   id: 'runde24',
   name: 'Runde 24',

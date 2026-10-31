@@ -562,7 +562,7 @@ export class Renderer {
     this.blaetter?.aktualisiere(dt, fokus, jetzt, dunkel, Math.max(this.wetterEffekt.sturm, (this.wetterEffekt.windStufe - 1.2) / 3));
     this.#aktualisiereFahrzeuge(entitaeten, fokus);
     this.#aktualisiereFiguren(entitaeten, fokus, dt, jetzt);
-    this.egoHaken?.(this.kamera3d, fokus); // EGO-PROTOTYP (client/ego/, siehe EGO_PROTOTYP.md)
+    this.egoHaken?.(this.kamera3d, fokus); // EGO-PROTOTYP (client/ego/, siehe docs/EGO_PROTOTYP.md)
     this.#aktualisiereTiere(entitaeten, fokus, jetzt);
     this.#aktualisiereAngeln(entitaeten, fokus, jetzt);
     this.#aktualisiereTaschenlampen(entitaeten, fokus, dunkel);

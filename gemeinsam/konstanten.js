@@ -19,7 +19,7 @@ export const MAX_EINGABE_PUFFER = 8;
 
 /** Größe einer Kachel (Tile) in Weltpixeln. */
 export const KACHEL_GROESSE = 32;
-/** Größte Zone je Seite (Kacheln) – Editor legt nichts Größeres an, der Kartenlader lehnt es ab (ZONEN_KONZEPT.md: Ladebild lädt alles vor) */
+/** Größte Zone je Seite (Kacheln) – Editor legt nichts Größeres an, der Kartenlader lehnt es ab (docs/konzepte/ZONEN_KONZEPT.md: Ladebild lädt alles vor) */
 export const ZONE_MAX_KACHELN = 1500;
 
 /** Schnellleiste (Tasten 1–9 und 0 für Platz 10) = die ersten Inventarplätze. */

@@ -1,7 +1,7 @@
 import { FunkStimme } from '../audio/funkstimme.js';
 
 /**
- * Tutorial-Oberfläche (TUTORIAL_KONZEPT.md §8): Aufgabenliste, Tipp-Pop-up, Funk-Untertitel + Stimme (audio/funkstimme.js),
+ * Tutorial-Oberfläche (docs/konzepte/TUTORIAL_KONZEPT.md §8): Aufgabenliste, Tipp-Pop-up, Funk-Untertitel + Stimme (audio/funkstimme.js),
  * Ziel-Marker (Ring bzw. Randpfeil), Pause-Dialog (Esc / ⏸) und Ende-Dialog („Story jetzt starten?“).
  * Daten kommen vom Server in spielerDaten.tutorial (server/spiel/systeme/tutorialSystem.js → tutorialFuerClient).
  * Baut ihr DOM selbst (Stil: stil.css, Abschnitt Tutorial).

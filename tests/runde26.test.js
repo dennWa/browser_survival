@@ -12,7 +12,7 @@ function neueWelt(extra = {}) {
   return { welt: new SpielWelt(konfiguration, { kartenDefinition: KARTE }) };
 }
 
-/** Runde 26 (KONZEPT_RUNDE26.md): Wetter-Sound, Wind-Flaute, Innen-Abschirmung. */
+/** Runde 26 (archiv/runden/KONZEPT_RUNDE26.md): Wetter-Sound, Wind-Flaute, Innen-Abschirmung. */
 
 test('R26 Wind: es gibt echte Flaute (Stufe 0) und der Grundwind erreicht sie', () => {
   assert.ok(WIND_STUFEN.some(([w]) => w === 0), 'Stufe 0 vorhanden');

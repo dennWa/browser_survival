@@ -3,6 +3,7 @@
 1. **Zuerst `project_manifest.md` lesen** – dort stehen Architektur, Dateistruktur, "Wo ändere ich …?" und der Entwicklungsstand.
 2. **`KI_INDEX.md` (abgekürzte Karte für KIs) lesen und nutzen**, um Änderungsstellen zu finden. **Am Ende jedes Auftrags** `KI_INDEX.md` kurz und knapp (nur für KIs verständlich) nachziehen: neue/verschobene Dateien, Systeme, Nachrichten, Fallen/Invarianten, Tests. Auch Datei-Kopfkommentare bei geänderten Dateien aktuell halten.
 3. Nach jeder strukturellen Änderung (neue Datei, neues System, neue Nachricht, Phase abgeschlossen) das Manifest aktualisieren, inkl. Änderungsprotokoll.
+   **Hauptordner schlank halten:** neue Konzepte/Pläne nach `docs/konzepte/`, abgeschlossene Runden-Pläne nach `archiv/runden/` (siehe `docs/README.md`, `archiv/README.md`).
 4. Code-Sprache: Deutsch (Bezeichner ohne Umlaute, Kommentare mit Umlauten erlaubt). Vanilla JS, ES-Module, kein Build-Schritt.
 5. Spiellogik nur in `server/spiel/` (autoritativ, umgebungsfrei – keine `node:`-Importe, kein DOM).
 6. Grafiken nur über `werkzeuge/assets/baue_assets.py` + `npm run assets:3d` ändern (nie direkt in `client/assets/` oder `client/vendor/`). Nur CC0/CC-BY-Quellen, Credits-Dialog nicht entfernen.

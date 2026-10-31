@@ -63,7 +63,7 @@ export function oeffneLokalenKanal() {
   return clientSeite;
 }
 
-/** Tutorial (TUTORIAL_KONZEPT.md): eigener, wegwerfbarer Server nur mit der Tutorial-Zone – Spielstand nur im Arbeitsspeicher. */
+/** Tutorial (docs/konzepte/TUTORIAL_KONZEPT.md): eigener, wegwerfbarer Server nur mit der Tutorial-Zone – Spielstand nur im Arbeitsspeicher. */
 let tutorialServer = null;
 
 export function oeffneTutorialKanal() {

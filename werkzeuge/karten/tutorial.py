@@ -1,5 +1,5 @@
 """
-Generator für server/spiel/karten/tutorial.js – Tutorial-Zone „Kreisklinik Hohenfeld“ (TUTORIAL_KONZEPT.md).
+Generator für server/spiel/karten/tutorial.js – Tutorial-Zone „Kreisklinik Hohenfeld“ (docs/konzepte/TUTORIAL_KONZEPT.md).
 
     python3 werkzeuge/karten/tutorial.py
 

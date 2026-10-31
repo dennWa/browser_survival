@@ -3,7 +3,7 @@
  * Rauchtest Runde 24 (Lokal-Modus, echter Browser): prüft die Neuerungen je Phase und macht Screenshots.
  *
  *   npm run rauchtest:r24                 alle Phasen
- *   npm run rauchtest:r24 -- --phase 1    nur Phase 1 (mehrere: --phase 1,2; Phasen siehe KONZEPT_RUNDE24.md)
+ *   npm run rauchtest:r24 -- --phase 1    nur Phase 1 (mehrere: --phase 1,2; Phasen siehe archiv/runden/KONZEPT_RUNDE24.md)
  *
  * Screenshots: werkzeuge/test/ausgabe/r24_*.png · Exit-Code 1 bei Seiten-/Konsolenfehlern oder fehlgeschlagener Prüfung.
  * Muster wie rauchtest.mjs (Server --gast, Playwright/Chromium mit SwiftShader, Gottmodus für die Testfigur).

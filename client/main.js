@@ -18,7 +18,7 @@ import { KAPITEL } from '../server/spiel/tutorial/skript.js';
 import { ladeEditorTest, zeigeTestBanner, istVonAudio, zeigeAudioBanner } from './ui/editorTest.js';
 import { starteDebugLauf } from './debug/debugLauf.js';
 import { AKTIONEN, NACHRICHT } from '../gemeinsam/protokoll.js';
-import { EgoModus } from './ego/egoModus.js'; // EGO-PROTOTYP (siehe EGO_PROTOTYP.md)
+import { EgoModus } from './ego/egoModus.js'; // EGO-PROTOTYP (siehe docs/EGO_PROTOTYP.md)
 import { Welt } from '../gemeinsam/welt/welt.js';
 import { Karte } from './ui/karte.js';
 
@@ -62,7 +62,7 @@ document.addEventListener('click', (e) => {
   if (knopf && !knopf.id.startsWith('knopf-') && knopf.id !== 'hud-licht') sound.spiele('ui_klick');
 }, true);
 hud.inventar.beiUmschalten = (offen) => sound.spiele(offen ? 'inventar_auf' : 'inventar_zu');
-// Tutorial (TUTORIAL_KONZEPT.md): eigene Zone, lokal; am Ende „Story jetzt starten?“
+// Tutorial (docs/konzepte/TUTORIAL_KONZEPT.md): eigene Zone, lokal; am Ende „Story jetzt starten?“
 let storyNachTutorial = false;
 const tutorial = new TutorialAnzeige(document, {
   holeAusgang: () => sound.klangAusgang(),

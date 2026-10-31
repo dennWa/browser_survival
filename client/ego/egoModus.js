@@ -1,6 +1,6 @@
 /**
  * EGO-PROTOTYP (Ich-Perspektive) – reines Experiment, nur PC. Taste C schaltet um.
- * Komplett entfernbar: siehe EGO_PROTOTYP.md im Projektstamm (Liste aller berührten Stellen).
+ * Komplett entfernbar: siehe docs/EGO_PROTOTYP.md im Projektstamm (Liste aller berührten Stellen).
  *
  *   - Kamera: in Augenhöhe an der Spielerposition, Blick per Maus (Pointer Lock: Yaw + Pitch)
  *   - WASD relativ zur Blickrichtung (überschreibt eingabe.richtung / blickWinkel, solange aktiv)

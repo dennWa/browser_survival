@@ -15,7 +15,7 @@ Alles Nötige ist im Code fertig; du musst nur noch die Schritte unten abhaken. 
 
 ## 1. Accounts anlegen (deine Datei)
 
-Vorlage: [`server/daten/konten.beispiel.json`](server/daten/konten.beispiel.json)
+Vorlage: [`server/daten/konten.beispiel.json`](../server/daten/konten.beispiel.json)
 
 ```json
 {
@@ -52,7 +52,7 @@ Lokal testen: Vorlage nach `server/daten/konten.json` kopieren, Namen/Passwörte
 Optional:
 - [ ] **Nur Accounts, keine Gäste:** Environment → `GAESTE` = `0`.
 - [ ] **Servername:** Environment → `SERVER_NAME`.
-- [ ] **Auch über GitHub Pages spielbar machen:** in [`client/konfiguration.js`](client/konfiguration.js)
+- [ ] **Auch über GitHub Pages spielbar machen:** in [`client/konfiguration.js`](../client/konfiguration.js)
       `ONLINE_SERVER = 'wss://browser-survival.onrender.com/ws'` eintragen (deine Render-Adresse, mit `wss://` und
       `/ws`), committen → auf <https://dennwa.github.io/browser_survival/> erscheint dann „Online-Server“.
 

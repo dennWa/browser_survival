@@ -1,5 +1,5 @@
 /**
- * Tutorial „Station 3“ – Ablauf als reine Daten (Konzept: TUTORIAL_KONZEPT.md). Hier Texte, Reihenfolge und Bedingungen ändern –
+ * Tutorial „Station 3“ – Ablauf als reine Daten (Konzept: docs/konzepte/TUTORIAL_KONZEPT.md). Hier Texte, Reihenfolge und Bedingungen ändern –
  * die Engine (server/spiel/systeme/tutorialSystem.js) liest nur diese Datei. Ein Test prüft alle Verweise (Items, Orte, Funkzeilen).
  *
  * Orte (punkte/bereiche/tueren) stehen in der Karte (server/spiel/karten/tutorial.js → `tutorial`), hier nur ihre Namen.

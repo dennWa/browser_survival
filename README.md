@@ -38,7 +38,7 @@ Werte anpassen ohne Code: im Spiel **Admin-Menü → 🛠 Developer** (Lokal-Mod
 
 ## Online stellen (mit Freunden spielen)
 
-Schritt-für-Schritt-Checkliste: **[`ONLINE_STELLEN.md`](ONLINE_STELLEN.md)** (Render, kostenlos, ~15 Minuten).
+Schritt-für-Schritt-Checkliste: **[`docs/ONLINE_STELLEN.md`](docs/ONLINE_STELLEN.md)** (Render, kostenlos, ~15 Minuten).
 Kurz: Render → New + → Blueprint → dieses Repo · Secret File `konten.json` anlegen · Link an Freunde schicken.
 
 Grafiken neu erzeugen (nur bei Grafik-Änderungen, braucht Python 3):

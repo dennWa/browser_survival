@@ -1,4 +1,4 @@
-# Online stellen bei Render (https://render.com) – Schritt für Schritt: siehe ONLINE_STELLEN.md
+# Online stellen bei Render (https://render.com) – Schritt für Schritt: siehe docs/ONLINE_STELLEN.md
 # Ablauf kurz: Render-Konto → "New +" → "Blueprint" → dieses Repository wählen → Render liest diese Datei.
 #
 # Accounts: im Render-Dashboard unter Environment → "Secret Files" eine Datei "konten.json" anlegen
