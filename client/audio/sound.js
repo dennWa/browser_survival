@@ -845,6 +845,9 @@ const REZEPTE = {
     return 3.2;
   },
   automatikgewehr: (k) => schuss(k, { dauer: 0.16, hell: 4600, dumpf: 520, druck: 100, lautstaerke: 0.85 }),
+  revolver: (k) => schuss(k, { dauer: 0.3, hell: 3600, dumpf: 380, druck: 140, lautstaerke: 1 }),
+  mp: (k) => schuss(k, { dauer: 0.12, hell: 5200, dumpf: 600, druck: 80, lautstaerke: 0.75 }),
+  sturmgewehr: (k) => schuss(k, { dauer: 0.16, hell: 4600, dumpf: 520, druck: 100, lautstaerke: 0.85 }),
   schaden_mann: ({ ctx, ausgang, t, rauschen }) => {
     ton(ctx, ausgang, t, { typ: 'sawtooth', von: 170, bis: 115, dauer: 0.24, lautstaerke: 0.2, filter: 800 });
     rauschStoss(ctx, ausgang, rauschen, t, { dauer: 0.1, typ: 'bandpass', frequenz: 700, lautstaerke: 0.12 });

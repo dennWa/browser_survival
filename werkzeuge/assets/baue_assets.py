@@ -36,9 +36,9 @@ WEBP_QUALITAET = 88
 
 OGA = 'https://opengameart.org/sites/default/files/'
 QUELLEN = {
-    'kenney_tds': 'https://kenney.nl/media/pages/assets/top-down-shooter/230204340a-1677694684/kenney_top-down-shooter.zip',
+    'kenney_tds': OGA + 'topdown-shooter.zip',  # Runde 26: Spiegel (kenney.nl blockt Downloads, 403)
     'kenney_items': OGA + 'kenney_genericItems_updatedCross.zip',
-    'kenney_racing': 'https://kenney.nl/media/pages/assets/racing-pack/c4cd68480a-1677662443/kenney_racing-pack.zip',
+    'kenney_racing': OGA + 'racing-pack.zip',  # Runde 26: Spiegel
     'kenney_ac3': OGA + 'kenney_animated-characters-3.zip',
     'props': OGA + 'survival_props_pack_free.zip',
     'guns': OGA + 'guns_gameassets.zip',
@@ -191,6 +191,16 @@ ITEMS = {
     'lederhandschuhe': ('prozedural', 'kleidung:handschuhe:#5a3a22', 18),
     # Runde 24: Waffen, Mods, Sprengstoff, Fallen (Kenney-Weapon-Pack wo vorhanden, sonst selbst gezeichnet)
     'baseballschlaeger': ('prozedural', 'schlaeger', 30),
+    # Runde 26: Waffenpaket
+    'revolver': ('guns', 'PNG/revolver.png', 24),
+    'mp': ('guns', 'PNG/smg.png', 30),
+    'sturmgewehr': ('guns', 'PNG/assaultrifle.png', 40),
+    'munition_357': ('guns', 'PNG/medium_bullet.png', 18),
+    'vorschlaghammer': ('prozedural', 'vorschlaghammer', 34),
+    'katana': ('prozedural', 'katana', 38),
+    'bratpfanne': ('prozedural', 'bratpfanne', 26),
+    'golfschlaeger': ('prozedural', 'golfschlaeger', 34),
+    'kampfmesser': ('prozedural', 'kampfmesser', 24),
     'brecheisen': ('prozedural', 'brecheisen', 28),
     'speer': ('prozedural', 'speer', 36),
     'gewehr': ('guns', 'PNG/sniper.png', 42),
@@ -444,6 +454,27 @@ def zeichne_prozedural(art, groesse):
         d.line([40 * u, 33 * u, 62 * u, 10 * u], fill=(190, 140, 84, 255), width=int(11 * u))
         d.line([12 * u, 62 * u, 20 * u, 54 * u], fill=(40, 34, 30, 255), width=int(7 * u))
         d.line([44 * u, 26 * u, 58 * u, 12 * u], fill=(230, 200, 150, 160), width=int(2 * u))
+    elif art == 'vorschlaghammer':
+        d.line([10 * u, 64 * u, 46 * u, 22 * u], fill=(150, 104, 60, 255), width=int(6 * u))
+        d.polygon([(34 * u, 10 * u), (52 * u, 2 * u), (68 * u, 26 * u), (50 * u, 34 * u)], fill=(96, 100, 108, 255), outline=rand)
+        d.line([38 * u, 12 * u, 52 * u, 6 * u], fill=(180, 186, 196, 255), width=int(2 * u))
+    elif art == 'katana':
+        d.line([14 * u, 60 * u, 62 * u, 8 * u], fill=(205, 212, 222, 255), width=int(5 * u))
+        d.line([16 * u, 56 * u, 60 * u, 8 * u], fill=(246, 248, 252, 255), width=int(1.5 * u))
+        d.line([20 * u, 46 * u, 28 * u, 54 * u], fill=(190, 160, 60, 255), width=int(5 * u))
+        d.line([6 * u, 68 * u, 22 * u, 52 * u], fill=(40, 34, 60, 255), width=int(6 * u))
+    elif art == 'bratpfanne':
+        d.ellipse(r(6, 18, 48, 60), fill=(44, 46, 50, 255), outline=rand, width=int(3 * u))
+        d.ellipse(r(13, 25, 41, 53), fill=(70, 72, 78, 255))
+        d.line([44 * u, 30 * u, 68 * u, 12 * u], fill=(30, 30, 30, 255), width=int(6 * u))
+    elif art == 'golfschlaeger':
+        d.line([14 * u, 6 * u, 46 * u, 58 * u], fill=(200, 206, 214, 255), width=int(3 * u))
+        d.line([12 * u, 4 * u, 20 * u, 16 * u], fill=(30, 30, 30, 255), width=int(6 * u))
+        d.polygon([(40 * u, 56 * u), (62 * u, 60 * u), (60 * u, 68 * u), (38 * u, 64 * u)], fill=(170, 176, 186, 255), outline=rand)
+    elif art == 'kampfmesser':
+        d.polygon([(30 * u, 40 * u), (62 * u, 8 * u), (58 * u, 22 * u), (36 * u, 46 * u)], fill=(170, 176, 184, 255), outline=rand)
+        d.line([24 * u, 36 * u, 38 * u, 50 * u], fill=(60, 60, 60, 255), width=int(4 * u))
+        d.line([8 * u, 62 * u, 30 * u, 42 * u], fill=(54, 66, 44, 255), width=int(7 * u))
     elif art == 'brecheisen':
         d.line([18 * u, 64 * u, 50 * u, 12 * u], fill=(170, 40, 34, 255), width=int(6 * u))
         d.arc(r(42, 4, 64, 26), 180, 330, fill=(170, 40, 34, 255), width=int(6 * u))

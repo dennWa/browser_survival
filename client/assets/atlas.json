@@ -577,352 +577,415 @@
     "h": 72,
     "weltGroesse": 30
    },
-   "brecheisen": {
+   "revolver": {
     "x": 144,
-    "y": 720,
+    "y": 731,
     "b": 72,
-    "h": 72,
-    "weltGroesse": 28
+    "h": 49,
+    "weltGroesse": 24
    },
-   "speer": {
+   "mp": {
     "x": 216,
-    "y": 720,
+    "y": 743,
     "b": 72,
-    "h": 72,
-    "weltGroesse": 36
+    "h": 25,
+    "weltGroesse": 30
    },
-   "gewehr": {
+   "sturmgewehr": {
     "x": 288,
-    "y": 742,
+    "y": 741,
     "b": 72,
-    "h": 27,
-    "weltGroesse": 42
+    "h": 29,
+    "weltGroesse": 40
    },
-   "bogen": {
-    "x": 360,
+   "munition_357": {
+    "x": 386,
+    "y": 727,
+    "b": 20,
+    "h": 58,
+    "weltGroesse": 18
+   },
+   "vorschlaghammer": {
+    "x": 432,
     "y": 720,
     "b": 72,
     "h": 72,
     "weltGroesse": 34
    },
-   "armbrust": {
-    "x": 432,
+   "katana": {
+    "x": 504,
     "y": 720,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 38
+   },
+   "bratpfanne": {
+    "x": 0,
+    "y": 792,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 26
+   },
+   "golfschlaeger": {
+    "x": 72,
+    "y": 792,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 34
+   },
+   "kampfmesser": {
+    "x": 144,
+    "y": 792,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 24
+   },
+   "brecheisen": {
+    "x": 216,
+    "y": 792,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 28
+   },
+   "speer": {
+    "x": 288,
+    "y": 792,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 36
+   },
+   "gewehr": {
+    "x": 360,
+    "y": 814,
+    "b": 72,
+    "h": 27,
+    "weltGroesse": 42
+   },
+   "bogen": {
+    "x": 432,
+    "y": 792,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 34
+   },
+   "armbrust": {
+    "x": 504,
+    "y": 792,
     "b": 72,
     "h": 72,
     "weltGroesse": 32
    },
    "munition_gewehr": {
-    "x": 533,
-    "y": 720,
+    "x": 29,
+    "y": 864,
     "b": 14,
     "h": 72,
     "weltGroesse": 20
    },
    "pfeil": {
-    "x": 0,
-    "y": 792,
+    "x": 72,
+    "y": 864,
     "b": 72,
     "h": 72,
     "weltGroesse": 26
    },
    "bolzen": {
-    "x": 72,
-    "y": 792,
+    "x": 144,
+    "y": 864,
     "b": 72,
     "h": 72,
     "weltGroesse": 22
    },
    "mod_zielfernrohr": {
-    "x": 144,
-    "y": 792,
+    "x": 216,
+    "y": 864,
     "b": 72,
     "h": 72,
     "weltGroesse": 24
    },
    "mod_magazin": {
-    "x": 234,
-    "y": 794,
+    "x": 306,
+    "y": 866,
     "b": 35,
     "h": 67,
     "weltGroesse": 20
    },
    "mod_schalldaempfer": {
-    "x": 288,
-    "y": 792,
+    "x": 360,
+    "y": 864,
     "b": 72,
     "h": 72,
     "weltGroesse": 22
    },
    "granate": {
-    "x": 360,
-    "y": 792,
+    "x": 432,
+    "y": 864,
     "b": 72,
     "h": 72,
     "weltGroesse": 18
    },
    "molotow": {
-    "x": 432,
-    "y": 792,
+    "x": 504,
+    "y": 864,
     "b": 72,
     "h": 72,
     "weltGroesse": 20
    },
    "sprengfalle": {
-    "x": 504,
-    "y": 792,
+    "x": 0,
+    "y": 936,
     "b": 72,
     "h": 72,
     "weltGroesse": 24
    },
    "stacheldraht": {
-    "x": 0,
-    "y": 864,
+    "x": 72,
+    "y": 936,
     "b": 72,
     "h": 72,
     "weltGroesse": 28
    },
    "dosenalarm": {
-    "x": 72,
-    "y": 864,
+    "x": 144,
+    "y": 936,
     "b": 72,
     "h": 72,
     "weltGroesse": 24
    },
    "fallgrube": {
-    "x": 144,
-    "y": 864,
+    "x": 216,
+    "y": 936,
     "b": 72,
     "h": 72,
     "weltGroesse": 28
    },
    "schwarzpulver": {
-    "x": 216,
-    "y": 864,
+    "x": 288,
+    "y": 936,
     "b": 72,
     "h": 72,
     "weltGroesse": 20
    },
    "alkohol": {
-    "x": 288,
-    "y": 864,
+    "x": 360,
+    "y": 936,
     "b": 72,
     "h": 72,
     "weltGroesse": 20
    },
    "benzin": {
-    "x": 360,
-    "y": 864,
+    "x": 432,
+    "y": 936,
     "b": 72,
     "h": 72,
     "weltGroesse": 24
    },
    "huhn": {
-    "x": 432,
-    "y": 864,
+    "x": 504,
+    "y": 936,
     "b": 72,
     "h": 72,
     "weltGroesse": 22
    },
    "samen_weizen": {
-    "x": 504,
-    "y": 864,
+    "x": 0,
+    "y": 1008,
     "b": 72,
     "h": 72,
     "weltGroesse": 16
    },
    "samen_karotte": {
-    "x": 0,
-    "y": 936,
+    "x": 72,
+    "y": 1008,
     "b": 72,
     "h": 72,
     "weltGroesse": 16
    },
    "samen_kuerbis": {
-    "x": 72,
-    "y": 936,
+    "x": 144,
+    "y": 1008,
     "b": 72,
     "h": 72,
     "weltGroesse": 16
    },
    "samen_erdbeere": {
-    "x": 144,
-    "y": 936,
+    "x": 216,
+    "y": 1008,
     "b": 72,
     "h": 72,
     "weltGroesse": 16
    },
    "weizen": {
-    "x": 216,
-    "y": 936,
+    "x": 288,
+    "y": 1008,
     "b": 72,
     "h": 72,
     "weltGroesse": 24
    },
    "karotte": {
-    "x": 288,
-    "y": 936,
+    "x": 360,
+    "y": 1008,
     "b": 72,
     "h": 72,
     "weltGroesse": 20
    },
    "karotte_gebraten": {
-    "x": 360,
-    "y": 936,
+    "x": 432,
+    "y": 1008,
     "b": 72,
     "h": 72,
     "weltGroesse": 20
    },
    "kuerbis": {
-    "x": 432,
-    "y": 936,
+    "x": 504,
+    "y": 1008,
     "b": 72,
     "h": 72,
     "weltGroesse": 24
    },
    "kuerbis_gebraten": {
-    "x": 504,
-    "y": 936,
+    "x": 0,
+    "y": 1080,
     "b": 72,
     "h": 72,
     "weltGroesse": 24
    },
    "erdbeere": {
-    "x": 0,
-    "y": 1008,
+    "x": 72,
+    "y": 1080,
     "b": 72,
     "h": 72,
     "weltGroesse": 18
    },
    "ei": {
-    "x": 72,
-    "y": 1008,
+    "x": 144,
+    "y": 1080,
     "b": 72,
     "h": 72,
     "weltGroesse": 16
    },
    "spiegelei": {
-    "x": 144,
-    "y": 1008,
+    "x": 216,
+    "y": 1080,
     "b": 72,
     "h": 72,
     "weltGroesse": 20
    },
    "honig": {
-    "x": 216,
-    "y": 1008,
+    "x": 288,
+    "y": 1080,
     "b": 72,
     "h": 72,
     "weltGroesse": 20
    },
    "antibiotika": {
-    "x": 309,
-    "y": 1008,
+    "x": 381,
+    "y": 1080,
     "b": 30,
     "h": 72,
     "weltGroesse": 18
    },
    "schiene": {
-    "x": 360,
-    "y": 1008,
+    "x": 432,
+    "y": 1080,
     "b": 72,
     "h": 72,
     "weltGroesse": 26
    },
    "aktivkohle": {
-    "x": 432,
-    "y": 1008,
+    "x": 504,
+    "y": 1080,
     "b": 72,
     "h": 72,
     "weltGroesse": 20
    },
    "leere_flasche": {
-    "x": 504,
-    "y": 1008,
+    "x": 0,
+    "y": 1152,
     "b": 72,
     "h": 72,
     "weltGroesse": 20
    },
    "wasser_dreckig": {
-    "x": 0,
-    "y": 1080,
+    "x": 72,
+    "y": 1152,
     "b": 72,
     "h": 72,
     "weltGroesse": 20
    },
    "verdorben": {
-    "x": 72,
-    "y": 1094,
-    "b": 72,
-    "h": 43,
-    "weltGroesse": 22
-   },
-   "mehl": {
     "x": 144,
-    "y": 1089,
-    "b": 72,
-    "h": 53,
-    "weltGroesse": 22
-   },
-   "brot": {
-    "x": 216,
-    "y": 1093,
-    "b": 72,
-    "h": 46,
-    "weltGroesse": 26
-   },
-   "eintopf": {
-    "x": 292,
-    "y": 1080,
-    "b": 63,
-    "h": 72,
-    "weltGroesse": 24
-   },
-   "fischsuppe": {
-    "x": 360,
-    "y": 1097,
-    "b": 72,
-    "h": 38,
-    "weltGroesse": 24
-   },
-   "kuerbissuppe": {
-    "x": 436,
-    "y": 1080,
-    "b": 63,
-    "h": 72,
-    "weltGroesse": 24
-   },
-   "pfannkuchen": {
-    "x": 504,
-    "y": 1094,
-    "b": 72,
-    "h": 43,
-    "weltGroesse": 24
-   },
-   "doerrfleisch": {
-    "x": 0,
     "y": 1166,
     "b": 72,
     "h": 43,
     "weltGroesse": 22
    },
-   "raeucherfisch": {
+   "mehl": {
+    "x": 216,
+    "y": 1161,
+    "b": 72,
+    "h": 53,
+    "weltGroesse": 22
+   },
+   "brot": {
+    "x": 288,
+    "y": 1165,
+    "b": 72,
+    "h": 46,
+    "weltGroesse": 26
+   },
+   "eintopf": {
+    "x": 364,
+    "y": 1152,
+    "b": 63,
+    "h": 72,
+    "weltGroesse": 24
+   },
+   "fischsuppe": {
+    "x": 432,
+    "y": 1169,
+    "b": 72,
+    "h": 38,
+    "weltGroesse": 24
+   },
+   "kuerbissuppe": {
+    "x": 508,
+    "y": 1152,
+    "b": 63,
+    "h": 72,
+    "weltGroesse": 24
+   },
+   "pfannkuchen": {
+    "x": 0,
+    "y": 1238,
+    "b": 72,
+    "h": 43,
+    "weltGroesse": 24
+   },
+   "doerrfleisch": {
     "x": 72,
-    "y": 1172,
+    "y": 1238,
+    "b": 72,
+    "h": 43,
+    "weltGroesse": 22
+   },
+   "raeucherfisch": {
+    "x": 144,
+    "y": 1244,
     "b": 72,
     "h": 31,
     "weltGroesse": 26
    },
    "eingelegte_gurken": {
-    "x": 144,
-    "y": 1153,
+    "x": 216,
+    "y": 1225,
     "b": 72,
     "h": 70,
     "weltGroesse": 20
    },
    "trockenobst": {
-    "x": 216,
-    "y": 1163,
+    "x": 288,
+    "y": 1235,
     "b": 72,
     "h": 49,
     "weltGroesse": 18

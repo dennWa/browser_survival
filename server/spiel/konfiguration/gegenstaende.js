@@ -66,11 +66,21 @@ const ROH_GEGENSTAENDE = {
   // Runde 24: Fernkampf
   gewehr: { name: 'Jagdgewehr', kategorie: 'fernkampf', ausruestung: 'schrotflinte', schaden: 75, munition: 'munition_gewehr', magazin: 5, abklingzeit: 1.1, reichweite: 900, streuung: 0.008, nachladezeit: 2.2, laerm: 1.6, durchschlag: 0.6, mods: ['zielfernrohr', 'magazin', 'schalldaempfer'], beschreibung: 'Weit und tödlich – aber laut' },
   bogen: { name: 'Bogen', kategorie: 'fernkampf', ausruestung: 'schrotflinte', schaden: 40, munition: 'pfeil', magazin: 1, abklingzeit: 0.5, reichweite: 600, streuung: 0.02, nachladezeit: 0.7, laerm: 0.12, pfeil: true, bergen: 0.6, beschreibung: 'Leise – Pfeile kann man oft wieder einsammeln' },
+  // Runde 26: Waffenpaket – Sounds CC0 (Free Firearm Sound Library), Icons OGA guns_gameassets, Modelle prozedural (waffenModelle.js)
+  revolver: { name: 'Revolver (.357)', kategorie: 'fernkampf', ausruestung: 'pistole', schaden: 48, munition: 'munition_357', magazin: 6, abklingzeit: 0.5, reichweite: 600, streuung: 0.02, nachladezeit: 2.1, laerm: 1.3, durchschlag: 0.3, rueckstoss: 1.6, beschreibung: 'Wenige Schuss, aber jeder sitzt' },
+  mp: { name: 'Maschinenpistole', kategorie: 'fernkampf', ausruestung: 'schrotflinte', schaden: 13, munition: 'munition_9mm', magazin: 30, abklingzeit: 0.09, reichweite: 430, streuung: 0.075, nachladezeit: 1.7, laerm: 1.25, mods: ['schalldaempfer'], beschreibung: 'Taste halten = Dauerfeuer, frisst Munition' },
+  sturmgewehr: { name: 'Sturmgewehr', kategorie: 'fernkampf', ausruestung: 'schrotflinte', schaden: 28, munition: 'munition_gewehr', magazin: 20, abklingzeit: 0.13, reichweite: 760, streuung: 0.04, nachladezeit: 2.3, laerm: 1.6, durchschlag: 0.45, mods: ['zielfernrohr'], beschreibung: 'Taste halten = Dauerfeuer, sehr laut' },
+  vorschlaghammer: { name: 'Vorschlaghammer', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 62, reichweite: 84, abklingzeit: 1.3, haltbarkeit: 120, rueckstoss: 3.2, durchschlag: 0.5, beschreibung: 'Langsam, aber wer getroffen wird, fliegt', reparatur: { holz: 1, eisenbarren: 1 } },
+  katana: { name: 'Katana', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 46, reichweite: 90, abklingzeit: 0.6, haltbarkeit: 60, kegel: 0.95, beschreibung: 'Breiter, schneller Schnitt', reparatur: { eisenbarren: 1 } },
+  bratpfanne: { name: 'Bratpfanne', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 17, reichweite: 66, abklingzeit: 0.55, haltbarkeit: 200, rueckstoss: 2, beschreibung: 'Klassiker. Macht „Doing“.', reparatur: { stein: 1 } },
+  golfschlaeger: { name: 'Golfschläger', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 24, reichweite: 88, abklingzeit: 0.65, haltbarkeit: 50, rueckstoss: 2.3, reparatur: { eisenbarren: 1 } },
+  kampfmesser: { name: 'Kampfmesser', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 28, reichweite: 66, abklingzeit: 0.36, haltbarkeit: 90, reparatur: { stein: 1 } },
   armbrust: { name: 'Armbrust', kategorie: 'fernkampf', ausruestung: 'schrotflinte', schaden: 65, munition: 'bolzen', magazin: 1, abklingzeit: 0.4, reichweite: 700, streuung: 0.01, nachladezeit: 1.8, laerm: 0.18, pfeil: true, bergen: 0.5, durchschlag: 0.5, mods: ['zielfernrohr'], beschreibung: 'Leise und stark, langsames Spannen' },
   // --- Munition ---
   munition_9mm: { name: 'Munition 9 mm', kategorie: 'munition', stapelbar: 60, mengeBeimFund: [5, 15] },
   munition_12: { name: 'Schrotpatronen Kal. 12', kategorie: 'munition', stapelbar: 30, mengeBeimFund: [2, 6] },
   munition_gewehr: { name: 'Gewehrpatronen', kategorie: 'munition', mengeBeimFund: [2, 5] },
+  munition_357: { name: 'Revolverpatronen .357', kategorie: 'munition', mengeBeimFund: [3, 8] }, // Runde 26
   pfeil: { name: 'Pfeile', kategorie: 'munition', mengeBeimFund: [3, 6], beschreibung: 'Für den Bogen – an der Werkbank selbst bauen' },
   bolzen: { name: 'Armbrustbolzen', kategorie: 'munition', mengeBeimFund: [2, 4] },
   // --- Waffen-Mods (Runde 24): mit der Waffe in der Hand „benutzen“ oder im Inventar auf die Waffe ziehen ---

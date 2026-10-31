@@ -82,6 +82,7 @@ export const LOOT_TABELLEN = Object.freeze({
   ],
   // Was getötete Zombies manchmal fallen lassen
   zombie: [
+    { id: 'munition_357', gewicht: 0.3 }, // Runde 26
     { id: 'lederjacke', gewicht: 0.15 },
     { id: 'helm', gewicht: 0.1 },
     { id: 'pfeil', gewicht: 0.5 },
@@ -97,6 +98,9 @@ export const LOOT_TABELLEN = Object.freeze({
   ],
   // Beute der Boss-Zombies (Brocken): immer eine Waffe – die passende Munition kommt dazu (lootSystem.lasseBossLootFallen)
   boss: [
+    { id: 'sturmgewehr', gewicht: 0.5 }, // Runde 26
+    { id: 'mp', gewicht: 0.5 }, // Runde 26
+    { id: 'munition_357', gewicht: 1 }, // Runde 26
     { id: 'gewehr', gewicht: 1 },
     { id: 'armbrust', gewicht: 1 },
     { id: 'brecheisen', gewicht: 1 },
@@ -113,6 +117,7 @@ export const LOOT_TABELLEN = Object.freeze({
     { id: 'munition_9mm', gewicht: 1 },
   ],
   kueche: [
+    { id: 'bratpfanne', gewicht: 1.2 }, // Runde 26
     { id: 'kuechenmesser', gewicht: 3 },
     { id: 'konservendose', gewicht: 3 },
     { id: 'kaese', gewicht: 2 },
@@ -121,6 +126,10 @@ export const LOOT_TABELLEN = Object.freeze({
   ],
   // Wohnhäuser: vor allem Essen & Trinken, Waffen nur selten
   wohnung: [
+    { id: 'golfschlaeger', gewicht: 0.4 }, // Runde 26
+    { id: 'bratpfanne', gewicht: 0.5 }, // Runde 26
+    { id: 'revolver', gewicht: 0.15 }, // Runde 26
+    { id: 'katana', gewicht: 0.08 }, // Runde 26
     { id: 'samen_weizen', gewicht: 0.8 },
     { id: 'samen_karotte', gewicht: 0.8 },
     { id: 'samen_kuerbis', gewicht: 0.6 },
@@ -169,6 +178,7 @@ export const LOOT_TABELLEN = Object.freeze({
     { id: 'rucksack_klein', gewicht: 0.5 },
   ],
   werkstatt: [
+    { id: 'vorschlaghammer', gewicht: 0.9 }, // Runde 26
     { id: 'benzin', gewicht: 1 },
     { id: 'helm', gewicht: 0.8 },
     { id: 'lederhandschuhe', gewicht: 0.8 },
@@ -217,6 +227,10 @@ export const LOOT_TABELLEN = Object.freeze({
     { id: 'samen_paprika', gewicht: 1.5 },
   ],
   polizei: [
+    { id: 'revolver', gewicht: 1.2 }, // Runde 26
+    { id: 'mp', gewicht: 0.6 }, // Runde 26
+    { id: 'munition_357', gewicht: 2 }, // Runde 26
+    { id: 'kampfmesser', gewicht: 0.8 }, // Runde 26
     { id: 'schutzweste', gewicht: 1 },
     { id: 'helm', gewicht: 0.4 },
     { id: 'mod_magazin', gewicht: 0.4 },
@@ -230,6 +244,10 @@ export const LOOT_TABELLEN = Object.freeze({
     { id: 'falle', gewicht: 1 },
   ],
   waffenkammer: [
+    { id: 'sturmgewehr', gewicht: 0.6 }, // Runde 26
+    { id: 'mp', gewicht: 0.8 }, // Runde 26
+    { id: 'revolver', gewicht: 1 }, // Runde 26
+    { id: 'munition_357', gewicht: 2 }, // Runde 26
     { id: 'granate', gewicht: 0.8 },
     { id: 'munition_9mm', gewicht: 4 },
     { id: 'munition_12', gewicht: 4 },
@@ -262,6 +280,9 @@ export const LOOT_TABELLEN = Object.freeze({
   ],
   // Zone "Waldweg": Försterhütte
   huette: [
+    { id: 'kampfmesser', gewicht: 0.6 }, // Runde 26
+    { id: 'revolver', gewicht: 0.3 }, // Runde 26
+    { id: 'munition_357', gewicht: 0.8 }, // Runde 26
     { id: 'samen_weizen', gewicht: 0.8 },
     { id: 'samen_karotte', gewicht: 0.8 },
     { id: 'samen_kuerbis', gewicht: 0.6 },
@@ -359,6 +380,7 @@ export const LOOT_TABELLEN = Object.freeze({
     { id: 'samen_kartoffel', gewicht: 0.8 },
   ],
   werkzeugkiste: [
+    { id: 'vorschlaghammer', gewicht: 0.5 }, // Runde 26
     { id: 'hammer', gewicht: 2 },
     { id: 'schrott', gewicht: 3 },
     { id: 'eisenbarren', gewicht: 1 },
@@ -369,6 +391,7 @@ export const LOOT_TABELLEN = Object.freeze({
     { id: 'lederhandschuhe', gewicht: 0.8 },
   ],
   truhe: [
+    { id: 'katana', gewicht: 0.3 }, // Runde 26
     { id: 'munition_9mm', gewicht: 2 },
     { id: 'munition_12', gewicht: 1.5 },
     { id: 'munition_gewehr', gewicht: 1 },

@@ -7,6 +7,7 @@ import * as THREE from 'three';
  * Koordinaten: 1 Einheit = 1 Weltpixel (Figur ≈ 64 hoch). Ursprung = Griffpunkt in der Hand,
  * die Waffe zeigt entlang +z (nach vorne), +y ist oben.
  * mündung: Punkt (lokal), aus dem Schüsse kommen bzw. an dem die Taschenlampe leuchtet.
+ * Runde 26: revolver, mp, sturmgewehr, vorschlaghammer, katana, bratpfanne, golfschlaeger, kampfmesser.
  */
 const metall = new THREE.MeshStandardMaterial({ color: 0x2b2e33, roughness: 0.45, metalness: 0.7 });
 const metallHell = new THREE.MeshStandardMaterial({ color: 0xb9c0c8, roughness: 0.25, metalness: 0.9 });
@@ -227,6 +228,77 @@ const BAUPLAENE = {
     g.add(rohr(0.6, 2.4, new THREE.MeshStandardMaterial({ color: 0xe8e0d0, roughness: 0.9 }), 0, 0, 8.4));
     return g;
   },
+  // --- Runde 26: Waffenpaket ---
+  revolver() {
+    const g = new THREE.Group();
+    g.add(quader(1.9, 5, 2.4, holz, 0, -2.2, -0.8)); // Holzgriff
+    g.add(rohr(1.6, 3, metallHell, 0, 0.9, 1.6)); // Trommel
+    g.add(rohr(0.7, 8, metallHell, 0, 1.3, 6.5)); // Lauf
+    g.add(quader(1.6, 1.4, 4, metall, 0, 0.2, 0.8));
+    g.userData.muendung = new THREE.Vector3(0, 1.3, 10.5);
+    return g;
+  },
+  mp() {
+    const g = new THREE.Group();
+    g.add(quader(2.2, 3.4, 11, metall, 0, 0.6, 2)); // Gehäuse
+    g.add(quader(1.6, 6, 1.8, metall, 0, -3.6, 3.2)); // langes Magazin
+    g.add(quader(1.8, 4, 2.2, gummi, 0, -2.6, -1.8)); // Griff
+    g.add(quader(1, 1, 7, metall, 0, 0.2, -6.5)); // Klappschaft
+    g.add(rohr(0.6, 4, metall, 0, 1, 9.5));
+    g.userData.muendung = new THREE.Vector3(0, 1, 11.6);
+    return g;
+  },
+  sturmgewehr() {
+    const g = new THREE.Group();
+    g.add(quader(2.4, 4.4, 9, holz, 0, -1.2, -7)); // Schaft
+    g.add(quader(2.4, 3, 10, metall, 0, 0.6, 2)); // Gehäuse
+    const magazin = quader(1.8, 6, 2.6, metall, 0, -3.8, 3.6);
+    magazin.rotation.x = 0.35; // gebogenes Magazin
+    g.add(magazin);
+    g.add(quader(2.2, 2, 7, holz, 0, -0.2, 9.5)); // Handschutz
+    g.add(rohr(0.65, 10, metall, 0, 1, 15));
+    g.userData.muendung = new THREE.Vector3(0, 1, 20.2);
+    return g;
+  },
+  vorschlaghammer() {
+    const g = new THREE.Group();
+    g.add(rohr(0.9, 24, holz, 0, 0, 8));
+    g.add(quader(3.4, 4.6, 7.5, metall, 0, 0, 20)); // schwerer Kopf quer
+    return g;
+  },
+  katana() {
+    const g = new THREE.Group();
+    g.add(rohr(0.8, 7, gummi, 0, 0, 0.5)); // Griff (gewickelt)
+    g.add(rohr(1.8, 0.6, metallHell, 0, 0, 4.2)); // Stichblatt
+    const klinge = quader(0.35, 2, 24, metallHell, 0, 0.3, 16.5);
+    klinge.rotation.x = -0.05; // leicht gebogen
+    g.add(klinge);
+    return g;
+  },
+  bratpfanne() {
+    const g = new THREE.Group();
+    g.add(rohr(0.7, 9, gummi, 0, 0, 2.5)); // Stiel
+    const pfanne = new THREE.Mesh(new THREE.CylinderGeometry(5, 4.4, 1.6, 14), metall);
+    pfanne.position.set(0, 0, 11.5);
+    pfanne.rotation.z = Math.PI / 2; // Boden zeigt seitlich (Schlagfläche)
+    pfanne.castShadow = true;
+    g.add(pfanne);
+    return g;
+  },
+  golfschlaeger() {
+    const g = new THREE.Group();
+    g.add(rohr(0.8, 6, gummi, 0, 0, 0.5));
+    g.add(rohr(0.35, 22, metallHell, 0, 0, 14));
+    g.add(quader(1.4, 3.6, 2.4, metallHell, 0, -1.4, 25.5)); // Schlägerkopf
+    return g;
+  },
+  kampfmesser() {
+    const g = new THREE.Group();
+    g.add(quader(1.5, 1.9, 5, gummi, 0, 0, 0.5));
+    g.add(quader(2.8, 0.6, 0.6, metall, 0, 0, 3.2)); // Parierstange
+    g.add(quader(0.45, 2.4, 9, metallHell, 0, 0.3, 7.8));
+    return g;
+  },
   taschenlampe() {
     const g = new THREE.Group();
     g.add(rohr(1.2, 7, gummi, 0, 0, 1.5));
@@ -274,8 +346,8 @@ export function erzeugeWaffe(name, mods = null) {
 
 /** Haltungsart pro Modell: 'pistole' | 'gewehr' | 'nahkampf' | 'lampe' (Werkzeuge bei der Arbeit: 'hacken') */
 export function haltungFuer(name) {
-  if (name === 'pistole') return 'pistole';
-  if (name === 'schrotflinte' || name === 'gewehr' || name === 'bogen' || name === 'armbrust') return 'gewehr';
+  if (name === 'pistole' || name === 'revolver') return 'pistole';
+  if (name === 'schrotflinte' || name === 'gewehr' || name === 'bogen' || name === 'armbrust' || name === 'mp' || name === 'sturmgewehr') return 'gewehr';
   if (name === 'taschenlampe') return 'lampe';
   if (name === 'essen' || name === 'trinken' || name === 'holz' || name === 'samen' || name === 'granate' || name === 'molotow') return 'seitlich'; // entspannt neben dem Körper tragen, kein Schwung (Runde 19)
   return 'nahkampf';

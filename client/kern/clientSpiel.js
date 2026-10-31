@@ -35,7 +35,7 @@ const HAUSTIER_FUTTER = {
   katze: ['fisch_barsch', 'fisch_forelle', 'fisch_hecht', 'milch'],
   huhn: ['samen_tomate', 'samen_gurke', 'samen_kartoffel', 'samen_paprika', 'samen_weizen', 'samen_karotte', 'samen_kuerbis', 'samen_erdbeere'],
 };
-const SCHUSS_KLANG = { gewehr: 'gewehr', bogen: 'bogen', armbrust: 'armbrust' };
+const SCHUSS_KLANG = { gewehr: 'gewehr', bogen: 'bogen', armbrust: 'armbrust', revolver: 'revolver', mp: 'mp', sturmgewehr: 'sturmgewehr' };
 const ZOMBIE_TONHOEHE = { normal: 1, laeufer: 1.35, brocken: 0.7, halb: 1.2, sprinter: 1.45, spucker: 1.15, gepanzert: 0.8, explosiv: 0.95 };
 const AUTOLAUF_ANKUNFT_PX = 9; // so nah an der Kachelmitte des Ziels gilt man als angekommen
 const AUTOLAUF_WEGPUNKT_PX = 10;

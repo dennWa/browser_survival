@@ -258,6 +258,16 @@
     ],
     "lautstaerke": 1
   },
+  "mp": {
+    "dateien": [
+      "mp_0.ogg",
+      "mp_1.ogg",
+      "mp_2.ogg",
+      "mp_3.ogg",
+      "mp_4.ogg"
+    ],
+    "lautstaerke": 1
+  },
   "nachladen_gewehr": {
     "dateien": [
       "nachladen_gewehr_0.ogg"
@@ -304,6 +314,13 @@
   "regen": {
     "dateien": [
       "regen.ogg"
+    ],
+    "lautstaerke": 1
+  },
+  "revolver": {
+    "dateien": [
+      "revolver_0.ogg",
+      "revolver_1.ogg"
     ],
     "lautstaerke": 1
   },
@@ -409,6 +426,16 @@
       "sturm.ogg"
     ],
     "lautstaerke": 0.9
+  },
+  "sturmgewehr": {
+    "dateien": [
+      "sturmgewehr_0.ogg",
+      "sturmgewehr_1.ogg",
+      "sturmgewehr_2.ogg",
+      "sturmgewehr_3.ogg",
+      "sturmgewehr_4.ogg"
+    ],
+    "lautstaerke": 1
   },
   "summen": {
     "dateien": [

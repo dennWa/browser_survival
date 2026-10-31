@@ -80,6 +80,9 @@ Tipp: kurze Dateien (< 3 s), Lautstärke der Aufnahme selbst eher normalisiert.
 | `pistole` | Pistolenschuss |
 | `schrotflinte` | Schrotflintenschuss |
 | `automatikgewehr` | Automatikgewehr-Schuss (Platzhalter, Waffe kommt später) |
+| `revolver` | Revolverschuss (Runde 26) |
+| `mp` | Maschinenpistole, Einzelschuss im Dauerfeuer (Runde 26) |
+| `sturmgewehr` | Sturmgewehr, Einzelschuss im Dauerfeuer (Runde 26) |
 | `leer` | Klick: Magazin leer / nichts zu tun |
 | `nachladen` | Nachladen |
 | `nahkampf` | Schlag / Hieb in die Luft |
