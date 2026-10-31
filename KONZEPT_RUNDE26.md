@@ -12,17 +12,29 @@ Stand: 31.10.2026. Erst das Konzept, umgesetzt wird nach Freigabe. Gearbeitet wi
 | A4 | Zombies zu laut | – | Zombie-Lautstärke um etwa 25 % senken (eigener Faktor im Mixer) |
 | A5 | Im Haus | Der Regen ist zwar weg, aber der Blick nach draußen wirkt unstimmig | **Variante B (dein Vorschlag):** Ist man innen, wird alles außerhalb des Gebäudes **abgedunkelt** (dunkler Schleier, Außenwelt fast schwarz, kein Regen sichtbar). Das passt gut zum Survival-Gefühl, denn man weiß nicht, was draußen lauert. Technisch nutzen wir die vorhandene Innen-Erkennung: Außenblöcke werden per Shader/Overlay stark verdunkelt, Fenster lassen später vielleicht etwas Licht durch. *Alternative A* (Regen draußen weiter sichtbar, nur nicht im Raum) ginge auch, ist aber aufwendiger (Regen-Maske pro Raum) |
 
-## Block B – KI-Export aus dem Map-Editor
+## Block B – KI-Karten-Anleitung und Zonen-Export
 
-Ziel: Eine fremde KI ohne Projektwissen bekommt **2 Dateien** und kann damit eine Zone sinnvoll bearbeiten.
+Ziel: Eine fremde KI ohne Projektwissen bekommt **2 Dateien**, baut damit eine Karte bzw. Zone und antwortet so, dass ich die Antwort **1:1 in den Editor einfügen** kann (der vorhandene Import `editor/kern/kiImport.js` macht daraus eine Vorschau mit Rückgängig).
 
-1. **`editor/KI_REGELN.md`** (fest, wird immer mitgeschickt), generiert und von Hand ergänzt:
-   - Worum es geht (Spiel, Kachelraster, Koordinaten, Ebenen: Boden, Wände, Möbel, Objekte, Zonen, Spawns, Übergänge)
-   - Das **Antwortformat**: Die KI antwortet ausschließlich mit einem JSON-Block im Schema `ki-aenderung v1` (`hinzufuegen` / `entfernen` / `aendern`, jeweils mit ID oder Position). Den Block kann der Editor per „KI-Antwort einfügen“ direkt übernehmen, inklusive Vorschau und Rückgängig
-   - Regeln: nur bekannte Typ-IDs verwenden, im Bereich bleiben, keine Wege zubauen usw.
-   - **Katalog:** alle Bodentexturen, Modelle, Möbel, Gegenstände und Sounds mit ID, Kurzbeschreibung, Größe und Kategorie
-2. **Katalog automatisch statt per Hand:** `npm run ki:katalog` erzeugt den Katalogteil aus den echten Registern (Asset-Liste, `client/assets/eigene/`, Sounds, Möbeltypen). Ein **Test schlägt fehl, wenn der Katalog veraltet ist**. Damit landen neue Modelle oder Sounds garantiert in der Datei, und das ist ab jetzt Pflicht (kommt so auch in `CLAUDE.md`).
-3. **Zonen-Export** („Für KI exportieren“): enthält **alles** im markierten Rechteck, also jede Kachel (Boden), Wände, Türen, Möbel und Objekte mit genauer Position, Drehung und Freiposition, Ressourcen, Spawns, Loot, Übergänge, Dächer bzw. Innenräume, Höhen und Zonen-Eigenschaften. Kompaktes, aber eindeutiges Format (Legende oben, Boden als Lauflängen-Raster, Objekte als Liste). Für dich kaum lesbar, für die KI glasklar 😄
+### Datei 1: `editor/KI_KARTEN_ANLEITUNG.md` (immer mitschicken)
+Der Fokus liegt auf dem Karte-Bauen, das Spiel wird nur kurz erklärt.
+1. **Worum es geht (5 Zeilen):** ein Low-Poly-Zombie-Survival von oben bzw. in 3D, Zonen wie Stadtrand oder Waldweg, Häuser zum Durchsuchen, Loot, Übergänge zwischen Zonen
+2. **So ist eine Karte aufgebaut:** Kachelraster (Größe, Koordinaten x/y, Ursprung oben links), Ebenen (Boden → Wände/Türen → Möbel/Objekte → Ressourcen → Räume/Dächer/Innen → Loot-Zonen → Spawns → Übergänge), dazu Drehung, Freiposition und Zonen-Werte (Wetter, Musik …)
+3. **Darauf achten (Bauregeln):** Wege nicht zubauen, Türen brauchen freie Kacheln davor und dahinter, Häuser sind geschlossen und haben einen Raum mit Dach, Übergänge liegen am Rand, Loot passt zum Raum (Küche → Essen), nur IDs aus dem Katalog, nur im markierten Bereich ändern, Dichte und Abwechslung beachten
+4. **So antwortest du (das Wichtigste):**
+   - nur ein einziger ```json-Block, sonst nichts
+   - Format `browser-survival-ki-aenderungen` mit `meta` (Zone, Bereich) und `aktionen` (setze / entferne / aendere / kachel / raum / lootzone / prefab …), zu jeder Aktion ein Beispiel
+   - ein vollständiges Mini-Beispiel (z. B. „kleine Hütte mit Tür, Tisch, Kiste und Kiesweg“)
+   - Fehler, die der Editor ablehnt (unbekannte ID, außerhalb des Bereichs, belegte Kachel)
+5. **Katalog: was es alles gibt**, eine Tabelle je Kategorie mit ID, Kurzbeschreibung, Größe in Kacheln und Hinweis. Kategorien: Bodentexturen, Wände/Türen/Fenster, Möbel, durchsuchbare Behälter, Natur (Bäume, Büsche, Steine), Fahrzeuge/Wracks, Prefabs (fertige Häuser), Gegenstände/Loot-Tabellen, Zombie- und Tier-Spawns, Sounds/Musik/Ambiente, eigene `.glb`-Modelle
+
+### Katalog bleibt automatisch aktuell
+- Teil 5 erzeugt `npm run ki:katalog` aus den echten Registern, die Teile 1–4 schreibe ich von Hand
+- Ein Test schlägt fehl, wenn der Katalog veraltet ist. **Jedes neue Modell, jede Textur und jeder Sound landet so zwangsläufig in der Datei** (kommt als Regel auch in `CLAUDE.md` und `KI_INDEX.md`)
+- Im Editor gibt es einen Knopf „Anleitung kopieren/herunterladen“
+
+### Datei 2: Zonen-Export („Für KI exportieren“)
+Der Export enthält **alles** im markierten Rechteck: jede Bodenkachel, Wände, Türen, Möbel und Objekte (ID, Position, Drehung, Freiposition, Inhalt), Ressourcen, Räume/Dächer/Innen, Loot-Zonen, Spawns, Übergänge, Höhen, Zonen-Werte und die Nachbarschaft am Rand (was direkt außerhalb anschließt). Das Format ist kompakt, aber eindeutig: oben eine Legende, der Boden als Raster mit Kürzeln, Objekte als Liste. Für Menschen kryptisch, für die KI ein offenes Buch 📖
 
 ## Block C – Bauen im 3D-Modus des Editors
 
