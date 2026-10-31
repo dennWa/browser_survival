@@ -4,6 +4,7 @@ import { GRAFIK_PROFILE } from '../darstellung/renderer.js';
 /**
  * Einstellungen-Fenster (⚙ in der oberen Leiste): Ton an/aus, drei Lautstärkeregler (Gesamt, Effekte, Wind &
  * Umgebung), Grafikstufe (hoch / mittel / niedrig) sowie – für Handys wichtig – Vollbild und Abmelden.
+ * Runde 27: Abschnitt „Haustiere“ (nur mit eigenem Hund/Katze) – Freilassen per Doppel-Tipp (1. Tipp fragt nach).
  * Die Werte merken sich Sound (localStorage `browserSurvival.ton`) und Renderer (`browserSurvival.grafik`) selbst;
  * dieses Fenster zeigt sie nur an. Sound/Renderer kommen per verbinde(), weil der Renderer erst nach dem Laden existiert.
  */
@@ -12,6 +13,8 @@ export class EinstellungenFenster {
   #renderer = () => null;
   #minikarteWechseln = null;
   #handy = null;
+  #haustiere = null;
+  #freilassenFrage = null; // 'art:name' nach dem ersten Tipp
 
   constructor(dokument) {
     this.dokument = dokument;
@@ -53,6 +56,39 @@ export class EinstellungenFenster {
     this.dokument.getElementById('einst-stick-hoehe').addEventListener('input', (e) => touch.setzeEinstellung({ hoehe: Number(e.target.value) }));
   }
 
+  /** Runde 27: liste() → [{ art, name }] der eigenen Tiere, freilassen({ art, name }) schickt die Aktion */
+  verbindeHaustiere({ liste, freilassen }) {
+    this.#haustiere = { liste, freilassen };
+  }
+
+  #baueHaustiere() {
+    const box = this.dokument.getElementById('einst-haustiere');
+    const liste = this.#haustiere?.liste() ?? [];
+    box.hidden = !liste.length;
+    const el = this.dokument.getElementById('einst-haustiere-liste');
+    el.replaceChildren(
+      ...liste.map((h) => {
+        const schluessel = `${h.art}:${h.name}`;
+        const frage = this.#freilassenFrage === schluessel;
+        const knopf = Object.assign(this.dokument.createElement('button'), {
+          type: 'button',
+          className: `einst-knopf${frage ? ' gefahr' : ''}`,
+          textContent: `${h.art === 'hund' ? '🐕' : '🐈'} ${h.name} ${frage ? '– wirklich freilassen?' : 'freilassen'}`,
+        });
+        knopf.addEventListener('click', () => {
+          if (!frage) this.#freilassenFrage = schluessel;
+          else {
+            this.#freilassenFrage = null;
+            this.#haustiere.freilassen(h);
+            setTimeout(() => this.offen && this.#baueHaustiere(), 400); // Liste kommt mit den nächsten Spielerdaten
+          }
+          this.#baueHaustiere();
+        });
+        return knopf;
+      }),
+    );
+  }
+
   /** @param sound Sound-Objekt · @param renderer Funktion, die den Renderer (oder null) liefert */
   verbinde({ sound, renderer }) {
     this.#sound = sound;
@@ -77,6 +113,7 @@ export class EinstellungenFenster {
 
   zeige(offen = !this.offen) {
     this.el.hidden = !offen;
+    this.#freilassenFrage = null;
     if (offen) this.#aktualisiere();
   }
 
@@ -111,6 +148,7 @@ export class EinstellungenFenster {
   }
 
   #aktualisiere() {
+    this.#baueHaustiere();
     const aktuell = this.#renderer()?.grafik;
     for (const knopf of this.grafikEl.children) knopf.classList.toggle('aktiv', knopf.dataset.grafik === aktuell);
     this.grafikInfo.textContent = aktuell ? (this.#renderer()?.grafikBeschreibung?.() ?? `${GRAFIK_PROFILE[aktuell].name}: ${GRAFIK_PROFILE[aktuell].beschreibung}`) : '';

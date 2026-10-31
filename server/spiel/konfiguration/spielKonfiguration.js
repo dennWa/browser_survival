@@ -180,13 +180,14 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     wildeHuehner: 4,
     mindestKacheln: 4000, // erst ab dieser Kartengröße streunen wilde Tiere (Test-/Mini-Karten bleiben leer)
     maxJeArt: 1, // so viele Hunde bzw. Katzen darf man haben
+    zaehmChance: 0.1, // Runde 27: Chance je Fisch (Katze) bzw. Fleisch (Hund), dass das Tier einem gehört
     wachRadius: 300, // px: Zombies so nah am Hund/Besitzer → bellen + angreifen
     bissSchaden: 14,
     bissPause: 0.9,
     teleportAb: 520, // px: weiter weg vom Besitzer → taucht neben ihm auf
     arten: {
       hund: { leben: 90, radius: 9, tempo: 110, rennTempo: 190, folgeAbstand: 48 },
-      katze: { leben: 40, radius: 7, tempo: 80, rennTempo: 160, folgeAbstand: 70 },
+      katze: { leben: 40, radius: 8, tempo: 80, rennTempo: 160, folgeAbstand: 70 },
       huhn: { leben: 15, radius: 6, tempo: 50, rennTempo: 120, folgeAbstand: 40 },
     },
   },

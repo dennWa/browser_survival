@@ -8,18 +8,21 @@ import { fuegeZumInventarHinzu, verbrauche } from './inventarSystem.js';
 /**
  * Runde 24: Haustiere & Nutztiere (Tier-Entitäten mit art 'hund' | 'katze' | 'huhn', Werte konfiguration.haustiere).
  *   Wild: streunen umher (Hund/Katze wenige je Zone, Hühner auf Rasen). AKTION haustier { ziel } mit passendem Futter zähmt:
- *     Hund ← Fleisch, Katze ← Fisch/Milch, Huhn ← Samen (Huhn wird eingefangen → Item 'huhn' für den Hühnerstall).
+ *     Hund ← Fleisch, Katze ← Fisch, Huhn ← Samen (Huhn wird eingefangen → Item 'huhn' für den Hühnerstall).
  *   Gezähmt (t.besitzer = Spielername): folgt („folgen“) oder wartet („bleib“, E/AKTION schaltet um). Steht der Besitzer
  *     zu weit weg (anderer Raum, Zonenwechsel), taucht es bei ihm wieder auf. Liste am Spieler: spieler.haustiere [{art, name}]
  *     (Spielstand) → `begleite` setzt fehlende Tiere neben ihn, Tiere ohne Besitzer in der Zone verschwinden.
  *   Hund: bellt, wenn Zombies nahe kommen (Ereignis 'bellen'), läuft hin und beißt (bissSchaden). Katze: maunzt ab und zu,
  *     rollt sich neben dem sitzenden/schlafenden Besitzer ein (zustand 'schlaeft') – zählt für „gemütlich“ (ueberlebenSystem).
+ * Runde 27: Anfüttern statt Sofort-Zähmen – jedes Futter (Katze: Fisch, Hund: Fleisch) hat `zaehmChance` (10 %), sonst frisst
+ *   das Tier nur. Hund & Katze sind unsterblich (kampfSystem.fuegeSchadenZu). `haustierFreilassen` (Einstellungen) gibt ein
+ *   eigenes Tier frei: Eintrag weg, das Tier streunt wieder in der Zone (wild, erneut zähmbar).
  */
 export const HAUSTIER_ARTEN = Object.freeze(['hund', 'katze', 'huhn']);
 const NAMEN = { hund: ['Bello', 'Rex', 'Luna', 'Balu', 'Kira', 'Rocky'], katze: ['Mia', 'Felix', 'Minka', 'Tiger', 'Lilly', 'Garfield'], huhn: ['Henni'] };
 export const FUTTER = Object.freeze({
   hund: ['fleisch', 'fleisch_gebraten'],
-  katze: ['fisch_barsch', 'fisch_forelle', 'fisch_hecht', 'milch'],
+  katze: ['fisch_barsch', 'fisch_forelle', 'fisch_hecht', 'fisch_barsch_gebraten', 'fisch_forelle_gebraten', 'fisch_hecht_gebraten'],
   huhn: ['samen_tomate', 'samen_gurke', 'samen_kartoffel', 'samen_paprika', 'samen_weizen', 'samen_karotte', 'samen_kuerbis', 'samen_erdbeere'],
 });
 
@@ -152,10 +155,26 @@ export function haustierAktion(spielWelt, spieler, ziel) {
   }
   const slot = spieler.inventar.findIndex((e) => e && FUTTER[t.art].includes(e.defId));
   if (slot < 0) {
-    spielWelt.melde(spieler.id, { hund: 'Der Hund mag Fleisch …', katze: 'Die Katze will Fisch oder Milch …', huhn: 'Mit Samen lockst du das Huhn an …' }[t.art]);
+    spielWelt.melde(spieler.id, { hund: 'Der Hund mag Fleisch …', katze: 'Die Katze will Fisch …', huhn: 'Mit Samen lockst du das Huhn an …' }[t.art]);
+    return false;
+  }
+  const k = spielWelt.konfiguration.haustiere;
+  if (t.art !== 'huhn' && (spieler.haustiere ?? []).filter((h) => h.art === t.art).length >= k.maxJeArt) {
+    const max = k.maxJeArt;
+    spielWelt.melde(spieler.id, `Du hast schon ${max === 1 ? 'ein' : max} ${t.art === 'hund' ? 'Hund' : 'Katze'}${max > 1 ? 'n' : ''}`);
     return false;
   }
   verbrauche(spieler, slot);
+  if (t.art !== 'huhn' && spielWelt.zufall.zahl() >= (k.zaehmChance ?? 0.1)) {
+    // Runde 27: nur angefüttert – frisst, bleibt aber (noch) wild
+    t.angefuettert = (t.angefuettert ?? 0) + 1;
+    t.blick = Math.atan2(spieler.y - t.y, spieler.x - t.x);
+    t.wanderZiel = null;
+    t.wanderTimer = 3;
+    spielWelt.ereignis({ typ: t.art === 'hund' ? 'bellen' : 'miau', id: t.id, x: t.x, y: t.y });
+    spielWelt.melde(spieler.id, t.art === 'hund' ? '🍖 Der Hund schlingt das Fleisch runter … er traut dir noch nicht ganz' : '🐟 Die Katze frisst den Fisch … sie beäugt dich noch skeptisch');
+    return true;
+  }
   if (t.art === 'huhn') {
     if (fuegeZumInventarHinzu(spieler, 'huhn', 1) > 0) {
       spielWelt.melde(spieler.id, 'Kein Platz für das Huhn');
@@ -165,11 +184,6 @@ export function haustierAktion(spielWelt, spieler, ziel) {
     spielWelt.ereignis({ typ: 'gackern', id: t.id, x: t.x, y: t.y });
     spielWelt.melde(spieler.id, '🐔 Huhn eingefangen – für einen Hühnerstall (Bau-Menü → Farm)');
     return true;
-  }
-  const max = spielWelt.konfiguration.haustiere.maxJeArt;
-  if ((spieler.haustiere ?? []).filter((h) => h.art === t.art).length >= max) {
-    spielWelt.melde(spieler.id, `Du hast schon ${max === 1 ? 'ein' : max} ${t.art === 'hund' ? 'Hund' : 'Katze'}${max > 1 ? 'n' : ''}`);
-    return false;
   }
   t.besitzer = spieler.name;
   t.name = spielWelt.zufall.auswahl(NAMEN[t.art]);
@@ -190,6 +204,21 @@ export function begleite(spielWelt, spieler) {
     Object.assign(t, { besitzer: spieler.name, name: h.name, zustand: 'folgen' });
     spielWelt.hinzufuegen(t);
   }
+}
+
+/** Runde 27: Eigenes Haustier freilassen (Einstellungen) – es streunt danach wieder wild in der Zone. */
+export function haustierFreilassen(spielWelt, spieler, art, name) {
+  const liste = spieler.haustiere ?? [];
+  const i = liste.findIndex((h) => h.art === art && h.name === name);
+  if (i < 0) return false;
+  spieler.haustiere = liste.filter((_, j) => j !== i);
+  const t = [...spielWelt.alleVomTyp('tier')].find((x) => x.besitzer === spieler.name && x.art === art && x.name === name);
+  if (t) {
+    Object.assign(t, { besitzer: null, zustand: 'ruhend', wanderZiel: null, wanderTimer: 1, angefuettert: 0 });
+    delete t.name;
+  } else spawneWild(spielWelt, art); // Tier war nicht in der Zone → hier ein wildes nachsetzen
+  spielWelt.melde(spieler.id, `${art === 'hund' ? '🐕' : '🐈'} ${name} ist wieder frei und streunt umher`);
+  return true;
 }
 
 /** Haustier gestorben (kampfSystem.toeten): aus der Liste des Besitzers streichen. */

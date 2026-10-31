@@ -180,6 +180,7 @@ function radiusVon(spielWelt, entitaet) {
  */
 export function fuegeSchadenZu(spielWelt, ziel, menge, quelle, winkel = 0, optionen = {}) {
   if (ziel.tot || ziel.leben <= 0 || ziel.gottmodus) return;
+  if (ziel.typ === 'tier' && (ziel.art === 'hund' || ziel.art === 'katze')) return; // Runde 27: Hund & Katze sind unsterblich
   if (ziel.fahrzeug && quelle?.typ === 'zombie') {
     // Im Auto ist man vor Bissen sicher – dafür leidet das Auto (Boss-Schläge zählen mehr)
     schlageFahrzeug(spielWelt, ziel.fahrzeug, quelle.angriffsSchaden / spielWelt.konfiguration.zombie.angriffsSchaden);

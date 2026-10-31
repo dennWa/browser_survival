@@ -151,6 +151,11 @@ export class Hud {
       // egal
     }
     this.el.chatKnopf.addEventListener('click', () => this.chatOeffnen());
+    // Runde 27: ☰-Menü (nur Touch) – Tippen auf einen Eintrag schließt es wieder
+    this.el.mehr = el('hud-mehr');
+    this.el.mehrMenue = el('hud-mehr-menue');
+    this.el.mehr.addEventListener('click', () => this.zeigeMehr(this.el.mehrMenue.hidden));
+    this.el.mehrMenue.addEventListener('click', (e) => e.target.closest('button, #hud-status') && this.zeigeMehr(false));
     this.el.status.addEventListener('click', () => this.#aktionen.spielerliste?.()); // Touch: Statuszeile antippen
     // Runde 23: Chat-Modus Direkt (nur eigene Zone) ⇄ Global (alle Zonen = „/a“ am Server); Tab im Eingabefeld schaltet um
     this.el.chatModus = el('chat-modus');
@@ -268,6 +273,7 @@ export class Hud {
     this.#istTouch = istTouch;
     this.el.hud.hidden = false;
     this.el.hud.classList.toggle('touch', istTouch);
+    this.#ordneMehrMenue(istTouch);
     this.wendeAnzeigeAn();
     this.el.debug.hidden = !this.debug;
     this.el.fps.hidden = false;
@@ -280,7 +286,35 @@ export class Hud {
     this.#letztesLevel = null;
   }
 
+  /** Runde 27: Touch → seltene Knöpfe + Serverzeile ins ☰-Menü (mit Beschriftung), PC → zurück in die obere Leiste. */
+  #ordneMehrMenue(istTouch) {
+    const leiste = this.el.mehr.parentElement;
+    const knoepfe = ['hud-chat', 'hud-skills', 'hud-sitzen', 'hud-feld', 'hud-zoom', 'hud-admin', 'hud-einstellungen'].map((id) => this.dokument.getElementById(id));
+    if (istTouch) {
+      this.el.mehrMenue.replaceChildren(this.el.status, ...knoepfe);
+      for (const k of knoepfe) {
+        if (k.querySelector('.mehr-text')) continue;
+        const text = k.title.split(/ \(|:| –/)[0];
+        k.append(Object.assign(this.dokument.createElement('span'), { className: 'mehr-text', textContent: text }));
+      }
+    } else {
+      this.dokument.querySelector('#hud-oben .hud-links').append(this.el.status);
+      for (const k of knoepfe) {
+        k.querySelector('.mehr-text')?.remove();
+        leiste.insertBefore(k, this.el.mehr);
+      }
+      this.zeigeMehr(false);
+    }
+  }
+
+  zeigeMehr(an) {
+    this.el.mehrMenue.hidden = !an;
+    this.el.mehr.setAttribute('aria-expanded', String(an));
+    this.el.mehr.classList.toggle('aktiv', an);
+  }
+
   verbergen() {
+    this.zeigeMehr(false);
     this.el.schlafblende.classList.remove('an');
     this.el.hud.hidden = true;
     this.el.tod.hidden = true;
@@ -405,6 +439,12 @@ export class Hud {
    */
   zeigeTacho(kmh) {
     const tacho = this.el.tacho;
+    const imAuto = kmh !== null;
+    if (this.el.hud.classList.contains('im-auto') !== imAuto) {
+      // Runde 27: im Auto (v. a. Touch) Schnellleiste, Munition, Nachladen und Ziel-Stick ausblenden (stil.css .im-auto)
+      this.el.hud.classList.toggle('im-auto', imAuto);
+      this.dokument.getElementById('touch')?.classList.toggle('im-auto', imAuto);
+    }
     if (kmh === null) {
       if (!tacho.hidden) tacho.hidden = true;
       this.#letzterTacho = -1;

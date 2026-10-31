@@ -10,7 +10,7 @@ import { ladeEigenesModell } from './eigeneModelle.js';
  */
 const MODELLE = {
   hund: { dateien: ['husky', 'shiba-inu'], hoehe: 26, clips: { stehen: 'Idle', gehen: 'Walk', rennen: 'Gallop', angriff: 'Attack', sitzen: 'Idle_2_HeadLow' } },
-  katze: { dateien: ['cat'], hoehe: 13 },
+  katze: { dateien: ['cat'], hoehe: 18 }, // Runde 27: vorher 13 (kleiner als Huhn/Hase) → ≈ 50 cm mit Kopf
   huhn: { dateien: ['chicken'], hoehe: 13 },
 };
 const vorlagen = new Map(); // datei → Promise<{ szene, massstab, versatz, drehung }>

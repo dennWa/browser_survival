@@ -82,6 +82,7 @@ for (const art of ['pointerdown', 'keydown']) window.addEventListener(art, haupt
 hud.zeigeTon(sound.stumm);
 hud.einstellungen.verbinde({ sound, renderer: () => renderer });
 hud.einstellungen.verbindeHandy({ hud, touch: eingabe.touch });
+hud.einstellungen.verbindeHaustiere({ liste: () => aktuellesSpiel?.haustiere() ?? [], freilassen: (h) => aktuellesSpiel?.haustierFreilassen(h) });
 
 let aktuellesSpiel = null;
 new EgoModus({ eingabe, leinwand, holeRenderer: () => renderer, holeSpiel: () => aktuellesSpiel }); // EGO-PROTOTYP: Taste C

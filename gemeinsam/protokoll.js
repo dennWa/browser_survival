@@ -114,6 +114,7 @@ export const AKTIONEN = Object.freeze({
   REPARIEREN: 'reparieren', // Runde 24: { slot } Waffe/Werkzeug an der Werkbank reparieren (waffenSystem)
   MODS_ABNEHMEN: 'modsAbnehmen', // Runde 24: { slot } alle Aufsätze (Zielfernrohr …) von der Waffe nehmen
   HAUSTIER: 'haustier', // Runde 24: { ziel: tierId } zähmen (mit Futter) bzw. eigenes Tier Bleib/Bei Fuß (haustierSystem)
+  HAUSTIER_FREILASSEN: 'haustierFreilassen', // Runde 27: { tierArt: 'hund'|'katze', name } eigenes Tier freilassen (Einstellungen)
   MUSIK: 'musik', // Runde 24: { ziel: bauwerkId, quelle: 'ordner'|'youtube'|'aus', wert } Radio/Plattenspieler (musikSystem)
   GRUPPE: 'gruppe', // Runde 24: { was: einladen{ziel}|annehmen|ablehnen|verlassen|entfernen{name} } (mehrspielerSystem)
   HANDEL: 'handel', // Runde 24: { was: anfragen{ziel}|annehmen|ablehnen|anbieten{slot}|zurueck{slot}|bereit|abbrechen }

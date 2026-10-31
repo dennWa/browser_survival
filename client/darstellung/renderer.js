@@ -196,6 +196,7 @@ const HIMMEL_FERNE = 1.36; // Welt endet erst knapp über dem oberen Bildrand �
 const HIMMEL_DUNST = 0.12; // so breit (Kameraabstände) verblasst die Welt vor der Ferne in die Horizontfarbe
 const REGEN_ZENIT = new THREE.Color(0x3c4048);
 const REGEN_WOLKEN = new THREE.Color(0x62666e);
+const WIND_WOLKEN = new THREE.Color(0x8a8f98); // Runde 27: hellere graue Wolken bei Wind (Vorstufe von Regen)
 
 const _ziel = new THREE.Vector3();
 const _kameraZiel = new THREE.Vector3();
@@ -2109,6 +2110,15 @@ export class Renderer {
       this.szene.background.lerp(_wetterGrau, 0.7 * stimmung);
       this.szene.fog.color.copy(this.szene.background);
     }
+    // Runde 27: Wind-Bewölkung (Vorstufe von Regen) – tagsüber etwas dunkler und grauer, Regen übernimmt dann
+    const wolkig = this.#windWolken();
+    if (wolkig > 0.001) {
+      this.mond.intensity *= 1 - 0.32 * wolkig * hell;
+      this.umgebung.intensity *= 1 - 0.1 * wolkig;
+      _wetterGrau.setRGB(0.66, 0.69, 0.74).multiplyScalar(0.02 + 0.98 * hell * hell);
+      this.szene.background.lerp(_wetterGrau, 0.45 * wolkig);
+      this.szene.fog.color.copy(this.szene.background);
+    }
     // Runde 23: Gewitter dunkler, Blitz hellt alles kurz bläulich-weiß auf
     const { gewitter, blitz } = this.wetterEffekt;
     if (gewitter > 0.001) {
@@ -2195,8 +2205,13 @@ export class Renderer {
       _zenit.lerp(_wetterGrau.copy(REGEN_ZENIT).multiplyScalar(0.1 + 0.9 * hell), grau);
       _wolkenFarbe.lerp(_wetterGrau.copy(REGEN_WOLKEN).multiplyScalar(0.12 + 0.88 * hell), grau);
     }
+    const wolkig = this.#windWolken();
+    if (wolkig > 0.001) {
+      _zenit.lerp(_wetterGrau.copy(REGEN_ZENIT).multiplyScalar(0.25 + 0.75 * hell), 0.5 * wolkig);
+      _wolkenFarbe.lerp(_wetterGrau.copy(WIND_WOLKEN).multiplyScalar(0.12 + 0.88 * hell), 0.75 * wolkig);
+    }
     const dunkel = 1 - hell;
-    const wolken = Math.min(1, 0.34 + 0.75 * regen + 0.5 * nebel) * (1 - 0.4 * dunkel);
+    const wolken = Math.min(1, 0.34 + 0.75 * regen + 0.5 * nebel + 0.5 * wolkig) * (1 - 0.4 * dunkel);
     this.gl.getDrawingBufferSize(_buffer);
     this.himmel.setze({
       horizont: this.szene.background,
@@ -2209,6 +2224,12 @@ export class Renderer {
       breite: _buffer.x,
       hoehe: _buffer.y,
     });
+  }
+
+  /** Runde 27: Anteil der Wind-Bewölkung, der nicht schon vom Regengrau abgedeckt ist (0..1). */
+  #windWolken() {
+    const w = this.wetterEffekt;
+    return Math.max(0, (w.bewoelkt ?? 0) - Math.max(w.regen, w.nebel));
   }
 
   #blutMesh(fleck) {

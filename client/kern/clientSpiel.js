@@ -32,7 +32,7 @@ const STOEHN_PAUSE_MS = 900; // höchstens ein Stöhnen pro Pause (sonst Chor)
 /** Runde 24: welches Futter zähmt welches Tier (gleich wie server/spiel/systeme/haustierSystem.js FUTTER) */
 const HAUSTIER_FUTTER = {
   hund: ['fleisch', 'fleisch_gebraten'],
-  katze: ['fisch_barsch', 'fisch_forelle', 'fisch_hecht', 'milch'],
+  katze: ['fisch_barsch', 'fisch_forelle', 'fisch_hecht', 'fisch_barsch_gebraten', 'fisch_forelle_gebraten', 'fisch_hecht_gebraten'],
   huhn: ['samen_tomate', 'samen_gurke', 'samen_kartoffel', 'samen_paprika', 'samen_weizen', 'samen_karotte', 'samen_kuerbis', 'samen_erdbeere'],
 };
 const SCHUSS_KLANG = { gewehr: 'gewehr', bogen: 'bogen', armbrust: 'armbrust', revolver: 'revolver', mp: 'mp', sturmgewehr: 'sturmgewehr' };
@@ -625,7 +625,7 @@ export class ClientSpiel {
     if (bestes.besitzer) return null;
     const futter = HAUSTIER_FUTTER[bestes.art];
     const hat = (this.spielerDaten?.inventar ?? []).some((i) => i && futter.includes(i.defId));
-    const text = { hund: hat ? 'Hund mit Fleisch zähmen' : 'Streunender Hund (mag Fleisch)', katze: hat ? 'Katze anlocken' : 'Streunende Katze (mag Fisch/Milch)', huhn: hat ? 'Huhn mit Samen einfangen' : 'Huhn (mit Samen fangen)' }[bestes.art];
+    const text = { hund: hat ? 'Hund mit Fleisch füttern' : 'Streunender Hund (mag Fleisch)', katze: hat ? 'Katze mit Fisch füttern' : 'Streunende Katze (mag Fisch)', huhn: hat ? 'Huhn mit Samen einfangen' : 'Huhn (mit Samen fangen)' }[bestes.art];
     return hat ? { art: 'haustier', id: bestes.id, text, symbol } : null;
   }
 
@@ -836,6 +836,15 @@ export class ClientSpiel {
   }
 
   /** Taschenlampe an/aus – aus = Zombies bemerken einen erst aus der Nähe. */
+  /** Runde 27: eigene Haustiere [{ art, name }] (Einstellungen) bzw. eines freilassen */
+  haustiere() {
+    return this.spielerDaten?.haustiere ?? [];
+  }
+
+  haustierFreilassen({ art, name }) {
+    this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.HAUSTIER_FREILASSEN, tierArt: art, name });
+  }
+
   licht() {
     if (this.spielerDaten?.tot) return;
     this.sound?.spiele('taschenlampe', { lautstaerke: 0.6 }); // Klick
@@ -1243,6 +1252,8 @@ export class ClientSpiel {
         break;
       case 'fahrzeug':
         this.sound.spiele('autotuer', { x: e.x, y: e.y });
+        // Runde 27: Steuer-Hinweis je Gerät (Touch: linker Stick, PC: Tasten)
+        if (e.ein && e.von === this.eigeneId) this.hud.meldung(this.hud.istTouch ? '🚗 Linker Stick: Gas geben & lenken' : 'W/S = Gas/Bremse · A/D = lenken · E = aussteigen');
         break;
       case 'laterneUmgefahren':
         this.sound.spiele('aufprall', { x: e.x, y: e.y, lautstaerke: 0.6 });

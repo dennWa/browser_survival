@@ -12,6 +12,8 @@ import * as THREE from 'three';
  * Runde 25: Innen-Maske (`setzeInnenMaske(welt)`, DataTexture 1 Texel/Kachel) – kein Regen/Schnee über Innenräumen und Dächern;
  * steht der Spieler drinnen (`aktualisiere(…, drinnen)`), blendet der Niederschlag ganz aus (Ton/Licht bleiben).
  * Runde 26: aktualisiere repariert NaN-Zustände und ignoriert negatives/NaN-dt.
+ * Runde 27: `bewoelkt` (0..1) – frischer/starker Grundwind zieht graue Wolken auf (Vorstufe von Regen): Renderer dimmt
+ * Sonne/Himmel leicht und färbt die Wolkendecke grau. Gleitet langsam (Böen ändern nichts).
  */
 const TROPFEN = 1200; // bei normalem Regen nur ~55 % sichtbar (uAnteil), bei Gewitter alle
 const RADIUS = 760; // px um den Fokus, in denen es regnet (Kamera sieht ~±900 px)
@@ -100,6 +102,7 @@ export class WetterEffekt {
     this.windZeit = 0;
     this.windStufe = 1; // 0 windstill … 3 stark (fließend), steuert das Baum-Schwanken und den Windton
     this.grundWind = 0.35; // 0..1 vom Server (ZUSTAND.wind)
+    this.bewoelkt = 0; // Runde 27: graue Wolkendecke bei Wind (0..1)
     this.boe = 0; // 0..1 aktuelle Böe (für Ton und Blätter)
     this.sturm = 0; // 0..1 Sturmstärke (Sturm, Gewitter, Schneesturm)
     this.gewitter = 0; // 0..1
@@ -197,7 +200,7 @@ export class WetterEffekt {
   aktualisiere(dt, fokusX, fokusY, drinnen = false) {
     if (!Number.isFinite(dt) || dt < 0) dt = 0;
     // Runde 26: einmal NaN = für immer NaN (Nebel/Himmel kaputt) → Zustände reparieren
-    for (const k of ['regen', 'nebel', 'schnee', 'sturm', 'gewitter', 'boe', 'windZeit', 'aussen']) if (!Number.isFinite(this[k])) this[k] = k === 'aussen' ? 1 : 0;
+    for (const k of ['regen', 'nebel', 'schnee', 'sturm', 'gewitter', 'boe', 'windZeit', 'aussen', 'bewoelkt']) if (!Number.isFinite(this[k])) this[k] = k === 'aussen' ? 1 : 0;
     if (!Number.isFinite(this.windStufe)) this.windStufe = 1;
     const a = this.art;
     const zielRegen = a === 'regen' || a === 'gewitter' ? 1 : 0;
@@ -223,6 +226,9 @@ export class WetterEffekt {
     const grundWind = a === 'nebel' ? Math.min(0.2, g * 3) : g * 3 * (0.8 + (0.25 + 0.5 * g) * this.boe);
     const zielWind = Math.max(grundWind * (1 - this.sturm), this.sturm * (2.4 + 0.6 * boeSchnell));
     this.windStufe += (zielWind - this.windStufe) * Math.min(1, dt * 0.9);
+    // Runde 27: Wind bringt graue Wolken – ab „frisch“ (~0,45) sichtbar, bei „stark“ fast voll; bei Regen/Gewitter übernimmt das Regengrau
+    const zielWolken = a === 'nebel' || zielSchnee ? 0 : Math.max(0, Math.min(1, (g - 0.4) / 0.4), this.sturm);
+    this.bewoelkt += (zielWolken - this.bewoelkt) * Math.min(1, dt * 0.12);
     const windSchraeg = this.sturm * (0.55 + 0.45 * boeSchnell);
     this.#blitze(dt);
     this.aussen += ((drinnen ? 0 : 1) - this.aussen) * Math.min(1, dt * 4);

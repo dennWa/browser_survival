@@ -50,8 +50,11 @@
           <button id="hud-licht" class="nur-touch" type="button" title="Taschenlampe an/aus (L) – aus = Zombies sehen dich schlechter"><svg class="ui-icon" aria-hidden="true"><use href="#i-licht"/></svg></button>
           <button id="hud-admin" type="button" title="Admin-Menü (P)" hidden><svg class="ui-icon" aria-hidden="true"><use href="#i-admin"/></svg></button>
           <button id="hud-einstellungen" type="button" title="Einstellungen: Ton, Grafik, Abmelden"><svg class="ui-icon" aria-hidden="true"><use href="#i-einstellungen"/></svg></button>
+          <!-- Runde 27: Touch – seltene Knöpfe (Chat, Skills, Sitzen, Feld, Zoom, Admin, Einstellungen) + Serverzeile wandern ins ☰-Menü -->
+          <button id="hud-mehr" class="nur-touch" type="button" title="Mehr" aria-expanded="false" aria-controls="hud-mehr-menue">☰</button>
         </div>
       </div>
+      <div id="hud-mehr-menue" hidden></div>
       <div id="hud-werte">
         <div class="wert" id="wert-level" title="Level – 10 XP pro Zombie, beim Tod ist alles weg"><span class="symbol xp-icon"><svg class="ui-icon" aria-hidden="true"><use href="#i-xp"/></svg></span><span class="symbol" id="level-zahl">1</span><div class="balken"><div class="fuellung"></div></div><span id="level-xp"></span></div>
         <div class="wert" id="wert-leben" title="Leben"><span class="symbol"><svg class="ui-icon" aria-hidden="true"><use href="#i-leben"/></svg></span><div class="balken"><div class="fuellung"></div></div><span class="warn" aria-hidden="true">!</span></div>
@@ -196,6 +199,11 @@
               <label class="einst-regler"><span>Abstand zum Rand</span><input id="einst-stick-rand" type="range" min="30" max="220" step="5" /></label>
               <label class="einst-regler"><span>Höhe über dem Boden</span><input id="einst-stick-hoehe" type="range" min="40" max="260" step="5" /></label>
             </div>
+          </div>
+          <div id="einst-haustiere" hidden>
+            <h3 class="inv-titel">Haustiere</h3>
+            <div id="einst-haustiere-liste" class="einst-reihe"></div>
+            <p class="werkbank-hinweis">Freilassen: Das Tier streunt danach wieder durch die Gegend – mit Futter kannst du es (oder ein anderes) neu zähmen.</p>
           </div>
           <h3 class="inv-titel">Spiel</h3>
           <div class="einst-reihe">

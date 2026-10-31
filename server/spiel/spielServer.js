@@ -518,6 +518,7 @@ export class SpielServer {
     if (n.art === AKTIONEN.HERSTELLEN && !Object.hasOwn(REZEPTE, n.rezept)) return;
     if (n.art === AKTIONEN.MUSIK && !(Number.isInteger(n.ziel) && pruefeMusikWahl(n.quelle, n.wert))) return;
     if ((n.art === AKTIONEN.HAUSTIER || n.art === AKTIONEN.BEHAELTER) && !(Number.isInteger(n.ziel) && n.ziel >= 0)) return;
+    if (n.art === AKTIONEN.HAUSTIER_FREILASSEN && !(['hund', 'katze'].includes(n.tierArt) && typeof n.name === 'string' && n.name.length <= 20)) return;
     if (n.art === AKTIONEN.GRUPPE && !['einladen', 'annehmen', 'ablehnen', 'verlassen', 'entfernen'].includes(n.was)) return;
     if (n.art === AKTIONEN.HANDEL && !['anfragen', 'annehmen', 'ablehnen', 'anbieten', 'zurueck', 'bereit', 'abbrechen'].includes(n.was)) return;
     if ((n.art === AKTIONEN.HANDEL && (n.was === 'anbieten' || n.was === 'zurueck')) && !gueltigerSlot(slot)) return;
@@ -531,6 +532,7 @@ export class SpielServer {
     if (n.art === AKTIONEN.HERSTELLEN) aktion.rezept = n.rezept;
     if (n.art === AKTIONEN.MUSIK) Object.assign(aktion, { ziel: n.ziel, quelle: n.quelle, wert: n.wert ?? null });
     if (n.art === AKTIONEN.HAUSTIER || n.art === AKTIONEN.BEHAELTER) aktion.ziel = n.ziel;
+    if (n.art === AKTIONEN.HAUSTIER_FREILASSEN) Object.assign(aktion, { tierArt: n.tierArt, name: n.name });
     if (n.art === AKTIONEN.GRUPPE || n.art === AKTIONEN.HANDEL || n.art === AKTIONEN.HELFEN) {
       Object.assign(aktion, { was: n.was ?? null, ziel: Number.isInteger(n.ziel) ? n.ziel : null, name: typeof n.name === 'string' ? n.name.slice(0, 20) : null });
     }

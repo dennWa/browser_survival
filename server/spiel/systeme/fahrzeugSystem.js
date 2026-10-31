@@ -45,7 +45,7 @@ export function fahrzeugAktion(spielWelt, spieler) {
   spieler.arbeit = null;
   spieler.nachladenRest = 0;
   spielWelt.ereignis({ typ: 'fahrzeug', ein: true, x: fz.x, y: fz.y, von: spieler.id });
-  spielWelt.melde(spieler.id, 'W/S = Gas/Bremse · A/D = lenken · E = aussteigen');
+  // Runde 27: Steuer-Hinweis zeigt der Client selbst (Touch und PC unterschiedlich, clientSpiel Ereignis 'fahrzeug')
 }
 
 export function aussteigen(spielWelt, spieler, { erzwingen = false } = {}) {

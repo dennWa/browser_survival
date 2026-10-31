@@ -231,14 +231,15 @@
   },
   "keuchen": {
     "dateien": [
-      "keuchen_0.ogg",
-      "keuchen_1.ogg"
+      "keuchen_0.wav",
+      "keuchen_1.wav"
     ],
     "lautstaerke": 0.6
   },
   "keuchen_frau": {
     "dateien": [
-      "keuchen_frau_0.ogg"
+      "keuchen_frau_0.wav",
+      "keuchen_frau_1.wav"
     ],
     "lautstaerke": 0.6
   },

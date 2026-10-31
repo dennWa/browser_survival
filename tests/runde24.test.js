@@ -485,6 +485,7 @@ test('P9 Hund: mit Fleisch zähmen, folgt, Bleib/Bei Fuß, bellt + beißt Zombie
   const { welt, spieler } = neueWelt();
   spieler.x = mitte(5);
   spieler.y = mitte(4);
+  welt.konfiguration.haustiere.zaehmChance = 1; // Runde 27: sonst nur 10 % je Fleisch
   const hund = tier(welt, 'hund', spieler.x + 30, spieler.y);
   aktion(welt, spieler, { art: AKTIONEN.HAUSTIER, ziel: hund.id });
   assert.equal(hund.besitzer, undefined, 'ohne Fleisch nicht');
@@ -524,6 +525,7 @@ test('P9 Hund: mit Fleisch zähmen, folgt, Bleib/Bei Fuß, bellt + beißt Zombie
 
 test('P9 Katze: mit Fisch zähmen, rollt sich neben dem sitzenden Besitzer ein', () => {
   const { welt, spieler } = neueWelt();
+  welt.konfiguration.haustiere.zaehmChance = 1; // Runde 27: sonst nur 10 % je Fisch
   const katze = tier(welt, 'katze', spieler.x + 30, spieler.y);
   spieler.inventar[0] = { defId: 'fisch_barsch', menge: 1 };
   aktion(welt, spieler, { art: AKTIONEN.HAUSTIER, ziel: katze.id });
