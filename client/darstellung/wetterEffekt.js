@@ -11,6 +11,7 @@ import * as THREE from 'three';
  * Bäume/Gras (BAUM_WIND), Blätter und den Windton (clientSpiel #atmosphaereSchichten) – man hört die Böe, wenn sich die Bäume biegen.
  * Runde 25: Innen-Maske (`setzeInnenMaske(welt)`, DataTexture 1 Texel/Kachel) – kein Regen/Schnee über Innenräumen und Dächern;
  * steht der Spieler drinnen (`aktualisiere(…, drinnen)`), blendet der Niederschlag ganz aus (Ton/Licht bleiben).
+ * Runde 26: aktualisiere repariert NaN-Zustände und ignoriert negatives/NaN-dt.
  */
 const TROPFEN = 1200; // bei normalem Regen nur ~55 % sichtbar (uAnteil), bei Gewitter alle
 const RADIUS = 760; // px um den Fokus, in denen es regnet (Kamera sieht ~±900 px)
@@ -194,6 +195,10 @@ export class WetterEffekt {
 
   /** @param drinnen  Spieler steht im Haus → Regen/Schnee blenden ganz aus (sonst fallen Tropfen von draußen optisch ins Zimmer) */
   aktualisiere(dt, fokusX, fokusY, drinnen = false) {
+    if (!Number.isFinite(dt) || dt < 0) dt = 0;
+    // Runde 26: einmal NaN = für immer NaN (Nebel/Himmel kaputt) → Zustände reparieren
+    for (const k of ['regen', 'nebel', 'schnee', 'sturm', 'gewitter', 'boe', 'windZeit', 'aussen']) if (!Number.isFinite(this[k])) this[k] = k === 'aussen' ? 1 : 0;
+    if (!Number.isFinite(this.windStufe)) this.windStufe = 1;
     const a = this.art;
     const zielRegen = a === 'regen' || a === 'gewitter' ? 1 : 0;
     const zielSchnee = a === 'schnee' || a === 'schneesturm' ? 1 : 0;

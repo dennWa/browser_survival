@@ -36,6 +36,7 @@ import { erkenneGeraet, merkeAutoProfil } from './geraet.js';
  * Runde 20: zwei Scheinwerfer je Auto, Karosserie neigt sich (Kurve/Bremsen), Reifenspuren (reifenspuren.js), Geisterschatten-Fix
  *   (Taschenlampen-Schattenkarte nie eingefroren benutzen).
  * Runde 25: Streulicht (STREULICHT) – drinnen hellt die Taschenlampe den Raum indirekt auf; Regen/Schnee blenden drinnen aus (wetterEffekt).
+ * Runde 26: Innen-Abschirmung (#innenAbschirmung, globale Clipping-Ebenen um das betretene Gebäude), Nebel-/NaN-Schutz.
  * v0.10: Tiere (Hase), Angel (Rute/Schnur/Pose), Wetter (wetterEffekt.js: Regen, Nebel, Licht), Wracks, Erdfeld-Vorschau.
  * v0.11 Basisbau: Böden/Wände/Dächer als instanzierte Schicht (basisbauModelle.js → BasisbauSchicht), Bau-Hologramm (zeigeVorschau mit
  *   drehung, 'abriss'-Markierung, 'flagge'), roter Baugebiet-Ring (zeigeGebiet, nur Besitzer) + Flaggen-Ring (zeigeGebietVorschau).
@@ -82,6 +83,9 @@ const AUFSCHLAG = { hacken: 0.5, spitzhacke: 0.48, abbauen: 0.48 }; // Runde 23:
 const SCHNITT_RADIUS = 0; // 0 = aus: kein Durchschauen durch Wände mehr (verdeckte Figur zeigt stattdessen die Silhouette)
 const SCHNITT_HOEHE = 10; // bis zu dieser Höhe bleiben aufgeschnittene Wände als Sockel stehen
 const ZIELHOEHE = 36; // Mausstrahl trifft diese Höhe (Brust) → Zielen fühlt sich richtig an
+/** Runde 26: Abstand der Innen-Schnittebenen, wenn man draußen ist (praktisch unendlich) und Rand beim Einblenden (px) */
+const INNEN_WEIT = 1e7;
+const INNEN_RAND = 1400;
 const KAMERA_VERSATZ = new THREE.Vector3(0, 540, 400); // etwas flacher als früher (600/320): schrägerer Blick, nicht rein von oben
 const SKINS = { normal: 'zombieMaleA', laeufer: 'zombieFemaleA', brocken: 'zombieMaleA' }; // Zombies; Spieler: aussehen.js
 const KOPF = { hoehe: 1.22, breite: 0.9, tiefe: 1.07 }; // Schädelmaße im Verhältnis zum Abstand Kopfknochen → Head_end (gemessen)
@@ -196,6 +200,7 @@ const REGEN_WOLKEN = new THREE.Color(0x62666e);
 const _ziel = new THREE.Vector3();
 const _kameraZiel = new THREE.Vector3();
 const _blutRot = new THREE.Color(1, 0.16, 0.1);
+const _schwarz = new THREE.Color(0, 0, 0);
 const _blutHimmel = new THREE.Color(0.2, 0.02, 0.02);
 const _wackelVersatz = new THREE.Vector3();
 
@@ -244,6 +249,13 @@ export class Renderer {
     this.autoProfil = this.geraet.profil;
 
     this.gl = new THREE.WebGLRenderer({ canvas: this.leinwand, antialias: !this.istHandy && this.#basisProfil() !== 'niedrig', stencil: true, powerPreference: 'high-performance' });
+    // Runde 26: Innen-Abschirmung – 4 globale Schnitt-Ebenen um das betretene Gebäude (#innenAbschirmung). Immer aktiv (draußen
+    // weit weg), damit sich die Ebenen-Anzahl nie ändert → kein Shader-Neubau/Ruckler beim Betreten.
+    this.innenEbenen = [new THREE.Plane(new THREE.Vector3(1, 0, 0), INNEN_WEIT), new THREE.Plane(new THREE.Vector3(-1, 0, 0), INNEN_WEIT), new THREE.Plane(new THREE.Vector3(0, 0, 1), INNEN_WEIT), new THREE.Plane(new THREE.Vector3(0, 0, -1), INNEN_WEIT)];
+    this.gl.clippingPlanes = this.innenEbenen;
+    this.innenAnteil = 0; // 0 = draußen … 1 = ganz abgeschirmt
+    this.innenGebaeude = -1;
+    this.innenBox = null; // { x0, z0, x1, z1 } Weltpixel des Gebäudes (inkl. Wände)
     this.gl.shadowMap.enabled = true;
     this.gl.shadowMap.type = THREE.PCFShadowMap;
     this.gl.toneMapping = THREE.ACESFilmicToneMapping;
@@ -478,7 +490,8 @@ export class Renderer {
    * @param tageszeit  { helligkeit 0..1, istNacht, anteil } (gemeinsam/tageszeit.js)
    */
   zeichne({ fokus, entitaeten, gegenstaende, itemDefinitionen = {}, jetzt, effekte = null, markiertId = null, zielId = null, tageszeit = null, wetter = 'klar' }) {
-    const dt = this.letzteZeit ? Math.min(0.1, (jetzt - this.letzteZeit) / 1000) : 0;
+    const roh = this.letzteZeit ? (jetzt - this.letzteZeit) / 1000 : 0;
+    const dt = Number.isFinite(roh) ? Math.max(0, Math.min(0.1, roh)) : 0; // Runde 26: nie negativ/NaN (sonst kippen Wetter/Nebel dauerhaft)
     this.letzteZeit = jetzt;
     this.itemDefinitionen = itemDefinitionen; // Kleidungsfarben (#setzeKleidung)
     this.bildNr = (this.bildNr + 1) % 1e6;
@@ -507,7 +520,8 @@ export class Renderer {
     if (wackeln > 0.01) kp.add(_wackelVersatz.set((Math.random() - 0.5) * 14 * wackeln, (Math.random() - 0.5) * 8 * wackeln, (Math.random() - 0.5) * 14 * wackeln));
     // Tatsächlicher Abstand (Kamera gleitet weich nach): Nebel/Ferne/Himmel daran koppeln, nicht an den Zielzoom –
     // sonst endet die Welt beim Reinzoomen kurz zu früh und der Himmel legt sich wie ein heller Schleier von oben drüber
-    this.istAbstand = this.kamera3d.position.distanceTo(_ziel) / KAMERA_VERSATZ.length();
+    const istAbstand = this.kamera3d.position.distanceTo(_ziel) / KAMERA_VERSATZ.length();
+    this.istAbstand = Number.isFinite(istAbstand) && istAbstand > 0 ? istAbstand : undefined;
     this.schnitt.uFokus.value.set(fokus.x, _ziel.y, fokus.y);
     this.wetterEffekt.setzeArt(wetter);
     this.wetterEffekt.aktualisiere(dt, fokus.x, fokus.y, !!this.welt?.istInnen(fokus.x, fokus.y) && !fokus.fahrzeugId);
@@ -519,6 +533,7 @@ export class Renderer {
 
     this.karte.aktualisiere(dt, dunkel, fokus);
     this.karte.aktualisiereDaecher(fokus.x, fokus.y);
+    this.#innenAbschirmung(dt, fokus);
     this.karte.aktualisiereDurchsicht(dt, fokus.x, fokus.y, !this.egoHaken);
     this.natur?.aktualisiere(fokus, this.welt.bauwerkeVersion, !!this.egoHaken);
     const tuerAbstand = this.karte.aktualisiereTuerSchimmer(fokus);
@@ -546,7 +561,15 @@ export class Renderer {
     }
 
     // Runde 18 (4.1): Sichtweiten-Culling – Blöcke jenseits von Nebelweite + Puffer gar nicht erst zeichnen (auch nicht im Schattendurchgang)
-    const weite = (this.szene.fog?.far ?? Infinity) + SICHT_PUFFER;
+    let weite = (this.szene.fog?.far ?? Infinity) + SICHT_PUFFER;
+    // Runde 26: drinnen (abgeschirmt) nur noch bis zur entferntesten Gebäudeecke zeichnen – draußen ist eh alles weggeschnitten
+    if (this.innenAnteil > 0.99 && this.innenBox) {
+      const b = this.innenBox;
+      const kp = this.kamera3d.position;
+      const dx = Math.max(Math.abs(kp.x - b.x0), Math.abs(kp.x - b.x1));
+      const dz = Math.max(Math.abs(kp.z - b.z0), Math.abs(kp.z - b.z1));
+      weite = Math.min(weite, Math.hypot(dx, dz, kp.y) + 2 * (this.welt?.kachelGroesse ?? 32));
+    }
     this.karte.kulle(this.kamera3d.position, weite);
 
     this.gl.render(this.szene, this.kamera3d);
@@ -1000,6 +1023,54 @@ export class Renderer {
    * ⚠ Bei SCHNITT_RADIUS 0 bleibt das Material unangetastet: ein `discard` im Shader schaltet auf echten GPUs den frühen
    * Tiefentest ab → alles unter Dächern (Böden, Möbel) würde voll beleuchtet berechnet (draußen −10 FPS).
    */
+  /**
+   * Runde 26: Innen-Abschirmung. Steht die eigene Figur in einem Gebäude (Dach offen, Draufsicht, nicht im Auto), schneiden
+   * 4 Ebenen alles außerhalb der Gebäude-Box weg (Boden, Bäume, Zombies … – Hintergrund wird schwarz): man sieht nicht, was
+   * draußen lauert, und die GPU rechnet draußen nichts (+ Culling, Gras/Blätter aus). Beim Betreten zieht sich der Rand weich zu.
+   */
+  #innenAbschirmung(dt, fokus) {
+    const daecher = this.karte?.daecher;
+    const gebaeude = !this.egoHaken && !fokus.fahrzeugId && daecher ? daecher.offenesGebaeude ?? -1 : -1;
+    if (gebaeude >= 0 && gebaeude !== this.innenGebaeude) {
+      const g = this.welt.kachelGroesse;
+      const breite = this.welt.breite;
+      let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+      for (const idx of daecher.gebaeude[gebaeude].kacheln) {
+        const tx = idx % breite;
+        const ty = Math.floor(idx / breite);
+        x0 = Math.min(x0, tx); x1 = Math.max(x1, tx + 1); z0 = Math.min(z0, ty); z1 = Math.max(z1, ty + 1);
+      }
+      this.innenBox = { x0: x0 * g, z0: z0 * g, x1: x1 * g, z1: z1 * g };
+    }
+    if (gebaeude >= 0) this.innenGebaeude = gebaeude;
+    const ziel = gebaeude >= 0 ? 1 : 0;
+    this.innenAnteil += (ziel - this.innenAnteil) * Math.min(1, dt * 5);
+    if (Math.abs(ziel - this.innenAnteil) < 0.005) this.innenAnteil = ziel;
+    const a = this.innenAnteil;
+    const b = this.innenBox;
+    const [o, w, s, n] = this.innenEbenen;
+    if (a <= 0 || !b) {
+      for (const e of this.innenEbenen) e.constant = INNEN_WEIT;
+      this.innenGebaeude = -1;
+    } else {
+      // Ebene: n·p + c ≥ 0 bleibt sichtbar
+      const rand = INNEN_RAND * (1 - a) ** 2 + 0.5;
+      o.constant = -(b.x0 - rand); // x ≥ x0
+      w.constant = b.x1 + rand; // x ≤ x1
+      s.constant = -(b.z0 - rand); // z ≥ z0
+      n.constant = b.z1 + rand; // z ≤ z1
+    }
+    // Hintergrund/Himmel abdunkeln, Gras & Blätter aus (spart Zeichnen)
+    if (a > 0) {
+      this.szene.background.lerp(_schwarz, a);
+      this.szene.fog.color.copy(this.szene.background);
+    }
+    const zu = a > 0.99;
+    this.himmel.sichtbar = !zu;
+    if (this.natur) this.natur.gruppe.visible = !zu && this.#profil().natur !== false;
+    if (this.blaetter?.mesh) this.blaetter.mesh.visible = !zu;
+  }
+
   #mitSchnitt(material) {
     if (SCHNITT_RADIUS <= 0) return material;
     material.onBeforeCompile = (shader) => {
@@ -2047,6 +2118,11 @@ export class Renderer {
     this.szene.fog.near = nah * reingezoomt;
     this.szene.fog.far = Math.max((1500 + hell * 1500) * abstand * (1 - 0.62 * dicht), nah + kamAbstand * (0.5 + 0.3 * hell)) * reingezoomt;
     this.#zeichneHimmel(hell, daemmerung, regen, nebel, abstand, kamAbstand);
+    // Runde 26: Notbremse – kaputte Nebelwerte (NaN/∞) hüllen sonst alles dauerhaft in Nebelfarbe
+    if (!Number.isFinite(this.szene.fog.near) || !Number.isFinite(this.szene.fog.far) || this.szene.fog.far <= this.szene.fog.near) {
+      this.istAbstand = undefined;
+      this.#kameraAbstand();
+    }
     if (this.blutmond > 0.005) this.himmel.uniforms.uZenit?.value.lerp(_blutHimmel, 0.7 * this.blutmond);
     return dunkel;
   }
@@ -2260,6 +2336,8 @@ export class Renderer {
   #groesseAnpassen() {
     const breite = window.innerWidth;
     const hoehe = window.innerHeight;
+    // Runde 26: minimiertes/verdecktes Fenster meldet 0 px → Seitenverhältnis ∞, Kamera/Nebel NaN → „alles neblig“. Dann nichts tun.
+    if (!(breite >= 2 && hoehe >= 2)) return;
     this.gl.setPixelRatio(this.aufloesung);
     this.gl.setSize(breite, hoehe, false);
     // Overlay-Canvas (nur Text) – höchstens 1,5-fach, das reicht für scharfe Schrift

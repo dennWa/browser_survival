@@ -6,7 +6,7 @@
  * es klar (pauseMin…pauseMax). Anteile: regenAnteil = Niederschlag (sonst Nebel/Sturm), davon gewitterAnteil = Gewitter
  * bzw. Schneesturm; vom Rest sturmAnteil = Sturm, sonst Nebel. Der Zustand geht in jedem Schnappschuss mit (ZUSTAND.wetter).
  * Regen/Gewitter halbieren die Wachstumszeit der Pflanzen (bauSystem, WACHSTUM_REGEN_FAKTOR) und löschen Lagerfeuer.
- * Runde 24: Grundwind `wetter.wind` 0..1 (ruhig ≈0,1 · leicht ≈0,35 · frisch ≈0,6 · stark ≈0,85) wechselt alle
+ * Runde 26: Stufe 0 = Flaute (Ton ganz aus). Runde 24: Grundwind `wetter.wind` 0..1 (ruhig ≈0,1 · leicht ≈0,35 · frisch ≈0,6 · stark ≈0,85) wechselt alle
  * windMin…windMax Sekunden sein Ziel und gleitet langsam dorthin; Sturmwetter zieht ihn hoch, Nebel runter.
  * Geht als ZUSTAND.wind mit – der Client legt Böen drüber (Ton + Bäume/Gras aus derselben Kurve).
  */
@@ -22,10 +22,11 @@ export function regnet(art) {
 
 /** Windstufen, aus denen der Grundwind sein nächstes Ziel würfelt (Wert, Gewicht). */
 export const WIND_STUFEN = Object.freeze([
-  [0.1, 2],
-  [0.35, 4],
-  [0.6, 3],
-  [0.85, 1.2],
+  [0, 2.5], // Runde 26: echte Flaute – bei gutem Wetter oft ganz still
+  [0.12, 3],
+  [0.35, 3],
+  [0.6, 2],
+  [0.85, 0.8],
 ]);
 
 export function aktualisiereWetter(spielWelt, dt) {

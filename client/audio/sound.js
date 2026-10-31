@@ -2,6 +2,7 @@
  * Sound-System: Geräusche = eigene Dateien (audio/eigene, Vorrang) > echte Samples (audio/samples) > Web-Audio-Synthese (REZEPTE).
  * Lautstärke je Ereignis: eigene/lautstaerke.txt bzw. eigene/einstellungen.json (Audio-Zentrale) → eigene.json. Ereignisliste: eigeneSounds.js.
  * Dauergeräusche (Phase 10.2): wind, regen, nacht, motor laufen als Schleife – aus der eigenen Datei, sonst synthetisch.
+ * Runde 26: Wünsche vor dem Entsperren (Regen/Nacht/Schichten) werden bei 'running' nachgeholt (#nachholen).
  * Einstellungen je Ereignis: lautstaerke (Faktor, alle Quellen), streuung (± Tonhöhe je Abspielen), loop.
  *
  * Räumlicher Klang: Lautstärke nimmt mit der Entfernung zum Hörer (eigener Spieler) ab,
@@ -115,6 +116,9 @@ export class Sound {
       // Tab im Hintergrund / Anruf / Handy sperrt den Ton → bei der nächsten Gelegenheit wieder aufwecken
       const aufwecken = () => this.#ctx.state !== 'running' && this.#ctx.resume?.();
       this.#ctx.addEventListener?.('statechange', aufwecken);
+      // Runde 26: Wetter-Aufrufe vor dem Entsperren werden verworfen (clientSpiel merkt sich aber den Wert und ruft nicht
+      // erneut) → sobald der Ton läuft, gewünschte Stärken nachholen. Sonst blieb Regen draußen stumm, bis sich der Wert änderte.
+      this.#ctx.addEventListener?.('statechange', () => this.#ctx.state === 'running' && this.#nachholen());
       document.addEventListener('visibilitychange', aufwecken);
       for (const ereignis of ['pointerdown', 'keydown']) window.addEventListener(ereignis, aufwecken, { passive: true });
     }
@@ -185,6 +189,13 @@ export class Sound {
     const ctx = this.#ctx;
     if (!ctx || ctx.state !== 'running') return null;
     return { ctx, bus: (name) => (name === 'musik' ? this.#musikBus : name === 'atmosphaere' ? this.#atmoBus : this.#effekte) };
+  }
+
+  /** Gewünschte Dauer-Stärken anwenden, die vor dem Entsperren ankamen (Regen, Nacht, Schichten) */
+  #nachholen() {
+    if (this.#regenStaerke > 0 && !this.#regen) this.regen(this.#regenStaerke);
+    if (this.#nachtStaerke > 0 && !this.#nacht) this.nacht(this.#nachtStaerke);
+    for (const [name, st] of this.#schichtStaerke) if (st > 0.001 && !this.#schichten.has(name)) this.schicht(name, st);
   }
 
   /** Woher kommt der Ton eines Ereignisses gerade? 'eigen' | 'sample' | 'synth' | null (für Tests/Audio-Zentrale) */

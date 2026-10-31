@@ -305,7 +305,7 @@
     "dateien": [
       "regen.ogg"
     ],
-    "lautstaerke": 2
+    "lautstaerke": 1
   },
   "schaden_frau": {
     "dateien": [
@@ -486,7 +486,7 @@
       "zombie_angriff_8.ogg",
       "zombie_angriff_9.ogg"
     ],
-    "lautstaerke": 1,
+    "lautstaerke": 0.75,
     "streuung": 0.05
   },
   "zombie_ferne": {
@@ -496,7 +496,7 @@
       "zombie_ferne_2.ogg",
       "zombie_ferne_3.ogg"
     ],
-    "lautstaerke": 0.35
+    "lautstaerke": 0.262
   },
   "zombie_schrei": {
     "dateien": [
@@ -505,7 +505,7 @@
       "zombie_schrei_2.ogg",
       "zombie_schrei_3.ogg"
     ],
-    "lautstaerke": 1,
+    "lautstaerke": 0.75,
     "streuung": 0.05
   },
   "zombie_stoehnen": {
@@ -519,7 +519,7 @@
       "zombie_stoehnen_6.ogg",
       "zombie_stoehnen_7.ogg"
     ],
-    "lautstaerke": 0.8,
+    "lautstaerke": 0.6,
     "streuung": 0.06
   },
   "zombie_tod": {
@@ -530,7 +530,7 @@
       "zombie_tod_3.ogg",
       "zombie_tod_4.ogg"
     ],
-    "lautstaerke": 0.9,
+    "lautstaerke": 0.675,
     "streuung": 0.05
   },
   "zuendung": {

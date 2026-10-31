@@ -1,6 +1,6 @@
 {
   "regen": {
-    "lautstaerke": 2
+    "lautstaerke": 1
   },
   "wind": {
     "lautstaerke": 0.05
@@ -54,23 +54,23 @@
     "lautstaerke": 1.1
   },
   "zombie_stoehnen": {
-    "lautstaerke": 0.8,
+    "lautstaerke": 0.6,
     "streuung": 0.06
   },
   "zombie_angriff": {
-    "lautstaerke": 1.0,
+    "lautstaerke": 0.75,
     "streuung": 0.05
   },
   "zombie_schrei": {
-    "lautstaerke": 1.0,
+    "lautstaerke": 0.75,
     "streuung": 0.05
   },
   "zombie_tod": {
-    "lautstaerke": 0.9,
+    "lautstaerke": 0.675,
     "streuung": 0.05
   },
   "zombie_ferne": {
-    "lautstaerke": 0.35
+    "lautstaerke": 0.262
   },
   "hack_holz": {
     "lautstaerke": 0.8,

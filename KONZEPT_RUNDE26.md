@@ -49,13 +49,13 @@ Der Export enthält **alles** im markierten Rechteck: jede Bodenkachel, Wände, 
 - **Waffen:** ein Low-Poly-Pack, z. B. **Quaternius** oder **Kenney** (CC0): Messer, Machete, Axt, Baseballschläger, Pistole, Gewehr, Schrotflinte, Bogen. Sounds von **Kenney** oder **freesound** (CC0, Schüsse, Nachladen, Schläge). Animationen: Schwingen, Rückstoß und Nachladen machen wir prozedural, weil Packs selten passende Animationen mitbringen. Spiellogik: neue Waffentypen mit Schaden, Reichweite, Munition und Haltbarkeit
 - Ich prüfe vor dem Download Lizenz, Größe und Stil und liste dir die Kandidaten kurz auf, bevor ich sie einbaue
 
-## Reihenfolge (Vorschlag)
+## Reihenfolge (vom Nutzer festgelegt)
 
-1. **A1–A5** (Bugs und Sound, sofort spürbar)
-2. **B** (KI-Export und Katalog, die Grundlage für alles Weitere)
-3. **D: Untergründe** (danach gleich im Editor nutzbar)
-4. **C** (3D-Bauen, das größte Paket)
-5. **D: Waffen**
+1. **A1–A5** Bugs/Sound + Innen-Abdunkeln + Performance drinnen ✅ (Innen = abdunkeln, entschieden)
+2. **D: Untergründe**
+3. **C** 3D-Bauen im Editor
+4. **D: Waffen**
+5. **B** KI-Karten-Anleitung + Zonen-Export – **ganz zum Schluss**
 
 ## Später (vorgemerkt, noch nicht dran)
 

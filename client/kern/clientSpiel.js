@@ -61,6 +61,12 @@ const ANGEL_REICHWEITE = 230; // wie konfiguration.angeln.reichweite (Server) �
  * Angriffe, Inventar & Co. entscheidet allein der Server – der Client schickt nur Wünsche
  * (EINGABE.angriff, AKTION) und zeigt das Ergebnis an.
  */
+/** 0..1 begrenzen, weich (Smoothstep) – für Wind-Lautstärken */
+const wind01 = (v) => {
+  const t = Math.max(0, Math.min(1, v));
+  return t * t * (3 - 2 * t);
+};
+
 export class ClientSpiel {
   /**
    * @param beiZonenwechsel (daten, sitzung) → ZONE_WECHSEL kam an: main.js räumt diese Sitzung ab (uebergeben) und baut neu auf
@@ -1656,10 +1662,12 @@ export class ClientSpiel {
       schneesturm: schneesturm * daempfung,
       regen_stark: w.regen * w.gewitter * daempfung,
       tag: !this.welt.schnee && !drinnen ? Math.max(0, (hell - 0.55) / 0.45) * (1 - Math.max(w.regen, w.sturm, w.nebel * 0.5)) : 0,
-      nacht_wind: Math.max(0, (0.55 - hell) / 0.55) * (1 - w.sturm) * daempfung * 0.6,
-      // Runde 24: Wind aus derselben Stufe wie die Bäume (0..3): leicht trägt bis ~1,5, stark kommt mit Böen/Starkwind dazu
-      wind_leicht: Math.min(1, w.windStufe / 1.1) * (1 - 0.5 * Math.max(0, Math.min(1, (w.windStufe - 1.8) / 1.2))) * (drinnen ? 0.3 : 1),
-      wind_stark: Math.max(0, Math.min(1, (w.windStufe - 1.1) / 1.6)) ** 1.3 * (1 - 0.6 * w.sturm) * (drinnen ? 0.3 : 1),
+      // Runde 26: Nachtwind (kurze 13-s-Schleife) nur noch leise und nur, wenn überhaupt Wind geht
+      nacht_wind: Math.max(0, (0.55 - hell) / 0.55) * (1 - w.sturm) * daempfung * 0.3 * Math.min(1, Math.max(0, (w.windStufe - 0.5) / 1.5)),
+      // Runde 26: Windton folgt der Stufe der Bäume (0..3): Flaute (<0,3) = still, ruhig = leise im Hintergrund,
+      // frisch = deutlich, stark = Böen-Schicht dazu. Vorher war wind_leicht schon ab Stufe 1,1 voll → klang immer gleich.
+      wind_leicht: wind01((w.windStufe - 0.3) / 1.6) * 0.75 * (1 - 0.4 * wind01((w.windStufe - 2) / 1)) * (drinnen ? 0.3 : 1),
+      wind_stark: wind01((w.windStufe - 1.5) / 1.3) ** 1.3 * (1 - 0.6 * w.sturm) * (drinnen ? 0.3 : 1),
       // Runde 24 (Cozy): Regen aufs Dach (nur drinnen), Kaminknistern und Generator nach Abstand
       regen_dach: !this.lokal.fahrzeug && this.welt.istInnen(this.lokal.x, this.lokal.y) ? w.regen : 0,
       kamin: this.#naehe((b) => b.typ === 'kamin' && b.brennt, 420),
