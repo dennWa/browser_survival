@@ -1,6 +1,6 @@
 /**
  * Kacheltypen (Tiles) der Karten. Jedes Zeichen in einer Kartendatei steht für eine Kachel.
- * Neue Bodenarten/Wände hier eintragen – Darstellung in client/darstellung/weltZeichner.js
+ * Neue Bodenarten/Wände hier eintragen – Darstellung in client/darstellung/bodenTextur.js (Runde 26: Fototexturen client/assets/boden)
  * (Textur aus dem Asset-Atlas oder Ersatzfarbe in farben.js).
  * innen: true = Innenraumboden (Türen übernehmen diesen Boden).
  */
@@ -16,6 +16,14 @@ export const KACHELN = Object.freeze({
   'T': { name: 'tuer', blockiert: false },
   '#': { name: 'wand', blockiert: true },
   'F': { name: 'fenster', blockiert: true },
+  // Runde 26: Untergründe mit Fototextur (client/assets/boden, werkzeuge/assets/baue_boeden.py)
+  '$': { name: 'rasen', blockiert: false },
+  '0': { name: 'wiese', blockiert: false },
+  '&': { name: 'erde', blockiert: false },
+  '%': { name: 'kies', blockiert: false },
+  '^': { name: 'pflaster', blockiert: false },
+  ';': { name: 'waldboden', blockiert: false },
+  '!': { name: 'sand', blockiert: false },
   '~': { name: 'wasser', blockiert: true, sichtFrei: true, wasser: true }, // See: nicht begehbar, aber Sicht & Schüsse gehen drüber; hier wird geangelt
 });
 

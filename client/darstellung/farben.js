@@ -16,6 +16,13 @@ export const KACHEL_FARBEN = {
   wandBoden: '#24272c', // Boden unter Wänden (sichtbar, wenn die Wand ausgeblendet ist)
   fenster: '#3b4048',
   wasser: '#2d78b0',
+  rasen: '#4f7d36',
+  wiese: '#6b7d3e',
+  erde: '#7a5e3f',
+  kies: '#8a8a86',
+  pflaster: '#8e8a80',
+  waldboden: '#6e5232',
+  sand: '#bba27a',
 };
 
 export const FARBEN = {

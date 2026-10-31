@@ -19,7 +19,9 @@ export function untergrundFuer(welt, x, y) {
   if (!k || k.innen || k.blockiert || k.wasser) return null;
   if (k.name === 'schnee') return { ereignis: 'schritt_schnee', pegel: 1 };
   if (welt.schnee && (k.name === 'strasse' || k.name === 'asphalt' || k.name === 'gehweg')) return { ereignis: 'schritt_schnee', pegel: 0.55 };
-  if (k.name === 'gras') return { ereignis: 'schritt_gras', pegel: 1 };
+  if (k.name === 'gras' || k.name === 'rasen' || k.name === 'wiese' || k.name === 'waldboden') return { ereignis: 'schritt_gras', pegel: 1 };
+  if (k.name === 'kies') return { ereignis: 'schritt_schnee', pegel: 0.45 }; // Runde 26: Kies knirscht
+  if (k.name === 'erde' || k.name === 'sand') return { ereignis: 'schritt_gras', pegel: 0.5 };
   return null;
 }
 

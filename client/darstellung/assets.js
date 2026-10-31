@@ -39,6 +39,13 @@ export class Assets {
     return this.atlas.umgebung.objekte[name] ?? null;
   }
 
+  /** Runde 26: Fototextur eines Untergrunds { bild, kacheln } oder null (boden/boden.json) */
+  bodenTextur(art) {
+    const e = this.boeden?.[art];
+    const bild = e && this.bild(e.datei);
+    return bild ? { bild, kacheln: e.kacheln } : null;
+  }
+
   get lizenzen() {
     return this.atlas.lizenzen ?? [];
   }
@@ -54,6 +61,11 @@ export async function ladeAssets(beiFortschritt = () => {}) {
   const atlas = await antwort.json();
 
   const pfade = new Set([atlas.items.bild, atlas.umgebung.bild]);
+  // Runde 26: Untergründe (Fototexturen) – fehlt die Datei, malt der Boden Ersatzfarben
+  const boeden = await fetch(new URL('boden/boden.json', BASIS))
+    .then((r) => (r.ok ? r.json() : {}))
+    .catch(() => ({}));
+  for (const e of Object.values(boeden)) pfade.add(e.datei);
 
   const bilder = new Map();
   let fertig = 0;
@@ -70,5 +82,7 @@ export async function ladeAssets(beiFortschritt = () => {}) {
       beiFortschritt(++fertig / pfade.size);
     }),
   );
-  return new Assets(atlas, bilder);
+  const assets = new Assets(atlas, bilder);
+  assets.boeden = boeden;
+  return assets;
 }

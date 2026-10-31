@@ -84,8 +84,15 @@ const KACHEL_KATEGORIE = {
   ':': ['Böden', 'Beton (innen)'],
   '+': ['Böden', 'Holzboden (innen)'],
   '~': ['Umwelt', 'Wasser (See)'],
+  $: ['Böden', 'Rasen (gepflegt)'],
+  0: ['Böden', 'Wiese'],
+  ';': ['Böden', 'Waldboden'],
+  '!': ['Böden', 'Sand'],
+  '&': ['Wege', 'Erdweg'],
+  '%': ['Wege', 'Kies'],
+  '^': ['Wege', 'Pflaster'],
 };
-const KACHEL_SYMBOL = { ',': '🌱', '*': '❄', _: '⬛', '=': '🛣', '-': '▦', '.': '⬜', ':': '◻', '+': '🟫', T: '🚪', '#': '🧱', F: '🪟', '~': '🌊' };
+const KACHEL_SYMBOL = { ',': '🌱', '*': '❄', _: '⬛', '=': '🛣', '-': '▦', '.': '⬜', ':': '◻', '+': '🟫', T: '🚪', '#': '🧱', F: '🪟', '~': '🌊', $: '🟩', 0: '🌾', ';': '🍂', '!': '🏖', '&': '🟤', '%': '▫', '^': '🧱' };
 
 const M = { blockiert: true };
 /** Kartenobjekte (Möbel, Deko, Natur) mit Standardwerten wie in stadtrand/waldweg. */

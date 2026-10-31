@@ -85,14 +85,14 @@
     "streuung": 0.06
   },
   "ueberfahren": {
-    "lautstaerke": 1.0,
+    "lautstaerke": 1,
     "streuung": 0.08
   },
   "aufprall": {
     "lautstaerke": 0.9
   },
   "fahrzeug_kaputt": {
-    "lautstaerke": 1.0
+    "lautstaerke": 1
   },
   "schaden_mann": {
     "lautstaerke": 0.8,

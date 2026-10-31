@@ -11,7 +11,10 @@ import { FARBEN, KACHEL_FARBEN } from './farben.js';
  * verschneit (Ränder zum Schnee dicht, in der Mitte lückenhaft – man sieht den Asphalt noch), Wasser ist Eis.
  */
 /** Böden, in die der Rasen weich hineinwächst (#grasRand) – Farbe ≈ abgedunkelter Rasen nach #grasTon */
-const GRAS_RAND_BOEDEN = new Set(['asphalt', 'strasse', 'gehweg', 'holz', 'beton', 'fliesen']);
+const GRAS_RAND_BOEDEN = new Set(['asphalt', 'strasse', 'gehweg', 'holz', 'beton', 'fliesen', 'kies', 'pflaster', 'erde', 'sand', 'waldboden']);
+/** Runde 26: Naturböden mit Fototextur blenden an Kanten weich ineinander (#fotoRand); Wert = Rang (höher malt über niedriger) */
+const WEICHE_BOEDEN = { sand: 1, erde: 2, kies: 3, waldboden: 4, wiese: 5, rasen: 7 };
+const RAND_STREIFEN = [0.72, 0.58, 0.44, 0.3, 0.18, 0.08]; // Deckkraft je Streifen von der Kante nach innen
 const GRAS_RAND_FARBE = (a) => `rgba(46, 72, 28, ${a})`;
 
 export class BodenTextur {
@@ -55,7 +58,10 @@ export class BodenTextur {
     }
     // Runde 18 (6.2): Rasen läuft weich in Asphalt/Holz & Co. aus (eigener Durchgang, damit spätere Kacheln ihn nicht übermalen)
     for (let ty = ya; ty < ye; ty++) {
-      for (let tx = xa; tx < xe; tx++) this.#grasRand(ctx, tx, ty);
+      for (let tx = xa; tx < xe; tx++) {
+        this.#fotoRand(ctx, tx, ty);
+        this.#grasRand(ctx, tx, ty);
+      }
       if (ty % 8 === 7) yield;
     }
     // Runde 23: Boden unter Wänden/Fenstern einfarbig zuletzt – sonst lagen Schnee-/Rasen-Ränder der Nachbarn darin und
@@ -95,6 +101,12 @@ export class BodenTextur {
     const y = ty * g;
     if (name === 'schnee') {
       this.#schnee(ctx, tx, ty, x, y);
+      return;
+    }
+    // Runde 26: Fototextur (weltfest, ein Bild deckt `kacheln`×`kacheln` Kacheln → keine sichtbare Wiederholung je Kachel)
+    const foto = this.assets?.bodenTextur?.(name);
+    if (foto) {
+      this.#fotoStueck(ctx, foto, tx, ty, 0, 0, g, g);
       return;
     }
     const varianten = this.assets?.boden(name);
@@ -161,6 +173,40 @@ export class BodenTextur {
    * wächst das Gras als Verlauf + unregelmäßige Büschel ein Stück hinein – keine schnurgerade Kachelkante mehr.
    * Diagonal angrenzender Rasen gibt nur einen kleinen Eckfleck. Deterministisch aus der Kachelposition.
    */
+  /** Ausschnitt (dx, dy, b, h in Weltpixeln relativ zur Kachel) der weltfesten Fototextur auf die Kachel malen */
+  #fotoStueck(ctx, foto, tx, ty, dx, dy, b, h) {
+    const g = this.g;
+    const n = foto.kacheln;
+    const s = foto.bild.width / (n * g); // Bildpixel je Weltpixel
+    const ux = (((tx % n) + n) % n) * g + dx;
+    const uy = (((ty % n) + n) % n) * g + dy;
+    const ueber = dx + b >= g || dy + h >= g ? 0.25 : 0; // Haarlinien zwischen Kacheln vermeiden
+    ctx.drawImage(foto.bild, ux * s, uy * s, Math.max(0.5, b * s), Math.max(0.5, h * s), tx * g + dx, ty * g + dy, b + ueber, h + ueber);
+  }
+
+  /** Runde 26: Höherrangiger Nachbar-Naturboden läuft in Streifen weich in diese Kachel hinein (Rasen → Erde → Sand …). */
+  #fotoRand(ctx, tx, ty) {
+    const eigen = KACHELN[this.welt.kachelAn(tx, ty)]?.name;
+    if (!(eigen in WEICHE_BOEDEN)) return;
+    const g = this.g;
+    const streifen = g / 14;
+    for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+      const nachbar = KACHELN[this.welt.kachelAn(tx + dx, ty + dy)]?.name;
+      if (!(nachbar in WEICHE_BOEDEN) || WEICHE_BOEDEN[nachbar] <= WEICHE_BOEDEN[eigen]) continue;
+      const foto = this.assets?.bodenTextur?.(nachbar);
+      if (!foto) continue;
+      RAND_STREIFEN.forEach((alpha, i) => {
+        ctx.globalAlpha = alpha * (0.75 + 0.25 * (((streuwert(tx * 3 + i, ty * 7 + dx + dy * 3) >> 5) % 100) / 100));
+        const innen = i * streifen;
+        if (dy === -1) this.#fotoStueck(ctx, foto, tx, ty, 0, innen, g, streifen);
+        else if (dy === 1) this.#fotoStueck(ctx, foto, tx, ty, 0, g - innen - streifen, g, streifen);
+        else if (dx === -1) this.#fotoStueck(ctx, foto, tx, ty, innen, 0, streifen, g);
+        else this.#fotoStueck(ctx, foto, tx, ty, g - innen - streifen, 0, streifen, g);
+      });
+      ctx.globalAlpha = 1;
+    }
+  }
+
   #grasRand(ctx, tx, ty) {
     const name = KACHELN[this.welt.kachelAn(tx, ty)]?.name;
     if (!GRAS_RAND_BOEDEN.has(name)) return;

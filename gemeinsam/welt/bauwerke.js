@@ -29,7 +29,7 @@ import { darfBenutzen } from '../basisbau/rechte.js';
  */
 export const EBENEN = Object.freeze(['boden', 'objekt', 'wand', 'tuer', 'dach']);
 /** Worauf gebaut werden darf (Kachelnamen aus KACHELN). Später z. B. 'erde', 'sand' ergänzen. */
-export const BAUBARER_UNTERGRUND = Object.freeze(['gras', 'schnee']);
+export const BAUBARER_UNTERGRUND = Object.freeze(['gras', 'schnee', 'rasen', 'wiese', 'erde', 'waldboden', 'sand', 'kies']); // Runde 26: + Naturböden
 const BASIS = { item: null, nurAuf: BAUBARER_UNTERGRUND };
 const MOEBEL = { item: null, moebel: true }; // Runde 24: Einrichtung – jeder freie Boden, auch drinnen
 
@@ -43,7 +43,7 @@ export const BAUWERKE = Object.freeze({
   stacheldraht: { name: 'Stacheldraht', item: 'stacheldraht', blockiert: false },
   fallgrube: { name: 'Fallgrube', item: 'fallgrube', blockiert: false, draussen: true },
   dosenalarm: { name: 'Dosenalarm', item: 'dosenalarm', blockiert: false },
-  beet: { name: 'Beet', item: null, blockiert: false, nurAuf: ['gras'] },
+  beet: { name: 'Beet', item: null, blockiert: false, nurAuf: ['gras', 'rasen', 'wiese', 'erde'] },
   // --- Basisbau (Teile mit Kosten: gemeinsam/basisbau/teile.js) ---
   holzboden: { ...BASIS, name: 'Holzboden', ebene: 'boden', blockiert: false },
   holzwand: { ...BASIS, name: 'Holzwand', ebene: 'wand', blockiert: true, sichtBlockiert: true, anschluss: { kachel: ['boden'], nachbarn: ['boden', 'wand'], diagonal: ['boden'] } },
@@ -68,7 +68,7 @@ export const BAUWERKE = Object.freeze({
   doppelbett: { ...BASIS, name: 'Doppelbett', blockiert: true, geschuetzt: true },
   schlafsack: { item: null, name: 'Schlafsack', blockiert: false, geschuetzt: true },
   // Runde 24: Farm (Bau-Menü „Farm“)
-  gewaechshaus: { item: null, name: 'Gewächshaus-Beet', blockiert: false, nurAuf: ['gras', 'schnee'] },
+  gewaechshaus: { item: null, name: 'Gewächshaus-Beet', blockiert: false, nurAuf: ['gras', 'schnee', 'rasen', 'wiese', 'erde'] },
   huehnerstall: { item: null, name: 'Hühnerstall', blockiert: true, draussen: true },
   bienenstock: { item: null, name: 'Bienenstock', blockiert: true, draussen: true },
   // Runde 24 (Cozy): Möbel & Deko – auch in Karten-Häusern auf jedem freien Boden (kein nurAuf), Licht/Strom: welt/einrichtung.js

@@ -1044,8 +1044,9 @@ export class Renderer {
     }
     if (gebaeude >= 0) this.innenGebaeude = gebaeude;
     const ziel = gebaeude >= 0 ? 1 : 0;
-    this.innenAnteil += (ziel - this.innenAnteil) * Math.min(1, dt * 5);
-    if (Math.abs(ziel - this.innenAnteil) < 0.005) this.innenAnteil = ziel;
+    // Rein weich (Rand zieht sich zu), raus sofort – sonst hängen die Ebenen beim Verlassen/Teleport noch am alten Haus
+    this.innenAnteil = ziel ? this.innenAnteil + (1 - this.innenAnteil) * Math.min(1, dt * 5) : 0;
+    if (ziel && 1 - this.innenAnteil < 0.005) this.innenAnteil = 1;
     const a = this.innenAnteil;
     const b = this.innenBox;
     const [o, w, s, n] = this.innenEbenen;

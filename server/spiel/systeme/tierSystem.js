@@ -36,7 +36,7 @@ export function spawneStartTiere(spielWelt) {
 /** Hasen leben auf Rasen und im Schnee. */
 function istTierBoden(welt, tx, ty) {
   const name = KACHELN[welt.kachelAn(tx, ty)]?.name;
-  return name === 'gras' || name === 'schnee';
+  return name === 'gras' || name === 'schnee' || name === 'rasen' || name === 'wiese' || name === 'waldboden';
 }
 
 /**
