@@ -266,7 +266,7 @@ export class PruefPanel {
     this.liste = [];
     this.el.addEventListener('click', (e) => {
       const z = e.target.closest('[data-i]');
-      const p = z && this.liste[Number(z.dataset.i)];
+      const p = z && (this.anzeige ?? this.liste)[Number(z.dataset.i)];
       if (p?.x !== null && p?.x !== undefined) studio.ansicht.zeige(p.x + 0.5, p.y + 0.5, 22);
     });
   }
@@ -288,15 +288,18 @@ export class PruefPanel {
         this.liste = [{ schwere: 'fehler', text: `Prüfung fehlgeschlagen: ${f.message}`, x: null, y: null }];
       }
     }
+    this.zusatz = []; // Laufweg-Befunde gelten bis zur nächsten Änderung
     this.zeichne();
     this.studio.zeigePruefung(this.liste);
   }
 
   zeichne() {
-    if (!this.liste.length) {
+    const liste = [...this.liste, ...(this.zusatz ?? [])];
+    this.anzeige = liste;
+    if (!liste.length) {
       this.el.innerHTML = `<div class="insp-leer">${icon('pruefen', 28)}<br />Keine Probleme gefunden.</div>`;
       return;
     }
-    this.el.innerHTML = this.liste.map((p, i) => `<div class="pruef-eintrag ${p.schwere === 'fehler' ? 'fehler' : 'warnung'}" data-i="${i}">${icon(p.schwere === 'fehler' ? 'fehler' : 'warnung', 16)}<div><div>${esc(p.text)}</div>${p.x !== null && p.x !== undefined ? `<div class="pruef-ort">Kachel ${p.x}|${p.y} · klicken zum Hinspringen</div>` : ''}</div></div>`).join('');
+    this.el.innerHTML = liste.map((p, i) => `<div class="pruef-eintrag ${p.schwere === 'fehler' ? 'fehler' : 'warnung'}" data-i="${i}">${icon(p.schwere === 'fehler' ? 'fehler' : 'warnung', 16)}<div><div>${esc(p.text)}</div>${p.x !== null && p.x !== undefined ? `<div class="pruef-ort">Kachel ${p.x}|${p.y} · klicken zum Hinspringen</div>` : ''}</div></div>`).join('');
   }
 }

@@ -6,6 +6,7 @@ import { LOOT_TABELLEN } from '../../server/spiel/konfiguration/lootTabellen.js'
 import { kiWerkzeug, KI_REGELN } from './kiWerkzeuge.js';
 import * as A from './aktionen.js';
 import * as B from './bauhilfen.js';
+import { laufweg, balance } from './analyse.js';
 
 /**
  * Führt KI-Werkzeuge (kiWerkzeuge.js) im Studio-Fenster aus – für MCP (Claude Desktop/Code …) UND den eingebauten
@@ -176,6 +177,15 @@ export function erstelleKiAusfuehrer(studio) {
         });
       }
       return ok(null, liste);
+    },
+    laufweg_pruefen: () => {
+      karte();
+      const r = laufweg(dok.definition());
+      return ok(null, { erreichbarProzent: Math.round(r.anteil * 100), eingesperrteKacheln: r.eingesperrt, befunde: r.befunde.slice(0, 40) });
+    },
+    balance: () => {
+      karte();
+      return ok(null, balance(dok.definition()));
     },
     vorlagen_liste: () => ok(null, studio.vorlagen().map((v) => ({ id: v.id, name: v.name, b: v.vorlage.b, h: v.vorlage.h }))),
     vorlage_einsetzen: ({ id, x, y }) => W.objekt_platzieren({ id: `vorlage:${id}`, x, y }),

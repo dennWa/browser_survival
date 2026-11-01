@@ -210,6 +210,8 @@ textarea.feld { height: auto; padding: 6px 8px; resize: vertical; user-select: t
 #dialog-ebene.offen { display: grid; }
 .dialog { width: min(560px, 92vw); max-height: 88vh; display: flex; flex-direction: column; background: var(--hg-2); border: 1px solid var(--linie-hell); border-radius: 10px; box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6); }
 .dialog.breit { width: min(760px, 94vw); }
+.dialog.sehr-breit { width: min(1180px, 96vw); }
+.dialog th, .dialog td { padding: 4px; vertical-align: middle; }
 .dialog-kopf { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--linie); font-weight: 600; font-size: 14px; }
 .dialog-kopf .ic { color: var(--akzent); }
 .dialog-kopf .knopf { margin-left: auto; }

@@ -118,6 +118,8 @@ export const KI_WERKZEUGE = Object.freeze([
   { name: 'notiz_setzen', beschreibung: 'Notiz-Pin setzen (z. B. für offene Fragen an Menschen).', schema: objekt({ x: zahl('x'), y: zahl('y'), text: text('Text') }, ['x', 'y', 'text']) },
   { name: 'notiz_erledigt', beschreibung: 'Notiz als erledigt markieren (oder wieder öffnen).', schema: objekt({ id: zahl('Notiz-ID'), erledigt: { type: 'boolean', description: 'true = erledigt' } }, ['id']) },
   { name: 'weltkarte', beschreibung: 'Alle Zonen mit ihren Übergängen (Ziel, Ankunft, Rückweg vorhanden?) und Problemen.', schema: objekt({}), lesen: true },
+  { name: 'laufweg_pruefen', beschreibung: 'Was ist vom Spieler-Start/den Ankünften zu Fuß erreichbar? Liefert unerreichbare Loot-/Spawnpunkte, Übergänge und eingesperrte Flächen (fehlende Türen).', schema: objekt({}), lesen: true },
+  { name: 'balance', beschreibung: 'Balance der offenen Zone: Loot je Stunde nach Bereich (Essen, Trinken, Medizin, Waffen, Munition, Material), Zombies, Gefahr und Versorgung je 1000 begehbare Kacheln.', schema: objekt({}), lesen: true },
   { name: 'vorlagen_liste', beschreibung: 'Gespeicherte Vorlagen (z. B. Häuser) mit Größe.', schema: objekt({}), lesen: true },
   { name: 'vorlage_einsetzen', beschreibung: 'Vorlage an (x, y) (linke obere Ecke) einsetzen.', schema: objekt({ id: text('Vorlagen-ID'), x: zahl('x'), y: zahl('y') }, ['id', 'x', 'y']) },
   { name: 'pruefen', beschreibung: 'Zone prüfen: Fehler und Hinweise (Spawns in Wänden, unerreichbare Räume …).', schema: objekt({}), lesen: true },

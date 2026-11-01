@@ -27,6 +27,11 @@ import { MODELL_KATEGORIEN } from '../editor/kern/katalog.js';
 import { testDaten } from '../editor/kern/testlauf.js';
 import { neueVersion, fuegeHinzu, vergleiche, wiederherstellenOps } from '../editor/kern/versionen.js';
 import { layoutAusUebergaengen } from '../editor/kern/zonenVerbund.js';
+import { laufweg, balance, heatmapGitter, BEREICHE } from './kern/analyse.js';
+import { lootDichte } from '../editor/kern/lootZonenEditor.js';
+import { nachDefinition } from '../editor/kern/format.js';
+import { KACHELN } from '../gemeinsam/welt/kacheln.js';
+import { RESSOURCEN_OBJEKTE } from '../gemeinsam/welt/ressourcen.js';
 import { hatFehler, validiere } from '../editor/kern/validierung.js';
 import { pruefeMarker } from '../editor/kern/platzierung.js';
 import { speichereEditorTest } from '../client/ui/editorTestSpeicher.js';
@@ -253,6 +258,7 @@ class Studio {
       doppel: () => ansicht.zeigeAuswahl(),
       kontext: (e) => {
         const p = ansicht.treffe(e.clientX, e.clientY);
+        if (this.ansicht.laufen) return;
         if (p?.treffer && !dok.auswahl.some((a) => a.s === p.treffer.s && a.k === p.treffer.k)) dok.waehle([p.treffer]);
         this.einfuegePunkt = p;
         this.menues.kontext(e.clientX, e.clientY, dok.auswahl.length ? ['bearbeiten.kopieren', 'bearbeiten.duplizieren', 'vorlage.ausAuswahl', '-', 'ansicht.fokus', '-', 'bearbeiten.loeschen'] : ['bearbeiten.einfuegen', '-', 'ansicht.2d3d', 'ansicht.fokus']);
@@ -448,7 +454,11 @@ class Studio {
       { id: 'zone.generieren', gruppe: 'Zone', titel: 'Generieren (Wald, Dorf) …', icon: 'generator', aktiv: echteZone, ausfuehren: () => this.#dialogGenerieren() },
       { id: 'zone.versionen', gruppe: 'Zone', titel: 'Versionen & Vergleich …', icon: 'versionen', aktiv: echteZone, ausfuehren: () => this.#dialogVersionen() },
       { id: 'zone.versionSpeichern', gruppe: 'Zone', titel: 'Version speichern …', icon: 'versionen', kuerzel: 'Strg+Umschalt+S', aktiv: echteZone, ausfuehren: () => this.#versionSpeichern() },
-      { id: 'zone.vergleichAus', gruppe: 'Zone', titel: 'Vergleich ausblenden', icon: 'schliessen', versteckt: true, aktiv: () => !!this.vergleichAn, ausfuehren: () => { this.ansicht.setzeMarkierungen(null); this.vergleichAn = false; } },
+      { id: 'zone.vergleichAus', gruppe: 'Zone', titel: 'Markierungen ausblenden', icon: 'schliessen', versteckt: true, aktiv: () => !!this.vergleichAn, ausfuehren: () => { this.ansicht.setzeMarkierungen(null); this.vergleichAn = false; } },
+      { id: 'pruefen.laufweg', gruppe: 'Zone', titel: 'Laufweg prüfen', icon: 'start', kuerzel: 'Strg+R', aktiv: echteZone, ausfuehren: () => this.#laufweg() },
+      { id: 'pruefen.balance', gruppe: 'Zone', titel: 'Balance (alle Zonen) …', icon: 'ebenen', aktiv: () => this.zonenKarten().size > 0, ausfuehren: () => this.#balance() },
+      { id: 'ansicht.heatmap', gruppe: 'Ansicht', titel: 'Loot-Heatmap', icon: 'item', kuerzel: 'Umschalt+H', aktiv: mitZone, angehakt: () => !!this.heatmapAn, ausfuehren: () => this.#heatmap(!this.heatmapAn) },
+      { id: 'ansicht.laufen', gruppe: 'Ansicht', titel: 'Als Spieler herumlaufen', icon: 'start', kuerzel: 'F6', aktiv: mitZone, ausfuehren: () => this.#laufen() },
       { id: 'zone.weltkarte', gruppe: 'Zone', titel: 'Weltkarte …', icon: 'welt', kuerzel: 'Strg+M', ausfuehren: () => this.#weltkarte() },
       { id: 'vorlage.neu', gruppe: 'Zone', titel: 'Neue Vorlage bauen …', icon: 'vorlage', ausfuehren: () => this.#dialogNeueVorlage() },
       { id: 'vorlage.ausAuswahl', gruppe: 'Zone', titel: 'Auswahl als Vorlage speichern …', icon: 'vorlage', aktiv: mitAuswahl, ausfuehren: () => this.#vorlageAusAuswahl() },
@@ -476,8 +486,8 @@ class Studio {
     this.menues.baue([
       { titel: 'Datei', eintraege: ['zone.neu', 'zone.speichern', 'zone.insSpiel', '-', 'zone.testen', 'zone.testenHier', '-', 'asset.importModell', 'asset.importKlang', '-', 'zone.schliessen', 'studio.start', 'projekt.ordner'] },
       { titel: 'Bearbeiten', eintraege: ['bearbeiten.rueckgaengig', 'bearbeiten.wiederholen', '-', 'bearbeiten.kopieren', 'bearbeiten.einfuegen', 'bearbeiten.duplizieren', 'bearbeiten.loeschen', '-', 'bearbeiten.alles', 'bearbeiten.abwaehlen'] },
-      { titel: 'Ansicht', eintraege: ['ansicht.2d3d', 'ansicht.fokus', 'ansicht.ganz', '-', 'ansicht.spielOptik', 'ansicht.raster', 'ansicht.wandNiedrig', 'ansicht.objekte', 'ansicht.overlays', '-', 'ansicht.zeit.tag', 'ansicht.zeit.abend', 'ansicht.zeit.nacht', '-', 'ansicht.wetter.klar', 'ansicht.wetter.nebel', 'ansicht.wetter.regen', 'ansicht.wetter.schnee', '-', 'ansicht.palette'] },
-      { titel: 'Zone', eintraege: ['zone.eigenschaften', 'zone.groesse', 'zone.pruefen', 'zone.weltkarte', '-', 'zone.versionSpeichern', 'zone.versionen', 'zone.vergleichAus', '-', 'zone.ersetzen', 'zone.generieren', '-', 'vorlage.neu', 'vorlage.ausAuswahl', 'vorlage.speichern'] },
+      { titel: 'Ansicht', eintraege: ['ansicht.2d3d', 'ansicht.fokus', 'ansicht.ganz', '-', 'ansicht.spielOptik', 'ansicht.laufen', 'ansicht.heatmap', 'ansicht.raster', 'ansicht.wandNiedrig', 'ansicht.objekte', 'ansicht.overlays', '-', 'ansicht.zeit.tag', 'ansicht.zeit.abend', 'ansicht.zeit.nacht', '-', 'ansicht.wetter.klar', 'ansicht.wetter.nebel', 'ansicht.wetter.regen', 'ansicht.wetter.schnee', '-', 'ansicht.palette'] },
+      { titel: 'Zone', eintraege: ['zone.eigenschaften', 'zone.groesse', 'zone.pruefen', 'pruefen.laufweg', 'pruefen.balance', 'zone.weltkarte', '-', 'zone.versionSpeichern', 'zone.versionen', 'zone.vergleichAus', '-', 'zone.ersetzen', 'zone.generieren', '-', 'vorlage.neu', 'vorlage.ausAuswahl', 'vorlage.speichern'] },
       { titel: 'Werkzeuge', eintraege: WERKZEUGE.map((w) => (w.trenner ? '-' : `werkzeug.${w.id}`)) },
       { titel: 'KI', eintraege: ['ki.oeffnen', 'ki.einstellungen', 'ki.mcp'] },
       { titel: 'Hilfe', eintraege: ['hilfe.tasten', 'ansicht.palette', 'hilfe.ueber'] },
@@ -903,6 +913,71 @@ class Studio {
         });
       },
     });
+  }
+
+  // ---------- Analysen ----------
+  #laufweg() {
+    try {
+      const r = laufweg(this.dok.definition());
+      this.ansicht.setzeMarkierungen(r.markierungen);
+      this.vergleichAn = true;
+      this.pruefung.zusatz = r.befunde.map((b) => ({ schwere: 'warnung', text: b.text, x: b.x, y: b.y }));
+      this.pruefung.zeichne();
+      this.zeigeRechts('pruef');
+      this.hinweis(r.befunde.length ? `${Math.round(r.anteil * 100)} % erreichbar – ${r.befunde.length} Probleme rot markiert (Zone → Vergleich ausblenden)` : `Alles erreichbar (${r.erreicht} Kacheln vom Start und den Ankünften)`, r.befunde.length ? 'fehler' : 'erfolg');
+    } catch (f) {
+      this.hinweis(`Laufweg: ${f.message}`, 'fehler');
+    }
+  }
+
+  async #balance() {
+    const zeilen = [];
+    for (const [id, k] of this.zonenKarten()) {
+      try {
+        const def = this.dok.zonen.has(id) ? this.dok.definition(id) : nachDefinition(k);
+        zeilen.push({ id, name: k.name, ...balance(def) });
+      } catch (f) {
+        zeilen.push({ id, name: k.name, fehler: f.message });
+      }
+    }
+    const ok = zeilen.filter((z) => !z.fehler);
+    const max = (f) => Math.max(1, ...ok.map(f));
+    const balken = (w, m, farbe) => `<div style="display:flex;align-items:center;gap:6px"><div style="height:8px;width:${Math.round((w / m) * 90)}px;background:${farbe};border-radius:3px"></div><span>${w}</span></div>`;
+    const farbe = { essen: '#46c27a', trinken: '#4aa3ff', medizin: '#ef5d5d', waffen: '#ff8a3d', munition: '#f2c14e', material: '#b48a5a', sonstiges: '#8b919c' };
+    const html = `<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="color:var(--text-3);text-align:left"><th>Zone</th><th>Gefahr<br /><small>Zombies/1000 Kachel</small></th><th>Versorgung<br /><small>Essen+Trinken/h/1000</small></th>${BEREICHE.map((b) => `<th>${b}<br /><small>pro Stunde</small></th>`).join('')}<th>Start-Loot</th></tr>${zeilen.map((z) => (z.fehler ? `<tr><td>${esc(z.name)}</td><td colspan="10" style="color:var(--rot)">${esc(z.fehler)}</td></tr>` : `<tr style="border-top:1px solid var(--linie)"><td style="padding:6px 4px"><b>${esc(z.name)}</b><br /><small style="color:var(--text-3)">${z.zombies} Zombies · ${z.lootPunkte} Loot-Punkte</small></td><td>${balken(z.gefahr, max((x) => x.gefahr), '#ef5d5d')}</td><td>${balken(z.versorgung, max((x) => x.versorgung), '#46c27a')}</td>${BEREICHE.map((b) => `<td>${balken(z.jeStunde[b], max((x) => x.jeStunde[b]), farbe[b])}</td>`).join('')}<td>${Object.values(z.start).reduce((s, w) => s + w, 0).toFixed(0)}</td></tr>`)).join('')}</table></div><div class="hinweis-kasten" style="margin-top:10px">Annahme: Jeder Loot-Punkt wird geplündert, sobald etwas liegt (Höchstwert). Gefahr = Zombie-Spawnpunkte je 1000 begehbare Kacheln. Gut zum Vergleichen der Zonen untereinander.</div>`;
+    await dialog({ titel: 'Balance der Zonen', icon: 'ebenen', breit: true, inhalt: html, knoepfe: [{ text: 'Schließen', wert: true, art: 'primaer' }], klasse: 'sehr-breit' });
+  }
+
+  #heatmap(an) {
+    this.heatmapAn = an;
+    const k = this.dok.karte;
+    this.ansicht.setzeHeatmap(an && k ? heatmapGitter(k, lootDichte(k)) : null);
+    this.#ansichtsLeiste();
+    if (an) this.hinweis('Loot-Heatmap: grün = wenig, rot = viel Loot (Räume, Loot-Zonen, Spawnpunkte)');
+  }
+
+  #laufen() {
+    const k = this.dok.karte;
+    const start = [...k.s('marker')].find(([, m]) => m.art === 'start');
+    const [sx, sy] = start ? start[0].split(',').map(Number) : [Math.floor(this.ansicht.ziel.x), Math.floor(this.ansicht.ziel.z)];
+    const zielFrei = (x, y) => this.#frei(Math.floor(x), Math.floor(y));
+    const x = zielFrei(this.ansicht.ziel.x, this.ansicht.ziel.z) ? this.ansicht.ziel.x : sx + 0.5;
+    const y = zielFrei(this.ansicht.ziel.x, this.ansicht.ziel.z) ? this.ansicht.ziel.z : sy + 0.5;
+    const r = 0.3; // Körperradius
+    this.ansicht.starteLaufen(x, y, (px, py) => [[-r, -r], [r, -r], [-r, r], [r, r]].every(([dx, dy]) => this.#frei(Math.floor(px + dx), Math.floor(py + dy))), () => this.hinweis('Laufmodus beendet'));
+    this.hinweis('Laufmodus: Maus schaut · W A S D laufen · Umschalt rennt · Esc beendet');
+  }
+
+  /** Begehbar wie im Spiel (Kacheln + blockierende Möbel/Ressourcen, Türen offen) */
+  #frei(x, y) {
+    const k = this.dok.karte;
+    const z = k.kachelAn(x, y);
+    if (z === null || (KACHELN[z]?.blockiert && z !== 'T')) return false;
+    for (const [, o] of k.objekteIn(x, y, x, y)) {
+      if (!(o.blockiert || RESSOURCEN_OBJEKTE[o.typ]?.blockiert) || o.ebene === 'oben') continue;
+      if (x + 0.5 > o.x && x + 0.5 < o.x + o.b && y + 0.5 > o.y && y + 0.5 < o.y + o.h) return false;
+    }
+    return true;
   }
 
   // ---------- Weltkarte ----------

@@ -203,6 +203,18 @@ export class Viewport {
 
   #kameraSetzen() {
     const a = this.abstand;
+    if (this.laufen) {
+      const l = this.laufen;
+      const auge = this.hoeheBei(l.x, l.y) + 1.6;
+      this.kameraP.position.set(l.x, auge, l.y);
+      this.kameraP.lookAt(l.x + Math.sin(l.blick) * Math.cos(l.neigung), auge + Math.sin(l.neigung), l.y + Math.cos(l.blick) * Math.cos(l.neigung));
+      this.kameraP.near = 0.05;
+      this.kameraP.updateProjectionMatrix();
+      this.szene.fog.near = 30 * (this.nebelFaktor ?? 1);
+      this.szene.fog.far = 140 * (this.nebelFaktor ?? 1);
+      return;
+    }
+    this.kameraP.near = 0.1;
     if (this.modus === '3d') {
       const ce = Math.cos(this.neigung);
       this.kameraP.position.set(this.ziel.x + a * ce * Math.sin(this.gier), this.ziel.y + a * Math.sin(this.neigung), this.ziel.z + a * ce * Math.cos(this.gier));
@@ -682,6 +694,112 @@ export class Viewport {
     g.clear();
     const farbe = { neu: 0x46c27a, weg: 0xef5d5d, geaendert: 0xf2c14e };
     for (const m of (liste ?? []).slice(0, 3000)) g.add(this.#rechteck(m.x, m.y, Math.max(0.5, m.b), Math.max(0.5, m.h), farbe[m.art] ?? 0xffffff, { deck: 0.35, hoehe: 0.05 }));
+    this.anfordern();
+  }
+
+  /** Loot-Heatmap: Gitter 0..1 je Kachel (null = aus) – durchsichtige Farbfläche über dem Boden */
+  setzeHeatmap(gitter) {
+    if (this.heatmap) {
+      this.szene.remove(this.heatmap);
+      this.heatmap.geometry.dispose();
+      this.heatmap.material.map.dispose();
+      this.heatmap.material.dispose();
+      this.heatmap = null;
+    }
+    const k = this.karte;
+    if (gitter && k) {
+      const daten = new Uint8Array(k.breite * k.hoehe * 4);
+      const farbe = new THREE.Color();
+      for (let i = 0; i < gitter.length; i++) {
+        const w = gitter[i];
+        if (w <= 0.01) continue;
+        farbe.setHSL(0.33 - w * 0.33, 0.9, 0.5);
+        // Textur-Zeile 0 liegt unten (v = 0) → Kartenzeile spiegeln
+        const zeile = k.hoehe - 1 - Math.floor(i / k.breite);
+        daten.set([farbe.r * 255, farbe.g * 255, farbe.b * 255, 60 + w * 150], (zeile * k.breite + (i % k.breite)) * 4);
+      }
+      const tex = new THREE.DataTexture(daten, k.breite, k.hoehe);
+      tex.magFilter = THREE.LinearFilter;
+      tex.needsUpdate = true;
+      this.heatmap = new THREE.Mesh(new THREE.PlaneGeometry(k.breite, k.hoehe).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }));
+      this.heatmap.position.set(k.breite / 2, 0.15, k.hoehe / 2);
+      this.heatmap.renderOrder = 3;
+      this.szene.add(this.heatmap);
+    }
+    this.anfordern();
+  }
+
+  // ---------- Laufmodus (Spieler-Perspektive) ----------
+  /**
+   * Durch die Zone laufen wie ein Spieler: Augenhöhe 1,6 m, Maus schaut (Zeiger gefangen), W A S D laufen, Umschalt rennt,
+   * Kollision wie im Spiel über `istFrei(x, y)` (Kacheln + blockierende Möbel). Esc beendet.
+   */
+  starteLaufen(x, y, istFrei, beiEnde) {
+    this.laufen = { x, y, blick: this.gier + Math.PI, neigung: 0, tasten: new Set(), istFrei, beiEnde, letzte: performance.now() };
+    this.modusVorher = this.modus;
+    this.modus = '3d';
+    this.leinwand.requestPointerLock?.();
+    const bewege = (e) => {
+      if (document.pointerLockElement !== this.leinwand) return;
+      this.laufen.blick -= e.movementX * 0.0025;
+      this.laufen.neigung = Math.max(-1.2, Math.min(1.2, this.laufen.neigung - e.movementY * 0.0025));
+    };
+    const runter = (e) => {
+      if (e.key === 'Escape') return this.beendeLaufen();
+      this.laufen.tasten.add(e.key.toLowerCase());
+      e.stopPropagation();
+      e.preventDefault();
+    };
+    const hoch = (e) => this.laufen?.tasten.delete(e.key.toLowerCase());
+    const klick = () => this.leinwand.requestPointerLock?.();
+    document.addEventListener('mousemove', bewege);
+    document.addEventListener('keydown', runter, true);
+    document.addEventListener('keyup', hoch, true);
+    this.leinwand.addEventListener('click', klick);
+    this.laufen.aufraeumen = () => {
+      document.removeEventListener('mousemove', bewege);
+      document.removeEventListener('keydown', runter, true);
+      document.removeEventListener('keyup', hoch, true);
+      this.leinwand.removeEventListener('click', klick);
+    };
+    const schritt = (jetzt) => {
+      const l = this.laufen;
+      if (!l) return;
+      const dt = Math.min(0.05, (jetzt - l.letzte) / 1000);
+      l.letzte = jetzt;
+      const tempo = (l.tasten.has('shift') ? 7 : 4.2) * dt;
+      const vx = Math.sin(l.blick);
+      const vz = Math.cos(l.blick);
+      let dx = 0;
+      let dz = 0;
+      if (l.tasten.has('w')) [dx, dz] = [dx + vx, dz + vz];
+      if (l.tasten.has('s')) [dx, dz] = [dx - vx, dz - vz];
+      if (l.tasten.has('a')) [dx, dz] = [dx + vz, dz - vx];
+      if (l.tasten.has('d')) [dx, dz] = [dx - vz, dz + vx];
+      const n = Math.hypot(dx, dz);
+      if (n) {
+        const nx = l.x + (dx / n) * tempo;
+        const ny = l.y + (dz / n) * tempo;
+        // Achsen getrennt prüfen → an Wänden entlang rutschen
+        if (l.istFrei(nx, l.y)) l.x = nx;
+        if (l.istFrei(l.x, ny)) l.y = ny;
+      }
+      this.anfordern();
+      requestAnimationFrame(schritt);
+    };
+    requestAnimationFrame(schritt);
+    this.anfordern();
+  }
+
+  beendeLaufen() {
+    const l = this.laufen;
+    if (!l) return;
+    l.aufraeumen();
+    this.laufen = null;
+    if (document.pointerLockElement === this.leinwand) document.exitPointerLock();
+    this.ziel.set(l.x, this.hoeheBei(l.x, l.y), l.y);
+    this.modus = this.modusVorher ?? '3d';
+    l.beiEnde?.();
     this.anfordern();
   }
 
