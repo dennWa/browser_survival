@@ -94,6 +94,26 @@ export const KI_WERKZEUGE = Object.freeze([
     beschreibung: 'Gelände formen (runder Pinsel): heben, senken, glaetten, ebnen.',
     schema: objekt({ modus: text('Modus', ['heben', 'senken', 'glaetten', 'ebnen']), x: zahl('Mitte x'), y: zahl('Mitte y'), radius: zahl('Kacheln'), staerke: zahl('Meter je Anwendung') }, ['modus', 'x', 'y']),
   },
+  {
+    name: 'streuen',
+    beschreibung: 'Bäume/Büsche/Steine im Kreis verteilen (ohne Überlappen, nur auf Naturboden). set: wald, nadelwald, gebuesch, felsen – oder typen (Katalog-IDs). radieren=true entfernt sie wieder.',
+    schema: objekt({ x: zahl('Mitte x'), y: zahl('Mitte y'), radius: zahl('Kacheln'), set: text('Set', ['wald', 'nadelwald', 'gebuesch', 'felsen']), typen: { type: 'array', items: { type: 'string' }, description: 'statt set: Katalog-IDs' }, dichte: zahl('Objekte je 100 Kacheln (Standard 4)'), radieren: { type: 'boolean', description: 'entfernen statt setzen' } }, ['x', 'y', 'radius']),
+  },
+  {
+    name: 'strasse_bauen',
+    beschreibung: 'Gerade Straße (waagerecht oder senkrecht) mit Gehwegen, Mittelmarkierung und Laternen; Objekte auf der Fahrbahn werden entfernt.',
+    schema: objekt({ x0: zahl('Start x'), y0: zahl('Start y (Mitte der Straße)'), x1: zahl('Ende x'), y1: zahl('Ende y'), fahrbahn: zahl('Breite der Fahrbahn (2, 4, 6)'), gehweg: zahl('Gehwegbreite (0–2)'), laternen: zahl('Laterne alle N Kacheln, 0 = keine') }, ['x0', 'y0', 'x1', 'y1']),
+  },
+  {
+    name: 'ersetzen',
+    beschreibung: 'In einem Bereich (ohne Bereich: ganze Zone) Objekte eines Typs durch eine Katalog-ID ersetzen und/oder Bodenkacheln tauschen.',
+    schema: objekt({ ...rechteck, von_typ: text('Objekttyp, z. B. baum_herbst'), zu: text('Katalog-ID, z. B. objekt:tanne'), von_kachel: text('Kachelzeichen'), zu_kachel: text('Kachelzeichen') }),
+  },
+  {
+    name: 'generieren',
+    beschreibung: 'Startpunkt generieren: wald / nadelwald (Waldboden, Bäume, Lichtung, See) oder dorf (Straße + Häuser, auf Wunsch aus Vorlagen).',
+    schema: objekt({ art: text('Art', ['wald', 'nadelwald', 'dorf']), ...rechteck, dichte: zahl('Wald-Dichte 1–15'), haeuser: zahl('Dorf: Anzahl Häuser'), mit_vorlagen: { type: 'boolean', description: 'Dorf: eigene Vorlagen als Häuser' }, saat: zahl('Variante') }, ['art', 'x', 'y', 'b', 'h']),
+  },
   { name: 'vorlagen_liste', beschreibung: 'Gespeicherte Vorlagen (z. B. Häuser) mit Größe.', schema: objekt({}), lesen: true },
   { name: 'vorlage_einsetzen', beschreibung: 'Vorlage an (x, y) (linke obere Ecke) einsetzen.', schema: objekt({ id: text('Vorlagen-ID'), x: zahl('x'), y: zahl('y') }, ['id', 'x', 'y']) },
   { name: 'pruefen', beschreibung: 'Zone prüfen: Fehler und Hinweise (Spawns in Wänden, unerreichbare Räume …).', schema: objekt({}), lesen: true },

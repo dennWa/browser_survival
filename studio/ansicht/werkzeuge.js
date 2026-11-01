@@ -3,6 +3,7 @@ import { GEGENSTAENDE } from '../../server/spiel/konfiguration/gegenstaende.js';
 import { linie, rechteckAus } from '../../editor/kern/raster.js';
 import { pruefeObjekt, pruefeMarker } from '../../editor/kern/platzierung.js';
 import * as A from '../kern/aktionen.js';
+import * as B from '../kern/bauhilfen.js';
 import { objektHoehe } from './viewport.js';
 
 /**
@@ -20,6 +21,8 @@ export const WERKZEUGE = [
   { id: 'wand', titel: 'Wand ziehen', icon: 'wand', kuerzel: 'N', text: 'Gerade Wand, Fenster oder Tür ziehen.' },
   { id: 'raum', titel: 'Raum bauen', icon: 'raum', kuerzel: 'H', text: 'Rechteck ziehen: Wände, Boden, Tür und Loot in einem Schritt.' },
   { id: 'gelaende', titel: 'Gelände', icon: 'gelaende', kuerzel: 'T', text: 'Heben, senken, glätten, ebnen.' },
+  { id: 'strasse', titel: 'Straße', icon: 'strasse', kuerzel: 'L', text: 'Linie ziehen: Fahrbahn, Gehwege, Markierung und Laternen in einem Zug.' },
+  { id: 'streuen', titel: 'Streuen', icon: 'streuen', kuerzel: 'S', text: 'Bäume, Büsche, Steine „aufsprühen“ – Umschalt = radieren.' },
   { trenner: true },
   { id: 'objekt', titel: 'Objekt platzieren', icon: 'objekt', kuerzel: 'O', text: 'Asset wählen, klicken zum Setzen. Strg+Rad = drehen, Umschalt = weiter setzen.' },
   { id: 'flaeche', titel: 'Bereich markieren', icon: 'flaeche', kuerzel: 'G', text: 'Rechteck ziehen: Loot-Zone, Hasen, Übergang oder Klangzone.' },
@@ -43,6 +46,8 @@ export class Werkzeuge {
       wand: { art: 'wand' },
       raum: { boden: '.', tuer: 's', name: '', lootTabelle: 'wohnung' },
       gelaende: { modus: 'heben', radius: 3, staerke: 0.25 },
+      strasse: { fahrbahn: 4, gehweg: 1, markierung: true, laternen: 10 },
+      streuen: { set: 'wald', radius: 5, dichte: 5, modus: 'streuen' },
       objekt: { drehung: 0, skalierung: 1, raster: 'halb', variieren: false },
       flaeche: { art: 'loot', tabelle: 'wohnung', ziel: '', ankunft: '', datei: '', anzahl: 4 },
       klang: { datei: '', innen: 2, aussen: 10, lautstaerke: 1 },
@@ -93,6 +98,20 @@ export class Werkzeuge {
           { art: 'segment', feld: 'modus', werte: [['heben', 'Heben'], ['senken', 'Senken'], ['glaetten', 'Glätten'], ['ebnen', 'Ebnen']] },
           { art: 'zahl', feld: 'radius', titel: 'Radius', min: 1, max: 20, schritt: 1 },
           { art: 'zahl', feld: 'staerke', titel: 'Stärke (m)', min: 0.05, max: 3, schritt: 0.05 },
+        ];
+      case 'strasse':
+        return [
+          { art: 'segment', feld: 'fahrbahn', werte: [['2', 'Weg (2)'], ['4', 'Straße (4)'], ['6', 'Breit (6)']] },
+          { art: 'segment', feld: 'gehweg', werte: [['0', 'ohne Gehweg'], ['1', 'Gehweg'], ['2', 'breiter Gehweg']] },
+          { art: 'schalter', feld: 'markierung', titel: 'Mittelmarkierung' },
+          { art: 'zahl', feld: 'laternen', titel: 'Laterne alle', min: 0, max: 40, schritt: 1 },
+        ];
+      case 'streuen':
+        return [
+          { art: 'segment', feld: 'modus', werte: [['streuen', 'Streuen'], ['radieren', 'Radieren']] },
+          { art: 'auswahl', feld: 'set', titel: 'Was', werte: [...Object.entries(B.STREU_SETS).map(([k, v]) => [k, v.name]), ['asset', this.studio.asset && ['objekt', 'modell'].includes(this.studio.asset.art) ? `Asset: ${this.studio.asset.name}` : 'gewähltes Asset']] },
+          { art: 'zahl', feld: 'radius', titel: 'Radius', min: 1, max: 30, schritt: 1 },
+          { art: 'zahl', feld: 'dichte', titel: 'Dichte', min: 1, max: 20, schritt: 1 },
         ];
       case 'objekt':
         return [
@@ -162,8 +181,9 @@ export class Werkzeuge {
     this.studio.zeigePosition(p);
     const g = this.opt.boden.groesse;
     if (this.aktiv === 'boden' && this.opt.boden.modus === 'pinsel') this.ansicht.setzeSchwebe(p.tx - Math.floor(g / 2), p.ty - Math.floor(g / 2), g, g);
+    else if (this.aktiv === 'streuen') this.ansicht.setzeSchwebe(p.tx - this.opt.streuen.radius, p.ty - this.opt.streuen.radius, this.opt.streuen.radius * 2 + 1, this.opt.streuen.radius * 2 + 1);
     else if (this.aktiv === 'gelaende') this.ansicht.setzeSchwebe(p.tx - this.opt.gelaende.radius, p.ty - this.opt.gelaende.radius, this.opt.gelaende.radius * 2 + 1, this.opt.gelaende.radius * 2 + 1);
-    else if (['boden', 'wand', 'raum', 'flaeche', 'marker'].includes(this.aktiv)) this.ansicht.setzeSchwebe(p.tx, p.ty);
+    else if (['boden', 'wand', 'raum', 'flaeche', 'marker', 'strasse'].includes(this.aktiv)) this.ansicht.setzeSchwebe(p.tx, p.ty);
     else this.ansicht.setzeSchwebe(null);
     if (this.aktiv === 'objekt') this.#geistObjekt(p);
     if (this.aktiv === 'spawn') this.#geistSpawn(p);
@@ -266,6 +286,14 @@ export class Werkzeuge {
       case 'flaeche':
         this.zug = { art: this.aktiv, start: p };
         return;
+      case 'strasse':
+        this.zug = { art: 'strasse', start: p };
+        return;
+      case 'streuen':
+        this.dok.aktiv.verlauf.beginne(umschalt || this.opt.streuen.modus === 'radieren' ? 'Radieren' : 'Streuen');
+        this.zug = { art: 'streuen', letzter: 0, radieren: umschalt || this.opt.streuen.modus === 'radieren' };
+        this.#streuen(p);
+        return;
       case 'gelaende':
         this.dok.aktiv.verlauf.beginne('Gelände');
         this.zug = { art: 'gelaende', letzter: null };
@@ -317,6 +345,16 @@ export class Werkzeuge {
       const g = this.opt.boden.groesse;
       this.ansicht.setzeSchwebe(p.tx - Math.floor(g / 2), p.ty - Math.floor(g / 2), g, g);
     } else if (z.art === 'gelaende') this.#gelaende(p);
+    else if (z.art === 'streuen') {
+      this.#streuen(p);
+      const r = this.opt.streuen.radius;
+      this.ansicht.setzeSchwebe(p.tx - r, p.ty - r, r * 2 + 1, r * 2 + 1);
+    } else if (z.art === 'strasse') {
+      const { ops } = B.strassenOps(k, z.start, p, this.#strassenOpt());
+      const kacheln = ops.filter((o) => o.s === 'kachel').map((o) => ({ x: o.i % k.breite, y: Math.floor(o.i / k.breite), b: 1, h: 1, hoehe: 0.05 }));
+      this.ansicht.setzeGeist(kacheln, true);
+      this.studio.hinweis(`Straße ${kacheln.length} Kacheln`);
+    }
     else if (z.art === 'verschieben') {
       const dx = p.x - z.start.x;
       const dy = p.y - z.start.y;
@@ -344,7 +382,8 @@ export class Werkzeuge {
     const k = this.dok.karte;
     this.ansicht.setzeGeist(null);
     try {
-      if (z.art === 'pinsel' || z.art === 'gelaende') this.dok.aktiv.verlauf.beende();
+      if (z.art === 'pinsel' || z.art === 'gelaende' || z.art === 'streuen') this.dok.aktiv.verlauf.beende();
+      else if (z.art === 'strasse') this.dok.aendere('Straße', B.strassenOps(k, z.start, p, this.#strassenOpt()).ops);
       else if (z.art === 'verschieben' && (z.dx || z.dy)) this.dok.aendere('Verschieben', A.verschiebeOps(k, this.dok.auswahl, z.dx, z.dy));
       else if (z.art === 'rahmen') {
         const r = rechteckAus(z.start.tx, z.start.ty, p.tx, p.ty);
@@ -382,6 +421,36 @@ export class Werkzeuge {
     const ops = [];
     for (const p of linie(a.tx, a.ty, b.tx, b.ty)) ops.push(...A.pinselOps(k, p.x, p.y, this.opt.boden.groesse, this.zug.zeichen));
     this.dok.aendere('Boden malen', ops);
+  }
+
+  #strassenOpt() {
+    const o = this.opt.strasse;
+    return { fahrbahn: Number(o.fahrbahn), gehweg: Number(o.gehweg), markierung: !!o.markierung, laternen: Number(o.laternen) };
+  }
+
+  /** Typen fürs Streuen: Set oder gewähltes Asset */
+  streuTypen() {
+    const o = this.opt.streuen;
+    if (o.set === 'asset') {
+      const a = this.studio.asset;
+      if (!a || !['objekt', 'modell'].includes(a.art)) throw new Error('Erst ein Objekt oder Modell in den Assets wählen');
+      return [a.id];
+    }
+    return B.STREU_SETS[o.set]?.typen ?? B.STREU_SETS.wald.typen;
+  }
+
+  #streuen(p) {
+    const jetzt = performance.now();
+    if (jetzt - this.zug.letzter < 140) return;
+    this.zug.letzter = jetzt;
+    const o = this.opt.streuen;
+    try {
+      const typen = this.streuTypen();
+      const ops = this.zug.radieren ? B.radierOps(this.dok.karte, p.x, p.y, Number(o.radius), { typen }) : B.streuOps(this.dok.karte, p.x, p.y, Number(o.radius), { typen, dichte: Number(o.dichte) / 3, saat: Math.floor(Math.random() * 1e9) }).ops;
+      this.dok.aendere('Streuen', ops);
+    } catch (f) {
+      this.studio.hinweis(f.message, 'fehler');
+    }
   }
 
   #gelaende(p) {
@@ -460,6 +529,7 @@ export class Werkzeuge {
   groesse(d) {
     if (this.aktiv === 'boden') this.opt.boden.groesse = Math.max(1, Math.min(15, this.opt.boden.groesse + d));
     else if (this.aktiv === 'gelaende') this.opt.gelaende.radius = Math.max(1, Math.min(20, this.opt.gelaende.radius + d));
+    else if (this.aktiv === 'streuen') this.opt.streuen.radius = Math.max(1, Math.min(30, this.opt.streuen.radius + d));
     else return;
     this.studio.meldeOptionen();
   }

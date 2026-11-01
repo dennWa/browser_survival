@@ -70,6 +70,10 @@ const P = {
   mond: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
   wolke: '<path d="M7 18h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.4 1.6A3.3 3.3 0 0 0 7 18z"/>',
   spielOptik: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 15l3-4 3 3 2-2 3 3"/><circle cx="8.5" cy="9" r="1"/>',
+  strasse: '<path d="M6 21L9 3M18 21L15 3"/><path d="M12 5v2M12 11v2M12 17v2"/>',
+  streuen: '<path d="M12 20v-4"/><path d="M12 4l4 6h-2l3 4H7l3-4H8z"/><circle cx="5" cy="7" r="1"/><circle cx="19" cy="6" r="1"/><circle cx="20" cy="14" r="1"/><circle cx="4" cy="15" r="1"/>',
+  generator: '<path d="M4 20l6-10 4 6 2-3 4 7z"/><path d="M15 3l1 2 2 1-2 1-1 2-1-2-2-1 2-1z"/>',
+  ersetzen: '<path d="M4 7h11l-3-3M20 17H9l3 3"/>',
   hauptmenue: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
 };
 

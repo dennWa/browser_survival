@@ -5,6 +5,7 @@ import { validiere } from '../../editor/kern/validierung.js';
 import { LOOT_TABELLEN } from '../../server/spiel/konfiguration/lootTabellen.js';
 import { kiWerkzeug, KI_REGELN } from './kiWerkzeuge.js';
 import * as A from './aktionen.js';
+import * as B from './bauhilfen.js';
 
 /**
  * Führt KI-Werkzeuge (kiWerkzeuge.js) im Studio-Fenster aus – für MCP (Claude Desktop/Code …) UND den eingebauten
@@ -137,6 +138,21 @@ export function erstelleKiAusfuehrer(studio) {
       return ok(`Spawnpunkt ${id} gesetzt.`);
     },
     gelaende: ({ modus, x, y, radius = 3, staerke = 0.5 }) => ok(`${aendere('Gelände', A.gelaendeOps(karte(), modus, x, y, radius, staerke))} Kacheln geändert.`),
+    streuen: ({ x, y, radius, set = 'wald', typen, dichte = 4, radieren = false }) => {
+      const liste = typen?.length ? typen : (B.STREU_SETS[set] ?? B.STREU_SETS.wald).typen;
+      if (radieren) return ok(`${aendere('Radieren', B.radierOps(karte(), x, y, radius, { typen: liste }))} entfernt.`);
+      const { ops, anzahl } = B.streuOps(karte(), x, y, radius, { typen: liste, dichte, saat: Math.floor(Math.random() * 1e9) });
+      aendere('Streuen', ops);
+      return ok(`${anzahl} Objekte gestreut.`);
+    },
+    strasse_bauen: ({ x0, y0, x1, y1, fahrbahn = 4, gehweg = 1, laternen = 10 }) => ok(`${aendere('Straße', B.strassenOps(karte(), { x: x0, y: y0 }, { x: x1, y: y1 }, { fahrbahn, gehweg, laternen }).ops)} Änderungen.`),
+    ersetzen: (a) => ok(`${aendere('Ersetzen', B.ersetzOps(karte(), { r: a.x !== undefined ? { x: a.x, y: a.y, b: a.b, h: a.h } : null, vonTyp: a.von_typ, zu: a.zu, vonZeichen: a.von_kachel, zuZeichen: a.zu_kachel }))} Änderungen.`),
+    generieren: (a) => {
+      const r = { x: a.x, y: a.y, b: a.b, h: a.h };
+      const e = a.art === 'dorf' ? B.generiereDorf(karte(), r, { haeuser: a.haeuser ?? 6, vorlagen: a.mit_vorlagen ? studio.vorlagen().map((v) => v.vorlage) : [], saat: a.saat ?? 11 }) : B.generiereWald(karte(), r, { dichte: a.dichte ?? 5, set: a.art, saat: a.saat ?? 7 });
+      aendere(`${a.art} generiert`, B.verdichte(e.ops));
+      return ok(a.art === 'dorf' ? `Dorf mit ${e.haeuser} Häusern generiert.` : 'Wald generiert.');
+    },
     vorlagen_liste: () => ok(null, studio.vorlagen().map((v) => ({ id: v.id, name: v.name, b: v.vorlage.b, h: v.vorlage.h }))),
     vorlage_einsetzen: ({ id, x, y }) => W.objekt_platzieren({ id: `vorlage:${id}`, x, y }),
     pruefen: () => {

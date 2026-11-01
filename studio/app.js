@@ -4,6 +4,9 @@ import { Dokument } from './kern/dokument.js';
 import { Befehle } from './kern/befehle.js';
 import { erstelleKiAusfuehrer } from './kern/kiAusfuehren.js';
 import * as A from './kern/aktionen.js';
+import * as B from './kern/bauhilfen.js';
+import { katalog } from '../editor/kern/katalog.js';
+import { spielordnerListe } from '../editor/kern/spielordner.js';
 import { Viewport } from './ansicht/viewport.js';
 import { SpielOptik } from './ansicht/spielOptik.js';
 import { Stimmung } from './ansicht/stimmung.js';
@@ -438,6 +441,8 @@ class Studio {
       { id: 'zone.eigenschaften', gruppe: 'Zone', titel: 'Zonen-Eigenschaften', icon: 'einstellungen', aktiv: mitZone, ausfuehren: () => { dok.waehle([]); this.zeigeRechts('inspektor'); } },
       { id: 'zone.groesse', gruppe: 'Zone', titel: 'Größe ändern …', icon: 'skalieren', aktiv: echteZone, ausfuehren: () => this.#dialogGroesse() },
       { id: 'zone.pruefen', gruppe: 'Zone', titel: 'Prüfen', icon: 'pruefen', aktiv: mitZone, ausfuehren: () => { this.pruefung.pruefe(); this.zeigeRechts('pruef'); } },
+      { id: 'zone.ersetzen', gruppe: 'Zone', titel: 'Ersetzen …', icon: 'ersetzen', kuerzel: 'Strg+H', aktiv: mitZone, ausfuehren: () => this.#dialogErsetzen() },
+      { id: 'zone.generieren', gruppe: 'Zone', titel: 'Generieren (Wald, Dorf) …', icon: 'generator', aktiv: echteZone, ausfuehren: () => this.#dialogGenerieren() },
       { id: 'vorlage.neu', gruppe: 'Zone', titel: 'Neue Vorlage bauen …', icon: 'vorlage', ausfuehren: () => this.#dialogNeueVorlage() },
       { id: 'vorlage.ausAuswahl', gruppe: 'Zone', titel: 'Auswahl als Vorlage speichern …', icon: 'vorlage', aktiv: mitAuswahl, ausfuehren: () => this.#vorlageAusAuswahl() },
       { id: 'vorlage.speichern', gruppe: 'Zone', titel: 'Vorlage speichern', icon: 'speichern', aktiv: () => dok.aktiv?.quelle === 'vorlage', ausfuehren: () => this.#vorlageSpeichern() },
@@ -465,7 +470,7 @@ class Studio {
       { titel: 'Datei', eintraege: ['zone.neu', 'zone.speichern', 'zone.insSpiel', '-', 'zone.testen', 'zone.testenHier', '-', 'asset.importModell', 'asset.importKlang', '-', 'zone.schliessen', 'studio.start', 'projekt.ordner'] },
       { titel: 'Bearbeiten', eintraege: ['bearbeiten.rueckgaengig', 'bearbeiten.wiederholen', '-', 'bearbeiten.kopieren', 'bearbeiten.einfuegen', 'bearbeiten.duplizieren', 'bearbeiten.loeschen', '-', 'bearbeiten.alles', 'bearbeiten.abwaehlen'] },
       { titel: 'Ansicht', eintraege: ['ansicht.2d3d', 'ansicht.fokus', 'ansicht.ganz', '-', 'ansicht.spielOptik', 'ansicht.raster', 'ansicht.wandNiedrig', 'ansicht.objekte', 'ansicht.overlays', '-', 'ansicht.zeit.tag', 'ansicht.zeit.abend', 'ansicht.zeit.nacht', '-', 'ansicht.wetter.klar', 'ansicht.wetter.nebel', 'ansicht.wetter.regen', 'ansicht.wetter.schnee', '-', 'ansicht.palette'] },
-      { titel: 'Zone', eintraege: ['zone.eigenschaften', 'zone.groesse', 'zone.pruefen', '-', 'vorlage.neu', 'vorlage.ausAuswahl', 'vorlage.speichern'] },
+      { titel: 'Zone', eintraege: ['zone.eigenschaften', 'zone.groesse', 'zone.pruefen', '-', 'zone.ersetzen', 'zone.generieren', '-', 'vorlage.neu', 'vorlage.ausAuswahl', 'vorlage.speichern'] },
       { titel: 'Werkzeuge', eintraege: WERKZEUGE.map((w) => (w.trenner ? '-' : `werkzeug.${w.id}`)) },
       { titel: 'KI', eintraege: ['ki.oeffnen', 'ki.einstellungen', 'ki.mcp'] },
       { titel: 'Hilfe', eintraege: ['hilfe.tasten', 'ansicht.palette', 'hilfe.ueber'] },
@@ -591,6 +596,68 @@ class Studio {
     });
     if (!w) return;
     this.neueZone({ id: w.id, name: w.name || w.id, breite: Math.max(20, Math.min(1500, w.breite | 0)), hoehe: Math.max(20, Math.min(1500, w.hoehe | 0)), boden: w.boden });
+  }
+
+  /** Rahmen der Auswahl (Kacheln) oder null */
+  auswahlRahmen() {
+    const boxen = this.dok.auswahl.map((a) => this.ansicht.boxVon(a)).filter(Boolean);
+    if (!boxen.length) return null;
+    const x = Math.floor(Math.min(...boxen.map((b) => b.min.x)));
+    const y = Math.floor(Math.min(...boxen.map((b) => b.min.z)));
+    return { x, y, b: Math.ceil(Math.max(...boxen.map((b) => b.max.x))) - x, h: Math.ceil(Math.max(...boxen.map((b) => b.max.z))) - y };
+  }
+
+  async #dialogErsetzen() {
+    const k = this.dok.karte;
+    const typen = [...new Set([...k.s('objekte').values()].map((o) => o.typ))].sort();
+    const ziele = [...katalog().filter((e) => e.art === 'objekt' && !e.id.includes('@')).map((e) => [e.id, e.name]), ...spielordnerListe().map((m) => [`modell:${m.stem}`, `Modell: ${m.name}`])];
+    const kacheln = katalog().filter((e) => e.art === 'kachel').map((e) => [e.zeichen, e.name]);
+    const rahmen = this.auswahlRahmen();
+    const f = formular([
+      { name: 'bereich', titel: 'Bereich', art: 'auswahl', wert: rahmen ? 'auswahl' : 'zone', werte: [['zone', 'ganze Zone'], ...(rahmen ? [['auswahl', `Rahmen der Auswahl (${rahmen.b} × ${rahmen.h})`]] : [])] },
+      { name: 'vonTyp', titel: 'Objekte von', art: 'auswahl', wert: '', werte: [['', '— keine —'], ...typen.map((t) => [t, t])] },
+      { name: 'zu', titel: 'ersetzen durch', art: 'auswahl', wert: '', werte: [['', '— wählen —'], ...ziele] },
+      { name: 'vonZeichen', titel: 'Boden von', art: 'auswahl', wert: '', werte: [['', '— keiner —'], ...kacheln] },
+      { name: 'zuZeichen', titel: 'ersetzen durch', art: 'auswahl', wert: '', werte: [['', '— wählen —'], ...kacheln] },
+    ]);
+    const w = await dialog({ titel: 'Ersetzen', icon: 'ersetzen', inhalt: f.element, knoepfe: [{ text: 'Abbrechen', wert: null }, { text: 'Ersetzen', art: 'primaer', wert: () => f.werte() }] });
+    if (!w) return;
+    try {
+      const ops = B.ersetzOps(k, { r: w.bereich === 'auswahl' ? rahmen : null, vonTyp: w.vonTyp || null, zu: w.zu || null, vonZeichen: w.vonZeichen || null, zuZeichen: w.zuZeichen || null });
+      this.dok.aendere('Ersetzen', ops);
+      this.hinweis(`${ops.length} Änderungen`, 'erfolg');
+    } catch (fe) {
+      this.hinweis(fe.message, 'fehler');
+    }
+  }
+
+  async #dialogGenerieren() {
+    const k = this.dok.karte;
+    const r = this.auswahlRahmen() ?? { x: 0, y: 0, b: k.breite, h: k.hoehe };
+    const f = formular([
+      { name: 'art', titel: 'Was', art: 'auswahl', wert: 'wald', werte: [['wald', 'Wald (Waldboden, Bäume, Lichtung, See)'], ['nadelwald', 'Nadelwald'], ['dorf', 'Dorf (Straße + Häuser)']] },
+      { name: 'x', titel: 'Bereich x', art: 'zahl', wert: r.x },
+      { name: 'y', titel: 'y', art: 'zahl', wert: r.y },
+      { name: 'b', titel: 'Breite', art: 'zahl', wert: r.b },
+      { name: 'h', titel: 'Höhe', art: 'zahl', wert: r.h },
+      { name: 'dichte', titel: 'Wald-Dichte', art: 'zahl', wert: 5, min: 1, max: 15 },
+      { name: 'see', titel: '', art: 'schalter', wert: true, text: 'See' },
+      { name: 'lichtung', titel: '', art: 'schalter', wert: true, text: 'Lichtung' },
+      { name: 'haeuser', titel: 'Häuser (Dorf)', art: 'zahl', wert: 6, min: 1, max: 30 },
+      { name: 'vorlagen', titel: '', art: 'schalter', wert: this.vorlagenListe.length > 0, text: 'eigene Vorlagen als Häuser nutzen' },
+      { name: 'saat', titel: 'Variante', art: 'zahl', wert: Math.floor(Math.random() * 1000), hilfe: 'Gleiche Zahl = gleiches Ergebnis.' },
+      { art: 'hinweis', html: 'Ein Startpunkt zum Weiterbauen – alles ist ein einziger Undo-Schritt (Strg+Z).' },
+    ]);
+    const w = await dialog({ titel: 'Generieren', icon: 'generator', inhalt: f.element, knoepfe: [{ text: 'Abbrechen', wert: null }, { text: 'Generieren', art: 'primaer', wert: () => f.werte() }] });
+    if (!w) return;
+    try {
+      const bereich = { x: w.x, y: w.y, b: w.b, h: w.h };
+      const e = w.art === 'dorf' ? B.generiereDorf(k, bereich, { haeuser: w.haeuser, vorlagen: w.vorlagen ? this.vorlagenListe.map((v) => v.vorlage) : [], saat: w.saat }) : B.generiereWald(k, bereich, { dichte: w.dichte, see: w.see, lichtung: w.lichtung, set: w.art, saat: w.saat });
+      this.dok.aendere(w.art === 'dorf' ? 'Dorf generiert' : 'Wald generiert', B.verdichte(e.ops));
+      this.hinweis(w.art === 'dorf' ? `${e.haeuser} Häuser gebaut` : 'Wald generiert', 'erfolg');
+    } catch (fe) {
+      this.hinweis(fe.message, 'fehler');
+    }
   }
 
   async #dialogGroesse() {
