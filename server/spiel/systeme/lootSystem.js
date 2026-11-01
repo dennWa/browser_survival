@@ -2,6 +2,7 @@ import { GEGENSTAENDE } from '../konfiguration/gegenstaende.js';
 import { LOOT_TABELLEN } from '../konfiguration/lootTabellen.js';
 import { erzeugeGegenstand } from '../entitaeten/gegenstand.js';
 import { wuerfleAusZone } from '../karten/lootZonen.js';
+import { wuerfleSpawnpunkt } from '../karten/spawnpunkte.js';
 
 /**
  * Loot: Startverteilung auf die Loot-Punkte der Karte, Nachschub an geplünderten Punkten,
@@ -70,6 +71,13 @@ export function lasseBossLootFallen(spielWelt, x, y) {
 /** @returns true, wenn ein Gegenstand erzeugt wurde */
 function wuerfleLoot(spielWelt, punkt, index) {
   if (punkt.lootZone) return wuerfleZonenLoot(spielWelt, punkt, index);
+  if (punkt.spawnPunkt) {
+    // Studio-Spawnpunkt: genau ein Item, eigene Chance; `hoehe` = liegt auf einem Möbel (nur Optik)
+    const wahl = wuerfleSpawnpunkt(punkt.spawnPunkt, spielWelt.zufall);
+    if (!wahl) return false;
+    spielWelt.lootZustand[index].gegenstandId = erzeugeItem(spielWelt, wahl.id, punkt.x, punkt.y, wahl.menge, punkt.hoehe).id;
+    return true;
+  }
   if (spielWelt.zufall.zahl() >= (punkt.spawnChance ?? spielWelt.konfiguration.loot.spawnChance)) return false;
   const gegenstand = erzeugeAusTabelle(spielWelt, punkt.lootTabelle, punkt.x, punkt.y);
   spielWelt.lootZustand[index].gegenstandId = gegenstand.id;
@@ -102,10 +110,10 @@ function erzeugeAusTabelle(spielWelt, tabellenName, x, y) {
   return erzeugeItem(spielWelt, defId, x, y, spanne ? zufall.ganzzahl(spanne[0], spanne[1]) : 1);
 }
 
-function erzeugeItem(spielWelt, defId, x, y, menge) {
+function erzeugeItem(spielWelt, defId, x, y, menge, hoehe) {
   const { zufall } = spielWelt;
   const def = GEGENSTAENDE[defId];
   // Gefundene Schusswaffen sind teilweise geladen
   const magazin = def.kategorie === 'fernkampf' ? zufall.ganzzahl(0, Math.ceil(def.magazin / 2)) : undefined;
-  return spielWelt.hinzufuegen(erzeugeGegenstand({ id: spielWelt.neueId(), defId, x, y, menge, magazin }));
+  return spielWelt.hinzufuegen(erzeugeGegenstand({ id: spielWelt.neueId(), defId, x, y, menge, magazin, hoehe }));
 }

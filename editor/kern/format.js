@@ -31,6 +31,8 @@ export const FARBE = /^#[0-9a-fA-F]{6}$/;
  *   typen         { typId: { name, kategorie, b, h, blockiert, ebene, farbe?, bild?, modus?, asset?, glb? } }  eigene Objekttypen
  *                 (asset = ID in der Projekt-Bibliothek, kern/bibliothek.js; Export bettet das Modell als glb ein)
  *   lootZonen     [{ name, x, y, b, h, modus, eintraege, punkte, ort, … }]  Loot-Zonen (6.2, server/spiel/karten/lootZonen.js)
+ *   spawnpunkte   [{ x, y, inhalt, chance, intervall, menge?, hoehe? }]  Item-Spawnpunkte (Studio, server/spiel/karten/spawnpunkte.js)
+ *   objekte[].skalierung  0,25–4 (Studio; b/h sind schon skaliert, Spiel hebt nur die Optik-Höhe an)
  *   klaenge       [{ id, name, audio|daten|datei, art, … }]   Klanglandschaft (Phase 4, gemeinsam/audio/klanglandschaft.js)
  *   texturen      { typId: { farbe?, muster? } }              Bemalung pro Typ
  *   bemalung      { '#rrggbb': [[x, y, b, h], …] }           Farbe auf dem Boden (Rechtecke je Farbe)
@@ -106,6 +108,7 @@ export function ausDefinition(def) {
   for (const t of def.tierBereiche ?? []) karte.s('tierBereiche').set(karte.neueId(), kopie(t));
   for (const r of def.raumFlaechen ?? []) karte.s('raumFlaechen').set(karte.neueId(), kopie(r));
   for (const z of Array.isArray(def.lootZonen) ? def.lootZonen : []) if (z && typeof z === 'object') karte.s('lootZonen').set(karte.neueId(), kopie(z));
+  for (const p of Array.isArray(def.spawnpunkte) ? def.spawnpunkte : []) if (p && typeof p === 'object') karte.s('spawnpunkte').set(karte.neueId(), kopie(p));
   for (const roh of Array.isArray(def.klaenge) ? def.klaenge : []) {
     const k = pruefeKlang(roh, { breite: karte.breite, hoehe: karte.hoehe });
     if (!k) {
@@ -178,6 +181,7 @@ export function nachDefinition(karte) {
   if (karte.s('tierBereiche').size) def.tierBereiche = [...karte.s('tierBereiche').values()].map(kopie);
   if (karte.s('raumFlaechen').size) def.raumFlaechen = [...karte.s('raumFlaechen').values()].map(kopie);
   if (karte.s('lootZonen').size) def.lootZonen = [...karte.s('lootZonen').values()].map(kopie);
+  if (karte.s('spawnpunkte').size) def.spawnpunkte = [...karte.s('spawnpunkte').values()].map(kopie);
   if (karte.s('klaenge').size) def.klaenge = [...karte.s('klaenge')].map(([id, k]) => mitAudio({ id, ...kopie(k) })); // Bibliotheks-Audio → daten eingebettet
   const einstellungen = bereinigeLeere(kopie(karte.werte.einstellungen ?? {}));
   if (Object.keys(einstellungen).length) def.einstellungen = einstellungen;

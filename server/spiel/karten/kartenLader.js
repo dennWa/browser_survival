@@ -5,6 +5,7 @@ import { BEHAELTER_TYPEN } from '../../../gemeinsam/welt/behaelter.js';
 import { liesHoehen, klippenFuesse } from '../../../gemeinsam/welt/gelaende.js';
 import { pruefeKlang } from '../../../gemeinsam/audio/klanglandschaft.js';
 import { pruefeLootZone, punkteDerZone } from './lootZonen.js';
+import { pruefeSpawnpunkt } from './spawnpunkte.js';
 import { pruefeZonenEinstellungen } from './zonenEinstellungen.js';
 import { STADTRAND } from './stadtrand.js';
 import { WALDWEG } from './waldweg.js';
@@ -45,6 +46,8 @@ export const KARTEN = Object.freeze({
  *   lootZonen → zusätzliche lootPunkte mit `lootZone` (Regeln: lootZonen.js; nur Server, der Client sieht nur die Items)
  *   schnee true → Schneezone (daten.schnee): Schneefall statt Regen, verschneite Straßen, knirschende Schritte (Kachel '*' = Schnee)
  *   bemalung { '#rrggbb': [[x, y, b, h]] } → daten.bemalung (nur Optik: Client malt es in die Bodentextur)
+ *   objekte[].skalierung 0,25–4 (Studio) → nur Optik-Höhe (Fußabdruck b/h ist schon skaliert, Kollision folgt b/h)
+ *   spawnpunkte [{ x, y, inhalt, chance, intervall, menge?, hoehe? }] (Studio) → lootPunkte mit `spawnPunkt` (Regeln: spawnpunkte.js)
  */
 export function ladeKarte(id) {
   const definition = KARTEN[id];
@@ -116,6 +119,8 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE, { au
       throw new Error(`Karte "${definition.id}": Objekt #${i} unvollständig (typ, x, y, b, h nötig)`);
     }
     const objekt = { typ: o.typ, x: o.x, y: o.y, b: o.b, h: o.h, blockiert: !!o.blockiert, ebene: o.ebene ?? 'moebel', drehung: o.drehung ?? 0 };
+    // Studio: Größe (nur Optik-Höhe – b/h sind bereits mitskaliert, damit die Kollision passt)
+    if (Number.isFinite(o.skalierung) && o.skalierung > 0 && o.skalierung !== 1) objekt.skalierung = Math.min(4, Math.max(0.25, o.skalierung));
     // Bäume & Steine: klein (1 Holz/Stein) oder groß (2) – feste Zufallsverteilung nach Position (oder fest aus der Karte)
     if (GROESSEN_TYPEN.includes(o.typ)) objekt.groesse = o.groesse === 'klein' || o.groesse === 'gross' ? o.groesse : streuwert(o.x, o.y, 2) < ANTEIL_GROSS ? 'gross' : 'klein';
     // Lampen: Radius (Kacheln), Farbe, Stärke 0..1, Flackern; Kegel-Licht (Map-Editor): Richtung ° (0 = Osten, 90 = Süden), Öffnung 10–170°
@@ -169,6 +174,15 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE, { au
       if (zone.respawnZeit) punkt.respawnZeit = zone.respawnZeit;
       lootPunkte.push(punkt);
     }
+  });
+
+  // Item-Spawnpunkte (Studio): ein Item/eine Tabelle an genau einer Stelle, Chance je Versuch, Versuch alle `intervall` Minuten
+  (Array.isArray(definition.spawnpunkte) ? definition.spawnpunkte : []).forEach((roh) => {
+    const { punkt } = pruefeSpawnpunkt(roh, { breite, hoehe });
+    if (!punkt) return;
+    const lp = { x: punkt.x * kachelGroesse, y: punkt.y * kachelGroesse, spawnPunkt: punkt, spawnChance: punkt.chance / 100, respawnZeit: punkt.intervall * 60 };
+    if (punkt.hoehe) lp.hoehe = punkt.hoehe * kachelGroesse;
+    lootPunkte.push(lp);
   });
 
   const daten = { id: definition.id, name: definition.name, breite, hoehe, kachelGroesse, kacheln, raeume, objekte, uebergaenge };

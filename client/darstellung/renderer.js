@@ -2048,8 +2048,9 @@ export class Renderer {
         mesh.material = g.id === markiertId ? m.markiert : m.normal;
       }
       // Markiertes Item (E hebt es auf): hüpft leicht, Ring darunter
-      mesh.position.y = this.#hy(g.x, g.y) + (mesh.userData.icon ? 1.5 : 0) + (g.id === markiertId ? 2 + Math.sin(jetzt / 180) * 1.5 : 0);
-      if (g.id === markiertId) this.markierRing.position.set(g.x, 0.6 + this.#hy(g.x, g.y), g.y);
+      // g.hoehe: Studio-Spawnpunkt auf einem Möbel (Weltpixel)
+      mesh.position.y = this.#hy(g.x, g.y) + (g.hoehe ?? 0) + (mesh.userData.icon ? 1.5 : 0) + (g.id === markiertId ? 2 + Math.sin(jetzt / 180) * 1.5 : 0);
+      if (g.id === markiertId) this.markierRing.position.set(g.x, 0.6 + (g.hoehe ?? 0) + this.#hy(g.x, g.y), g.y);
     }
     this.markierRing.visible = markiertId !== null && this.items.has(markiertId);
     if (this.markierRing.visible) {

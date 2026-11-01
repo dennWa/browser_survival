@@ -452,7 +452,7 @@ export class KartenModell {
           if (!gruppe.parent) return;
           // eigene Maße vor dem Drehen, dann um den vollen Winkel (gruppe.rotation) – sonst sind bei 90° Breite/Tiefe vertauscht
           const eigen = eigeneGroesse(o);
-          const inhalt = eigenesModellInhalt(szene, { b: eigen.b, h: eigen.h, hoehe: typ.hoehe3d ?? 1, einheit: g });
+          const inhalt = eigenesModellInhalt(szene, { b: eigen.b, h: eigen.h, hoehe: (typ.hoehe3d ?? 1) * (o.skalierung ?? 1), einheit: g });
           gruppe.add(inhalt);
           // Leerlauf-Animation (Map-Editor 5.3): Kinder der eingefrorenen Gruppe aktualisieren ihre Matrizen weiter selbst
           const mischer = leerlaufMischer(inhalt, typ.animation);
@@ -475,7 +475,7 @@ export class KartenModell {
       const eigen = eigeneGroesse(o);
       const breite = eigen.b * g;
       const tiefe = eigen.h * g;
-      const hoehe = MOEBEL_HOEHE[o.typ] ?? 20;
+      const hoehe = (MOEBEL_HOEHE[o.typ] ?? 20) * (o.skalierung ?? 1); // Studio: skalierte Möbel werden auch höher
       const x = (o.x + o.b / 2) * g;
       const z = (o.y + o.h / 2) * g;
       const drehung = (-(o.drehung ?? 0) * Math.PI) / 180;
@@ -815,7 +815,7 @@ export class KartenModell {
         const m = new THREE.Matrix4().compose(
           new THREE.Vector3(x, 6 + this.hy(x, z), z),
           new THREE.Quaternion().setFromEuler(erz ? new THREE.Euler(0, zufall * 7, 0) : new THREE.Euler(zufall * 3, zufall * 7, zufall * 2)),
-          new THREE.Vector3(1 + zufall * 0.4, 0.7 + zufall * 0.3, 1.1 - zufall * 0.3).multiplyScalar(erz ? 1 : o.groesse === 'gross' ? 1.3 : 0.8),
+          new THREE.Vector3(1 + zufall * 0.4, 0.7 + zufall * 0.3, 1.1 - zufall * 0.3).multiplyScalar((erz ? 1 : o.groesse === 'gross' ? 1.3 : 0.8) * (o.skalierung ?? 1)),
         );
         const ziel = (erz ? erzMeshes : steinMeshes).get(block);
         eintrag.teile.push({ mesh: ziel.mesh, index: ziel.naechster++, matrix: m });

@@ -32,6 +32,7 @@
     "ws": "^8.22.0"
   },
   "devDependencies": {
+    "electron": "^38.8.6",
     "esbuild": "^0.25.10",
     "three": "^0.186.1"
   },

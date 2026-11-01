@@ -76,7 +76,7 @@ export function debugSchnappschuss(spielWelt, { spielerId = null } = {}) {
   const loot = (spielWelt.karte.lootPunkte ?? []).map((p, i) => {
     const z = spielWelt.lootZustand?.[i];
     const belegt = !!(z?.gegenstandId !== null && z?.gegenstandId !== undefined && spielWelt.holen(z.gegenstandId));
-    return { x: p.x, y: p.y, belegt, rest: belegt ? 0 : Math.max(0, Math.round((z?.rest ?? 0) * 10) / 10), zone: p.lootZone ?? null, raum: p.raum ?? null };
+    return { x: p.x, y: p.y, belegt, rest: belegt ? 0 : Math.max(0, Math.round((z?.rest ?? 0) * 10) / 10), zone: p.lootZone ?? null, raum: p.raum ?? null, spawnPunkt: p.spawnPunkt ? p.spawnPunkt.inhalt : null };
   });
   const uebergaenge = (spielWelt.welt?.uebergaenge ?? []).map((u) => {
     const px = u.px ?? { x0: u.x * kg, y0: u.y * kg, x1: (u.x + u.b) * kg, y1: (u.y + u.h) * kg };

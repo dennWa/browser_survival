@@ -15,7 +15,7 @@ for (const id of Object.keys(KARTEN)) {
       const ty = Math.floor(p.y / welt.kachelGroesse);
       assert.equal(welt.istBlockiert(tx, ty), false, `Spawn ${tx}|${ty} liegt in einer Wand`);
     }
-    for (const p of karte.lootPunkte) assert.ok(LOOT_TABELLEN[p.lootTabelle], `Loot-Tabelle "${p.lootTabelle}" fehlt`);
+    for (const p of karte.lootPunkte.filter((l) => !l.lootZone && !l.spawnPunkt)) assert.ok(LOOT_TABELLEN[p.lootTabelle], `Loot-Tabelle "${p.lootTabelle}" fehlt`);
   });
 }
 
