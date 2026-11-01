@@ -71,7 +71,10 @@ export class Viewport {
     this.szene = new THREE.Scene();
     this.szene.background = new THREE.Color(0x14171c);
     this.szene.fog = new THREE.Fog(0x14171c, 200, 700);
-    this.szene.add(new THREE.HemisphereLight(0xe3ecff, 0x40362a, 1.35));
+    this.himmel = new THREE.HemisphereLight(0xe3ecff, 0x40362a, 1.35);
+    this.szene.add(this.himmel);
+    this.dunkel = 0;
+    this.vorBild = null; // (Stimmung) vor jedem Bild: Lampen-Lichter, Wetter-Teilchen
     this.sonne = new THREE.DirectionalLight(0xfff4e0, 1.7);
     this.sonne.position.set(-60, 120, 40);
     this.szene.add(this.sonne);
@@ -206,8 +209,8 @@ export class Viewport {
       this.kameraP.lookAt(this.ziel);
       this.kameraP.far = Math.max(1000, a * 8);
       this.kameraP.updateProjectionMatrix();
-      this.szene.fog.near = a * 2.5;
-      this.szene.fog.far = a * 9;
+      this.szene.fog.near = a * 2.5 * (this.nebelFaktor ?? 1);
+      this.szene.fog.far = a * 9 * (this.nebelFaktor ?? 1);
     } else {
       const asp = this.leinwand.clientWidth / Math.max(1, this.leinwand.clientHeight);
       const h = a * 0.55;
@@ -241,10 +244,11 @@ export class Viewport {
       this.objekteSchmutzig = false;
       this.overlaysSchmutzig = false;
     }
-    this.gruppen.objekte.visible = this.gruppen.modelle.visible = this.ebenen.objekte;
+    this.gruppen.objekte.visible = this.gruppen.modelle.visible = this.ebenen.objekte && !this.spielOptikAn;
     this.gruppen.overlays.visible = this.ebenen.overlays;
     this.rasterHelfer.visible = this.ebenen.raster && !!this.karte;
     this.#kameraSetzen();
+    this.vorBild?.();
     this.renderer.render(this.szene, this.kamera);
   }
 

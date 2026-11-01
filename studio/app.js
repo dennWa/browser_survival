@@ -5,6 +5,8 @@ import { Befehle } from './kern/befehle.js';
 import { erstelleKiAusfuehrer } from './kern/kiAusfuehren.js';
 import * as A from './kern/aktionen.js';
 import { Viewport } from './ansicht/viewport.js';
+import { SpielOptik } from './ansicht/spielOptik.js';
+import { Stimmung } from './ansicht/stimmung.js';
 import { Werkzeuge, WERKZEUGE, MIT_GIZMO } from './ansicht/werkzeuge.js';
 import { Menues, tooltips } from './oberflaeche/menue.js';
 import { ZonenPanel, SzenePanel, AssetPanel, PruefPanel } from './oberflaeche/panels.js';
@@ -45,6 +47,9 @@ class Studio {
     this.menues = new Menues(this.befehle, document.getElementById('menues'));
     this.ansicht = new Viewport(document.getElementById('leinwand'));
     this.werkzeuge = new Werkzeuge(this);
+    this.ansicht.spielOptik = new SpielOptik(this.ansicht);
+    this.ansicht.spielOptik.beiStatus = (t) => (t ? this.hinweis(t) : this.hinweis('Spiel-Optik aktuell', 'erfolg'));
+    this.stimmung = new Stimmung(this.ansicht);
     this.asset = null;
     this.vorlagenListe = [];
     this.klangListe = [];
@@ -191,6 +196,7 @@ class Studio {
   #zoneGewechselt() {
     const z = this.dok.aktiv;
     this.ansicht.setzeKarte(z?.karte ?? null);
+    if (this.ansicht.spielOptik.an && z) this.ansicht.spielOptik.baue(this.dok.definition());
     document.getElementById('ansicht-leer').classList.toggle('versteckt', !!z);
     document.getElementById('zonen-titel').innerHTML = z ? `${z.quelle === 'vorlage' ? 'Vorlage' : 'Zone'} <b>${esc(z.karte.name)}</b>` : '';
     this.zonenPanel.zeichne();
@@ -216,6 +222,7 @@ class Studio {
     dok.bei('aenderung', ({ ops, zone }) => {
       if (zone !== dok.aktivId) return;
       ansicht.beiAenderung(ops);
+      ansicht.spielOptik.planen(() => dok.definition());
       this.szene.spaeter();
       this.inspektor.zeichne();
       this.pruefung.spaeter();
@@ -355,7 +362,11 @@ class Studio {
     const a = this.ansicht;
     document.getElementById('ansicht-oben-links').innerHTML = `<div class="glas"><div class="segment"><button data-befehl="ansicht.3d" class="${a.modus === '3d' ? 'aktiv' : ''}" data-tipp="3D-Ansicht" data-kuerzel="Tab">${icon('ansicht3d', 15)} 3D</button><button data-befehl="ansicht.2d" class="${a.modus === '2d' ? 'aktiv' : ''}" data-tipp="Draufsicht (2D)" data-kuerzel="Tab">${icon('ansicht2d', 15)} 2D</button></div></div>
       <div class="glas"><div class="segment"><button data-befehl="ansicht.raster" class="${a.ebenen.raster ? 'aktiv' : ''}" data-tipp="Raster">${icon('raster', 15)}</button><button data-befehl="ansicht.wandNiedrig" class="${a.wandNiedrig ? 'aktiv' : ''}" data-tipp="Wände niedrig" data-kuerzel="X" data-text="Innenräume von oben sehen">${icon('wandNiedrig', 15)}</button><button data-befehl="ansicht.objekte" class="${a.ebenen.objekte ? 'aktiv' : ''}" data-tipp="Objekte zeigen">${icon('objekt', 15)}</button><button data-befehl="ansicht.overlays" class="${a.ebenen.overlays ? 'aktiv' : ''}" data-tipp="Bereiche & Punkte zeigen">${icon('flaeche', 15)}</button></div></div>`;
-    document.getElementById('ansicht-oben-rechts').innerHTML = `<div class="glas"><div class="segment"><button data-befehl="ansicht.fokus" data-tipp="Auswahl zeigen" data-kuerzel="F">${icon('fokus', 15)}</button><button data-befehl="ansicht.ganz" data-tipp="Ganze Zone zeigen" data-kuerzel="Pos1">${icon('zone', 15)}</button></div></div>`;
+    const st = this.stimmung;
+    document.getElementById('ansicht-oben-rechts').innerHTML = `<div class="glas"><div class="segment"><button data-befehl="ansicht.spielOptik" class="${a.spielOptik.an ? 'aktiv' : ''}" data-tipp="Spiel-Optik" data-kuerzel="V" data-text="Echte Modelle & Texturen des Spiels zeigen">${icon('spielOptik', 15)} Spiel-Optik</button></div></div>
+      <div class="glas"><div class="segment">${['tag', 'abend', 'nacht'].map((z) => `<button data-befehl="ansicht.zeit.${z}" class="${st.tageszeit === z ? 'aktiv' : ''}" data-tipp="${{ tag: 'Tag', abend: 'Abend', nacht: 'Nacht' }[z]}">${icon({ tag: 'sonne', abend: 'abend', nacht: 'mond' }[z], 15)}</button>`).join('')}</div></div>
+      <div class="glas"><div class="segment">${['klar', 'nebel', 'regen', 'schnee'].map((w) => `<button data-befehl="ansicht.wetter.${w}" class="${st.wetter === w ? 'aktiv' : ''}" data-tipp="Wetter: ${{ klar: 'klar', nebel: 'Nebel', regen: 'Regen', schnee: 'Schnee' }[w]}">${w === 'klar' ? icon('sonne', 15) : { nebel: 'Nebel', regen: 'Regen', schnee: 'Schnee' }[w]}</button>`).join('')}</div></div>
+      <div class="glas"><div class="segment"><button data-befehl="ansicht.fokus" data-tipp="Auswahl zeigen" data-kuerzel="F">${icon('fokus', 15)}</button><button data-befehl="ansicht.ganz" data-tipp="Ganze Zone zeigen" data-kuerzel="Pos1">${icon('zone', 15)}</button></div></div>`;
   }
 
   #rechtsReiter() {
@@ -419,6 +430,9 @@ class Studio {
       { id: 'ansicht.wandNiedrig', gruppe: 'Ansicht', titel: 'Wände niedrig', icon: 'wandNiedrig', kuerzel: 'X', angehakt: () => ansicht.wandNiedrig, ausfuehren: () => { ansicht.setzeWandNiedrig(!ansicht.wandNiedrig); this.#ansichtsLeiste(); } },
       { id: 'ansicht.objekte', gruppe: 'Ansicht', titel: 'Objekte zeigen', icon: 'objekt', angehakt: () => ansicht.ebenen.objekte, ausfuehren: () => this.#ebene('objekte') },
       { id: 'ansicht.overlays', gruppe: 'Ansicht', titel: 'Bereiche & Punkte zeigen', icon: 'flaeche', angehakt: () => ansicht.ebenen.overlays, ausfuehren: () => this.#ebene('overlays') },
+      { id: 'ansicht.spielOptik', gruppe: 'Ansicht', titel: 'Spiel-Optik (echte Modelle)', icon: 'spielOptik', kuerzel: 'V', aktiv: mitZone, angehakt: () => ansicht.spielOptik.an, ausfuehren: () => { ansicht.spielOptik.setze(!ansicht.spielOptik.an, dok.definition()); this.#ansichtsLeiste(); } },
+      ...['tag', 'abend', 'nacht'].map((z) => ({ id: `ansicht.zeit.${z}`, gruppe: 'Ansicht', titel: `Tageszeit: ${{ tag: 'Tag', abend: 'Abend', nacht: 'Nacht' }[z]}`, icon: { tag: 'sonne', abend: 'abend', nacht: 'mond' }[z], angehakt: () => this.stimmung.tageszeit === z, ausfuehren: () => { this.stimmung.setze({ tageszeit: z }); this.#ansichtsLeiste(); } })),
+      ...['klar', 'nebel', 'regen', 'schnee'].map((w) => ({ id: `ansicht.wetter.${w}`, gruppe: 'Ansicht', titel: `Wetter: ${{ klar: 'Klar', nebel: 'Nebel', regen: 'Regen', schnee: 'Schnee' }[w]}`, icon: 'wolke', angehakt: () => this.stimmung.wetter === w, ausfuehren: () => { this.stimmung.setze({ wetter: w }); this.#ansichtsLeiste(); } })),
       { id: 'ansicht.palette', gruppe: 'Ansicht', titel: 'Befehlspalette', icon: 'suche', kuerzel: ['Strg+K', 'Strg+P'], ausfuehren: () => this.menues.palette() },
       // Zone
       { id: 'zone.eigenschaften', gruppe: 'Zone', titel: 'Zonen-Eigenschaften', icon: 'einstellungen', aktiv: mitZone, ausfuehren: () => { dok.waehle([]); this.zeigeRechts('inspektor'); } },
@@ -450,7 +464,7 @@ class Studio {
     this.menues.baue([
       { titel: 'Datei', eintraege: ['zone.neu', 'zone.speichern', 'zone.insSpiel', '-', 'zone.testen', 'zone.testenHier', '-', 'asset.importModell', 'asset.importKlang', '-', 'zone.schliessen', 'studio.start', 'projekt.ordner'] },
       { titel: 'Bearbeiten', eintraege: ['bearbeiten.rueckgaengig', 'bearbeiten.wiederholen', '-', 'bearbeiten.kopieren', 'bearbeiten.einfuegen', 'bearbeiten.duplizieren', 'bearbeiten.loeschen', '-', 'bearbeiten.alles', 'bearbeiten.abwaehlen'] },
-      { titel: 'Ansicht', eintraege: ['ansicht.2d3d', 'ansicht.fokus', 'ansicht.ganz', '-', 'ansicht.raster', 'ansicht.wandNiedrig', 'ansicht.objekte', 'ansicht.overlays', '-', 'ansicht.palette'] },
+      { titel: 'Ansicht', eintraege: ['ansicht.2d3d', 'ansicht.fokus', 'ansicht.ganz', '-', 'ansicht.spielOptik', 'ansicht.raster', 'ansicht.wandNiedrig', 'ansicht.objekte', 'ansicht.overlays', '-', 'ansicht.zeit.tag', 'ansicht.zeit.abend', 'ansicht.zeit.nacht', '-', 'ansicht.wetter.klar', 'ansicht.wetter.nebel', 'ansicht.wetter.regen', 'ansicht.wetter.schnee', '-', 'ansicht.palette'] },
       { titel: 'Zone', eintraege: ['zone.eigenschaften', 'zone.groesse', 'zone.pruefen', '-', 'vorlage.neu', 'vorlage.ausAuswahl', 'vorlage.speichern'] },
       { titel: 'Werkzeuge', eintraege: WERKZEUGE.map((w) => (w.trenner ? '-' : `werkzeug.${w.id}`)) },
       { titel: 'KI', eintraege: ['ki.oeffnen', 'ki.einstellungen', 'ki.mcp'] },
