@@ -14,7 +14,7 @@ import { esc } from './dialoge.js';
  * Dokument.aendere – jede bestätigte Eingabe (change) = ein Undo-Schritt.
  */
 const LOOT_LISTE = Object.keys(LOOT_TABELLEN).filter((t) => t !== 'zombie' && t !== 'boss').sort();
-const TITEL = { objekte: ['Objekt', 'objekt'], spawnpunkte: ['Item-Spawnpunkt', 'spawn'], marker: ['Punkt', 'marker'], lootZonen: ['Loot-Zone', 'flaeche'], raumFlaechen: ['Raum', 'raum'], uebergaenge: ['Übergang', 'tuer'], ankuenfte: ['Ankunftspunkt', 'marker'], klaenge: ['Klang', 'klang'], tierBereiche: ['Hasen-Bereich', 'hase'], bauwerke: ['Bauwerk', 'wand'] };
+const TITEL = { objekte: ['Objekt', 'objekt'], spawnpunkte: ['Item-Spawnpunkt', 'spawn'], marker: ['Punkt', 'marker'], lootZonen: ['Loot-Zone', 'flaeche'], raumFlaechen: ['Raum', 'raum'], uebergaenge: ['Übergang', 'tuer'], ankuenfte: ['Ankunftspunkt', 'marker'], klaenge: ['Klang', 'klang'], tierBereiche: ['Hasen-Bereich', 'hase'], bauwerke: ['Bauwerk', 'wand'], notizen: ['Notiz', 'notiz'] };
 
 export class Inspektor {
   constructor(studio) {
@@ -116,6 +116,8 @@ export class Inspektor {
           + this.#abschnitt('Bereich', w.art === 'punkt' ? this.#lage(w) + this.#zahl('innen', w.innen, { min: 0, max: 50, schritt: 0.5, titel: 'Voll bis' }) + this.#zahl('aussen', w.aussen, { min: 1, max: 120, schritt: 1, titel: 'Hörweite' }) : w.art === 'bereich' ? this.#rechteck(w) + this.#zahl('rand', w.rand ?? 2, { min: 0, max: 20, schritt: 0.5, titel: 'Übergang' }) : '<div class="hinweis-kasten">Gilt für die ganze Zone.</div>');
       case 'tierBereiche':
         return this.#abschnitt('Hasen', this.#zahl('anzahl', w.anzahl, { min: 0, max: 100, schritt: 1, titel: 'Anzahl' }) + this.#zahl('respawnZeit', w.respawnZeit ?? '', { min: 0, max: 7200, schritt: 30, titel: 'Respawn s' })) + this.#abschnitt('Bereich', this.#rechteck(w));
+      case 'notizen':
+        return this.#abschnitt('Notiz', `<textarea class="feld" rows="5" data-feld="text" style="width:100%">${esc(w.text)}</textarea>` + this.#schalter('erledigt', w.erledigt, 'Status', 'erledigt') + this.#lage(w));
       case 'bauwerke':
         return this.#abschnitt('Bauwerk', `<div class="insp-zeile"><span>Typ</span><div>${esc(w.typ)}</div></div><div class="insp-zeile"><span>Kachel</span><div class="insp-xyz"><label>X<input class="feld zahl" type="number" step="1" data-feld="tx" value="${w.tx}" /></label><label>Y<input class="feld zahl" type="number" step="1" data-feld="ty" value="${w.ty}" /></label></div></div>`);
       default:
@@ -144,7 +146,15 @@ export class Inspektor {
       + this.#abschnitt('Allgemein', this.#text('zone.name', k.name, 'Name') + `<div class="insp-zeile"><span>ID</span><div style="color:var(--text-3)">${esc(k.id)}</div></div>` + this.#text('zone.musik', k.werte.musik, 'Musik-Ordner', k.id) + this.#schalter('zone.schnee', k.werte.schnee, 'Schneezone', 'Schneefall statt Regen'))
       + this.#abschnitt('Zone', this.#zahl('zone.zombie.dichte', e.zombie?.dichte ?? '', { min: 0, max: 5, schritt: 0.1, titel: 'Zombie-Dichte' }) + this.#zahl('zone.loot.spawnChance', e.loot?.spawnChance ?? '', { min: 0, max: 1, schritt: 0.05, titel: 'Loot-Chance' }) + this.#zahl('zone.loot.respawnZeit', e.loot?.respawnZeit ?? '', { min: 0, max: 7200, schritt: 30, titel: 'Loot-Respawn s' }))
       + this.#abschnitt('Inhalt', `<div style="color:var(--text-2);line-height:1.7">${k.s('objekte').size} Objekte · ${k.s('raeume').size} Räume · ${k.s('spawnpunkte').size} Spawnpunkte · ${k.s('lootZonen').size} Loot-Zonen · ${k.s('uebergaenge').size} Übergänge · ${k.s('klaenge').size} Klänge</div>`)
+      + this.#vorlagenKopien(k)
       + `<div class="insp-abschnitt"><div class="insp-knoepfe">${quelle === 'vorlage' ? `<button class="knopf primaer" data-aktion="vorlageSpeichern">${icon('speichern', 14)} Vorlage speichern</button>` : `<button class="knopf" data-aktion="zoneGroesse">${icon('skalieren', 14)} Größe ändern</button>`}</div></div>`;
+  }
+
+  #vorlagenKopien(k) {
+    const liste = k.werte.vorlagenInstanzen ?? [];
+    if (!liste.length) return '';
+    const name = (id) => this.studio.vorlagen().find((v) => v.id === id)?.name ?? id;
+    return this.#abschnitt(`Vorlagen-Kopien (${liste.length})`, liste.map((i) => `<div class="insp-zeile"><span title="${esc(i.vorlage)}">${esc(name(i.vorlage))}</span><div><span style="color:var(--text-3)">${i.x}|${i.y}</span><button class="knopf flach" data-aktion="kopieZeigen" data-id="${i.id}" title="Zeigen">${icon('fokus', 14)}</button><button class="knopf flach" data-aktion="kopieAktualisieren" data-id="${i.id}" title="Auf Stand der Vorlage bringen">${icon('wiederholen', 14)}</button><button class="knopf flach" data-aktion="kopieEntkoppeln" data-id="${i.id}" title="Entkoppeln">${icon('link', 14)}</button></div></div>`).join('') + '<div class="hinweis-kasten">Wird eine Vorlage gespeichert, fragt das Studio, ob alle Kopien mitziehen sollen.</div>');
   }
 
   // ---------- Ändern ----------
@@ -230,7 +240,7 @@ export class Inspektor {
     return dok.aendere('Zonen-Einstellung', [{ s: 'wert', pfad: `einstellungen.${feld}`, neu: wert }]);
   }
 
-  #aktion(art) {
+  #aktion(art, knopf) {
     const { dok, studio } = this;
     const k = dok.karte;
     const g = dok.gewaehlt();
@@ -240,6 +250,15 @@ export class Inspektor {
     if (art === 'alsVorlage') return studio.befehle.aus('vorlage.ausAuswahl');
     if (art === 'vorlageSpeichern') return studio.befehle.aus('vorlage.speichern');
     if (art === 'zoneGroesse') return studio.befehle.aus('zone.groesse');
+    if (art.startsWith('kopie')) {
+      const i = A.vorlagenInstanzen(k).find((x) => x.id === Number(knopf.dataset.id));
+      if (!i) return undefined;
+      if (art === 'kopieZeigen') return studio.ansicht.zeige(i.x + i.b / 2, i.y + i.h / 2, Math.max(i.b, i.h) * 2.2);
+      if (art === 'kopieEntkoppeln') return dok.aendere('Vorlage entkoppelt', A.entkoppleOps(k, i.id));
+      const v = studio.vorlagen().find((x) => x.id === i.vorlage);
+      if (!v) return studio.hinweis(`Vorlage „${i.vorlage}“ gibt es nicht mehr`, 'fehler');
+      return dok.aendere('Vorlage aktualisiert', A.aktualisiereInstanzOps(k, i, v.vorlage));
+    }
     if (art === 'farbeWeg' && g.length === 1) return dok.aendere('Farbe', A.aenderOps(k, g[0].s, g[0].k, { farbe: undefined }));
     if (art === 'zumZiel' && g.length === 1) {
       const u = g[0].wert;

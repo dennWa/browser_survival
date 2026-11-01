@@ -74,6 +74,9 @@ const P = {
   streuen: '<path d="M12 20v-4"/><path d="M12 4l4 6h-2l3 4H7l3-4H8z"/><circle cx="5" cy="7" r="1"/><circle cx="19" cy="6" r="1"/><circle cx="20" cy="14" r="1"/><circle cx="4" cy="15" r="1"/>',
   generator: '<path d="M4 20l6-10 4 6 2-3 4 7z"/><path d="M15 3l1 2 2 1-2 1-1 2-1-2-2-1 2-1z"/>',
   ersetzen: '<path d="M4 7h11l-3-3M20 17H9l3 3"/>',
+  notiz: '<path d="M5 3h10l4 4v14H5z"/><path d="M15 3v4h4M8 11h8M8 15h6"/>',
+  welt: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+  versionen: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   hauptmenue: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
 };
 

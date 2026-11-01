@@ -8,7 +8,7 @@ import { spielordnerTyp } from '../../editor/kern/spielordner.js';
 import { eingebauteVorlagen } from '../../editor/kern/lootVorlagen.js';
 import { neuerKlang } from '../../gemeinsam/audio/klanglandschaft.js';
 import { pruefeSpawnpunkt } from '../../server/spiel/karten/spawnpunkte.js';
-import { kopiere, einfuegeOps } from '../../editor/kern/auswahl.js';
+import { kopiere, einfuegeOps, loescheOps as loescheBereichOps } from '../../editor/kern/auswahl.js';
 
 /**
  * Bau-Aktionen des Studios – reine Funktionen (umgebungsfrei, Tests: tests/studio.test.js): Karte + Parameter → Liste von
@@ -352,4 +352,45 @@ export function objektKlaenge(karte) {
 /** Beim Öffnen: abgeleitete Objekt-Klänge aus der Sammlung entfernen (sie entstehen beim Export neu) */
 export function entferneObjektKlaenge(karte) {
   return [...karte.s('klaenge')].filter(([, c]) => typeof c.name === 'string' && c.name.endsWith(OBJEKT_KLANG_SUFFIX)).map(([k]) => ({ s: 'klaenge', k, neu: null }));
+}
+
+// ---------- Verknüpfte Vorlagen (Phase 1.13) ----------
+
+/** Kopien der Vorlagen in dieser Zone: [{ id, vorlage, x, y, b, h }] (werte.vorlagenInstanzen) */
+export const vorlagenInstanzen = (karte) => karte.werte.vorlagenInstanzen ?? [];
+
+/** Vorlage einsetzen UND als Kopie merken (für „alle aktualisieren“) */
+export function verknuepfteVorlageOps(karte, vorlageId, v, x, y) {
+  const { ops, weggelassen } = vorlageOps(karte, v, x, y);
+  const liste = vorlagenInstanzen(karte);
+  const id = Math.max(0, ...liste.map((i) => i.id)) + 1;
+  ops.push({ s: 'wert', pfad: 'vorlagenInstanzen', neu: [...liste, { id, vorlage: vorlageId, x: Math.round(x), y: Math.round(y), b: v.b, h: v.h }] });
+  return { ops, weggelassen, id };
+}
+
+/** Eine Kopie auf den neuen Stand der Vorlage bringen: Bereich leeren (Elemente + Spawnpunkte), neu einsetzen */
+export function aktualisiereInstanzOps(karte, instanz, v) {
+  const alt = { x: instanz.x, y: instanz.y, b: instanz.b, h: instanz.h };
+  const ops = loescheBereichOps(karte, alt, { fuellung: null });
+  for (const [id, p] of karte.s('spawnpunkte')) if (p.x >= alt.x && p.y >= alt.y && p.x < alt.x + alt.b && p.y < alt.y + alt.h) ops.push({ s: 'spawnpunkte', k: id, neu: null });
+  const k = karte.klon();
+  k.anwenden(ops);
+  const neu = vorlageOps(k, v, instanz.x, instanz.y).ops;
+  ops.push(...neu);
+  ops.push({ s: 'wert', pfad: 'vorlagenInstanzen', neu: vorlagenInstanzen(karte).map((i) => (i.id === instanz.id ? { ...i, b: v.b, h: v.h } : i)) });
+  return ops;
+}
+
+/** Kopie entkoppeln (bleibt stehen, wird nicht mehr aktualisiert) */
+export function entkoppleOps(karte, instanzId) {
+  return [{ s: 'wert', pfad: 'vorlagenInstanzen', neu: vorlagenInstanzen(karte).filter((i) => i.id !== instanzId) }];
+}
+
+// ---------- Notizen ----------
+
+export function notizOps(karte, x, y, text) {
+  const t = String(text ?? '').trim().slice(0, 500);
+  if (!t) throw new Error('Notiz ist leer');
+  const id = karte.naechsteId;
+  return { ops: [{ s: 'notizen', k: id, neu: { x: r3(x), y: r3(y), text: t } }], id };
 }

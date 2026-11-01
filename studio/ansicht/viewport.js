@@ -33,7 +33,7 @@ const MOEBEL_HOEHE = {
 };
 const FOTO_BODEN = { rasen: 'rasen', wiese: 'wiese', erde: 'erde', kies: 'kies', pflaster: 'pflaster', waldboden: 'waldboden', sand: 'sand' };
 const FORMEN = ['kasten', 'flach', 'stamm', 'krone', 'tanne', 'busch', 'stein', 'licht', 'mast'];
-const UEBERLAGERUNGEN = ['lootZonen', 'raumFlaechen', 'tierBereiche', 'uebergaenge', 'klaenge', 'spawnpunkte', 'marker', 'ankuenfte', 'bauwerke'];
+const UEBERLAGERUNGEN = ['lootZonen', 'raumFlaechen', 'tierBereiche', 'uebergaenge', 'klaenge', 'spawnpunkte', 'marker', 'ankuenfte', 'bauwerke', 'notizen'];
 const BAUM_TYPEN = new Set(['baum', 'baum_herbst']);
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -638,6 +638,10 @@ export class Viewport {
         } else if (s === 'ankuenfte') {
           g.add(this.#punkt(w.x + 0.5, w.y + 0.5, 0x4aa3ff, 'saeule', { schl, groesse: 0.28 }));
           g.add(this.#schrift(`◉ ${id}`, w.x + 0.5, w.y + 0.5, this.hoeheBei(w.x, w.y) + 2.4, '#9fd0ff'));
+        } else if (s === 'notizen') {
+          const pin = this.#punkt(w.x, w.y, w.erledigt ? 0x6c7380 : 0xffd23f, 'raute', { schl, hoehe: 1.6, groesse: 0.3 });
+          g.add(pin);
+          g.add(this.#schrift(`${w.erledigt ? '✓ ' : '✎ '}${w.text.length > 38 ? `${w.text.slice(0, 36)}…` : w.text}`, w.x, w.y, this.hoeheBei(w.x, w.y) + 2.6, w.erledigt ? '#9aa1ad' : '#ffe08a'));
         } else if (s === 'bauwerke') {
           const hoch = ['wand', 'tuer'].includes(BAUWERKE[w.typ]?.ebene) ? WAND_HOEHE : 0.7;
           const m = new THREE.Mesh(this.formGeo.kasten, new THREE.MeshLambertMaterial({ color: 0xa0784a }));
@@ -648,6 +652,12 @@ export class Viewport {
         }
       }
     }
+    // Verknüpfte Vorlagen-Kopien: gestrichelter Rahmen + Name
+    for (const i of k.werte.vorlagenInstanzen ?? []) {
+      const r = this.#rechteck(i.x, i.y, i.b, i.h, 0xb57cff, { deck: 0.03 });
+      g.add(r);
+      g.add(this.#schrift(`⧉ ${this.vorlagenName?.(i.vorlage) ?? i.vorlage}`, i.x + i.b / 2, i.y, this.hoeheBei(i.x, i.y) + 3.6, '#d7b8ff'));
+    }
     // Raumnamen
     for (const [buchstabe, r] of k.s('raeume')) {
       const flaechen = [...k.s('raumFlaechen').values()].filter((f) => f.raum === buchstabe);
@@ -656,6 +666,23 @@ export class Viewport {
       g.add(this.#schrift(r.name ?? buchstabe, f.x + f.b / 2, f.y + f.h / 2, this.hoeheBei(f.x, f.y) + 3.2, '#ffc58f'));
     }
     this.#zeichneAuswahl();
+  }
+
+  /** Vergleichs-Markierungen (Versionen): [{ x, y, b, h, art: 'neu'|'weg'|'geaendert' }] – null = aus */
+  setzeMarkierungen(liste) {
+    if (!this.markierGruppe) {
+      this.markierGruppe = new THREE.Group();
+      this.szene.add(this.markierGruppe);
+    }
+    const g = this.markierGruppe;
+    g.traverse((t) => {
+      t.geometry?.dispose();
+      t.material?.dispose?.();
+    });
+    g.clear();
+    const farbe = { neu: 0x46c27a, weg: 0xef5d5d, geaendert: 0xf2c14e };
+    for (const m of (liste ?? []).slice(0, 3000)) g.add(this.#rechteck(m.x, m.y, Math.max(0.5, m.b), Math.max(0.5, m.h), farbe[m.art] ?? 0xffffff, { deck: 0.35, hoehe: 0.05 }));
+    this.anfordern();
   }
 
   // ---------- Auswahl & Gizmo ----------

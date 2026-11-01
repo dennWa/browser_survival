@@ -146,6 +146,20 @@ export class Projekt {
     return { datei: relativ, registriert: neu, hinweise };
   }
 
+  // ---------- Versionen (benannte Schnappschüsse je Zone, .studio/versionen/<id>.json) ----------
+  versionen(id) {
+    const datei = this.pfad('.studio/versionen', `${id}.json`);
+    if (!ID_MUSTER.test(id) || !existsSync(datei)) return [];
+    return JSON.parse(readFileSync(datei, 'utf8'));
+  }
+
+  speichereVersionen(id, liste) {
+    if (!ID_MUSTER.test(id)) throw new Error('Ungültige Zonen-ID');
+    mkdirSync(this.pfad('.studio/versionen'), { recursive: true });
+    writeFileSync(this.pfad('.studio/versionen', `${id}.json`), JSON.stringify(liste));
+    return true;
+  }
+
   // ---------- Vorlagen (Prefabs) ----------
   vorlagen() {
     const ordner = this.pfad('studio/vorlagen');

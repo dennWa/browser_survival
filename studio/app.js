@@ -25,6 +25,8 @@ import { kopiereElemente, einfuegeOps } from '../editor/kern/auswahl.js';
 import { groesseAendern, ZONEN_ID_MUSTER } from '../editor/kern/zone.js';
 import { MODELL_KATEGORIEN } from '../editor/kern/katalog.js';
 import { testDaten } from '../editor/kern/testlauf.js';
+import { neueVersion, fuegeHinzu, vergleiche, wiederherstellenOps } from '../editor/kern/versionen.js';
+import { layoutAusUebergaengen } from '../editor/kern/zonenVerbund.js';
 import { hatFehler, validiere } from '../editor/kern/validierung.js';
 import { pruefeMarker } from '../editor/kern/platzierung.js';
 import { speichereEditorTest } from '../client/ui/editorTestSpeicher.js';
@@ -53,6 +55,7 @@ class Studio {
     this.ansicht.spielOptik = new SpielOptik(this.ansicht);
     this.ansicht.spielOptik.beiStatus = (t) => (t ? this.hinweis(t) : this.hinweis('Spiel-Optik aktuell', 'erfolg'));
     this.stimmung = new Stimmung(this.ansicht);
+    this.ansicht.vorlagenName = (id) => this.vorlagenListe.find((v) => v.id === id)?.name ?? id;
     this.asset = null;
     this.vorlagenListe = [];
     this.klangListe = [];
@@ -443,6 +446,10 @@ class Studio {
       { id: 'zone.pruefen', gruppe: 'Zone', titel: 'Prüfen', icon: 'pruefen', aktiv: mitZone, ausfuehren: () => { this.pruefung.pruefe(); this.zeigeRechts('pruef'); } },
       { id: 'zone.ersetzen', gruppe: 'Zone', titel: 'Ersetzen …', icon: 'ersetzen', kuerzel: 'Strg+H', aktiv: mitZone, ausfuehren: () => this.#dialogErsetzen() },
       { id: 'zone.generieren', gruppe: 'Zone', titel: 'Generieren (Wald, Dorf) …', icon: 'generator', aktiv: echteZone, ausfuehren: () => this.#dialogGenerieren() },
+      { id: 'zone.versionen', gruppe: 'Zone', titel: 'Versionen & Vergleich …', icon: 'versionen', aktiv: echteZone, ausfuehren: () => this.#dialogVersionen() },
+      { id: 'zone.versionSpeichern', gruppe: 'Zone', titel: 'Version speichern …', icon: 'versionen', kuerzel: 'Strg+Umschalt+S', aktiv: echteZone, ausfuehren: () => this.#versionSpeichern() },
+      { id: 'zone.vergleichAus', gruppe: 'Zone', titel: 'Vergleich ausblenden', icon: 'schliessen', versteckt: true, aktiv: () => !!this.vergleichAn, ausfuehren: () => { this.ansicht.setzeMarkierungen(null); this.vergleichAn = false; } },
+      { id: 'zone.weltkarte', gruppe: 'Zone', titel: 'Weltkarte …', icon: 'welt', kuerzel: 'Strg+M', ausfuehren: () => this.#weltkarte() },
       { id: 'vorlage.neu', gruppe: 'Zone', titel: 'Neue Vorlage bauen …', icon: 'vorlage', ausfuehren: () => this.#dialogNeueVorlage() },
       { id: 'vorlage.ausAuswahl', gruppe: 'Zone', titel: 'Auswahl als Vorlage speichern …', icon: 'vorlage', aktiv: mitAuswahl, ausfuehren: () => this.#vorlageAusAuswahl() },
       { id: 'vorlage.speichern', gruppe: 'Zone', titel: 'Vorlage speichern', icon: 'speichern', aktiv: () => dok.aktiv?.quelle === 'vorlage', ausfuehren: () => this.#vorlageSpeichern() },
@@ -470,7 +477,7 @@ class Studio {
       { titel: 'Datei', eintraege: ['zone.neu', 'zone.speichern', 'zone.insSpiel', '-', 'zone.testen', 'zone.testenHier', '-', 'asset.importModell', 'asset.importKlang', '-', 'zone.schliessen', 'studio.start', 'projekt.ordner'] },
       { titel: 'Bearbeiten', eintraege: ['bearbeiten.rueckgaengig', 'bearbeiten.wiederholen', '-', 'bearbeiten.kopieren', 'bearbeiten.einfuegen', 'bearbeiten.duplizieren', 'bearbeiten.loeschen', '-', 'bearbeiten.alles', 'bearbeiten.abwaehlen'] },
       { titel: 'Ansicht', eintraege: ['ansicht.2d3d', 'ansicht.fokus', 'ansicht.ganz', '-', 'ansicht.spielOptik', 'ansicht.raster', 'ansicht.wandNiedrig', 'ansicht.objekte', 'ansicht.overlays', '-', 'ansicht.zeit.tag', 'ansicht.zeit.abend', 'ansicht.zeit.nacht', '-', 'ansicht.wetter.klar', 'ansicht.wetter.nebel', 'ansicht.wetter.regen', 'ansicht.wetter.schnee', '-', 'ansicht.palette'] },
-      { titel: 'Zone', eintraege: ['zone.eigenschaften', 'zone.groesse', 'zone.pruefen', '-', 'zone.ersetzen', 'zone.generieren', '-', 'vorlage.neu', 'vorlage.ausAuswahl', 'vorlage.speichern'] },
+      { titel: 'Zone', eintraege: ['zone.eigenschaften', 'zone.groesse', 'zone.pruefen', 'zone.weltkarte', '-', 'zone.versionSpeichern', 'zone.versionen', 'zone.vergleichAus', '-', 'zone.ersetzen', 'zone.generieren', '-', 'vorlage.neu', 'vorlage.ausAuswahl', 'vorlage.speichern'] },
       { titel: 'Werkzeuge', eintraege: WERKZEUGE.map((w) => (w.trenner ? '-' : `werkzeug.${w.id}`)) },
       { titel: 'KI', eintraege: ['ki.oeffnen', 'ki.einstellungen', 'ki.mcp'] },
       { titel: 'Hilfe', eintraege: ['hilfe.tasten', 'ansicht.palette', 'hilfe.ueber'] },
@@ -500,6 +507,7 @@ class Studio {
     const ok = await frage('Ins Spiel übernehmen', `Schreibt <code>server/spiel/karten/${esc(dok.karte.id)}.js</code> und trägt die Zone im Spiel ein.${liste.length ? `<br /><br />${liste.length} Hinweise (keine Fehler).` : ''}<br /><br />Danach <code>npm test</code> laufen lassen und committen.`, { ja: 'Übernehmen', icon: 'insSpiel' });
     if (!ok) return;
     try {
+      await this.#versionAblegen('Ins Spiel übernommen', 'export');
       const r = await dok.insSpiel();
       this.hinweis(`${r.datei} geschrieben${r.registriert ? ' und im Spiel eingetragen' : ''}`, 'erfolg');
       this.zonenCache?.delete(dok.aktivId);
@@ -802,6 +810,190 @@ class Studio {
     this.#speicherStatus();
     this.zonenPanel.zeichne();
     this.hinweis(`Vorlage „${k.name}“ gespeichert (studio/vorlagen/${id}.json)`, 'erfolg');
+    await this.#kopienAktualisieren(id, vorlage);
+  }
+
+  /** Nach dem Speichern einer Vorlage: alle verknüpften Kopien in allen Zonen auf den neuen Stand bringen (nachfragen) */
+  async #kopienAktualisieren(vorlageId, vorlage) {
+    const treffer = [];
+    for (const [zid, k] of this.zonenKarten()) {
+      const n = A.vorlagenInstanzen(k).filter((i) => i.vorlage === vorlageId).length;
+      if (n) treffer.push([zid, n]);
+    }
+    if (!treffer.length) return;
+    const summe = treffer.reduce((s, [, n]) => s + n, 0);
+    const ok = await frage('Kopien aktualisieren?', `Diese Vorlage steckt <b>${summe}×</b> in: ${treffer.map(([z, n]) => `${esc(z)} (${n})`).join(', ')}.<br /><br />Alle Kopien auf den neuen Stand bringen? (je Zone ein Undo-Schritt, Zonen werden geöffnet und müssen danach gespeichert werden)`, { ja: 'Alle aktualisieren', icon: 'vorlage' });
+    if (!ok) return;
+    const zurueck = this.dok.aktivId;
+    for (const [zid] of treffer) {
+      await this.oeffneZone(zid);
+      const k = this.dok.karte;
+      this.dok.gruppe(`Vorlage „${vorlage.name ?? vorlageId}“ aktualisiert`, () => {
+        for (const i of A.vorlagenInstanzen(k).filter((x) => x.vorlage === vorlageId)) this.dok.aendere('Kopie', A.aktualisiereInstanzOps(k, i, vorlage));
+      });
+    }
+    this.dok.aktiviere(zurueck);
+    this.hinweis(`${summe} Kopien aktualisiert – Zonen speichern nicht vergessen`, 'erfolg');
+  }
+
+  // ---------- Notizen ----------
+  async neueNotiz(x, y) {
+    const f = formular([{ name: 'text', titel: 'Notiz', art: 'textfeld', wert: '', zeilen: 4 }]);
+    const w = await dialog({ titel: 'Notiz setzen', icon: 'notiz', inhalt: f.element, knoepfe: [{ text: 'Abbrechen', wert: null }, { text: 'Setzen', art: 'primaer', wert: () => f.werte() }] });
+    if (!w?.text?.trim()) return;
+    const { ops, id } = A.notizOps(this.dok.karte, x, y, w.text);
+    this.dok.aendere('Notiz', ops);
+    this.dok.waehle([{ s: 'notizen', k: id }]);
+  }
+
+  // ---------- Versionen ----------
+  async #versionAblegen(name, art = 'manuell') {
+    const id = this.dok.aktivId;
+    const liste = await nativ.aufruf('projekt.versionen', { id });
+    await nativ.aufruf('projekt.speichereVersionen', { id, liste: fuegeHinzu(liste, neueVersion(this.dok.karte, { name, art })) });
+  }
+
+  async #versionSpeichern() {
+    const f = formular([{ name: 'name', titel: 'Name', wert: `Stand ${new Date().toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}` }]);
+    const w = await dialog({ titel: 'Version speichern', icon: 'versionen', inhalt: f.element, knoepfe: [{ text: 'Abbrechen', wert: null }, { text: 'Speichern', art: 'primaer', wert: () => f.werte() }] });
+    if (!w) return;
+    await this.#versionAblegen(w.name);
+    this.hinweis(`Version „${w.name}“ gespeichert`, 'erfolg');
+  }
+
+  async #dialogVersionen() {
+    const id = this.dok.aktivId;
+    let liste = await nativ.aufruf('projekt.versionen', { id });
+    const el = document.createElement('div');
+    const zeichne = () => {
+      el.innerHTML = liste.length
+        ? liste.map((v, i) => {
+          const d = vergleiche(v.karte, this.dok.karte);
+          return `<div class="insp-zeile" style="grid-template-columns:1fr auto;padding:6px 0;border-bottom:1px solid var(--linie)"><div style="display:block"><b>${esc(v.name)}</b> <span style="color:var(--text-3)">${new Date(v.zeit).toLocaleString('de-DE')} · ${v.art}</span><div style="color:var(--text-3);font-size:11.5px">${d.anzahl ? `seitdem: ${esc(d.zusammenfassung.join(' · '))}` : 'identisch mit jetzt'}</div></div><div><button class="knopf" data-v="vergleich" data-i="${i}">Vergleichen</button><button class="knopf" data-v="laden" data-i="${i}">Wiederherstellen</button><button class="knopf flach gefahr" data-v="weg" data-i="${i}">${icon('loeschen', 14)}</button></div></div>`;
+        }).join('')
+        : '<div class="insp-leer">Noch keine Versionen. „Version speichern“ (Strg+Umschalt+S) legt eine an; vor „Ins Spiel“ entsteht automatisch eine.</div>';
+    };
+    zeichne();
+    await dialog({
+      titel: `Versionen – ${this.dok.karte.name}`,
+      icon: 'versionen',
+      breit: true,
+      inhalt: el,
+      knoepfe: [{ text: 'Schließen', wert: true, art: 'primaer' }],
+      beimOeffnen: (_d, schliesse) => {
+        el.addEventListener('click', async (e) => {
+          const b = e.target.closest('[data-v]');
+          if (!b) return;
+          const v = liste[Number(b.dataset.i)];
+          if (b.dataset.v === 'vergleich') {
+            const d = vergleiche(v.karte, this.dok.karte);
+            this.ansicht.setzeMarkierungen(d.markierungen);
+            this.vergleichAn = true;
+            this.hinweis(`Vergleich mit „${v.name}“: grün = neu, rot = weg, gelb = geändert (Zone → Vergleich ausblenden)`);
+            schliesse(true);
+          } else if (b.dataset.v === 'laden') {
+            await this.#versionAblegen('vor Wiederherstellen', 'wiederherstellung');
+            this.dok.aendere(`Version „${v.name}“ wiederhergestellt`, wiederherstellenOps(this.dok.karte, v.karte));
+            schliesse(true);
+          } else if (b.dataset.v === 'weg') {
+            liste = liste.filter((x) => x !== v);
+            await nativ.aufruf('projekt.speichereVersionen', { id, liste });
+            zeichne();
+          }
+        });
+      },
+    });
+  }
+
+  // ---------- Weltkarte ----------
+  async #weltkarte() {
+    const zonen = this.zonenKarten();
+    if (!zonen.size) return;
+    const start = zonen.has('stadtrand') ? 'stadtrand' : zonen.keys().next().value;
+    const layout = layoutAusUebergaengen(zonen, start);
+    // Zonen ohne Verbindung unten in einer Reihe
+    let maxY = Math.max(...Object.entries(layout).map(([id, p]) => p.y + zonen.get(id).hoehe));
+    let x = Math.min(...Object.values(layout).map((p) => p.x));
+    for (const [id, k] of zonen) if (!layout[id]) {
+      layout[id] = { x, y: maxY + 30 };
+      x += k.breite + 30;
+    }
+    const probleme = [];
+    for (const [id, k] of zonen) for (const u of k.s('uebergaenge').values()) {
+      const ziel = zonen.get(u.ziel);
+      if (!ziel) probleme.push(`${id} → „${u.ziel}“: Zielzone gibt es nicht`);
+      else {
+        if (!ziel.s('ankuenfte').has(u.ankunft)) probleme.push(`${id} → ${u.ziel}: Ankunft „${u.ankunft}“ fehlt`);
+        if (![...ziel.s('uebergaenge').values()].some((v) => v.ziel === id)) probleme.push(`${u.ziel} hat keinen Rückweg nach ${id}`);
+      }
+    }
+    const xs = Object.entries(layout).flatMap(([id, p]) => [p.x, p.x + zonen.get(id).breite]);
+    const ys = Object.entries(layout).flatMap(([id, p]) => [p.y, p.y + zonen.get(id).hoehe]);
+    const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+    const B = 860;
+    const H = 460;
+    const s = Math.min((B - 40) / (x1 - x0), (H - 40) / (y1 - y0));
+    const px = (v) => 20 + (v - x0) * s;
+    const py = (v) => 20 + (v - y0) * s;
+    const el = document.createElement('div');
+    el.innerHTML = `<canvas width="${B}" height="${H}" style="width:100%;border-radius:6px;background:#0d0f12;cursor:pointer"></canvas><div style="margin-top:8px;color:var(--text-2)">${probleme.length ? probleme.map((p) => `<div style="color:var(--gelb)">⚠ ${esc(p)}</div>`).join('') : '✓ Alle Übergänge haben Ziel, Ankunft und Rückweg.'}</div>`;
+    const c = el.querySelector('canvas');
+    const ctx = c.getContext('2d');
+    const flaechen = [];
+    for (const [id, k] of zonen) {
+      const p = layout[id];
+      const r = [px(p.x), py(p.y), k.breite * s, k.hoehe * s];
+      flaechen.push([id, r]);
+      ctx.fillStyle = id === this.dok.aktivId ? 'rgba(255,138,61,0.25)' : 'rgba(70,194,122,0.14)';
+      ctx.strokeStyle = id === this.dok.aktivId ? '#ff8a3d' : '#46c27a';
+      ctx.lineWidth = 2;
+      ctx.fillRect(...r);
+      ctx.strokeRect(...r);
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(...r);
+      ctx.clip(); // Namen nicht in die Nachbarzone schreiben
+      ctx.fillStyle = '#d6d9df';
+      ctx.font = '600 13px Segoe UI, system-ui';
+      ctx.fillText(k.name.slice(0, 32), r[0] + 8, r[1] + 18);
+      ctx.fillStyle = '#9aa1ad';
+      ctx.font = '11px Segoe UI, system-ui';
+      ctx.fillText(`${id} · ${k.breite} × ${k.hoehe}`, r[0] + 8, r[1] + 34);
+      ctx.restore();
+      for (const u of k.s('uebergaenge').values()) {
+        const ok = zonen.has(u.ziel) && [...zonen.get(u.ziel).s('uebergaenge').values()].some((v) => v.ziel === id);
+        ctx.fillStyle = ok ? '#4aa3ff' : '#ef5d5d';
+        ctx.fillRect(px(p.x + u.x), py(p.y + u.y), Math.max(3, u.b * s), Math.max(3, u.h * s));
+        const ziel = layout[u.ziel];
+        if (ziel && zonen.has(u.ziel)) {
+          ctx.strokeStyle = ok ? 'rgba(74,163,255,0.6)' : 'rgba(239,93,93,0.8)';
+          ctx.setLineDash(ok ? [] : [5, 4]);
+          ctx.beginPath();
+          ctx.moveTo(px(p.x + u.x + u.b / 2), py(p.y + u.y + u.h / 2));
+          ctx.lineTo(px(ziel.x + zonen.get(u.ziel).breite / 2), py(ziel.y + zonen.get(u.ziel).hoehe / 2));
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      }
+    }
+    await dialog({
+      titel: 'Weltkarte',
+      icon: 'welt',
+      breit: true,
+      inhalt: el,
+      knoepfe: [{ text: 'Schließen', wert: true, art: 'primaer' }],
+      beimOeffnen: (_d, schliesse) =>
+        c.addEventListener('click', (e) => {
+          const r = c.getBoundingClientRect();
+          const mx = ((e.clientX - r.left) / r.width) * B;
+          const my = ((e.clientY - r.top) / r.height) * H;
+          const t = flaechen.find(([, [fx, fy, fb, fh]]) => mx >= fx && my >= fy && mx <= fx + fb && my <= fy + fh);
+          if (t) {
+            schliesse(true);
+            this.oeffneZone(t[0]);
+          }
+        }),
+    });
   }
 
   async #vorlageAusAuswahl() {

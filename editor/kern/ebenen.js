@@ -42,6 +42,7 @@ const SAMMLUNG_EBENE = {
   klaenge: 'klaenge',
   lootZonen: 'marker',
   spawnpunkte: 'marker',
+  notizen: 'marker',
 };
 
 /** Ebene einer Sammlung bzw. Operationsart ('kachel', 'objekte' …) oder null */

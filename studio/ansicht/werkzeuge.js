@@ -29,6 +29,7 @@ export const WERKZEUGE = [
   { id: 'klang', titel: 'Klang setzen', icon: 'klang', kuerzel: 'K', text: 'Punktklang mit Hörweite setzen (oder an ein Objekt hängen).' },
   { id: 'spawn', titel: 'Item-Spawnpunkt', icon: 'spawn', kuerzel: 'I', text: 'Ein Item mit Chance & Intervall. Über Möbeln wird es automatisch draufgelegt.' },
   { id: 'marker', titel: 'Punkt setzen', icon: 'marker', kuerzel: 'P', text: 'Spieler-Start, Zombie, Horde oder Ankunftspunkt.' },
+  { id: 'notiz', titel: 'Notiz', icon: 'notiz', kuerzel: 'Z', text: 'Klick setzt einen Notiz-Pin (z. B. „hier fehlt eine Tankstelle“) – auch für die KI lesbar.' },
 ];
 export const MIT_GIZMO = { bewegen: 'translate', drehen: 'rotate', skalieren: 'scale' };
 
@@ -316,6 +317,8 @@ export class Werkzeuge {
       }
       case 'klang':
         return this.#setzeKlang(p);
+      case 'notiz':
+        return this.studio.neueNotiz(p.x, p.y);
       case 'marker': {
         const o = this.opt.marker;
         if (o.art !== 'ankunft') {
@@ -466,7 +469,8 @@ export class Werkzeuge {
     const v = this.#objektVorschlag(p);
     if (!v) return this.studio.hinweis('Erst ein Objekt, Modell oder eine Vorlage in den Assets wählen', 'fehler');
     if (v.vorlage) {
-      const { ops, weggelassen } = A.vorlageOps(k, v.vorlage, v.x, v.y);
+      const vid = this.studio.asset.vorlageId;
+      const { ops, weggelassen } = vid ? A.verknuepfteVorlageOps(k, vid, v.vorlage, v.x, v.y) : A.vorlageOps(k, v.vorlage, v.x, v.y);
       this.dok.aendere(`Vorlage „${this.studio.asset.name}“`, ops);
       if (weggelassen) this.studio.hinweis(`${weggelassen} Teile lagen außerhalb der Zone`);
       return;

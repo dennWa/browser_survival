@@ -71,6 +71,7 @@ const SZENE_GRUPPEN = [
   ['klaenge', 'Klänge', 'klang'],
   ['tierBereiche', 'Tiere', 'hase'],
   ['bauwerke', 'Bauwerke', 'wand'],
+  ['notizen', 'Notizen', 'notiz'],
 ];
 
 export function eintragName(karte, s, k, w) {
@@ -88,6 +89,7 @@ export function eintragName(karte, s, k, w) {
   if (s === 'klaenge') return `${w.name ?? 'Klang'} (${w.art})`;
   if (s === 'tierBereiche') return `${w.anzahl} Hasen`;
   if (s === 'bauwerke') return w.typ;
+  if (s === 'notizen') return `${w.erledigt ? '✓ ' : ''}${w.text}`;
   return String(k);
 }
 

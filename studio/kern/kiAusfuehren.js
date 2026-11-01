@@ -93,7 +93,7 @@ export function erstelleKiAusfuehrer(studio) {
       if (id.startsWith('vorlage:')) {
         const v = studio.vorlagen().find((t) => t.id === id.slice(8));
         if (!v) throw new Error(`Vorlage „${id.slice(8)}“ gibt es nicht`);
-        const { ops, weggelassen } = A.vorlageOps(k, v.vorlage, x, y);
+        const { ops, weggelassen } = A.verknuepfteVorlageOps(k, v.id, v.vorlage, x, y);
         aendere(`Vorlage ${v.name}`, ops);
         return ok(`Vorlage eingesetzt${weggelassen ? ` (${weggelassen} Teile außerhalb weggelassen)` : ''}.`);
       }
@@ -152,6 +152,30 @@ export function erstelleKiAusfuehrer(studio) {
       const e = a.art === 'dorf' ? B.generiereDorf(karte(), r, { haeuser: a.haeuser ?? 6, vorlagen: a.mit_vorlagen ? studio.vorlagen().map((v) => v.vorlage) : [], saat: a.saat ?? 11 }) : B.generiereWald(karte(), r, { dichte: a.dichte ?? 5, set: a.art, saat: a.saat ?? 7 });
       aendere(`${a.art} generiert`, B.verdichte(e.ops));
       return ok(a.art === 'dorf' ? `Dorf mit ${e.haeuser} Häusern generiert.` : 'Wald generiert.');
+    },
+    notizen_liste: () => ok(null, [...karte().s('notizen')].map(([id, n]) => ({ id, ...n }))),
+    notiz_setzen: ({ x, y, text }) => {
+      const { ops, id } = A.notizOps(karte(), x, y, text);
+      aendere('Notiz', ops);
+      return ok(`Notiz ${id} gesetzt.`);
+    },
+    notiz_erledigt: ({ id, erledigt = true }) => ok(`${aendere('Notiz erledigt', A.aenderOps(karte(), 'notizen', id, { erledigt: erledigt || undefined }))} Änderung.`),
+    weltkarte: () => {
+      const zonen = studio.zonenKarten();
+      const liste = [];
+      for (const [id, k] of zonen) {
+        liste.push({
+          id,
+          name: k.name,
+          groesse: `${k.breite} × ${k.hoehe}`,
+          uebergaenge: [...k.s('uebergaenge').values()].map((u) => {
+            const z = zonen.get(u.ziel);
+            return { ziel: u.ziel, ankunft: u.ankunft, rand: { x: u.x, y: u.y, b: u.b, h: u.h }, zielGibtEs: !!z, ankunftGibtEs: !!z?.s('ankuenfte').has(u.ankunft), rueckweg: !!z && [...z.s('uebergaenge').values()].some((v) => v.ziel === id) };
+          }),
+          ankuenfte: Object.fromEntries(k.s('ankuenfte')),
+        });
+      }
+      return ok(null, liste);
     },
     vorlagen_liste: () => ok(null, studio.vorlagen().map((v) => ({ id: v.id, name: v.name, b: v.vorlage.b, h: v.vorlage.h }))),
     vorlage_einsetzen: ({ id, x, y }) => W.objekt_platzieren({ id: `vorlage:${id}`, x, y }),
