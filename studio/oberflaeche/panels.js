@@ -6,6 +6,7 @@ import { GEGENSTAENDE } from '../../server/spiel/konfiguration/gegenstaende.js';
 import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
 import { ausSchluessel } from '../../editor/kern/karte.js';
 import { ITEM_LISTE } from '../ansicht/werkzeuge.js';
+import { EBENEN } from '../../editor/kern/ebenen.js';
 import { icon } from './icons.js';
 import { esc } from './dialoge.js';
 
@@ -104,6 +105,12 @@ export class SzenePanel {
       this.zeichne();
     });
     this.el.addEventListener('click', (e) => {
+      const eb = e.target.closest('[data-ebene]');
+      if (eb) return studio.setzeEbene(eb.dataset.ebene, eb.dataset.art);
+      if (e.target.closest('[data-ebenen-kopf]')) {
+        this.ebenenOffen = !this.ebenenOffen;
+        return this.zeichne();
+      }
       const g = e.target.closest('[data-gruppe]');
       if (g) {
         const s = g.dataset.gruppe;
@@ -141,12 +148,15 @@ export class SzenePanel {
       const kinder = zu ? '' : eintraege.slice(0, 250).map(([id, , n]) => `<div class="liste-eintrag ${gewaehlt.has(`${s}|${id}`) ? 'aktiv' : ''}" data-s="${s}" data-k="${esc(id)}" data-zahl="${typeof id === 'number' ? 1 : 0}">${icon(ic, 14)}<span>${esc(n)}</span></div>`).join('') + (eintraege.length > 250 ? `<div class="liste-mehr">… und ${eintraege.length - 250} weitere (filtern)</div>` : '');
       teile.push(`<div class="baum-gruppe ${zu ? 'zu' : ''}"><div class="liste-eintrag" data-gruppe="${s}"><span class="baum-pfeil">${icon('pfeilRunter', 14)}</span><span>${titel}</span><span class="neben">${eintraege.length}</span></div><div class="baum-kinder">${kinder}</div></div>`);
     }
-    this.el.innerHTML = teile.join('') || '<div class="insp-leer">Die Zone ist noch leer.</div>';
+    const eb = this.studio.dok.ebenen;
+    const ebenen = `<div class="baum-gruppe ${this.ebenenOffen ? '' : 'zu'}"><div class="liste-eintrag" data-ebenen-kopf><span class="baum-pfeil">${icon('pfeilRunter', 14)}</span><span>Ebenen</span><span class="neben">${EBENEN.filter((x) => !eb[x.id]?.sichtbar || eb[x.id]?.gesperrt).length || ''}</span></div><div class="baum-kinder">${EBENEN.map((x) => `<div class="liste-eintrag" style="cursor:default">${icon('ebenen', 14)}<span>${esc(x.name)}</span><span class="neben" style="display:flex;gap:2px"><button class="knopf flach" data-ebene="${x.id}" data-art="sichtbar" title="ein-/ausblenden">${icon(eb[x.id]?.sichtbar === false ? 'augeZu' : 'auge', 14)}</button><button class="knopf flach" data-ebene="${x.id}" data-art="gesperrt" title="sperren" style="${eb[x.id]?.gesperrt ? 'color:var(--akzent)' : ''}">${icon('schloss', 14)}</button></span></div>`).join('')}</div></div>`;
+    this.el.innerHTML = ebenen + (teile.join('') || '<div class="insp-leer">Die Zone ist noch leer.</div>');
   }
 }
 
 // ---------------- Assets ----------------
 const REITER = [
+  ['zuletzt', 'Zuletzt', null],
   ['boeden', 'Böden', (e) => (e.art === 'kachel' && e.kategorie !== 'Mauern') || (e.art === 'objekt' && e.kategorie === 'Böden')],
   ['mauern', 'Wände', (e) => (e.art === 'kachel' && e.kategorie === 'Mauern') || (e.art === 'bauwerk' && e.kategorie === 'Mauern')],
   ['natur', 'Natur', (e) => e.art === 'objekt' && ['Umwelt', 'Ressourcen'].includes(e.kategorie)],
@@ -162,7 +172,7 @@ const REITER = [
 export class AssetPanel {
   constructor(studio) {
     this.studio = studio;
-    this.reiter = 'boeden';
+    this.reiter = (studio.zuletzt?.length ? 'zuletzt' : 'boeden');
     this.suche = '';
     this.el = document.getElementById('asset-raster');
     this.kopf = document.getElementById('asset-reiter');
@@ -199,6 +209,12 @@ export class AssetPanel {
       const eigene = this.studio.vorlagen().map((v) => ({ art: 'vorlage', id: `vorlage:${v.id}`, vorlageId: v.id, name: v.name, vorlage: v.vorlage }));
       const eingebaut = eingebautePrefabs().map((p, i) => ({ art: 'vorlage', id: `prefab:${i}`, name: p.name, vorlage: p.vorlage, eingebaut: true }));
       return [...eigene, ...eingebaut].filter((v) => passt(v.name));
+    }
+    if (this.reiter === 'zuletzt') {
+      const vorlagen = this.studio.vorlagen();
+      return (this.studio.zuletzt ?? [])
+        .map((a) => (a.art === 'vorlage' && !a.eingebaut ? (vorlagen.find((v) => v.id === a.vorlageId) ? { ...a, vorlage: vorlagen.find((v) => v.id === a.vorlageId).vorlage } : null) : a.art === 'vorlage' ? null : a))
+        .filter((a) => a && passt(a.name));
     }
     if (this.reiter === 'items') return ITEM_LISTE.filter((i) => passt(`${i.name} ${i.id} ${i.kategorie}`)).map((i) => ({ art: 'item', id: i.id, name: i.name, kategorie: i.kategorie }));
     const filter = REITER.find((r) => r[0] === this.reiter)[2];

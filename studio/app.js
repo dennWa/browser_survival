@@ -29,6 +29,8 @@ import { neueVersion, fuegeHinzu, vergleiche, wiederherstellenOps } from '../edi
 import { layoutAusUebergaengen } from '../editor/kern/zonenVerbund.js';
 import { laufweg, balance, heatmapGitter, BEREICHE } from './kern/analyse.js';
 import { lootDichte } from '../editor/kern/lootZonenEditor.js';
+import { hilfslinieOps } from '../editor/kern/messen.js';
+import { ebenenAus, EBENEN } from '../editor/kern/ebenen.js';
 import { nachDefinition } from '../editor/kern/format.js';
 import { KACHELN } from '../gemeinsam/welt/kacheln.js';
 import { RESSOURCEN_OBJEKTE } from '../gemeinsam/welt/ressourcen.js';
@@ -60,6 +62,13 @@ class Studio {
     this.ansicht.spielOptik = new SpielOptik(this.ansicht);
     this.ansicht.spielOptik.beiStatus = (t) => (t ? this.hinweis(t) : this.hinweis('Spiel-Optik aktuell', 'erfolg'));
     this.stimmung = new Stimmung(this.ansicht);
+    try {
+      this.dok.ebenen = ebenenAus(JSON.parse(localStorage.getItem('browserSurvival.studio.ebenen') || 'null'));
+      this.zuletzt = JSON.parse(localStorage.getItem('browserSurvival.studio.zuletzt') || '[]');
+    } catch {
+      this.zuletzt = [];
+    }
+    this.ansicht.ebenenZustand = this.dok.ebenen;
     this.ansicht.vorlagenName = (id) => this.vorlagenListe.find((v) => v.id === id)?.name ?? id;
     this.asset = null;
     this.vorlagenListe = [];
@@ -168,6 +177,14 @@ class Studio {
 
   waehleAsset(a) {
     this.asset = a;
+    // „Zuletzt benutzt“ (Vorlagen nur als Verweis, Inhalt kommt frisch aus der Liste)
+    const merk = a.art === 'vorlage' ? { art: a.art, id: a.id, name: a.name, vorlageId: a.vorlageId, eingebaut: a.eingebaut } : a;
+    this.zuletzt = [merk, ...this.zuletzt.filter((z) => z.id !== a.id)].slice(0, 18);
+    try {
+      localStorage.setItem('browserSurvival.studio.zuletzt', JSON.stringify(this.zuletzt));
+    } catch {
+      // egal
+    }
     if (a.art === 'kachel') {
       if (a.kategorie === 'Mauern') {
         this.werkzeuge.opt.wand.art = a.zeichen === 'T' ? 'tuer' : a.zeichen === 'F' ? 'fenster' : 'wand';
@@ -234,6 +251,7 @@ class Studio {
       if (zone !== dok.aktivId) return;
       ansicht.beiAenderung(ops);
       ansicht.spielOptik.planen(() => dok.definition());
+      werkzeuge.vergissFang();
       this.szene.spaeter();
       this.inspektor.zeichne();
       this.pruefung.spaeter();
@@ -255,13 +273,13 @@ class Studio {
       schweben: (e) => werkzeuge.schweben(e),
       verlassen: () => werkzeuge.verlassen(),
       rad: (e) => werkzeuge.rad(e),
-      doppel: () => ansicht.zeigeAuswahl(),
+      doppel: () => (werkzeuge.aktiv === 'messen' ? werkzeuge.messenEnde() : ansicht.zeigeAuswahl()),
       kontext: (e) => {
         const p = ansicht.treffe(e.clientX, e.clientY);
         if (this.ansicht.laufen) return;
         if (p?.treffer && !dok.auswahl.some((a) => a.s === p.treffer.s && a.k === p.treffer.k)) dok.waehle([p.treffer]);
         this.einfuegePunkt = p;
-        this.menues.kontext(e.clientX, e.clientY, dok.auswahl.length ? ['bearbeiten.kopieren', 'bearbeiten.duplizieren', 'vorlage.ausAuswahl', '-', 'ansicht.fokus', '-', 'bearbeiten.loeschen'] : ['bearbeiten.einfuegen', '-', 'ansicht.2d3d', 'ansicht.fokus']);
+        this.menues.kontext(e.clientX, e.clientY, dok.auswahl.length ? ['bearbeiten.kopieren', 'bearbeiten.duplizieren', 'vorlage.ausAuswahl', '-', 'ansicht.fokus', '-', 'bearbeiten.loeschen'] : ['bearbeiten.einfuegen', 'notiz.hier', '-', 'hilfslinie.waagerecht', 'hilfslinie.senkrecht', '-', 'ansicht.2d3d', 'ansicht.fokus']);
       },
     };
     ansicht.beiGizmo = (art, w) => this.#gizmo(art, w);
@@ -431,7 +449,12 @@ class Studio {
       { id: 'bearbeiten.duplizieren', gruppe: 'Bearbeiten', titel: 'Duplizieren', icon: 'kopieren', kuerzel: 'Strg+D', aktiv: mitAuswahl, ausfuehren: () => { const { ops, neue } = A.duplizierOps(dok.karte, dok.auswahl, 1, 1); dok.aendere('Duplizieren', ops); dok.waehle(neue); } },
       { id: 'bearbeiten.loeschen', gruppe: 'Bearbeiten', titel: 'Löschen', icon: 'loeschen', kuerzel: ['Entf', 'Backspace'], aktiv: mitAuswahl, ausfuehren: () => { dok.aendere(`${dok.auswahl.length} gelöscht`, A.loeschOps(dok.auswahl)); dok.waehle([]); } },
       { id: 'bearbeiten.alles', gruppe: 'Bearbeiten', titel: 'Alle Objekte wählen', kuerzel: 'Strg+A', aktiv: mitZone, ausfuehren: () => dok.waehle([...dok.karte.s('objekte').keys()].map((k) => ({ s: 'objekte', k }))) },
-      { id: 'bearbeiten.abwaehlen', gruppe: 'Bearbeiten', titel: 'Auswahl aufheben', kuerzel: 'Esc', aktiv: mitZone, ausfuehren: () => { dok.waehle([]); ansicht.setzeGeist(null); } },
+      { id: 'bearbeiten.abwaehlen', gruppe: 'Bearbeiten', titel: 'Auswahl aufheben', kuerzel: 'Esc', aktiv: mitZone, ausfuehren: () => { if (werkzeuge.messenEnde(true)) return; dok.waehle([]); ansicht.setzeGeist(null); } },
+      { id: 'messen.fertig', gruppe: 'Werkzeuge', titel: 'Messung beenden', kuerzel: 'Enter', versteckt: true, aktiv: () => werkzeuge.aktiv === 'messen', ausfuehren: () => werkzeuge.messenEnde() },
+      { id: 'hilfslinie.waagerecht', gruppe: 'Ansicht', titel: 'Hilfslinie waagerecht (hier)', icon: 'raster', aktiv: mitZone, ausfuehren: () => this.#hilfslinie('y') },
+      { id: 'hilfslinie.senkrecht', gruppe: 'Ansicht', titel: 'Hilfslinie senkrecht (hier)', icon: 'raster', aktiv: mitZone, ausfuehren: () => this.#hilfslinie('x') },
+      { id: 'hilfslinien.loeschen', gruppe: 'Ansicht', titel: 'Alle Hilfslinien löschen', icon: 'loeschen', aktiv: () => !!(dok.karte?.werte.hilfslinien), ausfuehren: () => dok.aendere('Hilfslinien gelöscht', [{ s: 'wert', pfad: 'hilfslinien', neu: undefined }]) },
+      { id: 'notiz.hier', gruppe: 'Zone', titel: 'Notiz hier …', icon: 'notiz', aktiv: mitZone, ausfuehren: () => { const p = this.einfuegePunkt; this.neueNotiz(p ? p.x : ansicht.ziel.x, p ? p.y : ansicht.ziel.z); } },
       // Ansicht
       { id: 'ansicht.2d3d', gruppe: 'Ansicht', titel: '3D / 2D umschalten', icon: 'ansicht3d', kuerzel: 'Tab', ausfuehren: () => this.setzeAnsicht(ansicht.modus === '3d' ? '2d' : '3d') },
       { id: 'ansicht.3d', gruppe: 'Ansicht', titel: '3D-Ansicht', icon: 'ansicht3d', versteckt: true, ausfuehren: () => this.setzeAnsicht('3d') },
@@ -476,6 +499,30 @@ class Studio {
     );
   }
 
+  #hilfslinie(achse) {
+    const p = this.einfuegePunkt;
+    const wert = p ? (achse === 'x' ? Math.round(p.x * 2) / 2 : Math.round(p.y * 2) / 2) : achse === 'x' ? Math.round(this.ansicht.ziel.x) : Math.round(this.ansicht.ziel.z);
+    this.dok.aendere('Hilfslinie', hilfslinieOps(this.dok.karte, achse, null, wert));
+    this.hinweis(`Hilfslinie bei ${achse} = ${wert} – Objekte rasten daran ein`);
+  }
+
+  /** Ebene sichtbar/gesperrt umschalten (Szene-Panel) */
+  setzeEbene(id, art) {
+    const e = this.dok.ebenen[id];
+    if (!e) return;
+    e[art] = !e[art];
+    try {
+      localStorage.setItem('browserSurvival.studio.ebenen', JSON.stringify(this.dok.ebenen));
+    } catch {
+      // egal
+    }
+    this.ansicht.objekteSchmutzig = true;
+    this.ansicht.overlaysSchmutzig = true;
+    this.ansicht.anfordern();
+    this.szene.zeichne();
+    this.hinweis(`${EBENEN.find((x) => x.id === id)?.name}: ${art === 'sichtbar' ? (e.sichtbar ? 'sichtbar' : 'ausgeblendet') : e.gesperrt ? 'gesperrt' : 'entsperrt'}`);
+  }
+
   #ebene(name) {
     this.ansicht.ebenen[name] = !this.ansicht.ebenen[name];
     this.ansicht.anfordern();
@@ -486,7 +533,7 @@ class Studio {
     this.menues.baue([
       { titel: 'Datei', eintraege: ['zone.neu', 'zone.speichern', 'zone.insSpiel', '-', 'zone.testen', 'zone.testenHier', '-', 'asset.importModell', 'asset.importKlang', '-', 'zone.schliessen', 'studio.start', 'projekt.ordner'] },
       { titel: 'Bearbeiten', eintraege: ['bearbeiten.rueckgaengig', 'bearbeiten.wiederholen', '-', 'bearbeiten.kopieren', 'bearbeiten.einfuegen', 'bearbeiten.duplizieren', 'bearbeiten.loeschen', '-', 'bearbeiten.alles', 'bearbeiten.abwaehlen'] },
-      { titel: 'Ansicht', eintraege: ['ansicht.2d3d', 'ansicht.fokus', 'ansicht.ganz', '-', 'ansicht.spielOptik', 'ansicht.laufen', 'ansicht.heatmap', 'ansicht.raster', 'ansicht.wandNiedrig', 'ansicht.objekte', 'ansicht.overlays', '-', 'ansicht.zeit.tag', 'ansicht.zeit.abend', 'ansicht.zeit.nacht', '-', 'ansicht.wetter.klar', 'ansicht.wetter.nebel', 'ansicht.wetter.regen', 'ansicht.wetter.schnee', '-', 'ansicht.palette'] },
+      { titel: 'Ansicht', eintraege: ['ansicht.2d3d', 'ansicht.fokus', 'ansicht.ganz', '-', 'ansicht.spielOptik', 'ansicht.laufen', 'ansicht.heatmap', 'ansicht.raster', 'hilfslinie.waagerecht', 'hilfslinie.senkrecht', 'hilfslinien.loeschen', 'ansicht.wandNiedrig', 'ansicht.objekte', 'ansicht.overlays', '-', 'ansicht.zeit.tag', 'ansicht.zeit.abend', 'ansicht.zeit.nacht', '-', 'ansicht.wetter.klar', 'ansicht.wetter.nebel', 'ansicht.wetter.regen', 'ansicht.wetter.schnee', '-', 'ansicht.palette'] },
       { titel: 'Zone', eintraege: ['zone.eigenschaften', 'zone.groesse', 'zone.pruefen', 'pruefen.laufweg', 'pruefen.balance', 'zone.weltkarte', '-', 'zone.versionSpeichern', 'zone.versionen', 'zone.vergleichAus', '-', 'zone.ersetzen', 'zone.generieren', '-', 'vorlage.neu', 'vorlage.ausAuswahl', 'vorlage.speichern'] },
       { titel: 'Werkzeuge', eintraege: WERKZEUGE.map((w) => (w.trenner ? '-' : `werkzeug.${w.id}`)) },
       { titel: 'KI', eintraege: ['ki.oeffnen', 'ki.einstellungen', 'ki.mcp'] },

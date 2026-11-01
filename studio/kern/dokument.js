@@ -2,6 +2,7 @@ import { Verlauf } from '../../editor/kern/verlauf.js';
 import { ausDefinition, nachDefinition, entwurfJson, ladeDatei } from '../../editor/kern/format.js';
 import { neueZone } from '../../editor/kern/zone.js';
 import { objektKlaenge, entferneObjektKlaenge } from './aktionen.js';
+import { filtereGesperrt, standardEbenen, EBENEN } from '../../editor/kern/ebenen.js';
 
 /**
  * Dokument des Studios (umgebungsfrei bis auf den übergebenen `nativ`-Kanal → testbar mit Attrappe).
@@ -21,6 +22,8 @@ export class Dokument {
     this.auswahl = [];
     this.beobachter = new Map();
     this.vorlagenModus = null; // { id, name } wenn eine Vorlage bearbeitet wird
+    /** Ebenen { id: { sichtbar, gesperrt } } – gesperrte/ausgeblendete Ebenen nehmen keine Änderungen an (editor/kern/ebenen.js) */
+    this.ebenen = standardEbenen();
   }
 
   bei(art, f) {
@@ -117,6 +120,13 @@ export class Dokument {
   aendere(name, ops) {
     const z = this.aktiv;
     if (!z || !ops?.length) return [];
+    const gefiltert = filtereGesperrt(this.ebenen, ops);
+    const weg = Object.entries(gefiltert.ausgelassen);
+    if (weg.length) {
+      this.status(`Gesperrt: ${weg.map(([id, n]) => `${n}× ${EBENEN.find((e) => e.id === id)?.name ?? id}`).join(', ')} ausgelassen`, 'fehler');
+      ops = gefiltert.ops;
+      if (!ops.length) return [];
+    }
     const fertig = z.verlauf.ausfuehren(z.karte, name, ops);
     this.#auswahlBereinigen();
     return fertig;

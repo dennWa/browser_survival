@@ -7,6 +7,7 @@ import { BEHAELTER_TYPEN } from '../../gemeinsam/welt/behaelter.js';
 import { BAUWERKE } from '../../gemeinsam/welt/bauwerke.js';
 import { eigenesModellUrl, ladeEigenesModell, eigenesModellInhalt } from '../../client/darstellung/eigeneModelle.js';
 import { ausSchluessel } from '../../editor/kern/karte.js';
+import { ebeneVon, ebeneFrei } from '../../editor/kern/ebenen.js';
 
 /**
  * Ansicht des Studios (Three.js): dieselbe Szene als 3D (Perspektive, Orbit wie Unity) oder 2D (Draufsicht, orthografisch).
@@ -99,6 +100,7 @@ export class Viewport {
     this.modelle = new Map(); // Objekt-ID → { gruppe, sig }
     this.fotos = new Map();
     this.beiZeiger = null;
+    this.ebenenZustand = null; // Dokument.ebenen (sichtbar/gesperrt je Ebene)
     this.beiGizmo = null;
     this.beiKamera = null;
     this.#baueFormen();
@@ -462,8 +464,9 @@ export class Viewport {
       mat.compose(new THREE.Vector3(x, y, z), q, new THREE.Vector3(sx, sy, sz));
       jeForm[form].push({ schl, matrix: mat.clone(), farbe });
     };
+    const objekteAn = !this.ebenenZustand || this.ebenenZustand.objekte?.sichtbar !== false;
     for (const [id, o] of k.s('objekte')) {
-      if (o.ebene === 'unsichtbar') continue;
+      if (o.ebene === 'unsichtbar' || !objekteAn) continue;
       const cx = o.x + o.b / 2;
       const cz = o.y + o.h / 2;
       const boden = this.hoeheBei(cx, cz);
@@ -623,7 +626,9 @@ export class Viewport {
     });
     g.clear();
     const k = this.karte;
+    const sichtbar = (s) => !this.ebenenZustand || this.ebenenZustand[ebeneVon(s)]?.sichtbar !== false;
     for (const s of UEBERLAGERUNGEN) {
+      if (!sichtbar(s)) continue;
       for (const [id, w] of k.s(s)) {
         const schl = { s, k: id };
         if (s === 'lootZonen') g.add(this.#rechteck(w.x, w.y, w.b, w.h, 0xf2c14e, { schl }));
@@ -669,6 +674,18 @@ export class Viewport {
       const r = this.#rechteck(i.x, i.y, i.b, i.h, 0xb57cff, { deck: 0.03 });
       g.add(r);
       g.add(this.#schrift(`⧉ ${this.vorlagenName?.(i.vorlage) ?? i.vorlage}`, i.x + i.b / 2, i.y, this.hoeheBei(i.x, i.y) + 3.6, '#d7b8ff'));
+    }
+    // Hilfslinien (werte.hilfslinien = { x: [...], y: [...] })
+    const hl = k.werte.hilfslinien ?? {};
+    const linien = [];
+    for (const x of hl.x ?? []) linien.push(x, 0.12, 0, x, 0.12, k.hoehe);
+    for (const y of hl.y ?? []) linien.push(0, 0.12, y, k.breite, 0.12, y);
+    if (linien.length) {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(linien, 3));
+      const l = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0x3fd7ff, transparent: true, opacity: 0.85, depthTest: false }));
+      l.renderOrder = 14;
+      g.add(l);
     }
     // Raumnamen
     for (const [buchstabe, r] of k.s('raeume')) {
@@ -725,6 +742,46 @@ export class Viewport {
       this.heatmap.position.set(k.breite / 2, 0.15, k.hoehe / 2);
       this.heatmap.renderOrder = 3;
       this.szene.add(this.heatmap);
+    }
+    this.anfordern();
+  }
+
+  /** Maßband: Punkte [{x,y}] + optional Vorschau-Punkt; zeigt Linien und Längen (1 Kachel = 1 m) */
+  setzeMessung(punkte, vorschau = null, info = null) {
+    if (!this.messGruppe) {
+      this.messGruppe = new THREE.Group();
+      this.szene.add(this.messGruppe);
+    }
+    const g = this.messGruppe;
+    g.traverse((t) => {
+      t.geometry?.dispose();
+      t.material?.map?.dispose();
+      t.material?.dispose?.();
+    });
+    g.clear();
+    const alle = vorschau ? [...punkte, vorschau] : punkte;
+    if (alle.length >= 1) {
+      const pos = alle.map((p) => new THREE.Vector3(p.x, this.hoeheBei(p.x, p.y) + 0.2, p.y));
+      if (pos.length >= 2) {
+        const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pos), new THREE.LineBasicMaterial({ color: 0xffe14d, depthTest: false }));
+        l.renderOrder = 16;
+        g.add(l);
+      }
+      for (const p of pos) {
+        const m = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffe14d, depthTest: false }));
+        m.position.copy(p);
+        m.renderOrder = 16;
+        g.add(m);
+      }
+      (info?.segmente ?? []).forEach((s, i) => {
+        const a = alle[i];
+        const b = alle[i + 1];
+        g.add(this.#schrift(`${s.laenge} m`, (a.x + b.x) / 2, (a.y + b.y) / 2, this.hoeheBei(a.x, a.y) + 0.9, '#ffe14d'));
+      });
+      if (info && info.segmente.length > 1) {
+        const e = alle.at(-1);
+        g.add(this.#schrift(`Σ ${info.gesamt} m`, e.x, e.y, this.hoeheBei(e.x, e.y) + 1.8, '#ffffff'));
+      }
     }
     this.anfordern();
   }
@@ -1044,7 +1101,9 @@ export class Viewport {
       if (!strahl.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), punkt)) punkt = null;
     }
     if (!punkt) return null;
-    return { x: punkt.x, y: punkt.z, tx: Math.floor(punkt.x), ty: Math.floor(punkt.z), treffer: treffer ?? fl, punkt };
+    let t = treffer ?? fl;
+    if (t && this.ebenenZustand && !ebeneFrei(this.ebenenZustand, ebeneVon(t.s))) t = null; // ausgeblendet/gesperrt → nicht anklickbar
+    return { x: punkt.x, y: punkt.z, tx: Math.floor(punkt.x), ty: Math.floor(punkt.z), treffer: t, punkt };
   }
 
   // ---------- Steuerung ----------

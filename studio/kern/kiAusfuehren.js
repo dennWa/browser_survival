@@ -22,6 +22,11 @@ export function erstelleKiAusfuehrer(studio) {
   };
   const aendere = (name, ops) => {
     const fertig = dok.aendere(`KI: ${name}`, ops);
+    // Gesperrte Ebene (Dokument filtert) → ehrlich melden statt „gesetzt“
+    if (ops.length && !fertig.length && ops.some((op) => op.neu !== undefined)) {
+      const gesperrt = Object.entries(dok.ebenen ?? {}).filter(([, e]) => e.gesperrt || e.sichtbar === false).map(([id]) => id);
+      if (gesperrt.length) throw new Error(`Nichts geändert – gesperrte/ausgeblendete Ebenen: ${gesperrt.join(', ')}`);
+    }
     return fertig.length;
   };
   const ok = (text, daten) => ({ ok: true, text, ...(daten !== undefined ? { daten } : {}) });

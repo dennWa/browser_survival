@@ -2,6 +2,7 @@ import { LOOT_TABELLEN } from '../../server/spiel/konfiguration/lootTabellen.js'
 import { GEGENSTAENDE } from '../../server/spiel/konfiguration/gegenstaende.js';
 import { linie, rechteckAus } from '../../editor/kern/raster.js';
 import { pruefeObjekt, pruefeMarker } from '../../editor/kern/platzierung.js';
+import { streckenInfo, fangKandidaten, fange } from '../../editor/kern/messen.js';
 import * as A from '../kern/aktionen.js';
 import * as B from '../kern/bauhilfen.js';
 import { objektHoehe } from './viewport.js';
@@ -29,6 +30,7 @@ export const WERKZEUGE = [
   { id: 'klang', titel: 'Klang setzen', icon: 'klang', kuerzel: 'K', text: 'Punktklang mit Hörweite setzen (oder an ein Objekt hängen).' },
   { id: 'spawn', titel: 'Item-Spawnpunkt', icon: 'spawn', kuerzel: 'I', text: 'Ein Item mit Chance & Intervall. Über Möbeln wird es automatisch draufgelegt.' },
   { id: 'marker', titel: 'Punkt setzen', icon: 'marker', kuerzel: 'P', text: 'Spieler-Start, Zombie, Horde oder Ankunftspunkt.' },
+  { id: 'messen', titel: 'Messen', icon: 'messen', kuerzel: 'M', text: 'Klicks setzen Messpunkte (Längen in Metern), Doppelklick/Enter beendet, Esc löscht.' },
   { id: 'notiz', titel: 'Notiz', icon: 'notiz', kuerzel: 'Z', text: 'Klick setzt einen Notiz-Pin (z. B. „hier fehlt eine Tankstelle“) – auch für die KI lesbar.' },
 ];
 export const MIT_GIZMO = { bewegen: 'translate', drehen: 'rotate', skalieren: 'scale' };
@@ -49,7 +51,7 @@ export class Werkzeuge {
       gelaende: { modus: 'heben', radius: 3, staerke: 0.25 },
       strasse: { fahrbahn: 4, gehweg: 1, markierung: true, laternen: 10 },
       streuen: { set: 'wald', radius: 5, dichte: 5, modus: 'streuen' },
-      objekt: { drehung: 0, skalierung: 1, raster: 'halb', variieren: false },
+      objekt: { drehung: 0, skalierung: 1, raster: 'halb', variieren: false, einrasten: true },
       flaeche: { art: 'loot', tabelle: 'wohnung', ziel: '', ankunft: '', datei: '', anzahl: 4 },
       klang: { datei: '', innen: 2, aussen: 10, lautstaerke: 1 },
       spawn: { inhalt: 'konservendose', chance: 50, intervall: 10, mengeMin: 1, mengeMax: 1 },
@@ -67,6 +69,7 @@ export class Werkzeuge {
   }
 
   waehle(id) {
+    if (this.aktiv === 'messen' && id !== 'messen') this.messenEnde(true);
     this.aktiv = id;
     this.zug = null;
     this.ansicht.setzeGeist(null);
@@ -121,6 +124,7 @@ export class Werkzeuge {
           { art: 'zahl', feld: 'skalierung', titel: 'Größe ×', min: 0.25, max: 4, schritt: 0.05 },
           { art: 'segment', feld: 'raster', werte: [['frei', 'Frei'], ['halb', '½'], ['ganz', '1']] },
           { art: 'schalter', feld: 'variieren', titel: 'Variieren (Größe/Drehung zufällig)' },
+          { art: 'schalter', feld: 'einrasten', titel: 'An Kanten & Hilfslinien einrasten' },
         ];
       case 'flaeche': {
         const o = this.opt.flaeche;
@@ -187,6 +191,7 @@ export class Werkzeuge {
     else if (['boden', 'wand', 'raum', 'flaeche', 'marker', 'strasse'].includes(this.aktiv)) this.ansicht.setzeSchwebe(p.tx, p.ty);
     else this.ansicht.setzeSchwebe(null);
     if (this.aktiv === 'objekt') this.#geistObjekt(p);
+    if (this.aktiv === 'messen' && this.messung && !this.messung.fertig) this.#zeigeMessung({ x: r2(p.x), y: r2(p.y) });
     if (this.aktiv === 'spawn') this.#geistSpawn(p);
   }
 
@@ -214,8 +219,14 @@ export class Werkzeuge {
       const neu = ops.find((x) => x.s === 'objekte' || x.s === 'bauwerke')?.neu;
       if (!neu) return null;
       if (a.art === 'bauwerk') return { katalogId: a.id, x: Math.floor(p.x), y: Math.floor(p.y), b: 1, h: 1, drehung, skalierung, neu };
-      const x = this.#raster(p.x - neu.b / 2);
-      const y = this.#raster(p.y - neu.h / 2);
+      let x = this.#raster(p.x - neu.b / 2);
+      let y = this.#raster(p.y - neu.h / 2);
+      if (o.einrasten) {
+        this.fang ??= fangKandidaten(k);
+        const f = fange({ x, y, b: neu.b, h: neu.h }, this.fang, 0.3);
+        x = f.x;
+        y = f.y;
+      }
       return { katalogId: a.id, x, y, b: neu.b, h: neu.h, drehung, skalierung, neu: { ...neu, x, y } };
     } catch {
       return null;
@@ -319,6 +330,14 @@ export class Werkzeuge {
         return this.#setzeKlang(p);
       case 'notiz':
         return this.studio.neueNotiz(p.x, p.y);
+      case 'messen': {
+        if (this.messung?.fertig) this.messung = null;
+        this.messung ??= { punkte: [] };
+        const pkt = e.ctrlKey ? { x: Math.round(p.x * 2) / 2, y: Math.round(p.y * 2) / 2 } : { x: r2(p.x), y: r2(p.y) };
+        this.messung.punkte.push(pkt);
+        this.#zeigeMessung();
+        return;
+      }
       case 'marker': {
         const o = this.opt.marker;
         if (o.art !== 'ankunft') {
@@ -424,6 +443,33 @@ export class Werkzeuge {
     const ops = [];
     for (const p of linie(a.tx, a.ty, b.tx, b.ty)) ops.push(...A.pinselOps(k, p.x, p.y, this.opt.boden.groesse, this.zug.zeichen));
     this.dok.aendere('Boden malen', ops);
+  }
+
+  #zeigeMessung(vorschau = null) {
+    const m = this.messung;
+    if (!m) return this.ansicht.setzeMessung([]);
+    const alle = vorschau ? [...m.punkte, vorschau] : m.punkte;
+    const info = streckenInfo(alle);
+    this.ansicht.setzeMessung(m.punkte, vorschau, info);
+    if (info.segmente.length) this.studio.hinweis(`Strecke ${info.gesamt} m · letzter Abschnitt ${info.segmente.at(-1).laenge} m, ${info.segmente.at(-1).winkel}°`);
+  }
+
+  /** Messen beenden (Enter/Doppelklick) bzw. löschen (Esc) */
+  messenEnde(loeschen = false) {
+    if (!this.messung) return false;
+    if (loeschen) {
+      this.messung = null;
+      this.ansicht.setzeMessung([]);
+    } else {
+      this.messung.fertig = true;
+      this.#zeigeMessung();
+    }
+    return true;
+  }
+
+  /** Nach Kartenänderung: Fang-Kandidaten neu berechnen */
+  vergissFang() {
+    this.fang = null;
   }
 
   #strassenOpt() {
