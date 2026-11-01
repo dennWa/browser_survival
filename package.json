@@ -26,12 +26,17 @@
     "rauchtest:r24": "node werkzeuge/test/rauchtestRunde24.mjs",
     "rauchtest:editor": "node werkzeuge/test/editorRauchtest.mjs",
     "editor:lokal": "node werkzeuge/editor/lokalerServer.mjs",
-    "ki:anleitung": "node werkzeuge/ki/kiAnleitung.mjs"
+    "ki:anleitung": "node werkzeuge/ki/kiAnleitung.mjs",
+    "studio": "electron studio/main/start.mjs",
+    "studio:mcp": "node studio/mcp-bruecke.mjs",
+    "rauchtest:studio": "node werkzeuge/test/studioRauchtest.mjs"
   },
   "dependencies": {
     "ws": "^8.22.0"
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^1.3.0",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "electron": "^38.8.6",
     "esbuild": "^0.25.10",
     "three": "^0.186.1"

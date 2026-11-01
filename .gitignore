@@ -12,3 +12,6 @@ werkzeuge/assets/.cache/
 # Rauchtest-Screenshots & Tiled-Exporte (Arbeitsdateien)
 werkzeuge/test/ausgabe/
 __pycache__/
+
+# Browser Survival Studio: Entwürfe, MCP-Verbindung (lokal)
+.studio/

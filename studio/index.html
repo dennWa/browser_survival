@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Browser Survival Studio</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="./studio.css" />
+    <script type="importmap">
+      { "imports": { "three": "../client/vendor/three/three.module.js" } }
+    </script>
+  </head>
+  <body>
+    <!-- Browser Survival Studio – Aufbau: studio/app.js (Verdrahtung), oberflaeche/* (Panels), ansicht/* (3D/2D) -->
+    <div id="app">
+      <header id="menueleiste">
+        <div class="marke"><span class="marke-zeichen"></span><span>Browser Survival <b>Studio</b></span></div>
+        <nav id="menues"></nav>
+        <div id="kopf-rechts">
+          <span id="zonen-titel"></span>
+          <button id="knopf-testen" class="knopf primaer" data-befehl="zone.testen"></button>
+        </div>
+      </header>
+      <div id="werkzeugleiste"></div>
+      <div id="optionsleiste"></div>
+      <main id="mitte">
+        <aside id="links" class="panel-spalte">
+          <section class="panel" id="panel-zonen">
+            <header class="panel-kopf"><span>Zonen</span><div class="panel-aktionen" id="zonen-aktionen"></div></header>
+            <div class="panel-inhalt" id="zonen-liste"></div>
+          </section>
+          <section class="panel wachsen" id="panel-szene">
+            <header class="panel-kopf"><span>Szene</span><div class="panel-aktionen"><input id="szene-suche" class="feld klein" placeholder="Filtern…" /></div></header>
+            <div class="panel-inhalt" id="szene-baum"></div>
+          </section>
+        </aside>
+        <section id="zentrum">
+          <div id="ansicht">
+            <canvas id="leinwand" tabindex="0"></canvas>
+            <div id="ansicht-oben-links" class="ansicht-leiste"></div>
+            <div id="ansicht-oben-rechts" class="ansicht-leiste"></div>
+            <div id="ansicht-hinweis"></div>
+            <div id="ansicht-leer">
+              <div class="leer-kasten">
+                <div class="leer-titel">Keine Zone geöffnet</div>
+                <div class="leer-text">Wähle links eine Zone oder lege eine neue an.</div>
+                <button class="knopf primaer" data-befehl="zone.neu">Neue Zone</button>
+              </div>
+            </div>
+          </div>
+          <div id="teiler-assets" class="teiler waagerecht"></div>
+          <section class="panel" id="panel-assets">
+            <header class="panel-kopf">
+              <div id="asset-reiter" class="reiter"></div>
+              <div class="panel-aktionen">
+                <input id="asset-suche" class="feld klein" placeholder="Suchen…" />
+                <button class="knopf flach" data-befehl="asset.importModell" title="Modell importieren"></button>
+              </div>
+            </header>
+            <div class="panel-inhalt" id="asset-raster"></div>
+          </section>
+        </section>
+        <aside id="rechts" class="panel-spalte">
+          <section class="panel wachsen">
+            <header class="panel-kopf"><div class="reiter" id="rechts-reiter"></div></header>
+            <div class="panel-inhalt" id="inspektor"></div>
+            <div class="panel-inhalt versteckt" id="ki-panel"></div>
+            <div class="panel-inhalt versteckt" id="pruef-panel"></div>
+          </section>
+        </aside>
+      </main>
+      <footer id="statusleiste">
+        <span id="status-text">Bereit</span>
+        <span class="trenner"></span>
+        <span id="status-pruefung"></span>
+        <span id="status-position"></span>
+        <span id="status-speichern"></span>
+        <span id="status-mcp"></span>
+      </footer>
+    </div>
+    <div id="startbild"></div>
+    <div id="dialog-ebene"></div>
+    <div id="kontextmenue" class="menue-liste versteckt"></div>
+    <div id="tooltip"></div>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

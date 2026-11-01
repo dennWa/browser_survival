@@ -60,9 +60,10 @@ export function alsJsModul(definition, { quelle = 'Map-Editor (editor/)' } = {})
   const liste = (name) => definition[name]?.length && z.push(`  ${name}: [`, ...definition[name].map((e) => `    ${jsWert(e)},`), '  ],');
   liste('uebergaenge');
   if (definition.ankuenfte) z.push('  ankuenfte: {', ...Object.entries(definition.ankuenfte).map(([k, p]) => `    ${IDENT.test(k) ? k : jsWert(k)}: ${jsWert(p)},`), '  },');
-  for (const name of ['zombieSpawns', 'bauwerke', 'tierBereiche', 'raumFlaechen', 'lootZonen', 'klaenge']) liste(name);
+  for (const name of ['zombieSpawns', 'bauwerke', 'tierBereiche', 'raumFlaechen', 'lootZonen', 'spawnpunkte', 'klaenge']) liste(name);
   if (definition.einstellungen) z.push(`  einstellungen: ${jsWert(definition.einstellungen)},`);
   if (definition.musik) z.push(`  musik: ${jsWert(definition.musik)},`);
+  if (definition.schnee === true) z.push('  schnee: true,');
   if (definition.terrain) z.push('  terrain: {', '    hoehen: [', ...definition.terrain.hoehen.map((h) => `      ${jsWert(h)},`), '    ],', `    steil: ${jsWert(definition.terrain.steil)},`, '  },');
   if (definition.bemalung) z.push('  bemalung: {', ...Object.entries(definition.bemalung).map(([f, r]) => `    ${jsWert(f)}: ${jsWert(r)},`), '  },');
   for (const name of ['typen', 'texturen']) if (definition[name]) z.push(`  ${name}: {`, ...Object.entries(definition[name]).map(([k, t]) => `    ${IDENT.test(k) ? k : jsWert(k)}: ${jsWert(t)},`), '  },');
