@@ -5,6 +5,8 @@
  * Der Atlas wird von werkzeuge/assets/baue_assets.py erzeugt. Fehlt eine Grafik, nutzt der
  * Renderer Ersatzfarben – das Spiel bleibt also immer spielbar.
  */
+import { STUDIO_DATEN } from '../../server/spiel/konfiguration/studioDaten.js';
+
 const BASIS = new URL('../assets/', import.meta.url);
 
 export class Assets {
@@ -19,7 +21,8 @@ export class Assets {
 
   /** { x, y, b, h, weltGroesse } im Item-Sheet */
   item(defId) {
-    return this.atlas.items.icons[defId] ?? null;
+    // Studio-Items (Item-Editor) leihen sich ein vorhandenes Icon: studioDaten.js → icons
+    return this.atlas.items.icons[defId] ?? this.atlas.items.icons[STUDIO_DATEN.icons?.[defId]] ?? null;
   }
 
   get itemBild() {

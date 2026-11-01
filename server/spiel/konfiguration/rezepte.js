@@ -1,3 +1,4 @@
+import { STUDIO_DATEN } from './studioDaten.js';
 /**
  * ╔══════════════════════════════════════════════════════════════════════════════╗
  * ║  CRAFTING-REZEPTE  –  was man an der Werkbank herstellen kann               ║
@@ -587,3 +588,6 @@ export const REZEPTE = {
     level: 2,
   },
 };
+
+// Rezepte aus dem Item-Editor des Studios (studioDaten.js) – gleichnamige ersetzen die obigen
+Object.assign(REZEPTE, STUDIO_DATEN.rezepte);

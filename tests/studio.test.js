@@ -278,3 +278,79 @@ test('KI-Assistent: Werkzeug-Schleifen für Claude (SDK-Attrappe), OpenAI-kompat
   assert.deepEqual(ausgefuehrt.map(([n]) => n), ['raum_bauen', 'pruefen', 'zone_info']);
   assert.throws(() => new KiAssistent({ anbieter: 'grok', schluessel: '', fuehreAus }), /API-Schlüssel/);
 });
+
+test('Projekt: Item-Daten speichern (studioDaten.js) und KI-Anleitung als eigenen Prozess neu schreiben – auf einer Kopie', async () => {
+  const tmp = mkdtempSync(path.join(tmpdir(), 'studio-items-'));
+  try {
+    for (const o of ['server/spiel', 'gemeinsam', 'editor/kern', 'werkzeuge/ki', 'client/darstellung', 'client/audio', 'client/assets/eigene/index.json', 'client/musik/musik.json']) cpSync(path.join(WURZEL, o), path.join(tmp, o), { recursive: true });
+    writeFileSync(path.join(tmp, 'package.json'), '{"type":"module"}');
+    mkdirSync(path.join(tmp, 'editor'), { recursive: true });
+    const p = new Projekt(tmp);
+    assert.deepEqual(await p.studioDaten(), { gegenstaende: {}, icons: {}, lootTabellen: {}, rezepte: {} });
+    assert.throws(() => p.speichereStudioDaten({ gegenstaende: { 'Böse!': {} } }), /Ungültige ID/);
+    assert.throws(() => p.speichereStudioDaten({ lootTabellen: { kaputt: [{ id: 'apfel', gewicht: 0 }] } }), /gewicht/);
+    p.speichereStudioDaten({ gegenstaende: { dosenbrot: { name: 'Dosenbrot', kategorie: 'nahrung', naehrwert: 30 } }, icons: { dosenbrot: 'konservendose' }, lootTabellen: { kueche_neu: [{ id: 'dosenbrot', gewicht: 1 }] }, rezepte: {} });
+    const daten = await p.studioDaten();
+    assert.equal(daten.gegenstaende.dosenbrot.naehrwert, 30);
+    assert.equal(await p.aktualisiereKiAnleitung(), true);
+    assert.ok(readFileSync(path.join(tmp, 'editor/KI_KARTEN_ANLEITUNG.md'), 'utf8').length > 1000);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('Bau-Hilfen: Streuen (deterministisch, ohne Überlappen, nur Naturboden), Radieren, Straße, Ersetzen, Wald/Dorf laden im Spiel', async () => {
+  const B = await import('../studio/kern/bauhilfen.js');
+  const k = testKarte();
+  k.anwenden(A.rechteckOps(k, { x: 0, y: 20, b: 40, h: 2 }, '_'));
+  const a = B.streuOps(k, 20, 10, 8, { typen: B.STREU_SETS.wald.typen, dichte: 6, saat: 3 });
+  const b = B.streuOps(k, 20, 10, 8, { typen: B.STREU_SETS.wald.typen, dichte: 6, saat: 3 });
+  assert.deepEqual(a.ops, b.ops, 'gleiche Saat = gleiches Ergebnis');
+  assert.ok(a.anzahl >= 5);
+  k.anwenden(a.ops);
+  assert.ok(B.streuOps(k, 20, 21, 1.5, { typen: ['objekt:stein'], dichte: 40 }).anzahl === 0, 'nicht auf Asphalt');
+  assert.equal(B.radierOps(k, 20, 10, 9, { typen: B.STREU_SETS.wald.typen }).length, a.anzahl);
+  k.anwenden(B.strassenOps(k, { x: 0, y: 26 }, { x: 39, y: 26 }, { fahrbahn: 4, gehweg: 1, laternen: 10 }).ops);
+  assert.equal(k.kachelAn(5, 26), '=');
+  assert.equal(k.kachelAn(5, 23), '-');
+  assert.ok([...k.s('objekte').values()].some((o) => o.typ === 'licht' && o.mast));
+  const vorher = [...k.s('objekte').values()].filter((o) => o.typ === 'busch').length;
+  k.anwenden(B.ersetzOps(k, { vonTyp: 'busch', zu: 'objekt:stein' }));
+  assert.equal([...k.s('objekte').values()].filter((o) => o.typ === 'busch').length, 0);
+  assert.ok([...k.s('objekte').values()].filter((o) => o.typ === 'stein').length >= vorher);
+  const gross = new EditorKarte({ id: 'gen', name: 'G', breite: 80, hoehe: 60 });
+  gross.anwenden(A.markerOps(gross, 'start', 1, 1));
+  gross.anwenden(B.verdichte(B.generiereWald(gross, { x: 0, y: 0, b: 40, h: 60 }, { saat: 2 }).ops));
+  const d = B.generiereDorf(gross, { x: 40, y: 0, b: 40, h: 60 }, { haeuser: 4 });
+  gross.anwenden(d.ops);
+  assert.ok(d.haeuser >= 3);
+  const { nachDefinition } = await import('../editor/kern/format.js');
+  verarbeiteKarte(nachDefinition(gross));
+});
+
+test('Analysen: Laufweg findet Raum ohne Tür, Balance zählt Loot je Stunde; Vorlagen-Kopien aktualisieren; Notizen', async () => {
+  const { laufweg, balance } = await import('../studio/kern/analyse.js');
+  const { nachDefinition } = await import('../editor/kern/format.js');
+  const k = testKarte();
+  k.anwenden(A.raumOps(k, { x: 10, y: 10, b: 7, h: 6, name: 'Bunker', lootTabelle: 'lager', tuer: null }).ops);
+  const l = laufweg(nachDefinition(k));
+  assert.ok(l.befunde.some((b) => b.art === 'flaeche'));
+  assert.ok(l.befunde.some((b) => b.art === 'loot'));
+  assert.ok(l.anteil < 1);
+  const bal = balance(nachDefinition(k));
+  assert.ok(bal.jeStunde.essen + bal.jeStunde.material + bal.jeStunde.sonstiges > 0);
+  // Vorlage verknüpft einsetzen, Vorlage ändern, Kopie aktualisieren
+  const v = A.vorlageAus(k, { x: 10, y: 10, b: 7, h: 6 }, 'Bunker');
+  const { ops, id } = A.verknuepfteVorlageOps(k, 'bunker', v, 25, 5);
+  k.anwenden(ops);
+  assert.equal(A.vorlagenInstanzen(k)[0].vorlage, 'bunker');
+  const v2 = { ...v, objekte: [...v.objekte, { typ: 'fass', x: 2, y: 2, b: 0.9, h: 0.9, blockiert: true }] };
+  k.anwenden(A.aktualisiereInstanzOps(k, A.vorlagenInstanzen(k)[0], v2));
+  assert.equal([...k.s('objekte').values()].filter((o) => o.typ === 'fass').length, 1);
+  k.anwenden(A.entkoppleOps(k, id));
+  assert.equal(A.vorlagenInstanzen(k).length, 0);
+  const n = A.notizOps(k, 3, 4, 'Hier fehlt eine Tankstelle');
+  k.anwenden(n.ops);
+  assert.equal(nachDefinition(k).notizen[0].text, 'Hier fehlt eine Tankstelle');
+  assert.throws(() => A.notizOps(k, 1, 1, '  '), /leer/);
+});

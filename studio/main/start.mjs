@@ -125,13 +125,22 @@ const AKTIONEN = {
   'projekt.loescheEntwurf': ({ id }) => projekt.loescheEntwurf(id),
   'projekt.insSpiel': ({ definition }) => projekt.insSpiel(definition),
   'projekt.vorlagen': () => projekt.vorlagen(),
+  'projekt.studioDaten': () => projekt.studioDaten(),
+  'projekt.speichereStudioDaten': async ({ daten }) => {
+    projekt.speichereStudioDaten(daten);
+    return projekt.aktualisiereKiAnleitung();
+  },
   'projekt.versionen': ({ id }) => projekt.versionen(id),
   'projekt.speichereVersionen': ({ id, liste }) => projekt.speichereVersionen(id, liste),
   'projekt.speichereVorlage': ({ vorlage }) => projekt.speichereVorlage(vorlage),
   'projekt.loescheVorlage': ({ id }) => projekt.loescheVorlage(id),
   'projekt.modellIndex': () => projekt.modellIndex(),
   'projekt.credits': () => projekt.credits(),
-  'projekt.importiereModell': ({ bytes, meta }) => projekt.importiereModell({ bytes }, meta),
+  'projekt.importiereModell': async ({ bytes, meta }) => {
+    const e = projekt.importiereModell({ bytes }, meta);
+    await projekt.aktualisiereKiAnleitung();
+    return e;
+  },
   'projekt.klangDateien': () => projekt.klangDateien(),
   'projekt.klangFuerZone': ({ quelle, zone }) => projekt.klangFuerZone(quelle, zone),
   'projekt.importiereKlang': ({ bytes, meta }) => projekt.importiereKlang(bytes, meta),

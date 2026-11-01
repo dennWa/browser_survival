@@ -1,9 +1,10 @@
+import { STUDIO_DATEN } from './studioDaten.js';
 /**
  * Loot-Tabellen: welche Gegenstände in welchem Raumtyp spawnen.
  * gewicht = relative Häufigkeit innerhalb der Tabelle (höher = häufiger).
  * Welcher Raum welche Tabelle nutzt, steht in der jeweiligen Kartendatei (raeume → lootTabelle).
  */
-export const LOOT_TABELLEN = Object.freeze({
+const BASIS_LOOT_TABELLEN = Object.freeze({
   apotheke: [
     { id: 'verband', gewicht: 5 },
     { id: 'schmerzmittel', gewicht: 4 },
@@ -406,3 +407,6 @@ export const LOOT_TABELLEN = Object.freeze({
     { id: 'eisenbarren', gewicht: 1 },
   ],
 });
+
+/** + Tabellen aus dem Item-Editor des Studios (studioDaten.js) – gleichnamige ersetzen die obigen */
+export const LOOT_TABELLEN = Object.freeze({ ...BASIS_LOOT_TABELLEN, ...STUDIO_DATEN.lootTabellen });

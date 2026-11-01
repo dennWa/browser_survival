@@ -1,4 +1,5 @@
 import { STAPEL_MUNITION, STAPEL_STANDARD } from '../../../gemeinsam/konstanten.js';
+import { STUDIO_DATEN } from './studioDaten.js';
 
 /**
  * Gegenstands-Definitionen (Item-Datenbank).
@@ -209,7 +210,14 @@ function normalisiere(roh) {
   return ergebnis;
 }
 
-export const GEGENSTAENDE = Object.freeze(normalisiere(ROH_GEGENSTAENDE));
+/** Item-Editor des Studios (studioDaten.js): neue Items + geänderte Felder über die Datenbank legen */
+function mitStudio(roh) {
+  const aus = { ...roh };
+  for (const [id, felder] of Object.entries(STUDIO_DATEN.gegenstaende ?? {})) aus[id] = { ...(aus[id] ?? {}), ...felder };
+  return aus;
+}
+
+export const GEGENSTAENDE = Object.freeze(normalisiere(mitStudio(ROH_GEGENSTAENDE)));
 
 /**
  * Runde 24: Waffen-Mods – wirken auf die Werte der Waffe (waffenWerte). Ein Mod je Art und Waffe; nur, wenn die Waffe ihn in `mods` erlaubt.

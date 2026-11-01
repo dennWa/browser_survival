@@ -1,3 +1,4 @@
+import { STUDIO_DATEN } from '../server/spiel/konfiguration/studioDaten.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
@@ -75,7 +76,7 @@ for (const id of Object.keys(KARTEN)) {
 }
 
 test('Jeder Gegenstand hat ein Icon', () => {
-  for (const defId of Object.keys(GEGENSTAENDE)) assert.ok(atlas.items.icons[defId], `Icon für "${defId}" fehlt`);
+  for (const defId of Object.keys(GEGENSTAENDE)) assert.ok(atlas.items.icons[defId] ?? atlas.items.icons[STUDIO_DATEN.icons[defId]], `Icon für "${defId}" fehlt`);
 });
 
 test('3D-Figur, Skins und Animationen sind vorhanden', () => {

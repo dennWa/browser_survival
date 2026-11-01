@@ -10,7 +10,7 @@ import { icon } from './icons.js';
 const ebene = () => document.getElementById('dialog-ebene');
 export const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (z) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[z]);
 
-export function dialog({ titel, icon: ic = 'info', inhalt = '', knoepfe = [{ text: 'OK', wert: true, art: 'primaer' }], breit = false, beimOeffnen = null, klasse = '' }) {
+export function dialog({ titel, icon: ic = 'info', inhalt = '', knoepfe = [{ text: 'OK', wert: true, art: 'primaer' }], breit = false, beimOeffnen = null, klasse = '', ohneEnter = false }) {
   return new Promise((fertig) => {
     const e = ebene();
     const d = document.createElement('div');
@@ -46,7 +46,7 @@ export function dialog({ titel, icon: ic = 'info', inhalt = '', knoepfe = [{ tex
       if (ev.key === 'Escape') {
         ev.stopPropagation();
         schliesse(null);
-      } else if (ev.key === 'Enter' && ev.target.tagName !== 'TEXTAREA' && knoepfe.length) {
+      } else if (ev.key === 'Enter' && !ohneEnter && ev.target.tagName !== 'TEXTAREA' && knoepfe.length) {
         ev.preventDefault();
         ev.stopPropagation();
         [...fuss.querySelectorAll('.knopf.primaer')].at(-1)?.click();

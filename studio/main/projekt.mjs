@@ -12,6 +12,7 @@
 import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync, statSync, copyFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { execFile } from 'node:child_process';
 
 const KEINE_KARTEN = new Set(['kartenLader.js', 'lootZonen.js', 'zonenEinstellungen.js', 'spawnpunkte.js']);
 export const ID_MUSTER = /^[a-z0-9_]{1,40}$/;
@@ -157,6 +158,38 @@ export class Projekt {
     if (!ID_MUSTER.test(id)) throw new Error('Ungültige Zonen-ID');
     mkdirSync(this.pfad('.studio/versionen'), { recursive: true });
     writeFileSync(this.pfad('.studio/versionen', `${id}.json`), JSON.stringify(liste));
+    return true;
+  }
+
+  /**
+   * editor/KI_KARTEN_ANLEITUNG.md neu schreiben (Regel: nach neuen Items/Modellen `npm run ki:anleitung`). Eigener Prozess,
+   * damit frisch geänderte Daten (studioDaten.js, index.json) gelesen werden – im Studio ist das Modul sonst zwischengespeichert.
+   */
+  aktualisiereKiAnleitung() {
+    const skript = this.pfad('werkzeuge/ki/kiAnleitung.mjs');
+    if (!existsSync(skript)) return Promise.resolve(false);
+    return new Promise((ok) => execFile(process.execPath, [skript], { cwd: this.wurzel, env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }, timeout: 60_000 }, (fehler) => ok(!fehler)));
+  }
+
+  // ---------- Item-Editor (server/spiel/konfiguration/studioDaten.js) ----------
+  async studioDaten() {
+    const datei = this.pfad('server/spiel/konfiguration/studioDaten.js');
+    if (!existsSync(datei)) return { gegenstaende: {}, icons: {}, lootTabellen: {}, rezepte: {} };
+    const modul = await import(`${pathToFileURL(datei).href}?t=${statSync(datei).mtimeMs}`);
+    return JSON.parse(JSON.stringify(modul.STUDIO_DATEN));
+  }
+
+  speichereStudioDaten(daten) {
+    const sauber = {};
+    for (const teil of ['gegenstaende', 'icons', 'lootTabellen', 'rezepte']) {
+      const w = daten?.[teil] ?? {};
+      if (typeof w !== 'object' || Array.isArray(w)) throw new Error(`studioDaten.${teil} muss ein Objekt sein`);
+      for (const id of Object.keys(w)) if (!ID_MUSTER.test(id)) throw new Error(`Ungültige ID „${id}“ (a–z, 0–9, _)`);
+      sauber[teil] = w;
+    }
+    for (const [name, t] of Object.entries(sauber.lootTabellen)) if (!Array.isArray(t) || t.some((e) => typeof e?.id !== 'string' || !(Number(e.gewicht) > 0))) throw new Error(`Loot-Tabelle „${name}“: Einträge { id, gewicht > 0 }`);
+    const kopf = readFileSync(this.pfad('server/spiel/konfiguration/studioDaten.js'), 'utf8').split('export const')[0];
+    writeFileSync(this.pfad('server/spiel/konfiguration/studioDaten.js'), `${kopf}export const STUDIO_DATEN = Object.freeze(${JSON.stringify(sauber, null, 2)});\n`);
     return true;
   }
 
