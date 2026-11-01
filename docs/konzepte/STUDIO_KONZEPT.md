@@ -1,6 +1,6 @@
 # Konzept: „Browser Survival Studio“ – lokales Bearbeitungsprogramm
 
-Stand 2026-11-01 · Status: **Konzept, wartet auf Rückfragen/Freigabe** · Ablage laut CLAUDE.md in `docs/konzepte/`
+Stand 2026-11-01 · Status: **Phase 1 (Karten) umgesetzt** – Anleitung `studio/LIESMICH.md`, Umsetzungsstand §13 · Phase 2/3 offen
 
 > Ein eigenständiges Programm, das lokal läuft, das Spiel kennt und Karten, Audio und Modelle bearbeitet –
 > professionell wie Unity/Godot, aber so einfach, dass Neue ohne Vorwissen mitbauen können.
@@ -307,12 +307,31 @@ Jeder Meilenstein: `npm test` grün, eigener Rauchtest (Playwright kann Electron
 
 ---
 
-## 12. Rückfragen an dich
-1. **Name:** „Browser Survival Studio“ oder „Browser Survival Editor“ (oder was ganz anderes)?
-2. **Alter Browser-Editor:** einfrieren und weiter fürs Handy behalten – oder irgendwann ganz ersetzen?
-3. **Betriebssystem:** nur Windows, oder soll es auch auf Mac/Linux laufen (für Mitbauende)?
-4. **Spawn-Intervall:** „alle 10 Minuten“ in **Echtzeit** oder in **Spielzeit** (Tag/Nacht-Uhr)?
-5. **Skalieren & Kollision:** soll ein großer Baum auch mehr Platz blockieren (Vorschlag: ja, gerundet), oder nur größer aussehen?
-6. **Mehrere Zonen nebeneinander:** reicht „ansehen + umschalten“, oder willst du über Zonengrenzen hinweg gleichzeitig bauen?
-7. **KI:** zuerst MCP (Claude direkt) und danach API-Assistent – passt die Reihenfolge? Welche Anbieter sind dir wichtig?
-8. **Mitarbeit:** Sollen andere Leute das Programm als fertigen Installer bekommen (ohne Node/Git), oder arbeiten alle im Repo?
+## 12. Entscheidungen (Nutzer, 2026-11-01)
+1. Name: **Browser Survival Studio**.
+2. Erst nur **Desktop** (alter Browser-Editor bleibt für Handy/Tablet).
+3. **Windows + Linux** (macOS läuft mit, ungetestet).
+4. Spawn-Intervall in **Echtzeit**.
+5. Skalierte Modelle **nehmen mehr Platz ein** (Grundfläche/Kollision wächst mit).
+6. Erst **einzelne Zonen** (kein Bauen über Zonengrenzen).
+7. KI: erst **MCP**, dann **API-Assistent**; Anbieter Claude, Gemini, OpenAI, Grok, DeepSeek.
+8. Mitbauende arbeiten **im Repo** (kein Installer nötig).
+
+## 13. Umsetzungsstand Phase 1 (2026-11-01)
+
+| # | Meilenstein | Stand |
+|---|---|---|
+| 1.0 | Grundgerüst | ✅ `studio/main/start.mjs` (Electron), Startbildschirm, Theme + eigene Icons, Spielordner wählbar, Befehlsschicht `kern/befehle.js` + Dokument/Undo `kern/dokument.js` |
+| 1.1 | Viewport | ✅ `ansicht/viewport.js`: Sektoren 32×32 (Boden-Textur + Höhen), Wände instanziert, Objekte instanziert/echte .glb, 3D-Orbit/Fliegen + 2D-Draufsicht |
+| 1.2 | Bauen | ✅ `ansicht/werkzeuge.js`: Auswahl/Bewegen/Drehen/Größe (Gizmo), Boden, Wand, Raum, Gelände, Objekt; Assets, Inspektor, Szene-Baum |
+| 1.3 | Flächen & Logik | ✅ Loot-Zonen, Hasen, Übergänge (Ziel-Beschriftung, „Zur Zielzone springen“), Punkte, Räume |
+| 1.4 | Spiel-Erweiterungen 🎮 | ✅ `objekte[].skalierung`, `spawnpunkte` (`server/spiel/karten/spawnpunkte.js`, lootSystem), Item-`hoehe` (Netz + Renderer) |
+| 1.5 | Klänge | ✅ Punktklang, Klangzone, Klang am Objekt (wird beim Export zum Punktklang) |
+| 1.6 | Vorlagen | ✅ Vorlagen-Szene, aus Auswahl, bearbeiten/löschen (`studio/vorlagen/`); ⏳ verknüpfte Instanzen |
+| 1.7 | Testen & Export | ✅ Testlauf im echten Spiel (eigenes Fenster), Prüfung live, Ins Spiel, Autosave/Entwürfe |
+| 1.8 | Import & Credits | ✅ Modelle (.glb + Vorschau + index.json + credits.json), Klänge je Zone |
+| 1.9 | KI | ✅ MCP (Streamable HTTP + stdio-Brücke, 24 Werkzeuge), Assistent mit 5 Anbietern (Attrappen-getestet) |
+| 1.10 | Feinschliff | ✅ Befehlspalette, Tooltips, Tastenkürzel-Hilfe, Startskripte, Doku; ⏳ Installer (nicht nötig, Repo) |
+
+Tests: `tests/studio.test.js` (Aktionen, Dokument, Projekt-Dateien, MCP, KI-Schleifen), `tests/spawnpunkte.test.js`,
+Rauchtest `npm run rauchtest:studio` (Electron + Playwright, inkl. Testlauf-Fenster und MCP von außen).

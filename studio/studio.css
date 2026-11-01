@@ -112,7 +112,7 @@ textarea.feld { height: auto; padding: 6px 8px; resize: vertical; user-select: t
 .liste-eintrag.aktiv { background: var(--akzent-weich); border-left-color: var(--akzent); }
 .liste-eintrag .ic { color: var(--text-2); }
 .liste-eintrag > span:not(.neben):not(.punkt):not(.baum-pfeil) { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; min-width: 0; }
-.liste-eintrag .neben { margin-left: auto; color: var(--text-3); font-size: 11px; font-variant-numeric: tabular-nums; }
+.liste-eintrag .neben { margin-left: auto; color: var(--text-3); font-size: 11px; font-variant-numeric: tabular-nums; flex: none; white-space: nowrap; }
 .liste-eintrag .punkt { width: 7px; height: 7px; border-radius: 50%; background: var(--akzent); flex: none; }
 .marke-klein { font-size: 10px; padding: 1px 6px; border-radius: 8px; background: var(--hg-4); color: var(--text-2); text-transform: uppercase; letter-spacing: 0.4px; }
 .marke-klein.spiel { background: rgba(70, 194, 122, 0.15); color: var(--gruen); }

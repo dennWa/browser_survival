@@ -1,0 +1,135 @@
+# Browser Survival Studio – Anleitung
+
+Das Studio ist der Editor für Browser Survival als **eigenes Programm** (Windows, Linux, macOS). Es arbeitet direkt im
+Spielordner: Zonen öffnen, in 3D oder 2D bauen, im echten Spiel testen und mit einem Klick ins Spiel übernehmen.
+Phase 1 = **Karten**. Audio-Zentrale (Phase 2) und Modell-Werkstatt (Phase 3) folgen (Plan: `docs/konzepte/STUDIO_KONZEPT.md`).
+
+## Starten
+
+| System | So geht's |
+|---|---|
+| Windows | Doppelklick auf **`Studio starten.bat`** (Hauptordner). Beim ersten Mal wird Electron installiert (~100 MB). |
+| Linux / macOS | `studio/starten.sh` oder im Spielordner `npm run studio` |
+
+Voraussetzung: Node.js ≥ 20 und einmal `npm install`. Das Studio braucht **keinen** laufenden Spielserver.
+
+## Oberfläche
+
+```
+┌ Menü: Datei · Bearbeiten · Ansicht · Zone · Werkzeuge · KI · Hilfe ──────────── [▶ Testen] ┐
+├ Werkzeugleiste (Q W E R │ B N H T │ O G K I P)                  Rückgängig · Speichern · Ins Spiel ┤
+├ Optionsleiste (Einstellungen des aktiven Werkzeugs)                                         ┤
+├ ZONEN / SZENE │            3D-/2D-ANSICHT                 │ EIGENSCHAFTEN · PRÜFUNG · KI   ┤
+│               ├──────────────────────────────────────────┤                                │
+│               │ ASSETS: Böden · Wände · Natur · Möbel …   │                                │
+└ Statusleiste: Meldungen · Prüfung · Kachel/Höhe · Speicherstand · MCP ──────────────────────┘
+```
+
+- **Zonen** (links oben): alle Zonen des Spiels. *Im Spiel* = eingetragen, *Datei* = Kartendatei ohne Eintrag,
+  *Entwurf* = gespeicherter Arbeitsstand. Klick öffnet, Rechtsklick zeigt Aktionen.
+- **Szene** (links): alles in der Zone als Baum (Objekte, Spawnpunkte, Punkte, Loot-Zonen, Räume, Übergänge, Klänge …).
+  Klick wählt, Doppelklick zeigt es in der Ansicht.
+- **Eigenschaften** (rechts): Werte der Auswahl bearbeiten. Ohne Auswahl: Zonen-Einstellungen.
+- **Prüfung** (rechts): Fehler/Hinweise wie im Spiel-Lader (Spawn in der Wand, fehlender Rückweg …). Klick springt hin.
+- **Befehlspalette** `Strg+K`: jeden Befehl per Suche finden.
+
+## Kamera
+
+| Aktion | Steuerung |
+|---|---|
+| Drehen (3D) | Rechte Maustaste ziehen (oder Alt + Links) |
+| Schieben | Mittlere Maustaste oder Leertaste + Links |
+| Zoomen | Mausrad (zoomt zum Mauszeiger) |
+| Fliegen | Rechte Maustaste halten + W A S D, Q/E = Höhe |
+| 3D ⇄ 2D (Draufsicht) | `Tab` oder Knöpfe oben links |
+| Auswahl zeigen / ganze Zone | `F` / `Pos1` |
+| Wände niedrig (in Räume schauen) | `X` |
+
+## Werkzeuge
+
+| Taste | Werkzeug | Bedienung |
+|---|---|---|
+| Q | Auswählen | Klick wählt, Umschalt = dazu, Ziehen auf freier Fläche = Rahmen, Ziehen auf Gewähltem = verschieben (Strg = ganze Kacheln) |
+| W | Bewegen | Gizmo-Pfeile ziehen (Spawnpunkte auch in der Höhe) |
+| E | Drehen | Ring ziehen, rastet in 15°-Schritten |
+| R | Größe | Größer/kleiner – **die Grundfläche (Kollision) wächst mit** (0,25× – 4×) |
+| B | Boden malen | Kachel unten in *Böden* wählen; Pinsel / Rechteck / Füllen; `[` `]` = Pinselgröße |
+| N | Wand ziehen | Wand, Fenster oder Tür als gerade Linie |
+| H | Raum bauen | Rechteck ziehen → Wände, Innenboden, Tür und (optional) Loot-Raum in einem Schritt |
+| T | Gelände | Heben, senken, glätten, ebnen (Radius/Stärke in der Optionsleiste) |
+| O | Objekt platzieren | Asset wählen (Natur, Möbel, Modelle, Vorlagen …), Klick setzt. `Strg+Rad` dreht, Umschalt = weiter setzen, „Variieren“ = zufällige Größe/Drehung (natürlicher Wald) |
+| G | Bereich markieren | Rechteck: Loot-Zone, Hasen-Bereich, Übergang (Zielzone + Ankunft) oder Klangzone |
+| K | Klang setzen | Punktklang mit Hörweite – **Klick auf ein Objekt hängt den Klang ans Objekt** (wandert und kopiert sich mit) |
+| I | Item-Spawnpunkt | Item oder Loot-Tabelle mit Chance und Intervall; **über einem Möbel wird es automatisch draufgelegt** |
+| P | Punkt setzen | Spieler-Start, Zombie, Horde (nachts) oder Ankunftspunkt (Name für Übergänge) |
+
+Alles ist rückgängig machbar: `Strg+Z` / `Strg+Y`. Kopieren `Strg+C`, Einfügen `Strg+V` (an der Maus), Duplizieren `Strg+D`, Löschen `Entf`.
+
+## Item-Spawnpunkte
+
+Ein Spawnpunkt legt **genau ein** Item an genau diese Stelle. Beispiel: *Konservendose, 35 %, alle 10 Minuten*:
+Alle 10 Minuten (Echtzeit) wird gewürfelt, solange der Punkt leer ist – mit 35 % liegt danach eine Dose dort.
+Beim Start der Zone wird einmal gewürfelt. Inhalt kann auch eine ganze Loot-Tabelle sein (`Tabelle: kueche`).
+Liegt der Punkt auf einem Tisch/Regal, sieht man das Item im Spiel auch oben drauf (Feld *Ablagehöhe*).
+
+## Übergänge zwischen Zonen
+
+Werkzeug **G → Übergang**: Rechteck am Rand ziehen, Zielzone und Ankunftsname wählen. In der Ansicht steht dann
+„→ Zielzone · Ankunft“. In den Eigenschaften springt **„Zur Zielzone springen“** direkt zum Ankunftspunkt dort
+(fehlt er, mit **P → Ankunft** anlegen). Die Prüfung meldet fehlende Rückwege.
+
+## Vorlagen (Prefabs)
+
+- **Zone → Neue Vorlage bauen**: öffnet eine kleine leere Fläche – Haus bauen, einrichten, Loot/Spawnpunkte setzen,
+  **Speichern** (`Strg+S`). Danach steht sie unter *Assets → Vorlagen* bereit und wird mit dem Objekt-Werkzeug gesetzt.
+- **Auswahl als Vorlage**: gewählte Objekte (wahlweise mit Boden & Wänden darunter) als Vorlage speichern.
+- Rechtsklick auf eine eigene Vorlage: *Bearbeiten* oder *Löschen*. Gespeichert wird in `studio/vorlagen/` (gehört ins Repo).
+
+## Testen, Speichern, Ins Spiel
+
+| Knopf | Was passiert |
+|---|---|
+| **Speichern** `Strg+S` | Arbeitsstand als Entwurf in `.studio/entwuerfe/` (nicht im Repo). Autosave jede Minute. |
+| **Testen** `F5` | Startet das echte Spiel mit deinen Zonen in einem eigenen Fenster (Debug-Panel inklusive). Datei → *Am Kamerapunkt starten* setzt den Start an die Kamera. |
+| **Ins Spiel übernehmen** `Strg+Umschalt+E` | Prüft die Zone, schreibt `server/spiel/karten/<id>.js` und trägt sie in `KARTEN` ein. Danach `npm test` und committen. |
+
+## Modelle und Klänge importieren
+
+- **Datei → Modell importieren**: `.glb` wählen → Vorschau + Maße, Name, Bereich, Höhe im Spiel, **Urheber, Lizenz, Quelle**.
+  Das Studio kopiert die Datei nach `client/assets/eigene/`, trägt sie in `index.json` ein, speichert ein Vorschaubild
+  und schreibt die Credits nach `client/assets/eigene/credits.json` (Credits-Dialog im Spiel).
+- **Datei → Klang importieren**: Audiodatei für die offene Zone (`client/audio/karten/<zone>/`) + Credits.
+  Wählt man im Klang-Werkzeug eine Datei aus einem anderen Ordner, kopiert das Studio sie automatisch in den Zonenordner.
+
+## KI
+
+**Eingebauter Assistent** (Reiter *KI* rechts, `Strg+L`): Zahnrad → Anbieter (Claude, Gemini, OpenAI, Grok, DeepSeek),
+Modell und API-Schlüssel. Der Schlüssel wird verschlüsselt auf dem Rechner gespeichert, nie im Repo. Dann einfach
+schreiben, z. B. *„Bau eine kleine Tankstelle mit Kiosk und zwei Autos bei 40|30, Loot hinter der Theke“*.
+
+**Claude & Co. direkt verbinden (MCP)**: *KI → Mit Claude & Co. verbinden* zeigt fertige Befehle:
+- Claude Code: `claude mcp add --transport http browser-survival-studio http://127.0.0.1:8766/mcp --header "Authorization: Bearer <token>"`
+- Claude Desktop: Konfiguration mit `node <Spielordner>/studio/mcp-bruecke.mjs` (Brücke liest Port/Token aus `.studio/mcp.json`)
+- Andere (Cursor, VS Code …): Streamable HTTP auf derselben URL mit Token.
+
+Solange das Studio läuft, kann die KI Zonen öffnen, bauen, prüfen und Screenshots der Ansicht anschauen. Jede
+KI-Aktion ist ein eigener Undo-Schritt („KI: …“). Der Server ist nur auf diesem Rechner erreichbar und braucht das Token.
+
+## Ordner & Dateien
+
+| Ort | Inhalt |
+|---|---|
+| `studio/` | Programm (Electron-Hauptprozess `main/`, Oberfläche `oberflaeche/`, Ansicht `ansicht/`, Logik `kern/`) |
+| `studio/vorlagen/` | gespeicherte Vorlagen (ins Repo committen) |
+| `.studio/` | lokal: Entwürfe, MCP-Verbindung (gitignored) |
+| Einstellungen | Benutzerordner des Programms (Spielordner, KI-Anbieter, verschlüsselte Schlüssel, MCP-Token) |
+
+Spielordner wechseln: Startbildschirm → *Ändern* (oder Datei → Spielordner wechseln).
+
+## Bekannte Grenzen (Phase 1)
+
+- Mehrere Zonen gleichzeitig offen ja, aber **nebeneinander bauen** über Zonengrenzen gibt es noch nicht (Nutzerwunsch: erst einzelne Zonen).
+- Vorlagen sind beim Einsetzen Kopien – „alle Häuser dieser Vorlage aktualisieren“ kommt später.
+- Platzhalter-Optik für Spiel-Möbel (farbige Körper); echte 3D-Modelle für Spielordner-Modelle und Behälter. Das echte Aussehen zeigt **Testen**.
+- Die KI-Anbieter sind mit Attrappen getestet; echte Schlüssel waren in der Testumgebung nicht vorhanden.
+- Der alte Browser-Editor (`editor/`) bleibt für Handy/Tablet erhalten.

@@ -313,6 +313,17 @@ browser_survival/
 ├── package.json                   Skripte: start, start:gast, konto, test
 ├── index.html                     Weiterleitung → client/ (für reine Datei-Hoster)
 ├── Spiel starten.bat              Windows: Server starten + Browser öffnen
+├── Studio starten.bat             Windows: Browser Survival Studio (Desktop-Editor) starten
+│
+├── studio/                        ── Browser Survival Studio (Electron-Desktop-Editor, Anleitung studio/LIESMICH.md) ──
+│   ├── main/                      Hauptprozess (Node): start.mjs (Fenster, IPC, Einstellungen), projekt.mjs (Dateien,
+│   │                              Ins Spiel, Import+Credits), dateiServer.mjs, mcp.mjs (MCP-Server), ki.mjs (Assistent), vorab.cjs
+│   ├── kern/                      umgebungsfrei: aktionen.js (Bau-Ops), dokument.js (Zonen/Undo/Auswahl), befehle.js,
+│   │                              kiWerkzeuge.js (EINE Werkzeugliste für MCP+Assistent), kiAusfuehren.js
+│   ├── ansicht/                   viewport.js (Three.js 3D/2D, Sektoren, Gizmo), werkzeuge.js (Q W E R B N H T O G K I P)
+│   ├── oberflaeche/               icons.js (eigene SVG), menue.js, panels.js, inspektor.js, kiPanel.js, dialoge.js, startbild.js
+│   ├── app.js · index.html · studio.css · mcp-bruecke.mjs (stdio→MCP) · starten.sh
+│   └── vorlagen/                  gespeicherte Vorlagen (Prefabs) des Studios
 │
 ├── docs/                          (Runde 27) aktuelle Neben-Doku, Übersicht docs/README.md
 │   ├── ONLINE_STELLEN.md          ★ Checkliste: Server online bringen (Render, Konten-Datei, Umgebungsvariablen)
@@ -483,6 +494,8 @@ browser_survival/
 
 | Wunsch | Datei(en) |
 |---|---|
+| **Studio (Desktop-Editor)**: Werkzeug / Bau-Aktion / KI-Werkzeug | `studio/ansicht/werkzeuge.js` · `studio/kern/aktionen.js` · `studio/kern/kiWerkzeuge.js` + `kiAusfuehren.js` (Anleitung `studio/LIESMICH.md`) |
+| Item-Spawnpunkte (Chance, Intervall, Höhe) | Regeln `server/spiel/karten/spawnpunkte.js`, Spawnen `server/spiel/systeme/lootSystem.js` (`punkt.spawnPunkt`) |
 | Zombie-Verhalten (Aggro, Verfolgen, Angriff, Umherschlurfen) | `server/spiel/systeme/zombieSystem.js` (+ Werte in `spielKonfiguration.js` → `zombie`) |
 | **Crafting-Rezepte** | `server/spiel/konfiguration/rezepte.js` (Anleitung steht oben in der Datei) |
 | **Werte ingame ändern** | Admin-Menü → 🛠 Developer; weitere Werte freischalten: `server/spiel/konfiguration/entwicklerFelder.js` |
@@ -942,3 +955,4 @@ Weiter: `statischerServer.js` liefert `editor/` aus,
 | 0.27.0-dev | 2026-10-31 | **Runde 27:** Keuchen eindeutig Mann/Frau (Red Library „Man/Woman Out of Breath“, CC0, je 2 WAV; alte OGGs → `archiv/audio/keuchen_alt/`). Wind ab „frisch“ zieht graue Wolken auf (`wetterEffekt.bewoelkt` → `renderer` dimmt Sonne/Himmel, Vorstufe von Regen). Haustiere: Katze größer (18 px), Anfüttern mit 10 % Chance je Fisch (Katze) bzw. Fleisch (Hund) (`haustiere.zaehmChance`), Hund & Katze unsterblich, Freilassen in den Einstellungen (AKTION `haustierFreilassen`, `spielerDatenPrivat.haustiere`) → Tier streunt wieder. Handy: ☰-Menü (Chat, Skills, Sitzen, Feld, Zoom, Admin, Einstellungen, Serverzeile), im Auto ohne Hotbar/Munition/Nachladen/Ziel-Stick, Haltbarkeit über dem Tacho unten rechts, Fahr-Hinweis je Gerät (Client). Tests `tests/runde27.test.js`. |
 | 0.27.0-dev | 2026-10-31 | **Aufräumen (nichts gelöscht, nur verschoben):** Hauptordner von 27 auf 13 Einträge – Neben-Doku nach `docs/` (+ `docs/konzepte/`), erledigte Runden-Pläne nach `archiv/runden/`, Python-Wheels (py7zr offline) nach `werkzeuge/python-pakete/`, Reste aus `werkzeuge/assets/` nach `archiv/werkzeuge-reste/`; alle Verweise angepasst. Credits-Dialog ergänzt um die Poly-Pizza-Pakete (u. a. CC-BY: Post Apocalypse, Good Dino Deeds, Urban Clutter), die bisher nur in einer alten Liste standen. |
 | 0.27.0-dev | 2026-11-01 | **Konzept „Browser Survival Studio“** (`docs/konzepte/STUDIO_KONZEPT.md`): lokales Desktop-Programm (Electron) mit Befehlsschicht, Kartenbearbeitung 3D/2D (Phase 1), Audio-Zentrale (Phase 2), Modell-Werkstatt (Phase 3), Objekt-Skalierung, Items auf Möbeln, Item-Spawnpunkte mit Chance/Intervall, Vorlagen-Editor, MCP-Server + API-Assistent. Noch kein Code – wartet auf Rückfragen. |
+| 0.28.0-dev | 2026-11-01 | **Browser Survival Studio – Phase 1 (Karten):** neues Desktop-Programm `studio/` (Electron, `npm run studio` / `Studio starten.bat`): Startbildschirm, 3D/2D-Ansicht mit Sektoren + Gizmo, Werkzeuge (Auswahl/Bewegen/Drehen/Größe, Boden, Wand, Raum, Gelände, Objekt, Bereich, Klang, Item-Spawnpunkt, Punkt), Inspektor, Szene-Baum, Assets (inkl. Spielordner-Modelle, Vorlagen, Items), Prüfung live, Vorlagen-Editor, Modell-/Klang-Import mit Credits, Testlauf im echten Spiel, Ins-Spiel-Übernahme, Autosave. KI: MCP-Server (127.0.0.1 + Token, stdio-Brücke) + Assistent (Claude/Gemini/OpenAI/Grok/DeepSeek). 🎮 Spiel: `objekte[].skalierung`, `spawnpunkte` (Chance/Intervall Echtzeit), Item-`hoehe` (auf Möbeln). Fix: `alsJsModul` schreibt `spawnpunkte` und `schnee`. Tests `studio.test.js`, `spawnpunkte.test.js`, `npm run rauchtest:studio`. |
