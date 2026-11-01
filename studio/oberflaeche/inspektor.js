@@ -6,6 +6,7 @@ import { ausSchluessel, markerSchluessel } from '../../editor/kern/karte.js';
 import * as A from '../kern/aktionen.js';
 import { ITEM_LISTE } from '../ansicht/werkzeuge.js';
 import { eintragName } from './panels.js';
+import { ZOMBIE_VARIANTEN_NAMEN } from '../../server/spiel/karten/zombieBereiche.js';
 import { icon } from './icons.js';
 import { esc } from './dialoge.js';
 
@@ -14,7 +15,7 @@ import { esc } from './dialoge.js';
  * Dokument.aendere – jede bestätigte Eingabe (change) = ein Undo-Schritt.
  */
 const LOOT_LISTE = Object.keys(LOOT_TABELLEN).filter((t) => t !== 'zombie' && t !== 'boss').sort();
-const TITEL = { objekte: ['Objekt', 'objekt'], spawnpunkte: ['Item-Spawnpunkt', 'spawn'], marker: ['Punkt', 'marker'], lootZonen: ['Loot-Zone', 'flaeche'], raumFlaechen: ['Raum', 'raum'], uebergaenge: ['Übergang', 'tuer'], ankuenfte: ['Ankunftspunkt', 'marker'], klaenge: ['Klang', 'klang'], tierBereiche: ['Hasen-Bereich', 'hase'], bauwerke: ['Bauwerk', 'wand'], notizen: ['Notiz', 'notiz'] };
+const TITEL = { objekte: ['Objekt', 'objekt'], spawnpunkte: ['Item-Spawnpunkt', 'spawn'], marker: ['Punkt', 'marker'], lootZonen: ['Loot-Zone', 'flaeche'], raumFlaechen: ['Raum', 'raum'], uebergaenge: ['Übergang', 'tuer'], ankuenfte: ['Ankunftspunkt', 'marker'], klaenge: ['Klang', 'klang'], tierBereiche: ['Hasen-Bereich', 'hase'], bauwerke: ['Bauwerk', 'wand'], notizen: ['Notiz', 'notiz'], zombieBereiche: ['Zombie-Bereich', 'zombie'] };
 
 export class Inspektor {
   constructor(studio) {
@@ -116,6 +117,11 @@ export class Inspektor {
           + this.#abschnitt('Bereich', w.art === 'punkt' ? this.#lage(w) + this.#zahl('innen', w.innen, { min: 0, max: 50, schritt: 0.5, titel: 'Voll bis' }) + this.#zahl('aussen', w.aussen, { min: 1, max: 120, schritt: 1, titel: 'Hörweite' }) : w.art === 'bereich' ? this.#rechteck(w) + this.#zahl('rand', w.rand ?? 2, { min: 0, max: 20, schritt: 0.5, titel: 'Übergang' }) : '<div class="hinweis-kasten">Gilt für die ganze Zone.</div>');
       case 'tierBereiche':
         return this.#abschnitt('Hasen', this.#zahl('anzahl', w.anzahl, { min: 0, max: 100, schritt: 1, titel: 'Anzahl' }) + this.#zahl('respawnZeit', w.respawnZeit ?? '', { min: 0, max: 7200, schritt: 30, titel: 'Respawn s' })) + this.#abschnitt('Bereich', this.#rechteck(w));
+      case 'zombieBereiche':
+        return this.#abschnitt('Zombies', this.#text('name', w.name, 'Name', 'z. B. Friedhof') + this.#zahl('anzahl', w.anzahl, { min: 1, max: 60, schritt: 1, titel: 'Anzahl' }) + this.#auswahl('tageszeit', w.tageszeit ?? 'immer', [['immer', 'immer'], ['tag', 'nur tagsüber'], ['nacht', 'nur nachts']], 'Tageszeit') + this.#zahl('respawnZeit', w.respawnZeit ?? '', { min: 0, max: 7200, schritt: 10, titel: 'Respawn s' }))
+          + this.#abschnitt('Mischung (Gewichte)', ZOMBIE_VARIANTEN_NAMEN.map((v) => this.#zahl(`variante.${v}`, w.varianten?.[v] ?? '', { min: 0, max: 100, schritt: 1, titel: v })).join('') + '<div class="hinweis-kasten">Leer = Standard-Mischung des Spiels. Beispiel: normal 6, laeufer 2, brocken 1.</div>')
+          + this.#abschnitt('Patrouille / Horden-Route', `<div class="insp-zeile"><span>Route</span><div style="color:var(--text-3)">${w.route ? `${w.route.length} Punkte` : 'keine'}</div></div><div class="insp-knoepfe"><button class="knopf" data-aktion="routeZeichnen">${icon('messen', 14)} Route zeichnen</button>${w.route ? `<button class="knopf" data-aktion="routeWeg">${icon('loeschen', 14)} Route löschen</button>` : ''}</div><div class="hinweis-kasten">Ruhende Zombies laufen die Punkte reihum ab – mit „nur nachts“ eine wandernde Nacht-Horde.</div>`)
+          + this.#abschnitt('Bereich', this.#rechteck(w));
       case 'notizen':
         return this.#abschnitt('Notiz', `<textarea class="feld" rows="5" data-feld="text" style="width:100%">${esc(w.text)}</textarea>` + this.#schalter('erledigt', w.erledigt, 'Status', 'erledigt') + this.#lage(w));
       case 'bauwerke':
@@ -196,6 +202,13 @@ export class Inspektor {
         if (m[1] < m[0]) m[1 - i] = m[i];
         return dok.aendere('Menge', A.aenderOps(k, s, id, { menge: m }));
       }
+      if (feld.startsWith('variante.')) {
+        const v = { ...(w.varianten ?? {}) };
+        const name = feld.slice(9);
+        if (wert > 0) v[name] = wert;
+        else delete v[name];
+        return dok.aendere('Zombie-Mischung', A.aenderOps(k, s, id, { varianten: Object.keys(v).length ? v : undefined }));
+      }
       if (feld.startsWith('raum.')) {
         const f = feld.slice(5);
         const r = k.s('raeume').get(w.raum) ?? {};
@@ -259,6 +272,8 @@ export class Inspektor {
       if (!v) return studio.hinweis(`Vorlage „${i.vorlage}“ gibt es nicht mehr`, 'fehler');
       return dok.aendere('Vorlage aktualisiert', A.aktualisiereInstanzOps(k, i, v.vorlage));
     }
+    if (art === 'routeZeichnen' && g.length === 1) return studio.werkzeuge.zeichneRoute(g[0].s, g[0].k);
+    if (art === 'routeWeg' && g.length === 1) return dok.aendere('Route gelöscht', A.aenderOps(k, g[0].s, g[0].k, { route: undefined }));
     if (art === 'farbeWeg' && g.length === 1) return dok.aendere('Farbe', A.aenderOps(k, g[0].s, g[0].k, { farbe: undefined }));
     if (art === 'zumZiel' && g.length === 1) {
       const u = g[0].wert;

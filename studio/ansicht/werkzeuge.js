@@ -52,7 +52,7 @@ export class Werkzeuge {
       strasse: { fahrbahn: 4, gehweg: 1, markierung: true, laternen: 10 },
       streuen: { set: 'wald', radius: 5, dichte: 5, modus: 'streuen' },
       objekt: { drehung: 0, skalierung: 1, raster: 'halb', variieren: false, einrasten: true },
-      flaeche: { art: 'loot', tabelle: 'wohnung', ziel: '', ankunft: '', datei: '', anzahl: 4 },
+      flaeche: { art: 'loot', tabelle: 'wohnung', ziel: '', ankunft: '', datei: '', anzahl: 4, tageszeit: 'immer' },
       klang: { datei: '', innen: 2, aussen: 10, lautstaerke: 1 },
       spawn: { inhalt: 'konservendose', chance: 50, intervall: 10, mengeMin: 1, mengeMax: 1 },
       marker: { art: 'start', name: 'ankunft' },
@@ -66,6 +66,13 @@ export class Werkzeuge {
 
   get ansicht() {
     return this.studio.ansicht;
+  }
+
+  /** Route für einen Zombie-Bereich mit dem Maßband zeichnen (Klicks, Enter = fertig) */
+  zeichneRoute(s, k) {
+    this.waehle('messen');
+    this.messung = { punkte: [], fuer: { s, k } };
+    this.studio.hinweis('Route zeichnen: Punkte anklicken, Enter = fertig, Esc = abbrechen');
   }
 
   waehle(id) {
@@ -128,9 +135,10 @@ export class Werkzeuge {
         ];
       case 'flaeche': {
         const o = this.opt.flaeche;
-        const felder = [{ art: 'segment', feld: 'art', werte: [['loot', 'Loot-Zone'], ['tiere', 'Hasen'], ['uebergang', 'Übergang'], ['klang', 'Klangzone']] }];
+        const felder = [{ art: 'segment', feld: 'art', werte: [['loot', 'Loot-Zone'], ['zombies', 'Zombies'], ['tiere', 'Hasen'], ['uebergang', 'Übergang'], ['klang', 'Klangzone']] }];
         if (o.art === 'loot') felder.push({ art: 'auswahl', feld: 'tabelle', titel: 'Tabelle', werte: LOOT_LISTE.map((t) => [t, t]) });
-        if (o.art === 'tiere') felder.push({ art: 'zahl', feld: 'anzahl', titel: 'Anzahl', min: 1, max: 100, schritt: 1 });
+        if (o.art === 'tiere' || o.art === 'zombies') felder.push({ art: 'zahl', feld: 'anzahl', titel: 'Anzahl', min: 1, max: o.art === 'zombies' ? 60 : 100, schritt: 1 });
+        if (o.art === 'zombies') felder.push({ art: 'segment', feld: 'tageszeit', werte: [['immer', 'immer'], ['tag', 'tagsüber'], ['nacht', 'nachts']] });
         if (o.art === 'uebergang') felder.push({ art: 'auswahl', feld: 'ziel', titel: 'Zielzone', werte: [['', '— wählen —'], ...zonen] }, { art: 'text', feld: 'ankunft', titel: 'Ankunft', platzhalter: 'Name des Ankunftspunkts' });
         if (o.art === 'klang') felder.push({ art: 'auswahl', feld: 'datei', titel: 'Datei', werte: klaenge });
         return felder;
@@ -457,6 +465,18 @@ export class Werkzeuge {
   /** Messen beenden (Enter/Doppelklick) bzw. löschen (Esc) */
   messenEnde(loeschen = false) {
     if (!this.messung) return false;
+    if (this.messung.fuer && !loeschen) {
+      // Route eines Zombie-Bereichs fertig gezeichnet
+      const { s, k } = this.messung.fuer;
+      const punkte = this.messung.punkte;
+      this.messung = null;
+      this.ansicht.setzeMessung([]);
+      if (punkte.length >= 2) this.dok.aendere('Route', A.aenderOps(this.dok.karte, s, k, { route: punkte }));
+      else this.studio.hinweis('Route braucht mindestens 2 Punkte', 'fehler');
+      this.waehle('auswahl');
+      this.dok.waehle([{ s, k }]);
+      return true;
+    }
     if (loeschen) {
       this.messung = null;
       this.ansicht.setzeMessung([]);
@@ -558,8 +578,8 @@ export class Werkzeuge {
         datei = await this.studio.klangFuerZone(o.datei);
       }
       if (o.art === 'uebergang' && !o.ziel) throw new Error('Erst die Zielzone wählen');
-      const { ops, id, sammlung } = A.flaecheOps(k, o.art, r, { tabelle: o.tabelle, anzahl: Number(o.anzahl), ziel: o.ziel, ankunft: o.ankunft || k.id, datei, name: datei?.split('/').pop() });
-      this.dok.aendere({ loot: 'Loot-Zone', tiere: 'Hasen-Bereich', uebergang: 'Übergang', klang: 'Klangzone' }[o.art], ops);
+      const { ops, id, sammlung } = A.flaecheOps(k, o.art, r, { tageszeit: o.tageszeit, tabelle: o.tabelle, anzahl: Number(o.anzahl), ziel: o.ziel, ankunft: o.ankunft || k.id, datei, name: datei?.split('/').pop() });
+      this.dok.aendere({ loot: 'Loot-Zone', zombies: 'Zombie-Bereich', tiere: 'Hasen-Bereich', uebergang: 'Übergang', klang: 'Klangzone' }[o.art], ops);
       this.dok.waehle([{ s: sammlung, k: id }]);
     } catch (f) {
       this.studio.hinweis(f.message, 'fehler');

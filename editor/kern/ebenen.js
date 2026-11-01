@@ -43,6 +43,7 @@ const SAMMLUNG_EBENE = {
   lootZonen: 'marker',
   spawnpunkte: 'marker',
   notizen: 'marker',
+  zombieBereiche: 'bereiche',
 };
 
 /** Ebene einer Sammlung bzw. Operationsart ('kachel', 'objekte' …) oder null */

@@ -34,7 +34,7 @@ const MOEBEL_HOEHE = {
 };
 const FOTO_BODEN = { rasen: 'rasen', wiese: 'wiese', erde: 'erde', kies: 'kies', pflaster: 'pflaster', waldboden: 'waldboden', sand: 'sand' };
 const FORMEN = ['kasten', 'flach', 'stamm', 'krone', 'tanne', 'busch', 'stein', 'licht', 'mast'];
-const UEBERLAGERUNGEN = ['lootZonen', 'raumFlaechen', 'tierBereiche', 'uebergaenge', 'klaenge', 'spawnpunkte', 'marker', 'ankuenfte', 'bauwerke', 'notizen'];
+const UEBERLAGERUNGEN = ['zombieBereiche', 'lootZonen', 'raumFlaechen', 'tierBereiche', 'uebergaenge', 'klaenge', 'spawnpunkte', 'marker', 'ankuenfte', 'bauwerke', 'notizen'];
 const BAUM_TYPEN = new Set(['baum', 'baum_herbst']);
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -632,6 +632,17 @@ export class Viewport {
       for (const [id, w] of k.s(s)) {
         const schl = { s, k: id };
         if (s === 'lootZonen') g.add(this.#rechteck(w.x, w.y, w.b, w.h, 0xf2c14e, { schl }));
+        else if (s === 'zombieBereiche') {
+          g.add(this.#rechteck(w.x, w.y, w.b, w.h, 0xef5d5d, { schl, deck: 0.14 }));
+          g.add(this.#schrift(`Zombies ×${w.anzahl}${w.tageszeit === 'nacht' ? ' · nachts' : w.tageszeit === 'tag' ? ' · tagsüber' : ''}${w.route ? ' · Route' : ''}`, w.x + w.b / 2, w.y + w.h / 2, this.hoeheBei(w.x, w.y) + 2.4, '#ff9a9a'));
+          if (w.route?.length >= 2) {
+            const pos = [...w.route, w.route[0]].map((p) => new THREE.Vector3(p.x, this.hoeheBei(p.x, p.y) + 0.25, p.y));
+            const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pos), new THREE.LineDashedMaterial({ color: 0xef5d5d, dashSize: 0.8, gapSize: 0.5, depthTest: false }));
+            l.computeLineDistances();
+            l.renderOrder = 15;
+            g.add(l);
+          }
+        }
         else if (s === 'raumFlaechen') g.add(this.#rechteck(w.x, w.y, w.b, w.h, 0xff9a4d, { schl, deck: 0.1 }));
         else if (s === 'tierBereiche') g.add(this.#rechteck(w.x, w.y, w.b, w.h, 0xc8a27a, { schl }));
         else if (s === 'uebergaenge') {

@@ -6,6 +6,7 @@ import { ladeKarte, verarbeiteKarte } from './karten/kartenLader.js';
 import { Zufall } from './zufall.js';
 import { erzeugeSpieler, spielerZuNetzwerk } from './entitaeten/spieler.js';
 import { erzeugeZombie, waehleZombieVariante, zombieZuNetzwerk } from './entitaeten/zombie.js';
+import { passtTageszeit, varianteAusMischung } from './karten/zombieBereiche.js';
 import { tierZuNetzwerk } from './entitaeten/tier.js';
 import { gegenstandZuNetzwerk } from './entitaeten/gegenstand.js';
 import { verarbeiteSpielerEingaben } from './systeme/bewegungsSystem.js';
@@ -227,16 +228,26 @@ export class SpielWelt {
   /** Zombie an einem Spawnpunkt der Karte erzeugen (Variante zufällig nach Gewicht). */
   spawneZombie(spawnIndex) {
     const spawn = this.karte.zombieSpawns[spawnIndex];
-    return this.hinzufuegen(
+    // Studio-Zombie-Bereiche: nur zur passenden Tageszeit (sonst später nochmal versuchen), eigene Mischung, Patrouille
+    if (!passtTageszeit(spawn, this.istNacht)) {
+      this.zombieRespawns.push({ spawnIndex, rest: 15 });
+      return null;
+    }
+    const z = this.hinzufuegen(
       erzeugeZombie({
         id: this.neueId(),
         x: spawn.x,
         y: spawn.y,
         konfiguration: this.konfiguration,
         spawnIndex,
-        variante: waehleZombieVariante(this.zufall, this.konfiguration, this.tag ?? 1),
+        variante: varianteAusMischung(spawn, this.zufall) ?? waehleZombieVariante(this.zufall, this.konfiguration, this.tag ?? 1),
       }),
     );
+    if (spawn.route) {
+      z.route = spawn.route;
+      z.routeIndex = spawnIndex % spawn.route.length;
+    }
+    return z;
   }
 
   spielerBetrittWelt(benutzername, { admin = false } = {}) {

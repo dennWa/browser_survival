@@ -183,6 +183,12 @@ export function erstelleKiAusfuehrer(studio) {
       }
       return ok(null, liste);
     },
+    zombie_bereich: (a) => {
+      const { ops, id } = A.flaecheOps(karte(), 'zombies', a, { anzahl: a.anzahl, tageszeit: a.tageszeit, varianten: a.varianten, route: a.route });
+      if (a.name) ops[0].neu.name = String(a.name).slice(0, 40);
+      aendere('Zombie-Bereich', ops);
+      return ok(`Zombie-Bereich ${id} angelegt.`);
+    },
     laufweg_pruefen: () => {
       karte();
       const r = laufweg(dok.definition());

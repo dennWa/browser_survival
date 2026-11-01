@@ -323,6 +323,16 @@ function schlurfe(spielWelt, z, dt, k) {
     if (angekommen || steckt) z.wanderZiel = null;
     return;
   }
+  // Studio-Zombie-Bereich mit Route: Patrouille – Punkte reihum ablaufen (kurze Pause an jedem Punkt)
+  if (z.route) {
+    z.wanderTimer -= dt;
+    if (z.wanderTimer > 0) return;
+    z.wanderTimer = 0.5 + spielWelt.zufall.zahl();
+    const p = z.route[z.routeIndex % z.route.length];
+    z.routeIndex = (z.routeIndex + 1) % z.route.length;
+    z.wanderZiel = { x: p.x + (spielWelt.zufall.zahl() - 0.5) * 20, y: p.y + (spielWelt.zufall.zahl() - 0.5) * 20 };
+    return;
+  }
   z.wanderTimer -= dt;
   if (z.wanderTimer > 0) return;
   z.wanderTimer = 3 + spielWelt.zufall.zahl() * 5;

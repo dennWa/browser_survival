@@ -60,7 +60,7 @@ export function alsJsModul(definition, { quelle = 'Map-Editor (editor/)' } = {})
   const liste = (name) => definition[name]?.length && z.push(`  ${name}: [`, ...definition[name].map((e) => `    ${jsWert(e)},`), '  ],');
   liste('uebergaenge');
   if (definition.ankuenfte) z.push('  ankuenfte: {', ...Object.entries(definition.ankuenfte).map(([k, p]) => `    ${IDENT.test(k) ? k : jsWert(k)}: ${jsWert(p)},`), '  },');
-  for (const name of ['zombieSpawns', 'bauwerke', 'tierBereiche', 'raumFlaechen', 'lootZonen', 'spawnpunkte', 'klaenge', 'notizen', 'vorlagenInstanzen']) liste(name);
+  for (const name of ['zombieSpawns', 'bauwerke', 'tierBereiche', 'raumFlaechen', 'lootZonen', 'spawnpunkte', 'zombieBereiche', 'klaenge', 'notizen', 'vorlagenInstanzen']) liste(name);
   if (definition.einstellungen) z.push(`  einstellungen: ${jsWert(definition.einstellungen)},`);
   if (definition.musik) z.push(`  musik: ${jsWert(definition.musik)},`);
   if (definition.schnee === true) z.push('  schnee: true,');

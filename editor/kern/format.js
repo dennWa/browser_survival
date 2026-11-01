@@ -32,6 +32,7 @@ export const FARBE = /^#[0-9a-fA-F]{6}$/;
  *                 (asset = ID in der Projekt-Bibliothek, kern/bibliothek.js; Export bettet das Modell als glb ein)
  *   lootZonen     [{ name, x, y, b, h, modus, eintraege, punkte, ort, … }]  Loot-Zonen (6.2, server/spiel/karten/lootZonen.js)
  *   spawnpunkte   [{ x, y, inhalt, chance, intervall, menge?, hoehe? }]  Item-Spawnpunkte (Studio, server/spiel/karten/spawnpunkte.js)
+ *   zombieBereiche [{ x, y, b, h, anzahl, varianten?, tageszeit?, route? }]  Zombie-Bereiche (Studio, server/spiel/karten/zombieBereiche.js)
  *   notizen       [{ x, y, text, erledigt? }]                Notiz-Pins (Studio, nur Editor)
  *   vorlagenInstanzen [{ id, vorlage, x, y, b, h }]           verknüpfte Vorlagen-Kopien (Studio, nur Editor)
  *   objekte[].skalierung  0,25–4 (Studio; b/h sind schon skaliert, Spiel hebt nur die Optik-Höhe an)
@@ -112,6 +113,7 @@ export function ausDefinition(def) {
   for (const z of Array.isArray(def.lootZonen) ? def.lootZonen : []) if (z && typeof z === 'object') karte.s('lootZonen').set(karte.neueId(), kopie(z));
   for (const p of Array.isArray(def.spawnpunkte) ? def.spawnpunkte : []) if (p && typeof p === 'object') karte.s('spawnpunkte').set(karte.neueId(), kopie(p));
   for (const n of Array.isArray(def.notizen) ? def.notizen : []) if (n && typeof n === 'object') karte.s('notizen').set(karte.neueId(), kopie(n));
+  for (const z of Array.isArray(def.zombieBereiche) ? def.zombieBereiche : []) if (z && typeof z === 'object') karte.s('zombieBereiche').set(karte.neueId(), kopie(z));
   if (Array.isArray(def.vorlagenInstanzen)) karte.werte.vorlagenInstanzen = kopie(def.vorlagenInstanzen);
   for (const roh of Array.isArray(def.klaenge) ? def.klaenge : []) {
     const k = pruefeKlang(roh, { breite: karte.breite, hoehe: karte.hoehe });
@@ -187,6 +189,7 @@ export function nachDefinition(karte) {
   if (karte.s('lootZonen').size) def.lootZonen = [...karte.s('lootZonen').values()].map(kopie);
   if (karte.s('spawnpunkte').size) def.spawnpunkte = [...karte.s('spawnpunkte').values()].map(kopie);
   if (karte.s('notizen').size) def.notizen = [...karte.s('notizen').values()].map(kopie);
+  if (karte.s('zombieBereiche').size) def.zombieBereiche = [...karte.s('zombieBereiche').values()].map(kopie);
   if (karte.werte.vorlagenInstanzen?.length) def.vorlagenInstanzen = kopie(karte.werte.vorlagenInstanzen);
   if (karte.s('klaenge').size) def.klaenge = [...karte.s('klaenge')].map(([id, k]) => mitAudio({ id, ...kopie(k) })); // Bibliotheks-Audio → daten eingebettet
   const einstellungen = bereinigeLeere(kopie(karte.werte.einstellungen ?? {}));

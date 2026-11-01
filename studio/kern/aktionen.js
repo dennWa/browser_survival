@@ -228,6 +228,7 @@ export function flaecheOps(karte, art, r, o = {}) {
     if (!vorlage && !o.eintraege) throw new Error(`Unbekannte Loot-Tabelle „${o.tabelle}“`);
     return mit('lootZonen', { name: o.name ?? `Loot ${o.tabelle ?? ''}`.trim(), ...rr, modus: o.modus ?? 'gewicht', eintraege: o.eintraege ?? kopie(vorlage.eintraege), punkte: Math.max(1, Math.min(200, ganz(o.punkte ?? Math.ceil((rr.b * rr.h) / 25)))), ort: o.ort ?? 'alle' });
   }
+  if (art === 'zombies') return mit('zombieBereiche', { ...rr, anzahl: Math.max(1, Math.min(60, ganz(o.anzahl ?? 5))), tageszeit: ['immer', 'tag', 'nacht'].includes(o.tageszeit) ? o.tageszeit : 'immer', ...(o.varianten ? { varianten: o.varianten } : {}), ...(o.route?.length >= 2 ? { route: o.route } : {}) });
   if (art === 'tiere') return mit('tierBereiche', { ...rr, art: 'hase', anzahl: Math.max(0, Math.min(100, ganz(o.anzahl ?? 4))) });
   if (art === 'uebergang') {
     if (!o.ziel) throw new Error('Übergang braucht eine Zielzone');

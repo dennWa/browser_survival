@@ -6,6 +6,7 @@ import { liesHoehen, klippenFuesse } from '../../../gemeinsam/welt/gelaende.js';
 import { pruefeKlang } from '../../../gemeinsam/audio/klanglandschaft.js';
 import { pruefeLootZone, punkteDerZone } from './lootZonen.js';
 import { pruefeSpawnpunkt } from './spawnpunkte.js';
+import { pruefeZombieBereich, punkteImBereich } from './zombieBereiche.js';
 import { pruefeZonenEinstellungen } from './zonenEinstellungen.js';
 import { STADTRAND } from './stadtrand.js';
 import { WALDWEG } from './waldweg.js';
@@ -48,6 +49,8 @@ export const KARTEN = Object.freeze({
  *   bemalung { '#rrggbb': [[x, y, b, h]] } → daten.bemalung (nur Optik: Client malt es in die Bodentextur)
  *   objekte[].skalierung 0,25–4 (Studio) → nur Optik-Höhe (Fußabdruck b/h ist schon skaliert, Kollision folgt b/h)
  *   spawnpunkte [{ x, y, inhalt, chance, intervall, menge?, hoehe? }] (Studio) → lootPunkte mit `spawnPunkt` (Regeln: spawnpunkte.js)
+ *   zombieBereiche [{ x, y, b, h, anzahl, varianten?, tageszeit?, respawnZeit?, route? }] (Studio) → zombieSpawns mit
+ *                `varianten`/`tageszeit`/`route` (px) je Zombie (Regeln: zombieBereiche.js, Verhalten: spielWelt.spawneZombie, zombieSystem)
  */
 export function ladeKarte(id) {
   const definition = KARTEN[id];
@@ -173,6 +176,25 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE, { au
       const punkt = { x: mitte(x), y: mitte(y), lootZone: zone, zoneNr: nr };
       if (zone.respawnZeit) punkt.respawnZeit = zone.respawnZeit;
       lootPunkte.push(punkt);
+    }
+  });
+
+  // Zombie-Bereiche (Studio): je Zombie ein Spawnpunkt auf freier Kachel im Rechteck, mit Mischung/Tageszeit/Route
+  (Array.isArray(definition.zombieBereiche) ? definition.zombieBereiche : []).forEach((roh, nr) => {
+    const { bereich } = pruefeZombieBereich(roh, { breite, hoehe });
+    if (!bereich) return;
+    const frei = (x, y) => {
+      const k = KACHELN[kacheln[y]?.[x]];
+      return !!k && !k.blockiert && !k.innen && !objekte.some((o) => o.blockiert && o.ebene !== 'oben' && x + 0.5 > o.x && x + 0.5 < o.x + o.b && y + 0.5 > o.y && y + 0.5 < o.y + o.h);
+    };
+    const route = bereich.route?.map((p) => ({ x: p.x * kachelGroesse, y: p.y * kachelGroesse }));
+    for (const [x, y] of punkteImBereich(bereich, frei, nr)) {
+      const spawn = { x: mitte(x), y: mitte(y), bereich: nr };
+      if (bereich.varianten) spawn.varianten = bereich.varianten;
+      if (bereich.tageszeit !== 'immer') spawn.tageszeit = bereich.tageszeit;
+      if (bereich.respawnZeit) spawn.respawnZeit = bereich.respawnZeit;
+      if (route) spawn.route = route;
+      zombieSpawns.push(spawn);
     }
   });
 

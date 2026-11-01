@@ -76,7 +76,7 @@ export const KI_WERKZEUGE = Object.freeze([
   },
   {
     name: 'flaeche_anlegen',
-    beschreibung: 'Bereich markieren. art: loot (Loot-Zone: tabelle oder items), tiere (Hasen: anzahl), uebergang (ziel = Zielzone, ankunft = Ankunftspunkt dort), klang (datei = Pfad unter client/audio/…, lautstaerke 0–1).',
+    beschreibung: 'Bereich markieren (für Zombies: zombie_bereich). art: loot (Loot-Zone: tabelle oder items), tiere (Hasen: anzahl), uebergang (ziel = Zielzone, ankunft = Ankunftspunkt dort), klang (datei = Pfad unter client/audio/…, lautstaerke 0–1).',
     schema: objekt({ art: text('Art', ['loot', 'tiere', 'uebergang', 'klang']), ...rechteck, name: text('Name'), tabelle: text('Loot: Loot-Tabelle'), punkte: zahl('Loot: Anzahl Punkte'), anzahl: zahl('Tiere: Anzahl'), ziel: text('Übergang: Zielzone'), ankunft: text('Übergang: Ankunftsname in der Zielzone'), datei: text('Klang: Datei'), lautstaerke: zahl('Klang: 0–1') }, ['art', 'x', 'y', 'b', 'h']),
   },
   {
@@ -120,6 +120,11 @@ export const KI_WERKZEUGE = Object.freeze([
   { name: 'weltkarte', beschreibung: 'Alle Zonen mit ihren Übergängen (Ziel, Ankunft, Rückweg vorhanden?) und Problemen.', schema: objekt({}), lesen: true },
   { name: 'laufweg_pruefen', beschreibung: 'Was ist vom Spieler-Start/den Ankünften zu Fuß erreichbar? Liefert unerreichbare Loot-/Spawnpunkte, Übergänge und eingesperrte Flächen (fehlende Türen).', schema: objekt({}), lesen: true },
   { name: 'balance', beschreibung: 'Balance der offenen Zone: Loot je Stunde nach Bereich (Essen, Trinken, Medizin, Waffen, Munition, Material), Zombies, Gefahr und Versorgung je 1000 begehbare Kacheln.', schema: objekt({}), lesen: true },
+  {
+    name: 'zombie_bereich',
+    beschreibung: 'Zombie-Bereich anlegen: anzahl Zombies (1–60) auf freien Außenkacheln im Rechteck; tageszeit immer/tag/nacht; varianten = Mischung nach Gewicht (normal, laeufer, halb, sprinter, spucker, gepanzert, explosiv, brocken); route = Patrouille (≥ 2 Punkte, z. B. Nacht-Horde).',
+    schema: objekt({ ...rechteck, anzahl: zahl('Anzahl'), tageszeit: text('Tageszeit', ['immer', 'tag', 'nacht']), varianten: { type: 'object', description: 'z. B. { "normal": 6, "laeufer": 2 }' }, route: { type: 'array', items: { type: 'object', properties: { x: zahl('x'), y: zahl('y') } }, description: 'Wegpunkte' }, name: text('Name') }, ['x', 'y', 'b', 'h']),
+  },
   { name: 'vorlagen_liste', beschreibung: 'Gespeicherte Vorlagen (z. B. Häuser) mit Größe.', schema: objekt({}), lesen: true },
   { name: 'vorlage_einsetzen', beschreibung: 'Vorlage an (x, y) (linke obere Ecke) einsetzen.', schema: objekt({ id: text('Vorlagen-ID'), x: zahl('x'), y: zahl('y') }, ['id', 'x', 'y']) },
   { name: 'pruefen', beschreibung: 'Zone prüfen: Fehler und Hinweise (Spawns in Wänden, unerreichbare Räume …).', schema: objekt({}), lesen: true },

@@ -65,6 +65,7 @@ const SZENE_GRUPPEN = [
   ['objekte', 'Objekte', 'objekt'],
   ['spawnpunkte', 'Item-Spawnpunkte', 'spawn'],
   ['marker', 'Punkte (Start, Zombies, Loot)', 'marker'],
+  ['zombieBereiche', 'Zombie-Bereiche', 'zombie'],
   ['lootZonen', 'Loot-Zonen', 'flaeche'],
   ['raumFlaechen', 'Räume', 'raum'],
   ['uebergaenge', 'Übergänge', 'tuer'],
@@ -90,6 +91,7 @@ export function eintragName(karte, s, k, w) {
   if (s === 'klaenge') return `${w.name ?? 'Klang'} (${w.art})`;
   if (s === 'tierBereiche') return `${w.anzahl} Hasen`;
   if (s === 'bauwerke') return w.typ;
+  if (s === 'zombieBereiche') return `${w.name ?? 'Zombies'} ×${w.anzahl}${w.tageszeit !== 'immer' ? ` (${w.tageszeit})` : ''}`;
   if (s === 'notizen') return `${w.erledigt ? '✓ ' : ''}${w.text}`;
   return String(k);
 }
