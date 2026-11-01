@@ -43,6 +43,10 @@ Voraussetzung: Node.js ≥ 20 und einmal `npm install`. Das Studio braucht **kei
 | Fliegen | Rechte Maustaste halten + W A S D, Q/E = Höhe |
 | 3D ⇄ 2D (Draufsicht) | `Tab` oder Knöpfe oben links |
 | Auswahl zeigen / ganze Zone | `F` / `Pos1` |
+| **Spiel-Optik** (echte Modelle & Texturen des Spiels) | `V` oder Knopf oben rechts |
+| Tag / Abend / Nacht, Wetter (Nebel, Regen, Schnee) | Knöpfe oben rechts (nachts leuchten die Lampen der Zone) |
+| **Als Spieler herumlaufen** | `F6` – Maus schaut, W A S D, Umschalt rennt, Esc beendet |
+| Loot-Heatmap | `Umschalt+H` (grün = wenig, rot = viel) |
 | Wände niedrig (in Räume schauen) | `X` |
 
 ## Werkzeuge
@@ -57,13 +61,47 @@ Voraussetzung: Node.js ≥ 20 und einmal `npm install`. Das Studio braucht **kei
 | N | Wand ziehen | Wand, Fenster oder Tür als gerade Linie |
 | H | Raum bauen | Rechteck ziehen → Wände, Innenboden, Tür und (optional) Loot-Raum in einem Schritt |
 | T | Gelände | Heben, senken, glätten, ebnen (Radius/Stärke in der Optionsleiste) |
+| L | Straße | Linie ziehen → Fahrbahn, Gehwege, Mittelmarkierung, Laternen; Objekte auf der Fahrbahn verschwinden |
+| S | Streuen | Wald, Nadelwald, Gebüsch, Felsen oder das gewählte Asset „aufsprühen“ (nur Naturboden, kein Überlappen). Umschalt = radieren, `[` `]` = Radius |
 | O | Objekt platzieren | Asset wählen (Natur, Möbel, Modelle, Vorlagen …), Klick setzt. `Strg+Rad` dreht, Umschalt = weiter setzen, „Variieren“ = zufällige Größe/Drehung (natürlicher Wald) |
 | G | Bereich markieren | Rechteck: Loot-Zone, Hasen-Bereich, Übergang (Zielzone + Ankunft) oder Klangzone |
 | K | Klang setzen | Punktklang mit Hörweite – **Klick auf ein Objekt hängt den Klang ans Objekt** (wandert und kopiert sich mit) |
 | I | Item-Spawnpunkt | Item oder Loot-Tabelle mit Chance und Intervall; **über einem Möbel wird es automatisch draufgelegt** |
 | P | Punkt setzen | Spieler-Start, Zombie, Horde (nachts) oder Ankunftspunkt (Name für Übergänge) |
+| M | Messen | Klicks setzen Messpunkte (Meter je Abschnitt + Summe), Doppelklick/Enter beendet, Esc löscht |
+| Z | Notiz | Notiz-Pin („hier fehlt eine Tankstelle“) – sieht auch die KI (`notizen_liste`) |
 
 Alles ist rückgängig machbar: `Strg+Z` / `Strg+Y`. Kopieren `Strg+C`, Einfügen `Strg+V` (an der Maus), Duplizieren `Strg+D`, Löschen `Entf`.
+
+## Mehr Bau-Hilfen
+
+- **Zone → Generieren**: Wald/Nadelwald (Waldboden, Bäume, Lichtung, See) oder Dorf (Straße + Häuser, auf Wunsch aus deinen Vorlagen) als Startpunkt – ein Undo-Schritt. Mit einer Auswahl gilt ihr Rahmen als Bereich.
+- **Zone → Ersetzen** (`Strg+H`): z. B. alle Herbstbäume → Tannen oder Gras → Schnee, in der ganzen Zone oder im Rahmen der Auswahl.
+- **Hilfslinien**: Rechtsklick → *Hilfslinie waagerecht/senkrecht*. Objekte rasten beim Setzen an Hilfslinien und Kanten anderer Objekte ein (Schalter in der Optionsleiste).
+- **Ebenen** (oben im Szene-Baum): Ebenen ein-/ausblenden und **sperren** – gesperrte Ebenen nehmen keine Änderungen an (auch nicht von der KI).
+- **Zuletzt** (erster Assets-Reiter): die zuletzt benutzten Bausteine.
+
+## Zombie-Bereiche
+
+Werkzeug **G → Zombies**: Rechteck ziehen. Im Inspektor: **Anzahl**, **Tageszeit** (immer / nur tagsüber / nur nachts),
+**Mischung** (Gewichte je Typ: normal, laeufer, halb, sprinter, spucker, gepanzert, explosiv, brocken), Respawn und
+**Route zeichnen** (Punkte anklicken, Enter): ruhende Zombies laufen die Route ab – „nur nachts“ + Route = wandernde Nacht-Horde.
+
+## Prüfen
+
+| Befehl | Was |
+|---|---|
+| Zone → **Laufweg prüfen** (`Strg+R`) | Was ist vom Start und den Ankünften zu Fuß erreichbar? Eingesperrte Flächen (Raum ohne Tür), unerreichbare Loot-/Spawnpunkte und Übergänge rot markiert + in der Prüfung gelistet |
+| Zone → **Balance** | Alle Zonen im Vergleich: Gefahr (Zombies je 1000 Kacheln), Versorgung, Loot je Stunde nach Essen/Trinken/Medizin/Waffen/Munition/Material |
+| Zone → **Weltkarte** (`Strg+M`) | Alle Zonen mit Übergängen; rote Linien = fehlende Ankunft oder Rückweg; Klick öffnet die Zone |
+| Zone → **Versionen** | Benannte Stände (`Strg+Umschalt+S`), vor „Ins Spiel“ automatisch; **Vergleichen** färbt neu/weg/geändert in der Karte, **Wiederherstellen** |
+
+## Items, Loot & Rezepte (`Strg+I`)
+
+Items (Werte wie Nährwert, Schaden, Magazin …), **neue Items** (leihen sich das Icon eines vorhandenen), Loot-Tabellen
+(Item + Gewicht, Prozente werden angezeigt) und Rezepte (Zutaten, Ergebnis, Ort, Level) – ohne Code. Gespeichert wird
+nur in `server/spiel/konfiguration/studioDaten.js` (wird über die handgeschriebenen Dateien gelegt); die KI-Anleitung
+wird automatisch erneuert. Danach `npm test` und das Spiel neu starten.
 
 ## Item-Spawnpunkte
 
@@ -80,6 +118,7 @@ Werkzeug **G → Übergang**: Rechteck am Rand ziehen, Zielzone und Ankunftsname
 
 ## Vorlagen (Prefabs)
 
+- **Verknüpft:** Eigene Vorlagen merken sich ihre Kopien. Speicherst du die Vorlage neu, fragt das Studio „Alle Kopien aktualisieren?“ – in allen Zonen. Im Zonen-Inspektor (nichts gewählt) stehen die Kopien mit *Zeigen / Aktualisieren / Entkoppeln*.
 - **Zone → Neue Vorlage bauen**: öffnet eine kleine leere Fläche – Haus bauen, einrichten, Loot/Spawnpunkte setzen,
   **Speichern** (`Strg+S`). Danach steht sie unter *Assets → Vorlagen* bereit und wird mit dem Objekt-Werkzeug gesetzt.
 - **Auswahl als Vorlage**: gewählte Objekte (wahlweise mit Boden & Wänden darunter) als Vorlage speichern.
@@ -129,7 +168,7 @@ Spielordner wechseln: Startbildschirm → *Ändern* (oder Datei → Spielordner 
 ## Bekannte Grenzen (Phase 1)
 
 - Mehrere Zonen gleichzeitig offen ja, aber **nebeneinander bauen** über Zonengrenzen gibt es noch nicht (Nutzerwunsch: erst einzelne Zonen).
-- Vorlagen sind beim Einsetzen Kopien – „alle Häuser dieser Vorlage aktualisieren“ kommt später.
-- Platzhalter-Optik für Spiel-Möbel (farbige Körper); echte 3D-Modelle für Spielordner-Modelle und Behälter. Das echte Aussehen zeigt **Testen**.
+- Beim Bauen zeigt die Standard-Ansicht schnelle Platzhalter; **Spiel-Optik** (`V`) zeigt das echte Aussehen (baut nach Änderungen kurz neu).
+- Tiere: das Spiel kennt in Bereichen nur Hasen.
 - Die KI-Anbieter sind mit Attrappen getestet; echte Schlüssel waren in der Testumgebung nicht vorhanden.
 - Der alte Browser-Editor (`editor/`) bleibt für Handy/Tablet erhalten.

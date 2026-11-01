@@ -130,12 +130,33 @@ try {
   const mcp = await fenster.evaluate(() => window.studioNativ.aufruf('mcp.info'));
   const antwort = await fetch(mcp.url, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream', Authorization: `Bearer ${mcp.token}` }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }) });
   const liste = await antwort.json();
-  pruefe(liste.result?.tools?.length >= 20, `MCP tools/list: ${liste.result?.tools?.length} Werkzeuge`);
+  pruefe(liste.result?.tools?.length >= 30, `MCP tools/list: ${liste.result?.tools?.length} Werkzeuge`);
   const ohne = await fetch(mcp.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
   pruefe(ohne.status === 401, 'MCP ohne Token abgewiesen (401)');
   const aufruf = await fetch(mcp.url, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream', Authorization: `Bearer ${mcp.token}` }, body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'zone_info', arguments: {} } }) });
   const info = await aufruf.json();
   pruefe(info.result?.content?.[0]?.text?.includes(TESTZONE), 'MCP tools/call zone_info antwortet mit der offenen Zone');
+
+  // Phase 1.11–1.16: Spiel-Optik, Bau-Hilfen, Analysen, Notizen
+  r = await ki('generieren', { art: 'wald', x: 30, y: 25, b: 28, h: 20, saat: 3 });
+  pruefe(r.ok, `KI generieren (Wald): ${r.text}`);
+  r = await ki('strasse_bauen', { x0: 0, y0: 42, x1: 59, y1: 42 });
+  pruefe(r.ok, `KI strasse_bauen: ${r.text}`);
+  r = await ki('zombie_bereich', { x: 40, y: 5, b: 10, h: 8, anzahl: 4, tageszeit: 'nacht', route: [{ x: 41, y: 6 }, { x: 55, y: 6 }] });
+  pruefe(r.ok, `KI zombie_bereich: ${r.text}`);
+  r = await ki('laufweg_pruefen', {});
+  pruefe(r.ok && r.daten.erreichbarProzent > 50, `KI laufweg_pruefen: ${r.daten?.erreichbarProzent} % erreichbar`);
+  r = await ki('balance', {});
+  pruefe(r.ok && r.daten.zombies >= 4, `KI balance: ${r.daten?.zombies} Zombies, Versorgung ${r.daten?.versorgung}`);
+  r = await ki('notiz_setzen', { x: 5, y: 40, text: 'Rauchtest-Notiz' });
+  pruefe(r.ok, `KI notiz_setzen: ${r.text}`);
+  await fenster.evaluate(() => window.studio.befehle.aus('ansicht.spielOptik'));
+  await fenster.waitForFunction(() => window.studio.ansicht.spielOptik.modell, null, { timeout: 60000 });
+  await fenster.evaluate(() => window.studio.befehle.aus('ansicht.zeit.nacht'));
+  await fenster.waitForTimeout(800);
+  await fenster.screenshot({ path: path.join(AUSGABE, 'studio-8-spieloptik-nacht.png') });
+  pruefe(true, 'Spiel-Optik (echtes Kartenmodell) + Nacht gebaut');
+  await fenster.evaluate(() => { window.studio.befehle.aus('ansicht.spielOptik'); window.studio.befehle.aus('ansicht.zeit.tag'); });
 
   // Testlauf: echtes Spiel in eigenem Fenster
   const neuesFenster = app.waitForEvent('window', { timeout: 20000 });

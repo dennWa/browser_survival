@@ -333,5 +333,12 @@ Jeder Meilenstein: `npm test` grün, eigener Rauchtest (Playwright kann Electron
 | 1.9 | KI | ✅ MCP (Streamable HTTP + stdio-Brücke, 24 Werkzeuge), Assistent mit 5 Anbietern (Attrappen-getestet) |
 | 1.10 | Feinschliff | ✅ Befehlspalette, Tooltips, Tastenkürzel-Hilfe, Startskripte, Doku; ⏳ Installer (nicht nötig, Repo) |
 
-Tests: `tests/studio.test.js` (Aktionen, Dokument, Projekt-Dateien, MCP, KI-Schleifen), `tests/spawnpunkte.test.js`,
+| 1.11 | Spiel-Optik & Stimmung | ✅ `ansicht/spielOptik.js` (echtes `KartenModell` im Editor), `ansicht/stimmung.js` (Tag/Abend/Nacht + Lampenlicht, Nebel/Regen/Schnee) |
+| 1.12 | Bau-Hilfen | ✅ `kern/bauhilfen.js`: Streuen/Radieren (S), Straße (L), Ersetzen, Generator Wald/Dorf |
+| 1.13 | Vorlagen & Überblick | ✅ verknüpfte Vorlagen (alle Kopien aktualisieren), Weltkarte, Versionen + Vergleich, Notiz-Pins (Z) |
+| 1.14 | Prüfen | ✅ `kern/analyse.js`: Laufweg (eingesperrte Flächen rot), Balance aller Zonen, Loot-Heatmap, Laufmodus (F6) |
+| 1.15 | Komfort | ✅ Messen (M), Ebenen ein-/ausblenden + sperren, Hilfslinien + Einrasten, Zuletzt-Reiter |
+| 1.16 | Item-Editor & Zombie-Bereiche 🎮 | ✅ `oberflaeche/itemEditor.js` → `server/spiel/konfiguration/studioDaten.js`; `zombieBereiche` (Mischung, Tageszeit, Route) in Lader/SpielWelt/zombieSystem |
+
+Tests: `tests/studio.test.js` (Aktionen, Bau-Hilfen, Analysen, Dokument, Projekt-Dateien, MCP, KI-Schleifen), `tests/spawnpunkte.test.js`, `tests/zombieBereiche.test.js`,
 Rauchtest `npm run rauchtest:studio` (Electron + Playwright, inkl. Testlauf-Fenster und MCP von außen).
