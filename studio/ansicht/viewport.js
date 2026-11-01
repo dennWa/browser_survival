@@ -8,6 +8,10 @@ import { BAUWERKE } from '../../gemeinsam/welt/bauwerke.js';
 import { eigenesModellUrl, ladeEigenesModell, eigenesModellInhalt } from '../../client/darstellung/eigeneModelle.js';
 import { ausSchluessel } from '../../editor/kern/karte.js';
 import { ebeneVon, ebeneFrei } from '../../editor/kern/ebenen.js';
+import { itemGeometrie, ITEM_MATERIAL } from '../../client/darstellung/itemModelle.js';
+import { erzeugeBauwerk, bauwerkDrehungY } from '../../client/darstellung/bauwerkModelle.js';
+import { BASIS_MATERIAL, bauteilGeometrie, wirdInstanziert } from '../../client/darstellung/basisbauModelle.js';
+import { festesItem } from '../kern/lootVorschau.js';
 
 /**
  * Ansicht des Studios (Three.js): dieselbe Szene als 3D (Perspektive, Orbit wie Unity) oder 2D (Draufsicht, orthografisch).
@@ -18,6 +22,11 @@ import { ebeneVon, ebeneFrei } from '../../editor/kern/ebenen.js';
  *   Objekte     Platzhalter als InstancedMesh je Form (Kasten, Fläche, Baum, Tanne, Busch, Stein, Licht) mit Instanzfarbe;
  *               Typen mit 3D-Modell (Spielordner/Behälter) als echtes .glb (Spiel-Code client/darstellung/eigeneModelle.js).
  *   Overlays    Bereiche, Übergänge (mit Ziel-Beschriftung), Klänge, Spawnpunkte, Marker, Ankünfte – anklickbar (userData {s,k}).
+ *               Phase 3.1: Spawnpunkte mit festem Item zeigen das ECHTE Item-Modell des Spiels (client/darstellung/itemModelle.js),
+ *               Bauwerke (Kamin, Sofa, Werkbank …) das echte Bauwerk-Modell (bauwerkModelle.js) – Spiel-Geometrie in Weltpixeln,
+ *               hier ×1/32. Geteilte Geometrie/Materialien tragen userData.geteilt (werden beim Neubau NICHT entsorgt).
+ *               Treffer suchen userData {s,k} auch bei den Eltern (nachgeladene GLB-Teile der Möbel haben selbst keins).
+ *   Loot-Vorschau  setzeLootVorschau(liste) – Beispiel-Items aus studio/kern/lootVorschau.js an allen Loot-Punkten (nicht anklickbar).
  *   Gizmo       TransformControls (Bewegen W / Drehen E / Skalieren R) an einem Griff; beim Loslassen → beiGizmo(art, wert).
  * Steuerung: Rechte Maustaste = drehen (3D) · Mitte/Leertaste+Links = schieben · Rad = Zoom · RMT + WASD/QE = fliegen ·
  * F = Auswahl zeigen. Linke Maustaste geht an das aktive Werkzeug (beiZeiger.unten/bewege/oben/schweben).
@@ -36,6 +45,8 @@ const FOTO_BODEN = { rasen: 'rasen', wiese: 'wiese', erde: 'erde', kies: 'kies',
 const FORMEN = ['kasten', 'flach', 'stamm', 'krone', 'tanne', 'busch', 'stein', 'licht', 'mast'];
 const UEBERLAGERUNGEN = ['zombieBereiche', 'lootZonen', 'raumFlaechen', 'tierBereiche', 'uebergaenge', 'klaenge', 'spawnpunkte', 'marker', 'ankuenfte', 'bauwerke', 'notizen'];
 const BAUM_TYPEN = new Set(['baum', 'baum_herbst']);
+const WELT_PX = 1 / 32; // Spiel-Modelle (Weltpixel) → Kacheln
+const geteilt = (o) => o.traverse((t) => (t.userData.geteilt = true));
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
 /** Sichtbare Höhe eines Objekts in Kacheln/Metern (für „auf Möbel legen“ und Platzhalter) */
@@ -86,8 +97,9 @@ export class Viewport {
     this.abstand = 45;
     this.gier = -0.6;
     this.neigung = 0.95;
-    this.gruppen = Object.fromEntries(['boden', 'waende', 'objekte', 'modelle', 'overlays', 'auswahl', 'geist', 'hilfe'].map((n) => [n, new THREE.Group()]));
+    this.gruppen = Object.fromEntries(['boden', 'waende', 'objekte', 'modelle', 'overlays', 'lootVorschau', 'auswahl', 'geist', 'hilfe'].map((n) => [n, new THREE.Group()]));
     for (const g of Object.values(this.gruppen)) this.szene.add(g);
+    this.gruppen.lootVorschau.visible = false;
     this.karte = null;
     this.sektoren = new Map();
     this.schmutzig = new Set();
@@ -617,14 +629,106 @@ export class Viewport {
     return sprite;
   }
 
-  #baueOverlays() {
-    const g = this.gruppen.overlays;
+  /** Gruppe leeren; eigene Geometrie/Materialien freigeben, geteilte (Spiel-Modelle) nicht */
+  #entsorge(g) {
     g.traverse((t) => {
+      if (t.userData.geteilt) return;
       t.geometry?.dispose();
       t.material?.map?.dispose();
       t.material?.dispose?.();
     });
     g.clear();
+  }
+
+  /** Echtes Item-Modell des Spiels (x/y Kacheln, h = Ablagehöhe). Ohne Bauplan: kleiner Kasten. ring = Farbe des Bodenrings */
+  #itemModell(defId, x, y, h, { schl = null, ring = null, vorschau = false } = {}) {
+    const g = new THREE.Group();
+    const geo = itemGeometrie(defId);
+    if (geo) {
+      const m = new THREE.Mesh(geo, ITEM_MATERIAL);
+      m.userData.geteilt = true;
+      m.scale.setScalar(WELT_PX);
+      m.rotation.y = streu(x * 3.1, y * 1.7) * Math.PI * 2; // jedes Item liegt etwas anders (wie im Spiel)
+      g.add(m);
+    } else {
+      const m = new THREE.Mesh(this.formGeo.kasten, new THREE.MeshLambertMaterial({ color: 0xd8c690 }));
+      m.scale.set(0.22, 0.12, 0.16);
+      g.add(m);
+    }
+    if (ring !== null) {
+      const r = new THREE.Mesh(new THREE.RingGeometry(0.26, 0.33, 28).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: ring, transparent: true, opacity: vorschau ? 0.45 : 0.85, depthWrite: false }));
+      r.position.y = 0.03;
+      r.renderOrder = 3;
+      g.add(r);
+    }
+    g.position.set(x, this.hoeheBei(x, y) + h, y);
+    if (schl) g.traverse((t) => Object.assign(t.userData, schl));
+    return g;
+  }
+
+  /** Echtes Bauwerk-Modell (Kamin, Möbel, Werkbank, Holzwand …) wie im Spiel (renderer.js #aktualisiereBauwerke) */
+  #bauwerkModell(w, schl) {
+    const aussen = new THREE.Group();
+    const innen = new THREE.Group();
+    const zustand = { id: 0, typ: w.typ, tx: w.tx, ty: w.ty, drehung: w.drehung ?? 0, brennt: false, gespannt: false, pflanze: null, wachstum: 0, an: false };
+    try {
+      if (wirdInstanziert(w.typ)) {
+        const geo = bauteilGeometrie(w.typ);
+        if (geo) innen.add(new THREE.Mesh(geo, BASIS_MATERIAL));
+      } else {
+        const b = erzeugeBauwerk(zustand);
+        b.aktualisiere?.(zustand, 0, false);
+        innen.add(b.gruppe);
+      }
+    } catch {
+      // unbekanntes Bauwerk → Kasten unten
+    }
+    if (innen.children.length) {
+      geteilt(innen);
+      innen.scale.setScalar(WELT_PX);
+      innen.rotation.y = bauwerkDrehungY(zustand);
+      aussen.add(innen);
+      this.#nachladen(); // Möbel-GLBs kommen asynchron (moebelModelle.js) → ein paar Mal neu zeichnen
+    } else {
+      const hoch = ['wand', 'tuer'].includes(BAUWERKE[w.typ]?.ebene) ? WAND_HOEHE : 0.7;
+      const m = new THREE.Mesh(this.formGeo.kasten, new THREE.MeshLambertMaterial({ color: 0xa0784a }));
+      m.scale.set(0.95, hoch, 0.95);
+      aussen.add(m);
+    }
+    aussen.position.set(w.tx + 0.5, this.hoeheBei(w.tx, w.ty), w.ty + 0.5);
+    aussen.traverse((t) => Object.assign(t.userData, schl));
+    return aussen;
+  }
+
+  /** Flacher, anklickbarer Ring am Boden (Loot-Marker bei aktiver Loot-Vorschau) */
+  #bodenRing(x, y, farbe, schl) {
+    const r = new THREE.Mesh(new THREE.CircleGeometry(0.34, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: farbe, transparent: true, opacity: 0.35, depthWrite: false }));
+    r.position.set(x, this.hoeheBei(x, y) + 0.025, y);
+    r.renderOrder = 2;
+    r.userData = { ...schl };
+    return r;
+  }
+
+  #nachladen() {
+    if (this.nachladenLaeuft) return;
+    this.nachladenLaeuft = true;
+    for (const ms of [300, 900, 2000, 4500]) setTimeout(() => this.anfordern(), ms);
+    setTimeout(() => (this.nachladenLaeuft = false), 4600);
+  }
+
+  /** Loot-Vorschau: [{ x, y, hoehe, defId, sicher }] (studio/kern/lootVorschau.js) oder null = aus */
+  setzeLootVorschau(liste) {
+    const g = this.gruppen.lootVorschau;
+    this.#entsorge(g);
+    for (const e of liste ?? []) g.add(this.#itemModell(e.defId, e.x, e.y, e.hoehe ?? 0, { ring: e.sicher ? 0x46c27a : 0xf2c14e, vorschau: !e.sicher }));
+    if (g.visible !== !!liste) this.overlaysSchmutzig = true; // Loot-Marker: Kasten ⇄ Bodenring
+    g.visible = !!liste;
+    this.anfordern();
+  }
+
+  #baueOverlays() {
+    const g = this.gruppen.overlays;
+    this.#entsorge(g);
     const k = this.karte;
     const sichtbar = (s) => !this.ebenenZustand || this.ebenenZustand[ebeneVon(s)]?.sichtbar !== false;
     for (const s of UEBERLAGERUNGEN) {
@@ -658,11 +762,15 @@ export class Viewport {
               g.add(ring);
             }
           }
-        } else if (s === 'spawnpunkte') g.add(this.#punkt(w.x, w.y, 0x46c27a, 'raute', { schl, hoehe: w.hoehe ?? 0, groesse: 0.22 }));
+        } else if (s === 'spawnpunkte') {
+          const item = festesItem(w.inhalt);
+          g.add(item ? this.#itemModell(item, w.x, w.y, w.hoehe ?? 0, { schl, ring: 0x46c27a }) : this.#punkt(w.x, w.y, 0x46c27a, 'raute', { schl, hoehe: w.hoehe ?? 0, groesse: 0.22 }));
+        }
         else if (s === 'marker') {
           const [x, y] = ausSchluessel(id);
           const farbe = w.art === 'start' ? 0x46c27a : w.art === 'loot' ? 0xf2c14e : w.horde ? 0x9b5cff : 0xef5d5d;
-          g.add(this.#punkt(x + 0.5, y + 0.5, farbe, w.art === 'loot' ? 'kasten' : 'saeule', { schl, groesse: w.art === 'loot' ? 0.3 : 0.3 }));
+          if (w.art === 'loot' && this.gruppen.lootVorschau.visible) g.add(this.#bodenRing(x + 0.5, y + 0.5, farbe, schl)); // Beispiel-Item liegt drauf
+          else g.add(this.#punkt(x + 0.5, y + 0.5, farbe, w.art === 'loot' ? 'kasten' : 'saeule', { schl, groesse: 0.3 }));
         } else if (s === 'ankuenfte') {
           g.add(this.#punkt(w.x + 0.5, w.y + 0.5, 0x4aa3ff, 'saeule', { schl, groesse: 0.28 }));
           g.add(this.#schrift(`◉ ${id}`, w.x + 0.5, w.y + 0.5, this.hoeheBei(w.x, w.y) + 2.4, '#9fd0ff'));
@@ -670,14 +778,7 @@ export class Viewport {
           const pin = this.#punkt(w.x, w.y, w.erledigt ? 0x6c7380 : 0xffd23f, 'raute', { schl, hoehe: 1.6, groesse: 0.3 });
           g.add(pin);
           g.add(this.#schrift(`${w.erledigt ? '✓ ' : '✎ '}${w.text.length > 38 ? `${w.text.slice(0, 36)}…` : w.text}`, w.x, w.y, this.hoeheBei(w.x, w.y) + 2.6, w.erledigt ? '#9aa1ad' : '#ffe08a'));
-        } else if (s === 'bauwerke') {
-          const hoch = ['wand', 'tuer'].includes(BAUWERKE[w.typ]?.ebene) ? WAND_HOEHE : 0.7;
-          const m = new THREE.Mesh(this.formGeo.kasten, new THREE.MeshLambertMaterial({ color: 0xa0784a }));
-          m.scale.set(0.95, hoch, 0.95);
-          m.position.set(w.tx + 0.5, this.hoeheBei(w.tx, w.ty), w.ty + 0.5);
-          m.userData = schl;
-          g.add(m);
-        }
+        } else if (s === 'bauwerke') g.add(this.#bauwerkModell(w, schl));
       }
     }
     // Verknüpfte Vorlagen-Kopien: gestrichelter Rahmen + Name
@@ -1095,12 +1196,16 @@ export class Viewport {
             treffer = schl;
             break;
           }
-        } else if (t.object.userData?.s) {
-          if (t.object.userData.flaeche) {
-            fl ??= { s: t.object.userData.s, k: t.object.userData.k };
+        } else {
+          let o = t.object;
+          while (o && !o.userData?.s && o.parent && o.parent !== this.gruppen.overlays && o.parent !== this.gruppen.modelle) o = o.parent; // nachgeladene Teile erben vom Eltern-Knoten
+          const u = o?.userData;
+          if (!u?.s) continue;
+          if (u.flaeche) {
+            fl ??= { s: u.s, k: u.k };
             continue;
           }
-          treffer = { s: t.object.userData.s, k: t.object.userData.k };
+          treffer = { s: u.s, k: u.k };
           break;
         }
       }

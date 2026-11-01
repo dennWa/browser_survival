@@ -1,6 +1,6 @@
 # Konzept: „Browser Survival Studio“ – lokales Bearbeitungsprogramm
 
-Stand 2026-11-01 · Status: **Phase 1 (Karten) umgesetzt** – Anleitung `studio/LIESMICH.md`, Umsetzungsstand §13 · Phase 2/3 offen
+Stand 2026-11-01 · Status: **Phase 1 (Karten) umgesetzt** – Anleitung `studio/LIESMICH.md`, Umsetzungsstand §13 · **Phase 3 (Modelle) und danach Phase 2 (Audio) in Arbeit** – Plan §14/§15 (Reihenfolge: Nutzer-Entscheidung 2026-11-01)
 
 > Ein eigenständiges Programm, das lokal läuft, das Spiel kennt und Karten, Audio und Modelle bearbeitet –
 > professionell wie Unity/Godot, aber so einfach, dass Neue ohne Vorwissen mitbauen können.
@@ -342,3 +342,28 @@ Jeder Meilenstein: `npm test` grün, eigener Rauchtest (Playwright kann Electron
 
 Tests: `tests/studio.test.js` (Aktionen, Bau-Hilfen, Analysen, Dokument, Projekt-Dateien, MCP, KI-Schleifen), `tests/spawnpunkte.test.js`, `tests/zombieBereiche.test.js`,
 Rauchtest `npm run rauchtest:studio` (Electron + Playwright, inkl. Testlauf-Fenster und MCP von außen).
+
+## 14. Umsetzungsplan Phase 3 – Modell-Werkstatt (vor Phase 2, Nutzer-Entscheidung)
+
+Ziel: Modelle so sehen, wie das Spiel sie zeigt, und ohne Blender anpassen. Arbeitet direkt auf den Dateien im Spielordner
+(`client/assets/eigene/<stem>.glb` + `index.json` + `vorschau/` + `credits.json`) – keine Browser-Bibliothek wie im alten Editor.
+
+| # | Meilenstein | Ergebnis | Stand |
+|---|---|---|---|
+| 3.1 | **Echte Items & Bauwerke in der Ansicht** | Spawnpunkte mit festem Item zeigen das echte Item-Modell (`client/darstellung/itemModelle.js`), Bauwerke (Kamin, Sofa, Werkbank, Holzwand …) das echte Spiel-Modell; **Loot-Vorschau** (`Umschalt+V`): Beispiel-Items an allen Loot-Punkten, gewürfelt mit den Spiel-Regeln (`studio/kern/lootVorschau.js`), „neu würfeln“ | ✅ |
+| 3.2 | **Werkstatt-Arbeitsbereich** | Startbild-Kachel aktiv, eigener Bereich: Bibliothek aller Modelle (Vorschaubild, Suche, Bereiche, „benutzt in Zonen“), Bühne (Orbit, Raster 1 m = 1 Kachel, Licht, Spielfigur zum Größenvergleich), Infos (Maße, Dreiecke, Datei, Lizenz) | ⏳ |
+| 3.3 | **Maße, Ursprung, Ausrichtung, Grundfläche & Kollision** | Höhe im Spiel, auf den Boden, Drehpunkt unten mittig, 90°-Drehen/Spiegeln, Teile mit Gizmo + Zahlenfeldern; Fußabdruck (Kacheln) + Kollision an/aus + Ebene → `index.json` → `spielordnerTyp` (🎮 neue Objekte übernehmen es) | ⏳ |
+| 3.4 | **Farben & Texturen** | Material-Liste, Farbe/Rauheit/Metall, Textur ersetzen/entfernen, Farbton für das ganze Modell verschieben | ⏳ |
+| 3.5 | **Zusammensetzen** | Neues Modell aus Grundkörpern (Kiste, Zylinder, Kugel, Kegel, Keil, Ring), Teile duplizieren/löschen/umbenennen, anderes Modell als Teil einfügen | ⏳ |
+| 3.6 | **Leerlauf-Animation** | Drehen/Wippen/Pendeln/Pulsieren/Flackern (vorhandene Regeln `editor/kern/animation.js`), Vorschau, „im Spiel abspielen“ → `index.json leerlauf` → Typ `animation` (🎮) | ⏳ |
+| 3.7 | **Speichern & Vorschaubild** | GLB schreiben (alte Datei → `.studio/modelle/` gesichert), „als Kopie“, Vorschaubild neu, Index/Credits/KI-Anleitung nachziehen; KI-/MCP-Werkzeuge `modelle_liste`, `modell_info`, `modell_einstellen` | ⏳ |
+
+## 15. Umsetzungsplan Phase 2 – Audio-Zentrale (nach Phase 3)
+
+| # | Meilenstein | Ergebnis | Stand |
+|---|---|---|---|
+| 2.1 | **Bibliothek** | alle Sounds/Musik (`client/audio/eigene`, `audio/karten`, `musik`) mit Wellenform, Dauer, Suche, Ordner/Tags, Vorhören, Verwendung (Ereignis/Zone) | ⏳ |
+| 2.2 | **Schneiden** | Start/Ende, Ein-/Ausblenden, Normalisieren, Lautstärke; Ausschnitt als neue Datei (WAV/OGG) – Dekodieren im Programm, kein Browser-Umweg | ⏳ |
+| 2.3 | **Ereignisse** | Zuordnung Sounds ↔ Spiel-Ereignisse (Schritte je Untergrund, Waffen, Tiere …) mit Lautstärke/Streuung/Verzögerung (`einstellungen.json`) | ⏳ |
+| 2.4 | **Umgebung & Wetter** | Schichten (Regen, Wind, Nacht, Gewitter …) mit Pegel je Wetterlage und Zone, live vorhörbar | ⏳ |
+| 2.5 | **Musik je Zone/Bereich** | Musik je Zone und Fläche mit Überblendung (Klanglandschaft), Vorhören | ⏳ |

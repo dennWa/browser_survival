@@ -29,6 +29,7 @@ import { testDaten } from '../editor/kern/testlauf.js';
 import { neueVersion, fuegeHinzu, vergleiche, wiederherstellenOps } from '../editor/kern/versionen.js';
 import { layoutAusUebergaengen } from '../editor/kern/zonenVerbund.js';
 import { laufweg, balance, heatmapGitter, BEREICHE } from './kern/analyse.js';
+import { beispielItems } from './kern/lootVorschau.js';
 import { lootDichte } from '../editor/kern/lootZonenEditor.js';
 import { hilfslinieOps } from '../editor/kern/messen.js';
 import { ebenenAus, EBENEN } from '../editor/kern/ebenen.js';
@@ -226,6 +227,7 @@ class Studio {
     const z = this.dok.aktiv;
     this.ansicht.setzeKarte(z?.karte ?? null);
     if (this.ansicht.spielOptik.an && z) this.ansicht.spielOptik.baue(this.dok.definition());
+    this.#lootVorschau(this.lootVorschauAn && !!z, { still: true });
     document.getElementById('ansicht-leer').classList.toggle('versteckt', !!z);
     document.getElementById('zonen-titel').innerHTML = z ? `${z.quelle === 'vorlage' ? 'Vorlage' : 'Zone'} <b>${esc(z.karte.name)}</b>` : '';
     this.zonenPanel.zeichne();
@@ -252,6 +254,7 @@ class Studio {
       if (zone !== dok.aktivId) return;
       ansicht.beiAenderung(ops);
       ansicht.spielOptik.planen(() => dok.definition());
+      this.#lootVorschauPlanen();
       werkzeuge.vergissFang();
       this.szene.spaeter();
       this.inspektor.zeichne();
@@ -394,7 +397,7 @@ class Studio {
     document.getElementById('ansicht-oben-links').innerHTML = `<div class="glas"><div class="segment"><button data-befehl="ansicht.3d" class="${a.modus === '3d' ? 'aktiv' : ''}" data-tipp="3D-Ansicht" data-kuerzel="Tab">${icon('ansicht3d', 15)} 3D</button><button data-befehl="ansicht.2d" class="${a.modus === '2d' ? 'aktiv' : ''}" data-tipp="Draufsicht (2D)" data-kuerzel="Tab">${icon('ansicht2d', 15)} 2D</button></div></div>
       <div class="glas"><div class="segment"><button data-befehl="ansicht.raster" class="${a.ebenen.raster ? 'aktiv' : ''}" data-tipp="Raster">${icon('raster', 15)}</button><button data-befehl="ansicht.wandNiedrig" class="${a.wandNiedrig ? 'aktiv' : ''}" data-tipp="Wände niedrig" data-kuerzel="X" data-text="Innenräume von oben sehen">${icon('wandNiedrig', 15)}</button><button data-befehl="ansicht.objekte" class="${a.ebenen.objekte ? 'aktiv' : ''}" data-tipp="Objekte zeigen">${icon('objekt', 15)}</button><button data-befehl="ansicht.overlays" class="${a.ebenen.overlays ? 'aktiv' : ''}" data-tipp="Bereiche & Punkte zeigen">${icon('flaeche', 15)}</button></div></div>`;
     const st = this.stimmung;
-    document.getElementById('ansicht-oben-rechts').innerHTML = `<div class="glas"><div class="segment"><button data-befehl="ansicht.spielOptik" class="${a.spielOptik.an ? 'aktiv' : ''}" data-tipp="Spiel-Optik" data-kuerzel="V" data-text="Echte Modelle & Texturen des Spiels zeigen">${icon('spielOptik', 15)} Spiel-Optik</button></div></div>
+    document.getElementById('ansicht-oben-rechts').innerHTML = `<div class="glas"><div class="segment"><button data-befehl="ansicht.spielOptik" class="${a.spielOptik.an ? 'aktiv' : ''}" data-tipp="Spiel-Optik" data-kuerzel="V" data-text="Echte Modelle & Texturen des Spiels zeigen">${icon('spielOptik', 15)} Spiel-Optik</button><button data-befehl="ansicht.lootVorschau" class="${this.lootVorschauAn ? 'aktiv' : ''}" data-tipp="Loot-Vorschau" data-kuerzel="Umschalt+V" data-text="Beispiel-Items an allen Loot-Punkten (gewürfelt wie im Spiel)">${icon('item', 15)} Loot</button>${this.lootVorschauAn ? `<button data-befehl="ansicht.lootNeu" data-tipp="Neu würfeln" data-text="Andere Beispiel-Items zeigen">${icon('wuerfel', 15)}</button>` : ''}</div></div>
       <div class="glas"><div class="segment">${['tag', 'abend', 'nacht'].map((z) => `<button data-befehl="ansicht.zeit.${z}" class="${st.tageszeit === z ? 'aktiv' : ''}" data-tipp="${{ tag: 'Tag', abend: 'Abend', nacht: 'Nacht' }[z]}">${icon({ tag: 'sonne', abend: 'abend', nacht: 'mond' }[z], 15)}</button>`).join('')}</div></div>
       <div class="glas"><div class="segment">${['klar', 'nebel', 'regen', 'schnee'].map((w) => `<button data-befehl="ansicht.wetter.${w}" class="${st.wetter === w ? 'aktiv' : ''}" data-tipp="Wetter: ${{ klar: 'klar', nebel: 'Nebel', regen: 'Regen', schnee: 'Schnee' }[w]}">${w === 'klar' ? icon('sonne', 15) : { nebel: 'Nebel', regen: 'Regen', schnee: 'Schnee' }[w]}</button>`).join('')}</div></div>
       <div class="glas"><div class="segment"><button data-befehl="ansicht.fokus" data-tipp="Auswahl zeigen" data-kuerzel="F">${icon('fokus', 15)}</button><button data-befehl="ansicht.ganz" data-tipp="Ganze Zone zeigen" data-kuerzel="Pos1">${icon('zone', 15)}</button></div></div>`;
@@ -482,6 +485,8 @@ class Studio {
       { id: 'zone.vergleichAus', gruppe: 'Zone', titel: 'Markierungen ausblenden', icon: 'schliessen', versteckt: true, aktiv: () => !!this.vergleichAn, ausfuehren: () => { this.ansicht.setzeMarkierungen(null); this.vergleichAn = false; } },
       { id: 'pruefen.laufweg', gruppe: 'Zone', titel: 'Laufweg prüfen', icon: 'start', kuerzel: 'Strg+R', aktiv: echteZone, ausfuehren: () => this.#laufweg() },
       { id: 'pruefen.balance', gruppe: 'Zone', titel: 'Balance (alle Zonen) …', icon: 'ebenen', aktiv: () => this.zonenKarten().size > 0, ausfuehren: () => this.#balance() },
+      { id: 'ansicht.lootVorschau', gruppe: 'Ansicht', titel: 'Loot-Vorschau (Beispiel-Items)', icon: 'item', kuerzel: 'Umschalt+V', aktiv: mitZone, angehakt: () => !!this.lootVorschauAn, ausfuehren: () => this.#lootVorschau(!this.lootVorschauAn) },
+      { id: 'ansicht.lootNeu', gruppe: 'Ansicht', titel: 'Loot-Vorschau neu würfeln', icon: 'wuerfel', aktiv: () => !!this.lootVorschauAn, ausfuehren: () => { this.lootSaat = (this.lootSaat ?? 1) + 1; this.#lootVorschau(true); } },
       { id: 'ansicht.heatmap', gruppe: 'Ansicht', titel: 'Loot-Heatmap', icon: 'item', kuerzel: 'Umschalt+H', aktiv: mitZone, angehakt: () => !!this.heatmapAn, ausfuehren: () => this.#heatmap(!this.heatmapAn) },
       { id: 'ansicht.laufen', gruppe: 'Ansicht', titel: 'Als Spieler herumlaufen', icon: 'start', kuerzel: 'F6', aktiv: mitZone, ausfuehren: () => this.#laufen() },
       { id: 'zone.weltkarte', gruppe: 'Zone', titel: 'Weltkarte …', icon: 'welt', kuerzel: 'Strg+M', ausfuehren: () => this.#weltkarte() },
@@ -535,7 +540,7 @@ class Studio {
     this.menues.baue([
       { titel: 'Datei', eintraege: ['zone.neu', 'zone.speichern', 'zone.insSpiel', '-', 'zone.testen', 'zone.testenHier', '-', 'asset.importModell', 'asset.importKlang', '-', 'daten.items', '-', 'zone.schliessen', 'studio.start', 'projekt.ordner'] },
       { titel: 'Bearbeiten', eintraege: ['bearbeiten.rueckgaengig', 'bearbeiten.wiederholen', '-', 'bearbeiten.kopieren', 'bearbeiten.einfuegen', 'bearbeiten.duplizieren', 'bearbeiten.loeschen', '-', 'bearbeiten.alles', 'bearbeiten.abwaehlen'] },
-      { titel: 'Ansicht', eintraege: ['ansicht.2d3d', 'ansicht.fokus', 'ansicht.ganz', '-', 'ansicht.spielOptik', 'ansicht.laufen', 'ansicht.heatmap', 'ansicht.raster', 'hilfslinie.waagerecht', 'hilfslinie.senkrecht', 'hilfslinien.loeschen', 'ansicht.wandNiedrig', 'ansicht.objekte', 'ansicht.overlays', '-', 'ansicht.zeit.tag', 'ansicht.zeit.abend', 'ansicht.zeit.nacht', '-', 'ansicht.wetter.klar', 'ansicht.wetter.nebel', 'ansicht.wetter.regen', 'ansicht.wetter.schnee', '-', 'ansicht.palette'] },
+      { titel: 'Ansicht', eintraege: ['ansicht.2d3d', 'ansicht.fokus', 'ansicht.ganz', '-', 'ansicht.spielOptik', 'ansicht.lootVorschau', 'ansicht.lootNeu', 'ansicht.laufen', 'ansicht.heatmap', 'ansicht.raster', 'hilfslinie.waagerecht', 'hilfslinie.senkrecht', 'hilfslinien.loeschen', 'ansicht.wandNiedrig', 'ansicht.objekte', 'ansicht.overlays', '-', 'ansicht.zeit.tag', 'ansicht.zeit.abend', 'ansicht.zeit.nacht', '-', 'ansicht.wetter.klar', 'ansicht.wetter.nebel', 'ansicht.wetter.regen', 'ansicht.wetter.schnee', '-', 'ansicht.palette'] },
       { titel: 'Zone', eintraege: ['zone.eigenschaften', 'zone.groesse', 'zone.pruefen', 'pruefen.laufweg', 'pruefen.balance', 'zone.weltkarte', '-', 'zone.versionSpeichern', 'zone.versionen', 'zone.vergleichAus', '-', 'zone.ersetzen', 'zone.generieren', '-', 'vorlage.neu', 'vorlage.ausAuswahl', 'vorlage.speichern'] },
       { titel: 'Werkzeuge', eintraege: WERKZEUGE.map((w) => (w.trenner ? '-' : `werkzeug.${w.id}`)) },
       { titel: 'KI', eintraege: ['ki.oeffnen', 'ki.einstellungen', 'ki.mcp'] },
@@ -995,6 +1000,21 @@ class Studio {
     const farbe = { essen: '#46c27a', trinken: '#4aa3ff', medizin: '#ef5d5d', waffen: '#ff8a3d', munition: '#f2c14e', material: '#b48a5a', sonstiges: '#8b919c' };
     const html = `<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="color:var(--text-3);text-align:left"><th>Zone</th><th>Gefahr<br /><small>Zombies/1000 Kachel</small></th><th>Versorgung<br /><small>Essen+Trinken/h/1000</small></th>${BEREICHE.map((b) => `<th>${b}<br /><small>pro Stunde</small></th>`).join('')}<th>Start-Loot</th></tr>${zeilen.map((z) => (z.fehler ? `<tr><td>${esc(z.name)}</td><td colspan="10" style="color:var(--rot)">${esc(z.fehler)}</td></tr>` : `<tr style="border-top:1px solid var(--linie)"><td style="padding:6px 4px"><b>${esc(z.name)}</b><br /><small style="color:var(--text-3)">${z.zombies} Zombies · ${z.lootPunkte} Loot-Punkte</small></td><td>${balken(z.gefahr, max((x) => x.gefahr), '#ef5d5d')}</td><td>${balken(z.versorgung, max((x) => x.versorgung), '#46c27a')}</td>${BEREICHE.map((b) => `<td>${balken(z.jeStunde[b], max((x) => x.jeStunde[b]), farbe[b])}</td>`).join('')}<td>${Object.values(z.start).reduce((s, w) => s + w, 0).toFixed(0)}</td></tr>`)).join('')}</table></div><div class="hinweis-kasten" style="margin-top:10px">Annahme: Jeder Loot-Punkt wird geplündert, sobald etwas liegt (Höchstwert). Gefahr = Zombie-Spawnpunkte je 1000 begehbare Kacheln. Gut zum Vergleichen der Zonen untereinander.</div>`;
     await dialog({ titel: 'Balance der Zonen', icon: 'ebenen', breit: true, inhalt: html, knoepfe: [{ text: 'Schließen', wert: true, art: 'primaer' }], klasse: 'sehr-breit' });
+  }
+
+  /** Loot-Vorschau: Beispiel-Items an allen Loot-Punkten (kern/lootVorschau.js, gleiche Würfel-Regeln wie das Spiel) */
+  #lootVorschau(an, { still = false } = {}) {
+    this.lootVorschauAn = an;
+    const liste = an && this.dok.karte ? beispielItems(this.dok.definition(), this.lootSaat ?? 1) : null;
+    this.ansicht.setzeLootVorschau(liste);
+    this.#ansichtsLeiste();
+    if (an && !still) this.hinweis(`Loot-Vorschau: ${liste.length} Beispiel-Items · gelber Ring = zufällig (Tabelle/Zone), grün = festes Item`);
+  }
+
+  #lootVorschauPlanen() {
+    if (!this.lootVorschauAn) return;
+    clearTimeout(this.lootZeit);
+    this.lootZeit = setTimeout(() => this.#lootVorschau(true, { still: true }), 500);
   }
 
   #heatmap(an) {
