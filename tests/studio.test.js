@@ -443,3 +443,27 @@ test('Phase 4.7: Vorschlagsmodus – Elemente, einzelne zurücknehmen, Rest übe
   assert.equal(v.uebernimm('v'), 1);
   assert.equal(k.kachelAn(0, 5), '$', 'übernommen = bleibt');
 });
+
+test('Phase 4.8: KI-Werkzeuge Items/Loot/Rezepte – Prüfungen und Ablauf (Attrappe des Hauptprozesses)', async () => {
+  const { pruefeItemPatch, pruefeRezept, kiItemWerkzeuge } = await import('../studio/kern/kiItems.js');
+  const { GEGENSTAENDE } = await import('../server/spiel/konfiguration/gegenstaende.js');
+  assert.throws(() => pruefeItemPatch('X!', {}));
+  assert.throws(() => pruefeItemPatch('apfel', '{"stapelbar": 3}'), /nicht bearbeitbar/);
+  assert.throws(() => pruefeItemPatch('neu_ding', { name: 'Ding' }, { neu: true }), /kategorie/);
+  assert.deepEqual(pruefeItemPatch('apfel', '{"naehrwert": 40}'), { naehrwert: 40 });
+  assert.throws(() => pruefeRezept({ name: 'X', ergebnis: 'gibtsnicht', zutaten: { holz: 1 } }, GEGENSTAENDE), /Ergebnis/);
+  assert.throws(() => pruefeRezept({ name: 'X', ergebnis: 'apfel', zutaten: { holz: 0 } }, GEGENSTAENDE), /Menge/);
+  let daten = { gegenstaende: {}, icons: {}, lootTabellen: {}, rezepte: {} };
+  const studio = { nativ: { aufruf: async (a, d) => (a === 'projekt.studioDaten' ? JSON.parse(JSON.stringify(daten)) : ((daten = d.daten), true)) } };
+  const W = kiItemWerkzeuge(studio);
+  await W.item_setzen({ id: 'dosenbohnen', felder: '{"name":"Dosenbohnen","kategorie":"nahrung","naehrwert":25}', neu: true, icon_von: 'konservendose' });
+  assert.equal(daten.icons.dosenbohnen, 'konservendose');
+  await W.loot_eintrag({ tabelle: 'kueche', item: 'dosenbohnen', gewicht: 5 });
+  assert.ok(daten.lootTabellen.kueche.some((e) => e.id === 'dosenbohnen' && e.gewicht === 5));
+  const info = await W.item_info({ id: 'dosenbohnen' });
+  assert.equal(info.daten.inTabellen[0].tabelle, 'kueche');
+  await W.rezept_setzen({ id: 'bohneneintopf', rezept: '{"name":"Bohneneintopf","ergebnis":"dosenbohnen","zutaten":{"dosenbohnen":2},"ort":"feuer"}' });
+  assert.equal(daten.rezepte.bohneneintopf.ort, 'feuer');
+  await W.item_zuruecksetzen({ id: 'dosenbohnen' });
+  assert.equal(daten.gegenstaende.dosenbohnen, undefined);
+});

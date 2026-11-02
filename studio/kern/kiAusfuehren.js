@@ -9,6 +9,7 @@ import * as B from './bauhilfen.js';
 import { laufweg, balance } from './analyse.js';
 import { kiModellWerkzeuge } from './kiModelle.js';
 import { kiAudioWerkzeuge } from './kiAudio.js';
+import { kiItemWerkzeuge } from './kiItems.js';
 
 /**
  * Führt KI-Werkzeuge (kiWerkzeuge.js) im Studio-Fenster aus – für MCP (Claude Desktop/Code …) UND den eingebauten
@@ -222,7 +223,7 @@ export function erstelleKiAusfuehrer(studio) {
     },
   };
 
-  Object.assign(W, kiModellWerkzeuge(studio), kiAudioWerkzeuge(studio)); // Modell-Werkstatt (Phase 3), Audio-Zentrale (Phase 2)
+  Object.assign(W, kiModellWerkzeuge(studio), kiAudioWerkzeuge(studio), kiItemWerkzeuge(studio)); // Modell-Werkstatt (Phase 3), Audio-Zentrale (Phase 2)
 
   return {
     async fuehreAus(name, argumente = {}, quelle = 'mcp') {

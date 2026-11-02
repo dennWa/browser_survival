@@ -92,6 +92,19 @@ export const KI_AUDIO_WERKZEUGE = [
   },
 ];
 
+const I = 'Items/Loot/Rezepte: ';
+/** Items, Loot-Tabellen, Rezepte (Phase 4.8) – ausgeführt von studio/kern/kiItems.js, gespeichert in studioDaten.js */
+export const KI_ITEM_WERKZEUGE = [
+  { name: 'items_liste', beschreibung: `${I}Items suchen (id, Name, Kategorie, ob im Studio geändert).`, schema: objekt({ suche: text('Suchwort'), kategorie: text('nahrung, getraenk, medizin, nahkampf, fernkampf, wurf, munition, material, werkzeug, kleidung, rucksack, bauwerk, samen, mod') }), lesen: true },
+  { name: 'item_info', beschreibung: `${I}alle Werte eines Items + in welchen Loot-Tabellen (mit %) und Rezepten es vorkommt.`, schema: objekt({ id: text('Item-ID') }, ['id']), lesen: true },
+  { name: 'item_setzen', beschreibung: `${I}Werte eines Items ändern oder ein neues Item anlegen (neu = true, braucht name, kategorie und icon_von). felder = JSON, z. B. {"naehrwert": 30, "name": "Dosenbohnen"}. Typische Felder: naehrwert, durstwert, heilung, schaden, reichweite, abklingzeit, magazin, munition, mengeBeimFund [min,max], gewicht.`, schema: objekt({ id: text('Item-ID'), felder: text('JSON-Objekt mit Feldern'), neu: jaNein('neues Item'), icon_von: text('vorhandenes Item, dessen Icon geliehen wird') }, ['id', 'felder']) },
+  { name: 'item_zuruecksetzen', beschreibung: `${I}Studio-Änderungen eines Items verwerfen (neues Item: löschen).`, schema: objekt({ id: text('Item-ID') }, ['id']) },
+  { name: 'loot_tabellen', beschreibung: `${I}alle Loot-Tabellen – oder mit name die Einträge einer Tabelle (Gewicht + Prozent).`, schema: objekt({ name: text('Tabellenname, z. B. kueche') }), lesen: true },
+  { name: 'loot_eintrag', beschreibung: `${I}Item in einer Loot-Tabelle setzen (gewicht > 0) oder entfernen (gewicht 0). Neue Tabelle entsteht automatisch.`, schema: objekt({ tabelle: text('Tabellenname'), item: text('Item-ID'), gewicht: zahl('Gewicht (0 = entfernen)') }, ['tabelle', 'item', 'gewicht']) },
+  { name: 'rezepte_liste', beschreibung: `${I}Rezepte suchen (Zutaten, Ergebnis, Ort, Level).`, schema: objekt({ suche: text('Suchwort') }), lesen: true },
+  { name: 'rezept_setzen', beschreibung: `${I}Rezept anlegen/ändern. rezept = JSON {"name","kategorie","beschreibung","zutaten":{"holz":3},"ergebnis":"itemId","menge":1,"ort":""|"inventar"|"amboss"|"webstuhl"|"chemie"|"feuer","level":1}.`, schema: objekt({ id: text('Rezept-ID'), rezept: text('JSON-Objekt') }, ['id', 'rezept']) },
+];
+
 export const KI_WERKZEUGE = Object.freeze([
   {
     name: 'anleitung',
@@ -220,6 +233,7 @@ export const KI_WERKZEUGE = Object.freeze([
   },
   ...KI_MODELL_WERKZEUGE,
   ...KI_AUDIO_WERKZEUGE,
+  ...KI_ITEM_WERKZEUGE,
 ]);
 
 /** Werkzeug nach Name */
@@ -236,6 +250,7 @@ export const KI_REGELN = [
   'Loot: Räume mit Loot-Tabelle (raum_bauen lootTabelle), Loot-Zonen (flaeche_anlegen art=loot) oder einzelne Spawnpunkte (spawnpunkt_setzen).',
   'Übergänge zu anderen Zonen liegen am Kartenrand; die Zielzone braucht einen Ankunftspunkt mit dem angegebenen Namen.',
   'Arbeite in kleinen Schritten, prüfe mit pruefen und ansicht_bild. Fehler lassen sich mit rueckgaengig zurücknehmen.',
+  'Items/Loot/Rezepte: items_liste, item_info, item_setzen (neue Items mit icon_von), loot_eintrag, rezept_setzen – gespeichert in studioDaten.js, wirkt nach Spiel-Neustart.',
   'Sounds/Musik: audio_liste → audio_info (Dauer, Pegel, Stille) → audio_schneiden / audio_zuordnen / audio_einstellen (Pegel, Faktor je Zone) / musik_einstellen (Überblendung) / mischpult (Wetter-Schichten wie im Spiel). Dateinamen = Ereignis: pistole_2.ogg gehört zu pistole.',
   '3D-Modelle bearbeitest du in der Modell-Werkstatt: modelle_liste → werkstatt_oeffnen (modell oder neu) → modell_info → modell_teil_hinzu/_aendern, modell_material, modell_animation, modell_einstellen (Höhe, Kollision, Grundfläche) → modell_bild zum Prüfen → modell_speichern. Das Spiel passt jedes Modell in Grundfläche × Höhe ein.',
 ].join('\n');
