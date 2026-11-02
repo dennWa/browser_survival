@@ -2,7 +2,7 @@ import { icon } from './icons.js';
 import { esc } from './dialoge.js';
 
 /**
- * Startbildschirm: Bereiche (Karten, Modell-Werkstatt (Phase 3); Audio-Zentrale = Phase 2), zuletzt geöffnete Zonen,
+ * Startbildschirm: Bereiche (Karten, Audio-Zentrale (Phase 2), Modell-Werkstatt (Phase 3)), zuletzt geöffnete Zonen,
  * Spielordner (änderbar) und KI-Verbindung. Zuletzt geöffnet: localStorage `browserSurvival.studio.zuletzt`.
  */
 const ZULETZT = 'browserSurvival.studio.zuletzt';
@@ -35,7 +35,7 @@ export async function zeigeStartbild(studio) {
       <div class="start-kopf"><div class="start-logo">${icon('zone', 26)}</div><div><div class="start-titel">Browser Survival Studio</div><div class="start-unter">Der Editor für Browser Survival · Spiel v${esc(info.version)}</div></div></div>
       <div class="start-karten">
         <button class="start-karte" data-start="karten">${icon('zone', 26)}<div class="start-karte-titel">Karten bearbeiten</div><div class="start-karte-text">Zonen in 3D und 2D bauen: Böden, Wände, Räume, Objekte, Loot, Spawnpunkte, Klänge, Übergänge – und direkt testen.</div></button>
-        <div class="start-karte gesperrt">${icon('audio', 26)}<div class="start-karte-titel">Audio-Zentrale</div><div class="start-karte-text">Sounds schneiden, Musik je Bereich, Wetter & Umgebung. <b>Kommt in Phase 2.</b></div></div>
+        <button class="start-karte" data-start="audio">${icon('audio', 26)}<div class="start-karte-titel">Audio-Zentrale</div><div class="start-karte-text">Alle Sounds und Musik: schneiden, Ereignissen zuordnen, Pegel je Zone, Musik-Überblendung, Wetter-Mischpult wie im Spiel.</div></button>
         <button class="start-karte" data-start="werkstatt">${icon('modell', 26)}<div class="start-karte-titel">Modell-Werkstatt</div><div class="start-karte-text">Modelle so sehen wie im Spiel, Größe, Kollision und Grundfläche einstellen, einfärben, aus Grundkörpern zusammensetzen, animieren.</div></button>
       </div>
       <div class="start-unten">
@@ -55,6 +55,10 @@ export async function zeigeStartbild(studio) {
       } else if (s === 'karten') {
         el.classList.remove('offen');
         fertig(null);
+      } else if (s === 'audio') {
+        el.classList.remove('offen');
+        fertig(null);
+        studio.audio.oeffne().catch((f) => studio.hinweis(f.message, 'fehler'));
       } else if (s === 'werkstatt') {
         el.classList.remove('offen');
         fertig(null);

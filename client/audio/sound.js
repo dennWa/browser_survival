@@ -180,6 +180,14 @@ export class Sound {
     return (this.#eigenePegel[name] ?? 1) * (this.#zonenPegel[name]?.[this.#zone] ?? 1);
   }
 
+  /** Studio-Mischpult: Zonen-Faktor eines Ereignisses live setzen (1 = neutral); laufende Schleifen ziehen nach */
+  setzeZonenPegel(name, zone, faktor) {
+    (this.#zonenPegel[name] ??= {})[zone] = faktor;
+    const alt = this.#zone;
+    this.#zone = null;
+    this.setzeZone(alt);
+  }
+
   /** Zone betreten (Zonen-Faktoren der Umgebungs-Schleifen) – laufende Schleifen ziehen sanft nach */
   setzeZone(zone) {
     if (zone === this.#zone) return;

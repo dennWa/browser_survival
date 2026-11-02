@@ -21,6 +21,10 @@ try {
   playwright = require(path.join(require('node:child_process').execSync('npm root -g').toString().trim(), 'playwright'));
 }
 const TESTZONE = 'studio_rauchtest';
+const AUDIO_SICHERN = ['client/audio/eigene/eigene.json', 'client/audio/eigene/einstellungen.json', 'client/audio/eigene/README.md', 'client/musik/einstellungen.json', 'client/musik/musik.json'];
+const audioSicherung = new Map();
+const anleitungDatei = path.join(WURZEL, 'editor/KI_KARTEN_ANLEITUNG.md');
+const anleitungVorher = readFileSync(anleitungDatei); // Werkstatt-Speichern schreibt sie neu (asynchron) → am Ende zurück
 const nutzerDaten = mkdtempSync(path.join(tmpdir(), 'studio-test-'));
 const fehler = [];
 let ok = 0;
@@ -185,6 +189,28 @@ try {
   pruefe(r.ok, `Werkstatt-Modell in der Zone platziert: ${r.text}`);
   r = await ki('rueckgaengig', {});
 
+  // Phase 2: Audio-Zentrale per KI-Werkzeugen (geänderte Dateien werden im finally zurückgesetzt)
+  for (const d of AUDIO_SICHERN) audioSicherung.set(d, readFileSync(path.join(WURZEL, d)));
+  r = await ki('audio_zentrale_oeffnen', { id: 'mischpult' });
+  pruefe(r.ok && (await fenster.locator('#audio.offen').count()), 'Audio-Zentrale öffnet');
+  r = await ki('mischpult', { wetter: 'gewitter', tageszeit: 'nacht', ort: 'draussen', zone: 'waldweg' });
+  pruefe(r.ok && r.daten.schichten.find((x) => x.name === 'regen_stark')?.aktiv, `mischpult Gewitter: ${r.text}`);
+  await fenster.screenshot({ path: path.join(AUSGABE, 'studio-10-mischpult.png') });
+  r = await ki('audio_info', { id: 'ereignis:schritt_gras' });
+  pruefe(r.ok && r.daten.analyse?.[0]?.dauer > 0, `audio_info: ${r.daten?.analyse?.[0]?.dauer} s, Spitze ${r.daten?.analyse?.[0]?.spitzeDb} dB`);
+  r = await ki('audio_schneiden', { pfad: r.daten.dateien[0], ziel: 'variante', ereignis: 'schritt_gras', stille_weg: true, fade_out: 0.05 });
+  pruefe(r.ok && /schritt_gras_\d+\.(ogg|wav)$/.test(r.daten?.pfad ?? ''), `audio_schneiden → ${r.daten?.pfad}`);
+  const neueDatei = r.daten?.pfad;
+  r = await ki('audio_einstellen', { ereignis: 'wind', zone: 'schneeland', zonen_faktor: 1.5 });
+  pruefe(r.ok && r.text.includes('schneeland'), 'audio_einstellen: Faktor je Zone');
+  r = await ki('musik_einstellen', { ordner: 'waldweg', ueberblendung: 6 });
+  pruefe(r.ok && r.text.includes('6'), 'musik_einstellen: Überblendung');
+  if (neueDatei) {
+    r = await ki('audio_loeschen', { pfad: neueDatei });
+    pruefe(r.ok, `audio_loeschen: ${r.text}`);
+  }
+  await fenster.evaluate(() => window.studio.audio.schliesse());
+
   // Testlauf: echtes Spiel in eigenem Fenster
   const neuesFenster = app.waitForEvent('window', { timeout: 20000 });
   await fenster.evaluate(() => window.studio.befehle.aus('zone.testen'));
@@ -202,6 +228,7 @@ try {
   await app.close().catch(() => {});
   rmSync(nutzerDaten, { recursive: true, force: true });
   rmSync(path.join(WURZEL, '.studio/entwuerfe', `${TESTZONE}.json`), { force: true });
+  for (const [d, inhalt] of audioSicherung) writeFileSync(path.join(WURZEL, d), inhalt); // Audio-Einstellungen/Indexe zurück
   // Werkstatt-Testmodell wieder entfernen (Datei, Vorschaubild, Sicherungen, Index-Eintrag)
   for (const d of ['client/assets/eigene/rauchtest-modell.glb', 'client/assets/eigene/vorschau/rauchtest-modell.png']) rmSync(path.join(WURZEL, d), { force: true });
   const indexDatei = path.join(WURZEL, 'client/assets/eigene/index.json');

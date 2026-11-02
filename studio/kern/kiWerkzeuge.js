@@ -57,6 +57,40 @@ export const KI_MODELL_WERKZEUGE = [
   { name: 'modell_speichern', beschreibung: `${W}speichern: ersetzt die .glb (alte Fassung wird gesichert) oder als_kopie = Name einer neuen Datei. Neue Modelle bekommen einen Dateinamen aus dem Namen. Offene Zonen, die das Modell benutzen, werden angeglichen. Danach steht es im Karten-Editor unter Modelle (modell:<stem>).`, schema: objekt({ als_kopie: text('Name der Kopie') }) },
 ];
 
+const A = 'Audio-Zentrale: ';
+const textListe = (beschreibung) => ({ type: 'array', items: { type: 'string' }, description: beschreibung });
+
+/**
+ * Audio-Zentrale (Phase 2) – ausgeführt von studio/kern/kiAudio.js über dieselben Methoden wie die Oberfläche
+ * (audio/audioZentrale.js, audio/audioWerk.js). Pfade relativ zum Spielordner (client/audio/eigene/…, client/musik/<ordner>/…).
+ */
+export const KI_AUDIO_WERKZEUGE = [
+  { name: 'audio_liste', beschreibung: `${A}alle Sounds (Ereignisse wie pistole, schritt_gras, wind), Musik-Ordner/-Titel und Karten-Klänge suchen: id, Name, Quelle (eigen/sample/synth/stumm), Pegel, Dateien.`, schema: objekt({ suche: text('Suchwort'), gruppe: text('musik, atmosphaere, tiere, kampf, zombies, fahrzeuge, bauen, inventar, oberflaeche, karten') }), lesen: true },
+  { name: 'audio_dateien', beschreibung: `${A}alle Audiodateien des Spielordners (zum Zuordnen/Schneiden).`, schema: objekt({ suche: text('Suchwort im Pfad') }), lesen: true },
+  { name: 'audio_info', beschreibung: `${A}Details zu einem Eintrag (id aus audio_liste) oder einer Datei (pfad): Spiel-Einstellungen, Zonen-Faktoren, und je Datei Dauer, Spitze/RMS in dB, Stille am Anfang/Ende (zum Schneiden).`, schema: objekt({ id: text('Eintrags-id, z. B. ereignis:pistole'), pfad: text('oder Dateipfad') }), lesen: true },
+  { name: 'audio_zentrale_oeffnen', beschreibung: `${A}öffnen (optional direkt bei einem Eintrag oder dem Mischpult: id = mischpult).`, schema: objekt({ id: text('Eintrags-id') }) },
+  {
+    name: 'audio_einstellen',
+    beschreibung: `${A}Spiel-Einstellungen eines Ereignisses: lautstaerke (Faktor 0–3), streuung (± Tonhöhe 0–0,5), verzoegerung s, max_dauer s, einmal; zone + zonen_faktor = Pegel nur in dieser Zone (1 = neutral, entfernt).`,
+    schema: objekt({ ereignis: text('Ereignis-Name'), lautstaerke: zahl('0–3'), streuung: zahl('0–0,5'), verzoegerung: zahl('0–5 s'), max_dauer: zahl('0–120 s'), einmal: jaNein('nicht neu starten, solange er läuft'), zone: text('Zonen-ID'), zonen_faktor: zahl('0–3') }, ['ereignis']),
+  },
+  {
+    name: 'audio_schneiden',
+    beschreibung: `${A}Datei schneiden/bearbeiten und speichern (Opus-.ogg): start/ende s, fade_in/fade_out s, gain_db (−24…12), normalisieren, loop (+ ueberblendung s) für nahtlose Schleifen, stille_weg = Stille am Anfang/Ende automatisch kürzen. ziel: variante (neue Variante von ereignis), ersetzen (ereignis bekommt nur noch diese Datei), musik (Titel in musik_ordner), ueberschreiben (Quelldatei ersetzen).`,
+    schema: objekt({ pfad: text('Quelldatei'), start: zahl('s'), ende: zahl('s (0 = bis Schluss)'), fade_in: zahl('s'), fade_out: zahl('s'), gain_db: zahl('dB'), normalisieren: jaNein('auf −1 dB'), loop: jaNein('nahtlose Schleife'), ueberblendung: zahl('s'), stille_weg: jaNein('Stille kürzen'), ziel: text('Ziel', ['variante', 'ersetzen', 'musik', 'ueberschreiben']), ereignis: text('bei variante/ersetzen'), musik_ordner: text('bei musik: Zonen-ID, alle oder hauptmenue'), name: text('Titelname (musik)') }, ['pfad', 'ziel']),
+  },
+  { name: 'audio_zuordnen', beschreibung: `${A}vorhandene Datei unverändert einem Ereignis zuordnen (Kopie als <ereignis>_<n>); ersetzen = bisherige eigene Dateien entfernen.`, schema: objekt({ pfad: text('Quelldatei'), ereignis: text('Ereignis-Name'), ersetzen: jaNein('ersetzen') }, ['pfad', 'ereignis']) },
+  { name: 'musik_titel_hinzu', beschreibung: `${A}vorhandene Datei als Musik-Titel in einen Ordner kopieren (Zonen-ID, alle = jede Zone, hauptmenue = Login).`, schema: objekt({ pfad: text('Quelldatei'), ordner: text('Musik-Ordner'), name: text('Titelname') }, ['pfad', 'ordner']) },
+  { name: 'musik_einstellen', beschreibung: `${A}Musik-Ordner: zufall, ueberblendung (s Ein-/Ausblenden), pause (s zwischen Stücken), reihenfolge (Dateinamen).`, schema: objekt({ ordner: text('Musik-Ordner'), zufall: jaNein('zufällig'), ueberblendung: zahl('0–15 s'), pause: zahl('0–120 s'), reihenfolge: textListe('Dateinamen in Reihenfolge') }, ['ordner']) },
+  { name: 'audio_loeschen', beschreibung: `${A}Datei löschen (wandert in .studio/audio-papierkorb/).`, schema: objekt({ pfad: text('Datei') }, ['pfad']) },
+  {
+    name: 'mischpult',
+    beschreibung: `${A}Umgebungs-Mischpult wie im Spiel: welche Schichten (wind, regen, sturm, tag, nacht …) bei Wetter/Tageszeit/Ort/Zone wie stark laufen, mit Pegel und Zonen-Faktor. abspielen = im Studio hörbar (für den Menschen). Pegel ändern mit audio_einstellen.`,
+    schema: objekt({ wetter: text('Wetter', ['klar', 'regen', 'gewitter', 'sturm', 'nebel', 'schnee', 'schneesturm']), tageszeit: text('Tageszeit', ['tag', 'abend', 'nacht']), ort: text('Ort', ['draussen', 'haus', 'auto']), zone: text('Zonen-ID'), abspielen: jaNein('hörbar abspielen (false = stoppen)') }),
+    lesen: true,
+  },
+];
+
 export const KI_WERKZEUGE = Object.freeze([
   {
     name: 'anleitung',
@@ -184,6 +218,7 @@ export const KI_WERKZEUGE = Object.freeze([
     bild: true,
   },
   ...KI_MODELL_WERKZEUGE,
+  ...KI_AUDIO_WERKZEUGE,
 ]);
 
 /** Werkzeug nach Name */
@@ -200,5 +235,6 @@ export const KI_REGELN = [
   'Loot: Räume mit Loot-Tabelle (raum_bauen lootTabelle), Loot-Zonen (flaeche_anlegen art=loot) oder einzelne Spawnpunkte (spawnpunkt_setzen).',
   'Übergänge zu anderen Zonen liegen am Kartenrand; die Zielzone braucht einen Ankunftspunkt mit dem angegebenen Namen.',
   'Arbeite in kleinen Schritten, prüfe mit pruefen und ansicht_bild. Fehler lassen sich mit rueckgaengig zurücknehmen.',
+  'Sounds/Musik: audio_liste → audio_info (Dauer, Pegel, Stille) → audio_schneiden / audio_zuordnen / audio_einstellen (Pegel, Faktor je Zone) / musik_einstellen (Überblendung) / mischpult (Wetter-Schichten wie im Spiel). Dateinamen = Ereignis: pistole_2.ogg gehört zu pistole.',
   '3D-Modelle bearbeitest du in der Modell-Werkstatt: modelle_liste → werkstatt_oeffnen (modell oder neu) → modell_info → modell_teil_hinzu/_aendern, modell_material, modell_animation, modell_einstellen (Höhe, Kollision, Grundfläche) → modell_bild zum Prüfen → modell_speichern. Das Spiel passt jedes Modell in Grundfläche × Höhe ein.',
 ].join('\n');

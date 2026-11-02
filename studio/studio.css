@@ -287,3 +287,32 @@ textarea.feld { height: auto; padding: 6px 8px; resize: vertical; user-select: t
 .ws-mini { padding: 2px 5px !important; height: auto !important; margin-left: auto; }
 .ws-markiert { background: var(--akzent-weich); }
 .ws-rechts input[type='color'] { width: 34px; height: 22px; padding: 0; border: 1px solid var(--linie-hell); background: none; border-radius: 3px; }
+
+/* ---------- Audio-Zentrale (Phase 2, audio/audioZentrale.js) ---------- */
+#audio { position: fixed; inset: 0; z-index: 60; display: none; background: var(--hg-0); grid-template-rows: 42px 1fr; }
+#audio.offen { display: grid; }
+.az-mitte { display: grid; grid-template-columns: 360px 1fr; min-height: 0; }
+.az-gruppen { padding: 6px 0; border-bottom: 1px solid var(--linie); max-height: 40%; overflow: auto; }
+.az-gruppe { display: flex; align-items: center; gap: 8px; padding: 5px 12px; cursor: pointer; color: var(--text-2); border-left: 2px solid transparent; }
+.az-gruppe .neben { margin-left: auto; }
+.az-gruppe:hover { background: var(--hg-3); }
+.az-gruppe.aktiv { color: var(--text); background: var(--akzent-weich); border-left-color: var(--akzent); }
+.az-detail { min-height: 0; display: flex; flex-direction: column; background: var(--hg-1); }
+.az-detail .panel-inhalt { flex: 1; overflow: auto; }
+.az-datei { display: flex; align-items: center; gap: 6px; min-height: 26px; }
+.az-datei span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.az-datei .ws-mini { margin-left: 0; }
+.az-zahl { min-width: 46px; text-align: right; }
+.az-zonen { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.az-zone { display: inline-flex; align-items: center; gap: 4px; background: var(--hg-3); border-radius: 4px; padding: 2px 6px; }
+.az-zone .feld.zahl { width: 62px; }
+.az-welle { width: 100%; height: 130px; border: 1px solid var(--linie); border-radius: 4px; cursor: ew-resize; touch-action: none; }
+.az-misch-kopf, .az-misch { display: grid; grid-template-columns: 150px 120px 1fr 1fr; gap: 10px; align-items: center; }
+.az-misch-kopf { color: var(--text-3); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.6px; }
+.az-misch > span { display: flex; align-items: center; gap: 6px; }
+.az-misch input[type='range'] { flex: 1; accent-color: var(--akzent); }
+.az-misch.aus { opacity: 0.45; }
+.az-balken { display: block; width: 100%; height: 8px; background: var(--hg-0); border-radius: 4px; overflow: hidden; }
+.az-balken > span { display: block; height: 100%; background: linear-gradient(90deg, var(--akzent-dunkel), var(--akzent)); }
+#az-liste .ws-mini { margin-left: 0; }
+#az-liste .liste-eintrag > span:nth-of-type(1) { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
