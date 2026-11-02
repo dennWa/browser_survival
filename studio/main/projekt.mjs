@@ -8,7 +8,9 @@
  *   Modelle      client/assets/eigene/<stem>.glb + index.json + credits.json (Import mit Credits)
  *   Werkstatt    speichereModell (alte .glb → .studio/modelle/<stem>-<zeit>.glb), einstellenModell (index.json-Felder,
  *                Regeln studio/kern/modelle.js), modellSicherungen / stelleModellWiederHer
- *   Sounds       client/audio/eigene/ (Phase 2)
+ *   Audio (2.x)  schreibeAudio/loescheAudio (nur client/audio/eigene/, client/audio/karten/<zone>/, client/musik/<ordner>/;
+ *                Löschen = in .studio/audio-papierkorb/), speichereAudioEinstellungen (einstellungen.json Sounds/Musik) →
+ *                Indexe neu (werkzeuge/audio/indexBauen.mjs: eigene.json, musik.json)
  * Export ins Spiel = derselbe Weg wie `npm run karte:editor` (Prüfung → verarbeiteKarte → alsJsModul → registriere).
  */
 import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync, statSync, copyFileSync, rmSync } from 'node:fs';
@@ -338,6 +340,65 @@ export class Projekt {
     if (!this.modellSicherungen(stem).some((x) => x.datei === sicherung)) throw new Error('Sicherung nicht gefunden');
     const bytes = readFileSync(this.#sicher(sicherung));
     return this.speichereModell({ stem, bytes, felder: {} });
+  }
+
+  // ---------- Audio-Zentrale (Phase 2) ----------
+  /** Pfad (relativ zum Spielordner) in einem freigegebenen Audio-Ordner? → absoluter Pfad, sonst Fehler */
+  #audioPfad(pfad) {
+    const p = String(pfad ?? '').replace(/\\/g, '/');
+    const ok = /^client\/audio\/eigene\/[^/]+$/.test(p) || /^client\/audio\/karten\/[a-z0-9_]{1,40}\/[^/]+$/.test(p) || /^client\/musik\/[a-z0-9_-]{1,40}\/[^/]+$/i.test(p);
+    if (!ok || !/\.(ogg|mp3|wav|m4a|flac|opus|webm)$/i.test(p) || /[<>:"|?*]/.test(p.split('/').at(-1))) throw new Error(`Audio-Pfad nicht erlaubt: ${p} (client/audio/eigene/, client/audio/karten/<zone>/, client/musik/<ordner>/)`);
+    return this.#sicher(p);
+  }
+
+  async #audioIndexe() {
+    const { schreibeSoundIndex, schreibeMusikIndex } = await import(`${pathToFileURL(this.pfad('werkzeuge/audio/indexBauen.mjs')).href}?t=${Date.now()}`);
+    mkdirSync(this.pfad('client/musik'), { recursive: true });
+    mkdirSync(this.pfad('client/audio/eigene'), { recursive: true });
+    const sound = schreibeSoundIndex(this.wurzel);
+    const musik = schreibeMusikIndex(this.wurzel);
+    return [...sound.warnungen, ...musik.warnungen];
+  }
+
+  /** Audiodatei schreiben (+ optional Credits) → Indexe neu. @returns { pfad, groesse, warnungen } */
+  async schreibeAudio({ pfad, bytes, credits = null, ueberschreiben = true }) {
+    const ziel = this.#audioPfad(pfad);
+    if (existsSync(ziel) && !ueberschreiben) throw new Error(`${pfad} gibt es schon`);
+    mkdirSync(path.dirname(ziel), { recursive: true });
+    writeFileSync(ziel, Buffer.from(bytes));
+    if (credits?.urheber || credits?.lizenz || credits?.url) this.fuegeCreditHinzu({ paket: `Klang ${path.basename(ziel)}`, urheber: credits.urheber || 'unbekannt', lizenz: credits.lizenz || 'keine Angabe', url: credits.url || '' });
+    return { pfad, groesse: statSync(ziel).size, warnungen: await this.#audioIndexe() };
+  }
+
+  /** Audiodatei in einem freigegebenen Ordner kopieren (Zuordnen zu Ereignis/Musik-Ordner) */
+  async kopiereAudio({ von, nach }) {
+    const quelle = this.#sicher(String(von).replace(/^\/+/, ''));
+    if (!/^client\/(audio|musik)\//.test(String(von)) || !existsSync(quelle)) throw new Error(`Quelle fehlt: ${von}`);
+    return this.schreibeAudio({ pfad: nach, bytes: readFileSync(quelle) });
+  }
+
+  /** Löschen = verschieben nach .studio/audio-papierkorb/ (zurückholbar) → Indexe neu */
+  async loescheAudio({ pfad }) {
+    const ziel = this.#audioPfad(pfad);
+    if (!existsSync(ziel)) throw new Error(`${pfad} gibt es nicht`);
+    const korb = this.pfad('.studio/audio-papierkorb');
+    mkdirSync(korb, { recursive: true });
+    const name = `${Date.now()}_${String(pfad).replace(/[\/]/g, '__')}`;
+    copyFileSync(ziel, path.join(korb, name));
+    rmSync(ziel);
+    return { papierkorb: `.studio/audio-papierkorb/${name}`, warnungen: await this.#audioIndexe() };
+  }
+
+  /** einstellungen.json schreiben: sound → client/audio/eigene/, musik → client/musik/ (bereinigt) → Indexe neu */
+  async speichereAudioEinstellungen({ sound, musik }) {
+    const { pruefeSoundEinstellungen } = await import(pathToFileURL(this.pfad('client/audio/eigeneSounds.js')).href);
+    const { pruefeMusikEinstellungen } = await import(pathToFileURL(this.pfad('client/audio/musikIndex.js')).href);
+    if (sound) writeFileSync(this.pfad('client/audio/eigene/einstellungen.json'), `${JSON.stringify(pruefeSoundEinstellungen(sound), null, 2)}\n`);
+    if (musik) {
+      mkdirSync(this.pfad('client/musik'), { recursive: true });
+      writeFileSync(this.pfad('client/musik/einstellungen.json'), `${JSON.stringify(pruefeMusikEinstellungen(musik), null, 2)}\n`);
+    }
+    return { warnungen: await this.#audioIndexe() };
   }
 
   // ---------- Klänge (Karten-Klänge liegen unter client/audio/karten/<zone>/) ----------

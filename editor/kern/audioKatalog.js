@@ -1,5 +1,5 @@
 import { EREIGNISSE, SOUND_GRUPPEN, parseDateiname, pruefeSoundEinstellungen } from '../../client/audio/eigeneSounds.js';
-import { MUSIK_HAUPTMENUE, MUSIK_ALLE, musikOrdner, pruefeMusikEinstellungen, istMusikDatei } from '../../client/audio/musikIndex.js';
+import { MUSIK_HAUPTMENUE, MUSIK_ALLE, MUSIK_STANDARD, musikOrdner, pruefeMusikEinstellungen, istMusikDatei } from '../../client/audio/musikIndex.js';
 
 /**
  * Audio-Zentrale (Editor Phase 10.3): Katalog ALLER Sounds und ALLER Musik des Spiels – reine Funktionen (Tests:
@@ -254,13 +254,17 @@ export function setzeSoundEinstellung(alt, ereignis, werte) {
     if (dp) r.dateiPegel = Object.fromEntries(Object.entries(dp).map(([k, v]) => [k, Math.round(v * 100) / 100]));
   }
   if (typeof e.loop === 'boolean') r.loop = e.loop;
+  if (e.zonen) {
+    const z = pruefeSoundEinstellungen({ x: { zonen: e.zonen } }).x?.zonen; // Studio 2.4: Faktor je Zone (1 = weg)
+    if (z) r.zonen = Object.fromEntries(Object.entries(z).map(([k, v]) => [k, Math.round(v * 100) / 100]));
+  }
   if (Object.keys(r).length) neu[ereignis] = r;
   else delete neu[ereignis];
   return neu;
 }
 
 /** Neue client/musik/einstellungen.json: Ordner-Reihenfolge/Zufall setzen */
-export function setzeMusikEinstellung(alt, ordner, { reihenfolge, zufall } = {}) {
+export function setzeMusikEinstellung(alt, ordner, { reihenfolge, zufall, ueberblendung, pause } = {}) {
   const neu = { ...pruefeMusikEinstellungen(alt) };
   const e = { ...neu[ordner] };
   if (reihenfolge) e.reihenfolge = [...reihenfolge];
@@ -268,7 +272,14 @@ export function setzeMusikEinstellung(alt, ordner, { reihenfolge, zufall } = {})
     if (zufall) delete e.zufall;
     else e.zufall = false;
   }
-  if (e.reihenfolge?.length || e.zufall === false) neu[ordner] = e;
+  // Studio 2.5: Überblendung/Pause (s); Standardwert oder null = Feld weg
+  for (const [k, w] of [['ueberblendung', ueberblendung], ['pause', pause]]) {
+    if (w === undefined) continue;
+    if (w === null || w === MUSIK_STANDARD[k]) delete e[k];
+    else e[k] = pruefeMusikEinstellungen({ x: { [k]: Number(w) } }).x?.[k];
+    if (e[k] === undefined) delete e[k];
+  }
+  if (e.reihenfolge?.length || e.zufall === false || e.ueberblendung !== undefined || e.pause !== undefined) neu[ordner] = e;
   else delete neu[ordner];
   return neu;
 }
