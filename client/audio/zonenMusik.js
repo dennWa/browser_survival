@@ -11,12 +11,11 @@
  * Browser dürfen keine Ordner auflisten (auch GitHub Pages nicht) – darum der Index. Nach dem Ablegen neuer
  * Dateien einmal `npm run musik:index` ausführen, dann alles committen. Ohne Dateien bleibt es still.
  * Ablauf: Zonenwechsel → sanft ausblenden → zufälliges Stück der neuen Zone einblenden → danach das nächste (nie
- * dasselbe zweimal hintereinander). Lautstärke: Regler "Musik" in den Einstellungen (Sound-Kanal `musik`).
+ * dasselbe zweimal hintereinander). Ein-/Ausblenden und Pause je Ordner: `_optionen.<ordner>.ueberblendung/pause` (Studio). Lautstärke: Regler "Musik" in den Einstellungen (Sound-Kanal `musik`).
  */
-import { MUSIK_HAUPTMENUE } from './musikIndex.js';
+import { MUSIK_HAUPTMENUE, MUSIK_STANDARD } from './musikIndex.js';
 
 const INDEX = new URL('../musik/musik.json', import.meta.url);
-const PAUSE_ZWISCHEN_STUECKEN_MS = 4000;
 
 export class ZonenMusik {
   #sound;
@@ -54,11 +53,18 @@ export class ZonenMusik {
     return this.#index?._optionen?.[zone]?.zufall !== false;
   }
 
+  /** Überblendung/Pause des Ordners (einstellungen.json, Studio-Audio-Zentrale) in Sekunden */
+  #option(zone, k) {
+    return this.#index?._optionen?.[zone]?.[k] ?? MUSIK_STANDARD[k];
+  }
+
   /** Neue Zone betreten (oder Spiel starten). Gleiche Zone nochmal = nichts tun. */
   async setzeZone(zone) {
     if (zone === this.#zone) return;
+    const alt = this.#zone;
     this.#zone = zone;
-    this.#stoppeAktuelles();
+    await this.#ladeIndex().catch(() => {});
+    this.#stoppeAktuelles(Math.max(0.1, this.#index?._optionen?.[alt]?.ueberblendung ?? 2)); // Standard wie bisher 2 s
     const liste = await this.stuecke(zone);
     if (zone !== this.#zone || liste.length === 0) return;
     this.#naechstes(liste);
@@ -69,9 +75,9 @@ export class ZonenMusik {
     this.#stoppeAktuelles();
   }
 
-  #stoppeAktuelles() {
+  #stoppeAktuelles(sekunden = 2) {
     clearTimeout(this.#timer);
-    this.#lauf?.stoppen(2);
+    this.#lauf?.stoppen(sekunden);
     this.#lauf = null;
   }
 
@@ -84,7 +90,7 @@ export class ZonenMusik {
       stueck = kandidaten[Math.floor(Math.random() * kandidaten.length)];
     }
     this.#letztes = stueck;
-    const lauf = this.#sound.spieleMusik(new URL(`../musik/${stueck.split('/').map(encodeURIComponent).join('/')}`, import.meta.url).href);
+    const lauf = this.#sound.spieleMusik(new URL(`../musik/${stueck.split('/').map(encodeURIComponent).join('/')}`, import.meta.url).href, { fade: Math.max(0.1, this.#option(zone, 'ueberblendung')) });
     if (!lauf) {
       // Ton noch gesperrt (kein Klick bisher) → später nochmal versuchen
       this.#timer = setTimeout(() => zone === this.#zone && this.#naechstes(liste), 3000);
@@ -94,7 +100,7 @@ export class ZonenMusik {
     lauf.beiEnde((fehler) => {
       this.#lauf = null;
       // Defekte Datei: länger warten, damit es keine Schleife gibt
-      this.#timer = setTimeout(() => zone === this.#zone && this.#naechstes(liste), fehler ? 15000 : PAUSE_ZWISCHEN_STUECKEN_MS);
+      this.#timer = setTimeout(() => zone === this.#zone && this.#naechstes(liste), fehler ? 15000 : this.#option(zone, 'pause') * 1000);
     });
   }
 }

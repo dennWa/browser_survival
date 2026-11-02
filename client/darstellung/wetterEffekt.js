@@ -1,3 +1,4 @@
+import { wetterZiel } from '../../gemeinsam/audio/umgebung.js';
 import * as THREE from 'three';
 
 /**
@@ -203,11 +204,8 @@ export class WetterEffekt {
     for (const k of ['regen', 'nebel', 'schnee', 'sturm', 'gewitter', 'boe', 'windZeit', 'aussen', 'bewoelkt']) if (!Number.isFinite(this[k])) this[k] = k === 'aussen' ? 1 : 0;
     if (!Number.isFinite(this.windStufe)) this.windStufe = 1;
     const a = this.art;
-    const zielRegen = a === 'regen' || a === 'gewitter' ? 1 : 0;
-    const zielSchnee = a === 'schnee' || a === 'schneesturm' ? 1 : 0;
-    const zielNebel = { nebel: 1, regen: 0.3, gewitter: 0.5, schnee: 0.4, schneesturm: 0.85, sturm: 0.12 }[a] ?? 0;
-    const zielSturm = { sturm: 1, gewitter: 0.6, schneesturm: 1 }[a] ?? 0;
-    const zielGewitter = a === 'gewitter' ? 1 : 0;
+    // Zielwerte je Wetterlage: gemeinsam/audio/umgebung.js (auch Studio-Mischpult)
+    const { regen: zielRegen, schnee: zielSchnee, nebel: zielNebel, sturm: zielSturm, gewitter: zielGewitter } = wetterZiel(a);
     const schritt = BLENDE_PRO_SEKUNDE * dt;
     const blende = (wert, ziel) => wert + Math.max(-schritt, Math.min(schritt, ziel - wert));
     this.regen = blende(this.regen, zielRegen);

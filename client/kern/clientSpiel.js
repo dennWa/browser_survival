@@ -1,4 +1,5 @@
 import { AUFHEB_REICHWEITE, BETT_REICHWEITE, TICK_DAUER_MS, TICK_DAUER_S, WERKBANK_REICHWEITE } from '../../gemeinsam/konstanten.js';
+import { wetterSchichten } from '../../gemeinsam/audio/umgebung.js';
 import { naheHandwerk, rezepteFuerOrt } from '../../gemeinsam/spieler/handwerk.js';
 import { ABBAU_REICHWEITE, RESSOURCEN_OBJEKTE } from '../../gemeinsam/welt/ressourcen.js';
 import { BAUWERKE, BAUWERK_REICHWEITE, bauwerkAktion, feuerText, kachelInReichweite, pruefePlatz, samenZiel, zielKachel } from '../../gemeinsam/welt/bauwerke.js';
@@ -61,11 +62,6 @@ const ANGEL_REICHWEITE = 230; // wie konfiguration.angeln.reichweite (Server) �
  * Angriffe, Inventar & Co. entscheidet allein der Server – der Client schickt nur Wünsche
  * (EINGABE.angriff, AKTION) und zeigt das Ergebnis an.
  */
-/** 0..1 begrenzen, weich (Smoothstep) – für Wind-Lautstärken */
-const wind01 = (v) => {
-  const t = Math.max(0, Math.min(1, v));
-  return t * t * (3 - 2 * t);
-};
 
 export class ClientSpiel {
   /**
@@ -198,6 +194,7 @@ export class ClientSpiel {
     this.musikFenster.beiWahl((wahl) => this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.MUSIK, ...wahl }));
     this.stimme = new StimmChat(document, (an, signal) => this.#senden({ typ: NACHRICHT.STIMME, an, signal })); // Runde 24 (P15)
     this.mehrspieler = new MehrspielerFenster(document, { senden: (a) => this.#senden({ typ: NACHRICHT.AKTION, ...a }), zeichneIcon: (c, id) => this.hud.zeichneIcon(c, id) }); // Runde 24 (P14)
+    this.sound?.setzeZone?.(this.welt.id); // Pegel-Faktoren je Zone (einstellungen.json `zonen`, Studio-Mischpult)
     this.sound?.starteAtmosphaere();
     if (this.klaenge.ersetztMusik) this.musik?.stoppen(); // Karte bringt eigene Hintergrundmusik mit
     else this.musik?.setzeZone(this.musikOrdner);
@@ -1559,9 +1556,8 @@ export class ClientSpiel {
     const aufhebbar = interaktion?.gegenstand ?? null;
     if (this.werkbankOffen && !naheHandwerk(this.welt, this.lokal.x, this.lokal.y, this.werkbankOrt)) this.werkbankUmschalten(false); // weggegangen/Feuer aus → zu // weggegangen → zu
     const uhr = tageszeit(this.serverZeit + (jetzt - this.zeitEmpfangen) / 1000, this.tageszeitDauer);
-    // Nachtgeräusche (Grillen) nur draußen-unabhängig nach Dunkelheit, in 10-%-Stufen (Ereignis nacht); in Schneezonen keine Grillen
-    const ruhig = !['regen', 'gewitter', 'sturm', 'schneesturm'].includes(this.wetter);
-    const nacht = this.welt.schnee || !ruhig ? 0 : Math.round((1 - (uhr.helligkeit ?? 1)) * 10) / 10; // Grillen nur bei ruhigem Wetter
+    // Nachtgeräusche (Grillen) nach Dunkelheit, in 10-%-Stufen (Ereignis nacht); Regel: gemeinsam/audio/umgebung.js
+    const nacht = Math.round(wetterSchichten({ w: this.renderer.wetterEffekt, hell: uhr.helligkeit ?? 1, wetter: this.wetter, schneeZone: !!this.welt.schnee }).nacht * 10) / 10;
     if (nacht !== this.letzteNachtStufe) {
       this.letzteNachtStufe = nacht;
       this.sound?.nacht(nacht);
@@ -1647,7 +1643,7 @@ export class ClientSpiel {
     }
     // Runde 24: drinnen hört man den Regen gedämpft – dafür prasselt er aufs Dach (Schicht regen_dach)
     const drinnenRegen = !this.lokal.fahrzeug && this.welt.istInnen(this.lokal.x, this.lokal.y);
-    const regen = Math.round(this.renderer.wetterEffekt.regen * (drinnenRegen ? 0.2 : 1) * 20) / 20;
+    const regen = Math.round(wetterSchichten({ w: this.renderer.wetterEffekt, imHaus: drinnenRegen }).regen * 20) / 20;
     if (regen !== this.letzterRegenTon) {
       this.letzterRegenTon = regen;
       this.sound?.regen(regen);
@@ -1666,21 +1662,18 @@ export class ClientSpiel {
     const uhr = tageszeit(this.serverZeit + (jetzt - this.zeitEmpfangen) / 1000, this.tageszeitDauer);
     const hell = uhr.helligkeit ?? 1;
     const drinnen = !!this.lokal.fahrzeug || this.welt.istInnen(this.lokal.x, this.lokal.y);
-    const daempfung = drinnen ? 0.4 : 1;
-    const schneesturm = this.wetter === 'schneesturm' || (this.welt.schnee && w.schnee > 0.1) ? w.sturm : 0;
+    const imHaus = !this.lokal.fahrzeug && this.welt.istInnen(this.lokal.x, this.lokal.y);
+    // Wetter-/Tageszeit-Schichten: Regel gemeinsam/audio/umgebung.js (auch Studio-Mischpult)
+    const { sturm, schneesturm, regen_stark, tag, nacht_wind, wind_leicht, wind_stark, regen_dach } = wetterSchichten({ w, hell, drinnen, imHaus, wetter: this.wetter, schneeZone: !!this.welt.schnee });
     const schichten = {
-      sturm: Math.max(0, w.sturm - schneesturm) * daempfung,
-      schneesturm: schneesturm * daempfung,
-      regen_stark: w.regen * w.gewitter * daempfung,
-      tag: !this.welt.schnee && !drinnen ? Math.max(0, (hell - 0.55) / 0.45) * (1 - Math.max(w.regen, w.sturm, w.nebel * 0.5)) : 0,
-      // Runde 26: Nachtwind (kurze 13-s-Schleife) nur noch leise und nur, wenn überhaupt Wind geht
-      nacht_wind: Math.max(0, (0.55 - hell) / 0.55) * (1 - w.sturm) * daempfung * 0.3 * Math.min(1, Math.max(0, (w.windStufe - 0.5) / 1.5)),
-      // Runde 26: Windton folgt der Stufe der Bäume (0..3): Flaute (<0,3) = still, ruhig = leise im Hintergrund,
-      // frisch = deutlich, stark = Böen-Schicht dazu. Vorher war wind_leicht schon ab Stufe 1,1 voll → klang immer gleich.
-      wind_leicht: wind01((w.windStufe - 0.3) / 1.6) * 0.75 * (1 - 0.4 * wind01((w.windStufe - 2) / 1)) * (drinnen ? 0.3 : 1),
-      wind_stark: wind01((w.windStufe - 1.5) / 1.3) ** 1.3 * (1 - 0.6 * w.sturm) * (drinnen ? 0.3 : 1),
-      // Runde 24 (Cozy): Regen aufs Dach (nur drinnen), Kaminknistern und Generator nach Abstand
-      regen_dach: !this.lokal.fahrzeug && this.welt.istInnen(this.lokal.x, this.lokal.y) ? w.regen : 0,
+      sturm,
+      schneesturm,
+      regen_stark,
+      tag,
+      nacht_wind,
+      wind_leicht,
+      wind_stark,
+      regen_dach,
       kamin: this.#naehe((b) => b.typ === 'kamin' && b.brennt, 420),
       generator: this.#naehe((b) => b.typ === 'generator' && b.laeuft, 520) * 0.8,
       // Runde 24: Bienen am Stock, schlafende eigene Katze schnurrt

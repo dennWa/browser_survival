@@ -150,8 +150,9 @@ export class Sound {
     fetch(new URL('eigene.json', eigeneBasis))
       .then((r) => (r.ok ? r.json() : {}))
       .then((index) => {
-        for (const [name, { dateien = [], lautstaerke = 1, streuung = 0, verzoegerung = 0, maxDauer = 0, einmal = false, dateiPegel = {} }] of Object.entries(index)) {
+        for (const [name, { dateien = [], lautstaerke = 1, streuung = 0, verzoegerung = 0, maxDauer = 0, einmal = false, dateiPegel = {}, zonen = null }] of Object.entries(index)) {
           this.#eigenePegel[name] = lautstaerke;
+          if (zonen) this.#zonenPegel[name] = zonen;
           if (streuung > 0) this.#streuung[name] = streuung;
           if (verzoegerung > 0 || maxDauer > 0 || einmal) this.#zeit[name] = { verzoegerung, maxDauer, einmal };
           if (!REZEPTE[name] && !dateien.length) console.warn(`[Sound] Unbekanntes Ereignis "${name}" in eigene/lautstaerke.txt`);
@@ -171,6 +172,24 @@ export class Sound {
       .catch(() => {});
   }
   #probenGeladen = false;
+  #zonenPegel = {}; // Ereignis → { zone: Faktor } (einstellungen.json `zonen`, Studio-Mischpult)
+  #zone = null;
+
+  /** Pegel einer Dauer-Schleife: eigener Pegel × Faktor der aktuellen Zone */
+  #pegel(name) {
+    return (this.#eigenePegel[name] ?? 1) * (this.#zonenPegel[name]?.[this.#zone] ?? 1);
+  }
+
+  /** Zone betreten (Zonen-Faktoren der Umgebungs-Schleifen) – laufende Schleifen ziehen sanft nach */
+  setzeZone(zone) {
+    if (zone === this.#zone) return;
+    this.#zone = zone;
+    if (!this.#ctx) return;
+    this.#wind?.regler?.(this.#pegel('wind'));
+    if (this.#regen) this.regen(this.#regenStaerke);
+    if (this.#nacht) this.nacht(this.#nachtStaerke);
+    for (const [name, st] of this.#schichtStaerke) if (this.#schichten.has(name)) this.schicht(name, st);
+  }
   #dateiPegel = new Map(); // Puffer → Pegel dieser einzelnen Datei (einstellungen.json dateiPegel)
 
   /** @returns neuer Zustand (true = stumm) */
@@ -446,7 +465,7 @@ export class Sound {
     const ctx = this.#ctx;
     if (!ctx || this.#wind) return;
     if (this.#eigene.wind_leicht?.length) return; // Runde 24: echte Windaufnahmen (Schichten wind_leicht/wind_stark) ersetzen die Synthese
-    const pegel = this.#eigenePegel.wind ?? 1;
+    const pegel = this.#pegel('wind');
     const eigen = this.#eigeneSchleife('wind');
     if (eigen) {
       const g = ctx.createGain();
@@ -550,7 +569,7 @@ export class Sound {
       quelle.start();
       this.#regen = { quelle, gain, faktor: 0.16, synth: true };
     }
-    const ziel = Math.max(0, Math.min(1, staerke)) * this.#regen.faktor * (this.#eigenePegel.regen ?? 1);
+    const ziel = Math.max(0, Math.min(1, staerke)) * this.#regen.faktor * this.#pegel('regen');
     this.#regen.gain.gain.setTargetAtTime(ziel, ctx.currentTime, 1.5);
     if (staerke <= 0) {
       const alt = this.#regen;
@@ -586,7 +605,7 @@ export class Sound {
       s = { quelle, gain };
       this.#schichten.set(name, s);
     }
-    s.gain.gain.setTargetAtTime(staerke * (this.#eigenePegel[name] ?? 1), ctx.currentTime, zeit / 3);
+    s.gain.gain.setTargetAtTime(staerke * this.#pegel(name), ctx.currentTime, zeit / 3);
     if (staerke <= 0.001) {
       this.#schichten.delete(name);
       setTimeout(() => s.quelle.stop(), zeit * 2500);
@@ -615,7 +634,7 @@ export class Sound {
       quelle.start();
       this.#nacht = { quelle, gain, faktor: eigen ? 0.5 : 0.09, synth: !eigen };
     }
-    this.#nacht.gain.gain.setTargetAtTime(Math.min(1, staerke) * this.#nacht.faktor * (this.#eigenePegel.nacht ?? 1), ctx.currentTime, 2);
+    this.#nacht.gain.gain.setTargetAtTime(Math.min(1, staerke) * this.#nacht.faktor * this.#pegel('nacht'), ctx.currentTime, 2);
     if (staerke <= 0) {
       const alt = this.#nacht;
       this.#nacht = null;

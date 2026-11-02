@@ -172,7 +172,8 @@ export const VERZOEGERUNG_MAX = 5; // s, Ton setzt später ein als die Animation
 export const MAX_DAUER_MAX = 120; // s, Ton wird nach so langer Zeit abgeschnitten (0 = nie)
 
 /**
- * einstellungen.json säubern: { ereignis: { lautstaerke: 0..3 (Faktor), streuung: 0..0.5 (± Tonhöhe), verzoegerung: 0..5 s, maxDauer: 0..120 s, einmal: bool (läuft noch → nicht neu starten), loop: bool } }.
+ * einstellungen.json säubern: { ereignis: { lautstaerke: 0..3 (Faktor), streuung: 0..0.5 (± Tonhöhe), verzoegerung: 0..5 s, maxDauer: 0..120 s, einmal: bool (läuft noch → nicht neu starten), loop: bool,
+ *   zonen: { <zonenId>: 0..3 } (Faktor je Zone, Studio-Mischpult) } }.
  * Unbrauchbare Werte fliegen raus (Warnung).
  */
 export function pruefeSoundEinstellungen(roh, warnungen = []) {
@@ -195,6 +196,11 @@ export function pruefeSoundEinstellungen(roh, warnungen = []) {
       if (Object.keys(dp).length) r.dateiPegel = dp; // Pegel je einzelner Datei (Variante), 1 = unverändert
     }
     if (typeof e.loop === 'boolean') r.loop = e.loop;
+    if (e.zonen && typeof e.zonen === 'object' && !Array.isArray(e.zonen)) {
+      const z = {};
+      for (const [zone, w] of Object.entries(e.zonen)) if (/^[a-z0-9_-]{1,40}$/.test(zone) && Number.isFinite(w) && w >= 0 && Math.abs(w - 1) > 0.001) z[zone] = Math.min(PEGEL_MAX, w);
+      if (Object.keys(z).length) r.zonen = z; // Studio 2.4: Pegel-Faktor je Zone (Umgebung/Wetter), 1 = unverändert
+    }
     if (Object.keys(r).length) aus[name] = r;
   }
   return aus;

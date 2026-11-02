@@ -3,10 +3,14 @@
  * lokaler Editor-Server), dem Editor (Audio-Zentrale) und tests/audioZentrale.test.js.
  *
  *   client/musik/<ordner>/*.ogg …        Ordner = Zonen-ID, `alle` (jede Zone) oder `hauptmenue` (Login-Bildschirm)
- *   client/musik/einstellungen.json      { "<ordner>": { "reihenfolge": ["b.ogg", "a.ogg"], "zufall": false } } (optional)
- *   client/musik/musik.json              Index { "<ordner>": [Dateien in Reihenfolge], "_optionen": { "<ordner>": { zufall } } }
+ *   client/musik/einstellungen.json      { "<ordner>": { "reihenfolge": ["b.ogg", "a.ogg"], "zufall": false, "ueberblendung": 3, "pause": 4 } } (optional)
+ *   client/musik/musik.json              Index { "<ordner>": [Dateien in Reihenfolge], "_optionen": { "<ordner>": { zufall, ueberblendung, pause } } }
  */
 export const MUSIK_ENDUNGEN = ['mp3', 'ogg', 'wav', 'm4a', 'flac', 'opus', 'webm'];
+export const MUSIK_UEBERBLENDUNG_MAX = 15;
+export const MUSIK_PAUSE_MAX = 120;
+/** Standard (zonenMusik.js): 3 s einblenden, 2 s ausblenden beim Zonenwechsel, 4 s Pause zwischen Stücken */
+export const MUSIK_STANDARD = Object.freeze({ ueberblendung: 3, pause: 4 });
 /** Sonder-Ordner (keine Zonen) */
 export const MUSIK_HAUPTMENUE = 'hauptmenue';
 export const MUSIK_ALLE = 'alle';
@@ -24,6 +28,9 @@ export function pruefeMusikEinstellungen(roh) {
     const r = {};
     if (Array.isArray(e.reihenfolge)) r.reihenfolge = e.reihenfolge.filter((d) => typeof d === 'string' && d.length <= 120);
     if (typeof e.zufall === 'boolean') r.zufall = e.zufall;
+    // Studio 2.5: Überblendung (s, Ein-/Ausblenden beim Zonenwechsel und zwischen Stücken) und Pause zwischen Stücken (s)
+    if (Number.isFinite(e.ueberblendung) && e.ueberblendung >= 0) r.ueberblendung = Math.min(MUSIK_UEBERBLENDUNG_MAX, Math.round(e.ueberblendung * 10) / 10);
+    if (Number.isFinite(e.pause) && e.pause >= 0) r.pause = Math.min(MUSIK_PAUSE_MAX, Math.round(e.pause * 10) / 10);
     aus[ordner] = r;
   }
   return aus;
@@ -47,7 +54,10 @@ export function baueMusikIndex(ordner, einstellungen = {}) {
   const optionen = {};
   for (const name of Object.keys(ordner).sort()) {
     index[name] = sortiereMusik(ordner[name].filter(istMusikDatei), e[name]?.reihenfolge);
-    if (e[name]?.zufall === false) optionen[name] = { zufall: false };
+    const o = {};
+    if (e[name]?.zufall === false) o.zufall = false;
+    for (const k of ['ueberblendung', 'pause']) if (e[name]?.[k] !== undefined && e[name][k] !== MUSIK_STANDARD[k]) o[k] = e[name][k];
+    if (Object.keys(o).length) optionen[name] = o;
   }
   if (Object.keys(optionen).length) index._optionen = optionen;
   return index;
