@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { GLTFLoader, GLTFExporter, OrbitControls, TransformControls } from '../../client/vendor/three/addons.js';
 import { baueAnimation, ANIMATIONS_ARTEN } from '../../editor/kern/animation.js';
-import { knotenName } from '../../editor/kern/knochen.js';
+import { knotenName, knochenForm, standardLaenge, KNOCHEN_MIN } from '../../editor/kern/knochen.js';
+import { neueLeinwand, pinsel, effekt, EFFEKTE } from './malen.js';
 import { farbtonDrehen, fussabdruck } from '../kern/modelle.js';
 
 /**
@@ -125,6 +126,7 @@ export class ModellWerk {
         this.mischer.update(this.uhr.getDelta());
         this.#einpassen(false);
       }
+      this.#zeigeKnochen();
       this.renderer.render(this.szene, this.kamera);
     });
   }
@@ -227,7 +229,7 @@ export class ModellWerk {
     const knoten = [];
     for (const o of this.pool.values()) {
       if (o === this.modell) continue;
-      knoten.push([o.uuid, o.parent?.uuid ?? '', this.#imBaum(o), o.position.toArray(), o.quaternion.toArray(), o.scale.toArray(), o.visible, o.name]);
+      knoten.push([o.uuid, o.parent?.uuid ?? '', this.#imBaum(o), o.position.toArray(), o.quaternion.toArray(), o.scale.toArray(), o.visible, o.name, o.userData.knochen?.laenge ?? null]);
     }
     const mats = this.#materialien().map((m) => [m.uuid, m.color ? m.color.getHex() : null, m.roughness ?? null, m.metalness ?? null, this.#texNr(m.map)]);
     return { knoten, mats, clips: this.clips.map((c) => c.uuid), leerlauf: this.leerlauf };
@@ -247,7 +249,7 @@ export class ModellWerk {
       const p = eltern === this.modell.uuid ? this.modell : this.pool.get(eltern);
       if (o && p && o.parent !== p) p.add(o);
     }
-    for (const [u, , , pos, quat, sk, sichtbar, name] of st.knoten) {
+    for (const [u, , , pos, quat, sk, sichtbar, name, laenge] of st.knoten) {
       const o = this.pool.get(u);
       if (!o) continue;
       o.position.fromArray(pos);
@@ -255,6 +257,7 @@ export class ModellWerk {
       o.scale.fromArray(sk);
       o.visible = sichtbar;
       o.name = name;
+      if (laenge !== null && laenge !== undefined) o.userData.knochen = { ...(o.userData.knochen ?? {}), laenge };
     }
     for (const [u, farbe, rauheit, metall, tex] of st.mats) {
       const m = mats.get(u);
@@ -741,7 +744,7 @@ export class ModellWerk {
       teile++;
       dreiecke += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3;
     });
-    return { masse: this.masse(), spielHoehe: r3(this.spielHoehe), grundflaeche: this.grundflaeche(), dreiecke: Math.round(dreiecke), teile, materialien: this.materialien().length, animationen: this.clips.length, leerlauf: this.leerlauf || null, einheitInMetern: r3(this.massstab || 1) };
+    return { knochen: this.knochen().length, masse: this.masse(), spielHoehe: r3(this.spielHoehe), grundflaeche: this.grundflaeche(), dreiecke: Math.round(dreiecke), teile, materialien: this.materialien().length, animationen: this.clips.length, leerlauf: this.leerlauf || null, einheitInMetern: r3(this.massstab || 1) };
   }
 
   /** .glb (Uint8Array) – nur sichtbare Teile, mit Animationen */
@@ -815,19 +818,370 @@ export class ModellWerk {
     }
   }
 
-  // ---------- Zeiger: Klick wählt ein Teil ----------
+  // ---------- Zeiger: Klick wählt ein Teil/Knochen, Malmodus malt ----------
+  #strahl(e) {
+    const r = this.leinwand.getBoundingClientRect();
+    const strahl = new THREE.Raycaster();
+    strahl.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), this.kamera);
+    return strahl;
+  }
+
+  #treffeModell(e) {
+    const ziele = [];
+    this.modell.traverseVisible((o) => o.isMesh && ziele.push(o));
+    return this.#strahl(e).intersectObjects(ziele, false)[0] ?? null;
+  }
+
   #zeiger() {
     let start = null;
-    this.leinwand.addEventListener('pointerdown', (e) => (start = e.button === 0 ? [e.clientX, e.clientY] : null));
+    this.leinwand.addEventListener('pointerdown', (e) => {
+      start = e.button === 0 ? [e.clientX, e.clientY] : null;
+      if (!this.malModus || e.button !== 0) return;
+      const t = this.#treffeModell(e);
+      if (!t?.uv) return; // daneben oder Teil ohne UV → Kamera dreht wie gewohnt
+      e.stopImmediatePropagation();
+      this.orbit.enabled = false;
+      this.#strichStart(t);
+      this.leinwand.setPointerCapture(e.pointerId);
+    }, true);
+    this.leinwand.addEventListener('pointermove', (e) => {
+      if (!this.strich) return;
+      const t = this.#treffeModell(e);
+      if (t?.uv && t.object === this.strich.mesh) this.#strichPunkt(t.uv);
+    });
     this.leinwand.addEventListener('pointerup', (e) => {
+      if (this.strich) {
+        this.#strichEnde();
+        this.orbit.enabled = true;
+        start = null;
+        return;
+      }
       if (!start || Math.hypot(e.clientX - start[0], e.clientY - start[1]) > 4 || this.gizmo.dragging) return;
-      const r = this.leinwand.getBoundingClientRect();
-      const strahl = new THREE.Raycaster();
-      strahl.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), this.kamera);
-      const ziele = [];
-      this.modell.traverseVisible((o) => o.isMesh && ziele.push(o));
-      const t = strahl.intersectObjects(ziele, false)[0];
+      const kn = this.#strahl(e).intersectObjects(this.knochenAnzeige.children, false)[0];
+      if (kn) return this.waehle(kn.object.userData.knoten);
+      const t = this.#treffeModell(e);
       this.waehle(t ? t.object.uuid : null);
+    });
+  }
+
+  // ---------- Malen (Phase 4.10) ----------
+  setzeMalen({ an, farbe, groesse, deckkraft } = {}) {
+    if (an !== undefined) this.malModus = !!an;
+    this.malPinsel = { farbe: farbe ?? this.malPinsel?.farbe ?? '#7a0d0d', groesse: groesse ?? this.malPinsel?.groesse ?? 24, deckkraft: deckkraft ?? this.malPinsel?.deckkraft ?? 0.8 };
+    if (this.malModus) this.gizmo.detach();
+  }
+
+  #strichStart(treffer) {
+    this.stoppeAnimation();
+    const mat = [].concat(treffer.object.material)[treffer.face?.materialIndex ?? 0] ?? [].concat(treffer.object.material)[0];
+    const vorher = this.stand();
+    const l = neueLeinwand(mat);
+    this.strich = { vorher, mesh: treffer.object, ...l };
+    this.#strichPunkt(treffer.uv);
+  }
+
+  #strichPunkt(uv) {
+    const p = this.malPinsel ?? {};
+    pinsel(this.strich.ctx, uv.x, uv.y, { ...p, groesse: (p.groesse ?? 24) * (this.strich.canvas.width / 512) });
+    this.strich.textur.needsUpdate = true;
+  }
+
+  #strichEnde() {
+    const s = this.strich;
+    this.strich = null;
+    this.#merkePool();
+    this.#merke(s.vorher);
+    this.#geaendert('Gemalt');
+  }
+
+  /** Malen per Programm/KI: Teil + UV-Punkte [[u, v] …] (0..1), Pinsel { farbe, groesse (px bei 512), deckkraft } */
+  maleUv(ref, punkte, opt = {}) {
+    const t = this.teil(ref);
+    if (!t.isMesh || !t.geometry.attributes.uv) throw new Error('Teil hat keine UV-Koordinaten (nicht bemalbar) – Effekte/Farbe nutzen');
+    return this.#schritt('Gemalt', () => {
+      const { ctx, canvas, textur } = neueLeinwand([].concat(t.material)[0]);
+      for (const [u, v] of punkte) pinsel(ctx, u, v, { ...opt, groesse: (opt.groesse ?? 24) * (canvas.width / 512) });
+      textur.needsUpdate = true;
+    });
+  }
+
+  /**
+   * Textur-Effekt (dunkler, dreck, blut, rost, moos, verblassen, rauschen, faerben) auf ein Material (uuid/Name/Teil-Name)
+   * oder alle sichtbaren (ref leer). Materialien von Teilen ohne UV bekommen nur dunkler/faerben über die Farbe.
+   */
+  texturEffekt(ref, art, { staerke = 0.5, farbe, saat = 7 } = {}) {
+    if (!EFFEKTE[art]) throw new Error(`Effekt: ${Object.keys(EFFEKTE).join(', ')}`);
+    this.stoppeAnimation();
+    const mitUv = new Set();
+    this.modell.traverseVisible((o) => o.isMesh && o.geometry.attributes.uv && [].concat(o.material).forEach((m) => mitUv.add(m.uuid)));
+    const mats = ref ? [this.#material(ref)] : this.#materialien(true);
+    let n = 0;
+    this.#schritt(`Effekt ${EFFEKTE[art]}`, () => {
+      for (const m of mats) {
+        if (mitUv.has(m.uuid)) {
+          const { ctx, textur } = neueLeinwand(m);
+          effekt(ctx, art, { staerke, farbe, saat: saat + n });
+          textur.needsUpdate = true;
+          n++;
+        } else if (m.color && (art === 'dunkler' || art === 'faerben' || art === 'verblassen')) {
+          const [r, g, b] = art === 'dunkler' ? [1 - staerke * 0.75, 1 - staerke * 0.78, 1 - staerke * 0.72] : art === 'faerben' ? new THREE.Color(farbe ?? '#5a7a3a').toArray().map((c) => 1 - staerke + c * staerke) : [1, 1, 1];
+          if (art === 'verblassen') {
+            const grau = m.color.r * 0.3 + m.color.g * 0.59 + m.color.b * 0.11;
+            m.color.lerp(new THREE.Color(grau, grau, grau), staerke);
+          } else m.color.multiply(new THREE.Color(r, g, b));
+          n++;
+        }
+      }
+    });
+    return n;
+  }
+
+  // ---------- Knochen & Gelenke (Phase 4.10) ----------
+  /** Knochen = Knoten mit userData.knochen { laenge } (auch importierte THREE.Bone) → [{ uuid, name, laenge, eltern, kinder: [Teilnamen] }] */
+  knochen() {
+    const liste = [];
+    this.modell.traverse((o) => {
+      if (!o.userData.knochen && !o.isBone) return;
+      liste.push({ uuid: o.uuid, name: o.name, laenge: this.#laenge(o), eltern: o.parent === this.modell ? null : o.parent?.name ?? null, kinder: o.children.filter((k) => !k.userData.knochen && !k.isBone).map((k) => k.name) });
+    });
+    return liste;
+  }
+
+  #laenge(o) {
+    if (o.userData.knochen) return o.userData.knochen.laenge;
+    const kind = o.children.find((k) => k.isBone);
+    return kind ? kind.position.length() : 0.1;
+  }
+
+  /**
+   * Knochen anlegen. an = Knochen (→ Kind am Ende: Kette), Teil (→ Knochen unten in dessen Mitte, Teil hängt daran) oder leer
+   * (Wurzel am Modell). kante = Gelenk an einer Teil-Kante statt unten mittig: oben, unten, links, rechts, vorne, hinten, mitte.
+   * @returns Name
+   */
+  knochenHinzu({ an = null, name = null, laenge = null, kante = 'unten' } = {}) {
+    this.stoppeAnimation();
+    const ziel = an ? this.teil(an) : null;
+    const istKnochen = ziel && (ziel.userData.knochen || ziel.isBone);
+    const vorhandene = [];
+    this.modell.traverse((o) => vorhandene.push(o.name));
+    const k = new THREE.Group();
+    k.name = knotenName(name || (istKnochen ? `${ziel.name}_kind` : ziel ? `${ziel.name}_gelenk` : 'Wurzel'), vorhandene);
+    const r = this.#schritt('Knochen', () => {
+      if (istKnochen) {
+        k.userData.knochen = { laenge: Number(laenge) > 0 ? Number(laenge) : this.#laenge(ziel) * 0.8 };
+        k.position.set(0, this.#laenge(ziel), 0);
+        ziel.add(k);
+      } else if (ziel) {
+        // Gelenk an der Kante des Teils (Bounding-Box im Eltern-Raum), das Teil hängt danach am Gelenk (Lage bleibt)
+        const p = ziel.parent;
+        p.updateMatrixWorld(true);
+        const inv = new THREE.Matrix4().copy(p.matrixWorld).invert();
+        const box = new THREE.Box3().setFromObject(ziel, true).applyMatrix4(inv);
+        const m = box.getCenter(new THREE.Vector3());
+        const g = box.getSize(new THREE.Vector3());
+        const pos = { unten: [m.x, box.min.y, m.z], oben: [m.x, box.max.y, m.z], links: [box.min.x, m.y, m.z], rechts: [box.max.x, m.y, m.z], vorne: [m.x, m.y, box.max.z], hinten: [m.x, m.y, box.min.z], mitte: [m.x, m.y, m.z] }[kante];
+        if (!pos) throw new Error('kante: oben, unten, links, rechts, vorne, hinten, mitte');
+        k.position.fromArray(pos);
+        k.userData.knochen = { laenge: Number(laenge) > 0 ? Number(laenge) : standardLaenge(g.y) };
+        p.add(k);
+        k.updateMatrixWorld(true);
+        k.attach(ziel);
+      } else {
+        const box = this.box();
+        k.position.set(box.isEmpty() ? 0 : (box.min.x + box.max.x) / 2, box.isEmpty() ? 0 : box.min.y, box.isEmpty() ? 0 : (box.min.z + box.max.z) / 2);
+        k.userData.knochen = { laenge: Number(laenge) > 0 ? Number(laenge) : standardLaenge(box.isEmpty() ? 1 : box.getSize(new THREE.Vector3()).y * 0.5) };
+        this.modell.add(k);
+      }
+      return k.name;
+    });
+    this.waehle(k.uuid);
+    return r;
+  }
+
+  /** Teil starr an einen Knochen binden (Lage bleibt) */
+  knochenBinden(knochenRef, teilRef) {
+    const k = this.teil(knochenRef);
+    if (!k.userData.knochen && !k.isBone) throw new Error(`„${knochenRef}“ ist kein Knochen`);
+    this.teilAnhaengen(teilRef, k.uuid);
+  }
+
+  knochenLaenge(ref, laenge) {
+    const k = this.teil(ref);
+    if (!k.userData.knochen) throw new Error('Nur eigene Knochen haben eine einstellbare Länge');
+    this.#schritt('Knochenlänge', () => (k.userData.knochen = { ...k.userData.knochen, laenge: Math.max(KNOCHEN_MIN, Number(laenge) || KNOCHEN_MIN) }));
+  }
+
+  /** Knochen entfernen – Kinder (Teile, Kind-Knochen) wandern zum Eltern-Knoten, Lage bleibt */
+  knochenLoeschen(ref) {
+    const k = this.teil(ref);
+    if (!k.userData.knochen) throw new Error('Nur eigene Knochen/Gelenke lassen sich löschen');
+    if (this.gewaehlt === k) this.waehle(null);
+    this.#schritt('Knochen gelöscht', () => {
+      const p = k.parent;
+      for (const kind of [...k.children]) p.attach(kind);
+      k.removeFromParent();
+    });
+  }
+
+  setzeKnochenAnzeige(an) {
+    this.knochenSichtbar = !!an;
+  }
+
+  /** Oktaeder-Knochen (Blender-Look) über dem Modell – NICHT im Modell (wird nicht exportiert), jedes Bild nachgeführt */
+  #zeigeKnochen() {
+    if (!this.knochenAnzeige) {
+      this.knochenAnzeige = new THREE.Group();
+      this.knochenAnzeige.name = '__knochen';
+      this.szene.add(this.knochenAnzeige);
+      const f = knochenForm(1); // Einheits-Knochen, je Knochen auf Weltlänge skaliert (importierte Skelette sind oft ×100 skaliert)
+      this.knochenGeo = new THREE.BufferGeometry();
+      this.knochenGeo.setAttribute('position', new THREE.Float32BufferAttribute(f.punkte, 3));
+      this.knochenGeo.setIndex(f.dreiecke);
+    }
+    const liste = [];
+    if (this.knochenSichtbar !== false) this.modell.traverseVisible((o) => (o.userData.knochen || o.isBone) && liste.push(o));
+    const g = this.knochenAnzeige;
+    while (g.children.length < liste.length) {
+      const m = new THREE.Mesh(this.knochenGeo, new THREE.MeshBasicMaterial({ color: 0x9fb7d6, transparent: true, opacity: 0.55, depthTest: false }));
+      m.renderOrder = 20;
+      g.add(m);
+    }
+    while (g.children.length > liste.length) g.remove(g.children.at(-1));
+    if (!liste.length) return;
+    this.modell.updateMatrixWorld(true);
+    const p = new THREE.Vector3();
+    const q = new THREE.Quaternion();
+    const sk = new THREE.Vector3();
+    const kindPos = new THREE.Vector3();
+    liste.forEach((o, i) => {
+      const m = g.children[i];
+      o.matrixWorld.decompose(p, q, sk);
+      let laenge;
+      const kind = o.isBone ? o.children.find((k) => k.isBone) : null;
+      const h = this.spielHoehe || 1;
+      if (kind) laenge = kindPos.setFromMatrixPosition(kind.matrixWorld).distanceTo(p);
+      else if (o.isBone) laenge = h * 0.04; // End-Knochen importierter Skelette: Skalierung des Armatures ist meist ×100 → feste kleine Länge
+      else laenge = Math.max(KNOCHEN_MIN, this.#laenge(o)) * sk.y;
+      laenge = Math.min(Math.max(laenge, h * 0.01), h * 0.6);
+      m.position.copy(p);
+      m.quaternion.copy(q);
+      if (kind) {
+        // importierte Knochen zeigen zum Kind-Knochen (nicht zwingend entlang y)
+        const richtung = kindPos.clone().sub(p).normalize();
+        m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), richtung);
+      }
+      m.scale.setScalar(laenge);
+      m.userData.knoten = o.uuid;
+      m.material.color.setHex(this.gewaehlt === o ? 0xffd23f : 0x9fb7d6);
+    });
+  }
+
+  // ---------- Eigene Keyframe-Animation (Phase 4.10) ----------
+  /** Leeren Clip anlegen (Dauer in s) → Name */
+  clipNeu(name = 'Eigene Animation', dauer = 2) {
+    let n = String(name).trim() || 'Eigene Animation';
+    for (let i = 2; this.clips.some((c) => c.name === n); i++) n = `${name} ${i}`;
+    return this.#schritt('Neuer Clip', () => {
+      const c = new THREE.AnimationClip(n, Math.max(0.1, Number(dauer) || 2), []);
+      this.alleClips.set(c.uuid, c);
+      this.clips = [...this.clips, c];
+      return n;
+    });
+  }
+
+  #clip(name) {
+    const c = this.clips.find((x) => x.name === name);
+    if (!c) throw new Error(`Animation „${name}“ gibt es nicht`);
+    return c;
+  }
+
+  /**
+   * Keyframe: aktuelle Lage der Knoten (Namen/uuids; leer = alle Knochen, sonst alle Teile) zur Zeit `zeit` in den Clip
+   * schreiben (vorhandener Schlüssel zur selben Zeit wird ersetzt). Ablauf: Zeit wählen → Knochen drehen (Gizmo E) → Keyframe.
+   */
+  keyframeSetzen(clipName, zeit, knotenRefs = null) {
+    const alt = this.#clip(clipName);
+    let knoten = (knotenRefs?.length ? knotenRefs.map((r) => this.teil(r)) : null) ?? this.knochen().map((k) => this.pool.get(k.uuid));
+    if (!knoten.length) knoten = this.modell.children.slice();
+    const t = Math.max(0, Math.min(alt.duration, Number(zeit) || 0));
+    return this.#schritt('Keyframe', () => {
+      const spuren = new Map(alt.tracks.map((s) => [s.name, s]));
+      for (const o of knoten) {
+        if (!o.name) o.name = knotenName('Teil', []);
+        for (const [eig, wert, Typ] of [['position', o.position.toArray(), THREE.VectorKeyframeTrack], ['quaternion', o.quaternion.toArray(), THREE.QuaternionKeyframeTrack], ['scale', o.scale.toArray(), THREE.VectorKeyframeTrack]]) {
+          const nameSpur = `${o.name}.${eig}`;
+          const vorher = spuren.get(nameSpur);
+          const zeiten = vorher ? [...vorher.times] : [];
+          const n = wert.length;
+          const werte = vorher ? [...vorher.values] : [];
+          const i = zeiten.findIndex((z) => Math.abs(z - t) < 1e-3);
+          if (i >= 0) werte.splice(i * n, n, ...wert);
+          else {
+            const j = zeiten.findIndex((z) => z > t);
+            const stelle = j < 0 ? zeiten.length : j;
+            zeiten.splice(stelle, 0, t);
+            werte.splice(stelle * n, 0, ...wert);
+          }
+          spuren.set(nameSpur, new Typ(nameSpur, zeiten, werte));
+        }
+      }
+      const neu = new THREE.AnimationClip(alt.name, alt.duration, [...spuren.values()]);
+      this.alleClips.set(neu.uuid, neu);
+      this.clips = this.clips.map((c) => (c === alt ? neu : c));
+      if (this.leerlauf === '' && this.clips.length) this.leerlauf = neu.name;
+      return this.keyframeZeiten(alt.name);
+    });
+  }
+
+  keyframeLoeschen(clipName, zeit) {
+    const alt = this.#clip(clipName);
+    const t = Number(zeit);
+    this.#schritt('Keyframe gelöscht', () => {
+      const spuren = [];
+      for (const s of alt.tracks) {
+        const i = [...s.times].findIndex((z) => Math.abs(z - t) < 1e-3);
+        if (i < 0) {
+          spuren.push(s);
+          continue;
+        }
+        const n = s.getValueSize();
+        const zeiten = [...s.times].filter((_, k) => k !== i);
+        const werte = [...s.values].filter((_, k) => Math.floor(k / n) !== i);
+        if (zeiten.length) spuren.push(new s.constructor(s.name, zeiten, werte));
+      }
+      const neu = new THREE.AnimationClip(alt.name, alt.duration, spuren);
+      this.alleClips.set(neu.uuid, neu);
+      this.clips = this.clips.map((c) => (c === alt ? neu : c));
+    });
+  }
+
+  /** Alle Keyframe-Zeiten eines Clips (sortiert) */
+  keyframeZeiten(clipName) {
+    const c = this.#clip(clipName);
+    return [...new Set(c.tracks.flatMap((s) => [...s.times].map((z) => Math.round(z * 1000) / 1000)))].sort((a, b) => a - b);
+  }
+
+  /** Pose des Clips zur Zeit t auf das Modell legen (zum Weiterbearbeiten – als Undo-Schritt) */
+  zeigeZeit(clipName, zeit) {
+    const c = this.#clip(clipName);
+    this.stoppeAnimation();
+    if (!c.tracks.length) return;
+    this.#schritt('Zeit gewählt', () => {
+      const m = new THREE.AnimationMixer(this.modell);
+      m.clipAction(c).play();
+      m.setTime(Math.max(0, Math.min(c.duration, Number(zeit) || 0)));
+      m.stopAllAction(); // Pose bleibt auf den Knoten
+      m.uncacheRoot(this.modell);
+    });
+  }
+
+  clipDauer(clipName, dauer) {
+    const alt = this.#clip(clipName);
+    this.#schritt('Clip-Dauer', () => {
+      const d = Math.max(0.1, Number(dauer) || alt.duration);
+      const neu = new THREE.AnimationClip(alt.name, d, alt.tracks.map((s) => s.clone()));
+      this.alleClips.set(neu.uuid, neu);
+      this.clips = this.clips.map((c) => (c === alt ? neu : c));
     });
   }
 }

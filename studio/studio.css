@@ -317,3 +317,6 @@ textarea.feld { height: auto; padding: 6px 8px; resize: vertical; user-select: t
 #az-liste .ws-mini { margin-left: 0; }
 #az-liste .liste-eintrag > span:nth-of-type(1) { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vs-schritt { border-bottom: 1px solid var(--linie); padding: 3px 0; }
+.ws-zeitleiste { position: relative; height: 18px; background: var(--hg-0); border: 1px solid var(--linie); border-radius: 4px; }
+.ws-key { position: absolute; top: 3px; width: 10px; height: 10px; margin-left: -5px; transform: rotate(45deg); background: var(--blau); border: 0; padding: 0; cursor: pointer; }
+.ws-key.aktiv { background: var(--akzent); }

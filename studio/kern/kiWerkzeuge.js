@@ -52,6 +52,22 @@ export const KI_MODELL_WERKZEUGE = [
     beschreibung: `${W}Animationen: neu (art drehen|wippen|pendeln|pulsieren|flackern, teil leer = ganzes Modell, achse, dauer s, staerke ° / Einheiten / Faktor; läuft im Spiel als Leerlauf), loeschen/leerlauf/abspielen (name), stopp. leerlauf mit leerem name = keine Leerlauf-Animation.`,
     schema: objekt({ aktion: text('Aktion', ['neu', 'loeschen', 'leerlauf', 'abspielen', 'stopp']), art: text('Bewegung', ['drehen', 'wippen', 'pendeln', 'pulsieren', 'flackern']), teil: text('Teil-Name'), achse: text('x, y, z', ['x', 'y', 'z']), dauer: zahl('Sekunden'), staerke: zahl('Stärke'), name: text('Clip-Name') }, ['aktion']),
   },
+  {
+    name: 'modell_knochen',
+    beschreibung: `${W}Knochen & Gelenke: aktion liste | neu (an = Knochen → Kind am Ende/Kette; an = Teil → Gelenk an dessen kante, Teil hängt daran; leer = Wurzel) | binden (teil an knochen) | laenge | loeschen. Pose = modell_teil_aendern mit drehung auf dem Knochen.`,
+    schema: objekt({ aktion: text('Aktion', ['liste', 'neu', 'binden', 'laenge', 'loeschen']), an: text('Knochen oder Teil'), kante: text('Gelenk-Kante am Teil', ['unten', 'oben', 'links', 'rechts', 'vorne', 'hinten', 'mitte']), name: text('Name'), knochen: text('Knochen (binden/laenge/loeschen)'), teil: text('Teil (binden)'), laenge: zahl('Länge in Modell-Einheiten') }, ['aktion']),
+  },
+  {
+    name: 'modell_keyframe',
+    beschreibung: `${W}eigene Keyframe-Animation: clip_neu (clip, dauer) | setzen (clip, zeit, knoten = Liste oder leer = alle Knochen: aktuelle Pose als Schlüssel) | loeschen (clip, zeit) | zeige (clip, zeit: Pose dieser Zeit aufs Modell legen) | zeiten (clip). Ablauf: clip_neu → setzen bei 0 → Knochen drehen (modell_teil_aendern) → setzen bei 0,5 … → letzte Pose = erste für Schleife → modell_animation leerlauf.`,
+    schema: objekt({ aktion: text('Aktion', ['clip_neu', 'setzen', 'loeschen', 'zeige', 'zeiten']), clip: text('Clip-Name'), zeit: zahl('Sekunden'), dauer: zahl('Sekunden (clip_neu)'), knoten: { type: 'array', items: { type: 'string' }, description: 'Knoten-/Knochennamen' } }, ['aktion']),
+  },
+  {
+    name: 'modell_textur_effekt',
+    beschreibung: `${W}Textur-Effekt auf alle Materialien (oder material): dunkler, dreck, blut, rost, moos, verblassen, rauschen, faerben (farbe). staerke 0–1. Für „gruseliger“: dunkler 0.4, dreck 0.5, blut 0.4, verblassen 0.3. Zombies: modelle zombie-2, zombie, zombie-half.`,
+    schema: objekt({ art: text('Effekt', ['dunkler', 'dreck', 'blut', 'rost', 'moos', 'verblassen', 'rauschen', 'faerben']), staerke: zahl('0–1'), material: text('Material/Teil (leer = alle)'), farbe: text('#rrggbb (faerben)') }, ['art']),
+  },
+  { name: 'modell_malen', beschreibung: `${W}auf ein Teil malen: punkte = UV-Koordinaten [[u, v], …] (0–1), farbe, groesse (px bei 512), deckkraft. Nur Teile mit UV.`, schema: objekt({ teil: text('Teil'), punkte: { type: 'array', items: { type: 'array', items: { type: 'number' } }, description: '[[u, v], …]' }, farbe: text('#rrggbb'), groesse: zahl('Pixel'), deckkraft: zahl('0–1') }, ['teil', 'punkte']) },
   { name: 'modell_bild', beschreibung: `${W}Bild der Bühne (wie im Spiel eingepasst, mit 1,8-m-Figur und Grundfläche). blick: schraeg, vorne, seite, oben.`, schema: objekt({ blick: text('Blickrichtung', ['schraeg', 'vorne', 'seite', 'oben']) }), lesen: true },
   { name: 'modell_rueckgaengig', beschreibung: `${W}letzten Schritt zurücknehmen (wiederholen = true: wiederherstellen).`, schema: objekt({ wiederholen: jaNein('wiederholen statt rückgängig') }) },
   { name: 'modell_loeschen', beschreibung: `${W}geladenes Modell löschen (.glb + Vorschaubild wandern in den Papierkorb, 20 Tage zurückholbar). Zonen, die es benutzen, zeigen es danach nicht mehr.`, schema: objekt({ bestaetigt: jaNein('true = wirklich löschen') }, ['bestaetigt']) },

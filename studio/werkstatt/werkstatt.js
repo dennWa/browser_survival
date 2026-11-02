@@ -2,6 +2,7 @@ import { ModellWerk, GRUNDKOERPER } from './modellWerk.js';
 import { MODELL_EBENEN, freierStem, verwendungen, angleichOps, pruefeModellFelder } from '../kern/modelle.js';
 import { MODELL_KATEGORIEN } from '../../editor/kern/katalog.js';
 import { ANIMATIONS_ARTEN } from '../../editor/kern/animation.js';
+import { EFFEKTE } from './malen.js';
 import { setzeSpielordner } from '../../editor/kern/spielordner.js';
 import { icon } from '../oberflaeche/icons.js';
 import { dialog, formular, frage, melde, esc } from '../oberflaeche/dialoge.js';
@@ -17,7 +18,7 @@ import { dialog, formular, frage, melde, esc } from '../oberflaeche/dialoge.js';
  * Tastatur (nur solange offen): W/E/R Gizmo, Strg+Z/Y, Strg+S, Entf = Teil löschen, Strg+D = duplizieren, F = Ansicht, Esc = Auswahl weg.
  * KI/MCP: studio/kern/kiModelle.js ruft dieselben Methoden (studio.werkstatt.*, studio.werkstatt.werk.*).
  */
-const REITER = [['modell', 'Modell'], ['teile', 'Teile'], ['material', 'Material'], ['animation', 'Animation']];
+const REITER = [['modell', 'Modell'], ['teile', 'Teile'], ['knochen', 'Knochen'], ['material', 'Material'], ['malen', 'Malen'], ['animation', 'Animation']];
 
 export class Werkstatt {
   constructor(studio) {
@@ -372,7 +373,8 @@ export class Werkstatt {
     const i = w.info();
     this.el.querySelector('#ws-info').textContent = i.masse ? `Im Spiel ${i.spielHoehe} m hoch · Grundfläche ${i.grundflaeche.b} × ${i.grundflaeche.h} Kacheln · ${i.teile} Teile · ${i.dreiecke.toLocaleString('de-DE')} Dreiecke · ${i.materialien} Materialien${i.leerlauf ? ` · Leerlauf „${i.leerlauf}“` : ''}` : 'Leeres Modell';
     const p = this.el.querySelector('#ws-panel');
-    p.innerHTML = { modell: () => this.#panelModell(), teile: () => this.#panelTeile(), material: () => this.#panelMaterial(), animation: () => this.#panelAnimation() }[this.reiter]();
+    p.innerHTML = { modell: () => this.#panelModell(), teile: () => this.#panelTeile(), knochen: () => this.#panelKnochen(), material: () => this.#panelMaterial(), malen: () => this.#panelMalen(), animation: () => this.#panelAnimation() }[this.reiter]();
+    if (this.reiter !== 'malen' && w.malModus) w.setzeMalen({ an: false });
   }
 
   #zahl(name, wert, { min, max, schritt = 0.01, breit = false } = {}) {
@@ -481,6 +483,69 @@ export class Werkstatt {
         <div class="insp-zeile"><span>Dauer (s)</span><div>${this.#zahl('animDauer', 2, { min: 0.1, max: 60, schritt: 0.1 })}</div></div>
         <div class="insp-zeile"><span>Stärke</span><div><input class="feld zahl" type="number" id="ws-anim-staerke" placeholder="Standard" step="0.05" /></div></div>
         <div class="insp-knoepfe"><button class="knopf primaer" data-aktion="animation">${icon('plus', 14)} Anlegen (läuft im Spiel)</button></div>
+      </div>
+      ${this.#panelKeyframes()}`;
+  }
+
+  /** Eigene Keyframe-Animation: Clip wählen/anlegen, Zeitleiste, Pose mit Knochen + Gizmo (E), „Keyframe setzen“ */
+  #panelKeyframes() {
+    const w = this.werk;
+    const clips = w.animationen();
+    this.kfClip = clips.some((c) => c.name === this.kfClip) ? this.kfClip : clips.at(-1)?.name ?? null;
+    const zeiten = this.kfClip ? w.keyframeZeiten(this.kfClip) : [];
+    const dauer = this.kfClip ? clips.find((c) => c.name === this.kfClip).dauer : 2;
+    this.kfZeit = Math.min(this.kfZeit ?? 0, dauer);
+    return `<div class="insp-abschnitt"><div class="insp-abschnitt-titel">Eigene Animation (Keyframes)</div>
+      <div class="insp-zeile"><span>Clip</span><div><select class="feld" data-kf="clip">${clips.map((c) => `<option ${c.name === this.kfClip ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select><button class="knopf flach ws-mini" data-aktion="kfNeu" title="Neuer leerer Clip">${icon('plus', 13)}</button></div></div>
+      ${this.kfClip ? `<div class="insp-zeile"><span>Dauer s</span><div><input class="feld zahl" type="number" min="0.1" max="60" step="0.1" data-kf="dauer" value="${dauer}" /></div></div>
+      <div class="insp-zeile"><span>Zeit ${this.kfZeit.toFixed(2)} s</span><div><input type="range" min="0" max="${dauer}" step="0.05" value="${this.kfZeit}" data-kf="zeit" /></div></div>
+      <div class="ws-zeitleiste">${zeiten.map((z) => `<button class="ws-key ${Math.abs(z - this.kfZeit) < 1e-3 ? 'aktiv' : ''}" style="left:${(z / dauer) * 100}%" data-aktion="kfSpringe" data-zeit="${z}" title="${z} s"></button>`).join('')}</div>
+      <div class="insp-knoepfe"><button class="knopf primaer" data-aktion="kfSetzen">${icon('plus', 13)} Keyframe setzen</button><button class="knopf flach" data-aktion="kfLoeschen" ${zeiten.some((z) => Math.abs(z - this.kfZeit) < 1e-3) ? '' : 'disabled'}>Keyframe löschen</button><button class="knopf flach" data-aktion="${w.laeuft === this.kfClip ? 'stopp' : 'abspielen'}" data-clip="${esc(this.kfClip)}">${icon(w.laeuft === this.kfClip ? 'stopp' : 'abspielen', 13)} Abspielen</button></div>
+      <div class="neben">Ablauf: Zeit wählen → Knochen anklicken und drehen (E) → „Keyframe setzen“ → nächste Zeit. Gesetzt werden alle Knochen (ohne Knochen: alle Teile); gewählter Knoten zuerst. Erster Keyframe bei 0 s, letzter = erster für eine saubere Schleife.</div>` : '<div class="neben">Mit + einen leeren Clip anlegen.</div>'}
+    </div>`;
+  }
+
+  #panelKnochen() {
+    const w = this.werk;
+    const k = w.knochen();
+    const g = w.gewaehlt;
+    const istK = g && (g.userData.knochen || g.isBone);
+    const teile = w.teile().filter((t) => t.art !== 'knochen' && !w.teil(t.uuid).userData.knochen);
+    return `<div class="insp-abschnitt"><div class="insp-abschnitt-titel">Knochen & Gelenke (${k.length})</div>
+        <div class="insp-knoepfe">
+          <button class="knopf" data-aktion="knWurzel" title="Wurzel-Knochen unten in der Modellmitte">${icon('plus', 13)} Wurzel</button>
+          <button class="knopf" data-aktion="knKind" ${istK ? '' : 'disabled'} title="Kind-Knochen am Ende des gewählten Knochens (Kette, wie Extrude)">${icon('plus', 13)} Kette</button>
+          <button class="knopf" data-aktion="knTeil" ${g && !istK ? '' : 'disabled'} title="Gelenk am gewählten Teil – das Teil hängt daran">${icon('plus', 13)} Gelenk am Teil</button>
+          <select class="feld" data-kn="kante" style="width:auto">${['unten', 'oben', 'links', 'rechts', 'vorne', 'hinten', 'mitte'].map((x) => `<option ${x === (this.knKante ?? 'unten') ? 'selected' : ''}>${x}</option>`).join('')}</select>
+        </div>
+        <label class="schalter"><input type="checkbox" data-kn="anzeige" ${w.knochenSichtbar !== false ? 'checked' : ''} /> Knochen anzeigen</label>
+        <div class="ws-teile">${k.map((x) => `<div class="liste-eintrag ${g?.uuid === x.uuid ? 'aktiv' : ''}" data-teil="${x.uuid}">${icon('link', 13)}<span>${esc(x.name)}</span><span class="neben">${x.laenge.toFixed(2)} · ${x.kinder.length} Teil(e)</span></div>`).join('') || '<div class="neben" style="padding:6px 12px">Noch keine Knochen. Tipp: Teil wählen → „Gelenk am Teil“ (Kante oben = Arm an der Schulter).</div>'}</div>
+      </div>
+      ${istK ? `<div class="insp-abschnitt"><div class="insp-abschnitt-titel">Knochen: ${esc(g.name)}</div>
+        <div class="insp-zeile"><span>Name</span><input class="feld" data-feld="teilName" value="${esc(g.name)}" /></div>
+        ${g.userData.knochen ? `<div class="insp-zeile"><span>Länge</span><div><input class="feld zahl" type="number" min="0.02" step="0.05" data-kn="laenge" value="${(g.userData.knochen.laenge ?? 0).toFixed(3)}" /></div></div>` : ''}
+        <div class="insp-zeile"><span>Teil binden</span><div><select class="feld" data-kn="binden"><option value="">— Teil wählen —</option>${teile.map((t) => `<option value="${t.uuid}">${esc(t.name)}</option>`).join('')}</select></div></div>
+        <div class="insp-knoepfe"><button class="knopf" data-aktion="knPose0" title="Drehung zurück auf 0°">Pose zurücksetzen</button>${g.userData.knochen ? `<button class="knopf gefahr" data-aktion="knLoeschen">${icon('loeschen', 13)} Knochen löschen</button>` : ''}</div>
+        <div class="neben">Drehen mit E (Gizmo) = Pose. Teile, die am Knochen hängen, bewegen sich mit. Für eine Bewegung: Reiter Animation → Eigene Animation.</div>
+      </div>` : ''}`;
+  }
+
+  #panelMalen() {
+    const w = this.werk;
+    const p = w.malPinsel ?? { farbe: '#7a0d0d', groesse: 24, deckkraft: 0.8 };
+    const mats = w.materialien();
+    return `<div class="insp-abschnitt"><div class="insp-abschnitt-titel">Pinsel</div>
+        <label class="schalter"><input type="checkbox" data-mal="an" ${w.malModus ? 'checked' : ''} /> Malmodus (auf dem Modell ziehen = malen, daneben = Kamera)</label>
+        <div class="insp-zeile"><span>Farbe</span><div><input type="color" data-mal="farbe" value="${p.farbe}" /></div></div>
+        <div class="insp-zeile"><span>Größe</span><div><input type="range" min="2" max="120" step="1" value="${p.groesse}" data-mal="groesse" /><span class="neben az-zahl">${p.groesse}</span></div></div>
+        <div class="insp-zeile"><span>Deckkraft</span><div><input type="range" min="0.05" max="1" step="0.05" value="${p.deckkraft}" data-mal="deckkraft" /><span class="neben az-zahl">${p.deckkraft}</span></div></div>
+        <div class="neben">Jeder Strich ist ein Rückgängig-Schritt. Teile ohne UV-Koordinaten lassen sich nicht bemalen.</div>
+      </div>
+      <div class="insp-abschnitt"><div class="insp-abschnitt-titel">Textur-Effekte</div>
+        <div class="insp-zeile"><span>Auf</span><select class="feld" data-mal="ziel"><option value="">alle Materialien</option>${mats.map((m) => `<option value="${m.uuid}" ${this.effektZiel === m.uuid ? 'selected' : ''}>${esc(m.name)}</option>`).join('')}</select></div>
+        <div class="insp-zeile"><span>Stärke</span><div><input type="range" min="0.05" max="1" step="0.05" value="${this.effektStaerke ?? 0.5}" data-mal="staerke" /><span class="neben az-zahl">${this.effektStaerke ?? 0.5}</span></div></div>
+        <div class="insp-knoepfe">${Object.entries(EFFEKTE).map(([k, t]) => `<button class="knopf" data-aktion="effekt" data-effekt="${k}">${esc(t)}</button>`).join('')}</div>
+        <div class="neben">Beispiel „gruseliger“: Dunkler 0,4 → Dreck 0,5 → Blut 0,4 → Verblassen 0,3. Einfärben nutzt die Pinselfarbe.</div>
       </div>`;
   }
 
@@ -517,6 +582,29 @@ export class Werkstatt {
         return this.#zeichne();
       case 'leerlauf': return w.setzeLeerlauf(w.leerlauf === d.clip ? '' : d.clip);
       case 'clipLoeschen': return w.animationLoeschen(d.clip);
+      case 'kfNeu': {
+        this.kfClip = w.clipNeu('Eigene Animation', 2);
+        this.kfZeit = 0;
+        return this.#zeichne();
+      }
+      case 'kfSetzen': {
+        const knoten = w.gewaehlt ? [w.gewaehlt.uuid, ...w.knochen().map((k) => k.uuid).filter((u) => u !== w.gewaehlt.uuid)] : null;
+        w.keyframeSetzen(this.kfClip, this.kfZeit, knoten);
+        return this.#zeichne();
+      }
+      case 'kfLoeschen': return w.keyframeLoeschen(this.kfClip, this.kfZeit);
+      case 'kfSpringe':
+        this.kfZeit = Number(d.zeit);
+        return w.zeigeZeit(this.kfClip, this.kfZeit);
+      case 'knWurzel': return w.knochenHinzu({});
+      case 'knKind': return w.knochenHinzu({ an: g });
+      case 'knTeil': return w.knochenHinzu({ an: g, kante: this.knKante ?? 'unten' });
+      case 'knLoeschen': return w.knochenLoeschen(g);
+      case 'knPose0': return w.setzeLage(g, { drehung: [0, 0, 0] });
+      case 'effekt': {
+        const n = w.texturEffekt(this.effektZiel || null, d.effekt, { staerke: this.effektStaerke ?? 0.5, farbe: w.malPinsel?.farbe ?? '#5a7a3a', saat: Date.now() % 1000 });
+        return this.studio.hinweis(n ? `Effekt auf ${n} Material(ien)` : 'Kein passendes Material (ohne UV nur Dunkler/Einfärben/Verblassen)', n ? 'erfolg' : 'fehler');
+      }
       case 'animation': {
         const st = this.el.querySelector('#ws-anim-staerke').value;
         const name = w.animationHinzu({ art: this.el.querySelector('#ws-anim-art').value, teil: this.el.querySelector('#ws-anim-teil').value || null, achse: this.el.querySelector('#ws-anim-achse').value, dauer: Number(this.el.querySelector('[data-feld=animDauer]').value) || 2, staerke: st === '' ? undefined : Number(st) });
@@ -543,6 +631,36 @@ export class Werkstatt {
   #feld(f) {
     const w = this.werk;
     const name = f.dataset.feld;
+    const d = f.dataset;
+    if (d.kf === 'clip') {
+      this.kfClip = f.value;
+      return this.#zeichne();
+    }
+    if (d.kf === 'dauer') return w.clipDauer(this.kfClip, Number(f.value));
+    if (d.kf === 'zeit') {
+      this.kfZeit = Number(f.value);
+      return w.zeigeZeit(this.kfClip, this.kfZeit);
+    }
+    if (d.kn === 'kante') {
+      this.knKante = f.value;
+      return undefined;
+    }
+    if (d.kn === 'anzeige') return w.setzeKnochenAnzeige(f.checked);
+    if (d.kn === 'laenge') return w.knochenLaenge(w.gewaehlt.uuid, Number(f.value));
+    if (d.kn === 'binden' && f.value) return w.knochenBinden(w.gewaehlt.uuid, f.value);
+    if (d.mal === 'an') {
+      w.setzeMalen({ an: f.checked });
+      return this.#zeichne();
+    }
+    if (d.mal === 'farbe' || d.mal === 'groesse' || d.mal === 'deckkraft') return w.setzeMalen({ [d.mal]: d.mal === 'farbe' ? f.value : Number(f.value) });
+    if (d.mal === 'ziel') {
+      this.effektZiel = f.value;
+      return undefined;
+    }
+    if (d.mal === 'staerke') {
+      this.effektStaerke = Number(f.value);
+      return undefined;
+    }
     if (f.dataset.matfeld) return w.setzeMaterial(f.dataset.mat, { [f.dataset.matfeld]: f.type === 'range' ? Number(f.value) : f.value });
     if (!name || name === 'animDauer') return;
     const g = w.gewaehlt?.uuid;

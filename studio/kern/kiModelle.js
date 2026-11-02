@@ -122,6 +122,47 @@ export function kiModellWerkzeuge(studio) {
       else throw new Error('aktion: neu, loeschen, leerlauf, abspielen, stopp');
       return ok('Erledigt.', w.animationen());
     },
+    modell_knochen: ({ aktion, an, kante, name, knochen, teil, laenge }) => {
+      const w = werk();
+      if (aktion === 'liste') return ok(null, w.knochen());
+      if (aktion === 'neu') return ok(`Knochen „${w.knochenHinzu({ an: an || null, kante: kante || 'unten', name, laenge })}“ angelegt.`, w.knochen());
+      if (aktion === 'binden') {
+        w.knochenBinden(knochen, teil);
+        return ok(`„${teil}“ hängt an „${knochen}“.`);
+      }
+      if (aktion === 'laenge') {
+        w.knochenLaenge(knochen, laenge);
+        return ok('Länge gesetzt.');
+      }
+      if (aktion === 'loeschen') {
+        w.knochenLoeschen(knochen);
+        return ok('Knochen gelöscht (Kinder hängen am Eltern-Knoten).');
+      }
+      throw new Error('aktion: liste, neu, binden, laenge, loeschen');
+    },
+    modell_keyframe: ({ aktion, clip, zeit = 0, dauer = 2, knoten }) => {
+      const w = werk();
+      if (aktion === 'clip_neu') return ok(`Clip „${w.clipNeu(clip || 'Eigene Animation', dauer)}“ angelegt.`);
+      if (aktion === 'setzen') return ok(`Keyframe bei ${zeit} s. Schlüssel: ${w.keyframeSetzen(clip, zeit, knoten?.length ? knoten : null).join(', ')} s`);
+      if (aktion === 'loeschen') {
+        w.keyframeLoeschen(clip, zeit);
+        return ok('Keyframe gelöscht.');
+      }
+      if (aktion === 'zeige') {
+        w.zeigeZeit(clip, zeit);
+        return ok(`Pose bei ${zeit} s liegt auf dem Modell.`);
+      }
+      if (aktion === 'zeiten') return ok(null, w.keyframeZeiten(clip));
+      throw new Error('aktion: clip_neu, setzen, loeschen, zeige, zeiten');
+    },
+    modell_textur_effekt: ({ art, staerke = 0.5, material, farbe }) => {
+      const n = werk().texturEffekt(material || null, art, { staerke: Number(staerke), farbe, saat: Math.floor(Math.random() * 1000) });
+      return ok(n ? `Effekt „${art}“ auf ${n} Material(ien).` : 'Kein Material passte (Teile ohne UV: nur dunkler/faerben/verblassen).');
+    },
+    modell_malen: ({ teil, punkte, farbe = '#7a0d0d', groesse = 24, deckkraft = 0.8 }) => {
+      werk().maleUv(teil, punkte ?? [], { farbe, groesse, deckkraft });
+      return ok(`${punkte?.length ?? 0} Pinselpunkte gemalt.`);
+    },
     modell_bild: async ({ blick }) => {
       const w = werk();
       if (blick) w.blick(blick);
