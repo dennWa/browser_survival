@@ -8,6 +8,7 @@
  *   Modelle      client/assets/eigene/<stem>.glb + index.json + credits.json (Import mit Credits)
  *   Werkstatt    speichereModell (alte .glb → .studio/modelle/<stem>-<zeit>.glb), einstellenModell (index.json-Felder,
  *                Regeln studio/kern/modelle.js), modellSicherungen / stelleModellWiederHer
+ *   Papierkorb   .studio/papierkorb/<id>/ (Modelle, Audio) – leert sich nach PAPIERKORB_TAGE (20) beim Studio-Start
  *   Audio (2.x)  schreibeAudio/loescheAudio (nur client/audio/eigene/, client/audio/karten/<zone>/, client/musik/<ordner>/;
  *                Löschen = in .studio/audio-papierkorb/), speichereAudioEinstellungen (einstellungen.json Sounds/Musik) →
  *                Indexe neu (werkzeuge/audio/indexBauen.mjs: eigene.json, musik.json)
@@ -19,6 +20,7 @@ import { pathToFileURL } from 'node:url';
 import { execFile } from 'node:child_process';
 import { pruefeModellFelder, aktualisiereIndex } from '../kern/modelle.js';
 
+export const PAPIERKORB_TAGE = 20;
 const KEINE_KARTEN = new Set(['kartenLader.js', 'lootZonen.js', 'zonenEinstellungen.js', 'spawnpunkte.js']);
 export const ID_MUSTER = /^[a-z0-9_]{1,40}$/;
 const STEM_MUSTER = /^[a-z0-9][a-z0-9_-]{0,60}$/;
@@ -342,6 +344,105 @@ export class Projekt {
     return this.speichereModell({ stem, bytes, felder: {} });
   }
 
+  // ---------- Papierkorb (Phase 4.5): .studio/papierkorb/<id>/{dateien…, eintrag.json}, leert sich nach PAPIERKORB_TAGE ----------
+  /** Dateien (relativ zum Spielordner) in den Papierkorb verschieben. meta = { art, name, index? } → id */
+  #inPapierkorb(relPfade, meta) {
+    const id = `${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 23)}_${meta.art}_${String(meta.name).toLowerCase().replace(/[^a-z0-9_-]+/g, '-').slice(0, 40)}`;
+    const ordner = this.pfad('.studio/papierkorb', id);
+    mkdirSync(ordner, { recursive: true });
+    const dateien = [];
+    for (const rel of relPfade) {
+      const quelle = this.#sicher(rel);
+      if (!existsSync(quelle)) continue;
+      const ziel = path.join(ordner, 'dateien', rel);
+      mkdirSync(path.dirname(ziel), { recursive: true });
+      copyFileSync(quelle, ziel);
+      rmSync(quelle);
+      dateien.push(rel);
+    }
+    writeFileSync(path.join(ordner, 'eintrag.json'), JSON.stringify({ ...meta, zeit: Date.now(), dateien }, null, 1));
+    return id;
+  }
+
+  /** [{ id, art, name, zeit, dateien, tageUebrig }] neueste zuerst */
+  papierkorb() {
+    const basis = this.pfad('.studio/papierkorb');
+    if (!existsSync(basis)) return [];
+    return readdirSync(basis)
+      .map((id) => {
+        try {
+          const e = JSON.parse(readFileSync(path.join(basis, id, 'eintrag.json'), 'utf8'));
+          return { id, art: e.art, name: e.name, zeit: e.zeit, dateien: e.dateien, tageUebrig: Math.max(0, Math.ceil(PAPIERKORB_TAGE - (Date.now() - e.zeit) / 86_400_000)) };
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.zeit - a.zeit);
+  }
+
+  /** Eintrag zurückholen (Dateien an ihren alten Ort; Modelle auch zurück in index.json). Belegte Ziele → Fehler */
+  async papierkorbWiederherstellen(id) {
+    const ordner = this.#korbOrdner(id);
+    const e = JSON.parse(readFileSync(path.join(ordner, 'eintrag.json'), 'utf8'));
+    for (const rel of e.dateien) if (existsSync(this.#sicher(rel))) throw new Error(`${rel} gibt es schon – erst umbenennen oder löschen`);
+    for (const rel of e.dateien) {
+      mkdirSync(path.dirname(this.#sicher(rel)), { recursive: true });
+      copyFileSync(path.join(ordner, 'dateien', rel), this.#sicher(rel));
+    }
+    if (e.art === 'modell' && e.index) {
+      const index = this.modellIndex().filter((x) => x.datei !== e.index.datei);
+      index.push(e.index);
+      index.sort((a, b) => a.datei.localeCompare(b.datei, 'de'));
+      this.#schreibeIndex(index);
+    }
+    if (e.art === 'audio') await this.#audioIndexe();
+    rmSync(ordner, { recursive: true, force: true });
+    return e;
+  }
+
+  papierkorbLoeschen(id) {
+    rmSync(this.#korbOrdner(id), { recursive: true, force: true });
+    return true;
+  }
+
+  /** Alles älter als `tage` endgültig löschen (Studio-Start). @returns Anzahl */
+  papierkorbAufraeumen(tage = PAPIERKORB_TAGE, jetzt = Date.now()) {
+    let n = 0;
+    for (const e of this.papierkorb()) {
+      if (jetzt - e.zeit > tage * 86_400_000) {
+        this.papierkorbLoeschen(e.id);
+        n++;
+      }
+    }
+    // alte Ablagen aus Phase 2/3 mit aufräumen (Audio-Papierkorb, Modell-Sicherungen)
+    for (const alt of ['.studio/audio-papierkorb', '.studio/modelle']) {
+      const o = this.pfad(alt);
+      if (!existsSync(o)) continue;
+      for (const d of readdirSync(o)) if (jetzt - statSync(path.join(o, d)).mtimeMs > tage * 86_400_000) rmSync(path.join(o, d), { force: true });
+    }
+    return n;
+  }
+
+  #korbOrdner(id) {
+    if (!/^[\w.-]{1,120}$/.test(id)) throw new Error('Ungültiger Papierkorb-Eintrag');
+    const o = this.pfad('.studio/papierkorb', id);
+    if (!existsSync(path.join(o, 'eintrag.json'))) throw new Error('Eintrag nicht im Papierkorb');
+    return o;
+  }
+
+  /** Modell löschen: .glb + Vorschaubild in den Papierkorb, Eintrag aus index.json (wird mit abgelegt) */
+  loescheModell(stem) {
+    stem = String(stem ?? '').toLowerCase();
+    if (!STEM_MUSTER.test(stem)) throw new Error('Ungültiger Dateiname');
+    const datei = `${stem}.glb`;
+    const eintrag = this.modellIndex().find((x) => x.datei === datei);
+    if (!eintrag && !existsSync(this.pfad('client/assets/eigene', datei))) throw new Error(`${datei} gibt es nicht`);
+    const id = this.#inPapierkorb([`client/assets/eigene/${datei}`, `client/assets/eigene/vorschau/${stem}.png`], { art: 'modell', name: eintrag?.name ?? stem, index: eintrag ?? null });
+    this.#schreibeIndex(this.modellIndex().filter((x) => x.datei !== datei));
+    return { papierkorb: id };
+  }
+
   // ---------- Vorschaubilder der Bausteine (Phase 4.4, .studio/vorschau/<schlüssel>.png) ----------
   vorschauLesen(schluessel) {
     if (!/^[a-zA-Z0-9_-]{1,120}$/.test(schluessel)) return null;
@@ -400,12 +501,8 @@ export class Projekt {
   async loescheAudio({ pfad }) {
     const ziel = this.#audioPfad(pfad);
     if (!existsSync(ziel)) throw new Error(`${pfad} gibt es nicht`);
-    const korb = this.pfad('.studio/audio-papierkorb');
-    mkdirSync(korb, { recursive: true });
-    const name = `${Date.now()}_${String(pfad).replace(/[\/]/g, '__')}`;
-    copyFileSync(ziel, path.join(korb, name));
-    rmSync(ziel);
-    return { papierkorb: `.studio/audio-papierkorb/${name}`, warnungen: await this.#audioIndexe() };
+    const id = this.#inPapierkorb([String(pfad)], { art: 'audio', name: path.basename(ziel) });
+    return { papierkorb: `.studio/papierkorb/${id}`, warnungen: await this.#audioIndexe() };
   }
 
   /** einstellungen.json schreiben: sound → client/audio/eigene/, musik → client/musik/ (bereinigt) → Indexe neu */

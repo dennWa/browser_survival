@@ -133,6 +133,14 @@ export function kiModellWerkzeuge(studio) {
       const r = wiederholen ? w.wiederholen() : w.rueckgaengig();
       return ok(r ? 'Erledigt.' : 'Nichts zu tun.');
     },
+    modell_loeschen: async ({ bestaetigt }) => {
+      werk();
+      if (!bestaetigt) throw new Error('bestaetigt = true nötig');
+      const stem = ws().stem;
+      const v = ws().verwendung();
+      await ws().loesche();
+      return ok(`${stem}.glb ist im Papierkorb${v.length ? ` (war benutzt in: ${v.map((x) => x.zone).join(', ')})` : ''}.`);
+    },
     modell_speichern: async ({ als_kopie }) => {
       werk();
       const text = await ws().speichere({ kopie: als_kopie || null });

@@ -149,6 +149,11 @@ const AKTIONEN = {
   },
   'modell.sicherungen': ({ stem }) => projekt.modellSicherungen(stem),
   'modell.wiederherstellen': ({ stem, sicherung }) => projekt.stelleModellWiederHer(stem, sicherung),
+  'papierkorb.liste': () => projekt.papierkorb(),
+  'papierkorb.wiederherstellen': ({ id }) => projekt.papierkorbWiederherstellen(id),
+  'papierkorb.loeschen': ({ id }) => projekt.papierkorbLoeschen(id),
+  'papierkorb.leeren': () => projekt.papierkorbAufraeumen(0, Date.now() + 1000),
+  'modell.loeschen': ({ stem }) => projekt.loescheModell(stem),
   'vorschau.lesen': ({ schluessel }) => projekt.vorschauLesen(schluessel),
   'vorschau.schreiben': ({ schluessel, png }) => projekt.vorschauSchreiben(schluessel, png),
   'vorschau.leeren': () => projekt.vorschauLeeren(),
@@ -225,6 +230,11 @@ app.whenReady().then(async () => {
     oeffneProjekt(ordner);
   } catch {
     oeffneProjekt(APP_WURZEL);
+  }
+  try {
+    projekt.papierkorbAufraeumen(); // Papierkorb: älter als 20 Tage → endgültig weg
+  } catch {
+    // egal
   }
   const server = erstelleDateiServer({ appWurzel: APP_WURZEL, spielWurzel: () => projekt.wurzel });
   await new Promise((ok) => server.listen(Number(process.env.STUDIO_PORT) || 0, '127.0.0.1', ok));

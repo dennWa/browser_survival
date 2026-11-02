@@ -54,6 +54,7 @@ export const KI_MODELL_WERKZEUGE = [
   },
   { name: 'modell_bild', beschreibung: `${W}Bild der Bühne (wie im Spiel eingepasst, mit 1,8-m-Figur und Grundfläche). blick: schraeg, vorne, seite, oben.`, schema: objekt({ blick: text('Blickrichtung', ['schraeg', 'vorne', 'seite', 'oben']) }), lesen: true },
   { name: 'modell_rueckgaengig', beschreibung: `${W}letzten Schritt zurücknehmen (wiederholen = true: wiederherstellen).`, schema: objekt({ wiederholen: jaNein('wiederholen statt rückgängig') }) },
+  { name: 'modell_loeschen', beschreibung: `${W}geladenes Modell löschen (.glb + Vorschaubild wandern in den Papierkorb, 20 Tage zurückholbar). Zonen, die es benutzen, zeigen es danach nicht mehr.`, schema: objekt({ bestaetigt: jaNein('true = wirklich löschen') }, ['bestaetigt']) },
   { name: 'modell_speichern', beschreibung: `${W}speichern: ersetzt die .glb (alte Fassung wird gesichert) oder als_kopie = Name einer neuen Datei. Neue Modelle bekommen einen Dateinamen aus dem Namen. Offene Zonen, die das Modell benutzen, werden angeglichen. Danach steht es im Karten-Editor unter Modelle (modell:<stem>).`, schema: objekt({ als_kopie: text('Name der Kopie') }) },
 ];
 

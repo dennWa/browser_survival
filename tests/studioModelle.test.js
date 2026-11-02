@@ -154,3 +154,32 @@ test('Projekt: Modell speichern (Sicherung der alten Fassung), einstellen, wiede
     rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+test('Phase 4.5: Papierkorb – Modell löschen/zurückholen, Aufräumen nach 20 Tagen', async () => {
+  const WURZEL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const tmp = mkdtempSync(path.join(tmpdir(), 'studio-korb-'));
+  try {
+    cpSync(path.join(WURZEL, 'server/spiel/karten/kartenLader.js'), path.join(tmp, 'server/spiel/karten/kartenLader.js'));
+    mkdirSync(path.join(tmp, 'client/assets/eigene'), { recursive: true });
+    const p = new Projekt(tmp);
+    p.speichereModell({ stem: 'kiste', bytes: new Uint8Array([0x67, 0x6c, 0x54, 0x46, 2, 0, 0, 1]), neu: true, felder: { name: 'Kiste', masse: { b: 1, h: 1, hoehe: 1 }, zielHoehe: 1 }, vorschau: new Uint8Array([1]) });
+    const { papierkorb } = p.loescheModell('kiste');
+    assert.equal(p.modellIndex().length, 0);
+    assert.ok(!existsSync(path.join(tmp, 'client/assets/eigene/kiste.glb')));
+    const liste = p.papierkorb();
+    assert.equal(liste[0].id, papierkorb);
+    assert.equal(liste[0].tageUebrig, 20);
+    assert.deepEqual(liste[0].dateien, ['client/assets/eigene/kiste.glb', 'client/assets/eigene/vorschau/kiste.png']);
+    await p.papierkorbWiederherstellen(papierkorb);
+    assert.equal(p.modellIndex()[0].name, 'Kiste', 'Index-Eintrag zurück');
+    assert.ok(existsSync(path.join(tmp, 'client/assets/eigene/vorschau/kiste.png')));
+    assert.equal(p.papierkorb().length, 0);
+    p.loescheModell('kiste');
+    assert.equal(p.papierkorbAufraeumen(20, Date.now() + 19 * 86_400_000), 0, 'nach 19 Tagen noch da');
+    assert.equal(p.papierkorbAufraeumen(20, Date.now() + 21 * 86_400_000), 1, 'nach 21 Tagen weg');
+    assert.equal(p.papierkorb().length, 0);
+    assert.throws(() => p.papierkorbLoeschen('../../x'));
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});

@@ -81,6 +81,7 @@ test('Projekt: Audio schreiben/kopieren/löschen (Papierkorb), nur freigegebene 
     assert.deepEqual(JSON.parse(readFileSync(path.join(tmp, 'client/audio/eigene/eigene.json'), 'utf8')).pistole.zonen, { waldweg: 2 });
     assert.equal(JSON.parse(readFileSync(path.join(tmp, 'client/musik/musik.json'), 'utf8'))._optionen.waldweg.ueberblendung, 6);
     const l = await p.loescheAudio({ pfad: 'client/audio/eigene/pistole_1.ogg' });
+    assert.equal(p.papierkorb()[0].art, 'audio');
     assert.ok(existsSync(path.join(tmp, l.papierkorb)) && !existsSync(path.join(tmp, 'client/audio/eigene/pistole_1.ogg')));
     assert.equal(JSON.parse(readFileSync(path.join(tmp, 'client/audio/eigene/eigene.json'), 'utf8')).pistole.dateien.length, 0);
   } finally {

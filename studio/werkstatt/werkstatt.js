@@ -164,6 +164,22 @@ export class Werkstatt {
     return n;
   }
 
+  /** Geladenes Modell löschen (Papierkorb) und ein neues, leeres Modell beginnen */
+  async loesche() {
+    if (this.stem === null) throw new Error('Das Modell ist noch nicht gespeichert');
+    const stem = this.stem;
+    const r = await this.studio.nativ.aufruf('modell.loeschen', { stem });
+    this.index = await this.studio.nativ.aufruf('projekt.modellIndex');
+    setzeSpielordner(this.index);
+    this.einstellungenGeaendert = false;
+    this.werk.zurueck = [];
+    await this.neu('Neues Modell', { ohneFrage: true });
+    this.#bibliothek();
+    this.studio.assets?.zeichne();
+    this.studio.hinweis(`${stem}.glb gelöscht (Papierkorb: Datei → Papierkorb)`, 'erfolg');
+    return r;
+  }
+
   verwendung() {
     return this.stem ? verwendungen(this.studio.zonenKarten(), this.stem) : [];
   }
@@ -191,6 +207,7 @@ export class Werkstatt {
           <button class="knopf flach" data-ws="rueckgaengig" data-tipp="Rückgängig" data-kuerzel="Strg+Z">${icon('rueckgaengig', 15)}</button>
           <button class="knopf flach" data-ws="wiederholen" data-tipp="Wiederholen" data-kuerzel="Strg+Y">${icon('wiederholen', 15)}</button>
           <button class="knopf flach" data-ws="sicherungen" data-tipp="Sicherungen" data-text="Ältere Fassungen zurückholen">${icon('versionen', 15)}</button>
+          <button class="knopf flach" data-ws="loeschen" data-tipp="Modell löschen" data-text="Wandert in den Papierkorb (20 Tage)">${icon('loeschen', 15)}</button>
           <button class="knopf" data-ws="kopie">${icon('kopieren', 14)} Als Kopie …</button>
           <button class="knopf primaer" data-ws="speichern" data-kuerzel="Strg+S">${icon('speichern', 14)} Speichern</button>
         </div>
@@ -252,6 +269,12 @@ export class Werkstatt {
       if (d.ws === 'wiederholen') return this.werk.wiederholen();
       if (d.ws === 'speichern') return this.speichere();
       if (d.ws === 'sicherungen') return this.sicherungen();
+      if (d.ws === 'loeschen') {
+        if (this.stem === null) return this.neu('Neues Modell', { ohneFrage: false });
+        const v = this.verwendung();
+        if (!(await frage('Modell löschen?', `„${esc(this.werk.eintrag.name)}“ (${esc(this.stem)}.glb) wandert in den Papierkorb (20 Tage zurückholbar).${v.length ? `<br /><b>Achtung:</b> benutzt in ${v.map((x) => esc(x.zone)).join(', ')} – dort fehlt es danach.` : ''}`, { ja: 'Löschen', gefahr: true }))) return;
+        return this.loesche();
+      }
       if (d.ws === 'kopie') {
         const f = formular([{ name: 'name', titel: 'Name der Kopie', wert: `${this.werk.eintrag.name} 2` }]);
         const w = await dialog({ titel: 'Als Kopie speichern', icon: 'kopieren', inhalt: f.element, knoepfe: [{ text: 'Abbrechen', wert: null }, { text: 'Speichern', art: 'primaer', wert: () => f.werte() }] });
