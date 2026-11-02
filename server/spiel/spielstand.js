@@ -5,7 +5,7 @@ import { pruefeMods } from './systeme/waffenSystem.js';
 import { KLEIDUNG_STELLEN, aktualisiereAusruestung, fuegeZumInventarHinzu, legeRucksackAn, passeInventarAn } from './systeme/inventarSystem.js';
 import { wendeSkillsAn } from './systeme/levelSystem.js';
 import { SKILLS, leereSkills } from '../../gemeinsam/spieler/skills.js';
-import { pruefeAussehen } from '../../gemeinsam/spieler/aussehen.js';
+import { pruefeAussehen, CHARAKTERNAME_MUSTER } from '../../gemeinsam/spieler/aussehen.js';
 import { entpackeErkundet, packeErkundet } from '../../gemeinsam/welt/erkundung.js';
 
 /**
@@ -52,6 +52,7 @@ export function erstelleSpielstand(spieler, kartenId) {
     skills: { ...spieler.skills },
     skillPunkte: spieler.skillPunkte,
     aussehen: { ...spieler.aussehen },
+    charakterName: spieler.anzeigeName ?? null, // Runde 28: Name aus der Charaktererstellung (Anzeige)
     statistik: { ...spieler.statistik },
     ziele: spieler.ziele ? { zaehler: { ...spieler.ziele.zaehler }, erledigt: [...spieler.ziele.erledigt], kapitel: spieler.ziele.kapitel } : undefined, // Phase 4.15: Tagebuch (bleibt über den Tod)
     spawn: spieler.spawn ? { ...spieler.spawn } : null,
@@ -78,6 +79,7 @@ export function wendeSpielstandAn(spieler, stand, spielWelt) {
   ladeSkills(spieler, stand, spielWelt.konfiguration); // setzt maxLeben (Zähigkeit) – darum Leben erst danach
   spieler.leben = begrenze(stand.leben, 1, spieler.maxLeben);
   spieler.aussehen = pruefeAussehen(stand.aussehen);
+  if (typeof stand.charakterName === 'string' && CHARAKTERNAME_MUSTER.test(stand.charakterName)) spieler.anzeigeName = stand.charakterName;
   ladeStatistik(spieler, stand.statistik);
   spieler.ziele = pruefeZiele(stand.ziele);
   ladeBasis(spieler, stand);

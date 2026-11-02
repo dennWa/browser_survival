@@ -16,7 +16,7 @@ import { ADMIN_BEFEHLE, AKTIONEN, NACHRICHT, dekodiere, kodiere } from '../../ge
 import { erstelleKonfiguration } from './konfiguration/spielKonfiguration.js';
 import { GEGENSTAENDE } from './konfiguration/gegenstaende.js';
 import { REZEPTE } from './konfiguration/rezepte.js';
-import { pruefeAussehen } from '../../gemeinsam/spieler/aussehen.js';
+import { pruefeAussehen, CHARAKTERNAME_MUSTER } from '../../gemeinsam/spieler/aussehen.js';
 import { packeErkundet } from '../../gemeinsam/welt/erkundung.js';
 import { entwicklerWerte, setzeAllesZurueck, setzeEntwicklerWert, wendeGegenstandsUeberschreibungenAn } from './entwickler.js';
 import { spielerDatenPrivat } from './entitaeten/spieler.js';
@@ -70,6 +70,7 @@ export class SpielServer {
     this.speicher = speicher ?? new ArbeitsspeicherSpeicher();
     this.ausstehendeSpeicherungen = new Set();
     this.ticksSeitAutosave = 0;
+    this.autosaveAuftraege = []; // gestaffelter Autosave (je Tick ein Auftrag)
     this.tickZaehler = 0;
     this.letzteSpielerListe = null; // zuletzt gesendete SPIELER_LISTE (nur bei Änderung neu)
     this.gestoppt = false;
@@ -223,15 +224,18 @@ export class SpielServer {
       }
     }
 
+    // Autosave (Runde 28): alle autosaveSekunden einen Auftrag je Spieler/Zone einreihen und je Tick nur EINEN ausführen –
+    // so verteilt sich das Erfassen (und im Browser das Schreiben) auf mehrere Bilder statt eines spürbaren Rucklers.
     if (++this.ticksSeitAutosave >= this.konfiguration.server.autosaveSekunden * TICK_RATE) {
       this.ticksSeitAutosave = 0;
-      for (const sitzung of this.sitzungen) if (sitzung.status === 'imSpiel') this.#speichere(sitzung);
+      for (const sitzung of this.sitzungen) if (sitzung.status === 'imSpiel') this.autosaveAuftraege.push(() => this.sitzungen.has(sitzung) && sitzung.status === 'imSpiel' && this.#speichere(sitzung));
       for (const zone of this.zonen.values()) {
         if (!zone.seitAutosave || (zone === this.startZone && this.spielerAnzahl === 0)) continue;
         zone.seitAutosave = false;
-        this.#speichereWelt(zone);
+        this.autosaveAuftraege.push(() => this.#speichereWelt(zone));
       }
     }
+    this.autosaveAuftraege.shift()?.();
 
     if (this.tickZaehler++ % TICK_RATE === 0) this.#sendeSpielerListe();
     proZone = this.#sitzungenProZone(); // nach den Zonenwechseln
@@ -428,10 +432,13 @@ export class SpielServer {
     sitzung.benutzername = name;
 
     let spielstand = null;
-    try {
-      spielstand = await this.speicher.laden(name);
-    } catch (fehler) {
-      this.log.error?.(`[Server] Spielstand von ${name} nicht ladbar:`, fehler);
+    // Runde 28: „Neuen Charakter erstellen“ (Hauptmenü) → alter Stand wird nicht geladen (und beim nächsten Speichern ersetzt)
+    if (nachricht.neuerCharakter !== true) {
+      try {
+        spielstand = await this.speicher.laden(name);
+      } catch (fehler) {
+        this.log.error?.(`[Server] Spielstand von ${name} nicht ladbar:`, fehler);
+      }
     }
     // Weiter in der Zone vom letzten Mal (nur lebend und wenn es die Karte noch gibt), sonst Startzone
     const zone = (spielstand?.leben > 0 && typeof spielstand.karte === 'string' && this.zone(spielstand.karte)) || this.startZone;
@@ -446,6 +453,9 @@ export class SpielServer {
     const geladen = wendeSpielstandAn(spieler, spielstand, zone.spielWelt);
     // Beim Login gewählte Figur gilt (und landet im Spielstand)
     if (nachricht.aussehen && typeof nachricht.aussehen === 'object') spieler.aussehen = pruefeAussehen(nachricht.aussehen);
+    // Charaktername (Anzeige über dem Kopf/Spielerliste); Konto-/Gastname bleibt die Kennung
+    if (typeof nachricht.charakterName === 'string' && CHARAKTERNAME_MUSTER.test(nachricht.charakterName.trim())) spieler.anzeigeName = nachricht.charakterName.trim();
+    if (spieler.anzeigeName === spieler.name) spieler.anzeigeName = null;
     clearTimeout(sitzung.loginTimer);
     sitzung.status = 'imSpiel';
     sitzung.zone = zone;
@@ -453,7 +463,7 @@ export class SpielServer {
     if (geladen) zone.spielWelt.melde(spieler.id, zone === this.startZone ? 'Spielstand geladen' : `Spielstand geladen – du bist in: ${zone.name}`);
     else zone.spielWelt.melde(spieler.id, 'Tipp: Auf der Karte (K / 🗺) sind Werkbänke 🔨 markiert');
 
-    this.#senden(sitzung, { typ: NACHRICHT.ANMELDUNG_OK, ...this.#startDaten(zone, spieler) });
+    this.#senden(sitzung, { typ: NACHRICHT.ANMELDUNG_OK, ...this.#startDaten(zone, spieler), charakter: { name: spieler.anzeigeName ?? spieler.name, aussehen: spieler.aussehen, neu: !geladen } });
     this.log.info?.(`[Server] ${name} ist beigetreten (${this.spielerAnzahl} online)`);
     this.#anAlle({ typ: NACHRICHT.CHAT, system: true, text: `${name} ist beigetreten` });
     this.letzteSpielerListe = null; // Neue bekommen die Liste beim nächsten Versand

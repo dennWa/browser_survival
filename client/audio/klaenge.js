@@ -57,6 +57,10 @@ export class Klanglandschaft {
     // die nächsten N dürfen spielen (Abstand 0 = drin/global)
     const sortiert = this.eintraege.map((e) => ({ e, p: pegel(e.klang, kontext.hx, kontext.hy) })).sort((a, b) => a.p.abstand - b.p.abstand);
     sortiert.forEach(({ e, p }, i) => {
+      if (e.stimme && e.stimme.q.context !== ctx) {
+        e.stimme = null; // Ton wurde neu aufgebaut (sound.js) → alte Stimme ist stumm, neu starten
+        e.steuerung.fertig();
+      }
       if (!e.puffer) {
         if (p.faktor > 0 || e.klang.art === 'global') this.#lade(e, ctx);
         return;

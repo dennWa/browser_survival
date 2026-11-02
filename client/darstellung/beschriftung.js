@@ -6,7 +6,7 @@ import { FARBEN } from './farben.js';
  */
 export function zeichneBeschriftung(ctx, e) {
   if (e.typ === 'spieler' && !e.istEigener && !e.tot) {
-    beschriftung(ctx, e.gottmodus ? `${e.name} ⚡` : e.name, e.x, e.y - 30);
+    beschriftung(ctx, e.gottmodus ? `${e.anzeige ?? e.name} ⚡` : (e.anzeige ?? e.name), e.x, e.y - 30);
     lebensbalken(ctx, e, e.y - 24);
   } else if (e.typ === 'zombie' && e.leben < e.maxLeben) {
     lebensbalken(ctx, e, e.y - 26);

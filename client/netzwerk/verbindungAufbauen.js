@@ -6,9 +6,9 @@ import { oeffneLokalenKanal, oeffneTutorialKanal } from './lokalerServer.js';
  * Fabrik: baut je nach Servereintrag die passende Verbindung.
  * Neuer Transport (z. B. WebRTC)? → hier ergänzen, sonst nirgends.
  */
-export async function verbindungAufbauen(serverEintrag, adresse) {
+export async function verbindungAufbauen(serverEintrag, adresse, { slot = null } = {}) {
   if (serverEintrag.typ === 'lokal') {
-    return new JsonVerbindung(oeffneLokalenKanal(), 'Lokal');
+    return new JsonVerbindung(await oeffneLokalenKanal(slot), 'Lokal');
   }
   if (serverEintrag.typ === 'tutorial') {
     return new JsonVerbindung(oeffneTutorialKanal(), 'Tutorial');

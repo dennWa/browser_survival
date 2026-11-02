@@ -6,13 +6,16 @@ import { ClientSpiel } from './kern/clientSpiel.js';
 import { verbindungAufbauen } from './netzwerk/verbindungAufbauen.js';
 import { anmelden } from './netzwerk/anmeldung.js';
 import { konsolenHelfer } from './kern/konsolenHelfer.js';
-import { LoginBildschirm, gastName } from './ui/loginBildschirm.js';
+import { Hauptmenue, gastName } from './ui/hauptmenue.js';
+import { CharakterErstellung } from './ui/charakterErstellung.js';
+import { CharakterVorschau, fotografiere } from './ui/charakterVorschau.js';
+import { migriereAltenSpielstand, loescheSlot, speichereSlotMeta, ladeMpCharakter, speichereMpCharakter } from './netzwerk/spielstandSlots.js';
 import { Hud } from './ui/hud.js';
 import { zeigeCredits } from './ui/credits.js';
 import { ladeUiIcons } from './ui/uiIcons.js';
 import { Sound } from './audio/sound.js';
 import { ZonenMusik } from './audio/zonenMusik.js';
-import { lokalerServer, setzeTestKarten, beendeTutorial, tutorialServerInstanz } from './netzwerk/lokalerServer.js';
+import { lokalerServer, setzeTestKarten, beendeTutorial, tutorialServerInstanz, stoppeLokal } from './netzwerk/lokalerServer.js';
 import { TutorialAnzeige, tutorialGeschafft } from './ui/tutorialAnzeige.js';
 import { KAPITEL } from '../server/spiel/tutorial/skript.js';
 import { ladeEditorTest, zeigeTestBanner, istVonAudio, zeigeAudioBanner } from './ui/editorTest.js';
@@ -25,8 +28,8 @@ import { Karte } from './ui/karte.js';
 /**
  * Einstiegspunkt des Clients. Verdrahtet nur die Bausteine – keine Spiellogik hier.
  *
- * Ablauf:  Grafiken + 3D-Figuren laden → Login-Bildschirm → Verbindung aufbauen → Anmelden
- *          → ClientSpiel läuft → bei Trennung/Abmelden zurück zum Login
+ * Ablauf:  Grafiken + 3D-Figuren laden → Hauptmenü (Singleplayer-Slot | Multiplayer-Server + Charakter, Runde 28)
+ *          → Verbindung aufbauen → Anmelden → ClientSpiel läuft → bei Trennung/Abmelden zurück ins Hauptmenü
  *
  * Grafik: Three.js (WebGL). Das 2D-Canvas #spielflaeche liegt durchsichtig darüber (Eingaben, Namen, Vignette).
  */
@@ -51,7 +54,13 @@ leinwand.addEventListener(
   },
   { passive: false },
 );
-const login = new LoginBildschirm(document, SERVER_LISTE);
+migriereAltenSpielstand(); // Runde 28: alter Lokal-Spielstand → Slot 1
+const erstellungsVorschau = new CharakterVorschau(document.getElementById('ce-vorschau'));
+const login = new Hauptmenue(document, {
+  serverListe: SERVER_LISTE,
+  erstellung: new CharakterErstellung(document, { vorschau: erstellungsVorschau, meldung: (t, f) => login.zeigeMeldung(t, f) }),
+  fotografiere: (aussehen) => fotografiere(renderer, aussehen),
+});
 const hud = new Hud(document, { debug: DEBUG_START });
 hud.inventar.figurQuelle = () => ({ aussehen: aktuellesSpiel?.eigeneDaten?.aussehen, name: aktuellesSpiel?.benutzername }); // Inventar-Charakter
 const sound = new Sound();
@@ -185,14 +194,21 @@ document.getElementById('credits-knopf').addEventListener('click', () => zeigeCr
 const editorTest = await ladeEditorTest();
 if (editorTest) setzeTestKarten(editorTest);
 
-login.beiAnmeldung((daten) => anmeldungStarten(daten));
+login.beiStart((daten) => anmeldungStarten(daten));
 login.beiTutorial(({ aussehen }) => {
   storyNachTutorial = false;
   anmeldungStarten({ server: { id: 'tutorial', name: 'Tutorial', typ: 'tutorial' }, benutzername: 'Gast-0001', gast: true, aussehen });
 });
 
-async function anmeldungStarten({ server, adresse, benutzername, passwort, gast = false, aussehen = null }) {
-  sound.entsperren(); // Klick auf "Login" = Nutzeraktion → Browser erlaubt ab jetzt Ton
+let lokalStopp = Promise.resolve(); // Singleplayer: Server wird beim Verlassen beendet (speichert) – vor neuem Start abwarten
+
+/**
+ * Spiel starten (Hauptmenü, Tutorial, Editor-Test). Runde 28: `slot` = Singleplayer-Spielstand (eigener Speicher je Slot),
+ * `neuerSlot` = Slot neu anlegen (alter Inhalt wird erst JETZT gelöscht), `mpSchluessel` = Multiplayer-Charakter merken,
+ * `charakterName`/`neuerCharakter` gehen mit dem Login an den Server.
+ */
+async function anmeldungStarten({ server, adresse, benutzername, passwort, gast = false, aussehen = null, slot = null, neuerSlot = false, charakterName = null, neuerCharakter = false, mpSchluessel = null }) {
+  sound.entsperren(); // Klick = Nutzeraktion → Browser erlaubt ab jetzt Ton
   if (!renderer) {
     login.zeigeMeldung('Dein Browser kann keine 3D-Grafik (WebGL) – leider geht es ohne nicht.', true);
     return;
@@ -200,23 +216,45 @@ async function anmeldungStarten({ server, adresse, benutzername, passwort, gast 
   login.setzeBeschaeftigt(true);
   let verbindung = null;
   try {
-    verbindung = await verbindungAufbauen(server, adresse);
+    await lokalStopp;
+    if (slot && neuerSlot) {
+      loescheSlot(slot);
+      const jetzt = new Date().toISOString();
+      speichereSlotMeta(slot, { name: benutzername, aussehen, erstellt: jetzt, zuletzt: jetzt });
+    }
+    verbindung = await verbindungAufbauen(server, adresse, { slot });
     let anmeldeDaten;
+    const login_ = () => anmelden(verbindung, { benutzername, passwort, gast, aussehen, charakterName, neuerCharakter });
     try {
-      anmeldeDaten = await anmelden(verbindung, { benutzername, passwort, gast, aussehen });
+      anmeldeDaten = await login_();
     } catch (fehler) {
       // Gast schon online (z. B. zweiter Tab) → mit neuem Zufallsnamen nochmal
       if (!gast || !/bereits eingeloggt/.test(fehler.message)) throw fehler;
       if (!verbindung.getrennt) verbindung.trennen('Neuer Gastname');
       benutzername = gastName(true);
-      verbindung = await verbindungAufbauen(server, adresse);
-      anmeldeDaten = await anmelden(verbindung, { benutzername, passwort, gast, aussehen });
+      verbindung = await verbindungAufbauen(server, adresse, { slot });
+      anmeldeDaten = await login_();
     }
-    await spielStarten(verbindung, anmeldeDaten, benutzername, { tutorialZone: server.typ === 'tutorial' });
+    if (mpSchluessel) merkeMpCharakter(mpSchluessel, anmeldeDaten.charakter, { benutzername, gast, neu: neuerCharakter, charakterName, aussehen });
+    await spielStarten(verbindung, anmeldeDaten, benutzername, { tutorialZone: server.typ === 'tutorial', slot, mpSchluessel });
   } catch (fehler) {
     if (verbindung && !verbindung.getrennt) verbindung.trennen('Login abgebrochen');
     login.anzeigen(fehler.message);
   }
+}
+
+/** Multiplayer: Charakter dieses Servers im Browser merken (Kopfdaten fürs Hauptmenü; Spielstand liegt auf dem Server). */
+function merkeMpCharakter(schluessel, charakter, { benutzername, gast, neu, charakterName, aussehen }) {
+  const alt = ladeMpCharakter(schluessel);
+  const jetzt = new Date().toISOString();
+  speichereMpCharakter(schluessel, {
+    name: charakter?.name ?? charakterName ?? benutzername,
+    aussehen: charakter?.aussehen ?? aussehen ?? alt?.aussehen ?? null,
+    erstellt: neu || !alt || charakter?.neu ? jetzt : alt.erstellt,
+    zuletzt: jetzt,
+    konto: gast ? null : benutzername,
+    gast: gast ? benutzername : null,
+  });
 }
 
 /**
@@ -224,7 +262,7 @@ async function anmeldungStarten({ server, adresse, benutzername, passwort, gast 
  * erst wenn es ruhig läuft, verschwindet der Ladebildschirm (sonst ruckeln die ersten Sekunden).
  * Auch beim Zonenwechsel (zone = Name der neuen Zone, seq = Eingabe-Zähler der alten Sitzung).
  */
-async function spielStarten(verbindung, anmeldeDaten, benutzername, { zone = null, seq = 0, tutorialZone = false } = {}) {
+async function spielStarten(verbindung, anmeldeDaten, benutzername, { zone = null, seq = 0, tutorialZone = false, slot = null, mpSchluessel = null } = {}) {
   const vorab = []; // Nachrichten, die während des Ladens ankommen, gehen nicht verloren
   const vorabAbmelden = verbindung.beiNachricht((n) => vorab.push(n));
   let getrennt = null;
@@ -246,6 +284,12 @@ async function spielStarten(verbindung, anmeldeDaten, benutzername, { zone = nul
       if (story) login.starteStory();
       return;
     }
+    if (mpSchluessel) {
+      const meta = ladeMpCharakter(mpSchluessel);
+      if (meta) speichereMpCharakter(mpSchluessel, { ...meta, zuletzt: new Date().toISOString() });
+    }
+    // Singleplayer verlassen: lokalen Server beenden (speichert Spieler + Welt sofort; nichts läuft im Menü weiter)
+    if (slot) lokalStopp = stoppeLokal().catch(() => {});
     login.anzeigen(grund === 'Abgemeldet' ? '' : grund);
   };
   eingabe.aktiv = false;
@@ -285,7 +329,7 @@ async function spielStarten(verbindung, anmeldeDaten, benutzername, { zone = nul
     // Übergang betreten → diese Sitzung abräumen, neue Zone aufbauen (Verbindung bleibt dieselbe)
     beiZonenwechsel: (daten, alt) => {
       alt.uebergeben();
-      spielStarten(verbindung, daten, benutzername, { zone: daten.zone ?? daten.karte?.name, seq: alt.seq });
+      spielStarten(verbindung, daten, benutzername, { zone: daten.zone ?? daten.karte?.name, seq: alt.seq, slot, mpSchluessel });
     },
   });
   if (spiel.beendet) return; // während des Nachholens schon weitergezogen
@@ -353,6 +397,7 @@ async function starten() {
     renderer.verbergen();
     renderer.beiKontext = grafikAbsturz;
     hud.inventar.vorschau.spielRenderer = renderer; // Charakter-Vorschau im Inventar (Runde 23)
+    erstellungsVorschau.spielRenderer = renderer; // Charaktererstellung im Hauptmenü (Runde 28)
     zeigeLaden('Fertig', 100);
   } catch (fehler) {
     console.warn('[3D] nicht verfügbar:', fehler);

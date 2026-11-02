@@ -99,31 +99,134 @@ export class Sound {
   /** Muss in einem Klick-/Tastenereignis aufgerufen werden (Autoplay-Sperre der Browser). */
   entsperren() {
     if (!this.#ctx) {
-      const AudioKontext = window.AudioContext || window.webkitAudioContext;
-      if (!AudioKontext) return;
-      this.#ctx = new AudioKontext();
-      const kompressor = this.#ctx.createDynamicsCompressor(); // verhindert Übersteuern bei vielen Schüssen
-      this.#ausgang = this.#ctx.createGain();
-      this.#effekte = this.#ctx.createGain();
-      this.#atmoBus = this.#ctx.createGain();
-      this.#musikBus = this.#ctx.createGain();
-      this.#effekte.connect(kompressor).connect(this.#ausgang);
-      this.#atmoBus.connect(this.#ausgang);
-      this.#musikBus.connect(this.#ausgang); // Musik am Kompressor vorbei (Schüsse drücken sie nicht weg)
-      this.#ausgang.connect(this.#ctx.destination);
-      this.#rauschen = erzeugeRauschen(this.#ctx);
-      this.#wendeLautstaerkenAn();
-      // Tab im Hintergrund / Anruf / Handy sperrt den Ton → bei der nächsten Gelegenheit wieder aufwecken
-      const aufwecken = () => this.#ctx.state !== 'running' && this.#ctx.resume?.();
-      this.#ctx.addEventListener?.('statechange', aufwecken);
-      // Runde 26: Wetter-Aufrufe vor dem Entsperren werden verworfen (clientSpiel merkt sich aber den Wert und ruft nicht
-      // erneut) → sobald der Ton läuft, gewünschte Stärken nachholen. Sonst blieb Regen draußen stumm, bis sich der Wert änderte.
-      this.#ctx.addEventListener?.('statechange', () => this.#ctx.state === 'running' && this.#nachholen());
+      if (!this.#baueKontext()) return;
+      // Tab im Hintergrund / Anruf / Handy sperrt den Ton → bei der nächsten Gelegenheit wieder aufwecken.
+      // iOS lässt resume() nur in „echten“ Gesten zu (touchend/click/keydown) – pointerdown allein reicht dort nicht immer.
+      const aufwecken = () => this.#aufwecken();
       document.addEventListener('visibilitychange', aufwecken);
-      for (const ereignis of ['pointerdown', 'keydown']) window.addEventListener(ereignis, aufwecken, { passive: true });
+      window.addEventListener('pageshow', aufwecken);
+      window.addEventListener('focus', aufwecken);
+      for (const ereignis of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) window.addEventListener(ereignis, () => this.#geste(), { passive: true, capture: true });
+      this.#wachhund = setInterval(() => this.#pruefeTon(), 1500);
     }
-    this.#ctx.resume?.();
+    this.#ctx.resume?.()?.catch?.(() => {});
     this.#ladeProben();
+  }
+
+  /** Audio-Graph bauen (auch nach einem Neuaufbau): Busse, Kompressor, Rauschen, Wächter-Analyser. */
+  #baueKontext() {
+    const AudioKontext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioKontext) return false;
+    const ctx = new AudioKontext();
+    this.#ctx = ctx;
+    const kompressor = ctx.createDynamicsCompressor(); // verhindert Übersteuern bei vielen Schüssen
+    this.#ausgang = ctx.createGain();
+    this.#effekte = ctx.createGain();
+    this.#atmoBus = ctx.createGain();
+    this.#musikBus = ctx.createGain();
+    this.#effekte.connect(kompressor).connect(this.#ausgang);
+    this.#atmoBus.connect(this.#ausgang);
+    this.#musikBus.connect(this.#ausgang); // Musik am Kompressor vorbei (Schüsse drücken sie nicht weg)
+    this.#ausgang.connect(ctx.destination);
+    // Wächter: liest hinter dem Kompressor mit – NaN dort (instabiler Filter) macht ihn für immer stumm → Neuaufbau
+    if (ctx.createAnalyser) {
+      this.#analyse = ctx.createAnalyser();
+      this.#analyse.fftSize = 256;
+      this.#analysePuffer = new Float32Array(this.#analyse.fftSize);
+      kompressor.connect(this.#analyse);
+    }
+    this.#rauschen = erzeugeRauschen(ctx);
+    this.#wendeLautstaerkenAn();
+    // Runde 26: Wetter-Aufrufe vor dem Entsperren werden verworfen (clientSpiel merkt sich aber den Wert und ruft nicht
+    // erneut) → sobald der Ton läuft, gewünschte Stärken nachholen. Sonst blieb Regen draußen stumm, bis sich der Wert änderte.
+    ctx.addEventListener?.('statechange', () => {
+      if (ctx !== this.#ctx) return;
+      if (ctx.state === 'running') this.#nachholen();
+      else this.#aufwecken();
+    });
+    this.#uhr = { zeit: -1, stillstand: 0 };
+    return true;
+  }
+
+  #wachhund = null;
+  #analyse = null;
+  #analysePuffer = null;
+  #uhr = { zeit: -1, stillstand: 0 };
+  #gestenFehlschlaege = 0;
+  #atmoLief = false;
+  #musikSpieler = new Set(); // laufende spieleMusik-Stücke (bei Neuaufbau beenden → Zonen-Musik startet das nächste)
+  /** Wie oft der Audio-Kontext neu gebaut wurde (Tests/Diagnose: browserSurvival.sound.neuaufbauten) */
+  neuaufbauten = 0;
+
+  #aufwecken() {
+    const ctx = this.#ctx;
+    if (!ctx || document.hidden) return;
+    if (ctx.state === 'closed') return this.#neuAufbauen('geschlossen');
+    if (ctx.state !== 'running') ctx.resume?.()?.catch?.(() => {});
+  }
+
+  /** In jeder Nutzergeste: hängt der Ton (iOS „interrupted“, Android nach Anruf), hier wecken – klappt das wiederholt nicht, neu bauen. */
+  #geste() {
+    const ctx = this.#ctx;
+    if (!ctx) return;
+    if (ctx.state === 'running') {
+      this.#gestenFehlschlaege = 0;
+      return;
+    }
+    if (++this.#gestenFehlschlaege >= 3) return this.#neuAufbauen('Geste half nicht');
+    this.#aufwecken();
+  }
+
+  /** Wachhund (alle 1,5 s, nur sichtbarer Tab): Zustand, stehende Uhr, NaN-Ausgang → wecken bzw. Ton neu aufbauen. */
+  #pruefeTon() {
+    const ctx = this.#ctx;
+    if (!ctx || document.hidden) {
+      if (this.#uhr) this.#uhr.stillstand = 0;
+      return;
+    }
+    if (ctx.state !== 'running') return this.#aufwecken();
+    // „running“, aber die Audio-Uhr steht (iOS nach Sperrbildschirm, Ausgabegerät gewechselt) → Kontext ist tot
+    if (ctx.currentTime === this.#uhr.zeit) {
+      if (++this.#uhr.stillstand >= 2) return this.#neuAufbauen('Uhr steht');
+    } else this.#uhr.stillstand = 0;
+    this.#uhr.zeit = ctx.currentTime;
+    if (this.#analyse) {
+      this.#analyse.getFloatTimeDomainData(this.#analysePuffer);
+      for (let i = 0; i < this.#analysePuffer.length; i += 8) {
+        if (!Number.isFinite(this.#analysePuffer[i])) return this.#neuAufbauen('NaN im Effekt-Bus');
+      }
+    }
+  }
+
+  /**
+   * Ton ist ausgefallen → alten Kontext verwerfen, neuen bauen und alles Laufende (Wind, Regen, Nacht, Schichten, Musik)
+   * wieder anwerfen. Geladene Aufnahmen (AudioBuffer) gehören keinem Kontext und werden weiterverwendet.
+   */
+  #neuAufbauen(grund) {
+    const alt = this.#ctx;
+    if (!alt) return;
+    console.warn(`[Sound] Ton wird neu aufgebaut (${grund})`);
+    this.neuaufbauten++;
+    this.#gestenFehlschlaege = 0;
+    const atmo = !!this.#wind || this.#atmoLief;
+    this.#wind = null;
+    this.#regen = null;
+    this.#nacht = null;
+    this.#motor = null;
+    this.#schichten.clear();
+    this.#kurz.clear();
+    this.#laufBis = {};
+    for (const m of [...this.#musikSpieler]) m.abgebrochen();
+    this.#musikSpieler.clear();
+    try {
+      alt.close?.()?.catch?.(() => {});
+    } catch {
+      // egal
+    }
+    if (!this.#baueKontext()) return;
+    this.#ctx.resume?.()?.catch?.(() => {});
+    if (atmo) this.starteAtmosphaere();
+    if (this.#ctx.state === 'running') this.#nachholen();
   }
 
   /** Lädt die echten Aufnahmen im Hintergrund; bis sie da sind (oder fehlen), spielt die Synthese. */
@@ -471,6 +574,7 @@ export class Sound {
    */
   starteAtmosphaere() {
     const ctx = this.#ctx;
+    this.#atmoLief = true;
     if (!ctx || this.#wind) return;
     if (this.#eigene.wind_leicht?.length) return; // Runde 24: echte Windaufnahmen (Schichten wind_leicht/wind_stark) ersetzen die Synthese
     const pegel = this.#pegel('wind');
@@ -534,6 +638,7 @@ export class Sound {
   }
 
   stoppeAtmosphaere({ ohneRegen = false } = {}) {
+    if (!ohneRegen) this.#atmoLief = false;
     for (const knoten of this.#wind ?? []) knoten.stop();
     this.#wind = null;
     if (ohneRegen) return;
@@ -671,6 +776,16 @@ export class Sound {
     audio.addEventListener('error', () => endeHoerer?.(true));
     audio.play().then(() => gain.gain.setTargetAtTime(1, ctx.currentTime, fade / 3)).catch(() => endeHoerer?.(true));
     let ziel = 1;
+    const eintrag = {
+      abgebrochen: () => {
+        audio.pause();
+        const fn = endeHoerer;
+        endeHoerer = null;
+        fn?.('neustart'); // Kontext neu gebaut → Zonen-Musik startet gleich das nächste Stück
+      },
+    };
+    this.#musikSpieler.add(eintrag);
+    audio.addEventListener('ended', () => this.#musikSpieler.delete(eintrag));
     return {
       beiEnde: (fn) => (endeHoerer = fn),
       /** Runde 24: Lautstärke 0..1 (Abstand zum Radio) */
@@ -681,6 +796,7 @@ export class Sound {
       },
       stoppen: (fadeSekunden = fade) => {
         endeHoerer = null;
+        this.#musikSpieler.delete(eintrag);
         gain.gain.setTargetAtTime(0, ctx.currentTime, Math.max(0.05, fadeSekunden / 3));
         setTimeout(() => {
           audio.pause();

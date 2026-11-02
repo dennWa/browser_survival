@@ -356,37 +356,112 @@
       </div>
     </div>
 
-    <!-- Login -->
-    <div id="login" class="overlay" hidden>
-      <form id="login-formular" autocomplete="on">
-        <h1>Browser Survival</h1>
-        <p class="untertitel">Überlebe den Stadtrand – allein oder mit Freunden</p>
-        <!-- Tutorial (client/ui/tutorialAnzeige.js): läuft lokal in der eigenen Zone „Kreisklinik Hohenfeld“ -->
-        <button id="login-tutorial" class="zweitknopf" type="button">🎓 Tutorial <span>Kreisklinik Hohenfeld · ca. 12 min</span></button>
+    <!-- Hauptmenü (Runde 28, client/ui/hauptmenue.js): Start → Singleplayer (3 Slots) | Multiplayer (Server → Charakter) | Developer -->
+    <div id="hauptmenue" class="overlay hm" hidden>
+      <div class="hm-hintergrund" aria-hidden="true">
+        <div class="hm-himmel"></div>
+        <div class="hm-mond"></div>
+        <svg class="hm-silhouette hm-silhouette-fern" viewBox="0 0 1600 300" preserveAspectRatio="none"><path d="M0 300L0 210L0 214L8 183L6 183L12 160L10 160L14 145L18 160L16 160L22 183L20 183L21.779157835790567 205L28 152L26 152L30 113L29 113L32 87L35 113L33 113L38 152L36 152L35.338980254178665 208L41 157L39 157L43 119L42 119L45 94L48 119L46 119L51 157L49 157L46.038326382817864 204L55 158L52 158L59 124L57 124L62 101L66 124L64 124L71 158L68 158L65.69951993419609 220L75 194L72 194L79 176L76 176L81 163L86 176L84 176L90 194L87 194L84.09277121266975 220L92 194L89 194L95 176L93 176L97 163L101 176L99 176L104 194L102 194L102.96625866077314 203L109 168L107 168L111 142L109 142L112 125L116 142L114 142L118 168L116 168L117.11808023205481 215L124 176L122 176L126 147L125 147L128 128L132 147L130 147L135 176L133 176L130.3288443739071 219L137 179L135 179L139 150L137 150L141 130L144 150L143 150L147 179L145 179L147.87737311343932 220L155 192L152 192L158 171L156 171L159 157L163 171L161 171L166 192L164 192L165.12556846430425 205L172 161L170 161L175 129L173 129L177 108L181 129L179 129L184 161L182 161L182.92662197626453 208L189 182L187 182L191 164L190 164L193 151L196 164L195 164L199 182L197 182L197.40152344205896 216L207 176L204 176L210 146L208 146L213 126L218 146L215 146L222 176L219 176L220.80486966111684 211L230 168L227 168L234 136L232 136L237 115L242 136L239 136L246 168L243 168L241.18724741152138 204L248 168L246 168L251 141L249 141L253 123L256 141L255 141L260 168L257 168L258.4613582791037 212L269 161L265 161L273 124L270 124L275 99L281 124L278 124L286 161L282 161L285.8417572234304 205L294 178L291 178L297 159L295 159L299 146L304 159L302 159L307 178L305 178L305.5295224730498 206L312 164L310 164L315 133L313 133L317 113L321 133L319 133L324 164L322 164L325.6923476811039 204L335 179L332 179L339 161L336 161L341 149L346 161L344 161L350 179L347 179L351.03794157951296 213L359 171L357 171L363 140L361 140L365 120L370 140L367 140L373 171L371 171L372.2627663751421 204L382 178L379 178L386 159L383 159L388 146L393 159L391 159L398 178L395 178L400.443194640351 203L410 177L407 177L414 158L412 158L417 145L422 158L420 158L427 177L424 177L427.0380849554533 211L435 163L432 163L438 128L436 128L441 104L445 128L443 128L449 163L446 163L448.6602176125173 216L457 193L454 193L461 175L459 175L463 164L468 175L465 175L472 193L469 193L468.2181783243518 203L475 152L472 152L477 115L475 115L479 90L482 115L480 115L485 152L483 152L481.3720054692765 209L489 179L487 179L493 158L491 158L495 143L499 158L497 158L503 179L500 179L499.9821385315384 207L510 180L507 180L514 160L511 160L516 147L522 160L519 160L526 180L523 180L523.3202530125031 215L531 185L529 185L534 163L532 163L536 148L540 163L538 163L544 185L542 185L545.4825116867596 213L553 167L551 167L556 133L554 133L558 110L563 133L561 133L566 167L564 167L565.9952915271854 206L575 170L572 170L579 144L576 144L581 127L586 144L583 144L590 170L587 170L583.3666308211293 209L590 173L588 173L593 147L591 147L594 130L598 147L596 147L601 173L599 173L595.5595163819265 211L602 174L600 174L605 146L603 146L607 128L611 146L609 146L614 174L612 174L608.2424698891763 213L618 160L614 160L621 121L619 121L624 95L629 121L626 121L633 160L630 160L631.9089348117147 218L640 188L638 188L644 167L641 167L646 152L650 167L648 167L654 188L652 188L656.6211295186048 219L662 170L660 170L665 135L663 135L666 111L669 135L668 135L672 170L670 170L669.6804492494317 205L679 160L676 160L682 127L680 127L685 105L689 127L687 127L694 160L691 160L691.2364388401662 208L700 182L697 182L704 164L701 164L706 151L711 164L709 164L715 182L712 182L708.4435888065179 207L716 159L713 159L719 124L717 124L720 101L724 124L722 124L728 159L725 159L722.5669865685219 202L728 174L726 174L731 153L729 153L732 139L735 153L734 153L738 174L736 174L736.7860975626069 202L743 159L741 159L746 127L744 127L747 106L751 127L749 127L754 159L751 159L748.852917047335 206L756 162L754 162L759 130L757 130L761 108L765 130L763 130L768 162L766 162L767.3819575070198 217L776 174L773 174L780 142L777 142L782 121L787 142L784 142L791 174L788 174L784.5788061492561 217L794 168L791 168L798 132L796 132L801 108L806 132L804 132L811 168L808 168L808.317096430864 205L814 174L812 174L817 152L815 152L818 137L822 152L820 152L824 174L822 174L824.564813873961 207L832 157L830 157L835 120L833 120L838 96L842 120L840 120L845 157L843 157L843.5634579965182 213L851 160L848 160L854 122L852 122L856 96L859 122L857 122L863 160L860 160L857.9949193232706 211L863 158L862 158L866 120L864 120L867 94L870 120L868 120L872 158L871 158L874.0594771524001 218L880 181L878 181L882 153L881 153L884 135L887 153L886 153L890 181L888 181L887.6263756947283 209L895 166L892 166L897 135L895 135L899 114L903 135L901 135L906 166L904 166L904.563744494546 209L915 168L911 168L919 137L916 137L922 117L927 137L924 137L932 168L928 168L930.5611603460271 214L938 178L935 178L941 152L939 152L943 134L946 152L944 152L950 178L947 178L949.9760937171832 218L957 184L955 184L960 160L958 160L962 143L966 160L964 160L970 184L967 184L968.0379348426802 210L973 186L972 186L976 169L974 169L977 157L980 169L978 169L982 186L981 186L980.913047236423 216L988 174L986 174L991 143L989 143L993 122L997 143L995 143L1000 174L998 174L1000.9049994759288 204L1010 161L1007 161L1013 129L1011 129L1015 108L1020 129L1018 129L1024 161L1021 161L1019.0926920543405 208L1027 158L1024 158L1030 122L1028 122L1032 98L1036 122L1034 122L1039 158L1037 158L1035.7978950029276 217L1046 194L1042 194L1050 178L1047 178L1052 167L1058 178L1055 178L1062 194L1059 194L1064.449145739655 205L1073 178L1070 178L1077 158L1074 158L1079 145L1084 158L1081 158L1088 178L1085 178L1089.633383685805 207L1097 157L1094 157L1100 120L1098 120L1102 96L1105 120L1104 120L1109 157L1106 157L1106.478354322089 214L1115 187L1112 187L1118 166L1116 166L1120 153L1125 166L1123 166L1129 187L1126 187L1126.4173276157926 207L1132 176L1130 176L1135 152L1133 152L1136 137L1140 152L1138 152L1142 176L1140 176L1144.3691141107129 220L1150 189L1148 189L1152 166L1150 166L1153 151L1156 166L1155 166L1159 189L1157 189L1159.9696823138322 213L1167 164L1164 164L1169 127L1167 127L1171 103L1174 127L1173 127L1178 164L1175 164L1173.2702079919652 202L1180 179L1178 179L1183 161L1181 161L1184 150L1188 161L1186 161L1191 179L1189 179L1191.525256982035 206L1198 153L1196 153L1200 115L1199 115L1202 89L1205 115L1204 115L1208 153L1206 153L1206.2637563422024 202L1213 167L1211 167L1216 142L1214 142L1218 125L1222 142L1220 142L1225 167L1223 167L1221.5791687576723 209L1230 158L1227 158L1233 120L1231 120L1235 95L1239 120L1237 120L1243 158L1240 158L1243.645942720586 219L1252 182L1249 182L1255 154L1253 154L1258 136L1262 154L1260 154L1266 182L1263 182L1263.1522657375804 213L1270 187L1268 187L1272 169L1271 169L1274 156L1278 169L1276 169L1281 187L1279 187L1282.164586546854 218L1292 172L1289 172L1296 138L1294 138L1299 115L1305 138L1302 138L1309 172L1306 172L1302.4206693292174 218L1309 165L1307 165L1312 127L1310 127L1313 101L1317 127L1315 127L1320 165L1318 165L1314.6646968120892 202L1324 169L1321 169L1328 145L1326 145L1331 129L1336 145L1333 145L1340 169L1337 169L1340.956333226548 206L1348 174L1345 174L1350 150L1348 150L1352 134L1355 150L1354 150L1359 174L1356 174L1356.702228806505 212L1363 186L1361 186L1366 168L1364 168L1367 155L1371 168L1369 168L1374 186L1371 186L1373.2673643373334 205L1383 155L1380 155L1388 118L1385 118L1390 94L1396 118L1393 118L1400 155L1397 155L1402.4777753291476 208L1408 172L1406 172L1410 145L1409 145L1412 127L1415 145L1413 145L1418 172L1416 172L1414.7692738477383 216L1421 165L1419 165L1424 127L1422 127L1425 102L1429 127L1427 127L1432 165L1429 165L1430.4479848396634 212L1436 164L1434 164L1439 129L1437 129L1440 106L1444 129L1442 129L1446 164L1444 164L1445.7356800300745 208L1456 156L1453 156L1460 118L1457 118L1463 93L1468 118L1465 118L1473 156L1470 156L1472.6791789603985 219L1482 167L1479 167L1486 129L1484 129L1489 104L1494 129L1491 129L1498 167L1495 167L1499.3216349596091 218L1510 182L1506 182L1514 155L1511 155L1516 137L1522 155L1519 155L1527 182L1523 182L1528.452407192798 216L1536 182L1534 182L1539 158L1537 158L1541 141L1546 158L1544 158L1549 182L1547 182L1544.0003305594594 216L1550 171L1548 171L1553 138L1551 138L1555 116L1558 138L1556 138L1561 171L1559 171L1557.8727820468905 204L1565 157L1563 157L1568 123L1566 123L1570 100L1574 123L1572 123L1578 157L1575 157L1573.4838177932852 206L1582 177L1579 177L1585 155L1583 155L1587 141L1591 155L1589 155L1595 177L1592 177L1597.2121368165913 210L1606 179L1603 179L1609 157L1607 157L1612 142L1616 157L1614 157L1620 179L1618 179L1600 210L1600 300Z" /></svg>
+        <div class="hm-nebel hm-nebel-1"></div>
+        <svg class="hm-silhouette hm-silhouette-nah" viewBox="0 0 1600 260" preserveAspectRatio="none"><path d="M0 260L0 200L0 202L70 173L139 202L139 172L178 154L217 172L217 196L287 172L357 196L357 180L427 150L497 180L497 155L542 121L586 155L564 138L564 109L570 109L570 148L586 200L625 164L664 200L644 182L644 152L650 152L650 193L664 236L667 236L667 120L650 120L650 116L684 116L684 120L670 120L670 236L674 236L677 236L677 120L660 120L660 116L694 116L694 120L680 120L680 236L684 165L744 134L803 165L773 150L773 122L782 122L782 159L803 236L806 236L806 120L789 120L789 116L823 116L823 120L809 120L809 236L813 154L856 125L900 154L878 140L878 113L884 113L884 148L900 194L948 155L997 194L973 174L973 143L980 143L980 186L997 236L1026 236L1026 174L1086 145L1145 174L1145 153L1194 125L1244 153L1244 133L1331 133L1331 140L1412 140L1412 236L1442 236L1442 114L1530 114L1530 236L1570 236L1570 192L1622 171L1674 192L1648 182L1648 159L1655 159L1655 188L1600 236L1600 260Z" /></svg>
+        <div class="hm-nebel hm-nebel-2"></div>
+        <div class="hm-koernung"></div>
+        <div class="hm-vignette"></div>
+      </div>
 
-        <label>Server
-          <select id="login-server"></select>
-        </label>
-        <label id="login-adresse-feld" hidden>Serveradresse
-          <input id="login-adresse" type="text" placeholder="ws://192.168.0.10:8080/ws" spellcheck="false" autocapitalize="off" />
-        </label>
-        <label>Benutzername
-          <input id="login-name" type="text" autocomplete="username" required minlength="2" maxlength="20" spellcheck="false" autocapitalize="off" />
-        </label>
-        <label id="login-passwort-feld">Passwort
-          <input id="login-passwort" type="password" autocomplete="current-password" />
-        </label>
+      <button id="hm-dev" class="hm-ecke" type="button" title="Developer-Modus">Developer</button>
 
-        <!-- Figur (gemeinsam/spieler/aussehen.js – Merkmale mit aktiv: true werden hier automatisch angeboten) -->
-        <div id="login-aussehen"></div>
-        <button id="login-knopf" type="submit">Login</button>
-        <button id="login-gast" class="zweitknopf" type="button">Als Gast spielen <span id="login-gast-name"></span></button>
-        <!-- Map-Editor: eigener Bereich (editor/), ohne Login und ohne Konto -->
-        <a id="login-editor" class="zweitknopf" href="../editor/">🗺 Map-Editor <span>Karten bauen &amp; für KI exportieren</span></a>
-        <p id="login-meldung" role="status" aria-live="polite"></p>
-        <p class="hinweis">Keine Registrierung – Accounts vergibt der Server-Admin.<br />Gäste bekommen einen Zufallsnamen; ihr Spielstand bleibt in diesem Browser.</p>
-        <button id="credits-knopf" class="link-knopf" type="button">Credits &amp; Lizenzen</button>
-      </form>
+      <!-- Start -->
+      <section class="hm-seite" data-seite="start">
+        <div class="hm-mitte">
+          <h1 class="hm-logo"><span class="hm-logo-oben">Browser</span><span class="hm-logo-unten">Survival</span></h1>
+          <p class="hm-claim">Überlebe den Stadtrand – allein oder gemeinsam.</p>
+          <nav class="hm-nav">
+            <button id="hm-singleplayer" class="hm-knopf hm-haupt" type="button"><span>Singleplayer</span><small>Drei Spielstände · direkt im Browser</small></button>
+            <button id="hm-multiplayer" class="hm-knopf hm-haupt" type="button"><span>Multiplayer</span><small>Einem Server beitreten</small></button>
+          </nav>
+          <div class="hm-fuss">
+            <button id="hm-tutorial" class="hm-link" type="button">Tutorial</button>
+            <span class="hm-trenner"></span>
+            <button id="credits-knopf" class="hm-link" type="button">Credits &amp; Lizenzen</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Singleplayer: Spielstand-Slots -->
+      <section class="hm-seite" data-seite="sp" hidden>
+        <header class="hm-kopf"><button class="hm-zurueck" type="button" data-zurueck="start">Zurück</button><h2>Singleplayer</h2><span class="hm-kopf-info">Spielstand wählen</span></header>
+        <div id="hm-slots" class="hm-slots"></div>
+      </section>
+
+      <!-- Multiplayer: Serverauswahl -->
+      <section class="hm-seite" data-seite="mp" hidden>
+        <header class="hm-kopf"><button class="hm-zurueck" type="button" data-zurueck="start">Zurück</button><h2>Multiplayer</h2><span class="hm-kopf-info">Server wählen</span></header>
+        <div id="hm-server" class="hm-liste"></div>
+      </section>
+
+      <!-- Multiplayer: Charakter auf dem gewählten Server -->
+      <section class="hm-seite" data-seite="mpCharakter" hidden>
+        <header class="hm-kopf"><button class="hm-zurueck" type="button" data-zurueck="mp">Zurück</button><h2 id="hm-mp-titel">Server</h2><span id="hm-mp-adresse" class="hm-kopf-info"></span></header>
+        <div class="hm-mp-raster">
+          <form id="hm-mp-login" class="hm-karte hm-mp-login" autocomplete="on">
+            <h3>Anmeldung</h3>
+            <div class="hm-umschalter" role="tablist">
+              <button type="button" data-art="konto" class="aktiv">Konto</button>
+              <button type="button" data-art="gast">Gast</button>
+            </div>
+            <label id="hm-mp-adresse-feld" hidden>Serveradresse<input id="hm-mp-adresse-eingabe" type="text" placeholder="wss://mein-server.de/ws" spellcheck="false" autocapitalize="off" /></label>
+            <div class="hm-konto-felder">
+              <label>Benutzername<input id="hm-mp-name" type="text" autocomplete="username" maxlength="20" spellcheck="false" autocapitalize="off" /></label>
+              <label>Passwort<input id="hm-mp-passwort" type="password" autocomplete="current-password" /></label>
+            </div>
+            <p class="hm-gast-info" hidden>Du spielst als <b id="hm-mp-gastname"></b>. Der Gastname bleibt auf diesem Gerät gespeichert.</p>
+            <p class="hm-klein">Keine Registrierung – Konten vergibt der Server-Admin.</p>
+          </form>
+          <div id="hm-mp-charakter" class="hm-karte hm-mp-charakter"></div>
+        </div>
+      </section>
+
+      <!-- Charaktererstellung (client/ui/charakterErstellung.js) -->
+      <section class="hm-seite hm-erstellung" data-seite="erstellung" hidden>
+        <header class="hm-kopf"><button class="hm-zurueck" type="button" id="ce-zurueck">Zurück</button><h2>Charakter erstellen</h2><span id="ce-ziel" class="hm-kopf-info"></span></header>
+        <div class="ce-raster">
+          <div class="ce-optionen" id="ce-optionen"></div>
+          <div class="ce-buehne"><canvas id="ce-vorschau"></canvas><p class="ce-drehen">Ziehen zum Drehen</p></div>
+        </div>
+        <footer class="ce-leiste">
+          <label class="ce-name">Charaktername<input id="ce-name" type="text" maxlength="20" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="Name eingeben" /></label>
+          <button id="ce-laden" class="hm-knopf hm-primaer" type="button">Laden</button>
+        </footer>
+      </section>
+
+      <p id="hm-meldung" class="hm-meldung" role="status" aria-live="polite"></p>
+
+      <!-- Developer-Zugang: Passwort (Prüfung folgt später) → Editor -->
+      <dialog id="hm-dev-dialog" class="hm-dialog">
+        <form method="dialog">
+          <h3>Developer-Modus</h3>
+          <label>Passwort<input id="hm-dev-passwort" type="password" autocomplete="off" /></label>
+          <p class="hm-klein">Zugang zu den Entwickler-Werkzeugen.</p>
+          <div class="hm-dialog-knoepfe"><button value="abbruch" class="hm-knopf">Abbrechen</button><button value="ok" class="hm-knopf hm-primaer">Öffnen</button></div>
+        </form>
+      </dialog>
+      <dialog id="hm-dev-wahl" class="hm-dialog">
+        <form method="dialog">
+          <h3>Entwickler-Werkzeuge</h3>
+          <a id="login-editor" class="hm-knopf hm-primaer hm-block" href="../editor/">Map-Editor öffnen<small>Browser-Editor: Karten bauen, testen, exportieren</small></a>
+          <p class="hm-klein">Das Studio (Desktop-App) startet über „Studio starten.bat“ bzw. <code>npm run studio</code> im Spielordner.</p>
+          <div class="hm-dialog-knoepfe"><button value="zu" class="hm-knopf">Schließen</button></div>
+        </form>
+      </dialog>
+      <!-- Rückfrage (Überschreiben/Löschen) -->
+      <dialog id="hm-frage" class="hm-dialog">
+        <form method="dialog">
+          <h3 id="hm-frage-titel"></h3>
+          <p id="hm-frage-text"></p>
+          <div class="hm-dialog-knoepfe"><button value="nein" class="hm-knopf">Abbrechen</button><button value="ja" class="hm-knopf hm-gefahr" id="hm-frage-ja">Ja</button></div>
+        </form>
+      </dialog>
     </div>
 
     <!-- Credits (Namensnennung der Grafik-Urheber, Pflicht bei CC-BY) -->

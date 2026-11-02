@@ -9,6 +9,7 @@
  * Muster wie rauchtest.mjs (Server --gast, Playwright/Chromium mit SwiftShader, Gottmodus für die Testfigur).
  */
 import { spawn, execSync } from 'node:child_process';
+import { hauptmenueAbwarten, singleplayerStarten, multiplayerGast } from './menueHelfer.mjs';
 import { mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -79,10 +80,8 @@ try {
   };
 
   await seite.goto(`http://localhost:${port}/`);
-  await seite.waitForSelector('#login:not([hidden])', { timeout: 60000 });
-  await seite.selectOption('#login-server', 'lokal');
-  await seite.fill('#login-name', `R24_${Date.now() % 1000}`);
-  await seite.click('#login-knopf');
+  await hauptmenueAbwarten(seite);
+  await singleplayerStarten(seite, `R24_${Date.now() % 1000}`);
   await seite.waitForSelector('#laden', { state: 'hidden', timeout: 60000 });
   await amServer('ich.gottmodus = true;');
   schritt('im Spiel (lokal)');

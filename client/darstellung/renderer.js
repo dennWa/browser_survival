@@ -13,7 +13,8 @@ import { BASIS_MATERIAL, BasisbauSchicht, INSTANZ_TYPEN, bauteilGeometrie, erzeu
 import { animiereWrack, erzeugeFahrzeugModell, macheWrack } from './fahrzeugModelle.js';
 import { FAHRZEUG, FAHRZEUG_MODELLE } from '../../gemeinsam/physik/fahrzeug.js';
 import { erzeugeFrisur } from './haarModell.js';
-import { AUSSEHEN, skinFuer } from '../../gemeinsam/spieler/aussehen.js';
+import { kleidungsVorlage, kleideFigur, outfitFuer } from './kleidungModell.js';
+import { AUSSEHEN, skinFuer, pruefeAussehen, aussehenOption } from '../../gemeinsam/spieler/aussehen.js';
 import { itemGeometrie, ITEM_MATERIAL, rucksackTeile } from './itemModelle.js';
 import { zeichneBeschriftung, zeichneItemName, zeichneSprechblase } from './beschriftung.js';
 import { richteFigurEin, aktualisiereHaltung, ARBEIT_KLIP, istBeidhaendigerSchlag } from './figurHaltung.js';
@@ -66,12 +67,9 @@ const FIGUR_HOEHE = 64;
 // Spieler-Figuren (Quaternius „Adventurer“, werkzeuge/assets/figuren): je ein GLB mit Clips stehen/laufen/hacken/sterben
 const SURVIVOR = { mann: '3d/figur_mann.glb', frau: '3d/figur_frau.glb' };
 // Runde 23: Kleidung → Mesh der Spielerfigur (Namensteil) und Zusatzteile (Einheitsgrößen, skaliert an den Knochen)
-const KLEIDUNG_MESH = [['Body', 'oberkoerper'], ['Legs', 'beine'], ['Feet', 'fuesse']];
-const KLEIDUNG_GEO = {
-  muetze: new THREE.SphereGeometry(1, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2),
-  handschuh: new THREE.SphereGeometry(0.5, 8, 6),
-};
-const kleidungsSchluessel = (k) => (k ? Object.values(k).join(',') : '');
+// Runde 28: dazu echte Kleidungsschichten (Hüllen über dem Körper, client/darstellung/kleidungModell.js) + Grundkleidung aus dem Aussehen
+const KLEIDUNG_MESH = [['Body', 'oberkoerper', 'oberteil'], ['Legs', 'beine', 'hose'], ['Feet', 'fuesse', 'schuhe']];
+const kleidungsSchluessel = (k, a) => `${k ? Object.values(k).join(',') : ''}|${a ? Object.values(a).join(',') : ''}`;
 // px/s, bei denen „laufen“ (Run) bzw. „gehen“ (Walk) mit timeScale 1 passen – je Figur aus der Fußgeschwindigkeit der Clips
 // (Clip-Weg/s × FIGUR_HOEHE / Modellhöhe, gemessen in figuren_bauen.py)
 const LAUF_TEMPO = { mann: 100, frau: 83 };
@@ -1494,7 +1492,7 @@ export class Renderer {
       if (f.survivor) f.gesehenAlsLebend = !e.tot;
       f.aktionen[name].timeScale = zeitfaktor;
       if (!!e.rucksack !== !!f.rucksack) this.#setzeRucksack(f, !!e.rucksack);
-      if (f.survivor && kleidungsSchluessel(e.kleidung) !== f.kleidungSchluessel) this.#setzeKleidung(f, e.kleidung);
+      if (f.survivor && kleidungsSchluessel(e.kleidung, e.aussehen) !== f.kleidungSchluessel) this.#setzeKleidung(f, e.kleidung, e.aussehen);
       // Weiter entfernte Zombies nur jedes 2. Bild animieren (Knochen rechnen kostet CPU), Zeit wird nachgeholt
       if (!f.survivor && e.typ === 'zombie' && Math.abs(e.x - fokus.x) + Math.abs(e.y - fokus.y) > ANIM_HALB_AB && (this.bildNr + e.id) % 2) {
         f.animRest = (f.animRest ?? 0) + dt;
@@ -1660,65 +1658,52 @@ export class Renderer {
     const figur = this.#neueSurvivorFigur({ typ: 'spieler', aussehen });
     this.szene.remove(figur.gruppe);
     figur.mixer.setTime(0);
-    this.#setzeKleidung(figur, kleidung);
+    this.#setzeKleidung(figur, kleidung, aussehen);
     return figur;
   }
 
   /**
-   * Runde 23: Kleidung an der Spielerfigur. Oberteil/Hose/Schuhe färben die Stoff-Materialien von Body/Legs/Feet um (Haut,
-   * Augen, Haare bleiben), Mütze und Handschuhe sind kleine Zusatzteile an den Knochen Head bzw. WristL/R.
-   * Farben aus gegenstaende.js (`farbe`, kommt mit den Item-Definitionen).
+   * Kleidung an der Spielerfigur (Runde 23, Runde 28 echte Schichten): Oberteil/Hose/Schuhe färben die Stoff-Materialien von
+   * Body/Legs/Feet um (Haut, Augen, Haare bleiben) – darüber liegen Kleidungshüllen (kleidungModell.js) für Grundkleidung aus
+   * dem Aussehen und getragene Items (Mütze, Handschuhe, Helm … sitzen jetzt passgenau am Körper und laufen mit der Animation).
+   * Farben/Formen aus gegenstaende.js (`farbe`, `form`; kommen mit den Item-Definitionen) bzw. gemeinsam/spieler/aussehen.js.
    */
-  #setzeKleidung(figur, kleidung) {
-    figur.kleidungSchluessel = kleidungsSchluessel(kleidung);
-    const farbe = (stelle) => this.itemDefinitionen?.[kleidung?.[stelle]]?.farbe ?? null;
+  #setzeKleidung(figur, kleidung, aussehenRoh = null) {
+    const aussehen = pruefeAussehen(aussehenRoh);
+    figur.kleidungSchluessel = kleidungsSchluessel(kleidung, aussehenRoh);
+    const option = (merkmal) => aussehenOption(aussehen, merkmal);
+    const farbe = (stelle, merkmal) => this.itemDefinitionen?.[kleidung?.[stelle]]?.farbe ?? option(merkmal)?.farbe ?? null;
     figur.modell.traverse((teil) => {
-      if (!teil.isMesh) return;
+      if (!teil.isMesh || figur.kleidungTeile?.includes(teil)) return;
       teil.userData.basisMaterial ??= teil.material;
-      const stelle = KLEIDUNG_MESH.find(([muster]) => teil.name.includes(muster))?.[1];
-      const f = stelle && farbe(stelle);
+      const eintrag = KLEIDUNG_MESH.find(([muster]) => teil.name.includes(muster) || teil.parent?.name.includes(muster));
+      const f = eintrag && farbe(eintrag[1], eintrag[2]);
       const basis = teil.userData.basisMaterial;
       teil.material = !f ? basis : Array.isArray(basis) ? basis.map((m) => this.#kleidungsMaterial(m, f)) : this.#kleidungsMaterial(basis, f);
     });
-    for (const teil of figur.kleidungTeile ?? []) teil.removeFromParent();
-    figur.kleidungTeile = [];
-    const kopfFarbe = farbe('kopf');
-    const handFarbe = farbe('haende');
-    if (!kopfFarbe && !handFarbe) return;
-    figur.gruppe.updateMatrixWorld(true);
-    const lage = (name) => figur.modell.getObjectByName(name);
-    const welt = (knochen) => figur.gruppe.worldToLocal(knochen.getWorldPosition(new THREE.Vector3()));
-    const haenge = (mesh, knochen) => {
-      mesh.castShadow = true;
-      figur.gruppe.add(mesh);
-      knochen.attach(mesh); // behält die Weltlage, folgt ab jetzt dem Knochen
-      figur.kleidungTeile.push(mesh);
-    };
-    // Kopfgröße aus Hüfte → Kopf (Head_end zeigt in diesem Rig nach unten, taugt nicht als Scheitel)
-    const kopf = lage('Head');
-    const huefte = lage('Hips');
-    if (kopfFarbe && kopf && huefte) {
-      const k = welt(kopf);
-      const h = k.distanceTo(welt(huefte)) * 0.4;
-      const hoch = k.clone().sub(welt(lage('Neck') ?? huefte)).normalize();
-      const muetze = new THREE.Mesh(KLEIDUNG_GEO.muetze, this.#kleidungsMaterial(null, kopfFarbe));
-      muetze.scale.set(h * 0.62, h * 0.5, h * 0.66);
-      muetze.position.copy(k).addScaledVector(hoch, h * 0.62);
-      muetze.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), hoch);
-      haenge(muetze, kopf);
+    const sv = this.survivor?.[figur.koerper === 'frau' ? 'frau' : 'mann'];
+    if (!sv) return;
+    try {
+      kleideFigur(figur, kleidungsVorlage(sv.modell), outfitFuer(option, kleidung, this.itemDefinitionen), (f, art) => this.#stoffMaterial(f, art));
+    } catch (fehler) {
+      console.warn('[Kleidung] Schicht nicht gebaut:', fehler);
     }
-    for (const seite of ['L', 'R']) {
-      const hand = lage(`Wrist${seite}`) ?? lage(`Wrist.${seite}`); // GLTFLoader entfernt Punkte aus Knotennamen
-      const finger = lage(`Middle1${seite}`) ?? lage(`Middle1.${seite}`);
-      if (!handFarbe || !hand) continue;
-      const a = welt(hand);
-      const b = finger ? welt(finger) : a;
-      const groesse = Math.max(2.6, a.distanceTo(b) * 2.8);
-      const handschuh = new THREE.Mesh(KLEIDUNG_GEO.handschuh, this.#kleidungsMaterial(null, handFarbe));
-      handschuh.scale.setScalar(groesse);
-      handschuh.position.copy(a.clone().lerp(b, 0.55));
-      haenge(handschuh, hand);
+  }
+
+  /** Material für Kleidungsschichten (geteilt je Farbe + Art; nachts schwaches Eigenleuchten wie die Spieler-Skins). */
+  #stoffMaterial(farbe, art) {
+    const schluessel = `stoff:${farbe}:${art}`;
+    this.kleidungsMaterialien ??= new Map();
+    if (!this.kleidungsMaterialien.has(schluessel)) {
+      const RAU = { haar: 0.75, leder: 0.6, hart: 0.35, visier: 0.15, strick: 0.95, strickBund: 0.95 };
+      const m = new THREE.MeshStandardMaterial({ color: farbe ?? '#777777', roughness: RAU[art] ?? 0.88, metalness: art === 'visier' ? 0.4 : 0 });
+      if (art === 'strickBund') m.color.multiplyScalar(0.8);
+      m.emissive.copy(m.color);
+      m.emissiveIntensity = 0;
+      this.spielerMaterialien.push(m);
+      this.kleidungsMaterialien.set(schluessel, m);
     }
+    return this.kleidungsMaterialien.get(schluessel);
   }
 
   /** Umgefärbtes Material (je Original + Farbe geteilt; nachts schwaches Eigenleuchten wie die Spieler-Skins). Haut & Co. bleiben. */

@@ -5,6 +5,7 @@ import { BrowserSpeicher } from './browserSpeicher.js';
 import { ArbeitsspeicherSpeicher } from '../../server/spiel/speicher/arbeitsspeicherSpeicher.js';
 import { LOKALE_LATENZ_MS } from '../konfiguration.js';
 import { TUTORIAL } from '../../server/spiel/karten/tutorial.js';
+import { slotPraefix, slotGespielt } from './spielstandSlots.js';
 
 /**
  * Lokal-Modus: Der ECHTE SpielServer läuft hier im Browser-Tab.
@@ -45,18 +46,54 @@ export function lokalerServer() {
   return server;
 }
 
-export function oeffneLokalenKanal() {
+/** Runde 28: Singleplayer-Slot des laufenden Servers (jeder Slot = eigener Server mit eigenem Speicher-Präfix) */
+let serverSlot = null;
+let serverSpeicher = null;
+
+/** Alles sofort sichern (Verlassen/Hintergrund): Spieler + Welten erfassen, dann synchron schreiben. */
+export function lokalSichern() {
+  if (!server) return Promise.resolve();
+  const s = server;
+  const sp = serverSpeicher;
+  const fertig = s.speichereAlle().then(() => sp?.leeren?.());
+  sp?.leeren?.(); // was schon erfasst ist, sofort (falls die Seite gleich weg ist)
+  return fertig;
+}
+
+/** Laufenden Lokal-Server sauber beenden (Slot-Wechsel, zurück ins Hauptmenü): speichern, trennen, Takt stoppen. */
+export async function stoppeLokal() {
+  if (!server) return;
+  const alt = server;
+  const sp = serverSpeicher;
+  server = null;
+  serverSlot = null;
+  serverSpeicher = null;
+  await alt.stoppen('Spielstand gewechselt');
+  sp?.leeren?.();
+}
+
+window.addEventListener('pagehide', () => lokalSichern());
+// Handy: App-Wechsel/Sperrbildschirm feuert oft kein pagehide → beim Verstecken sichern
+document.addEventListener('visibilitychange', () => document.hidden && lokalSichern());
+
+/**
+ * @param slot  Singleplayer-Slot (1…3); null = Editor-Test / ohne Slot (alter Präfix)
+ */
+export async function oeffneLokalenKanal(slot = null) {
+  if (server && serverSlot !== slot) await stoppeLokal();
   if (!server) {
+    serverSpeicher = testKarten
+      ? new ArbeitsspeicherSpeicher()
+      : new BrowserSpeicher(slot ? { praefix: slotPraefix(slot), beiSpielerGespeichert: (_name, stand) => slotGespielt(slot, stand) } : {});
+    serverSlot = slot;
     server = new SpielServer({
       authentifizierung: new GastAuthentifizierung({ admin: true }), // lokal = eigenes Spiel → Admin-Menü frei
       konfiguration: { bots: { proKarte: testKarten ? 0 : 2 }, ...ladeLokaleEinstellungen(), server: { name: testKarten ? 'Editor-Test' : 'Lokaler Server' } }, // Runde 23: 2 Test-Bots je Zone
-      speicher: testKarten ? new ArbeitsspeicherSpeicher() : new BrowserSpeicher(),
+      speicher: serverSpeicher,
       einstellungsSpeicher: lokalerEinstellungsSpeicher,
       ...(testKarten ? { kartenDefinition: testKarten.karten[testKarten.start], kartenDefinitionen: testKarten.karten } : {}),
     });
     server.starten();
-    // Tab wird geschlossen/neu geladen → Spielstand sichern (localStorage schreibt sofort)
-    window.addEventListener('pagehide', () => server.speichereAlle());
   }
   const { clientSeite, serverSeite } = erstelleSpeicherKanalPaar({ latenzMs: LOKALE_LATENZ_MS });
   server.verbindungHinzufuegen(serverSeite, { adresse: 'lokal' });

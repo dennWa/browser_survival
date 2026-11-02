@@ -49,6 +49,8 @@ export class HausMusik {
     if (b.musik.quelle === 'ordner') {
       const spieler = this.sound?.spieleMusik(new URL(`../musik/${b.musik.wert}`, import.meta.url).href, { fade: 1.5, schleife: true, ab });
       this.#aktuell = { schluessel, spieler, pegel: 0 };
+      // Ton neu aufgebaut (sound.js Wachhund) → beim nächsten Aufruf neu starten
+      spieler?.beiEnde((grund) => grund === 'neustart' && this.#aktuell?.spieler === spieler && (this.#aktuell = null));
     } else if (b.musik.quelle === 'youtube') {
       this.#aktuell = { schluessel, yt: null, pegel: 0 };
       const eintrag = this.#aktuell;

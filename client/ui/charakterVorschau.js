@@ -5,7 +5,59 @@ import * as THREE from 'three';
  * WebGL-Kontext, Idle-Animation, mit Maus/Finger drehbar. Läuft nur, solange das Inventar offen ist (eigene RAF-Schleife).
  * Figur kommt vom Spiel-Renderer (`renderer.vorschauFigur(aussehen, kleidung)`, gleiche Modelle/Materialien/Kleidung).
  * Kein WebGL → Canvas bleibt leer (Ausrüstungs-Slots funktionieren trotzdem).
+ * Runde 28: auch in der Charaktererstellung (Hauptmenü); `fotografiere()` = Standbild für die Spielstand-Karten.
  */
+/** Szene mit Licht, Bodenschatten und Kamera (Figur ≈ 64 Einheiten hoch) – für Vorschau und Fotos. */
+function baueBuehne() {
+  const szene = new THREE.Scene();
+  szene.add(new THREE.HemisphereLight(0xdfe8ff, 0x3a3226, 1.6));
+  const sonne = new THREE.DirectionalLight(0xfff1dc, 2.4);
+  sonne.position.set(60, 120, 90);
+  szene.add(sonne);
+  const rand = new THREE.DirectionalLight(0x9fc4ff, 1.2);
+  rand.position.set(-80, 60, -70);
+  szene.add(rand);
+  // Boden-Schein unter der Figur
+  const boden = new THREE.Mesh(new THREE.CircleGeometry(26, 32), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35 }));
+  boden.rotation.x = -Math.PI / 2;
+  szene.add(boden);
+  const kamera = new THREE.PerspectiveCamera(28, 2 / 3, 1, 1000);
+  kamera.position.set(0, 44, 150);
+  kamera.lookAt(0, 32, 0);
+  return { szene, kamera };
+}
+
+let foto = null; // { renderer, szene, kamera, canvas } – ein gemeinsamer Kontext für alle Fotos
+
+/**
+ * Runde 28: Standbild einer Figur (Spielstand-Karten im Hauptmenü) als Data-URL – oder null (3D noch nicht da / kein WebGL).
+ */
+export function fotografiere(spielRenderer, aussehen, breite = 240, hoehe = 320) {
+  if (!spielRenderer?.vorschauFigur) return null;
+  try {
+    if (!foto) {
+      const canvas = document.createElement('canvas');
+      const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      foto = { renderer, canvas, ...baueBuehne() };
+    }
+    const figur = spielRenderer.vorschauFigur(aussehen, null);
+    if (!figur) return null;
+    figur.mixer.update(0.4);
+    figur.gruppe.rotation.y = -0.3;
+    foto.szene.add(figur.gruppe);
+    foto.renderer.setSize(breite, hoehe, false);
+    foto.kamera.aspect = breite / hoehe;
+    foto.kamera.updateProjectionMatrix();
+    foto.renderer.render(foto.szene, foto.kamera);
+    const url = foto.canvas.toDataURL('image/png');
+    foto.szene.remove(figur.gruppe);
+    return url;
+  } catch {
+    return null;
+  }
+}
+
 export class CharakterVorschau {
   #renderer = null;
   #szene = null;
@@ -44,21 +96,7 @@ export class CharakterVorschau {
     }
     this.#renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     this.#renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.#szene = new THREE.Scene();
-    this.#szene.add(new THREE.HemisphereLight(0xdfe8ff, 0x3a3226, 1.6));
-    const sonne = new THREE.DirectionalLight(0xfff1dc, 2.4);
-    sonne.position.set(60, 120, 90);
-    this.#szene.add(sonne);
-    const rand = new THREE.DirectionalLight(0x9fc4ff, 1.2);
-    rand.position.set(-80, 60, -70);
-    this.#szene.add(rand);
-    // Boden-Schein unter der Figur
-    const boden = new THREE.Mesh(new THREE.CircleGeometry(26, 32), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35 }));
-    boden.rotation.x = -Math.PI / 2;
-    this.#szene.add(boden);
-    this.#kamera = new THREE.PerspectiveCamera(28, 2 / 3, 1, 1000);
-    this.#kamera.position.set(0, 44, 150);
-    this.#kamera.lookAt(0, 32, 0);
+    ({ szene: this.#szene, kamera: this.#kamera } = baueBuehne());
     return true;
   }
 

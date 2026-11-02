@@ -1,26 +1,93 @@
 /**
- * Aussehen der Spielfigur – Grundgerüst für die Charaktererstellung.
+ * Aussehen der Spielfigur – Charaktererstellung (Hauptmenü → Neuer Spielstand, client/ui/charakterErstellung.js).
  *
- * Jedes Merkmal hat Optionen und einen Standard. `aktiv: false` = schon vorgesehen, aber noch ohne Grafik
- * (taucht im Auswahlbildschirm noch nicht auf). Später ausbauen:
- *   haare / gesicht → eigene Meshes bzw. Texturen pro Option (client/darstellung/renderer.js → #figurMaterial)
- *   hautfarbe / kleidung → Textur-Varianten (Skin-Bilder in werkzeuge/assets/baue_assets.py)
+ * Jedes Merkmal hat Optionen und einen Standard. `aktiv: false` = vorgesehen, aber noch ohne Grafik (nicht im Editor).
+ * Kleidungs-Optionen (oberteil/hose/schuhe) tragen `form` + `farbe`: Die Darstellung baut daraus eine echte Kleidungs-
+ * schicht über dem Körper (client/darstellung/kleidungModell.js). `form: null` = Original-Outfit des Modells.
+ * Getragene Kleidungs-Items (Inventar → Kleidung) liegen darüber bzw. ersetzen die Grundkleidung an ihrer Stelle.
  *
  * Gespeichert im Spielstand (spieler.aussehen), mitgeschickt beim Login (ANMELDEN.aussehen), öffentlich im
  * Schnappschuss (kompakt: nur Abweichungen vom Standard) → alle sehen die gewählte Figur.
  */
 export const AUSSEHEN = Object.freeze({
   koerper: {
-    name: 'Figur',
+    name: 'Geschlecht',
     aktiv: true,
     standard: 'mann',
-    optionen: { mann: { name: 'Mann', symbol: '👨', skin: 'humanMaleA' }, frau: { name: 'Frau', symbol: '👩', skin: 'humanFemaleA', frisur: 'lang' } },
+    optionen: { mann: { name: 'Männlich', skin: 'humanMaleA' }, frau: { name: 'Weiblich', skin: 'humanFemaleA' } },
   },
-  haare: { name: 'Frisur', aktiv: false, standard: 'standard', optionen: { standard: { name: 'Standard' } } },
+  haare: {
+    name: 'Frisur',
+    aktiv: true,
+    standard: 'standard',
+    optionen: {
+      standard: { name: 'Klassisch', form: 'standard' },
+      kurz: { name: 'Kurz', form: 'kurz' },
+      lang: { name: 'Lang', form: 'lang' },
+      zopf: { name: 'Zopf', form: 'zopf' },
+      glatze: { name: 'Glatze', form: 'glatze' },
+    },
+  },
+  haarfarbe: {
+    name: 'Haarfarbe',
+    aktiv: true,
+    standard: 'natur',
+    optionen: {
+      natur: { name: 'Natur', farbe: null },
+      schwarz: { name: 'Schwarz', farbe: '#211c19' },
+      braun: { name: 'Braun', farbe: '#5b3a22' },
+      blond: { name: 'Blond', farbe: '#c7a15c' },
+      rot: { name: 'Rot', farbe: '#8c3a1d' },
+      grau: { name: 'Grau', farbe: '#9a9a96' },
+    },
+  },
+  oberteil: {
+    name: 'Oberteil',
+    aktiv: true,
+    standard: 'standard',
+    optionen: {
+      standard: { name: 'Original', form: null },
+      hoodie_grau: { name: 'Hoodie Grau', form: 'hoodie', farbe: '#5d6066' },
+      hoodie_schwarz: { name: 'Hoodie Schwarz', form: 'hoodie', farbe: '#222326' },
+      hoodie_oliv: { name: 'Hoodie Oliv', form: 'hoodie', farbe: '#4f5737' },
+      hoodie_rot: { name: 'Hoodie Rot', form: 'hoodie', farbe: '#7c2a26' },
+      shirt_weiss: { name: 'T-Shirt Weiß', form: 'shirt', farbe: '#d9d6cf' },
+    },
+  },
+  hose: {
+    name: 'Hose',
+    aktiv: true,
+    standard: 'standard',
+    optionen: {
+      standard: { name: 'Original', form: null },
+      jeans: { name: 'Jeans', form: 'hose', farbe: '#3b4c72' },
+      cargo: { name: 'Cargo', form: 'hose', farbe: '#7a6a4c' },
+      jogger: { name: 'Jogginghose', form: 'hose', farbe: '#2a2b2f' },
+    },
+  },
+  schuhe: {
+    name: 'Schuhe',
+    aktiv: true,
+    standard: 'standard',
+    optionen: {
+      standard: { name: 'Original', form: null },
+      sneaker: { name: 'Sneaker', form: 'schuh', farbe: '#e1e1dc' },
+      stiefel: { name: 'Stiefel', form: 'stiefel', farbe: '#4e3420' },
+      schwarz: { name: 'Schwarze Schuhe', form: 'schuh', farbe: '#1d1d20' },
+    },
+  },
   gesicht: { name: 'Gesicht', aktiv: false, standard: 'standard', optionen: { standard: { name: 'Standard' } } },
   hautfarbe: { name: 'Hautfarbe', aktiv: false, standard: 'standard', optionen: { standard: { name: 'Standard' } } },
-  kleidung: { name: 'Kleidung', aktiv: false, standard: 'standard', optionen: { standard: { name: 'Standard' } } },
 });
+
+/** Reihenfolge/Gruppen im Charakter-Editor (Haarfarbe hängt unter „Frisur“). */
+export const AUSSEHEN_GRUPPEN = Object.freeze([
+  { titel: 'Geschlecht', merkmale: ['koerper'] },
+  { titel: 'Haare', merkmale: ['haare', 'haarfarbe'] },
+  { titel: 'Oberteil', merkmale: ['oberteil'] },
+  { titel: 'Hose', merkmale: ['hose'] },
+  { titel: 'Schuhe', merkmale: ['schuhe'] },
+]);
 
 /** Ungültiges/Unbekanntes wird durch den Standard ersetzt – Ergebnis ist immer vollständig. */
 export function pruefeAussehen(roh) {
@@ -43,3 +110,12 @@ export function aussehenKompakt(aussehen) {
 export function skinFuer(aussehen) {
   return AUSSEHEN.koerper.optionen[aussehen?.koerper]?.skin ?? AUSSEHEN.koerper.optionen.mann.skin;
 }
+
+/** Option eines Merkmals (Standard bei fehlendem/ungültigem Wert). */
+export function aussehenOption(aussehen, merkmal) {
+  const def = AUSSEHEN[merkmal];
+  return def.optionen[aussehen?.[merkmal]] ?? def.optionen[def.standard];
+}
+
+/** Charaktername: 2–20 Zeichen, Buchstaben (auch Umlaute), Ziffern, _ und - (wie Benutzernamen). */
+export const CHARAKTERNAME_MUSTER = /^[A-Za-z0-9_\-äöüÄÖÜß]{2,20}$/;

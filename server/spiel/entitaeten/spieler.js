@@ -19,6 +19,7 @@ export function erzeugeSpieler({ id, benutzername, x, y, konfiguration, admin = 
     id,
     typ: 'spieler',
     name: benutzername,
+    anzeigeName: null, // Runde 28: Charaktername (Hauptmenü), nur Anzeige – Kennung bleibt `name`
     x,
     y,
     blick: 0,
@@ -100,6 +101,7 @@ export function spielerZuNetzwerk(s) {
     id: s.id,
     typ: s.typ,
     name: s.name,
+    anzeige: s.anzeigeName ?? undefined, // Charaktername (nur wenn abweichend)
     x: s.x,
     y: s.y,
     blick: s.blick,

@@ -12,6 +12,7 @@
  * `npm i -g playwright`); in Cloud-Sandboxen ist es meist schon da.
  */
 import { spawn } from 'node:child_process';
+import { hauptmenueAbwarten, singleplayerStarten, multiplayerGast } from './menueHelfer.mjs';
 import { execSync } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -58,15 +59,11 @@ try {
   const bild = (name) => seite.screenshot({ path: path.join(AUSGABE, `${name}.png`) });
 
   await seite.goto(`http://localhost:${port}/`);
-  await seite.waitForSelector('#login:not([hidden])', { timeout: 60000 });
+  await hauptmenueAbwarten(seite);
   schritt('Login-Bildschirm');
   await bild('1_login');
-  await seite.selectOption('#login-server', online ? 'dieser' : 'lokal');
-  if (online) await seite.click('#login-gast');
-  else {
-    await seite.fill('#login-name', `Rauch${Date.now() % 1000}`);
-    await seite.click('#login-knopf');
-  }
+  if (online) await multiplayerGast(seite, 'Dieser Server');
+  else await singleplayerStarten(seite, `Rauch${Date.now() % 1000}`);
   await seite.waitForSelector('#laden', { state: 'hidden', timeout: 60000 });
   schritt(`im Spiel (${online ? 'online' : 'lokal'})`);
   // Gottmodus (nur lokal, Server im Tab): Zombies/Hunger töten die Testfigur sonst mitten im Test (Nutzer-Wunsch Runde 18)

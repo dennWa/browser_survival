@@ -100,7 +100,7 @@ export class ZonenMusik {
     lauf.beiEnde((fehler) => {
       this.#lauf = null;
       // Defekte Datei: länger warten, damit es keine Schleife gibt
-      this.#timer = setTimeout(() => zone === this.#zone && this.#naechstes(liste), fehler ? 15000 : this.#option(zone, 'pause') * 1000);
+      this.#timer = setTimeout(() => zone === this.#zone && this.#naechstes(liste), fehler === 'neustart' ? 500 : fehler ? 15000 : this.#option(zone, 'pause') * 1000);
     });
   }
 }
