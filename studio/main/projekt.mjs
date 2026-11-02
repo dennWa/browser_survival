@@ -344,6 +344,23 @@ export class Projekt {
     return this.speichereModell({ stem, bytes, felder: {} });
   }
 
+  // ---------- Texturen aus der Asset-Suche (Phase 4.11): client/assets/eigene/texturen/<name>.jpg|png + Credits ----------
+  speichereTextur({ name, bytes, endung = 'jpg', credits = null }) {
+    const stem = String(name ?? '').toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'textur';
+    if (!['jpg', 'png', 'webp'].includes(endung)) throw new Error('Textur: jpg, png oder webp');
+    mkdirSync(this.pfad('client/assets/eigene/texturen'), { recursive: true });
+    let datei = `${stem}.${endung}`;
+    for (let n = 2; existsSync(this.pfad('client/assets/eigene/texturen', datei)); n++) datei = `${stem}-${n}.${endung}`;
+    writeFileSync(this.pfad('client/assets/eigene/texturen', datei), Buffer.from(bytes));
+    if (credits) this.fuegeCreditHinzu({ paket: `Textur ${credits.titel ?? stem} (texturen/${datei})`, urheber: credits.urheber || 'unbekannt', lizenz: credits.lizenz || 'keine Angabe', url: credits.url || '' });
+    return `assets/eigene/texturen/${datei}`;
+  }
+
+  texturen() {
+    const o = this.pfad('client/assets/eigene/texturen');
+    return existsSync(o) ? readdirSync(o).filter((d) => /\.(jpe?g|png|webp)$/i.test(d)).sort().map((d) => `assets/eigene/texturen/${d}`) : [];
+  }
+
   // ---------- Papierkorb (Phase 4.5): .studio/papierkorb/<id>/{dateien…, eintrag.json}, leert sich nach PAPIERKORB_TAGE ----------
   /** Dateien (relativ zum Spielordner) in den Papierkorb verschieben. meta = { art, name, index? } → id */
   #inPapierkorb(relPfade, meta) {

@@ -16,6 +16,7 @@ import { erstelleDateiServer } from './dateiServer.mjs';
 import { starteMcp } from './mcp.mjs';
 import { KiAssistent, ANBIETER } from './ki.mjs';
 import * as veroeffentlichen from './veroeffentlichen.mjs';
+import * as assetSuche from './assetSuche.mjs';
 
 const APP_WURZEL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const MCP_STANDARD_PORT = 8766;
@@ -150,6 +151,27 @@ const AKTIONEN = {
   },
   'modell.sicherungen': ({ stem }) => projekt.modellSicherungen(stem),
   'modell.wiederherstellen': ({ stem, sicherung }) => projekt.stelleModellWiederHer(stem, sicherung),
+  'quellen.info': () => Object.fromEntries(Object.entries(assetSuche.QUELLEN).map(([art, q]) => [art, Object.fromEntries(Object.entries(q).map(([id, x]) => [id, { ...x, hatSchluessel: !!einstellungen.quellen?.[id] }]))])),
+  'quellen.einstellen': ({ quelle, schluessel }) => {
+    einstellungen.quellen ??= {};
+    if (schluessel) einstellungen.quellen[quelle] = verschluesseln(String(schluessel).trim());
+    else delete einstellungen.quellen[quelle];
+    schreibeEinstellungen(einstellungen);
+    return true;
+  },
+  'asset.suche': (d) => assetSuche.suche({ ...d, schluessel: entschluesseln(einstellungen.quellen?.[d.quelle]) }),
+  'asset.lade': (d) => assetSuche.lade({ ...d, schluessel: entschluesseln(einstellungen.quellen?.[d.quelle]) }),
+  /** Bild/Audio aus dem Netz für die Vorschau (CSP des Fensters lässt nur eigene Quellen zu) → base64 */
+  'asset.holen': async ({ url }) => {
+    if (!/^https:\/\//.test(url)) throw new Error('Nur https');
+    const a = await fetch(url);
+    if (!a.ok) throw new Error(`Laden fehlgeschlagen (${a.status})`);
+    const b = Buffer.from(await a.arrayBuffer());
+    if (b.length > 15 * 1024 * 1024) throw new Error('Datei zu groß');
+    return { typ: a.headers.get('content-type') ?? 'application/octet-stream', base64: b.toString('base64') };
+  },
+  'textur.speichern': (d) => projekt.speichereTextur(d),
+  'textur.liste': () => projekt.texturen(),
   'git.status': () => veroeffentlichen.status(projekt.wurzel),
   'git.veroeffentlichen': async ({ nachricht }) => {
     await projekt.aktualisiereKiAnleitung(); // Regel 8: KI-Anleitung aktuell, sonst schlägt ein Test fehl

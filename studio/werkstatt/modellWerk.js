@@ -383,6 +383,11 @@ export class ModellWerk {
     }
   }
 
+  /** Anzeige neu einpassen (nach Änderung von Höhe/Grundfläche) */
+  einpassen(kamera = false) {
+    this.#einpassen(kamera);
+  }
+
   // ---------- Teile ----------
   /** Baum aller Knoten: [{ uuid, name, art: 'mesh'|'knoten'|'knochen', tiefe, sichtbar, dreiecke }] */
   teile() {

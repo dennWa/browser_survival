@@ -81,11 +81,25 @@ export class Werkstatt {
     return true;
   }
 
+  /** Fremdes Modell (Asset-Suche) als NEUES Modell öffnen – Speichern legt die Datei an (Credits wandern mit) */
+  async importiere(bytes, { name, kategorie = 'deko', urheber = '', lizenz = '', url = '', hoehe = null, ohneFrage = false } = {}) {
+    if (!this.offen) await this.oeffne();
+    if (!ohneFrage && !(await this.#verwerfenOk())) return false;
+    await this.werk.lade(bytes, { name, kategorie, urheber, lizenz, url });
+    const m = this.werk.masse();
+    this.werk.eintrag.zielHoehe = hoehe > 0 ? hoehe : m && m.hoehe >= 0.05 && m.hoehe <= 20 ? m.hoehe : 1;
+    this.werk.einpassen(true);
+    this.stem = null;
+    this.einstellungenGeaendert = true;
+    this.#zeichne();
+    return true;
+  }
+
   async neu(name = 'Neues Modell', { ohneFrage = false } = {}) {
     if (!ohneFrage && !(await this.#verwerfenOk())) return false;
     await this.werk.lade(null, { name, kategorie: 'deko' });
     this.stem = null;
-    this.einstellungenGeaendert = true;
+    this.einstellungenGeaendert = false; // unberührtes neues Modell: nichts zu verlieren (Speichern legt trotzdem an)
     this.#zeichne();
     return true;
   }
@@ -101,6 +115,7 @@ export class Werkstatt {
     }
     if ('zielHoehe' in p) this.werk.hoeheAuto = false;
     this.einstellungenGeaendert = true;
+    this.werk.einpassen(); // Bühne zeigt neue Höhe/Grundfläche sofort
     this.werk.beiAenderung?.('einstellungen');
     return e;
   }
@@ -179,6 +194,14 @@ export class Werkstatt {
     this.studio.assets?.zeichne();
     this.studio.hinweis(`${stem}.glb gelöscht (Papierkorb: Datei → Papierkorb)`, 'erfolg');
     return r;
+  }
+
+  /** Textur (Pfad unter client/, z. B. assets/eigene/texturen/moos.jpg) auf ein Material legen */
+  async texturAusBibliothek(material, pfad) {
+    const bild = new Image();
+    bild.src = `../client/${pfad}`;
+    await bild.decode();
+    this.werk.setzeTextur(material, bild);
   }
 
   verwendung() {
@@ -461,7 +484,7 @@ export class Werkstatt {
           <div class="insp-zeile"><span title="${esc(m.uuid)}">${esc(m.name)}</span><div><input type="color" data-mat="${m.uuid}" data-matfeld="farbe" value="${m.farbe ?? '#ffffff'}" /> <span class="neben">${m.teile} Teil(e)${m.textur ? ' · Textur' : ''}</span></div></div>
           <div class="insp-zeile"><span>Rauheit</span><div><input type="range" min="0" max="1" step="0.05" value="${m.rauheit}" data-mat="${m.uuid}" data-matfeld="rauheit" /></div></div>
           <div class="insp-zeile"><span>Metall</span><div><input type="range" min="0" max="1" step="0.05" value="${m.metall}" data-mat="${m.uuid}" data-matfeld="metall" /></div></div>
-          <div class="insp-knoepfe"><button class="knopf flach" data-aktion="textur" data-mat="${m.uuid}">${icon('hochladen', 13)} Textur …</button>${m.textur ? `<button class="knopf flach" data-aktion="texturWeg" data-mat="${m.uuid}">Textur entfernen</button>` : ''}</div>
+          <div class="insp-knoepfe"><button class="knopf flach" data-aktion="textur" data-mat="${m.uuid}">${icon('hochladen', 13)} Textur …</button><button class="knopf flach" data-aktion="texturBib" data-mat="${m.uuid}" title="Texturen aus der Asset-Suche (client/assets/eigene/texturen)">Aus Bibliothek …</button>${m.textur ? `<button class="knopf flach" data-aktion="texturWeg" data-mat="${m.uuid}">Textur entfernen</button>` : ''}</div>
         </div>`).join('')}`;
   }
 
@@ -574,6 +597,14 @@ export class Werkstatt {
         return;
       }
       case 'texturWeg': return w.setzeTextur(d.mat, null);
+      case 'texturBib': {
+        const liste = await this.studio.nativ.aufruf('textur.liste');
+        if (!liste.length) return this.studio.hinweis('Noch keine Texturen – Datei → Im Internet suchen → Texturen', 'fehler');
+        const f = formular([{ name: 'pfad', titel: 'Textur', art: 'auswahl', wert: liste[0], werte: liste.map((p) => [p, p.split('/').at(-1)]) }]);
+        const x = await dialog({ titel: 'Textur aus der Bibliothek', icon: 'item', inhalt: f.element, knoepfe: [{ text: 'Abbrechen', wert: null }, { text: 'Übernehmen', art: 'primaer', wert: () => f.werte() }] });
+        if (x?.pfad) return this.texturAusBibliothek(d.mat, x.pfad);
+        return undefined;
+      }
       case 'abspielen':
         w.spieleAnimation(d.clip);
         return this.#zeichne();

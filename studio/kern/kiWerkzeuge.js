@@ -121,6 +121,15 @@ export const KI_ITEM_WERKZEUGE = [
   { name: 'rezept_setzen', beschreibung: `${I}Rezept anlegen/ändern. rezept = JSON {"name","kategorie","beschreibung","zutaten":{"holz":3},"ergebnis":"itemId","menge":1,"ort":""|"inventar"|"amboss"|"webstuhl"|"chemie"|"feuer","level":1}.`, schema: objekt({ id: text('Rezept-ID'), rezept: text('JSON-Objekt') }, ['id', 'rezept']) },
 ];
 
+const N = 'Asset-Suche (Internet, nur CC0/CC-BY): ';
+/** Asset-Suche (Phase 4.11) – ausgeführt von studio/kern/kiAssets.js */
+export const KI_ASSET_WERKZEUGE = [
+  { name: 'asset_suchen', beschreibung: `${N}Modelle (Poly Haven; Poly Pizza mit Schlüssel), Texturen (ambientCG, Poly Haven) oder Klänge (Freesound mit Schlüssel) suchen. Englische Suchbegriffe.`, schema: objekt({ art: text('Art', ['modell', 'textur', 'klang']), text: text('Suchbegriff (englisch)'), quelle: text('polyhaven, polypizza, ambientcg, freesound (leer = erste ohne Schlüssel)'), seite: zahl('Seite ab 0') }, ['art', 'text']), lesen: true },
+  { name: 'asset_importieren', beschreibung: `${N}Treffer importieren (Credits automatisch). modell → als neues Modell gespeichert (hoehe = Höhe im Spiel, sonst natürliche Größe) → modell:<stem> im Karten-Editor; textur → Bibliothek (modell_textur_setzen); klang → braucht ereignis (Variante, ersetzen = alle bisherigen weg) oder musik_ordner.`, schema: objekt({ art: text('Art', ['modell', 'textur', 'klang']), quelle: text('Quelle aus asset_suchen'), id: text('id aus asset_suchen'), name: text('Name'), hoehe: zahl('Höhe im Spiel in m (modell)'), ereignis: text('Sound-Ereignis (klang)'), musik_ordner: text('Musik-Ordner (klang)'), ersetzen: jaNein('klang ersetzt die bisherigen Dateien des Ereignisses') }, ['art', 'quelle', 'id']) },
+  { name: 'texturen_liste', beschreibung: `${N}Texturen der Bibliothek (client/assets/eigene/texturen).`, schema: objekt({}), lesen: true },
+  { name: 'modell_textur_setzen', beschreibung: 'Modell-Werkstatt: Textur aus der Bibliothek auf ein Material/Teil legen (textur = Pfad aus texturen_liste).', schema: objekt({ material: text('Material- oder Teil-Name'), textur: text('assets/eigene/texturen/…') }, ['material', 'textur']) },
+];
+
 export const KI_WERKZEUGE = Object.freeze([
   {
     name: 'anleitung',
@@ -251,6 +260,7 @@ export const KI_WERKZEUGE = Object.freeze([
   ...KI_MODELL_WERKZEUGE,
   ...KI_AUDIO_WERKZEUGE,
   ...KI_ITEM_WERKZEUGE,
+  ...KI_ASSET_WERKZEUGE,
 ]);
 
 /** Werkzeug nach Name */

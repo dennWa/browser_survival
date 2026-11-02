@@ -479,3 +479,45 @@ test('Phase 4.9: offene Aufträge = nicht erledigte Notizen ohne „für Mensche
   k.anwenden(A.aenderOps(k, 'notizen', id3, { erledigt: true }));
   assert.deepEqual(A.offeneAuftraege(new Map([['a', k]])).map((x) => x.text), ['Hier fehlt eine Tankstelle']);
 });
+
+test('Phase 4.11: Asset-Suche – Lizenzen, ZIP, Poly-Haven-Suche/Import (fetch-Attrappe)', async () => {
+  const { lizenzAusUrl, entpacke, suche, lade } = await import('../studio/main/assetSuche.mjs');
+  const { deflateRawSync } = await import('node:zlib');
+  assert.equal(lizenzAusUrl('http://creativecommons.org/publicdomain/zero/1.0/'), 'CC0');
+  assert.equal(lizenzAusUrl('https://creativecommons.org/licenses/by/4.0/'), 'CC-BY 4.0');
+  assert.equal(lizenzAusUrl('https://creativecommons.org/licenses/by-nc/4.0/'), 'https://creativecommons.org/licenses/by-nc/4.0/');
+  // Mini-ZIP (deflate) bauen
+  const name = Buffer.from('Moos_Color.jpg');
+  const roh = Buffer.from('BILDDATEN');
+  const daten = deflateRawSync(roh);
+  const lokal = Buffer.alloc(30);
+  lokal.writeUInt32LE(0x04034b50, 0);
+  lokal.writeUInt16LE(8, 8);
+  lokal.writeUInt32LE(daten.length, 18);
+  lokal.writeUInt16LE(name.length, 26);
+  const zentral = Buffer.alloc(46);
+  zentral.writeUInt32LE(0x02014b50, 0);
+  zentral.writeUInt16LE(8, 10);
+  zentral.writeUInt32LE(daten.length, 20);
+  zentral.writeUInt16LE(name.length, 28);
+  zentral.writeUInt32LE(0, 42);
+  const zOff = lokal.length + name.length + daten.length;
+  const ende = Buffer.alloc(22);
+  ende.writeUInt32LE(0x06054b50, 0);
+  ende.writeUInt16LE(1, 10);
+  ende.writeUInt32LE(zOff, 16);
+  const zip = Buffer.concat([lokal, name, daten, zentral, name, ende]);
+  assert.equal(Buffer.from(entpacke(zip)['Moos_Color.jpg']).toString(), 'BILDDATEN');
+  const antworten = {
+    'https://api.polyhaven.com/assets?t=models': { Stuhl_01: { name: 'Stuhl 01', tags: ['chair'], categories: ['furniture'], authors: { Anna: 'All' }, polycount: 900 }, Baum_02: { name: 'Baum', tags: ['tree'], authors: { Bo: 'All' } } },
+    'https://api.polyhaven.com/files/Stuhl_01': { gltf: { '1k': { gltf: { url: 'https://x/Stuhl_01_1k.gltf', include: { 'Stuhl.bin': { url: 'https://x/Stuhl.bin' } } } } } },
+  };
+  const f = async (url) => ({ ok: true, status: 200, json: async () => antworten[url], arrayBuffer: async () => new TextEncoder().encode(url).buffer });
+  const r = await suche({ art: 'modell', quelle: 'polyhaven', text: 'chair' }, f);
+  assert.deepEqual(r.liste.map((e) => [e.id, e.lizenz, e.urheber]), [['Stuhl_01', 'CC0', 'Anna']]);
+  const g = await lade({ art: 'modell', quelle: 'polyhaven', id: 'Stuhl_01' }, f);
+  assert.equal(g.haupt, 'Stuhl_01_1k.gltf');
+  assert.deepEqual(Object.keys(g.dateien), ['Stuhl_01_1k.gltf', 'Stuhl.bin']);
+  assert.equal(g.credits.urheber, 'Anna');
+  await assert.rejects(() => suche({ art: 'klang', quelle: 'freesound', text: 'wind' }, f), /Schlüssel/);
+});

@@ -320,3 +320,8 @@ textarea.feld { height: auto; padding: 6px 8px; resize: vertical; user-select: t
 .ws-zeitleiste { position: relative; height: 18px; background: var(--hg-0); border: 1px solid var(--linie); border-radius: 4px; }
 .ws-key { position: absolute; top: 3px; width: 10px; height: 10px; margin-left: -5px; transform: rotate(45deg); background: var(--blau); border: 0; padding: 0; cursor: pointer; }
 .ws-key.aktiv { background: var(--akzent); }
+.as-raster { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; max-height: 56vh; overflow: auto; }
+.as-karte { display: grid; gap: 4px; padding: 8px; border: 1px solid var(--linie); border-radius: 6px; background: var(--hg-1); }
+.as-bild { aspect-ratio: 1; display: grid; place-items: center; background: #0d0f12; border-radius: 4px; overflow: hidden; color: var(--text-3); }
+.as-bild img { width: 100%; height: 100%; object-fit: cover; }
+.as-titel { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
