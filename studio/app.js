@@ -20,6 +20,7 @@ import { dialog, formular, frage, melde, esc } from './oberflaeche/dialoge.js';
 import { icon } from './oberflaeche/icons.js';
 import { oeffneItemEditor } from './oberflaeche/itemEditor.js';
 import { Werkstatt } from './werkstatt/werkstatt.js';
+import { VorschauBilder } from './ansicht/vorschauBilder.js';
 import { AudioZentrale } from './audio/audioZentrale.js';
 import { ladeSpielordner, setzeSpielordner } from '../editor/kern/spielordner.js';
 import { ausDefinition } from '../editor/kern/format.js';
@@ -87,6 +88,14 @@ class Studio {
     this.inspektor = new Inspektor(this);
     this.ki = new KiPanel(this);
     this.werkstatt = new Werkstatt(this);
+    this.vorschau = new VorschauBilder(nativ);
+    this.vorschau.beiFertig = (id, url) => {
+      for (const el of document.querySelectorAll(`[data-vorschau="${CSS.escape(id)}"]`)) {
+        el.removeAttribute('data-vorschau');
+        el.style.background = '#1b1e24';
+        el.innerHTML = `<img src="${url}" alt="" />`;
+      }
+    };
     this.audio = new AudioZentrale(this);
     window.studioKi = erstelleKiAusfuehrer(this);
     this.#verbinden();
@@ -447,6 +456,7 @@ class Studio {
       { id: 'zone.aktualisieren', gruppe: 'Datei', titel: 'Zonenliste neu laden', icon: 'wiederholen', ausfuehren: () => this.zonenPanel.laden() },
       { id: 'asset.importModell', gruppe: 'Datei', titel: 'Modell importieren …', icon: 'hochladen', ausfuehren: () => this.#dialogModellImport() },
       { id: 'asset.importKlang', gruppe: 'Datei', titel: 'Klang importieren …', icon: 'audio', aktiv: echteZone, ausfuehren: () => this.#dialogKlangImport() },
+      { id: 'ansicht.vorschauNeu', gruppe: 'Ansicht', titel: 'Vorschaubilder neu erzeugen', icon: 'wiederholen', ausfuehren: async () => { await this.vorschau.loescheCache(); this.assets.zeichne(); this.hinweis('Vorschaubilder werden neu erzeugt …'); } },
       { id: 'audio.oeffnen', gruppe: 'Datei', titel: 'Audio-Zentrale', icon: 'audio', kuerzel: 'Strg+Umschalt+A', ausfuehren: () => this.audio.oeffne() },
       { id: 'werkstatt.oeffnen', gruppe: 'Datei', titel: 'Modell-Werkstatt', icon: 'modell', kuerzel: 'Strg+Umschalt+M', ausfuehren: () => this.werkstatt.oeffne() },
       { id: 'modell.bearbeiten', gruppe: 'Datei', titel: 'In der Werkstatt bearbeiten', icon: 'modell', versteckt: true, aktiv: () => this.asset?.art === 'modell', ausfuehren: () => this.werkstatt.oeffne(this.asset.id.slice(7)) },
@@ -547,7 +557,7 @@ class Studio {
     this.menues.baue([
       { titel: 'Datei', eintraege: ['zone.neu', 'zone.speichern', 'zone.insSpiel', '-', 'zone.testen', 'zone.testenHier', '-', 'asset.importModell', 'asset.importKlang', '-', 'audio.oeffnen', 'werkstatt.oeffnen', 'daten.items', '-', 'zone.schliessen', 'studio.start', 'projekt.ordner'] },
       { titel: 'Bearbeiten', eintraege: ['bearbeiten.rueckgaengig', 'bearbeiten.wiederholen', '-', 'bearbeiten.kopieren', 'bearbeiten.einfuegen', 'bearbeiten.duplizieren', 'bearbeiten.loeschen', '-', 'bearbeiten.alles', 'bearbeiten.abwaehlen'] },
-      { titel: 'Ansicht', eintraege: ['ansicht.2d3d', 'ansicht.fokus', 'ansicht.ganz', '-', 'ansicht.spielOptik', 'ansicht.lootVorschau', 'ansicht.lootNeu', 'ansicht.laufen', 'ansicht.heatmap', 'ansicht.raster', 'hilfslinie.waagerecht', 'hilfslinie.senkrecht', 'hilfslinien.loeschen', 'ansicht.wandNiedrig', 'ansicht.objekte', 'ansicht.overlays', '-', 'ansicht.zeit.tag', 'ansicht.zeit.abend', 'ansicht.zeit.nacht', '-', 'ansicht.wetter.klar', 'ansicht.wetter.nebel', 'ansicht.wetter.regen', 'ansicht.wetter.schnee', '-', 'ansicht.palette'] },
+      { titel: 'Ansicht', eintraege: ['ansicht.2d3d', 'ansicht.fokus', 'ansicht.ganz', '-', 'ansicht.spielOptik', 'ansicht.lootVorschau', 'ansicht.lootNeu', 'ansicht.laufen', 'ansicht.heatmap', 'ansicht.raster', 'hilfslinie.waagerecht', 'hilfslinie.senkrecht', 'hilfslinien.loeschen', 'ansicht.wandNiedrig', 'ansicht.objekte', 'ansicht.overlays', '-', 'ansicht.zeit.tag', 'ansicht.zeit.abend', 'ansicht.zeit.nacht', '-', 'ansicht.wetter.klar', 'ansicht.wetter.nebel', 'ansicht.wetter.regen', 'ansicht.wetter.schnee', '-', 'ansicht.vorschauNeu', 'ansicht.palette'] },
       { titel: 'Zone', eintraege: ['zone.eigenschaften', 'zone.groesse', 'zone.pruefen', 'pruefen.laufweg', 'pruefen.balance', 'zone.weltkarte', '-', 'zone.versionSpeichern', 'zone.versionen', 'zone.vergleichAus', '-', 'zone.ersetzen', 'zone.generieren', '-', 'vorlage.neu', 'vorlage.ausAuswahl', 'vorlage.speichern'] },
       { titel: 'Werkzeuge', eintraege: WERKZEUGE.map((w) => (w.trenner ? '-' : `werkzeug.${w.id}`)) },
       { titel: 'KI', eintraege: ['ki.oeffnen', 'ki.einstellungen', 'ki.mcp'] },

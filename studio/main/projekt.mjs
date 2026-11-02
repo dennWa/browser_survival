@@ -342,6 +342,25 @@ export class Projekt {
     return this.speichereModell({ stem, bytes, felder: {} });
   }
 
+  // ---------- Vorschaubilder der Bausteine (Phase 4.4, .studio/vorschau/<schlüssel>.png) ----------
+  vorschauLesen(schluessel) {
+    if (!/^[a-zA-Z0-9_-]{1,120}$/.test(schluessel)) return null;
+    const d = this.pfad('.studio/vorschau', `${schluessel}.png`);
+    return existsSync(d) ? readFileSync(d).toString('base64') : null;
+  }
+
+  vorschauSchreiben(schluessel, png) {
+    if (!/^[a-zA-Z0-9_-]{1,120}$/.test(schluessel)) throw new Error('Ungültiger Schlüssel');
+    mkdirSync(this.pfad('.studio/vorschau'), { recursive: true });
+    writeFileSync(this.pfad('.studio/vorschau', `${schluessel}.png`), Buffer.from(png, 'base64'));
+    return true;
+  }
+
+  vorschauLeeren() {
+    rmSync(this.pfad('.studio/vorschau'), { recursive: true, force: true });
+    return true;
+  }
+
   // ---------- Audio-Zentrale (Phase 2) ----------
   /** Pfad (relativ zum Spielordner) in einem freigegebenen Audio-Ordner? → absoluter Pfad, sonst Fehler */
   #audioPfad(pfad) {

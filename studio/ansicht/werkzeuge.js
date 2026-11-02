@@ -21,7 +21,7 @@ export const WERKZEUGE = [
   { id: 'boden', titel: 'Boden malen', icon: 'boden', kuerzel: 'B', text: 'Bodenkachel aus den Assets wählen und malen. [ ] = Pinselgröße.' },
   { id: 'wand', titel: 'Wand ziehen', icon: 'wand', kuerzel: 'N', text: 'Gerade Wand, Fenster oder Tür ziehen.' },
   { id: 'raum', titel: 'Raum bauen', icon: 'raum', kuerzel: 'H', text: 'Rechteck ziehen: Wände, Boden, Tür und Loot in einem Schritt.' },
-  { id: 'gelaende', titel: 'Gelände', icon: 'gelaende', kuerzel: 'T', text: 'Heben, senken, glätten, ebnen.' },
+  { id: 'gelaende', titel: 'Gelände', icon: 'gelaende', kuerzel: 'T', text: 'Heben, senken, glätten, ebnen – Maus gedrückt halten formt weiter.' },
   { id: 'strasse', titel: 'Straße', icon: 'strasse', kuerzel: 'L', text: 'Linie ziehen: Fahrbahn, Gehwege, Markierung und Laternen in einem Zug.' },
   { id: 'streuen', titel: 'Streuen', icon: 'streuen', kuerzel: 'S', text: 'Bäume, Büsche, Steine „aufsprühen“ – Umschalt = radieren.' },
   { trenner: true },
@@ -48,7 +48,7 @@ export class Werkzeuge {
       boden: { modus: 'pinsel', groesse: 1, waendeSchuetzen: true },
       wand: { art: 'wand' },
       raum: { boden: '.', tuer: 's', name: '', lootTabelle: 'wohnung' },
-      gelaende: { modus: 'heben', radius: 3, staerke: 0.25 },
+      gelaende: { modus: 'heben', radius: 3, staerke: 0.4 },
       strasse: { fahrbahn: 4, gehweg: 1, markierung: true, laternen: 10 },
       streuen: { set: 'wald', radius: 5, dichte: 5, modus: 'streuen' },
       objekt: { drehung: 0, skalierung: 1, raster: 'halb', variieren: false, einrasten: true },
@@ -321,8 +321,11 @@ export class Werkzeuge {
         return;
       case 'gelaende':
         this.dok.aktiv.verlauf.beginne('Gelände');
-        this.zug = { art: 'gelaende', letzter: null };
+        this.zug = { art: 'gelaende', letzter: null, punkt: p };
         this.#gelaende(p);
+        // Phase 4.3: gedrückt halten formt weiter (wie Bildhauern) – vorher nur bei Mausbewegung, 1 Klick = kaum sichtbar
+        clearInterval(this.gelaendeTakt);
+        this.gelaendeTakt = setInterval(() => (this.zug?.art === 'gelaende' ? this.#gelaende(this.zug.punkt) : clearInterval(this.gelaendeTakt)), 90);
         return;
       case 'objekt':
         return this.#setzeObjekt(p, umschalt);
@@ -379,7 +382,10 @@ export class Werkzeuge {
       z.letzter = p;
       const e = A.pinselEcke(p.tx, p.ty, this.opt.boden.groesse);
       this.ansicht.setzeSchwebe(e.x, e.y, e.n, e.n);
-    } else if (z.art === 'gelaende') this.#gelaende(p);
+    } else if (z.art === 'gelaende') {
+      z.punkt = p;
+      this.#gelaende(p);
+    }
     else if (z.art === 'streuen') {
       this.#streuen(p);
       const r = this.opt.streuen.radius;
@@ -417,6 +423,7 @@ export class Werkzeuge {
     const k = this.dok.karte;
     this.ansicht.setzeGeist(null);
     try {
+      if (z.art === 'gelaende') clearInterval(this.gelaendeTakt);
       if (z.art === 'pinsel' || z.art === 'gelaende' || z.art === 'streuen') this.dok.aktiv.verlauf.beende();
       else if (z.art === 'strasse') this.dok.aendere('Straße', B.strassenOps(k, z.start, p, this.#strassenOpt()).ops);
       else if (z.art === 'verschieben' && (z.dx || z.dy)) this.dok.aendere('Verschieben', A.verschiebeOps(k, this.dok.auswahl, z.dx, z.dy));

@@ -249,8 +249,11 @@ export class AssetPanel {
     }
     if (a.art === 'modell' && a.bild) return `<div class="asset-bild" style="background:#1b1e24"><img src="${esc(a.bild)}" alt="" loading="lazy" onerror="this.style.display='none'" /></div>`;
     if (a.art === 'vorlage') return `<div class="asset-bild"><img src="${vorlagenBild(a.vorlage)}" alt="" style="image-rendering:pixelated" /></div>`;
-    if (a.art === 'item') return `<div class="asset-bild" style="background:linear-gradient(135deg,#2b3038,#1b1e24)">${icon('item', 26)}</div>`;
-    return `<div class="asset-bild" style="background:linear-gradient(160deg, ${a.farbe ?? '#666'} 0%, #15171b 140%)">${icon(KAT_ICON[a.kategorie] ?? 'objekt', 26)}</div>`;
+    // Phase 4.4: echte Spiel-Modelle als Bild (ansicht/vorschauBilder.js) – bis es fertig ist, der Platzhalter
+    const url = this.studio.vorschau?.url(a) ?? null; // Items: id = Item-ID (apfel), Objekte objekt:…, Bauwerke bauwerk:…
+    const platz = a.art === 'item' ? `background:linear-gradient(135deg,#2b3038,#1b1e24)` : `background:linear-gradient(160deg, ${a.farbe ?? '#666'} 0%, #15171b 140%)`;
+    if (url) return `<div class="asset-bild" style="background:#1b1e24"><img src="${url}" alt="" /></div>`;
+    return `<div class="asset-bild" style="${platz}" data-vorschau="${esc(a.id)}">${icon(a.art === 'item' ? 'item' : (KAT_ICON[a.kategorie] ?? 'objekt'), 26)}</div>`;
   }
 
   zeichne() {
