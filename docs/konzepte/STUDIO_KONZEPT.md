@@ -399,5 +399,5 @@ Tests `tests/studioAudio.test.js`, Rauchtest-Abschnitt „Phase 2“.
 | 4.11 | Asset-Suche: CC0-Modelle/Sounds im Internet suchen, importieren, Credits automatisch (Studio + KI) | ✅ |
 | 4.12 | Räume bearbeiten (anklicken → Wände/Boden/Tür ändern), mehr Wandarten | ✅ |
 | 4.13 | Weiche Übergänge zwischen Böden (kein Minecraft-Look) + neuer wilder Waldboden (Mischboden mit Pilzen) | ✅ |
-| 4.14 | MCP verständlicher (Dialog + Anleitung), Speicher-Status klarer | ⏳ |
+| 4.14 | MCP verständlicher (Dialog + Anleitung), Speicher-Status klarer | ✅ |
 | 4.15 | Spiel: mehr Survival, mehr Grusel, Ziele/Fortschritt („man will etwas erreichen“) | ⏳ |

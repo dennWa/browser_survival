@@ -23,6 +23,7 @@ import { Werkstatt } from './werkstatt/werkstatt.js';
 import { VorschauBilder } from './ansicht/vorschauBilder.js';
 import { oeffnePapierkorb } from './oberflaeche/papierkorb.js';
 import { oeffneVeroeffentlichen } from './oberflaeche/veroeffentlichen.js';
+import { speicherStufen, gitStandFuerZone, STUFEN } from './kern/speicherStufen.js';
 import { oeffneAssetSuche, importiereAsset } from './oberflaeche/assetSuche.js';
 import { Vorschlaege, rueckOps, mitKoordinaten } from './kern/vorschlaege.js';
 import { AudioZentrale } from './audio/audioZentrale.js';
@@ -259,6 +260,7 @@ class Studio {
 
   meldeKi(quelle) {
     if (quelle !== 'mcp') return;
+    this.mcpLetzte = Date.now();
     const el = document.getElementById('status-mcp');
     el.innerHTML = `<span class="status-marke ok">${icon('stecker', 13)} KI arbeitet …</span>`;
     clearTimeout(this.mcpZeit);
@@ -327,12 +329,57 @@ class Studio {
     this.#werkzeugleisteAktiv();
   }
 
+  /** Speicher-Kette in der Statusleiste: ① Entwurf → ② Im Spiel → ③ Online (kern/speicherStufen.js), Klick erklärt alles */
   #speicherStatus() {
     const z = this.dok.aktiv;
     const el = document.getElementById('status-speichern');
-    if (!z) el.textContent = '';
-    else if (z.karte.version !== z.gespeichertVersion) el.innerHTML = `<span class="status-marke warnung">${icon('speichern', 13)} Ungespeichert</span>`;
-    else el.innerHTML = `<span class="status-marke">${icon('speichern', 13)} ${z.quelle === 'spiel' ? 'Wie im Spiel' : 'Entwurf gespeichert'}${this.gespeichertUm ? ` · ${this.gespeichertUm}` : ''}</span>`;
+    if (!z) return void (el.textContent = '');
+    const { stufen } = this.#stufen(z);
+    const zeichen = { ok: '✓', offen: '○', unbekannt: '?' };
+    el.innerHTML = `<button class="speicher-kette" data-befehl="hilfe.speichern" data-tipp="Wo liegt mein Stand?" data-text="${esc(stufen.map((s) => `${s.titel}: ${s.text}`).join(' · '))}">${icon('speichern', 13)}${stufen
+      .map((s, i) => `${i ? '<span class="pfeil">›</span>' : ''}<span class="stufe ${s.stand}">${zeichen[s.stand]} ${esc(s.titel)}</span>`)
+      .join('')}${this.gespeichertUm ? `<span class="zeit">${this.gespeichertUm}</span>` : ''}</button>`;
+  }
+
+  #stufen(z = this.dok.aktiv) {
+    return speicherStufen({ quelle: z.quelle, version: z.karte.version, gespeichertVersion: z.gespeichertVersion, git: gitStandFuerZone(this.gitStand, this.dok.aktivId) });
+  }
+
+  /** Git-Stand für Stufe ③ nachladen (gebündelt, nie parallel) */
+  gitAktualisieren() {
+    clearTimeout(this.gitZeit);
+    this.gitZeit = setTimeout(async () => {
+      if (this.gitLaeuft) return;
+      this.gitLaeuft = true;
+      try {
+        this.gitStand = await nativ.aufruf('git.status');
+      } catch {
+        this.gitStand = null;
+      } finally {
+        this.gitLaeuft = false;
+      }
+      this.#speicherStatus();
+    }, 300);
+  }
+
+  /** Erklär-Dialog „Wo liegt mein Stand?“ mit Knopf für den nächsten Schritt */
+  async speicherHilfe() {
+    const z = this.dok.aktiv;
+    const { stufen, naechster } = z ? this.#stufen(z) : { stufen: [], naechster: null };
+    const farbe = { ok: 'var(--gruen)', offen: 'var(--gelb)', unbekannt: 'var(--text-3)' };
+    const zeilen = STUFEN.map((s, i) => {
+      const st = stufen.find((x) => x.id === s.id);
+      return `<div class="stufen-zeile"><div class="nr" style="border-color:${st ? farbe[st.stand] : 'var(--linie)'}">${i + 1}</div><div><b>${esc(s.titel)}</b> <span class="neben">${esc(s.taste)}</span>${st ? ` · <span style="color:${farbe[st.stand]}">${esc(st.text)}</span>` : ''}<div class="neben">${esc(s.erklaerung)}</div></div></div>`;
+    }).join('');
+    const naechsterTitel = { 'zone.speichern': 'Entwurf speichern', 'zone.insSpiel': 'Ins Spiel übernehmen …', 'projekt.veroeffentlichen': 'Veröffentlichen …' }[naechster];
+    const w = await dialog({
+      titel: 'Wo liegt mein Stand?',
+      icon: 'speichern',
+      breit: true,
+      inhalt: `<div class="stufen">${zeilen}</div><div class="hinweis-kasten">Alle 60 s sichert das Studio offene Zonen automatisch als <b>Entwurf</b>. Ins Spiel und online kommt nur, was du ausdrücklich übernimmst. Gesetzte Punkte (Start, Ausgänge, Spawns …) gehören zur Zone und wandern mit.</div>`,
+      knoepfe: [{ text: 'Schließen', wert: null }, ...(naechster ? [{ text: `Nächster Schritt: ${naechsterTitel}`, wert: naechster, art: 'primaer' }] : [])],
+    });
+    if (w) await this.befehle.aus(w);
   }
 
   // ---------- Verdrahtung ----------
@@ -533,7 +580,7 @@ class Studio {
       { id: 'asset.importModell', gruppe: 'Datei', titel: 'Modell importieren …', icon: 'hochladen', ausfuehren: () => this.#dialogModellImport() },
       { id: 'asset.importKlang', gruppe: 'Datei', titel: 'Klang importieren …', icon: 'audio', aktiv: echteZone, ausfuehren: () => this.#dialogKlangImport() },
       { id: 'ansicht.vorschauNeu', gruppe: 'Ansicht', titel: 'Vorschaubilder neu erzeugen', icon: 'wiederholen', ausfuehren: async () => { await this.vorschau.loescheCache(); this.assets.zeichne(); this.hinweis('Vorschaubilder werden neu erzeugt …'); } },
-      { id: 'projekt.veroeffentlichen', gruppe: 'Datei', titel: 'Veröffentlichen (Tests, Commit, Push) …', icon: 'insSpiel', kuerzel: 'Strg+Umschalt+P', ausfuehren: () => oeffneVeroeffentlichen(this) },
+      { id: 'projekt.veroeffentlichen', gruppe: 'Datei', titel: 'Veröffentlichen (Tests, Commit, Push) …', icon: 'insSpiel', kuerzel: 'Strg+Umschalt+P', ausfuehren: async () => { await oeffneVeroeffentlichen(this); this.gitAktualisieren(); } },
       { id: 'asset.internet', gruppe: 'Datei', titel: 'Im Internet suchen (Modelle, Texturen, Klänge) …', icon: 'suche', kuerzel: 'Strg+Umschalt+I', ausfuehren: () => oeffneAssetSuche(this) },
       { id: 'projekt.papierkorb', gruppe: 'Datei', titel: 'Papierkorb …', icon: 'loeschen', ausfuehren: () => oeffnePapierkorb(this) },
       { id: 'audio.oeffnen', gruppe: 'Datei', titel: 'Audio-Zentrale', icon: 'audio', kuerzel: 'Strg+Umschalt+A', ausfuehren: () => this.audio.oeffne() },
@@ -596,6 +643,8 @@ class Studio {
       { id: 'ki.einstellungen', gruppe: 'KI', titel: 'Anbieter & API-Schlüssel …', icon: 'einstellungen', ausfuehren: () => this.ki.einstellungen() },
       { id: 'ki.mcp', gruppe: 'KI', titel: 'Mit Claude & Co. verbinden (MCP) …', icon: 'stecker', ausfuehren: () => this.ki.mcp() },
       // Hilfe
+      { id: 'hilfe.speichern', gruppe: 'Hilfe', titel: 'Wo liegt mein Stand? (Entwurf · Spiel · Online)', icon: 'speichern', ausfuehren: () => this.speicherHilfe() },
+      { id: 'hilfe.mcp', gruppe: 'Hilfe', titel: 'KI verbinden – Schritt für Schritt (MCP)', icon: 'stecker', ausfuehren: () => this.ki.mcp() },
       { id: 'hilfe.tasten', gruppe: 'Hilfe', titel: 'Tastenkürzel', icon: 'hilfe', kuerzel: 'F1', ausfuehren: () => this.#hilfeTasten() },
       { id: 'hilfe.ueber', gruppe: 'Hilfe', titel: 'Über das Studio', icon: 'info', ausfuehren: () => melde('Browser Survival Studio', 'Der Editor für Browser Survival (Phase 1: Karten).<br />Konzept & Plan: <code>docs/konzepte/STUDIO_KONZEPT.md</code> · Anleitung: <code>studio/LIESMICH.md</code>.<br />Icons: eigene Zeichnungen. 3D: three.js (MIT). KI-Anbindung: Model Context Protocol SDK (MIT), Anthropic SDK (MIT).') },
       ...WERKZEUGE.filter((w) => !w.trenner).map((w) => ({ id: `werkzeug.${w.id}`, gruppe: 'Werkzeuge', titel: w.titel, icon: w.icon, kuerzel: w.kuerzel, aktiv: mitZone, ausfuehren: () => werkzeuge.waehle(w.id) })),
@@ -640,7 +689,7 @@ class Studio {
       { titel: 'Zone', eintraege: ['zone.eigenschaften', 'zone.groesse', 'zone.pruefen', 'pruefen.laufweg', 'pruefen.balance', 'zone.weltkarte', '-', 'zone.versionSpeichern', 'zone.versionen', 'zone.vergleichAus', '-', 'zone.ersetzen', 'zone.generieren', '-', 'vorlage.neu', 'vorlage.ausAuswahl', 'vorlage.speichern'] },
       { titel: 'Werkzeuge', eintraege: WERKZEUGE.map((w) => (w.trenner ? '-' : `werkzeug.${w.id}`)) },
       { titel: 'KI', eintraege: ['ki.oeffnen', 'ki.einstellungen', 'ki.mcp'] },
-      { titel: 'Hilfe', eintraege: ['hilfe.tasten', 'ansicht.palette', 'hilfe.ueber'] },
+      { titel: 'Hilfe', eintraege: ['hilfe.speichern', 'hilfe.mcp', '-', 'hilfe.tasten', 'ansicht.palette', 'hilfe.ueber'] },
     ]);
   }
 
@@ -652,7 +701,7 @@ class Studio {
     await this.dok.speichereEntwurf();
     this.gespeichertUm = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
     this.#speicherStatus();
-    this.hinweis('Entwurf gespeichert (.studio/entwuerfe/)', 'erfolg');
+    this.hinweis('Entwurf gespeichert – nur im Studio. Ins Spiel: Strg+Umschalt+E', 'erfolg');
     this.zonenPanel.laden();
   }
 
@@ -664,7 +713,7 @@ class Studio {
       this.zeigeRechts('pruef');
       return melde('Noch nicht spielbar', `Die Zone hat ${liste.filter((p) => p.schwere === 'fehler').length} Fehler – rechts unter „Prüfung“ stehen sie (Klick springt hin).`, 'fehler');
     }
-    const ok = await frage('Ins Spiel übernehmen', `Schreibt <code>server/spiel/karten/${esc(dok.karte.id)}.js</code> und trägt die Zone im Spiel ein.${liste.length ? `<br /><br />${liste.length} Hinweise (keine Fehler).` : ''}<br /><br />Danach <code>npm test</code> laufen lassen und committen.`, { ja: 'Übernehmen', icon: 'insSpiel' });
+    const ok = await frage('Ins Spiel übernehmen', `Schreibt <code>server/spiel/karten/${esc(dok.karte.id)}.js</code> und trägt die Zone im Spiel ein.${liste.length ? `<br /><br />${liste.length} Hinweise (keine Fehler).` : ''}<br /><br />Danach ist sie im lokalen Spiel. Für alle online: <b>Veröffentlichen</b> (Strg+Umschalt+P).`, { ja: 'Übernehmen', icon: 'insSpiel' });
     if (!ok) return;
     try {
       await this.#versionAblegen('Ins Spiel übernommen', 'export');
@@ -673,6 +722,7 @@ class Studio {
       this.zonenCache?.delete(dok.aktivId);
       this.zonenPanel.laden();
       this.#speicherStatus();
+      this.gitAktualisieren();
     } catch (f) {
       melde('Übernehmen fehlgeschlagen', esc(String(f.message).replace(/^Error invoking remote method 'studio': (Error: )?/, '')), 'fehler');
     }
@@ -1309,7 +1359,10 @@ class Studio {
     this.#zoneGewechselt();
     const m = await nativ.aufruf('mcp.info');
     document.getElementById('status-mcp').innerHTML = m.aktiv ? `<span class="status-marke" data-tipp="MCP-Server" data-text="${esc(m.url)}">${icon('stecker', 13)} MCP bereit</span>` : '';
+    document.getElementById('status-mcp').addEventListener('click', () => this.ki.mcp());
     setInterval(() => this.#autosave(), 60_000);
+    this.gitAktualisieren();
+    addEventListener('focus', () => this.gitAktualisieren()); // z. B. nach Commit im Terminal
     addEventListener('beforeunload', () => this.#autosave());
     this.bereit = true;
     if (!new URLSearchParams(location.search).has('ohneStart')) await this.#startbild();

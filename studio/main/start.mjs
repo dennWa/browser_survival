@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { Projekt } from './projekt.mjs';
 import { erstelleDateiServer } from './dateiServer.mjs';
 import { starteMcp } from './mcp.mjs';
+import { KI_WERKZEUGE } from '../kern/kiWerkzeuge.js';
 import { KiAssistent, ANBIETER } from './ki.mjs';
 import * as veroeffentlichen from './veroeffentlichen.mjs';
 import * as assetSuche from './assetSuche.mjs';
@@ -43,6 +44,7 @@ let projekt = null;
 let hauptFenster = null;
 let basisUrl = '';
 let mcp = null;
+const mcpStatistik = { anfragen: 0, zuletzt: null }; // für die Status-Lampe im MCP-Dialog
 let assistent = null;
 
 const verschluesseln = (t) => (safeStorage.isEncryptionAvailable() ? `enc:${safeStorage.encryptString(t).toString('base64')}` : `roh:${Buffer.from(t).toString('base64')}`);
@@ -76,7 +78,11 @@ async function starteMcpServer() {
   einstellungen.mcp.token ??= randomBytes(18).toString('base64url');
   einstellungen.mcp.port ??= MCP_STANDARD_PORT;
   schreibeEinstellungen(einstellungen);
-  const melde = () => hauptFenster?.webContents.send('mcp-aktivitaet', Date.now());
+  const melde = () => {
+    mcpStatistik.anfragen++;
+    mcpStatistik.zuletzt = Date.now();
+    hauptFenster?.webContents.send('mcp-aktivitaet', Date.now());
+  };
   try {
     mcp = await starteMcp({ port: einstellungen.mcp.port, token: einstellungen.mcp.token, fuehreAus, version: projekt?.info().version, beiAktivitaet: melde });
   } catch {
@@ -94,6 +100,11 @@ function mcpInfo() {
     token: einstellungen.mcp?.token,
     claudeCode: url ? `claude mcp add --transport http browser-survival-studio ${url} --header "Authorization: Bearer ${einstellungen.mcp.token}"` : '',
     claudeDesktop: JSON.stringify({ mcpServers: { 'browser-survival-studio': { command: 'node', args: [bruecke] } } }, null, 2),
+    desktopDatei: process.platform === 'win32' ? '%APPDATA%\\Claude\\claude_desktop_config.json' : process.platform === 'darwin' ? '~/Library/Application Support/Claude/claude_desktop_config.json' : '~/.config/Claude/claude_desktop_config.json',
+    spielordner: projekt?.wurzel ?? '',
+    anfragen: mcpStatistik.anfragen,
+    zuletzt: mcpStatistik.zuletzt,
+    werkzeuge: KI_WERKZEUGE.length,
   };
 }
 

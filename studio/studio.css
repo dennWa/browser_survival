@@ -325,3 +325,26 @@ textarea.feld { height: auto; padding: 6px 8px; resize: vertical; user-select: t
 .as-bild { aspect-ratio: 1; display: grid; place-items: center; background: #0d0f12; border-radius: 4px; overflow: hidden; color: var(--text-3); }
 .as-bild img { width: 100%; height: 100%; object-fit: cover; }
 .as-titel { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Speicher-Kette (Phase 4.14): ① Entwurf › ② Im Spiel › ③ Online */
+.speicher-kette { display: inline-flex; align-items: center; gap: 5px; background: none; border: 1px solid transparent; border-radius: 6px; padding: 1px 6px; color: var(--text-2); font: inherit; cursor: pointer; }
+.speicher-kette:hover { border-color: var(--linie); background: var(--hg-2); }
+.speicher-kette .ic { width: 13px; height: 13px; }
+.speicher-kette .stufe.ok { color: var(--gruen); }
+.speicher-kette .stufe.offen { color: var(--gelb); }
+.speicher-kette .stufe.unbekannt { color: var(--text-3); }
+.speicher-kette .pfeil, .speicher-kette .zeit { color: var(--text-3); }
+.stufen { display: grid; gap: 10px; margin-bottom: 10px; }
+.stufen-zeile { display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; line-height: 1.5; }
+.stufen-zeile .nr { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--linie); display: grid; place-items: center; font-weight: 600; }
+.mcp-schritt { display: grid; grid-template-columns: 28px 1fr; gap: 10px; margin: 12px 0; line-height: 1.55; }
+.mcp-schritt .nr { width: 24px; height: 24px; border-radius: 50%; background: var(--akzent); color: #fff; display: grid; place-items: center; font-weight: 600; }
+.mcp-reiter { display: flex; gap: 4px; margin: 6px 0; flex-wrap: wrap; }
+.mcp-reiter .knopf.aktiv { border-color: var(--akzent); color: var(--akzent); }
+.code-kopie { display: flex; gap: 6px; align-items: flex-start; margin: 4px 0; }
+.code-kopie .code { flex: 1; min-width: 0; margin: 0; }
+.code-kopie .knopf { flex: none; }
+.mcp-status { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; background: var(--hg-2); margin-bottom: 4px; }
+.mcp-status .lampe { width: 10px; height: 10px; border-radius: 50%; background: var(--text-3); }
+.mcp-status .lampe.an { background: var(--gruen); box-shadow: 0 0 8px var(--gruen); }
+#status-mcp { cursor: pointer; }

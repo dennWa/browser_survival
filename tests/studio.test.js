@@ -547,3 +547,32 @@ test('Phase 4.12: Wandarten (Kacheln, Wand-/Raum-Werkzeug) und Raum umbauen', as
   assert.equal(k.kachelAn(8, 9), 'T', 'Tür im Süden bleibt');
   assert.equal(k.kachelAn(6, 6), '+', 'Innenboden Holz');
 });
+
+// ---------- Phase 4.14: Speicher-Stufen ----------
+import { speicherStufen, gitStandFuerZone } from '../studio/kern/speicherStufen.js';
+
+test('Speicher-Stufen: Entwurf → Im Spiel → Online mit nächstem Schritt', () => {
+  const stand = (o) => speicherStufen({ version: 3, gespeichertVersion: 3, ...o });
+  let r = stand({ quelle: 'neu', gespeichertVersion: -1 });
+  assert.deepEqual(r.stufen.map((s) => s.stand), ['offen', 'offen', 'unbekannt']);
+  assert.equal(r.naechster, 'zone.speichern');
+  r = stand({ quelle: 'entwurf', git: { zoneGeaendert: false, voraus: 0 } });
+  assert.deepEqual(r.stufen.map((s) => s.stand), ['ok', 'offen', 'offen']);
+  assert.equal(r.naechster, 'zone.insSpiel');
+  r = stand({ quelle: 'spiel', git: { zoneGeaendert: true, voraus: 0 } });
+  assert.deepEqual(r.stufen.map((s) => s.stand), ['ok', 'ok', 'offen']);
+  assert.equal(r.naechster, 'projekt.veroeffentlichen');
+  r = stand({ quelle: 'spiel', git: { zoneGeaendert: false, voraus: 2 } });
+  assert.match(r.stufen[2].text, /2 Commit/);
+  r = stand({ quelle: 'spiel', git: { zoneGeaendert: false, voraus: 0 } });
+  assert.deepEqual(r.stufen.map((s) => s.stand), ['ok', 'ok', 'ok']);
+  assert.equal(r.naechster, null);
+  // geänderte Spiel-Zone: Spiel hat älteren Stand
+  r = stand({ quelle: 'spiel', version: 4 });
+  assert.equal(r.stufen[1].stand, 'offen');
+  assert.equal(r.naechster, 'zone.speichern');
+  // Vorlagen kennen nur „gespeichert“
+  assert.equal(stand({ quelle: 'vorlage' }).stufen.length, 1);
+  assert.deepEqual(gitStandFuerZone({ gitDa: true, voraus: 1, aenderungen: [{ datei: 'server/spiel/karten/wald.js' }] }, 'wald'), { zoneGeaendert: true, voraus: 1 });
+  assert.equal(gitStandFuerZone({ gitDa: false }, 'wald'), null);
+});

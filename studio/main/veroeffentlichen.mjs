@@ -1,7 +1,7 @@
 /**
  * Ein-Klick-Veröffentlichen (Studio Phase 4.6, Hauptprozess): Änderungen im Spielordner → Tests → Commit → Push.
  * GitHub Pages liefert `main` aus (CLAUDE.md Regel 9) – nach dem Push ist das Spiel in ein paar Minuten online.
- *   status(wurzel)              → { zweig, aenderungen: [{ datei, art }], vorschlag, gitDa }
+ *   status(wurzel)              → { zweig, aenderungen: [{ datei, art }], voraus (Commits nicht gepusht, null = kein Upstream), vorschlag, gitDa }
  *   tests(wurzel)               → { ok, ausgabe }  (`node --test "tests/**\/*.test.js"`, wie `npm test`)
  *   veroeffentliche(wurzel, { nachricht }) → { ok, schritte: [{ name, ok, ausgabe }], commit? }
  *     add -A → commit → pull --rebase --autostash → push. Bricht beim ersten Fehler ab (nichts halb Gepushtes).
@@ -33,14 +33,16 @@ export function nachrichtVorschlag(aenderungen) {
 
 export async function status(wurzel) {
   const v = await lauf('git', ['--version'], wurzel);
-  if (!v.ok) return { gitDa: false, aenderungen: [], zweig: null, vorschlag: '' };
+  if (!v.ok) return { gitDa: false, aenderungen: [], zweig: null, voraus: null, vorschlag: '' };
   const zweig = (await lauf('git', ['rev-parse', '--abbrev-ref', 'HEAD'], wurzel)).ausgabe;
   const s = await lauf('git', ['status', '--porcelain', '-uall'], wurzel);
   const aenderungen = s.ausgabe
     .split('\n')
     .filter(Boolean)
     .map((z) => ({ art: ARTEN[z.trim()[0]] ?? z.slice(0, 2).trim(), datei: z.slice(3).replace(/^"|"$/g, '') }));
-  return { gitDa: true, zweig, aenderungen, vorschlag: nachrichtVorschlag(aenderungen) };
+  const v2 = await lauf('git', ['rev-list', '--count', '@{u}..HEAD'], wurzel);
+  const voraus = v2.ok ? Number(v2.ausgabe) || 0 : null;
+  return { gitDa: true, zweig, aenderungen, voraus, vorschlag: nachrichtVorschlag(aenderungen) };
 }
 
 export function tests(wurzel) {

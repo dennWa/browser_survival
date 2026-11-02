@@ -147,19 +147,69 @@ export class KiPanel {
     await this.infoLaden();
   }
 
+  /**
+   * „KI verbinden“ (Phase 4.14): Schritt-für-Schritt statt Konfig-Wand – Status-Lampe (live), Reiter je KI-App,
+   * Kopier-Knöpfe, Beispiel-Aufträge. Ausführlich: studio/MCP_ANLEITUNG.md.
+   */
   async mcp() {
     const m = await this.studio.nativ.aufruf('mcp.info');
-    if (!m.aktiv) return dialog({ titel: 'MCP', inhalt: 'Der MCP-Server läuft nicht.' });
+    if (!m.aktiv) return dialog({ titel: 'KI verbinden', icon: 'stecker', inhalt: 'Der MCP-Server läuft nicht (Port belegt oder STUDIO_OHNE_MCP gesetzt). Studio neu starten hilft meistens.' });
+    const kopie = (text, id) => `<div class="code-kopie"><div class="code" style="white-space:pre-wrap;word-break:break-all">${esc(text)}</div><button class="knopf" data-kopie="${id}">${icon('kopieren', 13)} Kopieren</button></div>`;
+    const texte = {
+      desktop: m.claudeDesktop,
+      code: m.claudeCode,
+      url: m.url,
+      kopf: `Authorization: Bearer ${m.token}`,
+      b1: 'Schau dir im Browser Survival Studio die offenen Notizen an und arbeite sie ab.',
+      b2: 'Öffne im Browser Survival Studio die Zone waldweg und bau am See eine kleine Fischerhütte mit Steg und etwas Loot.',
+      b3: 'Mach in der Modell-Werkstatt den Zombie gruseliger: dunkler, mit Blut und Dreck, und speichere als Kopie.',
+    };
+    const reiter = {
+      desktop: `<p>1. <b>Node.js</b> muss installiert sein (<a href="#" data-link="https://nodejs.org">nodejs.org</a>, LTS-Version).<br />2. Claude Desktop → <b>Einstellungen → Entwickler → Konfiguration bearbeiten</b>. Es öffnet sich <code>${esc(m.desktopDatei)}</code>.<br />3. Diesen Text hineinkopieren und speichern. Steht schon etwas unter <code>mcpServers</code>, nur den Eintrag <code>browser-survival-studio</code> dazusetzen.</p>${kopie(texte.desktop, 'desktop')}`,
+      code: `<p>Terminal im Spielordner öffnen (<code>${esc(m.spielordner)}</code>) und <b>einmal</b> ausführen:</p>${kopie(texte.code, 'code')}<p class="neben">Danach in diesem Ordner <code>claude</code> starten. Mit <code>/mcp</code> siehst du, ob die Verbindung steht.</p>`,
+      andere: `<p>Für Cursor, VS Code, Windsurf … einen MCP-Server vom Typ <b>Streamable HTTP</b> anlegen:</p>${kopie(texte.url, 'url')}${kopie(texte.kopf, 'kopf')}<p class="neben">Der Kopf (Header) ist das Passwort. Ohne ihn lehnt das Studio ab.</p>`,
+    };
+    const status = () => {
+      const lampe = this.studio.mcpLetzte ?? m.zuletzt;
+      const vor = lampe ? Math.round((Date.now() - lampe) / 1000) : null;
+      const text = vor === null ? 'Studio bereit, noch keine KI verbunden' : vor < 15 ? 'KI ist verbunden und arbeitet gerade' : `KI war verbunden, letzte Anfrage vor ${vor < 120 ? `${vor} s` : `${Math.round(vor / 60)} min`}`;
+      return `<span class="lampe ${vor !== null && vor < 120 ? 'an' : ''}"></span><span>${esc(text)}</span><span class="neben" style="margin-left:auto">${m.werkzeuge} Werkzeuge · nur auf diesem Rechner</span>`;
+    };
+    const inhalt = `<div class="mcp-status" id="mcp-status">${status()}</div>
+      <div style="line-height:1.6;color:var(--text-2);margin:10px 0"><b>Was ist das?</b> Mit MCP steuert eine KI-App auf deinem Rechner (Claude Desktop, Claude Code, Cursor …) das Studio fern, wie ein zweiter Mensch an der Maus. Sie kann Zonen bauen, Modelle bemalen, Sounds schneiden, Items anlegen und deine Notizen abarbeiten. Jede Aktion ist mit Strg+Z rückgängig zu machen.<br /><span class="neben">Unterschied zum KI-Reiter: Der braucht einen API-Schlüssel (Abrechnung pro Nutzung). MCP nutzt dein vorhandenes Claude-Abo.</span></div>
+      <div class="mcp-schritt"><div class="nr">1</div><div><b>Deine KI-App einmalig verbinden</b><div class="mcp-reiter"><button class="knopf aktiv" data-reiter="desktop">Claude Desktop</button><button class="knopf" data-reiter="code">Claude Code (Terminal)</button><button class="knopf" data-reiter="andere">Cursor & andere</button></div><div id="mcp-reiter-inhalt">${reiter.desktop}</div></div></div>
+      <div class="mcp-schritt"><div class="nr">2</div><div><b>KI-App neu starten</b><br />In Claude Desktop taucht dann unten im Eingabefeld unter „Werkzeuge“ der Eintrag <b>browser-survival-studio</b> auf. Das Studio muss dabei offen sein. Sobald die KI das erste Mal fragt, wird die Lampe oben grün.</div></div>
+      <div class="mcp-schritt"><div class="nr">3</div><div><b>Sag der KI, was sie tun soll</b>, zum Beispiel:${kopie(texte.b1, 'b1')}${kopie(texte.b2, 'b2')}${kopie(texte.b3, 'b3')}<span class="neben">Tipp: Den Vorschlagsmodus im KI-Reiter einschalten, dann siehst du jede Änderung erst markiert und kannst sie einzeln wegklicken.</span></div></div>`;
     await dialog({
-      titel: 'KI per MCP verbinden',
+      titel: 'KI verbinden (MCP), Schritt für Schritt',
       icon: 'stecker',
       breit: true,
-      inhalt: `<div style="line-height:1.6;color:var(--text-2)">Das Studio stellt seine Werkzeuge als <b>MCP-Server</b> bereit – solange es läuft, kann eine KI direkt in der geöffneten Zone bauen (jede Aktion = ein Undo-Schritt „KI: …“).</div>
-        <div class="insp-abschnitt-titel">Claude Code (Terminal im Spielordner)</div><div class="code">${esc(m.claudeCode)}</div>
-        <div class="insp-abschnitt-titel">Claude Desktop · Einstellungen → Entwickler → Konfiguration bearbeiten</div><div class="code">${esc(m.claudeDesktop)}</div>
-        <div class="insp-abschnitt-titel">Andere (Cursor, VS Code …) · Streamable HTTP</div><div class="code">URL: ${esc(m.url)}\nHeader: Authorization: Bearer ${esc(m.token)}</div>
-        <div class="hinweis-kasten">Nur auf diesem Rechner erreichbar (127.0.0.1) und mit Token geschützt. Danach in der KI z. B. sagen: „Öffne die Zone waldweg im Browser Survival Studio und bau eine Hütte am See.“</div>`,
-      knoepfe: [{ text: 'Schließen', wert: true, art: 'primaer' }],
-    });
+      inhalt,
+      knoepfe: [{ text: 'Ausführliche Anleitung', wert: 'anleitung' }, { text: 'Fertig', wert: true, art: 'primaer' }],
+      beimOeffnen: (d) => {
+        const takt = setInterval(() => {
+          if (!d.isConnected) return clearInterval(takt);
+          d.querySelector('#mcp-status').innerHTML = status();
+        }, 1000);
+        d.addEventListener('click', async (e) => {
+          const r = e.target.closest('[data-reiter]');
+          if (r) {
+            d.querySelectorAll('[data-reiter]').forEach((b) => b.classList.toggle('aktiv', b === r));
+            d.querySelector('#mcp-reiter-inhalt').innerHTML = reiter[r.dataset.reiter];
+          }
+          const k = e.target.closest('[data-kopie]');
+          if (k) {
+            await navigator.clipboard.writeText(texte[k.dataset.kopie]).catch(() => {});
+            k.innerHTML = `${icon('pruefen', 13)} Kopiert`;
+            setTimeout(() => (k.innerHTML = `${icon('kopieren', 13)} Kopieren`), 1500);
+          }
+          const l = e.target.closest('[data-link]');
+          if (l) {
+            e.preventDefault();
+            this.studio.nativ.aufruf('link.oeffnen', { url: l.dataset.link });
+          }
+        });
+      },
+    }).then((w) => w === 'anleitung' && this.studio.nativ.aufruf('link.oeffnen', { url: 'https://github.com/dennwa/browser_survival/blob/main/studio/MCP_ANLEITUNG.md' }));
   }
 }

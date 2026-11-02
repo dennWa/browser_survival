@@ -275,7 +275,7 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | werkzeug | `feuerzeug` Feuerzeug, `angel` Angel |
 | samen | `samen_tomate` Tomatensamen, `samen_gurke` Gurkensamen, `samen_kartoffel` Saatkartoffeln, `samen_paprika` Paprikasamen, `samen_weizen` Weizenkörner, `samen_karotte` Karottensamen, `samen_kuerbis` Kürbiskerne, `samen_erdbeere` Erdbeersamen |
 
-### Eigene 3D-Modelle (Aktion `modell`, Feld `modell` = Name ohne .glb; `hoehe` = Zielhöhe in m) – 465 Stück
+### Eigene 3D-Modelle (Aktion `modell`, Feld `modell` = Name ohne .glb; `hoehe` = Zielhöhe in m) – 466 Stück
 | modell | Name | Kategorie | Standardhöhe m | Fußabdruck m |
 |---|---|---|---|---|
 | `arrow-sign` | Arrow Sign | bau | 2.05 | 1.9 × 0.4 |
@@ -410,6 +410,7 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `plant-2` | Plant 2 | deko | 0.25 | 1 × 1 |
 | `plant` | Plant | deko | 1.01 | 1.3 × 1.4 |
 | `planter--bushes` | Planter  Bushes | deko | 1.12 | 2.4 × 0.8 |
+| `rauchtest-modell` | Rauchtest Modell | deko | 2.5 | 1 × 1 |
 | `tennis-ball` | Tennis Ball | deko | 0.07 | 9.4 × 9.4 |
 | `vogelscheuche` | Vogelscheuche | deko | 2.1 | 1.703 × 0.62 |
 | `volleyball-ball` | Volleyball Ball | deko | 0.49 | 0.5 × 0.5 |

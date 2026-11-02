@@ -181,7 +181,7 @@ Credits (Urheber, Lizenz, Quelle) mitbringen → `credits.json`.
 Modell und API-Schlüssel. Der Schlüssel wird verschlüsselt auf dem Rechner gespeichert, nie im Repo. Dann einfach
 schreiben, z. B. *„Bau eine kleine Tankstelle mit Kiosk und zwei Autos bei 40|30, Loot hinter der Theke“*.
 
-**Claude & Co. direkt verbinden (MCP)**: *KI → Mit Claude & Co. verbinden* zeigt fertige Befehle:
+**Claude & Co. direkt verbinden (MCP)**: *Hilfe → KI verbinden* (oder Klick auf „MCP bereit“) führt in 3 Schritten durch, mit Kopier-Knöpfen und Status-Lampe. Ausführlich: [`MCP_ANLEITUNG.md`](MCP_ANLEITUNG.md). Kurzfassung:
 - Claude Code: `claude mcp add --transport http browser-survival-studio http://127.0.0.1:8766/mcp --header "Authorization: Bearer <token>"`
 - Claude Desktop: Konfiguration mit `node <Spielordner>/studio/mcp-bruecke.mjs` (Brücke liest Port/Token aus `.studio/mcp.json`)
 - Andere (Cursor, VS Code …): Streamable HTTP auf derselben URL mit Token.
