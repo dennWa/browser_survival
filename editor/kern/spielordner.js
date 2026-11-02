@@ -9,6 +9,8 @@
  * Runde 19: index.json trägt `kategorie` (Baukasten-Bereich) + `zielHoehe` (realistische Standardhöhe – die Originalmaße
  * sind teils absurd, Katze 40 m). Ohne Höhenangabe nimmt `spielordnerTyp` die zielHoehe. `spielordnerListe()` speist den
  * Baukasten (editor/ui/assetBrowser.js): nur Name + Vorschaubild, die .glb lädt erst die 3D-Ansicht/das Spiel.
+ * Studio Phase 3 (Werkstatt, studio/kern/modelle.js): optionale Felder `blockiert` (false), `ebene` (boden|oben), `fuss` {b,h}
+ * (Grundfläche in Kacheln bei zielHoehe) und `leerlauf` (Clip) landen im Typ (blockiert/ebene/b/h/animation).
  */
 export const SPIELORDNER_PFAD = 'assets/eigene';
 export const HOEHE_MIN = 0.05;
@@ -29,7 +31,14 @@ export function setzeSpielordner(liste) {
     if (!m || !(m.b > 0) || !(m.h > 0) || !(m.hoehe > 0) || typeof e.datei !== 'string') continue;
     const stem = stemVon(e.datei);
     const ziel = e.zielHoehe > 0 ? e.zielHoehe : m.hoehe;
-    if (/^[a-z0-9_-]{1,100}$/.test(stem)) katalog.set(stem, { stem, name: e.name ?? stem, b: m.b, t: m.h, hoehe: m.hoehe, ziel, kategorie: typeof e.kategorie === 'string' ? e.kategorie : 'deko' });
+    if (!/^[a-z0-9_-]{1,100}$/.test(stem)) continue;
+    const eintrag = { stem, name: e.name ?? stem, b: m.b, t: m.h, hoehe: m.hoehe, ziel, kategorie: typeof e.kategorie === 'string' ? e.kategorie : 'deko' };
+    // Studio-Werkstatt (Phase 3.3/3.6): Spiel-Einstellungen je Modell
+    if (e.blockiert === false) eintrag.blockiert = false;
+    if (e.ebene === 'boden' || e.ebene === 'oben') eintrag.ebene = e.ebene;
+    if (e.fuss?.b > 0 && e.fuss?.h > 0) eintrag.fuss = { b: e.fuss.b, h: e.fuss.h };
+    if (typeof e.leerlauf === 'string' && e.leerlauf) eintrag.leerlauf = e.leerlauf;
+    katalog.set(stem, eintrag);
   }
 }
 
@@ -70,11 +79,14 @@ export function spielordnerTyp(name, hoehe = null) {
   const m = spielordnerModell(name);
   if (!m) return null;
   const ziel = Math.min(HOEHE_MAX, Math.max(HOEHE_MIN, Number.isFinite(hoehe) && hoehe > 0 ? hoehe : m.ziel));
-  const f = ziel / m.hoehe;
-  const b = Math.max(0.1, r3(m.b * f));
-  const h = Math.max(0.1, r3(m.t * f));
+  // Grundfläche: eigene (Werkstatt, Kacheln bei Standardhöhe) oder aus den natürlichen Proportionen – mitskaliert
+  const f = m.fuss ? ziel / m.ziel : ziel / m.hoehe;
+  const b = Math.max(0.1, r3((m.fuss ? m.fuss.b : m.b) * f));
+  const h = Math.max(0.1, r3((m.fuss ? m.fuss.h : m.t) * f));
   const typId = `sf_${m.stem.replace(/[^a-z0-9]+/g, '_').slice(0, 28)}_${Math.round(ziel * 10)}`;
-  const typ = { name: m.name, kategorie: 'Spielordner', b, h, hoehe3d: r3(ziel), blockiert: true, farbe: '#c080ff', glbDatei: `${SPIELORDNER_PFAD}/${m.stem}.glb` };
+  const typ = { name: m.name, kategorie: 'Spielordner', b, h, hoehe3d: r3(ziel), blockiert: m.blockiert !== false && m.ebene !== 'oben', farbe: '#c080ff', glbDatei: `${SPIELORDNER_PFAD}/${m.stem}.glb` };
+  if (m.ebene) typ.ebene = m.ebene;
+  if (m.leerlauf) typ.animation = m.leerlauf;
   return { typId, typ, b, h, hoehe: r3(ziel) };
 }
 

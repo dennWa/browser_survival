@@ -47,3 +47,71 @@ test('beispielItems: gleiche Saat = gleiche Vorschau, kaputte Karte = leer', () 
   assert.ok(andere.some((a) => a !== beispielItems(k, 3).map((e) => e.defId).join()), 'andere Saat würfelt anders');
   assert.deepEqual(beispielItems({ id: 'kaputt', kacheln: ['?'] }), []);
 });
+
+// ---------- 3.3: Spiel-Einstellungen je Modell (index.json → spielordnerTyp) ----------
+import { pruefeModellFelder, aktualisiereIndex, fussabdruck, verwendungen, angleichOps, freierStem, farbtonDrehen } from '../studio/kern/modelle.js';
+import { setzeSpielordner, spielordnerTyp } from '../editor/kern/spielordner.js';
+import { EditorKarte } from '../editor/kern/karte.js';
+import { objektOps } from '../studio/kern/aktionen.js';
+
+const INDEX = [
+  { datei: 'kiste.glb', name: 'Kiste', kategorie: 'deko', masse: { b: 2, h: 1, hoehe: 1 }, zielHoehe: 1 },
+  { datei: 'teppich.glb', name: 'Teppich', kategorie: 'moebel', masse: { b: 2, h: 3, hoehe: 0.05 }, zielHoehe: 0.05 },
+];
+
+test('pruefeModellFelder: Grenzen, Standard-Ebene wird nicht gespeichert, null entfernt', () => {
+  assert.throws(() => pruefeModellFelder({ zielHoehe: 50 }));
+  assert.throws(() => pruefeModellFelder({ ebene: 'dach' }));
+  assert.throws(() => pruefeModellFelder({ fuss: { b: 0, h: 1 } }));
+  assert.throws(() => pruefeModellFelder({ kategorie: 'quatsch' }));
+  assert.deepEqual(pruefeModellFelder({ ebene: 'moebel', blockiert: 0, fuss: { b: '1.5', h: 2 }, leerlauf: ' Wippen ' }), { ebene: null, blockiert: false, fuss: { b: 1.5, h: 2 }, leerlauf: 'Wippen' });
+  assert.deepEqual(pruefeModellFelder({ leerlauf: '' }), { leerlauf: null });
+});
+
+test('aktualisiereIndex + spielordnerTyp: Kollision, Ebene, eigene Grundfläche, Leerlauf landen im Typ', () => {
+  assert.throws(() => aktualisiereIndex(INDEX, 'fehlt.glb', {}));
+  let index = aktualisiereIndex(INDEX, 'teppich.glb', pruefeModellFelder({ blockiert: false, ebene: 'boden' }));
+  index = aktualisiereIndex(index, 'kiste.glb', pruefeModellFelder({ fuss: { b: 3, h: 3 }, leerlauf: 'Drehen' }));
+  assert.equal(INDEX[0].fuss, undefined, 'Original unverändert');
+  setzeSpielordner(index);
+  const teppich = spielordnerTyp('teppich');
+  assert.equal(teppich.typ.blockiert, false);
+  assert.equal(teppich.typ.ebene, 'boden');
+  const kiste = spielordnerTyp('kiste', 2);
+  assert.deepEqual([kiste.b, kiste.h], [6, 6], 'eigene Grundfläche wächst mit der Höhe');
+  assert.equal(kiste.typ.animation, 'Drehen');
+  assert.deepEqual(fussabdruck(index[0], 2), { b: 6, h: 6 });
+  assert.deepEqual(fussabdruck(INDEX[0]), { b: 2, h: 1 });
+  index = aktualisiereIndex(index, 'kiste.glb', { fuss: null, leerlauf: null });
+  assert.equal('fuss' in index[0] || 'leerlauf' in index[0], false);
+  // Objekt aus der Werkstatt-Einstellung
+  const k = new EditorKarte({ id: 't', name: 't', breite: 10, hoehe: 10 });
+  const { ops } = objektOps(k, 'modell:teppich', 2, 2);
+  const o = ops.find((x) => x.s === 'objekte').neu;
+  assert.equal(o.blockiert, false);
+  assert.equal(o.ebene, 'boden');
+});
+
+test('verwendungen + angleichOps: Zonen finden und Typen/Objekte nachziehen', () => {
+  setzeSpielordner(INDEX);
+  const k = new EditorKarte({ id: 'z', name: 'z', breite: 10, hoehe: 10 });
+  k.anwenden(objektOps(k, 'modell:kiste', 1, 1).ops);
+  k.anwenden(objektOps(k, 'modell:kiste', 4, 4).ops);
+  const v = verwendungen(new Map([['z', k], ['leer', new EditorKarte({ id: 'leer', name: 'l', breite: 5, hoehe: 5 })]]), 'kiste');
+  assert.deepEqual(v, [{ zone: 'z', typen: ['sf_kiste_10'], objekte: 2 }]);
+  const ops = angleichOps(k, 'kiste', { ...INDEX[0], blockiert: false, leerlauf: 'Wippen', ebene: 'boden' });
+  assert.equal(ops.filter((o) => o.s === 'typen').length, 1);
+  assert.equal(ops.filter((o) => o.s === 'objekte' && o.neu.blockiert === false && o.neu.ebene === 'boden').length, 2);
+  k.anwenden(ops);
+  assert.equal(k.s('typen').get('sf_kiste_10').animation, 'Wippen');
+  assert.deepEqual(angleichOps(k, 'kiste', { ...INDEX[0], blockiert: false, leerlauf: 'Wippen', ebene: 'boden' }), [], 'schon gleich → nichts');
+});
+
+test('freierStem + farbtonDrehen', () => {
+  assert.equal(freierStem('Große Kiste!', ['grosse-kiste']), 'grosse-kiste-2');
+  assert.equal(freierStem('', []), 'modell');
+  const [r, g, b] = farbtonDrehen([1, 0, 0], 120);
+  assert.ok(g > 0.99 && r < 0.01 && b < 0.01, 'rot + 120° = grün');
+  assert.deepEqual(farbtonDrehen([0.5, 0.5, 0.5], 90), [0.5, 0.5, 0.5], 'grau bleibt grau');
+  assert.ok(farbtonDrehen([0.2, 0.4, 0.6], 0, 1, 0.5)[2] < 0.6, 'dunkler');
+});

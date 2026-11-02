@@ -131,6 +131,7 @@ export function objektOps(karte, katalogId, x, y, { drehung = 0, skalierung = 1,
     if (!t) throw new Error(`Modell „${katalogId.slice(7)}“ nicht im Spielordner`);
     if (!karte.s('typen').has(t.typId)) ops.push({ s: 'typen', k: t.typId, neu: t.typ });
     o = { typ: t.typId, x: 0, y: 0, b: t.b, h: t.h, blockiert: t.typ.blockiert !== false };
+    if (t.typ.ebene) o.ebene = t.typ.ebene; // Werkstatt: boden/oben
   } else if (katalogId.startsWith('bauwerk:')) {
     const typ = katalogId.slice(8);
     const id = karte.naechsteId;
