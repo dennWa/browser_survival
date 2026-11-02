@@ -406,9 +406,19 @@ export function entkoppleOps(karte, instanzId) {
 
 // ---------- Notizen ----------
 
-export function notizOps(karte, x, y, text) {
+export function notizOps(karte, x, y, text, { fuer = null } = {}) {
   const t = String(text ?? '').trim().slice(0, 500);
   if (!t) throw new Error('Notiz ist leer');
   const id = karte.naechsteId;
-  return { ops: [{ s: 'notizen', k: id, neu: { x: r3(x), y: r3(y), text: t } }], id };
+  return { ops: [{ s: 'notizen', k: id, neu: { x: r3(x), y: r3(y), text: t, ...(fuer === 'mensch' ? { fuer } : {}) } }], id };
+}
+
+/**
+ * Phase 4.9: offene Aufträge = Notizen, die nicht erledigt und nicht „für Menschen“ sind (Menschen-Notizen setzt die KI selbst).
+ * @param karten Map zoneId → EditorKarte · @returns [{ zone, id, x, y, text }]
+ */
+export function offeneAuftraege(karten) {
+  const aus = [];
+  for (const [zone, k] of karten) for (const [id, n] of k.s('notizen') ?? []) if (!n.erledigt && n.fuer !== 'mensch') aus.push({ zone, id, x: n.x, y: n.y, text: n.text });
+  return aus;
 }

@@ -123,7 +123,7 @@ export class Inspektor {
           + this.#abschnitt('Patrouille / Horden-Route', `<div class="insp-zeile"><span>Route</span><div style="color:var(--text-3)">${w.route ? `${w.route.length} Punkte` : 'keine'}</div></div><div class="insp-knoepfe"><button class="knopf" data-aktion="routeZeichnen">${icon('messen', 14)} Route zeichnen</button>${w.route ? `<button class="knopf" data-aktion="routeWeg">${icon('loeschen', 14)} Route löschen</button>` : ''}</div><div class="hinweis-kasten">Ruhende Zombies laufen die Punkte reihum ab – mit „nur nachts“ eine wandernde Nacht-Horde.</div>`)
           + this.#abschnitt('Bereich', this.#rechteck(w));
       case 'notizen':
-        return this.#abschnitt('Notiz', `<textarea class="feld" rows="5" data-feld="text" style="width:100%">${esc(w.text)}</textarea>` + this.#schalter('erledigt', w.erledigt, 'Status', 'erledigt') + this.#lage(w));
+        return this.#abschnitt('Notiz', `<textarea class="feld" rows="5" data-feld="text" style="width:100%">${esc(w.text)}</textarea>` + this.#schalter('erledigt', w.erledigt, 'Status', 'erledigt') + this.#auswahl('fuer', w.fuer ?? 'ki', [['ki', 'Auftrag für die KI'], ['mensch', 'Notiz für Menschen']], 'Für') + (w.antwort ? `<div class="hinweis-kasten"><b>KI:</b> ${esc(w.antwort)}</div>` : '') + this.#lage(w));
       case 'bauwerke':
         return this.#abschnitt('Bauwerk', `<div class="insp-zeile"><span>Typ</span><div>${esc(w.typ)}</div></div><div class="insp-zeile"><span>Kachel</span><div class="insp-xyz"><label>X<input class="feld zahl" type="number" step="1" data-feld="tx" value="${w.tx}" /></label><label>Y<input class="feld zahl" type="number" step="1" data-feld="ty" value="${w.ty}" /></label></div></div>`);
       default:

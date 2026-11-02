@@ -33,7 +33,7 @@ export const FARBE = /^#[0-9a-fA-F]{6}$/;
  *   lootZonen     [{ name, x, y, b, h, modus, eintraege, punkte, ort, … }]  Loot-Zonen (6.2, server/spiel/karten/lootZonen.js)
  *   spawnpunkte   [{ x, y, inhalt, chance, intervall, menge?, hoehe? }]  Item-Spawnpunkte (Studio, server/spiel/karten/spawnpunkte.js)
  *   zombieBereiche [{ x, y, b, h, anzahl, varianten?, tageszeit?, route? }]  Zombie-Bereiche (Studio, server/spiel/karten/zombieBereiche.js)
- *   notizen       [{ x, y, text, erledigt? }]                Notiz-Pins (Studio, nur Editor)
+ *   notizen       [{ x, y, text, erledigt?, fuer?: "mensch", antwort? }]  Notiz-Pins (Studio, nur Editor; offen + nicht „mensch“ = KI-Auftrag)
  *   vorlagenInstanzen [{ id, vorlage, x, y, b, h }]           verknüpfte Vorlagen-Kopien (Studio, nur Editor)
  *   objekte[].skalierung  0,25–4 (Studio; b/h sind schon skaliert, Spiel hebt nur die Optik-Höhe an)
  *   klaenge       [{ id, name, audio|daten|datei, art, … }]   Klanglandschaft (Phase 4, gemeinsam/audio/klanglandschaft.js)

@@ -394,7 +394,7 @@ Tests `tests/studioAudio.test.js`, Rauchtest-Abschnitt „Phase 2“.
 | 4.6 | Ein-Klick-Veröffentlichen: Tests → Commit → Push auf main (GitHub Pages) | ✅ |
 | 4.7 | Vorschlagsmodus für KI-Änderungen: farbige Vorschau, einzelne Änderungen wegklicken, Rest übernehmen | ✅ |
 | 4.8 | KI-Werkzeuge für Items, Loot-Tabellen, Rezepte | ✅ |
-| 4.9 | Notizen als Auftragsliste: KI arbeitet offene Notizen ab (auch „beim nächsten Mal“) | ⏳ |
+| 4.9 | Notizen als Auftragsliste: KI arbeitet offene Notizen ab (auch „beim nächsten Mal“) | ✅ |
 | 4.10 | Werkstatt: Knochen & Gelenke (anlegen, Ketten, binden, Skelett, Pose, eigene Keyframe-Animationen), Malen aufs Modell, Textur-Effekte (dunkler, Dreck, Blut, Rost, Moos) – alles auch für die KI; Testmodell mit eigener Animation | ⏳ |
 | 4.11 | Asset-Suche: CC0-Modelle/Sounds im Internet suchen, importieren, Credits automatisch (Studio + KI) | ⏳ |
 | 4.12 | Räume bearbeiten (anklicken → Wände/Boden/Tür ändern), mehr Wandarten | ⏳ |

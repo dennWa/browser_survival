@@ -27,7 +27,7 @@ export function alsMcpInhalt(e) {
 }
 
 function neuerServer(fuehreAus, version) {
-  const server = new Server({ name: MCP_NAME, version }, { capabilities: { tools: {} }, instructions: 'Karten-Editor für Browser Survival. Zuerst das Werkzeug „anleitung“ aufrufen.' });
+  const server = new Server({ name: MCP_NAME, version }, { capabilities: { tools: {} }, instructions: 'Browser Survival Studio (Karten, Modell-Werkstatt, Audio-Zentrale, Items). Zuerst „anleitung“ und „auftraege“ aufrufen – offene Notiz-Pins sind Aufträge der Menschen.' });
   server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: mcpWerkzeuge() }));
   server.setRequestHandler(CallToolRequestSchema, async (anfrage) => {
     try {

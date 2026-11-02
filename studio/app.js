@@ -26,7 +26,7 @@ import { oeffneVeroeffentlichen } from './oberflaeche/veroeffentlichen.js';
 import { Vorschlaege, rueckOps, mitKoordinaten } from './kern/vorschlaege.js';
 import { AudioZentrale } from './audio/audioZentrale.js';
 import { ladeSpielordner, setzeSpielordner } from '../editor/kern/spielordner.js';
-import { ausDefinition } from '../editor/kern/format.js';
+import { ausDefinition, ladeDatei } from '../editor/kern/format.js';
 import { EditorKarte } from '../editor/kern/karte.js';
 import { kopiereElemente, einfuegeOps } from '../editor/kern/auswahl.js';
 import { groesseAendern, ZONEN_ID_MUSTER } from '../editor/kern/zone.js';
@@ -122,6 +122,21 @@ class Studio {
 
   vorlagen() {
     return this.vorlagenListe;
+  }
+
+  /** Wie zonenKarten, aber Zonen mit gespeichertem Entwurf aus dem Entwurf (dort stehen die neuesten Notizen) – für `auftraege` */
+  async alleZonenKarten() {
+    const m = this.zonenKarten();
+    for (const z of this.zonenPanel.liste) {
+      if (!z.entwurf || this.dok.zonen.has(z.id)) continue;
+      try {
+        const e = await nativ.aufruf('projekt.ladeEntwurf', { id: z.id });
+        if (e) m.set(z.id, ladeDatei(e).karte);
+      } catch {
+        // kaputter Entwurf → Spielstand bleibt
+      }
+    }
+    return m;
   }
 
   /** Alle Zonen als EditorKarte (für Übergangs-Prüfung): Spieldateien (Cache) + geöffnete Zonen */

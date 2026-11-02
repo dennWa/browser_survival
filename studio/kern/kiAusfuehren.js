@@ -165,11 +165,16 @@ export function erstelleKiAusfuehrer(studio) {
     },
     notizen_liste: () => ok(null, [...karte().s('notizen')].map(([id, n]) => ({ id, ...n }))),
     notiz_setzen: ({ x, y, text }) => {
-      const { ops, id } = A.notizOps(karte(), x, y, text);
+      const { ops, id } = A.notizOps(karte(), x, y, text, { fuer: 'mensch' });
       aendere('Notiz', ops);
       return ok(`Notiz ${id} gesetzt.`);
     },
-    notiz_erledigt: ({ id, erledigt = true }) => ok(`${aendere('Notiz erledigt', A.aenderOps(karte(), 'notizen', id, { erledigt: erledigt || undefined }))} Änderung.`),
+    notiz_erledigt: ({ id, erledigt = true, antwort }) => ok(`${aendere('Notiz erledigt', A.aenderOps(karte(), 'notizen', id, { erledigt: erledigt || undefined, ...(antwort ? { antwort: String(antwort).slice(0, 500) } : {}) }))} Änderung.`),
+    auftraege: async () => {
+      const karten = await studio.alleZonenKarten();
+      const liste = A.offeneAuftraege(karten);
+      return ok(liste.length ? `${liste.length} offene Aufträge. Je Auftrag: zone_oeffnen → erledigen → notiz_erledigt (id, antwort = was du gemacht hast). Unklares: notiz_setzen als Frage an die Menschen.` : 'Keine offenen Aufträge (Notiz-Pins).', liste);
+    },
     weltkarte: () => {
       const zonen = studio.zonenKarten();
       const liste = [];

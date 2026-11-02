@@ -467,3 +467,15 @@ test('Phase 4.8: KI-Werkzeuge Items/Loot/Rezepte – Prüfungen und Ablauf (Attr
   await W.item_zuruecksetzen({ id: 'dosenbohnen' });
   assert.equal(daten.gegenstaende.dosenbohnen, undefined);
 });
+
+test('Phase 4.9: offene Aufträge = nicht erledigte Notizen ohne „für Menschen“', async () => {
+  const A = await import('../studio/kern/aktionen.js');
+  const { EditorKarte } = await import('../editor/kern/karte.js');
+  const k = new EditorKarte({ id: 'a', name: 'a', breite: 10, hoehe: 10 });
+  k.anwenden(A.notizOps(k, 1, 1, 'Hier fehlt eine Tankstelle').ops);
+  k.anwenden(A.notizOps(k, 2, 2, 'Frage der KI', { fuer: 'mensch' }).ops);
+  const id3 = k.naechsteId;
+  k.anwenden(A.notizOps(k, 3, 3, 'Schon erledigt').ops);
+  k.anwenden(A.aenderOps(k, 'notizen', id3, { erledigt: true }));
+  assert.deepEqual(A.offeneAuftraege(new Map([['a', k]])).map((x) => x.text), ['Hier fehlt eine Tankstelle']);
+});

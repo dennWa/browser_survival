@@ -21,7 +21,7 @@ export class KiPanel {
       <div class="ki-verlauf" id="ki-verlauf"><div class="insp-leer">Beschreibe, was gebaut werden soll – z. B. „Bau eine kleine Tankstelle mit Kiosk, zwei Autos und Loot hinter der Theke bei 40|30“.<br /><br />Die KI arbeitet mit denselben Werkzeugen wie du. Alles ist rückgängig machbar (Strg+Z).</div></div>
       <div class="ki-eingabe">
         <textarea class="feld" id="ki-text" placeholder="Nachricht an die KI … (Strg+Enter senden)"></textarea>
-        <div class="ki-leiste"><button class="knopf flach" data-ki="neu">${icon('plus', 14)} Neues Gespräch</button><button class="knopf primaer" data-ki="senden">${icon('senden', 14)} Senden</button></div>
+        <div class="ki-leiste"><button class="knopf flach" data-ki="neu">${icon('plus', 14)} Neues Gespräch</button><button class="knopf flach" data-ki="auftraege" data-tipp="Notizen abarbeiten" data-text="Die KI erledigt alle offenen Notiz-Pins (Aufträge) und hakt sie ab">${icon('notiz', 14)} Notizen abarbeiten</button><button class="knopf primaer" data-ki="senden">${icon('senden', 14)} Senden</button></div>
       </div>`;
     this.verlauf = this.el.querySelector('#ki-verlauf');
     this.el.querySelector('#ki-vorschlag').checked = !!studio.vorschlagsModus;
@@ -45,6 +45,10 @@ export class KiPanel {
       if (a === 'neu') this.neu();
       if (a === 'einstellungen') this.einstellungen();
       if (a === 'mcp') this.mcp();
+      if (a === 'auftraege') {
+        this.text.value = 'Rufe auftraege auf und arbeite alle offenen Notiz-Pins nacheinander ab. Hake jeden mit notiz_erledigt (mit kurzer antwort) ab. Bei Unklarheiten setze eine Notiz für Menschen.';
+        this.senden();
+      }
     });
     this.text.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
