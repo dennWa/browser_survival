@@ -1,3 +1,4 @@
+import { naesseStufe } from '../systeme/gesundheitSystem.js';
 import { neueZiele, zieleFuerClient } from '../systeme/zielSystem.js';
 import { INVENTAR_PLAETZE } from '../../../gemeinsam/konstanten.js';
 import { STANDARD_AUSRUESTUNG } from '../konfiguration/gegenstaende.js';
@@ -80,6 +81,8 @@ export function erzeugeSpieler({ id, benutzername, x, y, konfiguration, admin = 
     rucksack: null, // defId des getragenen Rucksacks oder null
     kleidung: { kopf: null, oberkoerper: null, haende: null, beine: null, fuesse: null }, // Runde 23: angezogene Kleidung (defIds)
     kaelte: 0, // Runde 23: Unterkühlung 0 (warm) … 100 (erfroren), ueberlebenSystem
+    naesse: 0, // Runde 28: 0 (trocken) … 5 (klatschnass), gesundheitSystem.aktualisiereNaesse
+    sprintMalus: 1, // Runde 28: Erkältung → 0,8 (wirkt in gemeinsam/physik/bewegung.js, auch in der Client-Vorhersage)
     fahrzeug: null, // [intern] Fahrzeug-Entität, in der der Spieler sitzt (systeme/fahrzeugSystem.js)
     uebergang: null, // [intern] Zonenrand-Countdown { u, name, rest } (systeme/zonenSystem.js)
     ausgeruestet: null, // Inventarplatz der Waffe in der Hand
@@ -140,6 +143,7 @@ export function spielerZuNetzwerk(s) {
     aussehen: aussehenKompakt(s.aussehen), // nur Abweichungen vom Standard (spart ~110 Bytes pro Spieler und Tick)
     // Im Auto: genauer Fahrzustand (der eigene Client rechnet damit die Vorhersage nach)
     fahrzeug: s.fahrzeug ? { id: s.fahrzeug.id, winkel: s.fahrzeug.winkel, tempo: s.fahrzeug.tempo, lenkung: s.fahrzeug.lenkung ?? 0, laenge: s.fahrzeug.laenge, breite: s.fahrzeug.breite, modell: s.fahrzeug.modell, leben: Math.round(s.fahrzeug.leben * 10) / 10, maxLeben: s.fahrzeug.maxLeben } : null,
+    mitfahrt: s.mitfahrt ? s.mitfahrt.id : undefined, // Runde 28: Beifahrer in Fahrzeug-ID (Figur unsichtbar, keine Vorhersage)
     seq: s.letzteVerarbeiteteSeq,
   };
 }
@@ -160,6 +164,7 @@ function zustandKompakt(z) {
   if (z.infektion > 0) k.infektion = Math.ceil(z.infektion);
   if (z.bruch) k.bruch = z.bruch;
   if (z.vergiftung > 0) k.vergiftung = true;
+  if (z.erkaeltung > 0) k.erkaeltung = Math.ceil(z.erkaeltung); // Runde 28
   return Object.keys(k).length ? k : undefined;
 }
 
@@ -173,6 +178,8 @@ export function spielerDatenPrivat(s, konfiguration, spielWelt = null) {
     skills: s.skills,
     skillPunkte: s.skillPunkte,
     tempoFaktor: s.tempoFaktor, // für die Bewegungs-Vorhersage im Client
+    sprintMalus: s.sprintMalus !== 1 ? s.sprintMalus : undefined, // Runde 28: Erkältung bremst das Rennen (Vorhersage!)
+    naesse: naesseStufe(s.naesse ?? 0) || undefined, // Runde 28: Nässe-Stufe 1..5 (HUD-Symbol)
     leben: Math.ceil(s.leben),
     maxLeben: s.maxLeben,
     hunger: Math.ceil(s.hunger),

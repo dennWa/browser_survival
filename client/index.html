@@ -36,11 +36,15 @@
         <div class="hud-links">
           <span id="hud-uhr" title="Tag 10 Minuten, Nacht 5 Minuten – nachts kommt die Horde">☀ 06:00</span>
           <span id="hud-status"></span>
+          <!-- Runde 28: Nässe-Stufe (klamm … klatschnass), Tippen erklärt -->
+          <button id="hud-naesse" type="button" hidden title="Nässe"><svg class="ui-icon" aria-hidden="true"><use href="#i-naesse"/></svg><span class="naesse-text"></span><span class="naesse-stufen"><i></i><i></i><i></i><i></i><i></i></span></button>
         </div>
         <!-- Runde 23: Chat/Rucksack/Feld/Karte/Lampe nur noch auf Touch (am PC: T, Tab, Rechtsklick, M, L) -->
         <div class="hud-knoepfe">
           <button id="hud-chat" class="nur-touch" type="button" title="Chat (T)"><svg class="ui-icon" aria-hidden="true"><use href="#i-chat"/></svg></button>
           <button id="hud-inventar" class="nur-touch" type="button" title="Inventar (Tab)"><svg class="ui-icon" aria-hidden="true"><use href="#i-inventar"/></svg></button>
+          <!-- Runde 28: Ich-Perspektive auch am Handy (sitzt mit dem Rucksack unter der Minikarte) -->
+          <button id="hud-ego" class="nur-touch" type="button" title="Ich-Perspektive an/aus (C)"><svg class="ui-icon" aria-hidden="true"><use href="#i-ego"/></svg></button>
           <button id="hud-bauen" type="button" title="Bauen (B): Basis-Flagge, Wände, Böden, Möbel – mit dem Hammer"><svg class="ui-icon" aria-hidden="true"><use href="#i-bauen"/></svg></button>
           <button id="hud-skills" type="button" title="Fähigkeiten (U)"><svg class="ui-icon" aria-hidden="true"><use href="#i-skills"/></svg></button>
           <button id="hud-kofferraum" type="button" title="Kofferraum öffnen (G)" hidden><svg class="ui-icon" aria-hidden="true"><use href="#i-kofferraum"/></svg></button>
@@ -67,6 +71,8 @@
         <div class="wert" id="wert-muedigkeit" title="Müdigkeit – schlafen hilft (Doppelbett am besten). Ab 85: langsamer, keine Heilung" hidden><span class="symbol emoji-symbol">😴</span><div class="balken"><div class="fuellung"></div></div><span class="warn" aria-hidden="true">!</span></div>
         <div id="hud-zustand" hidden></div>
       </div>
+      <!-- Runde 28: Statusleiste antippen → alle Werte groß mit Erklärung (client/ui/hud.js #zeigeStatusErklaerung) -->
+      <div id="status-erklaerung" class="fenster" hidden role="dialog" aria-label="Deine Werte"></div>
       <pre id="hud-debug" hidden></pre>
       <!-- Chat: T öffnet das Eingabefeld, Enter schickt ab -->
       <div id="chat">
@@ -86,6 +92,9 @@
         <button type="button" data-befehl="fliegen">Fliegen (Umschalt+B)</button>
         <button type="button" data-befehl="heilen">Heilen &amp; satt</button>
         <button type="button" data-befehl="ausruesten">Waffen &amp; Munition</button>
+        <!-- Runde 28: einzelne Waffe aus einer Liste (mit Munition) -->
+        <button type="button" data-waffenliste>Waffe spawnen …</button>
+        <div id="admin-waffen" class="admin-waffen" hidden></div>
         <button type="button" data-befehl="zombieSpawnen">Zombie spawnen</button>
         <button type="button" data-befehl="zombiesToeten">Alle Zombies töten</button>
         <button type="button" data-befehl="zeitSpringen">Tag ⇄ Nacht</button>

@@ -292,6 +292,15 @@ export const REZEPTE = {
     zutaten: { holz: 2, stoff: 1 },
     ergebnis: 'schiene',
   },
+  // Runde 28: Verband direkt im Inventar aus Stofffetzen (ohne Webstuhl)
+  verband_stofffetzen: {
+    name: 'Verband',
+    kategorie: 'Medizin',
+    ort: 'inventar',
+    beschreibung: 'Zwei Stofffetzen zu einem Verband falten – stillt Blutungen.',
+    zutaten: { stoff: 2 },
+    ergebnis: 'verband',
+  },
   mehl: {
     name: 'Mehl mahlen',
     kategorie: 'Küche',

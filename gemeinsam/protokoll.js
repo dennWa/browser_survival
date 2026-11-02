@@ -145,6 +145,7 @@ export const ADMIN_BEFEHLE = Object.freeze({
   BOT_ENTFERNEN: 'botEntfernen', // nächsten Bot bei { tx, ty } entfernen (≤ 4 Kacheln)
   BOTS_ENTFERNEN: 'botsEntfernen', // alle Bots der Zone entfernen
   SPIELTAG_VOR: 'spieltagVor', // Runde 24: Spieltag +1 (Horden-Progression, Boss-Nacht/Blutmond testen)
+  WAFFE_GEBEN: 'waffeGeben', // Runde 28: eine Waffe { wert: defId } aus der Liste – mit vollem Magazin + reichlich Munition
 });
 
 /**

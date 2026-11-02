@@ -28,6 +28,22 @@ import { BauMenue } from './bauMenue.js';
 const AKTUALISIERUNG_MS = 250;
 const MELDUNG_DAUER_MS = 2600;
 const MAX_MELDUNGEN = 4;
+/** Runde 28: Erklärungen für die Status-Übersicht (Statusleiste antippen) */
+const ERKLAERUNG = {
+  leben: 'Sinkt bei Treffern, Hunger, Durst, Kälte, Blutung und Krankheit. Steigt langsam von selbst, wenn Essen UND Trinken mindestens 80 % haben.',
+  hunger: 'Sinkt mit der Zeit. Essen füllt es auf. Bei 0 verlierst du Leben.',
+  durst: 'Sinkt mit der Zeit. Trinken füllt es auf. Bei 0 verlierst du Leben.',
+  ausdauer: 'Wird beim Rennen verbraucht und erholt sich im Gehen/Stehen.',
+  level: 'Erfahrung für Zombies, Abbauen und Ziele. Jeder Aufstieg gibt einen Fähigkeitspunkt. Beim Tod geht das Level verloren.',
+  kaelte: 'Steigt draußen bei Nacht, Regen und in der Kälte – nass noch schneller. Drinnen, am Feuer und mit warmer Kleidung sinkt sie.',
+  muedigkeit: 'Steigt mit der Zeit. Schlafen im Bett hilft. Ab 85 % bist du langsamer und heilst nicht.',
+  naesse: 'Im Regen draußen wirst du nach und nach nass (klamm, feucht, nass, sehr nass, klatschnass). Drinnen trocknest du – eine Stufe pro Minute, am Feuer schneller. Ab „feucht“ droht nach 5 Minuten eine Erkältung.',
+  erkaeltung: 'Wird mit der Zeit schlimmer: du hustest öfter, ab 30 % rennst du langsamer, ab 50 % verlierst du langsam Leben. Antibiotika helfen; Wärme und Trockenheit bremsen sie.',
+};
+const NAESSE_NAMEN = ['trocken', 'klamm', 'feucht', 'nass', 'sehr nass', 'klatschnass'];
+
+/** Runde 28: Doppeltipp in der Schnellleiste = verbrauchen */
+const DOPPELTIPP_MS = 450;
 const LANGES_DRUECKEN_MS = 500;
 const ICON_GROESSE = 48;
 const CHAT_ZEILEN = 8;
@@ -55,6 +71,9 @@ export class Hud {
   #zustandSchluessel = '';
   #letztErschoepft = false;
   #istAdmin = false;
+  #itemDefs = null; // Runde 28: für die Admin-Waffenliste
+  #letzteDaten = null; // Runde 28: Status-Erklärung
+  #ausdauerProzent = null;
   #nachtsicht = false;
   #schalterStand = '';
   #minikarteAn = true;
@@ -195,6 +214,22 @@ export class Hud {
       knopf.addEventListener('click', () => this.#aktionen.admin?.(knopf.dataset.befehl));
     }
     this.el.adminPanel.querySelector('[data-nachtsicht]').addEventListener('click', () => this.#aktionen.nachtsicht?.());
+    // Runde 28: Waffe spawnen → Liste aller Waffen (Fern- und Nahkampf) aus den Item-Definitionen
+    const waffenListe = dokument.getElementById('admin-waffen');
+    this.el.adminPanel.querySelector('[data-waffenliste]').addEventListener('click', (e) => {
+      waffenListe.hidden = !waffenListe.hidden;
+      e.currentTarget.classList.toggle('an', !waffenListe.hidden);
+      if (waffenListe.hidden || waffenListe.childElementCount) return;
+      const waffen = Object.entries(this.#itemDefs ?? {}).filter(([, d]) => d.kategorie === 'fernkampf' || d.kategorie === 'nahkampf');
+      waffen.sort((a, b) => (a[1].kategorie === b[1].kategorie ? a[1].name.localeCompare(b[1].name) : a[1].kategorie === 'fernkampf' ? -1 : 1));
+      waffenListe.replaceChildren(
+        ...waffen.map(([id, d]) => {
+          const k = Object.assign(dokument.createElement('button'), { type: 'button', textContent: d.name });
+          k.addEventListener('click', () => this.#aktionen.admin?.('waffeGeben', id));
+          return k;
+        }),
+      );
+    });
     this.entwickler = new EntwicklerFenster(dokument);
     this.entwickler.beiAktionen({
       abfragen: () => this.#aktionen.entwicklerAbfragen?.(),
@@ -219,6 +254,14 @@ export class Hud {
       modsAbnehmen: (slot) => this.#aktionen.modsAbnehmen?.(slot), // Runde 24: Aufsätze von der Waffe
     });
     el('hud-inventar').addEventListener('click', () => this.inventar.zeige());
+    this.el.naesse = el('hud-naesse');
+    this.el.statusErklaerung = el('status-erklaerung');
+    this.el.naesse.addEventListener('click', () => this.statusErklaerungUmschalten(true));
+    this.el.statusErklaerung.addEventListener('click', () => this.statusErklaerungUmschalten(false));
+    // Runde 28: Statusleiste (oben links) antippen/anklicken → große Erklärung (Chips erklären sich weiter selbst)
+    el('hud-werte').addEventListener('click', (e) => !e.target.closest('.zustand-chip') && this.statusErklaerungUmschalten());
+    this.el.ego = el('hud-ego');
+    this.el.ego.addEventListener('click', () => this.#aktionen.ego?.()); // Runde 28: Ich-Perspektive am Handy
     this.station = new StationFenster(dokument, { zeichneIcon: (canvas, defId) => this.zeichneIcon(canvas, defId) });
     this.station.beiAktionen({
       legen: (slot) => this.#aktionen.stationLegen?.(slot),
@@ -372,6 +415,11 @@ export class Hud {
     this.el.werte.hidden = BALKEN.every((n) => this.anzeige.balken[n] === false);
   }
 
+  /** Runde 28: Ego-Knopf hervorheben, solange die Ich-Perspektive an ist */
+  zeigeEgo(an) {
+    this.el.ego?.classList.toggle('aktiv', an);
+  }
+
   /** Admin-Menü auf/zu (nur wenn der Server Admin-Recht gemeldet hat). */
   adminMenuUmschalten(offen = this.el.adminPanel.hidden) {
     if (!this.#istAdmin) return;
@@ -522,18 +570,29 @@ export class Hud {
     if (gerundet === this.#letzteAusdauer && erschoepft === this.#letztErschoepft) return;
     this.#letzteAusdauer = gerundet;
     this.#letztErschoepft = erschoepft;
+    this.#ausdauerProzent = gerundet * 100;
     setzeBalken(this.el.ausdauer, gerundet);
     this.el.ausdauer.classList.toggle('erschoepft', !!erschoepft);
   }
 
   /** Private Spielerdaten vom Server (bei jeder Änderung). */
   setzeSpielerDaten(daten, itemDefinitionen) {
+    this.#itemDefs = itemDefinitionen;
     setzeBalken(this.el.leben, daten.leben / daten.maxLeben);
     this.#zeigeLevel(daten);
     setzeBalken(this.el.hunger, daten.hunger / 100);
     setzeBalken(this.el.durst, daten.durst / 100);
     if (this.el.gemuetlich) this.el.gemuetlich.hidden = !daten.gemuetlich;
     this.#zeigeZustand(daten);
+    this.#zeigeNaesse(daten.naesse ?? 0);
+    // Runde 28 (Handy): Statusleiste sitzt oben links – das Tagebuch rutscht darunter statt sie zu verdecken
+    if (this.#istTouch) {
+      const tb = this.dokument.querySelector('.tagebuch');
+      const unten = this.el.werte.hidden ? 0 : this.el.werte.getBoundingClientRect().bottom;
+      if (tb && unten > 0) tb.style.top = `${Math.round(unten + 8)}px`;
+    }
+    this.#letzteDaten = daten;
+    if (!this.el.statusErklaerung.hidden) this.#zeigeStatusErklaerung(daten);
     const kaelte = daten.kaelte ?? 0;
     this.el.kaelte.hidden = kaelte <= 0;
     if (kaelte > 0) {
@@ -609,7 +668,8 @@ export class Hud {
       }
     }
     const i = d.interaktion;
-    const hinweis = i ? `${this.#istTouch ? (i.symbol ?? '✋') : '[E]'} ${i.text}` : null;
+    const vorsatz = this.#istTouch ? (i?.symbol ?? '✋') : '[E]';
+    const hinweis = i ? (vorsatz ? `${vorsatz} ${i.text}` : i.text) : null;
     if (hinweis !== this.#letzterHinweis) {
       this.#letzterHinweis = hinweis;
       this.el.aufheben.hidden = !hinweis;
@@ -668,11 +728,22 @@ export class Hud {
       const abbrechen = () => clearTimeout(timer);
       knopf.addEventListener('pointerup', abbrechen);
       knopf.addEventListener('pointerleave', abbrechen);
+      let letzterTipp = 0;
       knopf.addEventListener('click', () => {
         if (langGedrueckt) {
           langGedrueckt = false;
           return;
         }
+        // Runde 28: Doppeltipp/-klick auf Essen, Trinken, Medizin (z. B. Verband) → sofort verbrauchen (wie im Inventar)
+        const def = this.#itemDefs?.[this.#slots[slot].defId];
+        const verbrauchbar = def && (def.kategorie === 'nahrung' || def.kategorie === 'getraenk' || def.kategorie === 'medizin');
+        const jetzt = performance.now();
+        if (verbrauchbar && jetzt - letzterTipp < DOPPELTIPP_MS) {
+          letzterTipp = 0;
+          this.#aktionen.konsumieren?.(slot);
+          return;
+        }
+        letzterTipp = jetzt;
         this.#aktionen.benutzen?.(slot);
       });
       knopf.addEventListener('contextmenu', (e) => {
@@ -778,6 +849,7 @@ export class Hud {
     if (z.bruch === 1) chips.push(['schlecht', '🦴 Bein gebrochen', 'Du humpelst – eine Schiene hilft (Werkbank: Holz + Stoff)']);
     if (z.bruch === 2) chips.push(['mittel', '🦴 Geschient', 'Heilt von selbst – noch etwas langsamer']);
     if (z.vergiftung) chips.push(['schlecht', '🤢 Vergiftet', 'Übelkeit, Durst – Aktivkohle hilft. Fleisch/Fisch braten, Wasser abkochen!']);
+    if (z.erkaeltung) chips.push(['schlecht', `Erkältet ${z.erkaeltung} %`, ERKLAERUNG.erkaeltung]); // Runde 28
     const b = daten.buffs ?? {};
     if (b.satt) chips.push(['gut', '🍲 Satt', `Hunger sinkt langsamer (${Math.ceil(b.satt / 60)} min)`]);
     if (b.warm) chips.push(['gut', '♨ Warm', `Du frierst langsamer (${Math.ceil(b.warm / 60)} min)`]);
@@ -792,6 +864,58 @@ export class Hud {
         Object.assign(c, { type: 'button', className: `zustand-chip ${art}`, textContent: text, title: hilfe });
         c.addEventListener('click', () => this.meldung(hilfe)); // Touch: Tippen erklärt
         return c;
+      }),
+    );
+  }
+
+  /** Runde 28: Nässe-Symbol oben (Stufe 1–5, Name, Punkte) */
+  #zeigeNaesse(stufe) {
+    const el = this.el.naesse;
+    el.hidden = !stufe;
+    if (!stufe || el.dataset.stufe === String(stufe)) return;
+    el.dataset.stufe = String(stufe);
+    el.querySelector('.naesse-text').textContent = NAESSE_NAMEN[stufe];
+    el.querySelectorAll('.naesse-stufen i').forEach((p, i) => p.classList.toggle('an', i < stufe));
+    el.title = `Nässe: ${NAESSE_NAMEN[stufe]} – ${ERKLAERUNG.naesse}`;
+  }
+
+  /** Runde 28: Statusleiste angetippt → alle Werte groß und erklärt (Tippen/Klick schließt). */
+  statusErklaerungUmschalten(offen = this.el.statusErklaerung.hidden) {
+    this.el.statusErklaerung.hidden = !offen;
+    if (offen) this.#zeigeStatusErklaerung(this.#letzteDaten);
+  }
+
+  #zeigeStatusErklaerung(d) {
+    if (!d) return;
+    const prozent = (w) => `${Math.round(Math.max(0, Math.min(100, w)))} %`;
+    const zeilen = [
+      ['leben', 'Leben', prozent((d.leben / d.maxLeben) * 100), (d.leben / d.maxLeben) * 100, ERKLAERUNG.leben],
+      ['hunger', 'Essen (Sättigung)', prozent(d.hunger), d.hunger, ERKLAERUNG.hunger],
+      ['durst', 'Trinken', prozent(d.durst), d.durst, ERKLAERUNG.durst],
+      ['ausdauer', 'Ausdauer', prozent(this.#ausdauerProzent ?? 100), this.#ausdauerProzent ?? 100, ERKLAERUNG.ausdauer],
+      ['xp', `Level ${d.level ?? 1}`, `${d.xp ?? 0} / ${d.xpNaechstes ?? '–'} XP`, d.xpNaechstes ? ((d.xp ?? 0) / d.xpNaechstes) * 100 : 0, ERKLAERUNG.level],
+    ];
+    if ((d.kaelte ?? 0) > 0) zeilen.push(['kaelte', 'Kälte', prozent(d.kaelte), d.kaelte, ERKLAERUNG.kaelte]);
+    if ((d.muedigkeit ?? 0) >= 40) zeilen.push(['muedigkeit', 'Müdigkeit', prozent(d.muedigkeit), d.muedigkeit, ERKLAERUNG.muedigkeit]);
+    if (d.naesse) zeilen.push(['naesse', `Nässe: ${NAESSE_NAMEN[d.naesse]}`, `Stufe ${d.naesse} / 5`, d.naesse * 20, ERKLAERUNG.naesse]);
+    const z = d.zustand ?? {};
+    if (z.erkaeltung) zeilen.push(['erkaeltung', 'Erkältet', prozent(z.erkaeltung), z.erkaeltung, ERKLAERUNG.erkaeltung]);
+    if (z.blutung) zeilen.push(['blutung', 'Blutung', 'aktiv', 100, 'Du verlierst ständig Leben und hinterlässt eine Blutspur. Verband benutzen (Doppeltipp) – Verbände macht man aus 2 Stofffetzen.']);
+    const d2 = this.dokument;
+    const kopf = d2.createElement('div');
+    kopf.className = 'se-kopf';
+    kopf.innerHTML = '<b>Deine Werte</b><span>Tippen zum Schließen</span>';
+    this.el.statusErklaerung.replaceChildren(
+      kopf,
+      ...zeilen.map(([icon, name, wert, anteil, text]) => {
+        const zeile = d2.createElement('div');
+        zeile.className = `se-zeile se-${icon}`;
+        zeile.innerHTML = `<svg class="ui-icon" aria-hidden="true"><use href="#i-${icon === 'xp' ? 'xp' : icon === 'muedigkeit' ? 'person' : icon === 'kaelte' ? 'schneeflocke' : icon}"/></svg><div class="se-mitte"><div class="se-name"><span></span><b></b></div><div class="se-balken"><div></div></div><p></p></div>`;
+        zeile.querySelector('.se-name span').textContent = name;
+        zeile.querySelector('.se-name b').textContent = wert;
+        zeile.querySelector('.se-balken div').style.width = `${Math.max(0, Math.min(100, anteil))}%`;
+        zeile.querySelector('p').textContent = text;
+        return zeile;
       }),
     );
   }

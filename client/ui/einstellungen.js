@@ -165,8 +165,9 @@ export class EinstellungenFenster {
       this.dokument.getElementById('einst-stick-fest').classList.toggle('aktiv', fest);
       this.dokument.getElementById('einst-stick-frei').classList.toggle('aktiv', !fest);
       this.dokument.getElementById('einst-stick-regler').hidden = !fest;
-      this.dokument.getElementById('einst-stick-rand').value = touch.einstellung.rand;
-      this.dokument.getElementById('einst-stick-hoehe').value = touch.einstellung.hoehe;
+      const masse = touch.masse(); // Runde 28: 'auto' → aktuelle Werte zeigen
+      this.dokument.getElementById('einst-stick-rand').value = Math.round(masse.rand);
+      this.dokument.getElementById('einst-stick-hoehe').value = Math.round(masse.hoehe);
     }
     for (const regler of this.reglerEl.querySelectorAll('input')) regler.value = Math.round(this.#sound.lautstaerken[regler.dataset.kanal] * 100);
   }

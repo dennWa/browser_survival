@@ -214,6 +214,15 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE, { au
   // Runde 25: eingebaute Behälter-Modelle (Truhe, Kleiderschrank …), die die Karte benutzt, ohne sie selbst zu definieren
   for (const o of objekte) if (BEHAELTER_TYPEN[o.typ] && !typen[o.typ]) typen[o.typ] = { glbDatei: BEHAELTER_TYPEN[o.typ].glbDatei, hoehe3d: BEHAELTER_TYPEN[o.typ].hoehe3d };
   if (Object.keys(typen).length) daten.typen = typen;
+  // Runde 28: Kamin-Modelle aus dem Editor (fireplace.glb, Typname mit „kamin“/„fireplace“) sind sonst nur Deko → kartenfestes
+  // Kamin-Bauwerk an derselben Stelle (unsichtbar, `karteObjekt`): anzünden (E/F + Feuerzeug), Holz nachlegen, Wärme, Licht.
+  for (const o of objekte) {
+    const glb = typen[o.typ]?.glbDatei ?? '';
+    if (!/kamin|fireplace/i.test(`${o.typ} ${glb}`) || /stove|herd/i.test(`${o.typ} ${glb}`)) continue;
+    const tx = Math.floor(o.x + (o.b ?? 1) / 2);
+    const ty = Math.floor(o.y + (o.h ?? 1) / 2);
+    if (imFeld(tx, ty) && !bauwerke.some((b) => b.tx === tx && b.ty === ty)) bauwerke.push({ typ: 'kamin', tx, ty, karteObjekt: true });
+  }
   if (typeof definition.musik === 'string' && /^[a-z0-9_-]{1,40}$/i.test(definition.musik)) daten.musik = definition.musik;
   const klaenge = (Array.isArray(definition.klaenge) ? definition.klaenge : []).map((k) => pruefeKlang(k, { breite, hoehe })).filter((k) => k && (k.datei || k.daten));
   if (klaenge.length) daten.klaenge = klaenge;

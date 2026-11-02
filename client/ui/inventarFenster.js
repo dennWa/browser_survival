@@ -30,7 +30,7 @@ export function slotBeschriftung(slot) {
 const MOD_NAMEN = { zielfernrohr: 'Zielfernrohr', magazin: 'großes Magazin', schalldaempfer: 'Schalldämpfer' };
 
 /** Zwei Klicks/Tipps innerhalb dieser Zeit (ms) auf denselben Platz = Doppelklick */
-const DOPPELKLICK_MS = 380;
+const DOPPELKLICK_MS = 450; // Runde 28: am Handy war 380 ms oft zu knapp
 
 export class InventarFenster {
   #aktionen = {};

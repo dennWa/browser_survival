@@ -1,5 +1,7 @@
 /**
- * EGO-PROTOTYP (Ich-Perspektive) – reines Experiment, nur PC. Taste C schaltet um.
+ * EGO-PROTOTYP (Ich-Perspektive) – Taste C bzw. (Runde 28) Ego-Knopf im HUD am Handy.
+ * Handy: rechter Stick dreht den Blick (links/rechts = drehen, hoch/runter = neigen; ganz ausgelenkt schießt er wie sonst),
+ * linker Stick läuft relativ zur Blickrichtung; kein Pointer Lock.
  * Komplett entfernbar: siehe docs/EGO_PROTOTYP.md im Projektstamm (Liste aller berührten Stellen).
  *
  *   - Kamera: in Augenhöhe an der Spielerposition, Blick per Maus (Pointer Lock: Yaw + Pitch)
@@ -14,6 +16,8 @@ const FOV_EGO = 78;
 const NEAR_EGO = 2;
 const PITCH_MAX = 1.25;
 const EMPFINDLICHKEIT = 0.0024;
+const TOUCH_DREHEN = 2.6; // rad/s bei vollem Stick-Ausschlag (Handy)
+const TOUCH_NEIGEN = 1.3;
 
 export class EgoModus {
   #aktiv = false;
@@ -109,6 +113,7 @@ export class EgoModus {
       return l > 1 ? { x: x / l, y: y / l } : { x, y };
     };
     e.blickWinkel = () => this.#yaw;
+    // Handy: Ziel-Stick dreht nur noch (Ego) – Angriff bei Vollausschlag bleibt (eingabe.angriff)
     e.neigung = () => this.#pitch; // Server: Treffer auf Gelände nur, wenn die Höhe passt (nach oben zielen)
     this.#wiederherstellen = () => {
       delete e.richtung;
@@ -118,8 +123,17 @@ export class EgoModus {
       void blickOriginal;
     };
     this.fadenkreuz.hidden = false;
-    this.hinweis.hidden = false;
-    this.leinwand.requestPointerLock?.();
+    this.hinweis.hidden = this.#touch();
+    if (!this.#touch()) this.leinwand.requestPointerLock?.();
+    this.beiUmschalten?.(true);
+  }
+
+  get aktiv() {
+    return this.#aktiv;
+  }
+
+  #touch() {
+    return !!this.eingabe.touch?.sichtbar;
   }
 
   #wiederherstellen = () => {};
@@ -140,6 +154,7 @@ export class EgoModus {
     this.fadenkreuz.hidden = true;
     this.hinweis.hidden = true;
     if (document.pointerLockElement === this.leinwand) document.exitPointerLock();
+    this.beiUmschalten?.(false);
   }
 
   /** Pro Frame vom Renderer: Kamera ins Auge setzen, eigene Figur ausblenden. */
@@ -147,6 +162,13 @@ export class EgoModus {
     const jetzt = performance.now();
     const dt = Math.min(0.1, (jetzt - this.#letzteZeit) / 1000);
     this.#letzteZeit = jetzt;
+    // Handy: rechter Stick = Blick drehen/neigen (pro Bild, unabhängig vom Spieltakt)
+    const stick = this.#touch() ? this.eingabe.touch.zielVektor?.() : null;
+    if (stick) {
+      if (fokus.fahrzeugId) this.#blickVersatz = Math.max(-2, Math.min(2, this.#blickVersatz + stick.x * TOUCH_DREHEN * dt));
+      else this.#yaw += stick.x * Math.abs(stick.x) * TOUCH_DREHEN * dt;
+      this.#pitch = Math.max(-PITCH_MAX, Math.min(PITCH_MAX, this.#pitch - stick.y * Math.abs(stick.y) * TOUCH_NEIGEN * dt));
+    }
     let augenX = fokus.x;
     let augenY = fokus.y;
     let hoehe = AUGENHOEHE;

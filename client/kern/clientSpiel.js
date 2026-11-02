@@ -264,6 +264,7 @@ export class ClientSpiel {
     const was = this.#interaktion();
     if (!was) return;
     if (was.art === 'fahrzeug') return this.#aktion(AKTIONEN.FAHRZEUG);
+    if (was.art === 'kofferraum') return this.#aktion(AKTIONEN.KOFFERRAUM); // Runde 28
     if (was.art === 'mitspieler') return this.mehrspieler.zeigeMenue({ id: was.id, name: was.name }); // Runde 24
     if (was.art === 'helfen') return this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.HELFEN, ziel: was.id });
     if (was.art === 'haustier') return this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.HAUSTIER, ziel: was.id });
@@ -283,22 +284,48 @@ export class ClientSpiel {
    * Klick auf die große Karte: nur erkundete, begehbare Orte. Der Charakter läuft in normalem Tempo (kein Sprint)
    * den A*-Weg ab; jede Eingabe (WASD, Stick, Angriff, Einsteigen), Tod oder Zonenwechsel bricht ab.
    */
-  autoLaufStarten(tx, ty, erkundet = true) {
-    if (this.spielerDaten?.tot || this.lokal.fahrzeug) return this.hud.meldung('Auto-Lauf geht nur zu Fuß');
+  autoLaufStarten(tx, ty, erkundet = true, { tipp = false } = {}) {
+    if (this.spielerDaten?.tot || this.lokal.fahrzeug) return tipp ? false : this.hud.meldung('Auto-Lauf geht nur zu Fuß');
     if (!erkundet) return this.hud.meldung('Dorthin kannst du nur, wo du schon warst');
-    if (this.welt.istBlockiert(tx, ty)) return this.hud.meldung('Dort kommt man nicht hin');
-    const pfad = findePfad(this.welt, this.lokal.x, this.lokal.y, (tx + 0.5) * this.welt.kachelGroesse, (ty + 0.5) * this.welt.kachelGroesse, { maxKnoten: 90000, tuerKosten: 6 });
-    if (!pfad || pfad.length === 0) return this.hud.meldung(pfad ? 'Du bist schon da' : 'Dorthin gibt es keinen Weg');
-    this.autoLauf = { ziel: { tx, ty }, pfad, stuck: 0, letzteX: this.lokal.x, letzteY: this.lokal.y, neuVersuche: 0 };
+    if (this.welt.istBlockiert(tx, ty)) return tipp ? false : this.hud.meldung('Dort kommt man nicht hin');
+    const pfad = findePfad(this.welt, this.lokal.x, this.lokal.y, (tx + 0.5) * this.welt.kachelGroesse, (ty + 0.5) * this.welt.kachelGroesse, { maxKnoten: tipp ? 20000 : 90000, tuerKosten: 6 });
+    if (!pfad || pfad.length === 0) return tipp ? false : this.hud.meldung(pfad ? 'Du bist schon da' : 'Dorthin gibt es keinen Weg');
+    this.autoLauf = { ziel: { tx, ty }, pfad, stuck: 0, letzteX: this.lokal.x, letzteY: this.lokal.y, neuVersuche: 0, tipp };
     this.karte.ziel = { tx, ty };
+    if (tipp) {
+      // Runde 28: Tippen zum Laufen – leise, mit Ring am Ziel (kein Banner/keine Meldung)
+      this.renderer.laufZiel = { x: (tx + 0.5) * this.welt.kachelGroesse, y: (ty + 0.5) * this.welt.kachelGroesse };
+      return true;
+    }
     this.karte.zeige(false);
     this.hud.zeigeAutoLauf(true);
     this.hud.meldung('🧭 Auto-Lauf – jede Taste bricht ab');
   }
 
+  /**
+   * Runde 28 (Handy): auf eine freie Stelle tippen → die Figur läuft per A* dorthin (Zombie antippen = anvisieren hat Vorrang).
+   * Jede Stick-/Tasten-Eingabe bricht ab. @returns true, wenn ein Lauf startet
+   */
+  tippLaufen(sx, sy) {
+    if (this.spielerDaten?.tot || this.lokal.fahrzeug || this.bau.aktiv || this.platzierung || this.fensterOffen()) return false;
+    const punkt = this.renderer.kamera.bildschirmZuWelt(sx, sy);
+    if (!punkt) return false;
+    const g = this.welt.kachelGroesse;
+    const tx = Math.floor(punkt.x / g);
+    const ty = Math.floor(punkt.y / g);
+    if (tx < 0 || ty < 0 || tx >= this.welt.breite || ty >= this.welt.hoehe) return false;
+    return this.autoLaufStarten(tx, ty, true, { tipp: true }) === true;
+  }
+
   autoLaufStoppen(grund = null) {
     if (!this.autoLauf) return;
+    const tipp = this.autoLauf.tipp;
     this.autoLauf = null;
+    this.renderer.laufZiel = null;
+    if (tipp) {
+      this.karte.ziel = null;
+      return; // Tippen zum Laufen: ohne Meldung („Ziel erreicht“ wäre bei jedem Tipp nervig)
+    }
     this.karte.ziel = null;
     this.hud.zeigeAutoLauf(false);
     if (grund) this.hud.meldung(grund);
@@ -446,6 +473,7 @@ export class ClientSpiel {
     if (this.schlaeft && !this.etwasOffen()) this.#aktion(AKTIONEN.SCHLAFEN);
     this.karte.zeige(false);
     this.musikFenster?.zeige(null);
+    this.hud.statusErklaerungUmschalten?.(false); // Runde 28
     this.hud.entwickler.zeige(false);
     this.hud.inventar.zeige(false);
     this.hud.skills.zeige(false);
@@ -566,6 +594,15 @@ export class ClientSpiel {
     return false;
   }
 
+  /** Runde 28: Auto mit Fahrer, aber freiem Beifahrersitz in Reichweite (→ „Einsteigen“ als Beifahrer) */
+  #naechstesFahrzeugMitPlatz() {
+    const letzter = this.schnappschuesse[this.schnappschuesse.length - 1];
+    for (const e of letzter?.entitaeten.values() ?? []) {
+      if (e.typ === 'fahrzeug' && !e.kaputt && e.fahrerId !== null && e.fahrerId !== this.eigeneId && (e.beifahrerId ?? null) === null && abstandZumFahrzeug(e, this.lokal.x, this.lokal.y) <= EINSTIEG_ABSTAND) return e;
+    }
+    return null;
+  }
+
   /** Auto (auch besetzt/Wrack) in Einstiegsreichweite aus dem letzten Schnappschuss – für Kofferraum-Knopf & -Taste. */
   #naheFahrzeug() {
     const letzter = this.schnappschuesse[this.schnappschuesse.length - 1];
@@ -578,11 +615,14 @@ export class ClientSpiel {
   #interaktion() {
     if (this.spielerDaten?.tot || this.spielerDaten?.arbeit || this.spielerDaten?.niedergestreckt) return null;
     const { x, y } = this.lokal;
-    if (this.lokal.fahrzeug) return { art: 'fahrzeug', text: 'Aussteigen', symbol: '🚪' };
+    // Runde 28: Fahrzeug-Aktionen schlicht ohne Emoji (symbol '' = kein Vorsatz am Handy)
+    if (this.lokal.fahrzeug || this.mitfahrt) return { art: 'fahrzeug', text: 'Aussteigen', symbol: '' };
     const gegenstand = this.#naechsterGegenstand();
     if (gegenstand) return { art: 'aufheben', text: `${gegenstand.menge > 1 ? `${gegenstand.name} ×${gegenstand.menge}` : gegenstand.name} aufheben`, gegenstand };
-    const auto = this.#naechstesFreiesFahrzeug();
-    if (auto) return { art: 'fahrzeug', text: `Einsteigen (${FAHRZEUG_MODELLE[auto.modell]?.name ?? 'Auto'})`, symbol: '🚗' };
+    // Hinten am Auto: Kofferraum (unten, statt Knopf oben) – sonst Einsteigen (Fahrer, bei besetztem Steuer Beifahrer)
+    if (this.#hinterAuto()) return { art: 'kofferraum', text: 'Kofferraum öffnen', symbol: '' };
+    const auto = this.#naechstesFreiesFahrzeug() ?? this.#naechstesFahrzeugMitPlatz();
+    if (auto) return { art: 'fahrzeug', text: 'Einsteigen', symbol: '' };
     const mitspieler = this.#naechsterMitspieler(); // Runde 24 (P14): helfen / Handel / Gruppe
     if (mitspieler) return mitspieler;
     const tier = this.#naechstesHaustier(); // Runde 24: Hund/Katze/Huhn
@@ -874,7 +914,7 @@ export class ClientSpiel {
   }
 
   /** Admin-Befehl (siehe ADMIN_BEFEHLE) – der Server prüft das Recht, der Client zeigt den Knopf nur Admins. */
-  admin(befehl) {
+  admin(befehl, wert) {
     if (!this.spielerDaten?.admin) return;
     // Runde 23: Bot setzen/entfernen → erst die Stelle anklicken (weltKlick)
     if (befehl === ADMIN_BEFEHLE.BOT_SETZEN || befehl === ADMIN_BEFEHLE.BOT_ENTFERNEN) {
@@ -883,7 +923,7 @@ export class ClientSpiel {
       this.hud.meldung?.(befehl === ADMIN_BEFEHLE.BOT_SETZEN ? '🤖 Klicke auf die Stelle für den Bot' : '🤖 Klicke auf den Bot, der weg soll');
       return;
     }
-    this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.ADMIN, befehl });
+    this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.ADMIN, befehl, ...(wert !== undefined ? { wert } : {}) });
   }
 
   /** Klick/Tipp in die Welt, der etwas anderes als Schießen bedeutet (Admin: Bot setzen/entfernen). true = verbraucht. */
@@ -987,6 +1027,7 @@ export class ClientSpiel {
     this.bau.beiSpielerDaten(daten);
     this.mehrspieler?.aktualisiere(daten, this.itemDefinitionen); // Runde 24 (P14)
     this.lokal.tempoFaktor = daten.tempoFaktor ?? 1; // Skill "Schnelligkeit" → Vorhersage läuft gleich schnell wie der Server
+    this.lokal.sprintMalus = daten.sprintMalus ?? 1; // Runde 28: Erkältung bremst das Rennen
     this.hud.setzeSpielerDaten(daten, this.itemDefinitionen);
     if (this.werkbankOffen) this.hud.zeigeWerkbank(rezepteFuerOrt(this.rezepte, this.werkbankOrt), daten, this.itemDefinitionen, this.werkbankOrt);
   }
@@ -1048,7 +1089,8 @@ export class ClientSpiel {
     if (eigene.gleit) [this.lokal.gleitX, this.lokal.gleitY] = eigene.gleit; // Rutschen auf Eis
     this.lokal.fliegen = eigene.fliegen === true; // Admin-Flugmodus (gleiche Physik wie der Server)
     this.schlaeft = eigene.arbeit === 'schlafen' || eigene.niedergestreckt === true; // im Bett / am Boden festgehalten: Server wendet keine Eingaben an
-    if (eigene.tot || this.schlaeft) {
+    this.mitfahrt = eigene.mitfahrt ?? null; // Runde 28: Beifahrer – Position kommt vom Server, keine Vorhersage
+    if (eigene.tot || this.schlaeft || this.mitfahrt !== null) {
       this.lokalVorher.x = eigene.x;
       this.lokalVorher.y = eigene.y;
       return;
@@ -1122,7 +1164,7 @@ export class ClientSpiel {
     this.lokalVorher.x = this.lokal.x;
     this.lokalVorher.y = this.lokal.y;
     this.lokalVorher.winkel = this.lokal.fahrzeug?.winkel;
-    if (!tot && !this.schlaeft) wendeEingabeAn(this.lokal, eingabe, this.welt, this.physik, TICK_DAUER_S);
+    if (!tot && !this.schlaeft && !this.mitfahrt) wendeEingabeAn(this.lokal, eingabe, this.welt, this.physik, TICK_DAUER_S);
     this.#zombieStoehnen();
     this.#feuerKnistern();
     this.#tierGeraeusche();
@@ -1342,6 +1384,13 @@ export class ClientSpiel {
       case 'tuerSchlag':
         this.sound.spiele('tuer_schlag', { x: e.x, y: e.y, tonhoehe: 0.85 + Math.random() * 0.3 });
         break;
+      case 'husten': // Runde 28: Erkältung – leise im Hintergrund (eigene Figur), andere räumlich
+        if (e.von === this.eigeneId) this.sound.spiele('husten', { lautstaerke: 0.35 + 0.35 * (e.staerke ?? 0) });
+        else this.sound.spiele('husten', { x: e.x, y: e.y, lautstaerke: 0.5, weite: 500 });
+        break;
+      case 'blutfleck': // Runde 28: Blutspur (bleibt ~1 min liegen)
+        this.renderer.blutfleck?.(e.x, e.y);
+        break;
     }
   }
 
@@ -1388,15 +1437,13 @@ export class ClientSpiel {
     else if (faellig('durst', 20, 45)) this.sound.spiele('durst');
     // Phase 4 (Nutzer-Wunsch): kein Keuchen mehr bei leerer Ausdauer – zu anstrengend
     this.warErschoepft = !!this.lokal.erschoepft;
-    // Runde 23: Kälte – ab 50 % Bibbern (Atem + Zähneklappern), ab 75 % auch Husten
+    // Runde 23: Kälte – ab 50 % Bibbern, ab 75 % auch Husten. Runde 28 (Nutzer-Wunsch): nur noch das Zittern (Zähneklappern),
+    // der frierende Atem (Datei „zittern“) entfällt; Husten kommt bei Erkältung vom Server (Ereignis 'husten'), sonst hier.
     const kaelte = d.kaelte ?? 0;
     if (kaelte < 50) delete this.geraeuschUhr.zittern;
-    else if (faellig('zittern', kaelte >= 85 ? 6 : 12, kaelte >= 85 ? 12 : 24)) {
-      this.sound.spiele('zittern');
-      this.sound.spiele('zaehneklappern');
-    }
-    if (kaelte < 75) delete this.geraeuschUhr.husten;
-    else if (faellig('husten', 18, 40)) this.sound.spiele('husten');
+    else if (faellig('zittern', kaelte >= 85 ? 6 : 12, kaelte >= 85 ? 12 : 24)) this.sound.spiele('zaehneklappern');
+    if (kaelte < 75 || d.zustand?.erkaeltung) delete this.geraeuschUhr.husten;
+    else if (faellig('husten', 18, 40)) this.sound.spiele('husten', { lautstaerke: 0.6 });
     const draussen = !this.lokal.fahrzeug && !this.welt.istInnen(this.lokal.x, this.lokal.y);
     const vogelWetter = this.wetter === 'klar' || this.wetter === 'nebel';
     if (draussen && vogelWetter && !this.welt.schnee && (uhr.helligkeit ?? 1) > 0.6 && faellig('vogel', 8, 25)) {
@@ -1629,7 +1676,7 @@ export class ClientSpiel {
 
   /** Minikarte, Angel-Hinweis, Auto-Anzeige, Tab-Liste, Regenton – alles, was nicht jeden Frame neu muss. */
   #oberflaecheAktualisieren(eigen, jetzt) {
-    this.hud.zeigeKofferraumKnopf(!this.spielerDaten?.tot && (!!this.lokal.fahrzeug || !!this.#naheFahrzeug()));
+    this.hud.zeigeKofferraumKnopf(false); // Runde 28: Kofferraum nur noch unten über den Aktions-Knopf (hinten am Auto)
     this.hud.zeigeAuto(this.lokal.fahrzeug && this.eigeneDaten?.fahrzeug ? this.eigeneDaten.fahrzeug : null);
     this.hud.zeigeTacho(this.lokal.fahrzeug && !this.spielerDaten?.tot ? tempoZuKmh(this.lokal.fahrzeug.tempo) : null);
     const angel = this.#angelZustand(jetzt);
@@ -1645,11 +1692,7 @@ export class ClientSpiel {
             ? '🎣 Linksklick: Angel auswerfen'
             : !touch && hand?.art === 'samen'
               ? '🌱 Linksklick: Samen pflanzen'
-              : this.#hinterAuto()
-                ? touch
-                  ? '🧳 Kofferraum: Knopf oben'
-                  : '🧳 [Tab] Kofferraum öffnen'
-                : null,
+              : null,
       angel === 'biss',
     );
     if (this.hud.minikarteAn && jetzt - this.letzteMiniKarte > 180) {

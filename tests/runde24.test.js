@@ -577,6 +577,7 @@ import { spielerDatenPrivat } from '../server/spiel/entitaeten/spieler.js';
 const iss = (welt, spieler, defId, extra = {}) => {
   spieler.inventar[3] = { defId, menge: 1, ...extra };
   spieler.angriffsAbklingzeit = 0;
+  spieler.letzterKonsumTick = undefined; // Runde 28: eigene Konsum-Sperre
   aktion(welt, spieler, { art: AKTIONEN.KONSUMIEREN, slot: 3 });
 };
 
@@ -712,6 +713,7 @@ test('P12 Wasser: Flasche bleibt nach dem Trinken, Regentonne füllt sich bei Re
   // Ohne Wasser in der Nähe: leere Flasche bleibt leer
   spieler.inventar[0] = { defId: 'leere_flasche', menge: 1 };
   spieler.angriffsAbklingzeit = 0;
+  spieler.letzterKonsumTick = undefined; // Runde 28: eigene Konsum-Sperre
   aktion(welt, spieler, { art: AKTIONEN.KONSUMIEREN, slot: 0 });
   assert.equal(spieler.inventar[0]?.defId, 'leere_flasche');
 });

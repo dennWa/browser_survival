@@ -52,6 +52,11 @@ export const ICONS = {
   sonne: 'sun',
   mond: 'moon',
   schneeflocke: 'snowflake-2',
+  // Runde 28: Ego-Ansicht (Handy), Nässe, Erkältung, Blutung
+  ego: 'eye-target',
+  naesse: 'droplets',
+  erkaeltung: 'medical-thermometer',
+  blutung: 'bleeding-wound',
 };
 
 function ladeIconify(pfad) {

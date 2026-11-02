@@ -38,9 +38,9 @@ let renderer = null;
 ladeUiIcons(); // Runde 23: Icon-Sprite (game-icons.net) für HUD/Inventar
 const eingabe = new Eingabe(window, leinwand);
 eingabe.klickGesperrt = () => !!aktuellesSpiel?.fensterOffen(); // Klick ins Spiel bei offenem Fenster schießt nicht
-// Touch-Gesten: zwei Finger = Zoom, Tippen = Zombie anvisieren
+// Touch-Gesten: zwei Finger = Zoom, Tippen = Zombie anvisieren bzw. (Runde 28) auf freie Stelle → hinlaufen
 eingabe.touch.beiZoom = (faktor) => renderer?.zoomen(faktor);
-eingabe.touch.beiTipp = (x, y) => aktuellesSpiel?.weltKlick(x, y) || aktuellesSpiel?.zielAntippen(x, y);
+eingabe.touch.beiTipp = (x, y) => aktuellesSpiel?.weltKlick(x, y) || aktuellesSpiel?.zielAntippen(x, y) || (!renderer?.egoHaken && aktuellesSpiel?.tippLaufen(x, y)); // Runde 28: freie Stelle → hinlaufen (nicht in Ego)
 eingabe.weltKlick = (x, y) => !!aktuellesSpiel?.weltKlick(x, y); // Runde 23: Admin-Klickmodus (Bots)
 // Rechtsklick bricht das Aufstellen (Platzier-Modus) ab
 leinwand.addEventListener('contextmenu', () => aktuellesSpiel?.rechtsklick());
@@ -94,7 +94,8 @@ hud.einstellungen.verbindeHandy({ hud, touch: eingabe.touch });
 hud.einstellungen.verbindeHaustiere({ liste: () => aktuellesSpiel?.haustiere() ?? [], freilassen: (h) => aktuellesSpiel?.haustierFreilassen(h) });
 
 let aktuellesSpiel = null;
-new EgoModus({ eingabe, leinwand, holeRenderer: () => renderer, holeSpiel: () => aktuellesSpiel }); // EGO-PROTOTYP: Taste C
+const ego = new EgoModus({ eingabe, leinwand, holeRenderer: () => renderer, holeSpiel: () => aktuellesSpiel }); // EGO-PROTOTYP: Taste C / Ego-Knopf (Handy)
+ego.beiUmschalten = (an) => hud.zeigeEgo(an);
 let assets = null;
 
 eingabe.beiTaste('debug', () => hud.debugUmschalten());
@@ -141,6 +142,7 @@ hud.beiAktionen({
   anlegen: (slot) => aktuellesSpiel?.anlegen(slot),
   ausziehen: (stelle) => aktuellesSpiel?.ausziehen(stelle),
   zoomStufe: () => renderer?.naechsteZoomStufe(),
+  ego: () => aktuellesSpiel && ego.umschalten(), // Runde 28: Ich-Perspektive am Handy
   skill: (name) => aktuellesSpiel?.skill(name),
   feld: () => aktuellesSpiel?.feldEntfernen(),
   bauen: () => aktuellesSpiel?.bauUmschalten(),
@@ -171,7 +173,7 @@ hud.beiAktionen({
   modsAbnehmen: (slot) => aktuellesSpiel?.slotAktion(AKTIONEN.MODS_ABNEHMEN, slot),
   werkbankSchliessen: () => aktuellesSpiel?.werkbankUmschalten(false),
   wiederbeleben: () => aktuellesSpiel?.wiederbeleben(),
-  admin: (befehl) => aktuellesSpiel?.admin(befehl),
+  admin: (befehl, wert) => aktuellesSpiel?.admin(befehl, wert),
   // Nachtsicht: Dunkelheit im Renderer aus – rein optisch, daher nur im Admin-Menü
   nachtsicht: () => renderer && hud.setzeNachtsicht(renderer.nachtsichtUmschalten()),
 });

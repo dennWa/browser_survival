@@ -69,7 +69,8 @@ function zucke(gruppe, jetzt) {
 
 /** Möbel aufbauen. @returns aktualisiere(b, jetzt) oder null */
 export function baueMoebel(b, gruppe) {
-  const def = MODELLE[b.typ];
+  // Runde 28: Kamin in einem Karten-Modell (karteObjekt) → nur Feuer/Glut, das Modell steht schon auf der Karte
+  const def = b.karteObjekt ? null : MODELLE[b.typ];
   let zusatz = () => {};
   if (def) {
     const platzhalter = box(def.b * KACHEL * 0.8, Math.max(1, def.hoehe * KACHEL * 0.8), def.h * KACHEL * 0.8, holz, 0, (def.hoehe * KACHEL * 0.8) / 2, 0);

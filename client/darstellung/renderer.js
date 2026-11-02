@@ -7,6 +7,7 @@ import { strahlGegenWaende } from '../../gemeinsam/physik/strahl.js';
 import { NaturSchicht, ladeNaturModelle } from './naturModell.js';
 import { vereineGeometrien } from './geometrie.js';
 import { Fussspuren } from './fussspuren.js';
+import { Blutspuren } from './blutspuren.js';
 import { Reifenspuren } from './reifenspuren.js';
 import { bauwerkDrehungY, erzeugeBauwerk, erzeugeVorschau } from './bauwerkModelle.js';
 import { BASIS_MATERIAL, BasisbauSchicht, INSTANZ_TYPEN, bauteilGeometrie, erzeugeGebietRing, initialisiereBasisbauModelle, markierungsHoehe, wirdInstanziert } from './basisbauModelle.js';
@@ -314,6 +315,14 @@ export class Renderer {
     );
     this.zielRing.renderOrder = 5;
     this.zielRing.visible = false;
+    /** Runde 28: Ziel von „Tippen zum Laufen“ (clientSpiel.tippLaufen) – bernsteinfarbener Ring am Boden */
+    this.laufZiel = null; // { x, y } | null
+    this.laufRing = new THREE.Mesh(
+      new THREE.RingGeometry(8, 11, 24).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: 0xf0c060, transparent: true, opacity: 0.75, depthWrite: false, depthTest: false }),
+    );
+    this.laufRing.renderOrder = 5;
+    this.laufRing.visible = false;
     this.itemMaterialien = new Map(); // defId → { normal, markiert, breite, hoehe }
     this.figurMaterialien = new Map(); // Skin-Schlüssel → Material (geteilt)
     this.spielerMaterialien = []; // Spieler-Skins: bekommen nachts ein schwaches Eigenleuchten
@@ -322,6 +331,7 @@ export class Renderer {
     this.figurPool = new Map(); // Pool-Schlüssel → [Figur] (verschwundene Zombies, werden wiederverwendet statt neu geklont)
     this.#baueEffektObjekte();
     this.fussspuren = new Fussspuren(this.szene);
+    this.blutspuren = new Blutspuren(this.szene, (x, y) => this.#hy(x, y)); // Runde 28: Blutspur bei Blutung
     this.reifenspuren = new Reifenspuren(this.szene, (x, y) => this.#hy(x, y));
     this.fallendeBaeume = []; // { gruppe, achse, zeit }
     this.sprechblasen = new Map(); // Spielername → { text, bis } (Chat über dem Kopf)
@@ -424,6 +434,7 @@ export class Renderer {
    */
   async bereiteVor(welt, beiFortschritt = () => {}) {
     this.vorbereitet = null;
+    this.blutspuren?.leeren(); // Runde 28: Blutflecken gehören zur alten Zone
     const bauer = KartenModell.baueSchrittweise({ welt, assets: this.assets, gl: this.gl, mitSchnitt: (m) => this.#mitSchnitt(m), bodenMassstab: this.#bodenMassstab(welt) });
     const modell = bauer.next().value;
     const bloecke = Math.max(1, Math.ceil(welt.breite / BODEN_BLOCK) * Math.ceil(welt.hoehe / BODEN_BLOCK));
@@ -544,7 +555,7 @@ export class Renderer {
     this.istAbstand = Number.isFinite(istAbstand) && istAbstand > 0 ? istAbstand : undefined;
     this.schnitt.uFokus.value.set(fokus.x, _ziel.y, fokus.y);
     this.wetterEffekt.setzeArt(wetter);
-    this.wetterEffekt.aktualisiere(dt, fokus.x, fokus.y, !!this.welt?.istInnen(fokus.x, fokus.y) && !fokus.fahrzeugId);
+    this.wetterEffekt.aktualisiere(dt, fokus.x, fokus.y, !!this.welt?.istUnterDach(fokus.x, fokus.y) && !fokus.fahrzeugId); // Runde 28: auch in der Türzarge
     this.wetterEffekt.setzeInnenMaske(this.welt); // kein Regen im Haus (nur bei Niederschlag und geänderten Bauwerken neu)
     BAUM_WIND.uWindStufe.value = this.wetterEffekt.windStufe;
     BAUM_WIND.uWindZeit.value = this.wetterEffekt.windZeit % 600;
@@ -567,12 +578,18 @@ export class Renderer {
     this.#aktualisiereScheinwerfer(entitaeten, fokus, dunkel);
     this.#aktualisiereItems(gegenstaende, markiertId, jetzt);
     this.#aktualisiereZielRing(entitaeten, zielId, jetzt);
+    this.laufRing.visible = !!this.laufZiel;
+    if (this.laufZiel) {
+      this.laufRing.position.set(this.laufZiel.x, 1 + this.#hy(this.laufZiel.x, this.laufZiel.y), this.laufZiel.y);
+      this.laufRing.scale.setScalar(1 + Math.sin(jetzt / 160) * 0.12);
+    }
     this.#aktualisiereFallendeBaeume(dt);
     this.#aktualisiereFallendeLaternen(dt);
     this.#aktualisiereBauwerke(jetzt, fokus);
     this.gebietRing.animiere(jetzt);
     this.gebietVorschau.animiere(jetzt);
     this.fussspuren.aktualisiere(entitaeten, jetzt);
+    this.blutspuren.aktualisiere(jetzt);
     this.reifenspuren.aktualisiere(entitaeten, jetzt);
     this.#aktualisiereLampenPool(fokus, jetzt, dunkel);
     if (effekte) {
@@ -1264,7 +1281,7 @@ export class Renderer {
     this.blutFlecken = new Map(); // Effekt-Objekt → Mesh
     this.sonderEffekte = new SonderEffekte(this.szene); // Runde 24: Spucke, Explosionen
     this.blutmond = 0; // Runde 24: 0..1 (weich), Ziel `blutmondZiel` setzt clientSpiel aus ZUSTAND.nachtArt
-    this.szene.add(this.spuren, this.partikel, this.markierRing, this.zielRing);
+    this.szene.add(this.spuren, this.partikel, this.markierRing, this.zielRing, this.laufRing);
   }
 
   // ---------------------------------------------------------------------------
@@ -1411,7 +1428,7 @@ export class Renderer {
       }
       const nah = Math.abs(e.x - fokus.x) < SICHTWEITE && Math.abs(e.y - fokus.y) < SICHTWEITE;
       // Tote Spieler (Survivor) bleiben liegen, bis sie wiederbelebt werden; alte Figuren/Zombies verschwinden sofort
-      f.gruppe.visible = (!e.tot || f.survivor) && nah && !e.fahrzeug && !e.fahrzeugId; // im Auto sieht man die Figur nicht
+      f.gruppe.visible = (!e.tot || f.survivor) && nah && !e.fahrzeug && !e.fahrzeugId && !e.mitfahrt; // im Auto (auch Beifahrer) sieht man die Figur nicht
       if (!f.gruppe.visible) continue;
       const schlaeft = e.arbeit === 'schlafen' && e.arbeitOrt;
       if (schlaeft) {
@@ -1647,6 +1664,11 @@ export class Renderer {
     if (vorher === undefined) return;
     const getroffen = vorher <= jetzt ? vorher < anteil && jetzt >= anteil : vorher < anteil || jetzt >= anteil;
     if (getroffen) this.aufschlaege.push({ id: e.id, x: e.x, y: e.y, arbeit: e.arbeit, blick: e.blick });
+  }
+
+  /** Runde 28: Blutfleck (Ereignis 'blutfleck' vom Server) */
+  blutfleck(x, y) {
+    this.blutspuren.fleck(x, y);
   }
 
   /**

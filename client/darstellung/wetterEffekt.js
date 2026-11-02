@@ -178,7 +178,8 @@ export class WetterEffekt {
     this.maskeWelt = welt;
     const { breite, hoehe, kachelGroesse: g } = welt;
     const daten = new Uint8Array(breite * hoehe);
-    for (let ty = 0; ty < hoehe; ty++) for (let tx = 0; tx < breite; tx++) if (welt.istInnen((tx + 0.5) * g, (ty + 0.5) * g)) daten[ty * breite + tx] = 255;
+    // Runde 28: Türzargen an Innenräumen zählen mit (kein Regen im Türrahmen)
+    for (let ty = 0; ty < hoehe; ty++) for (let tx = 0; tx < breite; tx++) if (welt.istUnterDach((tx + 0.5) * g, (ty + 0.5) * g)) daten[ty * breite + tx] = 255;
     this.maske.uMaske.value?.dispose();
     const textur = new THREE.DataTexture(daten, breite, hoehe, THREE.RedFormat, THREE.UnsignedByteType);
     textur.magFilter = textur.minFilter = THREE.NearestFilter;

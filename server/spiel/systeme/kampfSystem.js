@@ -121,7 +121,7 @@ function feuereStrahl(spielWelt, schuetze, winkel, def) {
   // stoff = Material am Einschlag (Client färbt Staub/Splitter passend; Blut gibt es nur bei 'treffer')
   const stoff = ziel ? 'fleisch' : wand.getroffen ? stoffAm(spielWelt.welt, schuetze.x + dx * (bestT + 2), schuetze.y + dy * (bestT + 2)) : null;
   spielWelt.ereignis({ typ: 'schuss', von: schuetze.id, x: schuetze.x, y: schuetze.y, zx: schuetze.x + dx * bestT, zy: schuetze.y + dy * bestT, stoff, ...(def.pfeil ? { pfeil: true } : {}) });
-  if (ziel) fuegeSchadenZu(spielWelt, ziel, def.schaden, schuetze, winkel, { durchschlag: def.durchschlag ?? 0 });
+  if (ziel) fuegeSchadenZu(spielWelt, ziel, def.schaden, schuetze, winkel, { durchschlag: def.durchschlag ?? 0, schuss: true });
   // Runde 24: Pfeile/Bolzen bleiben oft heil liegen (etwas vor dem Einschlag) und lassen sich wieder aufheben
   if (def.pfeil && def.munition && spielWelt.zufall.zahl() < (def.bergen ?? 0)) {
     const t = Math.max(0, bestT - 10);
@@ -181,9 +181,9 @@ function radiusVon(spielWelt, entitaet) {
 export function fuegeSchadenZu(spielWelt, ziel, menge, quelle, winkel = 0, optionen = {}) {
   if (ziel.tot || ziel.leben <= 0 || ziel.gottmodus) return;
   if (ziel.typ === 'tier' && (ziel.art === 'hund' || ziel.art === 'katze')) return; // Runde 27: Hund & Katze sind unsterblich
-  if (ziel.fahrzeug && quelle?.typ === 'zombie') {
-    // Im Auto ist man vor Bissen sicher – dafür leidet das Auto (Boss-Schläge zählen mehr)
-    schlageFahrzeug(spielWelt, ziel.fahrzeug, quelle.angriffsSchaden / spielWelt.konfiguration.zombie.angriffsSchaden);
+  if ((ziel.fahrzeug || ziel.mitfahrt) && quelle?.typ === 'zombie') {
+    // Im Auto (auch als Beifahrer) ist man vor Bissen sicher – dafür leidet das Auto (Boss-Schläge zählen mehr)
+    schlageFahrzeug(spielWelt, ziel.fahrzeug ?? ziel.mitfahrt, quelle.angriffsSchaden / spielWelt.konfiguration.zombie.angriffsSchaden);
     return;
   }
   if (ziel.typ === 'spieler' && tutorialVorSchaden(spielWelt, ziel, menge)) return; // Tutorial: Ohnmacht statt Tod
@@ -249,7 +249,7 @@ export function toeten(spielWelt, ziel, quelle = null, optionen = {}) {
   ziel.niedergestreckt = 0;
   if (quelle?.typ === 'spieler' && quelle !== ziel) quelle.statistik.spieler++;
   ziel.statistik.ueberlebt = 0;
-  if (ziel.fahrzeug) aussteigen(spielWelt, ziel, { erzwingen: true });
+  if (ziel.fahrzeug || ziel.mitfahrt) aussteigen(spielWelt, ziel, { erzwingen: true });
   raeumeZombiesWeg(spielWelt, ziel.x, ziel.y, spielWelt.konfiguration.spieler.todesZombieRadius);
   // Spieler: alles fällt zu Boden (auch Rucksack und Kleidung), nach respawnZeit geht's am Startpunkt weiter
   legeRucksackAb(spielWelt, ziel, spielWelt.konfiguration.loot.todesVerfall);

@@ -23,6 +23,8 @@ export function schlageFahrzeug(spielWelt, fz, schlaege) {
   spielWelt.ereignis({ typ: 'fahrzeugSchaden', id: fz.id, x: fz.x, y: fz.y, leben: fz.leben });
   if (fz.leben > 0) return;
   fz.kaputt = true;
+  const beifahrer = (fz.beifahrerId ?? null) !== null ? spielWelt.holen(fz.beifahrerId) : null;
+  if (beifahrer?.mitfahrt === fz) aussteigen(spielWelt, beifahrer, { erzwingen: true });
   const fahrer = fz.fahrerId !== null ? spielWelt.holen(fz.fahrerId) : null;
   if (fahrer?.fahrzeug === fz) {
     aussteigen(spielWelt, fahrer, { erzwingen: true });
@@ -35,8 +37,21 @@ export function schlageFahrzeug(spielWelt, fz, schlaege) {
 
 export function fahrzeugAktion(spielWelt, spieler) {
   if (spieler.fahrzeug) return aussteigen(spielWelt, spieler);
+  if (spieler.mitfahrt) return aussteigen(spielWelt, spieler);
   const fz = naechstesFreiesFahrzeug(spielWelt, spieler.x, spieler.y);
-  if (!fz) return;
+  // Runde 28: Fahrersitz besetzt → Beifahrersitz (der Erste fährt, der Zweite sitzt daneben)
+  if (!fz) {
+    const mit = naechstesFahrzeugMitPlatz(spielWelt, spieler.x, spieler.y);
+    if (!mit) return;
+    mit.beifahrerId = spieler.id;
+    spieler.mitfahrt = mit;
+    spieler.arbeit = null;
+    spieler.nachladenRest = 0;
+    setzeAufBeifahrersitz(spieler, mit);
+    spielWelt.ereignis({ typ: 'fahrzeug', ein: true, beifahrer: true, x: mit.x, y: mit.y, von: spieler.id });
+    spielWelt.melde(spieler.id, 'Du sitzt auf dem Beifahrersitz (E = aussteigen)');
+    return;
+  }
   if (fz.kaputt) return;
   fz.fahrerId = spieler.id;
   fz.tempo = 0;
@@ -48,7 +63,45 @@ export function fahrzeugAktion(spielWelt, spieler) {
   // Runde 27: Steuer-Hinweis zeigt der Client selbst (Touch und PC unterschiedlich, clientSpiel Ereignis 'fahrzeug')
 }
 
+/** Runde 28: Beifahrer sitzt rechts neben der Fahrzeugmitte (Seite = +y im Fahrzeug, bei winkel 0 nach unten). */
+export function setzeAufBeifahrersitz(spieler, fz) {
+  const seite = Math.min(10, fz.breite * 0.22);
+  spieler.x = fz.x - Math.sin(fz.winkel) * seite;
+  spieler.y = fz.y + Math.cos(fz.winkel) * seite;
+}
+
+function naechstesFahrzeugMitPlatz(spielWelt, x, y) {
+  let bestes = null;
+  let bestAbstand = Infinity;
+  for (const fz of spielWelt.alleVomTyp('fahrzeug')) {
+    if (fz.kaputt || fz.fahrerId === null || (fz.beifahrerId ?? null) !== null) continue;
+    const abstand = abstandZumFahrzeug(fz, x, y);
+    if (abstand <= EINSTIEG_ABSTAND && abstand < bestAbstand) {
+      bestes = fz;
+      bestAbstand = abstand;
+    }
+  }
+  return bestes;
+}
+
 export function aussteigen(spielWelt, spieler, { erzwingen = false } = {}) {
+  if (spieler.mitfahrt) {
+    // Beifahrer: auf der Beifahrerseite raus (sonst irgendwo frei, notfalls neben das Auto)
+    const mit = spieler.mitfahrt;
+    const punkt = ausstiegsPunkt(mit, spielWelt.welt, spielWelt.konfiguration.spieler.radius); // 1. Kandidat = Beifahrerseite
+    if (!punkt && !erzwingen) {
+      spielWelt.melde(spieler.id, 'Hier ist kein Platz zum Aussteigen');
+      return;
+    }
+    spieler.mitfahrt = null;
+    if (mit.beifahrerId === spieler.id) mit.beifahrerId = null;
+    if (punkt) {
+      spieler.x = punkt.x;
+      spieler.y = punkt.y;
+    }
+    spielWelt.ereignis({ typ: 'fahrzeug', ein: false, beifahrer: true, x: mit.x, y: mit.y, von: spieler.id });
+    return;
+  }
   const fz = spieler.fahrzeug;
   if (!fz) return;
   const punkt = ausstiegsPunkt(fz, spielWelt.welt, spielWelt.konfiguration.spieler.radius);
@@ -85,7 +138,15 @@ export function naechstesFreiesFahrzeug(spielWelt, x, y) {
 
 export function aktualisiereFahrzeuge(spielWelt, dt) {
   const g = spielWelt.welt.kachelGroesse;
+  // Runde 28: Auto des Beifahrers nicht mehr in dieser Zone (Fahrer ist rübergefahren) → zu Fuß weiter
+  for (const s of spielWelt.alleVomTyp('spieler')) if (s.mitfahrt && spielWelt.holen(s.mitfahrt.id) !== s.mitfahrt) s.mitfahrt = null;
   for (const fz of spielWelt.alleVomTyp('fahrzeug')) {
+    // Runde 28: Beifahrer weg (tot, ausgeloggt, ausgestiegen)? → Platz frei; sonst sitzt er mit (Position folgt dem Auto)
+    if ((fz.beifahrerId ?? null) !== null) {
+      const bf = spielWelt.holen(fz.beifahrerId);
+      if (!bf || bf.tot || bf.mitfahrt !== fz) fz.beifahrerId = null;
+      else setzeAufBeifahrersitz(bf, fz);
+    }
     // Fahrer weg (tot, ausgeloggt)? → Auto bleibt stehen
     if (fz.fahrerId !== null) {
       const fahrer = spielWelt.holen(fz.fahrerId);

@@ -82,8 +82,16 @@ export class Eingabe {
     fenster.addEventListener('focus', () => setTimeout(() => (this.#fokusWeg = false), 250));
     // Auf dem ganzen Fenster: auch über HUD/Schnellleiste soll weiter gezielt werden
     // mousemove statt nur pointermove: manche Stifte/Touchpads melden pointerType 'pen' o. Ä. – Hauptsache, es zielt
+    // Runde 28: Nach einem Fingertipp schicken Browser „Kompatibilitäts-Mausereignisse“ an dieselbe Stelle – sonst schaute die
+    // Figur beim Antippen eines HUD-Knopfs (Schnellleiste) dorthin. Solche Maus-Ereignisse kurz nach Touch ignorieren.
+    let letzterTouch = -1e9;
+    const touchGesehen = (e) => {
+      if (e.type !== 'pointerdown' || e.pointerType === 'touch') letzterTouch = performance.now();
+    };
+    for (const art of ['touchstart', 'touchend', 'pointerdown']) fenster.addEventListener(art, touchGesehen, { capture: true, passive: true });
     const mausBewegt = (e) => {
       if (e.pointerType === 'touch') return;
+      if (e.sourceCapabilities?.firesTouchEvents || performance.now() - letzterTouch < 900) return;
       this.mausX = e.clientX;
       this.mausY = e.clientY;
       this.mausBenutzt = true;

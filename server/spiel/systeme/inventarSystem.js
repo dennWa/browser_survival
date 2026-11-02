@@ -1,5 +1,5 @@
 import { tutorialAktion } from './tutorialSystem.js';
-import { AUFHEB_REICHWEITE, INVENTAR_MAX, INVENTAR_PLAETZE } from '../../../gemeinsam/konstanten.js';
+import { AUFHEB_REICHWEITE, INVENTAR_MAX, INVENTAR_PLAETZE, TICK_DAUER_S } from '../../../gemeinsam/konstanten.js';
 import { samenZiel } from '../../../gemeinsam/welt/bauwerke.js';
 import { AKTIONEN } from '../../../gemeinsam/protokoll.js';
 import { GEGENSTAENDE, STANDARD_AUSRUESTUNG, UNBEWAFFNET, waffenWerte } from '../konfiguration/gegenstaende.js';
@@ -99,8 +99,10 @@ export function verarbeiteAktionen(spielWelt) {
           break;
         case AKTIONEN.KONSUMIEREN:
           // Doppelklick im Inventar: sofort essen/trinken/heilen (gleiche Abklingzeit wie der Linksklick aus der Hand)
-          if (spieler.angriffsAbklingzeit <= 0 && spieler.inventar[aktion.slot] && konsumiere(spielWelt, spieler, aktion.slot)) {
-            spieler.angriffsAbklingzeit = 0.8;
+          // Runde 28: eigene kurze Sperre statt der Angriffs-Abklingzeit – vorher schluckte ein Schuss/Schlag kurz davor den Doppelklick still
+          if ((spielWelt.tick - (spieler.letzterKonsumTick ?? -1e9)) * TICK_DAUER_S >= KONSUM_SPERRE_S && spieler.inventar[aktion.slot] && konsumiere(spielWelt, spieler, aktion.slot)) {
+            spieler.letzterKonsumTick = spielWelt.tick;
+            spieler.angriffsAbklingzeit = Math.max(spieler.angriffsAbklingzeit, 0.5);
             // Der erste Klick des Doppelklicks hat das Item in die Hand genommen (BENUTZEN) – nach dem Verzehr bleibt die Hand leer
             if (spieler.ausgeruestet === aktion.slot) {
               spieler.ausgeruestet = null;
@@ -472,7 +474,7 @@ export function pflanzeSamenAusHand(spielWelt, spieler, def) {
 
 function hatZustand(spieler, was) {
   const z = spieler.zustand;
-  return !!z && (was === 'blutung' ? z.blutung : was === 'infektion' ? z.infektion > 0 : was === 'vergiftung' ? z.vergiftung > 0 : was === 'bruch' ? z.bruch === 1 : false);
+  return !!z && (was === 'blutung' ? z.blutung : was === 'infektion' ? z.infektion > 0 : was === 'vergiftung' ? z.vergiftung > 0 : was === 'bruch' ? z.bruch === 1 : was === 'erkaeltung' ? z.erkaeltung > 0 : false);
 }
 
 /** Runde 24 (P12): leere Flasche in der Hand + Klick am Ufer → dreckiges Wasser (abkochen!). */
@@ -568,6 +570,9 @@ export function wechsleRucksack(spielWelt, spieler, slot) {
 }
 
 /** Runde 23: Stellen am Körper für Kleidung (Inventar links, gemeinsam mit dem Rucksack = Rücken). */
+/** Runde 28: Mindestabstand zwischen zwei Verbrauchen per Doppelklick (Sekunden) */
+const KONSUM_SPERRE_S = 0.45;
+
 export const KLEIDUNG_STELLEN = Object.freeze(['kopf', 'oberkoerper', 'haende', 'beine', 'fuesse']);
 
 /** Soll-Größe des Inventars: Grundplätze + Rucksack + Taschen der Kleidung. */

@@ -3,13 +3,14 @@ import { toeten } from './kampfSystem.js';
 import { gibStartausruestung, kleidungsWaerme, kleidungsRegenschutz } from './inventarSystem.js';
 import { bettFehlt, spawnPunkt } from './spawnSystem.js';
 import { istGemuetlich } from '../../../gemeinsam/welt/einrichtung.js';
-import { aktualisiereGesundheit, darfHeilen, neuerZustand } from './gesundheitSystem.js';
+import { aktualisiereGesundheit, aktualisiereNaesse, darfHeilen, naesseStufe, neuerZustand } from './gesundheitSystem.js';
 import { aktualisiereNiedergestreckt } from './mehrspielerSystem.js';
 
 /**
  * Überleben: Hunger & Durst sinken, bei 0 verliert man Leben; satt & getränkt heilt man langsam.
  * Runde 23: Kälte (aktualisiereKaelte) – draußen in Kälte/Nacht/Unwetter steigt sie, Kleidung bremst, Wärme taut auf.
  * Runde 24: Gesundheit/Müdigkeit/Buffs/Verderb (gesundheitSystem) – Blutung & Co. blockieren die Heilung, Buff „satt“ halbiert den Hunger.
+ * Runde 28: Regeneration erst ab 80 % Essen UND Trinken (konfiguration.spieler.regenerationAb); Nässe läuft in aktualisiereKaelte mit (kein Tutorial).
  * Tote Spieler werden nach respawnZeit an einem Startpunkt wiederbelebt – oder sofort per AKTION 'wiederbeleben'.
  */
 export function aktualisiereUeberleben(spielWelt, dt) {
@@ -33,7 +34,8 @@ export function aktualisiereUeberleben(spielWelt, dt) {
     }
     if (spieler.gottmodus) {
       spieler.kaelte = 0;
-      continue; // Götter essen nicht und frieren nicht
+      spieler.naesse = 0;
+      continue; // Götter essen nicht, frieren nicht und werden nicht nass
     }
     aktualisiereKaelte(spielWelt, spieler, dt);
     const g = spielWelt.konfiguration.gesundheit;
@@ -76,11 +78,13 @@ export function aktualisiereKaelte(spielWelt, spieler, dt) {
   const alt = spieler.kaelte ?? 0;
   let neu;
   const feuer = spielWelt.welt.naechstesBauwerk?.(spieler.x, spieler.y, k.feuerRadius, (b) => (b.typ === 'lagerfeuer' || b.typ === 'kamin') && b.brennt); // Runde 24: Kamin wärmt
+  aktualisiereNaesse(spielWelt, spieler, dt, { regenschutz: kleidungsRegenschutz(spieler), feuer: !!feuer }); // Runde 28
+  const nassFaktor = 1 + (spielWelt.konfiguration.naesse?.kaelteProStufe ?? 0) * naesseStufe(spieler.naesse ?? 0);
   if (feuer) neu = alt - k.abbauFeuer * dt;
-  else if (spieler.fahrzeug || spieler.arbeit?.art === 'schlafen' || spielWelt.welt.istInnen(spieler.x, spieler.y)) neu = alt - k.abbauDrinnen * dt;
+  else if (spieler.fahrzeug || spieler.mitfahrt || spieler.arbeit?.art === 'schlafen' || spielWelt.welt.istInnen(spieler.x, spieler.y)) neu = alt - k.abbauDrinnen * dt;
   else {
     const rate = kaelteRate(spielWelt, kleidungsRegenschutz(spieler)) * Math.max(k.minFaktor, 1 - kleidungsWaerme(spieler) / 100);
-    neu = rate > 0 ? alt + rate * (spieler.buffs?.warm ? spielWelt.konfiguration.gesundheit?.warmFaktor ?? 1 : 1) * dt : alt - k.abbau * dt;
+    neu = rate > 0 ? alt + rate * nassFaktor * (spieler.buffs?.warm ? spielWelt.konfiguration.gesundheit?.warmFaktor ?? 1 : 1) * dt : alt - k.abbau * dt;
   }
   spieler.kaelte = Math.max(0, Math.min(100, neu));
   if (spieler.kaelte >= 100) {
@@ -123,6 +127,8 @@ export function wiederbeleben(spielWelt, spieler) {
     ausruestung: STANDARD_AUSRUESTUNG,
     arbeit: null,
     kaelte: 0,
+    naesse: 0, // Runde 28
+    sprintMalus: 1,
     zustand: neuerZustand(), // Runde 24
     muedigkeit: 0,
     buffs: {},

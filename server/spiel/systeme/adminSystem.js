@@ -103,6 +103,16 @@ export function fuehreAdminBefehlAus(spielWelt, spieler, befehl, aktion = {}) {
       spielWelt.melde(spieler.id, alles ? 'Waffen & Munition erhalten' : 'Inventar voll – nicht alles erhalten');
       break;
     }
+    case ADMIN_BEFEHLE.WAFFE_GEBEN: {
+      // Runde 28: Waffe aus der Liste – volles Magazin + 4 Magazine Munition (mind. 30, höchstens ein voller Stapel)
+      const def = GEGENSTAENDE[aktion.wert];
+      if (!def || !['fernkampf', 'nahkampf'].includes(def.kategorie)) break;
+      const voll = fuegeZumInventarHinzu(spieler, aktion.wert, 1, def.magazin ?? 0) > 0;
+      const munDef = def.munition && GEGENSTAENDE[def.munition];
+      if (munDef && !voll) fuegeZumInventarHinzu(spieler, def.munition, Math.min(munDef.stapelbar ?? 50, Math.max(30, (def.magazin ?? 1) * 4)));
+      spielWelt.melde(spieler.id, voll ? 'Inventar voll – keine Waffe erhalten' : `${def.name}${munDef ? ` + ${munDef.name}` : ''} erhalten`);
+      break;
+    }
     case ADMIN_BEFEHLE.ZOMBIE_SPAWNEN:
       spawneVorSpieler(spielWelt, spieler);
       break;

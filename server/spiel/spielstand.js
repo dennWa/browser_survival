@@ -40,6 +40,7 @@ export function erstelleSpielstand(spieler, kartenId) {
     rucksack: spieler.rucksack,
     kleidung: { ...spieler.kleidung },
     kaelte: spieler.kaelte ?? 0,
+    naesse: spieler.naesse ?? 0, // Runde 28
     // Gesundheit: Verletzungen/Krankheiten, Müdigkeit, Buffs und Niedergestreckt überleben Logout & Zonenwechsel
     zustand: spieler.zustand ? { ...spieler.zustand } : null,
     muedigkeit: spieler.muedigkeit ?? 0,
@@ -144,9 +145,12 @@ function ladeGesundheit(spieler, stand, konfiguration) {
       bruch,
       schieneRest: bruch === 2 ? begrenze(zahl(z.schieneRest) ?? 0, 0, 1e6) : 0,
       vergiftung: begrenze(zahl(z.vergiftung) ?? 0, 0, 1e6),
+      erkaeltung: begrenze(zahl(z.erkaeltung) ?? 0, 0, 100), // Runde 28
+      erkaeltungsRisiko: begrenze(zahl(z.erkaeltungsRisiko) ?? 0, 0, 1e4),
     };
   }
   spieler.muedigkeit = begrenze(zahl(stand.muedigkeit) ?? 0, 0, 100);
+  spieler.naesse = begrenze(zahl(stand.naesse) ?? 0, 0, 5); // Runde 28
   spieler.buffs = {};
   for (const name of ['satt', 'warm', 'kraft']) {
     const rest = zahl(stand.buffs?.[name]);

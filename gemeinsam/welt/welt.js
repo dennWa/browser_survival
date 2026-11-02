@@ -335,6 +335,21 @@ export class Welt {
   }
 
   /**
+   * Runde 28: „unter Dach“ für Regen/Schnee-Optik – drinnen ODER in einer Türzarge, die an einen Innenraum grenzt
+   * (Kartentür 'T' oder gebaute Tür). So fällt im Türrahmen zwischen zwei Räumen bzw. an der Haustür kein Niederschlag.
+   */
+  istUnterDach(x, y) {
+    if (this.istInnen(x, y)) return true;
+    const g = this.kachelGroesse;
+    const tx = Math.floor(x / g);
+    const ty = Math.floor(y / g);
+    const tuer = this.kachelAn(tx, ty) === 'T' || this.ebenenAnKachel.get(ty * this.breite + tx)?.tuer !== undefined;
+    if (!tuer) return false;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (this.istInnen((tx + dx + 0.5) * g, (ty + dy + 0.5) * g)) return true;
+    return false;
+  }
+
+  /**
    * Außerhalb der Karte gilt alles als blockiert (unsichtbare Grenze).
    * @param ignoriereFahrzeug  Fahrzeug-ID, deren eigene Kacheln nicht zählen (das Auto stößt nicht an sich selbst)
    */

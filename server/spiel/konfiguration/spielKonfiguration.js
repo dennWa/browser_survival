@@ -34,7 +34,7 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     hungerSchadenProSekunde: 0.5, // Schaden, wenn Hunger ODER Durst bei 0
     regenerationProSekunde: 0.25, // Heilung, wenn satt und getränkt
     gemuetlichFaktor: 2, // Runde 24: Heilung ×2, wenn es gemütlich ist (Kamin/Möbel drinnen, gemeinsam/welt/einrichtung.js)
-    regenerationAb: 70, // ab diesem Hunger- UND Durstwert
+    regenerationAb: 80, // ab diesem Hunger- UND Durstwert (Runde 28: 80 % – beide gleichzeitig)
     respawnZeit: 6, // Sekunden bis zur Wiederbelebung
     todesZombieRadius: 480, // px: beim Tod verschwinden alle Zombies in diesem Umkreis (kommen später regulär wieder)
     startHunger: 85,
@@ -271,7 +271,8 @@ export const STANDARD_KONFIGURATION = Object.freeze({
    * schlafErholung × Bett-Qualität (bettQualitaet: Basis-/Kartenbett 1, Doppelbett besser, Schlafsack schlechter).
    */
   gesundheit: {
-    blutungChance: 0.12,
+    blutungChance: 0.2, // Runde 28: je erlittenem Schlag (Zombie, Nahkampf) 1 zu 5 – jeder Schuss blutet immer
+    blutfleckTakt: 1, // Sekunden zwischen zwei Blutflecken am Boden (Client lässt sie ~60 s liegen)
     blutungSchaden: 0.5,
     infektionChance: 0.04,
     infektionProStunde: 4, // Infektion wächst (0..100), bei 100 Dauerschaden
@@ -293,6 +294,33 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     sattFaktor: 0.5, // Buff „satt“: Hunger sinkt halb so schnell
     warmFaktor: 0.5, // Buff „warm“: Kälte steigt halb so schnell
     kraftFaktor: 1.25, // Buff „kraft“: Nahkampf +25 %
+  },
+  /**
+   * Runde 28: Nässe (5 Stufen: klamm, feucht, nass, sehr nass, klatschnass) und Erkältung (gesundheitSystem.aktualisiereNaesse).
+   * Draußen im Regen steigt die Nässe um 1 Stufe je `regenSekunden` (Regenschutz der Kleidung bremst), drinnen/im Auto sinkt
+   * sie um 1 Stufe je `trocknenDrinnen` s (am Feuer schneller, draußen ohne Regen langsamer).
+   * Ab Stufe `risikoAb` (feucht) läuft der Erkältungs-Zähler; nach `erkaeltungNach` s ohne Trocknen → Erkältung (0..100, wird
+   * mit der Zeit schlimmer). Ab `sprintAb` nur noch `sprintFaktor` Sprinttempo, ab `schadenAb` sanfter Lebensverlust.
+   * Husten: alle hustenMax … hustenMin s (je schlimmer, desto öfter). Heilung: Antibiotika.
+   */
+  naesse: {
+    regenSekunden: 36,
+    gewitterFaktor: 1.5,
+    schneeFaktor: 0.35,
+    trocknenDrinnen: 60, // 1 Stufe pro Minute (Nutzer-Wunsch)
+    trocknenFeuer: 30,
+    trocknenDraussen: 120,
+    risikoAb: 2,
+    erkaeltungNach: 300, // 5 Minuten mindestens feucht
+    erkaeltungProMinute: 4, // 0 → 100 in ~25 min
+    sprintAb: 30,
+    sprintFaktor: 0.8,
+    schadenAb: 50,
+    schadenMin: 0.04, // Leben/s bei 50 % …
+    schadenMax: 0.2, // … bis 100 %
+    hustenMax: 45,
+    hustenMin: 7,
+    kaelteProStufe: 0.15, // nass friert man schneller (+15 % je Stufe)
   },
   /** Runde 24 (P14): Gruppen, Handel, Niederstrecken (systeme/mehrspielerSystem.js). niederDauer 0 = sofort tot */
   mehrspieler: {

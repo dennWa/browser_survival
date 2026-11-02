@@ -49,10 +49,10 @@ export function wetterSchichten({ w, hell = 1, drinnen = false, imHaus = false, 
     schneesturm: schneesturm * daempfung,
     regen_stark: w.regen * w.gewitter * daempfung,
     tag: !schneeZone && !drinnen ? Math.max(0, (hell - 0.55) / 0.45) * (1 - Math.max(w.regen, w.sturm, w.nebel * 0.5)) : 0,
-    // Runde 26: Nachtwind nur leise und nur, wenn überhaupt Wind geht
-    nacht_wind: Math.max(0, (0.55 - hell) / 0.55) * (1 - w.sturm) * daempfung * 0.3 * Math.min(1, Math.max(0, (w.windStufe - 0.5) / 1.5)),
-    // Runde 26: Windton folgt der Stufe der Bäume (0..3)
-    wind_leicht: wind01((w.windStufe - 0.3) / 1.6) * 0.75 * (1 - 0.4 * wind01((w.windStufe - 2) / 1)) * (drinnen ? 0.3 : 1),
+    // Runde 28: Nachtwind aus – lief nachts zusätzlich zu wind_leicht (zwei Windgeräusche gleichzeitig). Die Windaufnahmen bleiben.
+    nacht_wind: 0,
+    // Runde 26: Windton folgt der Stufe der Bäume (0..3); Runde 28: leicht ↔ stark überblenden statt doppelt übereinander
+    wind_leicht: wind01((w.windStufe - 0.3) / 1.6) * 0.75 * (1 - 0.8 * wind01((w.windStufe - 1.5) / 1.3) ** 1.3) * (drinnen ? 0.3 : 1),
     wind_stark: wind01((w.windStufe - 1.5) / 1.3) ** 1.3 * (1 - 0.6 * w.sturm) * (drinnen ? 0.3 : 1),
     // Runde 24: drinnen prasselt Regen aufs Dach
     regen_dach: imHaus ? w.regen : 0,

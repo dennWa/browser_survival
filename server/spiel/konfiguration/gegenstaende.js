@@ -171,7 +171,7 @@ const ROH_GEGENSTAENDE = {
   fisch_hecht_gebraten: { name: 'Gebratener Hecht', kategorie: 'nahrung', naehrwert: 40, verdirbt: 1800 },
   angel: { name: 'Angel', kategorie: 'werkzeug', inHand: true, ausruestung: 'angel', beschreibung: 'Am Ufer Linksklick: auswerfen – wackelt die Pose, nochmal klicken' },
   // Runde 24 (P11/P12): Gesundheit, Wasser, Küche & Vorräte (systeme/gesundheitSystem.js; Orte: gemeinsam/spieler/handwerk.js)
-  antibiotika: { name: 'Antibiotika', kategorie: 'medizin', heilung: 5, heilt: ['infektion'], beschreibung: 'Bekämpft eine Wundinfektion' },
+  antibiotika: { name: 'Antibiotika', kategorie: 'medizin', heilung: 5, heilt: ['infektion', 'erkaeltung'], beschreibung: 'Bekämpft eine Wundinfektion und Erkältungen' },
   schiene: { name: 'Schiene', kategorie: 'medizin', heilung: 0, heilt: ['bruch'], beschreibung: 'Schient ein gebrochenes Bein – du humpelst nur noch leicht, bis es verheilt' },
   aktivkohle: { name: 'Aktivkohle', kategorie: 'medizin', heilung: 0, heilt: ['vergiftung'], beschreibung: 'Hilft bei Vergiftung – und filtert Wasser' },
   leere_flasche: { name: 'Leere Flasche', kategorie: 'getraenk', durstwert: 0, fuellen: true, beschreibung: 'Am Wasser (in die Hand + Klick), an Regentonne oder Brunnen füllen' },
@@ -188,7 +188,7 @@ const ROH_GEGENSTAENDE = {
   eingelegte_gurken: { name: 'Eingelegte Gurken', kategorie: 'nahrung', naehrwert: 16, durstwert: 8, beschreibung: 'Eingemacht – verdirbt nie' },
   trockenobst: { name: 'Trockenobst', kategorie: 'nahrung', naehrwert: 14, beschreibung: 'Getrocknet – verdirbt nie' },
   // Basisbau-Material (Teile & Kosten: gemeinsam/basisbau/teile.js)
-  stoff: { name: 'Stoff', kategorie: 'material', mengeBeimFund: [1, 3], beschreibung: 'Für Betten – findest du in Wohnungen und Läden' },
+  stoff: { name: 'Stofffetzen', kategorie: 'material', mengeBeimFund: [1, 3], beschreibung: 'Für Verbände (2 Stück, im Inventar herstellbar) und Betten – findest du in Wohnungen und Läden' },
 };
 
 /**

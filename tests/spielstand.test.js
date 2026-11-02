@@ -129,7 +129,8 @@ test('Spielstand: Rucksack, Rucksack-Inhalt, Level und XP bleiben erhalten', () 
 test('Spielstand: Verletzungen, Müdigkeit, Buffs und Niedergestreckt bleiben erhalten', () => {
   const welt = new SpielWelt(erstelleKonfiguration({}));
   const spieler = welt.spielerBetrittWelt('Patient');
-  spieler.zustand = { blutung: true, infektion: 37.5, bruch: 2, schieneRest: 40, vergiftung: 12 };
+  spieler.zustand = { blutung: true, infektion: 37.5, bruch: 2, schieneRest: 40, vergiftung: 12, erkaeltung: 40, erkaeltungsRisiko: 12 }; // Runde 28: + Erkältung
+  spieler.naesse = 3.5;
   spieler.muedigkeit = 81;
   spieler.buffs = { warm: 90, unsinn: 5 };
   spieler.niedergestreckt = 20;
@@ -137,7 +138,8 @@ test('Spielstand: Verletzungen, Müdigkeit, Buffs und Niedergestreckt bleiben er
   const stand = JSON.parse(JSON.stringify(erstelleSpielstand(spieler, 'stadtrand')));
   const neu = welt.spielerBetrittWelt('Patient2');
   assert.equal(wendeSpielstandAn(neu, stand, welt), true);
-  assert.deepEqual(neu.zustand, { blutung: true, infektion: 37.5, bruch: 2, schieneRest: 40, vergiftung: 12 });
+  assert.deepEqual(neu.zustand, { blutung: true, infektion: 37.5, bruch: 2, schieneRest: 40, vergiftung: 12, erkaeltung: 40, erkaeltungsRisiko: 12 });
+  assert.equal(neu.naesse, 3.5, 'Nässe bleibt (Runde 28)');
   assert.equal(neu.muedigkeit, 81);
   assert.deepEqual(neu.buffs, { warm: 90 });
   assert.equal(neu.niedergestreckt, 20);

@@ -57,9 +57,9 @@ export const EREIGNISSE = {
   keuchen_frau: ['Waffen & Kampf', 'Keuchen, wenn die Ausdauer leer ist (Frau)', { stumm: true }],
   spieler_tod: ['Waffen & Kampf', 'Spieler stirbt (Mann)'],
   spieler_tod_frau: ['Waffen & Kampf', 'Spieler stirbt (Frau)', { stumm: true }],
-  zittern: ['Waffen & Kampf', 'Frierender Atem bei Unterkühlung (zusammen mit „zaehneklappern“)', { stumm: true }],
+  zittern: ['Waffen & Kampf', 'Frierender Atem (Runde 28: im Spiel nicht mehr benutzt – beim Frieren nur noch „zaehneklappern“)', { stumm: true }],
   zaehneklappern: ['Waffen & Kampf', 'Zähneklappern bei Unterkühlung'],
-  husten: ['Waffen & Kampf', 'Husten bei starker Kälte', { stumm: true }],
+  husten: ['Waffen & Kampf', 'Husten bei starker Kälte und bei Erkältung (leise, je kränker desto öfter)', { stumm: true }],
   anziehen: ['Inventar & Items', 'Kleidung an-/ausziehen', { stumm: true }],
   // Zombies
   zombie_stoehnen: ['Zombies', 'Zombie ruhend / schlurfend (Stöhnen, zufällig in der Nähe)'],

@@ -525,6 +525,7 @@ export class SpielServer {
     if ((n.art === AKTIONEN.KISTE_LEGEN || n.art === AKTIONEN.KISTE_NEHMEN || n.art === AKTIONEN.STATION_LEGEN || n.art === AKTIONEN.STATION_NEHMEN) && slot === null) return;
     if (n.art === AKTIONEN.FELD_ENTFERNEN && !(Number.isInteger(n.tx) && Number.isInteger(n.ty))) return;
     if (n.art === AKTIONEN.ADMIN && !GUELTIGE_ADMIN_BEFEHLE.has(n.befehl)) return;
+    if (n.art === AKTIONEN.ADMIN && n.befehl === ADMIN_BEFEHLE.WAFFE_GEBEN && !(typeof n.wert === 'string' && ['fernkampf', 'nahkampf'].includes(GEGENSTAENDE[n.wert]?.kategorie))) return;
     if (n.art === AKTIONEN.HERSTELLEN && !Object.hasOwn(REZEPTE, n.rezept)) return;
     if (n.art === AKTIONEN.MUSIK && !(Number.isInteger(n.ziel) && pruefeMusikWahl(n.quelle, n.wert))) return;
     if ((n.art === AKTIONEN.HAUSTIER || n.art === AKTIONEN.BEHAELTER) && !(Number.isInteger(n.ziel) && n.ziel >= 0)) return;
@@ -535,6 +536,7 @@ export class SpielServer {
     if (spieler.aktionsPuffer.length >= MAX_AKTIONS_PUFFER) return;
     const aktion = { art: n.art, slot };
     if (n.art === AKTIONEN.ADMIN) aktion.befehl = n.befehl;
+    if (n.art === AKTIONEN.ADMIN && n.befehl === ADMIN_BEFEHLE.WAFFE_GEBEN) aktion.wert = n.wert;
     if (n.art === AKTIONEN.ADMIN && (n.befehl === ADMIN_BEFEHLE.BOT_SETZEN || n.befehl === ADMIN_BEFEHLE.BOT_ENTFERNEN)) {
       if (!(Number.isInteger(n.tx) && Number.isInteger(n.ty))) return;
       Object.assign(aktion, { tx: n.tx, ty: n.ty });

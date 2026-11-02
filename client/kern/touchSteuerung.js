@@ -19,7 +19,12 @@ const FEST_FANGRADIUS = 1.9;
 const TIPP_MAX_MS = 320;
 const TIPP_MAX_PX = 14;
 const SPEICHER = 'browserSurvival.touch';
-const STANDARD_EINSTELLUNG = { modus: 'fest', rand: 78, hoehe: 96 };
+/**
+ * Runde 28: rand/hoehe 'auto' = Sticks weiter unten und mehr zur Mitte (Hochformat: 27 % der Breite vom Rand, 78 px über
+ * dem Boden; quer: 120 px / 80 px) – so bleibt Platz, um nach links zu laufen bzw. nach rechts zu zielen.
+ * Zahlen = eigene Werte aus den Einstellungen. Alte Standardwerte (78/96) werden zu 'auto'.
+ */
+const STANDARD_EINSTELLUNG = { modus: 'fest', rand: 'auto', hoehe: 'auto' };
 
 export class TouchSteuerung {
   #sticks = { links: neuerStick(), rechts: neuerStick() };
@@ -46,6 +51,7 @@ export class TouchSteuerung {
     this.einstellung = ladeEinstellung();
     this.#layout();
     window.addEventListener('resize', () => this.#layout());
+    window.addEventListener('orientationchange', () => setTimeout(() => this.#layout(), 300));
 
     flaeche.addEventListener('pointerdown', (e) => this.#runter(e));
     flaeche.addEventListener('pointermove', (e) => this.#bewegen(e));
@@ -56,7 +62,10 @@ export class TouchSteuerung {
     // auf dem Spielfeld wischt ("Gummiband", Adressleiste, Neuladen). Im Spiel daher jede
     // Wisch- und Zoomgeste abfangen. Nicht-passiv, sonst darf preventDefault nichts verhindern.
     const blockiere = (e) => {
-      if (this.aktiv && e.cancelable) e.preventDefault();
+      if (!this.aktiv || !e.cancelable) return;
+      // Runde 28: Wischen in scrollbaren Fenstern (Inventar, Bau-Menü, Werkbank …) erlauben – sonst kam man am Handy nicht nach unten
+      if (e.type === 'touchmove' && scrollbarUnter(e.target)) return;
+      e.preventDefault();
     };
     dokument.addEventListener('touchmove', blockiere, { passive: false });
     flaeche.addEventListener('touchstart', blockiere, { passive: false });
@@ -106,6 +115,12 @@ export class TouchSteuerung {
     return Math.atan2(s.y, s.x);
   }
 
+  /** Runde 28 (Ego am Handy): Auslenkung des rechten Sticks { x, y } (−1..1, mit Totzone) oder null. */
+  zielVektor() {
+    const s = this.#sticks.rechts;
+    return s.zeiger === null ? null : mitTotzone(s.x, s.y);
+  }
+
   /** Wie weit der rechte Stick gedrückt ist (0..1) – für späteres "Feuer bei Vollausschlag". */
   zielStaerke() {
     const s = this.#sticks.rechts;
@@ -122,8 +137,16 @@ export class TouchSteuerung {
 
   /** Mittelpunkt des festen Sticks (CSS-px). */
   #festPunkt(seite) {
-    const { rand, hoehe } = this.einstellung;
+    const { rand, hoehe } = this.masse();
     return { x: seite === 'links' ? rand : window.innerWidth - rand, y: window.innerHeight - hoehe };
+  }
+
+  /** Tatsächliche Abstände (CSS-px) – 'auto' je nach Ausrichtung (Runde 28). */
+  masse() {
+    const hoch = window.innerHeight > window.innerWidth;
+    const rand = this.einstellung.rand === 'auto' ? (hoch ? Math.max(90, Math.min(150, window.innerWidth * 0.27)) : 120) : this.einstellung.rand;
+    const hoehe = this.einstellung.hoehe === 'auto' ? (hoch ? 78 : 80) : this.einstellung.hoehe;
+    return { rand, hoehe };
   }
 
   /** Stick-Elemente positionieren (fest: feste Ruhelage, frei: Standard aus dem Stylesheet). */
@@ -265,6 +288,17 @@ export class TouchSteuerung {
   }
 }
 
+/** Liegt ein scrollbares Element (overflow auto/scroll und tatsächlich höher als sichtbar) unter dem Finger? */
+function scrollbarUnter(ziel) {
+  for (let el = ziel; el && el.nodeType === 1 && el !== document.body; el = el.parentElement) {
+    if (el.scrollHeight > el.clientHeight + 2) {
+      const o = getComputedStyle(el).overflowY;
+      if (o === 'auto' || o === 'scroll') return true;
+    }
+  }
+  return false;
+}
+
 function neuerStick() {
   return { zeiger: null, startX: 0, startY: 0, x: 0, y: 0, roh: 0, t0: 0, x0: 0, y0: 0, bewegt: false };
 }
@@ -273,7 +307,8 @@ function ladeEinstellung() {
   try {
     const roh = JSON.parse(localStorage.getItem(SPEICHER) ?? 'null');
     if (roh && (roh.modus === 'fest' || roh.modus === 'frei')) {
-      return { modus: roh.modus, rand: klemme(roh.rand, 30, 220, STANDARD_EINSTELLUNG.rand), hoehe: klemme(roh.hoehe, 40, 260, STANDARD_EINSTELLUNG.hoehe) };
+      const alt = roh.rand === 78 && roh.hoehe === 96; // alte Standardwerte → neue Automatik
+      return { modus: roh.modus, rand: alt || roh.rand === 'auto' ? 'auto' : klemme(roh.rand, 30, 220, 'auto'), hoehe: alt || roh.hoehe === 'auto' ? 'auto' : klemme(roh.hoehe, 40, 260, 'auto') };
     }
   } catch {
     /* kein Speicher / kaputte Daten → Standard */

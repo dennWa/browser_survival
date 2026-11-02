@@ -115,7 +115,8 @@ export class SpielWelt {
     this.spielerAndererZonen = null;
 
     // Kartenfeste Bauwerke (Map-Editor): ohne Besitzer → alle dürfen sie benutzen, niemand abreißen
-    for (const b of karte.bauwerke ?? []) if (pruefePlatz(this.welt, b.typ, b.tx, b.ty, false).ok) this.welt.setzeBauwerk(neuesBauwerk(this, b.typ, b.tx, b.ty, null, b.drehung ? { drehung: 1 } : {}));
+    // Runde 28: karteObjekt = Kamin im Karten-Modell (Platz ist vom Modell schon belegt → ohne Platzprüfung)
+    for (const b of karte.bauwerke ?? []) if (b.karteObjekt || pruefePlatz(this.welt, b.typ, b.tx, b.ty, false).ok) this.welt.setzeBauwerk(neuesBauwerk(this, b.typ, b.tx, b.ty, null, { ...(b.drehung ? { drehung: 1 } : {}), ...(b.karteObjekt ? { karteObjekt: true } : {}) }));
     this.bauwerkAenderungen.clear();
     for (const o of autos) this.hinzufuegen(erzeugeFahrzeug({ id: this.neueId(), ...fahrzeugAusObjekt(o, this.welt.kachelGroesse), haltbarkeit: konfiguration.fahrzeug.haltbarkeit }));
     this.karte.zombieSpawns.forEach((spawn, spawnIndex) => this.spawneZombie(spawnIndex));
@@ -155,7 +156,8 @@ export class SpielWelt {
       // Kartenfestes Bauwerk (ohne Besitzer) gibt es schon frisch von der Karte → gespeicherten Zustand übernehmen (z. B. Kisteninhalt)
       const fest = b.besitzer ? null : this.welt.bauwerkeAn(b.tx, b.ty).find((x) => x.typ === b.typ && !x.besitzer);
       if (fest) this.welt.entferneBauwerk(fest.id);
-      if (!pruefePlatz(this.welt, b.typ, b.tx, b.ty, false).ok) continue;
+      if (fest?.karteObjekt) b.karteObjekt = true; // Kamin im Karten-Modell: Platz gehört dem Modell
+      else if (!pruefePlatz(this.welt, b.typ, b.tx, b.ty, false).ok) continue;
       b.id = this.neueBauwerkId();
       this.welt.setzeBauwerk(b);
     }
@@ -199,7 +201,7 @@ export class SpielWelt {
   entfernen(id) {
     const entitaet = this.entitaeten.get(id);
     if (!entitaet) return;
-    if (entitaet.fahrzeug) aussteigen(this, entitaet, { erzwingen: true }); // Spieler geht offline im Auto
+    if (entitaet.fahrzeug || entitaet.mitfahrt) aussteigen(this, entitaet, { erzwingen: true }); // Spieler geht offline im Auto (auch Beifahrer)
     if (entitaet.typ === 'fahrzeug') this.welt.entferneFahrzeugKacheln(id);
     this.entitaeten.delete(id);
     if (entitaet.typ === 'gegenstand') this.gegenstaendeVersion++;

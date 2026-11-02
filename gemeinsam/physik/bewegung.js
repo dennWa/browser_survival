@@ -51,7 +51,8 @@ export function wendeEingabeAn(koerper, eingabe, welt, parameter, dt) {
   const willSprinten = eingabe.sprint === true && Math.hypot(richtung.x, richtung.y) > 0.1;
   const sprintet = aktualisiereAusdauer(koerper, willSprinten, parameter, dt);
   // Gangarten (Runde 18): ohne Shift gehen; Shift = rennen (kostet Ausdauer); Shift ohne Ausdauer = joggen
-  const faktor = sprintet ? parameter.sprintFaktor : willSprinten ? (parameter.joggFaktor ?? 1) : 1;
+  // Runde 28: sprintMalus (Erkältung) bremst nur das Rennen
+  const faktor = sprintet ? parameter.sprintFaktor * (koerper.sprintMalus ?? 1) : willSprinten ? (parameter.joggFaktor ?? 1) : 1;
   // tempoFaktor: Skill "Schnelligkeit" (Server setzt ihn am Spieler, der Client übernimmt ihn für die Vorhersage)
   const tempo = parameter.geschwindigkeit * (koerper.tempoFaktor ?? 1) * faktor;
   if (welt.istEis?.(koerper.x, koerper.y)) {
