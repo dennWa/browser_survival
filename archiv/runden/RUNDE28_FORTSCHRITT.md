@@ -38,7 +38,7 @@
 5. ☑ Blutung: Schlag 20 %, Schuss immer, Blutflecken 1/s, ~60 s sichtbar (`client/darstellung/blutspuren.js`)
 6. ☑ Wind doppelt: Nachtwind aus, leicht/stark überblenden (`gemeinsam/audio/umgebung.js`)
 7. ☑ Statusleiste antippen → große Erklärung (`#status-erklaerung`); Nässe-Symbol; Tagebuch rutscht am Handy unter die Statusleiste
-8. ☑ Kleidung als echte Schicht + Mütze neu (`client/darstellung/kleidungModell.js`) – ☐ Sichtprüfung Mütze/Handschuhe/Weste im Spiel (Screenshot)
+8. ☑ Kleidung als echte Schicht + Mütze neu (`client/darstellung/kleidungModell.js`) – ☑ Sichtprüfung Mütze/Handschuhe/Weste ok (Screenshot)
 9. ☑ Fahrzeug: „Kofferraum öffnen“/„Einsteigen“ unten ohne Emoji, oberer Knopf weg, 2. Spieler = Beifahrer (`mitfahrt`, `beifahrerId`)
 10. ☑ Regeneration erst ab 80 % Essen UND Trinken
 
@@ -48,4 +48,4 @@
 - ☑ `npm run ki:anleitung` gelaufen
 - ☑ Teil B committen + pushen (main) (`667f8ed`)
 - ☑ `KI_INDEX.md` (neuer Abschnitt Runde 28) + `project_manifest.md` (Änderungsprotokoll) nachziehen
-- ☐ Sichtprüfung Mütze/Kleidung (siehe 8), danach diese Datei nach `archiv/runden/` verschieben
+- ☑ Sichtprüfung Mütze/Kleidung ok, Datei archiviert
