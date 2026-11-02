@@ -164,13 +164,19 @@ export const KI_WERKZEUGE = Object.freeze([
   },
   {
     name: 'wand_ziehen',
-    beschreibung: 'Gerade Wand von (x0,y0) nach (x1,y1) (waagerecht oder senkrecht). art: wand, fenster oder tuer.',
-    schema: objekt({ x0: zahl('Start x'), y0: zahl('Start y'), x1: zahl('Ende x'), y1: zahl('Ende y'), art: text('Art', ['wand', 'fenster', 'tuer']) }, ['x0', 'y0', 'x1', 'y1']),
+    beschreibung: 'Gerade Wand von (x0,y0) nach (x1,y1) (waagerecht oder senkrecht). art: wand (Ziegel), eine Wandart (holz, putz, beton, quader, blech), fenster oder tuer.',
+    schema: objekt({ x0: zahl('Start x'), y0: zahl('Start y'), x1: zahl('Ende x'), y1: zahl('Ende y'), art: text('Art', ['wand', 'ziegel', 'holz', 'putz', 'beton', 'quader', 'blech', 'fenster', 'tuer']) }, ['x0', 'y0', 'x1', 'y1']),
   },
   {
     name: 'raum_bauen',
-    beschreibung: 'Rechteckigen Raum bauen: Wände rundum, Innenboden, eine Tür, optional als Loot-Raum (Raumname + Loot-Tabelle).',
-    schema: objekt({ ...rechteck, boden: text('Innenboden: "." Fliesen, ":" Beton, "+" Holz'), tuer: text('Tür-Seite', ['n', 's', 'o', 'w']), name: text('Raumname, z. B. "Küche"'), lootTabelle: text('optional: Loot-Tabelle, z. B. kueche, wohnung, lager') }, ['x', 'y', 'b', 'h']),
+    beschreibung: 'Rechteckigen Raum bauen: Wände rundum (wand = Wandart), Innenboden, eine Tür, optional als Loot-Raum (Raumname + Loot-Tabelle).',
+    schema: objekt({ ...rechteck, boden: text('Innenboden: "." Fliesen, ":" Beton, "+" Holz'), wand: text('Wandart', ['ziegel', 'holz', 'putz', 'beton', 'quader', 'blech']), tuer: text('Tür-Seite', ['n', 's', 'o', 'w']), name: text('Raumname, z. B. "Küche"'), lootTabelle: text('optional: Loot-Tabelle, z. B. kueche, wohnung, lager') }, ['x', 'y', 'b', 'h']),
+  },
+  { name: 'wand_umfaerben', beschreibung: 'Zusammenhängende Wand ab Kachel (x, y) auf eine Wandart umstellen (ganzes Haus in einem Schritt).', schema: objekt({ x: zahl('x einer Wandkachel'), y: zahl('y'), wand: text('Wandart', ['ziegel', 'holz', 'putz', 'beton', 'quader', 'blech']) }, ['x', 'y', 'wand']) },
+  {
+    name: 'raum_umbauen',
+    beschreibung: 'Vorhandenen Raum umbauen (id = Raumfläche aus objekte_auflisten/zone_info, Sammlung raumFlaechen): Wandart tauschen, Innenboden tauschen, Fenster auf eine Seite (jede 2. Wandkachel), Tür auf eine Seite.',
+    schema: objekt({ id: zahl('ID der Raumfläche'), wand: text('Wandart', ['ziegel', 'holz', 'putz', 'beton', 'quader', 'blech']), boden: text('Innenboden "." ":" "+"'), fenster: text('Seite', ['n', 's', 'o', 'w']), tuer: text('Seite', ['n', 's', 'o', 'w']) }, ['id']),
   },
   {
     name: 'objekt_platzieren',

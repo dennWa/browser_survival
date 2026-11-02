@@ -35,6 +35,8 @@ export const WERKZEUGE = [
 ];
 export const MIT_GIZMO = { bewegen: 'translate', drehen: 'rotate', skalieren: 'scale' };
 
+/** Phase 4.12: Wandarten (gemeinsam/welt/kacheln.WAND_ARTEN) */
+const WAND_AUSWAHL = [['ziegel', 'Ziegel'], ['holz', 'Holz'], ['putz', 'Putz (weiß)'], ['beton', 'Beton'], ['quader', 'Quaderstein'], ['blech', 'Wellblech']];
 const LOOT_LISTE = Object.keys(LOOT_TABELLEN).filter((t) => t !== 'zombie' && t !== 'boss').sort();
 export const ITEM_LISTE = Object.entries(GEGENSTAENDE).map(([id, g]) => ({ id, name: g.name, kategorie: g.kategorie })).sort((a, b) => a.name.localeCompare(b.name, 'de'));
 const r2 = (v) => Math.round(v * 100) / 100;
@@ -47,7 +49,7 @@ export class Werkzeuge {
     this.opt = {
       boden: { modus: 'pinsel', groesse: 1, waendeSchuetzen: true },
       wand: { art: 'wand' },
-      raum: { boden: '.', tuer: 's', name: '', lootTabelle: 'wohnung' },
+      raum: { boden: '.', tuer: 's', name: '', lootTabelle: 'wohnung', wand: 'ziegel' },
       gelaende: { modus: 'heben', radius: 3, staerke: 0.4 },
       strasse: { fahrbahn: 4, gehweg: 1, markierung: true, laternen: 10 },
       streuen: { set: 'wald', radius: 5, dichte: 5, modus: 'streuen' },
@@ -98,10 +100,15 @@ export class Werkzeuge {
           { art: 'schalter', feld: 'waendeSchuetzen', titel: 'Wände, Fenster & Türen schützen' },
         ];
       case 'wand':
-        return [{ art: 'segment', feld: 'art', werte: [['wand', 'Wand'], ['fenster', 'Fenster'], ['tuer', 'Tür']] }];
+        return [
+          { art: 'segment', feld: 'art', werte: [['wand', 'Wand'], ['fenster', 'Fenster'], ['tuer', 'Tür'], ['umfaerben', 'Umfärben']] },
+          { art: 'auswahl', feld: 'wandArt', titel: 'Wandart', werte: WAND_AUSWAHL },
+          ...(this.opt.wand.art === 'umfaerben' ? [{ art: 'hinweis', text: 'Klick auf eine Wand: die ganze zusammenhängende Wand bekommt die Wandart' }] : []),
+        ];
       case 'raum':
         return [
           { art: 'auswahl', feld: 'boden', titel: 'Boden', werte: [['.', 'Fliesen'], [':', 'Beton'], ['+', 'Holz']] },
+          { art: 'auswahl', feld: 'wand', titel: 'Wand', werte: WAND_AUSWAHL },
           { art: 'auswahl', feld: 'tuer', titel: 'Tür', werte: [['s', 'Süden'], ['n', 'Norden'], ['w', 'Westen'], ['o', 'Osten'], ['', 'keine']] },
           { art: 'text', feld: 'name', titel: 'Name', platzhalter: 'z. B. Küche' },
           { art: 'auswahl', feld: 'lootTabelle', titel: 'Loot', werte: [['', 'kein Loot'], ...LOOT_LISTE.map((t) => [t, t])] },
@@ -176,7 +183,7 @@ export class Werkzeuge {
     if (!o) return;
     o[feld] = feld === 'groesse' || feld === 'radius' ? Number(wert) : wert;
     if (this.aktiv === 'objekt' || this.aktiv === 'spawn') this.ansicht.setzeGeist(null);
-    if ((this.aktiv === 'flaeche' && feld === 'art') || (this.aktiv === 'marker' && feld === 'art')) this.studio.meldeOptionen();
+    if ((this.aktiv === 'flaeche' && feld === 'art') || (this.aktiv === 'marker' && feld === 'art') || (this.aktiv === 'wand' && feld === 'art')) this.studio.meldeOptionen();
   }
 
   // ---------- Zeiger ----------
@@ -307,6 +314,13 @@ export class Werkzeuge {
         return;
       }
       case 'wand':
+        if (this.opt.wand.art === 'umfaerben') {
+          const ops = A.wandFuellOps(k, p.tx, p.ty, this.opt.wand.wandArt ?? 'ziegel');
+          if (!ops.length) return this.studio.hinweis('Dort ist keine Wand – auf eine Wand klicken', 'fehler');
+          return this.dok.aendere('Wand umgefärbt', ops);
+        }
+        this.zug = { art: this.aktiv, start: p };
+        return;
       case 'raum':
       case 'flaeche':
         this.zug = { art: this.aktiv, start: p };
@@ -431,11 +445,11 @@ export class Werkzeuge {
         const r = rechteckAus(z.start.tx, z.start.ty, p.tx, p.ty);
         this.dok.waehle(this.#imRechteck(r), { hinzu: z.hinzu });
       } else if (z.art === 'rechteck') this.dok.aendere('Boden (Rechteck)', A.rechteckOps(k, rechteckAus(z.start.tx, z.start.ty, p.tx, p.ty), z.zeichen, { waendeSchuetzen: this.opt.boden.waendeSchuetzen }));
-      else if (z.art === 'wand') this.dok.aendere(this.opt.wand.art === 'tuer' ? 'Tür' : this.opt.wand.art === 'fenster' ? 'Fenster' : 'Wand', A.wandOps(k, z.start, p, this.opt.wand.art));
+      else if (z.art === 'wand') this.dok.aendere(this.opt.wand.art === 'tuer' ? 'Tür' : this.opt.wand.art === 'fenster' ? 'Fenster' : 'Wand', A.wandOps(k, z.start, p, this.opt.wand.art === 'wand' ? (this.opt.wand.wandArt ?? 'ziegel') : this.opt.wand.art));
       else if (z.art === 'raum') {
         const o = this.opt.raum;
         const r = rechteckAus(z.start.tx, z.start.ty, p.tx, p.ty);
-        const { ops } = A.raumOps(k, { ...r, boden: o.boden, tuer: o.tuer || null, name: o.name || (o.lootTabelle ? o.lootTabelle : null), lootTabelle: o.lootTabelle || null });
+        const { ops } = A.raumOps(k, { ...r, boden: o.boden, wand: o.wand ?? 'ziegel', tuer: o.tuer || null, name: o.name || (o.lootTabelle ? o.lootTabelle : null), lootTabelle: o.lootTabelle || null });
         this.dok.aendere(`Raum${o.name ? ` „${o.name}“` : ''}`, ops);
       } else if (z.art === 'flaeche') this.#flaeche(rechteckAus(z.start.tx, z.start.ty, p.tx, p.ty));
     } catch (f) {

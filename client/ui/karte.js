@@ -373,8 +373,9 @@ function* bildPortionen(welt, assets) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   for (let ty = 0; ty < welt.hoehe; ty++) {
     for (let tx = 0; tx < welt.breite; tx++) {
-      const name = KACHELN[welt.kachelAn(tx, ty)]?.name;
-      if (name !== 'wand' && name !== 'fenster') continue;
+      const kachel = KACHELN[welt.kachelAn(tx, ty)];
+      const name = kachel?.name;
+      if (!kachel?.wand && name !== 'fenster') continue;
       ctx.fillStyle = name === 'fenster' ? '#7fb6cf' : '#22252b';
       ctx.fillRect(tx * g * s, ty * g * s, g * s + 0.5, g * s + 0.5);
     }

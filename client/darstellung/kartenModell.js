@@ -1,11 +1,11 @@
 import * as THREE from 'three';
-import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
+import { WAND_ARTEN, KACHELN } from '../../gemeinsam/welt/kacheln.js';
 import { RESSOURCEN_OBJEKTE } from '../../gemeinsam/welt/ressourcen.js';
 import { baueBaum, baueStumpf, toonMaterial, ladeTanneAusGlb, BAUM_LAUB_TOENE, BAUM_VARIANTE_INFO, BAUM_GRUNDFLAECHE, baumVarianten, waehleBaumVariante, ladeBaumVariante, leereBaumGeometrie, laubMaterial, baumWindMaterial } from './baumModell.js';
 import { BodenTextur } from './bodenTextur.js';
 import { Daecher } from './dachModell.js';
 import { WandDurchsicht } from './wandDurchsicht.js';
-import { wendeWandTexturAn } from './wandTexturen.js';
+import { wendeWandTexturAn, wandArtFarbe, ohneFarbe } from './wandTexturen.js';
 import { einfrieren, matrixAus, vereineGeometrien } from './geometrie.js';
 import { eigeneGroesse } from '../../gemeinsam/welt/drehung.js';
 import { eigenesModellUrl, ladeEigenesModell, eigenesModellInhalt, leerlaufMischer } from './eigeneModelle.js';
@@ -386,7 +386,9 @@ export class KartenModell {
     const glas = [];
     for (let ty = 0; ty < welt.hoehe; ty++) {
       for (let tx = 0; tx < welt.breite; tx++) {
-        const name = KACHELN[welt.kachelAn(tx, ty)]?.name;
+        const kachel = KACHELN[welt.kachelAn(tx, ty)];
+        const name = kachel?.name;
+        const art = wandArtBei(welt, tx, ty); // Phase 4.12: Wandart (Fenster/Tür: Art der Nachbarwand)
         const x = tx * g + g / 2;
         const z = ty * g + g / 2;
         const b = this.hy(x, z); // Wände stehen auf dem Gelände
@@ -398,20 +400,21 @@ export class KartenModell {
           }
           instanzVon.set(ty * welt.breite + tx, liste);
         };
-        if (name === 'wand') nimm({ x, z, unten: b, hoehe: WANDHOEHE });
+        if (kachel?.wand) nimm({ x, z, unten: b, hoehe: WANDHOEHE, art });
         if (name === 'fenster') {
-          nimm({ x, z, unten: b, hoehe: 24 }, { x, z, unten: b + WANDHOEHE - 12, hoehe: 12 });
+          nimm({ x, z, unten: b, hoehe: 24, art }, { x, z, unten: b + WANDHOEHE - 12, hoehe: 12, art });
           const senkrecht = !istWandig(welt, tx - 1, ty) && !istWandig(welt, tx + 1, ty);
           glas.push({ x, z, unten: b + 24, hoehe: WANDHOEHE - 36, drehung: senkrecht ? Math.PI / 2 : 0 });
         }
-        if (name === 'tuer') nimm({ x, z, unten: b + TUER_HOEHE, hoehe: WANDHOEHE - TUER_HOEHE }); // Sturz
+        if (name === 'tuer') nimm({ x, z, unten: b + TUER_HOEHE, hoehe: WANDHOEHE - TUER_HOEHE, art }); // Sturz
       }
     }
     // Runde 23: Ziegelwand statt grauer Fläche (wandTexturen.js, Welt-Raum-Projektion; Farbe hellt die Textur nur noch ab)
-    const seite = this.mitSchnitt(wendeWandTexturAn(new THREE.MeshStandardMaterial({ color: 0xa4a4a4, roughness: 0.92 }), 'ziegel'));
-    const oben = this.mitSchnitt(new THREE.MeshStandardMaterial({ color: 0x2c3038, roughness: 1 }));
+    // Phase 4.12: alle Wandarten in EINEM Mesh – Art steckt in der Instanzfarbe (Blau-Kanal), der Shader wählt die Textur im Atlas
+    const seite = this.mitSchnitt(wendeWandTexturAn(new THREE.MeshStandardMaterial({ color: 0xa4a4a4, roughness: 0.92 }), 'mehrfach'));
+    const oben = this.mitSchnitt(ohneFarbe(new THREE.MeshStandardMaterial({ color: 0x2c3038, roughness: 1 })));
     // je Block ein InstancedMesh (Culling); Box mit nur 2 Materialgruppen (Seiten, Deckel) → 2 Draw-Calls je Block
-    const wand = this.#instanzen(boxZweiGruppen(g, 1, g), [seite, oben], teile).schatten(true);
+    const wand = this.#instanzen(boxZweiGruppen(g, 1, g), [seite, oben], teile, { farben: teile.map((t) => wandArtFarbe(t.art)) }).schatten(true);
     const glasMaterial = this.mitSchnitt(new THREE.MeshStandardMaterial({ color: 0x8cc8e2, transparent: true, opacity: 0.35, roughness: 0.1, metalness: 0.2 }));
     this.statisch.add(wand, this.#instanzen(new THREE.BoxGeometry(g, 1, g * 0.3), glasMaterial, glas, { bloecke: false }));
     this.wandDaten = { wand, teile, instanzVon, seite, oben };
@@ -970,8 +973,15 @@ function teilMatrix(t) {
 }
 
 function istWandig(welt, tx, ty) {
-  const name = KACHELN[welt.kachelAn(tx, ty)]?.name;
-  return name === 'wand' || name === 'fenster';
+  const k = KACHELN[welt.kachelAn(tx, ty)];
+  return !!k?.wand || k?.name === 'fenster';
+}
+
+/** Wandart einer Kachel: eigene (Wand) oder die der ersten Nachbarwand (Fenster, Tür) – Index in WAND_ARTEN */
+function wandArtBei(welt, tx, ty) {
+  const eigen = KACHELN[welt.kachelAn(tx, ty)]?.wand;
+  const art = eigen ?? [[tx - 1, ty], [tx + 1, ty], [tx, ty - 1], [tx, ty + 1]].map(([x, y]) => KACHELN[welt.kachelAn(x, y)]?.wand).find(Boolean) ?? 'ziegel';
+  return Math.max(0, WAND_ARTEN.indexOf(art));
 }
 
 /** Deterministischer Wert 0..1 pro Position (Steine sehen unterschiedlich aus, aber immer gleich). */

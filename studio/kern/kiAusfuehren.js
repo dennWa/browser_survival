@@ -95,9 +95,15 @@ export function erstelleKiAusfuehrer(studio) {
     boden_malen: ({ zeichen, x, y, b, h, waende_ueberschreiben }) => ok(`${aendere('Boden', A.rechteckOps(karte(), { x, y, b, h }, zeichen, { waendeSchuetzen: !waende_ueberschreiben }))} Kacheln gesetzt.`),
     wand_ziehen: ({ x0, y0, x1, y1, art = 'wand' }) => ok(`${aendere(art === 'tuer' ? 'Tür' : 'Wand', A.wandOps(karte(), { x: x0, y: y0 }, { x: x1, y: y1 }, art))} Kacheln gesetzt.`),
     raum_bauen: (a) => {
-      const { ops, raum } = A.raumOps(karte(), { x: a.x, y: a.y, b: a.b, h: a.h, boden: a.boden ?? '.', tuer: a.tuer ?? 's', name: a.name, lootTabelle: a.lootTabelle });
+      const { ops, raum } = A.raumOps(karte(), { x: a.x, y: a.y, b: a.b, h: a.h, boden: a.boden ?? '.', wand: a.wand ?? 'ziegel', tuer: a.tuer ?? 's', name: a.name, lootTabelle: a.lootTabelle });
       aendere(`Raum ${a.name ?? ''}`.trim(), ops);
       return ok(`Raum gebaut${raum ? ` (Raum ${raum}, Loot ${a.lootTabelle ?? 'wohnung'})` : ''}.`);
+    },
+    wand_umfaerben: ({ x, y, wand }) => ok(`${aendere('Wand umgefärbt', A.wandFuellOps(karte(), x, y, wand))} Wandkacheln umgestellt.`),
+    raum_umbauen: ({ id, wand, boden, fenster, tuer }) => {
+      const f = karte().s('raumFlaechen').get(Number(id));
+      if (!f) throw new Error(`Raumfläche ${id} gibt es nicht (raumFlaechen: ${[...karte().s('raumFlaechen').keys()].join(', ')})`);
+      return ok(`${aendere('Raum umgebaut', A.raumUmbauOps(karte(), f, { wand, boden, fenster, tuer }))} Kacheln geändert.`);
     },
     objekt_platzieren: ({ id, x, y, drehung = 0, skalierung = 1 }) => {
       const k = karte();

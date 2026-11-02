@@ -1,4 +1,4 @@
-import { KACHELN } from './kacheln.js';
+import { KACHELN, istWandKachel } from './kacheln.js';
 import { RESSOURCEN_OBJEKTE } from './ressourcen.js';
 import { blockiertBauwerk, ebeneVon, sichtBlockiertBauwerk } from './bauwerke.js';
 import { hoeheAn } from './gelaende.js';
@@ -492,7 +492,7 @@ function findeTueren(welt) {
       }
       // Liegt die Tür in einer Nord-Süd-Wand? (Wand/Fenster oben oder unten, Durchgang links-rechts)
       const ende = kacheln[kacheln.length - 1];
-      const wandig = (x, y) => welt.kachelAn(x, y) === '#' || welt.kachelAn(x, y) === 'F';
+      const wandig = (x, y) => istWandKachel(welt.kachelAn(x, y)) || welt.kachelAn(x, y) === 'F';
       const senkrecht = kacheln.length > 1 ? !waagerechteGruppe : wandig(tx, ty - 1) || wandig(ende.tx, ende.ty + 1);
       tueren.push({
         id: tueren.length,

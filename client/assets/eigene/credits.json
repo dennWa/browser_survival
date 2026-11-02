@@ -256,5 +256,11 @@
     "urheber": "Browser Survival Studio (eigene Arbeit)",
     "lizenz": "CC0",
     "url": ""
+  },
+  {
+    "paket": "Texturen: Concrete012 (Betonwand), Bricks066 (Quadersteinwand), CorrugatedSteel005 (Wellblechwand, mit Wellen/Rost bearbeitet) – verkleinert unter assets/eigene/texturen/",
+    "urheber": "ambientCG (Lennart Demes)",
+    "lizenz": "CC0",
+    "url": "https://ambientcg.com"
   }
 ]

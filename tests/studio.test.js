@@ -42,7 +42,7 @@ test('Aktionen: Raum (Wände, Boden, Tür, Loot-Punkte, Raumfläche), Wand, Rech
   assert.equal(k.kachelAn(27, 2), 'F', 'rastet waagerecht ein');
   k.anwenden(A.rechteckOps(k, { x: 30, y: 20, b: 3, h: 2 }, '~'));
   assert.equal(k.kachelAn(32, 21), '~');
-  assert.throws(() => A.rechteckOps(k, { x: 0, y: 0, b: 1, h: 1 }, 'Q'), /Unbekannte Kachel/);
+  assert.throws(() => A.rechteckOps(k, { x: 0, y: 0, b: 1, h: 1 }, 'Ü'), /Unbekannte Kachel/);
   const fuell = A.fuellOps(k, 6, 6, '+');
   assert.ok(fuell.length >= 24 && fuell.length <= 30, 'füllt nur das Rauminnere');
 });
@@ -520,4 +520,30 @@ test('Phase 4.11: Asset-Suche – Lizenzen, ZIP, Poly-Haven-Suche/Import (fetch-
   assert.deepEqual(Object.keys(g.dateien), ['Stuhl_01_1k.gltf', 'Stuhl.bin']);
   assert.equal(g.credits.urheber, 'Anna');
   await assert.rejects(() => suche({ art: 'klang', quelle: 'freesound', text: 'wind' }, f), /Schlüssel/);
+});
+
+test('Phase 4.12: Wandarten (Kacheln, Wand-/Raum-Werkzeug) und Raum umbauen', async () => {
+  const A = await import('../studio/kern/aktionen.js');
+  const { EditorKarte } = await import('../editor/kern/karte.js');
+  const { KACHELN, WAND_ARTEN, istWandKachel, wandZeichen } = await import('../gemeinsam/welt/kacheln.js');
+  for (const art of WAND_ARTEN) {
+    const z = wandZeichen(art);
+    assert.ok(istWandKachel(z) && KACHELN[z].blockiert, `${art} → ${z} ist eine blockierende Wand`);
+  }
+  assert.equal(istWandKachel('F'), false);
+  const k = new EditorKarte({ id: 'w', name: 'w', breite: 20, hoehe: 20 });
+  k.anwenden(A.wandOps(k, { x: 1, y: 1 }, { x: 5, y: 1 }, 'holz'));
+  assert.equal(k.kachelAn(3, 1), 'H');
+  assert.throws(() => A.wandOps(k, { x: 1, y: 1 }, { x: 2, y: 1 }, 'gummi'), /Wand-Art/);
+  const { ops } = A.raumOps(k, { x: 4, y: 4, b: 8, h: 6, wand: 'beton', tuer: 's' });
+  k.anwenden(ops);
+  assert.equal(k.kachelAn(4, 4), 'B');
+  const f = [...k.s('raumFlaechen').values()][0] ?? { x: 5, y: 5, b: 6, h: 4 };
+  k.anwenden(A.raumUmbauOps(k, f, { wand: 'putz', boden: '+', fenster: 'n', tuer: 'o' }));
+  assert.equal(k.kachelAn(4, 4), 'P', 'Ecke: Putz');
+  assert.equal(k.kachelAn(6, 4), 'F', 'Nordseite: Fenster');
+  assert.equal(k.kachelAn(5, 4), 'P');
+  assert.equal(k.kachelAn(11, 6), 'T', 'Ostseite: Tür');
+  assert.equal(k.kachelAn(8, 9), 'T', 'Tür im Süden bleibt');
+  assert.equal(k.kachelAn(6, 6), '+', 'Innenboden Holz');
 });

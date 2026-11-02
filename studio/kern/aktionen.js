@@ -1,4 +1,4 @@
-import { KACHELN, istKachel } from '../../gemeinsam/welt/kacheln.js';
+import { KACHELN, istKachel, istWandKachel, WAND_ARTEN, wandZeichen } from '../../gemeinsam/welt/kacheln.js';
 import { linie, rasteEin, pinsel, fuellen, nurImFeld, kachelOps } from '../../editor/kern/raster.js';
 import { begrenzeTueren } from '../../editor/kern/wand.js';
 import { katalogEintrag, objektInfo, istBekannterTyp } from '../../editor/kern/katalog.js';
@@ -35,7 +35,7 @@ const pruefeZeichen = (z) => {
 };
 
 /** Wände, Fenster und Türen (Hausbau) – Bodenmalen lässt sie standardmäßig stehen (Phase 4: „Haus durchgeschnitten“) */
-export const BAU_KACHELN = Object.freeze(['#', 'F', 'T']);
+export const BAU_KACHELN = Object.freeze(['#', 'H', 'P', 'B', 'Q', 'M', 'F', 'T']);
 const istBaukachel = (z) => BAU_KACHELN.includes(z);
 /** Ops ohne Wand/Fenster/Tür-Kacheln (wenn ein Boden darüber gemalt würde) */
 export function ohneWaende(karte, ops, zeichen) {
@@ -78,8 +78,9 @@ export function fuellOps(karte, x, y, zeichen) {
 
 /** Gerade Wand (rastet waagerecht/senkrecht/45° ein). art: wand | fenster | tuer (oder Kachelzeichen) */
 export function wandOps(karte, a, b, art = 'wand') {
-  const zeichen = { wand: '#', fenster: 'F', tuer: 'T' }[art] ?? art;
-  if (!['#', 'F', 'T'].includes(zeichen)) throw new Error('Wand-Art: wand, fenster oder tuer');
+  // Phase 4.12: art = wand (Ziegel) | fenster | tuer | Wandart (ziegel, holz, putz, beton, quader, blech) | Kachelzeichen
+  const zeichen = { wand: '#', fenster: 'F', tuer: 'T' }[art] ?? (WAND_ARTEN.includes(art) ? wandZeichen(art) : art);
+  if (!istWandKachel(zeichen) && !['F', 'T'].includes(zeichen)) throw new Error(`Wand-Art: wand, fenster, tuer oder ${WAND_ARTEN.join(', ')}`);
   const e = rasteEin(ganz(a.x), ganz(a.y), ganz(b.x), ganz(b.y));
   let punkte = nurImFeld(karte, linie(ganz(a.x), ganz(a.y), e.x, e.y));
   if (zeichen === 'T') punkte = begrenzeTueren(punkte).punkte;
@@ -99,7 +100,9 @@ export function freierRaum(karte) {
  * Raum bauen: Wände rundum, Innenboden, Tür (Mitte der Seite), optional Loot-Raum (Name + Tabelle → Loot-Punkte im Raum).
  * @returns { ops, raum }
  */
-export function raumOps(karte, { x, y, b, h, boden = '.', tuer = 's', name = null, lootTabelle = null, lootPunkte = null }) {
+export function raumOps(karte, { x, y, b, h, boden = '.', tuer = 's', name = null, lootTabelle = null, lootPunkte = null, wand = '#' }) {
+  const wz = WAND_ARTEN.includes(wand) ? wandZeichen(wand) : wand;
+  if (!istWandKachel(wz)) throw new Error(`Wand: ${WAND_ARTEN.join(', ')}`);
   const r = imFeld(karte, { x, y, b, h });
   if (!r || r.b < 3 || r.h < 3) throw new Error('Raum braucht mindestens 3 × 3 Kacheln');
   pruefeZeichen(boden);
@@ -108,7 +111,7 @@ export function raumOps(karte, { x, y, b, h, boden = '.', tuer = 's', name = nul
   for (let yy = r.y; yy < r.y + r.h; yy++)
     for (let xx = r.x; xx < r.x + r.b; xx++) {
       const rand = xx === r.x || yy === r.y || xx === r.x + r.b - 1 || yy === r.y + r.h - 1;
-      ops.push({ s: 'kachel', i: karte.index(xx, yy), neu: rand ? '#' : boden });
+      ops.push({ s: 'kachel', i: karte.index(xx, yy), neu: rand ? wz : boden });
     }
   const mx = r.x + Math.floor(r.b / 2);
   const my = r.y + Math.floor(r.h / 2);
@@ -132,6 +135,62 @@ export function raumOps(karte, { x, y, b, h, boden = '.', tuer = 's', name = nul
     }
   }
   return { ops, raum };
+}
+
+/** Phase 4.12: zusammenhängende Wand (4er-Nachbarn, nur Wand-Kacheln) ab (x, y) auf eine Wandart umstellen */
+export function wandFuellOps(karte, x, y, wand) {
+  const wz = WAND_ARTEN.includes(wand) ? wandZeichen(wand) : wand;
+  if (!istWandKachel(wz)) throw new Error(`Wand: ${WAND_ARTEN.join(', ')}`);
+  if (!istWandKachel(karte.kachelAn(ganz(x), ganz(y)))) return [];
+  const punkte = fuellen(ganz(x), ganz(y), (px, py) => istWandKachel(karte.kachelAn(px, py)));
+  return kachelOps(karte, punkte, wz);
+}
+
+/**
+ * Phase 4.12: vorhandenen Raum umbauen. flaeche = Raumfläche { x, y, b, h } (Innenfläche) – die Wände liegen im Ring darum.
+ *   wand   Wandart (ziegel, holz, putz, beton, quader, blech): alle Wand-Kacheln des Rings tauschen (Fenster/Türen bleiben)
+ *   boden  Innenboden-Zeichen: alle begehbaren Kacheln innen
+ *   fenster  Seite n|s|w|o: jede zweite Wandkachel dieser Seite wird Fenster (Ecken bleiben)
+ *   tuer   Seite n|s|w|o: Tür in die Mitte dieser Seite
+ */
+export function raumUmbauOps(karte, flaeche, { wand = null, boden = null, fenster = null, tuer = null } = {}) {
+  const ops = [];
+  const x0 = flaeche.x - 1;
+  const y0 = flaeche.y - 1;
+  const x1 = flaeche.x + flaeche.b;
+  const y1 = flaeche.y + flaeche.h;
+  const neu = new Map();
+  const aktuell = (x, y) => neu.get(`${x},${y}`) ?? karte.kachelAn(x, y);
+  const setze = (x, y, z) => {
+    if (!karte.imFeld(x, y) || aktuell(x, y) === z) return;
+    neu.set(`${x},${y}`, z);
+    ops.push({ s: 'kachel', i: karte.index(x, y), neu: z });
+  };
+  if (wand) {
+    const wz = WAND_ARTEN.includes(wand) ? wandZeichen(wand) : wand;
+    if (!istWandKachel(wz)) throw new Error(`Wand: ${WAND_ARTEN.join(', ')}`);
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if ((x === x0 || x === x1 || y === y0 || y === y1) && istWandKachel(aktuell(x, y))) setze(x, y, wz);
+  }
+  if (boden) {
+    pruefeZeichen(boden);
+    if (KACHELN[boden].blockiert) throw new Error('Innenboden darf keine Wand sein');
+    for (let y = flaeche.y; y < y1; y++) for (let x = flaeche.x; x < x1; x++) if (!KACHELN[aktuell(x, y)]?.blockiert && aktuell(x, y) !== 'T') setze(x, y, boden);
+  }
+  const seite = (s) => ({ n: [[x0 + 1, y0], [x1 - 1, y0]], s: [[x0 + 1, y1], [x1 - 1, y1]], w: [[x0, y0 + 1], [x0, y1 - 1]], o: [[x1, y0 + 1], [x1, y1 - 1]] })[s];
+  if (fenster) {
+    const sei = seite(fenster);
+    if (!sei) throw new Error('fenster: n, s, w, o');
+    const [[ax, ay], [bx, by]] = sei;
+    let n = 0;
+    for (let x = ax, y = ay; x <= bx && y <= by; ax === bx ? y++ : x++, n++) if (n % 2 === 1 && istWandKachel(aktuell(x, y))) setze(x, y, 'F');
+  }
+  if (tuer) {
+    const sei = seite(tuer);
+    if (!sei) throw new Error('tuer: n, s, w, o');
+    const [[ax, ay], [bx, by]] = sei;
+    setze(Math.floor((ax + bx) / 2), Math.floor((ay + by) / 2), 'T');
+  }
+  return ops;
 }
 
 /**

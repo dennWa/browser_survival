@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { wendeWandTexturAn } from './wandTexturen.js';
+import { wendeWandTexturAn, ohneFarbe } from './wandTexturen.js';
 
 /**
  * Wand-Durchsicht (Runde 18): Steht man in einem Raum (Innenboden, den Türen begrenzen – `Daecher.raumBei`), werden NUR die
@@ -177,6 +177,7 @@ export class WandDurchsicht {
   #material(vorlage) {
     const m = vorlage.clone();
     if (vorlage.userData.wandTextur) wendeWandTexturAn(m, vorlage.userData.wandTextur); // onBeforeCompile geht beim Klonen verloren
+    else if (vorlage.userData.ohneFarbe) ohneFarbe(m); // Deckel: Eckfarbe = Wandart, nicht einfärben
     m.transparent = true;
     m.depthWrite = false;
     m.vertexColors = true; // Farbattribut mit Alpha = Deckkraft je Kachel
@@ -221,7 +222,13 @@ export class WandDurchsicht {
     const geometrie = new THREE.BufferGeometry();
     geometrie.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geometrie.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
-    geometrie.setAttribute('color', new THREE.BufferAttribute(new Float32Array((pos.length / 3) * 4).fill(1), 4));
+    const farben = new Float32Array((pos.length / 3) * 4).fill(1);
+    // Phase 4.12: Blau-Kanal = Wandart der Kachel (wandTexturen.wandArtFarbe), Alpha = Deckkraft (#setzeDeckkraft)
+    for (const b of this.bereiche) {
+      const art = this.instanzVon.get(b.idx).map((i) => this.teile[i].art).find((a) => a !== undefined) ?? 0;
+      for (const [start, anzahl] of [b.seite, b.oben]) for (let v = start; v < start + anzahl; v++) farben[v * 4 + 2] = (art + 0.5) / 8;
+    }
+    geometrie.setAttribute('color', new THREE.BufferAttribute(farben, 4));
     geometrie.addGroup(0, anzahlSeite, 0);
     geometrie.addGroup(anzahlSeite, obenPos.length / 3, 1);
     geometrie.computeBoundingSphere();

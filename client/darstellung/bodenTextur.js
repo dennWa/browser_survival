@@ -69,8 +69,8 @@ export class BodenTextur {
     ctx.fillStyle = FARBEN.wandBoden;
     for (let ty = ya; ty < ye; ty++) {
       for (let tx = xa; tx < xe; tx++) {
-        const name = KACHELN[this.welt.kachelAn(tx, ty)]?.name;
-        if (name === 'wand' || name === 'fenster') ctx.fillRect(tx * this.g, ty * this.g, this.g + 0.25, this.g + 0.25);
+        const k = KACHELN[this.welt.kachelAn(tx, ty)];
+        if (k?.wand || k?.name === 'fenster') ctx.fillRect(tx * this.g, ty * this.g, this.g + 0.25, this.g + 0.25);
       }
     }
     if (this.bemalung) {
@@ -95,7 +95,7 @@ export class BodenTextur {
     const g = this.g;
     let name = KACHELN[this.welt.kachelAn(tx, ty)]?.name;
     if (name === 'tuer') name = this.#tuerBoden(tx, ty);
-    if (name === 'wand' || name === 'fenster') return; // wird komplett übermalt
+    if (KACHELN[this.welt.kachelAn(tx, ty)]?.wand || name === 'fenster') return; // wird komplett übermalt
 
     const x = tx * g;
     const y = ty * g;
@@ -400,8 +400,8 @@ export class BodenTextur {
     return (nachbarn.find((k) => k?.innen) ?? nachbarn.find((k) => k && !k.blockiert && k.name !== 'tuer'))?.name ?? 'beton';
   }
   #istWandig(tx, ty) {
-    const name = KACHELN[this.welt.kachelAn(tx, ty)]?.name;
-    return name === 'wand' || name === 'fenster';
+    const k = KACHELN[this.welt.kachelAn(tx, ty)];
+    return !!k?.wand || k?.name === 'fenster';
   }
   #zeichneTuerschwelle(ctx, tx, ty) {
     const g = this.g;

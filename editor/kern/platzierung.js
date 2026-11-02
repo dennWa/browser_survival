@@ -1,3 +1,4 @@
+import { istWandKachel } from '../../gemeinsam/welt/kacheln.js';
 import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
 import { BAUWERKE } from '../../gemeinsam/welt/bauwerke.js';
 import { RESSOURCEN_OBJEKTE } from '../../gemeinsam/welt/ressourcen.js';
@@ -22,7 +23,7 @@ export function bedeckteKacheln(r) {
   return gedrehteKacheln({ ...r, x: r.x - ox, y: r.y - oy }, breite).map((i) => ({ x: (i % breite) + ox, y: Math.floor(i / breite) + oy }));
 }
 
-const istHart = (z) => z === '#' || z === 'F' || z === '~' || z === 'T';
+const istHart = (z) => istWandKachel(z) || z === 'F' || z === '~' || z === 'T';
 
 export function pruefeObjekt(karte, o, { ignoriere = new Set() } = {}) {
   if (o.ebene === 'oben') {

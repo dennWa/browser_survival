@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { TransformControls } from '../../client/vendor/three/addons.js';
-import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
+import { KACHELN, istWandKachel } from '../../gemeinsam/welt/kacheln.js';
 import { katalog, objektInfo } from '../../editor/kern/katalog.js';
 import { eigeneGroesse } from '../../gemeinsam/welt/drehung.js';
 import { BEHAELTER_TYPEN } from '../../gemeinsam/welt/behaelter.js';
@@ -45,7 +45,9 @@ const FOTO_BODEN = { rasen: 'rasen', wiese: 'wiese', erde: 'erde', kies: 'kies',
 const FORMEN = ['kasten', 'flach', 'stamm', 'krone', 'tanne', 'busch', 'stein', 'licht', 'mast'];
 const UEBERLAGERUNGEN = ['zombieBereiche', 'lootZonen', 'raumFlaechen', 'tierBereiche', 'uebergaenge', 'klaenge', 'spawnpunkte', 'marker', 'ankuenfte', 'bauwerke', 'notizen'];
 const BAUM_TYPEN = new Set(['baum', 'baum_herbst']);
-const WELT_PX = 1 / 32; // Spiel-Modelle (Weltpixel) → Kacheln
+const WELT_PX = 1 / 32;
+/** Schnellansicht: Farbe je Wandart (Spiel-Optik zeigt die echten Texturen) */
+const WAND_FARBE = { ziegel: new THREE.Color(0xc29a86), holz: new THREE.Color(0xa07b55), putz: new THREE.Color(0xe7e1d4), beton: new THREE.Color(0x9a9c9f), quader: new THREE.Color(0x8c8f95), blech: new THREE.Color(0x9fa7b0) }; // Spiel-Modelle (Weltpixel) → Kacheln
 const geteilt = (o) => o.traverse((t) => (t.userData.geteilt = true));
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -382,7 +384,7 @@ export class Viewport {
       for (let x = x0; x < x0 + b; x++) {
         const z = k.kachelAn(x, y);
         const boden = k.hoeheAn(x, y);
-        if (z === '#') teile.wand.push([x, y, boden, WAND_HOEHE * hoch, 0]);
+        if (istWandKachel(z)) teile.wand.push([x, y, boden, WAND_HOEHE * hoch, 0, KACHELN[z].wand]);
         else if (z === 'F') {
           teile.unten.push([x, y, boden, 0.95 * hoch, 0]);
           if (!this.wandNiedrig) {
@@ -400,10 +402,12 @@ export class Viewport {
     for (const [teil, liste] of Object.entries(teile)) {
       if (!liste.length) continue;
       const mesh = new THREE.InstancedMesh(this.einheitsKasten, mats[teil], liste.length);
-      liste.forEach(([x, y, unten, hoehe, duenn], i) => {
+      liste.forEach(([x, y, unten, hoehe, duenn, art], i) => {
+        if (art) mesh.setColorAt(i, WAND_FARBE[art] ?? WAND_FARBE.ziegel); // Phase 4.12: Wandart in der Schnellansicht
         const tief = duenn ? 1 - duenn * 4 : 1;
         // dünne Teile (Glas, Türblatt) quer zur Wand: Ausrichtung nach Nachbarwänden
-        const quer = duenn && (['#', 'F', 'T'].includes(k.kachelAn(x, y - 1)) || ['#', 'F', 'T'].includes(k.kachelAn(x, y + 1))) && !['#', 'F', 'T'].includes(k.kachelAn(x - 1, y));
+        const bau = (zz) => istWandKachel(zz) || zz === 'F' || zz === 'T';
+        const quer = duenn && (bau(k.kachelAn(x, y - 1)) || bau(k.kachelAn(x, y + 1))) && !bau(k.kachelAn(x - 1, y));
         m.makeScale(quer ? tief : 1, hoehe, quer ? 1 : tief).setPosition(x + 0.5, unten + hoehe / 2, y + 0.5);
         mesh.setMatrixAt(i, m);
       });
@@ -426,7 +430,7 @@ export class Viewport {
     this.einheitsKasten = new THREE.BoxGeometry(1, 1, 1);
     const std = (farbe, extra = {}) => new THREE.MeshLambertMaterial({ color: farbe, ...extra });
     this.wandMaterialien = {
-      wand: std(0xbdb5a6),
+      wand: std(0xffffff), // Instanzfarbe = Wandart
       unten: std(0xbdb5a6),
       oben: std(0xbdb5a6),
       glas: new THREE.MeshLambertMaterial({ color: 0x8fc8ff, transparent: true, opacity: 0.35, depthWrite: false }),

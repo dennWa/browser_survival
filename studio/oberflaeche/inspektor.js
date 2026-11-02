@@ -106,7 +106,12 @@ export class Inspektor {
           + this.#abschnitt('Loot', this.#auswahl('_tabelle', '', [['', '— Inhalt aus Tabelle übernehmen —'], ...LOOT_LISTE.map((t) => [t, t])], 'Tabelle') + `<div class="insp-zeile"><span>Inhalt</span><div style="color:var(--text-3)">${w.eintraege?.length ?? 0} Items (${w.modus})</div></div>` + this.#zahl('punkte', w.punkte, { min: 1, max: 200, schritt: 1, titel: 'Loot-Punkte' }) + this.#auswahl('ort', w.ort ?? 'alle', [['alle', 'überall'], ['innen', 'nur innen'], ['aussen', 'nur außen']], 'Ort') + this.#zahl('respawnZeit', w.respawnZeit ?? '', { min: 0, max: 7200, schritt: 30, titel: 'Respawn s' }) + this.#zahl('max', w.max ?? '', { min: 0, max: 200, schritt: 1, titel: 'max. gleichzeitig' }));
       case 'raumFlaechen': {
         const r = karte.s('raeume').get(w.raum) ?? {};
-        return this.#abschnitt('Raum', this.#text('raum.name', r.name, 'Name') + this.#auswahl('raum.lootTabelle', r.lootTabelle, LOOT_LISTE.map((t) => [t, t]), 'Loot-Tabelle') + this.#zahl('raum.spawnChance', r.spawnChance ?? '', { min: 0, max: 1, schritt: 0.05, titel: 'Chance 0–1' }) + this.#zahl('raum.respawnZeit', r.respawnZeit ?? '', { min: 0, max: 7200, schritt: 30, titel: 'Respawn s' })) + this.#abschnitt('Fläche', this.#rechteck(w));
+        // Phase 4.12: Raum umbauen (Wandart, Boden, Fenster, Tür) – kern/aktionen.raumUmbauOps
+        const umbau = `<div class="insp-zeile"><span>Wände</span><div><select class="feld" data-umbau="wand"><option value="">— Wandart wählen —</option>${[['ziegel', 'Ziegel'], ['holz', 'Holz'], ['putz', 'Putz (weiß)'], ['beton', 'Beton'], ['quader', 'Quaderstein'], ['blech', 'Wellblech']].map(([a, t]) => `<option value="${a}">${t}</option>`).join('')}</select></div></div>
+          <div class="insp-zeile"><span>Boden</span><div><select class="feld" data-umbau="boden"><option value="">— Boden wählen —</option>${[['.', 'Fliesen'], [':', 'Beton'], ['+', 'Holz']].map(([z, t]) => `<option value="${z}">${t}</option>`).join('')}</select></div></div>
+          <div class="insp-zeile"><span>Fenster</span><div class="insp-knoepfe">${['n', 'o', 's', 'w'].map((x) => `<button class="knopf flach" data-aktion="raumFenster" data-seite="${x}">${{ n: 'Nord', o: 'Ost', s: 'Süd', w: 'West' }[x]}</button>`).join('')}</div></div>
+          <div class="insp-zeile"><span>Tür</span><div class="insp-knoepfe">${['n', 'o', 's', 'w'].map((x) => `<button class="knopf flach" data-aktion="raumTuer" data-seite="${x}">${{ n: 'Nord', o: 'Ost', s: 'Süd', w: 'West' }[x]}</button>`).join('')}</div></div>`;
+        return this.#abschnitt('Raum', this.#text('raum.name', r.name, 'Name') + this.#auswahl('raum.lootTabelle', r.lootTabelle, LOOT_LISTE.map((t) => [t, t]), 'Loot-Tabelle') + this.#zahl('raum.spawnChance', r.spawnChance ?? '', { min: 0, max: 1, schritt: 0.05, titel: 'Chance 0–1' }) + this.#zahl('raum.respawnZeit', r.respawnZeit ?? '', { min: 0, max: 7200, schritt: 30, titel: 'Respawn s' })) + this.#abschnitt('Umbauen', umbau) + this.#abschnitt('Fläche', this.#rechteck(w));
       }
       case 'uebergaenge':
         return this.#abschnitt('Ziel', this.#auswahl('ziel', w.ziel, [[w.ziel, w.ziel], ...zonen.filter(([z]) => z !== w.ziel)], 'Zielzone') + this.#text('ankunft', w.ankunft, 'Ankunft', 'Name in der Zielzone') + this.#text('name', w.name, 'Beschriftung') + `<button class="knopf" data-aktion="zumZiel">${icon('pfeilRechts', 14)} Zur Zielzone springen</button>`) + this.#abschnitt('Bereich', this.#rechteck(w));
@@ -171,6 +176,13 @@ export class Inspektor {
   }
 
   #aenderung(e) {
+    const umbau = e.target.closest('[data-umbau]');
+    if (umbau && umbau.value) {
+      const g = this.dok.gewaehlt();
+      const f = g.length === 1 && g[0].s === 'raumFlaechen' ? this.dok.karte.s('raumFlaechen').get(g[0].k) : null;
+      if (f) this.dok.aendere(umbau.dataset.umbau === 'wand' ? 'Wände getauscht' : 'Boden getauscht', A.raumUmbauOps(this.dok.karte, f, { [umbau.dataset.umbau]: umbau.value }));
+      return;
+    }
     const el = e.target.closest('[data-feld]');
     if (!el) return;
     const feld = el.dataset.feld;
@@ -271,6 +283,10 @@ export class Inspektor {
       const v = studio.vorlagen().find((x) => x.id === i.vorlage);
       if (!v) return studio.hinweis(`Vorlage „${i.vorlage}“ gibt es nicht mehr`, 'fehler');
       return dok.aendere('Vorlage aktualisiert', A.aktualisiereInstanzOps(k, i, v.vorlage));
+    }
+    if ((art === 'raumFenster' || art === 'raumTuer') && g.length === 1 && g[0].s === 'raumFlaechen') {
+      const f = k.s('raumFlaechen').get(g[0].k);
+      return dok.aendere(art === 'raumTuer' ? 'Tür eingesetzt' : 'Fenster eingesetzt', A.raumUmbauOps(k, f, { [art === 'raumTuer' ? 'tuer' : 'fenster']: knopf.dataset.seite }));
     }
     if (art === 'routeZeichnen' && g.length === 1) return studio.werkzeuge.zeichneRoute(g[0].s, g[0].k);
     if (art === 'routeWeg' && g.length === 1) return dok.aendere('Route gelöscht', A.aenderOps(k, g[0].s, g[0].k, { route: undefined }));

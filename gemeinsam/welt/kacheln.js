@@ -14,7 +14,13 @@ export const KACHELN = Object.freeze({
   ':': { name: 'beton', blockiert: false, innen: true },
   '+': { name: 'holz', blockiert: false, innen: true },
   'T': { name: 'tuer', blockiert: false },
-  '#': { name: 'wand', blockiert: true },
+  '#': { name: 'wand', blockiert: true, wand: 'ziegel' },
+  // Phase 4.12: weitere Wandarten (gleiches Verhalten wie '#', nur andere Oberfläche – client/darstellung/wandTexturen.js)
+  'H': { name: 'holzwand', blockiert: true, wand: 'holz' },
+  'P': { name: 'putzwand', blockiert: true, wand: 'putz' },
+  'B': { name: 'betonwand', blockiert: true, wand: 'beton' },
+  'Q': { name: 'quaderwand', blockiert: true, wand: 'quader' },
+  'M': { name: 'blechwand', blockiert: true, wand: 'blech' },
   'F': { name: 'fenster', blockiert: true },
   // Runde 26: Untergründe mit Fototextur (client/assets/boden, werkzeuge/assets/baue_boeden.py)
   '$': { name: 'rasen', blockiert: false },
@@ -38,6 +44,13 @@ export const MARKER = Object.freeze({
   SPIELER_START: 'S',
   ZOMBIE: 'Z',
 });
+
+/** Wandarten (Reihenfolge = Index im Wand-Atlas des Renderers, nicht umsortieren) */
+export const WAND_ARTEN = Object.freeze(['ziegel', 'holz', 'putz', 'beton', 'quader', 'blech']);
+/** Wand-Kachel (alle Wandarten, ohne Fenster/Tür)? */
+export const istWandKachel = (zeichen) => !!KACHELN[zeichen]?.wand;
+/** Zeichen der Wand einer Art ('ziegel' → '#') */
+export const wandZeichen = (art) => Object.keys(KACHELN).find((z) => KACHELN[z].wand === art) ?? '#';
 
 export function istLootMarker(zeichen) {
   return zeichen >= 'a' && zeichen <= 'z';

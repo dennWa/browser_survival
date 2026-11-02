@@ -87,7 +87,12 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `:` | Beton (innen) | Böden | innen |
 | `+` | Holzboden (innen) | Böden | innen |
 | `T` | Tür | Mauern | begehbar |
-| `#` | Wand | Mauern | blockiert |
+| `#` | Ziegelwand | Mauern | blockiert |
+| `H` | Holzwand | Mauern | blockiert |
+| `P` | Putzwand | Mauern | blockiert |
+| `B` | Betonwand | Mauern | blockiert |
+| `Q` | Quadersteinwand | Mauern | blockiert |
+| `M` | Wellblechwand | Mauern | blockiert |
 | `F` | Fenster | Mauern | blockiert |
 | `$` | Rasen (gepflegt) | Böden | begehbar |
 | `&` | Erdweg | Wege | begehbar |
@@ -780,5 +785,5 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `loot.spawnChance` | Loot-Chance | 0–1 | liegt an einem Loot-Punkt etwas? |
 | `loot.respawnZeit` | Nachschub | 5–7200 s | bis geplünderte Punkte neu gewürfelt werden |
 
-_Kachel-Zeichen gesamt: `0` `,` `*` `_` `=` `-` `.` `:` `+` `T` `#` `F` `$` `&` `%` `^` `;` `!` `~`_
+_Kachel-Zeichen gesamt: `0` `,` `*` `_` `=` `-` `.` `:` `+` `T` `#` `H` `P` `B` `Q` `M` `F` `$` `&` `%` `^` `;` `!` `~`_
 
