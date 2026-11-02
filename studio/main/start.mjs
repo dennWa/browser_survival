@@ -15,6 +15,7 @@ import { Projekt } from './projekt.mjs';
 import { erstelleDateiServer } from './dateiServer.mjs';
 import { starteMcp } from './mcp.mjs';
 import { KiAssistent, ANBIETER } from './ki.mjs';
+import * as veroeffentlichen from './veroeffentlichen.mjs';
 
 const APP_WURZEL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const MCP_STANDARD_PORT = 8766;
@@ -149,6 +150,11 @@ const AKTIONEN = {
   },
   'modell.sicherungen': ({ stem }) => projekt.modellSicherungen(stem),
   'modell.wiederherstellen': ({ stem, sicherung }) => projekt.stelleModellWiederHer(stem, sicherung),
+  'git.status': () => veroeffentlichen.status(projekt.wurzel),
+  'git.veroeffentlichen': async ({ nachricht }) => {
+    await projekt.aktualisiereKiAnleitung(); // Regel 8: KI-Anleitung aktuell, sonst schlägt ein Test fehl
+    return veroeffentlichen.veroeffentliche(projekt.wurzel, { nachricht });
+  },
   'papierkorb.liste': () => projekt.papierkorb(),
   'papierkorb.wiederherstellen': ({ id }) => projekt.papierkorbWiederherstellen(id),
   'papierkorb.loeschen': ({ id }) => projekt.papierkorbLoeschen(id),

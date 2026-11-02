@@ -374,3 +374,40 @@ test('Phase 4.2: Pinsel = Vorschau-Fläche (quadratisch), Wände/Fenster/Türen 
   assert.equal(A.rechteckOps(k, { x: 0, y: 0, b: 12, h: 5 }, '$').length, 60);
   assert.equal(A.pinselOps(k, 4, 2, 3, '$', { waendeSchuetzen: true }).length, 6);
 });
+
+test('Phase 4.6: Veröffentlichen – Status, Tests, Commit, Pull, Push (lokales Test-Repo)', async () => {
+  const { status, veroeffentliche, nachrichtVorschlag } = await import('../studio/main/veroeffentlichen.mjs');
+  const { execFileSync } = await import('node:child_process');
+  const tmp = mkdtempSync(path.join(tmpdir(), 'studio-git-'));
+  try {
+    const git = (cwd, ...a) => execFileSync('git', a, { cwd, stdio: 'pipe' }).toString();
+    const fern = path.join(tmp, 'fern.git');
+    const repo = path.join(tmp, 'repo');
+    git(tmp, 'init', '-q', '--bare', '-b', 'main', fern);
+    git(tmp, 'clone', '-q', fern, repo);
+    for (const [k, v] of [['user.email', 't@t'], ['user.name', 'Test']]) git(repo, 'config', k, v);
+    mkdirSync(path.join(repo, 'tests'), { recursive: true });
+    writeFileSync(path.join(repo, 'tests/ok.test.js'), "import { test } from 'node:test'; test('ok', () => {});\n");
+    git(repo, 'add', '-A');
+    git(repo, 'commit', '-q', '-m', 'start');
+    git(repo, 'push', '-q', 'origin', 'HEAD:main');
+    mkdirSync(path.join(repo, 'server/spiel/karten'), { recursive: true });
+    writeFileSync(path.join(repo, 'server/spiel/karten/neu.js'), 'export const X = 1;\n');
+    const st = await status(repo);
+    assert.equal(st.zweig, 'main');
+    assert.deepEqual(st.aenderungen, [{ art: 'neu', datei: 'server/spiel/karten/neu.js' }]);
+    assert.equal(st.vorschlag, 'Studio: Zonen aktualisiert');
+    const r = await veroeffentliche(repo, { nachricht: 'Neue Zone' });
+    assert.ok(r.ok, JSON.stringify(r.schritte));
+    assert.match(git(fern, 'log', '-1', '--format=%s', 'main'), /Neue Zone/);
+    // Tests rot → nichts wird hochgeladen
+    writeFileSync(path.join(repo, 'tests/rot.test.js'), "import { test } from 'node:test'; test('rot', () => { throw new Error('x'); });\n");
+    const r2 = await veroeffentliche(repo, { nachricht: 'kaputt' });
+    assert.equal(r2.ok, false);
+    assert.equal(r2.schritte.length, 1);
+    assert.match(git(fern, 'log', '-1', '--format=%s', 'main'), /Neue Zone/, 'remote unverändert');
+    assert.equal(nachrichtVorschlag([{ datei: 'client/audio/eigene/a.ogg' }, { datei: 'client/assets/eigene/b.glb' }]), 'Studio: Audio, Modelle aktualisiert');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});

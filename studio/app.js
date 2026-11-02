@@ -22,6 +22,7 @@ import { oeffneItemEditor } from './oberflaeche/itemEditor.js';
 import { Werkstatt } from './werkstatt/werkstatt.js';
 import { VorschauBilder } from './ansicht/vorschauBilder.js';
 import { oeffnePapierkorb } from './oberflaeche/papierkorb.js';
+import { oeffneVeroeffentlichen } from './oberflaeche/veroeffentlichen.js';
 import { AudioZentrale } from './audio/audioZentrale.js';
 import { ladeSpielordner, setzeSpielordner } from '../editor/kern/spielordner.js';
 import { ausDefinition } from '../editor/kern/format.js';
@@ -458,6 +459,7 @@ class Studio {
       { id: 'asset.importModell', gruppe: 'Datei', titel: 'Modell importieren …', icon: 'hochladen', ausfuehren: () => this.#dialogModellImport() },
       { id: 'asset.importKlang', gruppe: 'Datei', titel: 'Klang importieren …', icon: 'audio', aktiv: echteZone, ausfuehren: () => this.#dialogKlangImport() },
       { id: 'ansicht.vorschauNeu', gruppe: 'Ansicht', titel: 'Vorschaubilder neu erzeugen', icon: 'wiederholen', ausfuehren: async () => { await this.vorschau.loescheCache(); this.assets.zeichne(); this.hinweis('Vorschaubilder werden neu erzeugt …'); } },
+      { id: 'projekt.veroeffentlichen', gruppe: 'Datei', titel: 'Veröffentlichen (Tests, Commit, Push) …', icon: 'insSpiel', kuerzel: 'Strg+Umschalt+P', ausfuehren: () => oeffneVeroeffentlichen(this) },
       { id: 'projekt.papierkorb', gruppe: 'Datei', titel: 'Papierkorb …', icon: 'loeschen', ausfuehren: () => oeffnePapierkorb(this) },
       { id: 'audio.oeffnen', gruppe: 'Datei', titel: 'Audio-Zentrale', icon: 'audio', kuerzel: 'Strg+Umschalt+A', ausfuehren: () => this.audio.oeffne() },
       { id: 'werkstatt.oeffnen', gruppe: 'Datei', titel: 'Modell-Werkstatt', icon: 'modell', kuerzel: 'Strg+Umschalt+M', ausfuehren: () => this.werkstatt.oeffne() },
@@ -557,7 +559,7 @@ class Studio {
 
   #menues() {
     this.menues.baue([
-      { titel: 'Datei', eintraege: ['zone.neu', 'zone.speichern', 'zone.insSpiel', '-', 'zone.testen', 'zone.testenHier', '-', 'asset.importModell', 'asset.importKlang', '-', 'audio.oeffnen', 'werkstatt.oeffnen', 'daten.items', 'projekt.papierkorb', '-', 'zone.schliessen', 'studio.start', 'projekt.ordner'] },
+      { titel: 'Datei', eintraege: ['zone.neu', 'zone.speichern', 'zone.insSpiel', 'projekt.veroeffentlichen', '-', 'zone.testen', 'zone.testenHier', '-', 'asset.importModell', 'asset.importKlang', '-', 'audio.oeffnen', 'werkstatt.oeffnen', 'daten.items', 'projekt.papierkorb', '-', 'zone.schliessen', 'studio.start', 'projekt.ordner'] },
       { titel: 'Bearbeiten', eintraege: ['bearbeiten.rueckgaengig', 'bearbeiten.wiederholen', '-', 'bearbeiten.kopieren', 'bearbeiten.einfuegen', 'bearbeiten.duplizieren', 'bearbeiten.loeschen', '-', 'bearbeiten.alles', 'bearbeiten.abwaehlen'] },
       { titel: 'Ansicht', eintraege: ['ansicht.2d3d', 'ansicht.fokus', 'ansicht.ganz', '-', 'ansicht.spielOptik', 'ansicht.lootVorschau', 'ansicht.lootNeu', 'ansicht.laufen', 'ansicht.heatmap', 'ansicht.raster', 'hilfslinie.waagerecht', 'hilfslinie.senkrecht', 'hilfslinien.loeschen', 'ansicht.wandNiedrig', 'ansicht.objekte', 'ansicht.overlays', '-', 'ansicht.zeit.tag', 'ansicht.zeit.abend', 'ansicht.zeit.nacht', '-', 'ansicht.wetter.klar', 'ansicht.wetter.nebel', 'ansicht.wetter.regen', 'ansicht.wetter.schnee', '-', 'ansicht.vorschauNeu', 'ansicht.palette'] },
       { titel: 'Zone', eintraege: ['zone.eigenschaften', 'zone.groesse', 'zone.pruefen', 'pruefen.laufweg', 'pruefen.balance', 'zone.weltkarte', '-', 'zone.versionSpeichern', 'zone.versionen', 'zone.vergleichAus', '-', 'zone.ersetzen', 'zone.generieren', '-', 'vorlage.neu', 'vorlage.ausAuswahl', 'vorlage.speichern'] },
@@ -1217,6 +1219,7 @@ class Studio {
     this.#ansichtsLeiste();
     this.#rechtsReiter();
     document.getElementById('knopf-testen').innerHTML = `${icon('abspielen', 14)} Testen`;
+    document.getElementById('knopf-veroeffentlichen').innerHTML = `${icon('insSpiel', 14)} Veröffentlichen`;
     document.querySelector('[data-befehl="asset.importModell"]').innerHTML = icon('hochladen', 16);
     const info = await nativ.aufruf('projekt.info');
     document.title = `Browser Survival Studio – ${info.name}`;

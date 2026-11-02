@@ -391,7 +391,7 @@ Tests `tests/studioAudio.test.js`, Rauchtest-Abschnitt „Phase 2“.
 | 4.3 | Gelände-Werkzeug in 3D sichtbar machen (Fehler) | ✅ |
 | 4.4 | Echte Vorschaubilder für alle Bausteine (Gebäude, Möbel, Natur …), im Studio gerendert und zwischengespeichert | ✅ |
 | 4.5 | Papierkorb mit automatischem Leeren nach 20 Tagen (Modelle, Audio, gelöschte Dateien) + Modelle in der Werkstatt richtig löschen | ✅ |
-| 4.6 | Ein-Klick-Veröffentlichen: Tests → Commit → Push auf main (GitHub Pages) | ⏳ |
+| 4.6 | Ein-Klick-Veröffentlichen: Tests → Commit → Push auf main (GitHub Pages) | ✅ |
 | 4.7 | Vorschlagsmodus für KI-Änderungen: farbige Vorschau, einzelne Änderungen wegklicken, Rest übernehmen | ⏳ |
 | 4.8 | KI-Werkzeuge für Items, Loot-Tabellen, Rezepte | ⏳ |
 | 4.9 | Notizen als Auftragsliste: KI arbeitet offene Notizen ab (auch „beim nächsten Mal“) | ⏳ |
