@@ -24,6 +24,7 @@ export function erstelleKiAusfuehrer(studio) {
   };
   const aendere = (name, ops) => {
     const fertig = dok.aendere(`KI: ${name}`, ops);
+    if (studio.vorschlagsModus && fertig.length) studio.merkeVorschlag?.(`KI: ${name}`, fertig); // Phase 4.7: vorläufig, einzeln ablehnbar
     // Gesperrte Ebene (Dokument filtert) → ehrlich melden statt „gesetzt“
     if (ops.length && !fertig.length && ops.some((op) => op.neu !== undefined)) {
       const gesperrt = Object.entries(dok.ebenen ?? {}).filter(([, e]) => e.gesperrt || e.sichtbar === false).map(([id]) => id);

@@ -411,3 +411,35 @@ test('Phase 4.6: Veröffentlichen – Status, Tests, Commit, Pull, Push (lokales
     rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+test('Phase 4.7: Vorschlagsmodus – Elemente, einzelne zurücknehmen, Rest übernehmen', async () => {
+  const { Vorschlaege, rueckOps, mitKoordinaten } = await import('../studio/kern/vorschlaege.js');
+  const A = await import('../studio/kern/aktionen.js');
+  const { EditorKarte } = await import('../editor/kern/karte.js');
+  const k = new EditorKarte({ id: 'v', name: 'v', breite: 10, hoehe: 10 });
+  const v = new Vorschlaege();
+  const e1 = v.merke('v', 'KI: Wiese', k.anwenden(A.rechteckOps(k, { x: 0, y: 0, b: 3, h: 2 }, '$')));
+  const e2 = v.merke('v', 'KI: Bäume', k.anwenden([...A.objektOps(k, 'objekt:baum', 5, 5).ops]));
+  const id2 = [...k.s('objekte').keys()][0];
+  k.anwenden(A.objektOps(k, 'objekt:stein', 1, 1).ops); // von Hand, kein Vorschlag
+  assert.deepEqual(e1.elemente.map((e) => e.text), ['6× Boden → rasen']);
+  assert.equal(e2.elemente[0].art, 'neu');
+  assert.match(e2.elemente[0].text, /Objekt baum/);
+  assert.equal(mitKoordinaten(e1.elemente[0].orte, 10).length, 6);
+  assert.equal(v.markierungen('v').length, 7);
+  // Baum ablehnen → weg, Stein (von Hand) bleibt
+  k.anwenden(rueckOps(k, v.nimm(`${e2.id}:${e2.elemente[0].id}`)));
+  assert.equal(k.s('objekte').has(id2), false);
+  assert.equal(k.s('objekte').size, 1);
+  // Eine Rasen-Kachel von Hand übermalt → Rücknahme lässt sie stehen
+  k.anwenden([{ s: 'kachel', i: k.index(0, 0), neu: '&' }]);
+  const r = rueckOps(k, v.nimm(String(e1.id)));
+  assert.equal(r.length, 5);
+  k.anwenden(r);
+  assert.equal(k.kachelAn(0, 0), '&');
+  assert.equal(k.kachelAn(1, 0), ',');
+  assert.equal(v.liste.length, 0);
+  v.merke('v', 'x', k.anwenden(A.rechteckOps(k, { x: 0, y: 5, b: 1, h: 1 }, '$')));
+  assert.equal(v.uebernimm('v'), 1);
+  assert.equal(k.kachelAn(0, 5), '$', 'übernommen = bleibt');
+});

@@ -23,6 +23,7 @@ import { Werkstatt } from './werkstatt/werkstatt.js';
 import { VorschauBilder } from './ansicht/vorschauBilder.js';
 import { oeffnePapierkorb } from './oberflaeche/papierkorb.js';
 import { oeffneVeroeffentlichen } from './oberflaeche/veroeffentlichen.js';
+import { Vorschlaege, rueckOps, mitKoordinaten } from './kern/vorschlaege.js';
 import { AudioZentrale } from './audio/audioZentrale.js';
 import { ladeSpielordner, setzeSpielordner } from '../editor/kern/spielordner.js';
 import { ausDefinition } from '../editor/kern/format.js';
@@ -88,6 +89,12 @@ class Studio {
     this.assets = new AssetPanel(this);
     this.pruefung = new PruefPanel(this);
     this.inspektor = new Inspektor(this);
+    this.vorschlaege = new Vorschlaege();
+    try {
+      this.vorschlagsModus = localStorage.getItem('browserSurvival.studio.vorschlagsModus') === '1';
+    } catch {
+      this.vorschlagsModus = false;
+    }
     this.ki = new KiPanel(this);
     this.werkstatt = new Werkstatt(this);
     this.vorschau = new VorschauBilder(nativ);
@@ -148,6 +155,55 @@ class Studio {
     const ziel = await nativ.aufruf('projekt.klangFuerZone', { quelle: datei, zone: k.id });
     if (ziel !== datei) this.klangListe = await nativ.aufruf('projekt.klangDateien');
     return ziel;
+  }
+
+  // ---------- Vorschlagsmodus (Phase 4.7, kern/vorschlaege.js) ----------
+  setzeVorschlagsModus(an) {
+    this.vorschlagsModus = !!an;
+    try {
+      localStorage.setItem('browserSurvival.studio.vorschlagsModus', an ? '1' : '0');
+    } catch {
+      // egal
+    }
+    const kasten = document.getElementById('ki-vorschlag');
+    if (kasten) kasten.checked = this.vorschlagsModus;
+    this.ki.zeichneVorschlaege();
+    this.hinweis(an ? 'Vorschlagsmodus an: KI-Änderungen sind vorläufig – im KI-Reiter einzeln ablehnen oder übernehmen' : 'Vorschlagsmodus aus');
+  }
+
+  merkeVorschlag(name, ops) {
+    this.vorschlaege.merke(this.dok.aktivId, name, ops);
+    this.zeigeVorschlaege();
+  }
+
+  zeigeVorschlaege() {
+    const k = this.dok.karte;
+    this.ansicht.setzeMarkierungen(k ? this.vorschlaege.markierungen(this.dok.aktivId, k) : null);
+    this.ki?.zeichneVorschlaege();
+  }
+
+  /** ref = 'eintrag' oder 'eintrag:element' → Änderung zurücknehmen (eigener Undo-Schritt) */
+  lehneVorschlagAb(ref) {
+    const k = this.dok.karte;
+    const ops = rueckOps(k, this.vorschlaege.nimm(ref));
+    if (ops.length) this.dok.aendere('KI-Vorschlag abgelehnt', ops);
+    this.zeigeVorschlaege();
+    return ops.length;
+  }
+
+  uebernimmVorschlaege(ref = null) {
+    const n = this.vorschlaege.uebernimm(this.dok.aktivId, ref);
+    this.zeigeVorschlaege();
+    if (ref === null) this.hinweis(`${n} KI-Vorschläge übernommen`, 'erfolg');
+    return n;
+  }
+
+  zeigeVorschlagOrt(ref) {
+    const [eid, elid] = String(ref).split(':');
+    const e = this.vorschlaege.liste.find((x) => String(x.id) === eid);
+    const el = e?.elemente.find((x) => x.id === elid) ?? e?.elemente[0];
+    const o = el && mitKoordinaten(el.orte ?? [], this.dok.karte.breite)[0];
+    if (o) this.ansicht.zeige(o.x + (o.b ?? 1) / 2, o.y + (o.h ?? 1) / 2, null);
   }
 
   hinweis(text, art = 'info') {
@@ -240,6 +296,7 @@ class Studio {
 
   #zoneGewechselt() {
     const z = this.dok.aktiv;
+    setTimeout(() => this.zeigeVorschlaege(), 0);
     this.ansicht.setzeKarte(z?.karte ?? null);
     if (this.ansicht.spielOptik.an && z) this.ansicht.spielOptik.baue(this.dok.definition());
     this.#lootVorschau(this.lootVorschauAn && !!z, { still: true });

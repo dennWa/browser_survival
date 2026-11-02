@@ -16,12 +16,26 @@ export class KiPanel {
         <button class="knopf flach" data-ki="einstellungen" data-tipp="KI einstellen" data-text="Anbieter, Modell, API-Schlüssel">${icon('einstellungen', 16)}</button>
         <button class="knopf flach" data-ki="mcp" data-tipp="Mit Claude & Co. verbinden" data-text="MCP-Server für Claude Desktop, Claude Code, Cursor …">${icon('stecker', 16)}</button>
       </div>
+      <div class="insp-abschnitt" style="padding:6px 12px"><label class="schalter" data-tipp="Vorschlagsmodus" data-text="KI-Änderungen bleiben vorläufig und farbig markiert – einzeln ablehnen (✕) oder übernehmen"><input type="checkbox" id="ki-vorschlag" /> Vorschlagsmodus (KI-Änderungen erst prüfen)</label></div>
+      <div id="ki-vorschlaege"></div>
       <div class="ki-verlauf" id="ki-verlauf"><div class="insp-leer">Beschreibe, was gebaut werden soll – z. B. „Bau eine kleine Tankstelle mit Kiosk, zwei Autos und Loot hinter der Theke bei 40|30“.<br /><br />Die KI arbeitet mit denselben Werkzeugen wie du. Alles ist rückgängig machbar (Strg+Z).</div></div>
       <div class="ki-eingabe">
         <textarea class="feld" id="ki-text" placeholder="Nachricht an die KI … (Strg+Enter senden)"></textarea>
         <div class="ki-leiste"><button class="knopf flach" data-ki="neu">${icon('plus', 14)} Neues Gespräch</button><button class="knopf primaer" data-ki="senden">${icon('senden', 14)} Senden</button></div>
       </div>`;
     this.verlauf = this.el.querySelector('#ki-verlauf');
+    this.el.querySelector('#ki-vorschlag').checked = !!studio.vorschlagsModus;
+    this.el.querySelector('#ki-vorschlag').addEventListener('change', (e) => studio.setzeVorschlagsModus(e.target.checked));
+    this.el.querySelector('#ki-vorschlaege').addEventListener('click', (e) => {
+      const t = e.target.closest('[data-vs]');
+      if (!t) return;
+      const { vs, ref } = t.dataset;
+      if (vs === 'weg') studio.lehneVorschlagAb(ref);
+      else if (vs === 'ok') studio.uebernimmVorschlaege(ref);
+      else if (vs === 'alleOk') studio.uebernimmVorschlaege();
+      else if (vs === 'alleWeg') for (const x of [...studio.vorschlaege.vonZone(studio.dok.aktivId)].reverse()) studio.lehneVorschlagAb(String(x.id));
+      else if (vs === 'zeige') studio.zeigeVorschlagOrt(ref);
+    });
     this.text = this.el.querySelector('#ki-text');
     this.el.addEventListener('click', (e) => {
       const b = e.target.closest('[data-ki]');
@@ -44,6 +58,22 @@ export class KiPanel {
       else if (e.art === 'text') this.#nachricht('ki', e.text);
     });
     this.infoLaden();
+  }
+
+  /** Liste der offenen KI-Vorschläge der aktiven Zone (Phase 4.7) */
+  zeichneVorschlaege() {
+    const ziel = this.el.querySelector('#ki-vorschlaege');
+    const st = this.studio;
+    const liste = st.dok.aktivId ? st.vorschlaege.vonZone(st.dok.aktivId) : [];
+    if (!liste.length) {
+      ziel.innerHTML = '';
+      return;
+    }
+    const farbe = { neu: 'var(--gruen)', weg: 'var(--rot)', geaendert: 'var(--gelb)' };
+    ziel.innerHTML = `<div class="insp-abschnitt" style="gap:4px"><div class="insp-abschnitt-titel">KI-Vorschläge (${liste.length}) – grün neu · gelb geändert · rot gelöscht</div>
+      <div style="max-height:260px;overflow:auto">${liste.map((e) => `<div class="vs-schritt"><div class="az-datei"><b style="flex:1">${esc(e.name)}</b><button class="knopf flach ws-mini" data-vs="ok" data-ref="${e.id}" title="Diesen Schritt übernehmen">${icon('pruefen', 13)}</button><button class="knopf flach ws-mini" data-vs="weg" data-ref="${e.id}" title="Diesen Schritt ablehnen (rückgängig)">${icon('schliessen', 13)}</button></div>
+        ${e.elemente.map((el) => `<div class="az-datei" style="padding-left:12px"><span data-vs="zeige" data-ref="${e.id}:${esc(el.id)}" style="cursor:pointer;flex:1"><span style="color:${farbe[el.art]}">●</span> ${esc(el.text)}</span><button class="knopf flach ws-mini" data-vs="weg" data-ref="${e.id}:${esc(el.id)}" title="Nur das nicht übernehmen">${icon('schliessen', 12)}</button></div>`).join('')}</div>`).join('')}</div>
+      <div class="insp-knoepfe"><button class="knopf primaer" data-vs="alleOk">${icon('pruefen', 13)} Alle übernehmen</button><button class="knopf gefahr" data-vs="alleWeg">Alle ablehnen</button></div></div>`;
   }
 
   async infoLaden() {
