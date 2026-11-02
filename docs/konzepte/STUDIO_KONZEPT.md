@@ -381,3 +381,23 @@ Opus-Kodierung `editor/ui/audioKodierer.js`, Mischpult mit dem echten `client/au
 `gemeinsam/audio/umgebung.js` gezogen (Spiel + Mischpult rechnen gleich), Pegel-Faktor je Zone (`einstellungen.json zonen` →
 `Sound.setzeZone`), Musik-Überblendung/Pause je Ordner (`client/musik/einstellungen.json` → `zonenMusik.js`).
 Tests `tests/studioAudio.test.js`, Rauchtest-Abschnitt „Phase 2“.
+
+## 16. Phase 4 – Nutzer-Feedback 2026-11-02 (Reihenfolge = Umsetzung)
+
+| # | Punkt | Stand |
+|---|---|---|
+| 4.1 | Spiel: Keuchen raus; Auto-Lenkung weicher (~5 % Trägheit), auf Eis weniger Grip, Baum bremst mind. so stark wie Laterne, Laterne härter | ⏳ |
+| 4.2 | Boden-Pinsel: Vorschau = gemalte Fläche, Pinselgröße 1×1 … n×n in der Optionsleiste; Wände/Türen/Fenster beim Bodenmalen geschützt (Haus wird nicht „durchgeschnitten“) | ⏳ |
+| 4.3 | Gelände-Werkzeug in 3D sichtbar machen (Fehler) | ⏳ |
+| 4.4 | Echte Vorschaubilder für alle Bausteine (Gebäude, Möbel, Natur …), im Studio gerendert und zwischengespeichert | ⏳ |
+| 4.5 | Papierkorb mit automatischem Leeren nach 20 Tagen (Modelle, Audio, gelöschte Dateien) + Modelle in der Werkstatt richtig löschen | ⏳ |
+| 4.6 | Ein-Klick-Veröffentlichen: Tests → Commit → Push auf main (GitHub Pages) | ⏳ |
+| 4.7 | Vorschlagsmodus für KI-Änderungen: farbige Vorschau, einzelne Änderungen wegklicken, Rest übernehmen | ⏳ |
+| 4.8 | KI-Werkzeuge für Items, Loot-Tabellen, Rezepte | ⏳ |
+| 4.9 | Notizen als Auftragsliste: KI arbeitet offene Notizen ab (auch „beim nächsten Mal“) | ⏳ |
+| 4.10 | Werkstatt: Knochen & Gelenke (anlegen, Ketten, binden, Skelett, Pose, eigene Keyframe-Animationen), Malen aufs Modell, Textur-Effekte (dunkler, Dreck, Blut, Rost, Moos) – alles auch für die KI; Testmodell mit eigener Animation | ⏳ |
+| 4.11 | Asset-Suche: CC0-Modelle/Sounds im Internet suchen, importieren, Credits automatisch (Studio + KI) | ⏳ |
+| 4.12 | Räume bearbeiten (anklicken → Wände/Boden/Tür ändern), mehr Wandarten | ⏳ |
+| 4.13 | Weiche Übergänge zwischen Böden (kein Minecraft-Look) + neuer wilder Waldboden (Mischboden mit Pilzen) | ⏳ |
+| 4.14 | MCP verständlicher (Dialog + Anleitung), Speicher-Status klarer | ⏳ |
+| 4.15 | Spiel: mehr Survival, mehr Grusel, Ziele/Fortschritt („man will etwas erreichen“) | ⏳ |
