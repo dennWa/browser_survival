@@ -354,3 +354,23 @@ test('Analysen: Laufweg findet Raum ohne Tür, Balance zählt Loot je Stunde; Vo
   assert.equal(nachDefinition(k).notizen[0].text, 'Hier fehlt eine Tankstelle');
   assert.throws(() => A.notizOps(k, 1, 1, '  '), /leer/);
 });
+
+test('Phase 4.2: Pinsel = Vorschau-Fläche (quadratisch), Wände/Fenster/Türen beim Bodenmalen geschützt', async () => {
+  const A = await import('../studio/kern/aktionen.js');
+  const { EditorKarte } = await import('../editor/kern/karte.js');
+  const k = new EditorKarte({ id: 'p', name: 'p', breite: 12, hoehe: 12 });
+  for (const n of [1, 2, 3, 4, 5]) {
+    const e = A.pinselEcke(6, 6, n);
+    const ops = A.pinselOps(k, 6, 6, n, '$');
+    const xs = ops.map((o) => o.i % 12);
+    const ys = ops.map((o) => Math.floor(o.i / 12));
+    assert.equal(ops.length, n * n, `${n}×${n} = ${n * n} Kacheln`);
+    assert.deepEqual([Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)], [e.x, e.y, e.x + n - 1, e.y + n - 1], `Größe ${n}: Vorschau = Fläche`);
+  }
+  k.anwenden(A.wandOps(k, { x: 2, y: 2 }, { x: 8, y: 2 }, 'wand'));
+  k.anwenden([{ s: 'kachel', i: k.index(4, 2), neu: 'T' }]);
+  const geschuetzt = A.rechteckOps(k, { x: 0, y: 0, b: 12, h: 5 }, '$', { waendeSchuetzen: true });
+  assert.equal(geschuetzt.length, 60 - 7, 'Wand (6) + Tür (1) bleiben');
+  assert.equal(A.rechteckOps(k, { x: 0, y: 0, b: 12, h: 5 }, '$').length, 60);
+  assert.equal(A.pinselOps(k, 4, 2, 3, '$', { waendeSchuetzen: true }).length, 6);
+});

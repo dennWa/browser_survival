@@ -387,7 +387,7 @@ Tests `tests/studioAudio.test.js`, Rauchtest-Abschnitt „Phase 2“.
 | # | Punkt | Stand |
 |---|---|---|
 | 4.1 | Spiel: Keuchen raus; Auto-Lenkung weicher (~5 % Trägheit), auf Eis weniger Grip, Baum bremst mind. so stark wie Laterne, Laterne härter | ✅ |
-| 4.2 | Boden-Pinsel: Vorschau = gemalte Fläche, Pinselgröße 1×1 … n×n in der Optionsleiste; Wände/Türen/Fenster beim Bodenmalen geschützt (Haus wird nicht „durchgeschnitten“) | ⏳ |
+| 4.2 | Boden-Pinsel: Vorschau = gemalte Fläche, Pinselgröße 1×1 … n×n in der Optionsleiste; Wände/Türen/Fenster beim Bodenmalen geschützt (Haus wird nicht „durchgeschnitten“) | ✅ |
 | 4.3 | Gelände-Werkzeug in 3D sichtbar machen (Fehler) | ⏳ |
 | 4.4 | Echte Vorschaubilder für alle Bausteine (Gebäude, Möbel, Natur …), im Studio gerendert und zwischengespeichert | ⏳ |
 | 4.5 | Papierkorb mit automatischem Leeren nach 20 Tagen (Modelle, Audio, gelöschte Dateien) + Modelle in der Werkstatt richtig löschen | ⏳ |

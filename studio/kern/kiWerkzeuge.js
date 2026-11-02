@@ -120,8 +120,8 @@ export const KI_WERKZEUGE = Object.freeze([
   },
   {
     name: 'boden_malen',
-    beschreibung: 'Rechteck mit einer Bodenkachel füllen (auch Wände "#" oder Wasser "~").',
-    schema: objekt({ zeichen: text('Kachelzeichen aus dem Katalog'), ...rechteck }, ['zeichen', 'x', 'y', 'b', 'h']),
+    beschreibung: 'Rechteck mit einer Bodenkachel füllen (auch Wände "#" oder Wasser "~"). Vorhandene Wände/Fenster/Türen bleiben stehen, außer waende_ueberschreiben = true.',
+    schema: objekt({ zeichen: text('Kachelzeichen aus dem Katalog'), ...rechteck, waende_ueberschreiben: { type: 'boolean', description: 'Wände/Fenster/Türen im Rechteck mit überschreiben' } }, ['zeichen', 'x', 'y', 'b', 'h']),
   },
   {
     name: 'wand_ziehen',

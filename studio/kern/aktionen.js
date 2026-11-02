@@ -34,21 +34,37 @@ const pruefeZeichen = (z) => {
   return z;
 };
 
-/** Rechteck mit einer Kachel füllen */
-export function rechteckOps(karte, r, zeichen) {
+/** Wände, Fenster und Türen (Hausbau) – Bodenmalen lässt sie standardmäßig stehen (Phase 4: „Haus durchgeschnitten“) */
+export const BAU_KACHELN = Object.freeze(['#', 'F', 'T']);
+const istBaukachel = (z) => BAU_KACHELN.includes(z);
+/** Ops ohne Wand/Fenster/Tür-Kacheln (wenn ein Boden darüber gemalt würde) */
+export function ohneWaende(karte, ops, zeichen) {
+  if (istBaukachel(zeichen)) return ops;
+  return ops.filter((op) => op.s !== 'kachel' || !istBaukachel(karte.kachelAn(op.i % karte.breite, Math.floor(op.i / karte.breite))));
+}
+
+/** Rechteck mit einer Kachel füllen (waendeSchuetzen: Wände/Fenster/Türen bleiben) */
+export function rechteckOps(karte, r, zeichen, { waendeSchuetzen = false } = {}) {
   pruefeZeichen(zeichen);
   const rr = imFeld(karte, r);
   if (!rr) return [];
   const ops = [];
   for (let y = rr.y; y < rr.y + rr.h; y++) for (let x = rr.x; x < rr.x + rr.b; x++) ops.push({ s: 'kachel', i: karte.index(x, y), neu: zeichen });
-  return ops;
+  return waendeSchuetzen ? ohneWaende(karte, ops, zeichen) : ops;
 }
 
-/** Pinsel (rund) an einer Stelle */
-export function pinselOps(karte, x, y, groesse, zeichen) {
+/** Pinsel (quadratisch wie die Vorschau, rund optional) an einer Stelle */
+export function pinselOps(karte, x, y, groesse, zeichen, { rund = false, waendeSchuetzen = false } = {}) {
   pruefeZeichen(zeichen);
-  return kachelOps(karte, nurImFeld(karte, pinsel(ganz(x), ganz(y), groesse, true)), zeichen);
+  const ops = kachelOps(karte, nurImFeld(karte, pinsel(ganz(x), ganz(y), groesse, rund)), zeichen);
+  return waendeSchuetzen ? ohneWaende(karte, ops, zeichen) : ops;
 }
+
+/** Linke obere Ecke des (quadratischen) Pinsels an Kachel (x, y) – gleiche Rechnung wie editor/kern/raster.pinsel */
+export const pinselEcke = (x, y, groesse) => {
+  const n = Math.max(1, Math.floor(groesse));
+  return { x: x - Math.floor((n - 1) / 2), y: y - Math.floor((n - 1) / 2), n };
+};
 
 /** Zusammenhängende Fläche gleicher Kacheln füllen */
 export function fuellOps(karte, x, y, zeichen) {

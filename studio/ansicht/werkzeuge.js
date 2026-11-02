@@ -45,7 +45,7 @@ export class Werkzeuge {
     this.studio = studio;
     this.aktiv = 'auswahl';
     this.opt = {
-      boden: { modus: 'pinsel', groesse: 2 },
+      boden: { modus: 'pinsel', groesse: 1, waendeSchuetzen: true },
       wand: { art: 'wand' },
       raum: { boden: '.', tuer: 's', name: '', lootTabelle: 'wohnung' },
       gelaende: { modus: 'heben', radius: 3, staerke: 0.25 },
@@ -93,7 +93,9 @@ export class Werkzeuge {
         return [
           { art: 'hinweis', text: this.studio.asset?.art === 'kachel' ? `Kachel: ${this.studio.asset.name}` : 'Bodenkachel unten in den Assets wählen' },
           { art: 'segment', feld: 'modus', werte: [['pinsel', 'Pinsel'], ['rechteck', 'Rechteck'], ['fuellen', 'Füllen']] },
-          { art: 'zahl', feld: 'groesse', titel: 'Größe', min: 1, max: 15, schritt: 1 },
+          { art: 'segment', feld: 'groesse', werte: [['1', '1×1'], ['2', '2×2'], ['3', '3×3'], ['5', '5×5'], ['9', '9×9']] },
+          { art: 'zahl', feld: 'groesse', titel: 'Größe', min: 1, max: 25, schritt: 1 },
+          { art: 'schalter', feld: 'waendeSchuetzen', titel: 'Wände, Fenster & Türen schützen' },
         ];
       case 'wand':
         return [{ art: 'segment', feld: 'art', werte: [['wand', 'Wand'], ['fenster', 'Fenster'], ['tuer', 'Tür']] }];
@@ -172,7 +174,7 @@ export class Werkzeuge {
   setzeOption(feld, wert) {
     const o = this.opt[this.aktiv];
     if (!o) return;
-    o[feld] = wert;
+    o[feld] = feld === 'groesse' || feld === 'radius' ? Number(wert) : wert;
     if (this.aktiv === 'objekt' || this.aktiv === 'spawn') this.ansicht.setzeGeist(null);
     if ((this.aktiv === 'flaeche' && feld === 'art') || (this.aktiv === 'marker' && feld === 'art')) this.studio.meldeOptionen();
   }
@@ -193,7 +195,10 @@ export class Werkzeuge {
     if (!p || !k) return this.ansicht.setzeSchwebe(null);
     this.studio.zeigePosition(p);
     const g = this.opt.boden.groesse;
-    if (this.aktiv === 'boden' && this.opt.boden.modus === 'pinsel') this.ansicht.setzeSchwebe(p.tx - Math.floor(g / 2), p.ty - Math.floor(g / 2), g, g);
+    if (this.aktiv === 'boden' && this.opt.boden.modus === 'pinsel') {
+      const e = A.pinselEcke(p.tx, p.ty, g); // gleiche Fläche wie der Pinsel malt
+      this.ansicht.setzeSchwebe(e.x, e.y, e.n, e.n);
+    }
     else if (this.aktiv === 'streuen') this.ansicht.setzeSchwebe(p.tx - this.opt.streuen.radius, p.ty - this.opt.streuen.radius, this.opt.streuen.radius * 2 + 1, this.opt.streuen.radius * 2 + 1);
     else if (this.aktiv === 'gelaende') this.ansicht.setzeSchwebe(p.tx - this.opt.gelaende.radius, p.ty - this.opt.gelaende.radius, this.opt.gelaende.radius * 2 + 1, this.opt.gelaende.radius * 2 + 1);
     else if (['boden', 'wand', 'raum', 'flaeche', 'marker', 'strasse'].includes(this.aktiv)) this.ansicht.setzeSchwebe(p.tx, p.ty);
@@ -291,7 +296,7 @@ export class Werkzeuge {
       case 'boden': {
         const z = this.studio.asset?.art === 'kachel' ? this.studio.asset.zeichen : null;
         if (!z) return this.studio.hinweis('Erst eine Bodenkachel in den Assets wählen', 'fehler');
-        if (this.opt.boden.modus === 'fuellen') return this.dok.aendere('Füllen', A.fuellOps(k, p.tx, p.ty, z));
+        if (this.opt.boden.modus === 'fuellen') return this.dok.aendere('Füllen', this.opt.boden.waendeSchuetzen ? A.ohneWaende(k, A.fuellOps(k, p.tx, p.ty, z), z) : A.fuellOps(k, p.tx, p.ty, z));
         if (this.opt.boden.modus === 'rechteck') {
           this.zug = { art: 'rechteck', start: p, zeichen: z };
           return;
@@ -372,8 +377,8 @@ export class Werkzeuge {
     if (z.art === 'pinsel') {
       if (p.tx !== z.letzter.tx || p.ty !== z.letzter.ty) this.#pinsel(z.letzter, p);
       z.letzter = p;
-      const g = this.opt.boden.groesse;
-      this.ansicht.setzeSchwebe(p.tx - Math.floor(g / 2), p.ty - Math.floor(g / 2), g, g);
+      const e = A.pinselEcke(p.tx, p.ty, this.opt.boden.groesse);
+      this.ansicht.setzeSchwebe(e.x, e.y, e.n, e.n);
     } else if (z.art === 'gelaende') this.#gelaende(p);
     else if (z.art === 'streuen') {
       this.#streuen(p);
@@ -418,7 +423,7 @@ export class Werkzeuge {
       else if (z.art === 'rahmen') {
         const r = rechteckAus(z.start.tx, z.start.ty, p.tx, p.ty);
         this.dok.waehle(this.#imRechteck(r), { hinzu: z.hinzu });
-      } else if (z.art === 'rechteck') this.dok.aendere('Boden (Rechteck)', A.rechteckOps(k, rechteckAus(z.start.tx, z.start.ty, p.tx, p.ty), z.zeichen));
+      } else if (z.art === 'rechteck') this.dok.aendere('Boden (Rechteck)', A.rechteckOps(k, rechteckAus(z.start.tx, z.start.ty, p.tx, p.ty), z.zeichen, { waendeSchuetzen: this.opt.boden.waendeSchuetzen }));
       else if (z.art === 'wand') this.dok.aendere(this.opt.wand.art === 'tuer' ? 'Tür' : this.opt.wand.art === 'fenster' ? 'Fenster' : 'Wand', A.wandOps(k, z.start, p, this.opt.wand.art));
       else if (z.art === 'raum') {
         const o = this.opt.raum;
@@ -449,7 +454,7 @@ export class Werkzeuge {
   #pinsel(a, b) {
     const k = this.dok.karte;
     const ops = [];
-    for (const p of linie(a.tx, a.ty, b.tx, b.ty)) ops.push(...A.pinselOps(k, p.x, p.y, this.opt.boden.groesse, this.zug.zeichen));
+    for (const p of linie(a.tx, a.ty, b.tx, b.ty)) ops.push(...A.pinselOps(k, p.x, p.y, this.opt.boden.groesse, this.zug.zeichen, { waendeSchuetzen: this.opt.boden.waendeSchuetzen }));
     this.dok.aendere('Boden malen', ops);
   }
 
@@ -597,7 +602,7 @@ export class Werkzeuge {
 
   /** [ ] Pinselgröße */
   groesse(d) {
-    if (this.aktiv === 'boden') this.opt.boden.groesse = Math.max(1, Math.min(15, this.opt.boden.groesse + d));
+    if (this.aktiv === 'boden') this.opt.boden.groesse = Math.max(1, Math.min(25, Number(this.opt.boden.groesse) + d));
     else if (this.aktiv === 'gelaende') this.opt.gelaende.radius = Math.max(1, Math.min(20, this.opt.gelaende.radius + d));
     else if (this.aktiv === 'streuen') this.opt.streuen.radius = Math.max(1, Math.min(30, this.opt.streuen.radius + d));
     else return;
