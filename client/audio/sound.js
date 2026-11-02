@@ -954,6 +954,61 @@ const REZEPTE = {
     for (let i = 0; i < 3; i++) rauschStoss(ctx, ausgang, rauschen, t + i * 0.11, { dauer: 0.05, typ: 'lowpass', frequenz: 700, lautstaerke: 0.25, anschlag: 0.003 });
     return 0.4;
   },
+  // Phase 4.15: Tagebuch-Ziel geschafft (kurzer, warmer Zweiklang) + Grusel-Direktor (client/kern/grusel.js)
+  ziel_geschafft: ({ ctx, ausgang, t }) => {
+    [392, 587].forEach((f, i) => ton(ctx, ausgang, t + i * 0.12, { typ: 'triangle', von: f, bis: f, dauer: 0.3, lautstaerke: 0.18 }));
+    return 0.5;
+  },
+  herzschlag: ({ ctx, ausgang, t }) => {
+    ton(ctx, ausgang, t, { typ: 'sine', von: 62, bis: 38, dauer: 0.14, lautstaerke: 0.9 });
+    ton(ctx, ausgang, t + 0.2, { typ: 'sine', von: 55, bis: 34, dauer: 0.16, lautstaerke: 0.65 });
+    return 0.45;
+  },
+  grusel_schrei: ({ ctx, ausgang, t }) => {
+    // ferner Schrei: hohe, zitternde Stimme, die abbricht
+    const osz = ctx.createOscillator();
+    osz.type = 'sawtooth';
+    osz.frequency.setValueAtTime(820 + Math.random() * 200, t);
+    osz.frequency.exponentialRampToValueAtTime(380, t + 1.3);
+    const vib = ctx.createOscillator();
+    vib.frequency.value = 7;
+    const vt = ctx.createGain();
+    vt.gain.value = 35;
+    vib.connect(vt).connect(osz.frequency);
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.value = 1400;
+    f.Q.value = 2.5;
+    const h = ctx.createGain();
+    h.gain.setValueAtTime(0.0001, t);
+    h.gain.exponentialRampToValueAtTime(0.12, t + 0.15);
+    h.gain.exponentialRampToValueAtTime(0.0001, t + 1.35);
+    osz.connect(f).connect(h).connect(ausgang);
+    osz.start(t);
+    vib.start(t);
+    osz.stop(t + 1.4);
+    vib.stop(t + 1.4);
+    return 1.5;
+  },
+  grusel_fluestern: ({ ctx, ausgang, t, rauschen }) => {
+    // Flüstern: gefilterte Rausch-Silben mit wanderndem Formant
+    for (let i = 0; i < 6; i++) rauschStoss(ctx, ausgang, rauschen, t + i * 0.17 + Math.random() * 0.05, { dauer: 0.12 + Math.random() * 0.1, typ: 'bandpass', frequenz: 1800 + Math.random() * 2600, lautstaerke: 0.22, anschlag: 0.03 });
+    return 1.2;
+  },
+  grusel_klopfen: ({ ctx, ausgang, t, rauschen }) => {
+    // drei dumpfe Schläge an Holz – irgendwo da draußen
+    for (let i = 0; i < 3; i++) {
+      rauschStoss(ctx, ausgang, rauschen, t + i * 0.32, { dauer: 0.09, typ: 'lowpass', frequenz: 420, lautstaerke: 0.7 });
+      ton(ctx, ausgang, t + i * 0.32, { typ: 'sine', von: 110, bis: 55, dauer: 0.12, lautstaerke: 0.4 });
+    }
+    return 1.1;
+  },
+  grusel_heulen: ({ ctx, ausgang, t }) => {
+    // langgezogenes Heulen (Wind? Tier? Etwas anderes …)
+    ton(ctx, ausgang, t, { typ: 'triangle', von: 240, bis: 410, dauer: 1.1, lautstaerke: 0.08, filter: 900, anschlag: 0.5 });
+    ton(ctx, ausgang, t + 1.0, { typ: 'triangle', von: 410, bis: 190, dauer: 1.4, lautstaerke: 0.07, filter: 900, anschlag: 0.2 });
+    return 2.5;
+  },
   level_auf: ({ ctx, ausgang, t }) => {
     [523, 659, 784, 1047].forEach((f, i) => ton(ctx, ausgang, t + i * 0.09, { typ: 'triangle', von: f, bis: f, dauer: 0.22, lautstaerke: 0.22 }));
     return 0.6;

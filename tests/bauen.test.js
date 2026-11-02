@@ -30,7 +30,7 @@ const KARTE = {
 const mitte = (t) => t * 32 + 16;
 
 function gartenWelt() {
-  const konfiguration = erstelleKonfiguration({ server: { zufallsStartwert: 9 }, spieler: { startInventar: [] } });
+  const konfiguration = erstelleKonfiguration({ server: { zufallsStartwert: 9 }, spieler: { startInventar: [] }, ziele: { aktiv: false } }); // exakte XP-Prüfungen ohne Tagebuch-Bonus
   const welt = new SpielWelt(konfiguration, { kartenDefinition: KARTE });
   for (const z of [...welt.alleVomTyp('zombie')]) welt.entfernen(z.id);
   const spieler = welt.spielerBetrittWelt('Gärtner');

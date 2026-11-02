@@ -326,6 +326,8 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     flaggeMindestAbstand: 15, // Kacheln zwischen zwei Flaggen (verschiedener Spieler)
   },
   /** Level: XP pro Zombie; für Level 2 braucht man `ersteStufe` XP, jedes weitere Level `zuwachs` mehr. Tod = alles weg. */
+  /** Phase 4.15: Überlebens-Tagebuch (konfiguration/ziele.js, systeme/zielSystem.js) – aus = keine Ziele/Ziel-XP */
+  ziele: { aktiv: true },
   level: {
     xpProZombie: 10, // nur Rückfallwert – pro Zombie-Typ: zombie.varianten.<typ>.xp
     ersteStufe: 50,

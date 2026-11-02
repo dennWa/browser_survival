@@ -1,3 +1,4 @@
+import { pruefeZiele } from './systeme/zielSystem.js';
 import { INVENTAR_PLAETZE } from '../../gemeinsam/konstanten.js';
 import { GEGENSTAENDE, waffenWerte } from './konfiguration/gegenstaende.js';
 import { pruefeMods } from './systeme/waffenSystem.js';
@@ -52,6 +53,7 @@ export function erstelleSpielstand(spieler, kartenId) {
     skillPunkte: spieler.skillPunkte,
     aussehen: { ...spieler.aussehen },
     statistik: { ...spieler.statistik },
+    ziele: spieler.ziele ? { zaehler: { ...spieler.ziele.zaehler }, erledigt: [...spieler.ziele.erledigt], kapitel: spieler.ziele.kapitel } : undefined, // Phase 4.15: Tagebuch (bleibt über den Tod)
     spawn: spieler.spawn ? { ...spieler.spawn } : null,
     flaggeKarte: spieler.flaggeKarte,
     erkundet,
@@ -77,6 +79,7 @@ export function wendeSpielstandAn(spieler, stand, spielWelt) {
   spieler.leben = begrenze(stand.leben, 1, spieler.maxLeben);
   spieler.aussehen = pruefeAussehen(stand.aussehen);
   ladeStatistik(spieler, stand.statistik);
+  spieler.ziele = pruefeZiele(stand.ziele);
   ladeBasis(spieler, stand);
   const kartenId = spielWelt.karte.daten.id;
   const erkundet = ladeErkundet(stand.erkundet);

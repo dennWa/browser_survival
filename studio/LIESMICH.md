@@ -193,6 +193,23 @@ Klänge analysieren (Dauer, Pegel, Stille), schneiden, Ereignissen zuordnen, Peg
 einstellen und das Mischpult abfragen (`audio_*`, `musik_*`, `mischpult`). Jede
 KI-Aktion ist ein eigener Undo-Schritt („KI: …“). Der Server ist nur auf diesem Rechner erreichbar und braucht das Token.
 
+## Neu in Phase 4
+
+| Was | Wo |
+|---|---|
+| **Wo liegt mein Stand?** Statusleiste unten: `✓ Entwurf › ○ Im Spiel › ○ Online` – Klick erklärt alles und bietet den nächsten Schritt an | Hilfe → Wo liegt mein Stand? |
+| **Veröffentlichen** mit einem Klick: Tests → Commit → Push auf main (GitHub Pages zeigt es nach 1–3 min) | Datei → Veröffentlichen (Strg+Umschalt+P) |
+| **KI verbinden (MCP)** Schritt für Schritt mit Kopier-Knöpfen und Status-Lampe | Hilfe → KI verbinden · [`MCP_ANLEITUNG.md`](MCP_ANLEITUNG.md) |
+| **Vorschlagsmodus**: KI-Änderungen bleiben farbig markiert, einzeln wegklicken oder übernehmen | KI-Reiter → Schalter oben |
+| **Notizen als Aufträge**: Notiz-Pins setzen, „Notizen abarbeiten“ – die KI erledigt und hakt ab | KI-Reiter |
+| **Boden-Pinsel** 1×1 bis 25×25 (Vorschau = Fläche), Wände/Türen bleiben stehen; weiche Übergänge im Spiel; neuer **Wilder Waldboden** (🍄) | Werkzeug Boden |
+| **6 Wandarten** (Ziegel, Holz, Putz, Beton, Quaderstein, Wellblech); Raum anklicken → Wände/Boden/Fenster/Tür umbauen | Wand-/Raum-Werkzeug, Inspektor |
+| **Echte Vorschaubilder** aller Bausteine | Assets (Ansicht → Vorschaubilder neu) |
+| **Papierkorb** (Modelle, Audio) – leert sich nach 20 Tagen von selbst | Datei → Papierkorb |
+| **Werkstatt**: Knochen & Gelenke, eigene Keyframe-Animationen, Malen aufs Modell, Textur-Effekte (Blut, Dreck, Rost, Moos …) | Werkstatt (Beispiel: Vogelscheuche) |
+| **Asset-Suche im Internet** (nur CC0/CC-BY, Credits automatisch) | Datei → Assets aus dem Internet |
+| **Items/Loot/Rezepte** auch per KI | Item-Editor, KI-Werkzeuge `item_*`, `loot_*`, `rezept_*` |
+
 ## Ordner & Dateien
 
 | Ort | Inhalt |
@@ -201,7 +218,7 @@ KI-Aktion ist ein eigener Undo-Schritt („KI: …“). Der Server ist nur auf d
 | `studio/vorlagen/` | gespeicherte Vorlagen (ins Repo committen) |
 | `studio/werkstatt/` | Modell-Werkstatt (Bühne `modellWerk.js`, Oberfläche `werkstatt.js`) |
 | `studio/audio/` | Audio-Zentrale (Werk `audioWerk.js`, Oberfläche `audioZentrale.js`) |
-| `.studio/` | lokal: Entwürfe, Versionen, Modell-Sicherungen (`modelle/`), Audio-Papierkorb, MCP-Verbindung (gitignored) |
+| `.studio/` | lokal: Entwürfe, Versionen, Modell-Sicherungen (`modelle/`), Papierkorb (`papierkorb/`, 20 Tage), Vorschaubilder (`vorschau/`), MCP-Verbindung (gitignored) |
 | Einstellungen | Benutzerordner des Programms (Spielordner, KI-Anbieter, verschlüsselte Schlüssel, MCP-Token) |
 
 Spielordner wechseln: Startbildschirm → *Ändern* (oder Datei → Spielordner wechseln).

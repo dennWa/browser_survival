@@ -215,7 +215,7 @@ export function fuegeSchadenZu(spielWelt, ziel, menge, quelle, winkel = 0, optio
  * @param optionen { ohneXp } – true: kein XP (Roadkill mit dem Fahrzeug); die Statistik zählt den Kill trotzdem
  */
 export function toeten(spielWelt, ziel, quelle = null, optionen = {}) {
-  spielWelt.ereignis({ typ: 'tod', id: ziel.id, x: ziel.x, y: ziel.y, ziel: ziel.typ });
+  spielWelt.ereignis({ typ: 'tod', id: ziel.id, x: ziel.x, y: ziel.y, ziel: ziel.typ, ...(quelle?.typ === 'spieler' ? { von: quelle.id } : {}), ...(ziel.variante ? { variante: ziel.variante } : {}) });
   if (ziel.typ === 'zombie') {
     // XP je nach Variante (Brocken 15, Läufer 12 …), sonst level.xpProZombie – immer der aktuelle Wert (Developer-Modus)
     const k = spielWelt.konfiguration;

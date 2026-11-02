@@ -22,6 +22,8 @@ import { Klanglandschaft } from '../audio/klaenge.js';
 import { Schritte } from '../audio/schritte.js';
 import { HausMusik } from '../audio/hausMusik.js';
 import { MusikFenster } from '../ui/musikFenster.js';
+import { TagebuchAnzeige } from '../ui/tagebuchAnzeige.js';
+import { GruselDirektor } from './grusel.js';
 import { MehrspielerFenster } from '../ui/mehrspielerFenster.js';
 import { StimmChat } from '../audio/stimmChat.js';
 
@@ -193,6 +195,8 @@ export class ClientSpiel {
     this.musikFenster = new MusikFenster(document);
     this.musikFenster.beiWahl((wahl) => this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.MUSIK, ...wahl }));
     this.stimme = new StimmChat(document, (an, signal) => this.#senden({ typ: NACHRICHT.STIMME, an, signal })); // Runde 24 (P15)
+    this.tagebuch = new TagebuchAnzeige(document); // Phase 4.15: Kapitel & Ziele (J)
+    this.grusel = new GruselDirektor({ sound: this.sound, renderer: this.renderer, puls: document.getElementById('grusel-puls') }); // Phase 4.15: Herzschlag, Geräusche, Flackern
     this.mehrspieler = new MehrspielerFenster(document, { senden: (a) => this.#senden({ typ: NACHRICHT.AKTION, ...a }), zeichneIcon: (c, id) => this.hud.zeichneIcon(c, id) }); // Runde 24 (P14)
     this.sound?.setzeZone?.(this.welt.id); // Pegel-Faktoren je Zone (einstellungen.json `zonen`, Studio-Mischpult)
     this.sound?.starteAtmosphaere();
@@ -220,6 +224,8 @@ export class ClientSpiel {
     this.stimme?.beenden(); // Runde 24: Mikro aus, Verbindungen zu; eigene DOM-Teile weg (nächste Sitzung baut neu)
     this.stimme?.knopf.remove();
     this.mehrspieler?.el.remove();
+    this.tagebuch?.entfernen();
+    this.grusel?.stoppe();
     this.tutorialAnzeige?.stoppe();
     this.schleife?.stoppen();
     this.karte.speichern();
@@ -977,6 +983,7 @@ export class ClientSpiel {
     if (vorher?.tot && !daten.tot) this.offeneEingaben = []; // Respawn: neue Position kommt vom Server
     this.spielerDaten = daten;
     if (daten.tutorial) this.tutorialAnzeige?.daten(daten.tutorial);
+    this.tagebuch?.daten(daten.ziele);
     this.bau.beiSpielerDaten(daten);
     this.mehrspieler?.aktualisiere(daten, this.itemDefinitionen); // Runde 24 (P14)
     this.lokal.tempoFaktor = daten.tempoFaktor ?? 1; // Skill "Schnelligkeit" → Vorhersage läuft gleich schnell wie der Server
@@ -1326,6 +1333,12 @@ export class ClientSpiel {
       case 'levelAuf':
         if (e.id === this.eigeneId) this.sound.spiele('level_auf');
         break;
+      case 'zielErreicht':
+      case 'kapitelGeschafft':
+        if (e.id !== this.eigeneId) break;
+        this.sound.spiele(e.typ === 'kapitelGeschafft' ? 'level_auf' : 'ziel_geschafft');
+        this.tagebuch?.geschafft(e.typ === 'kapitelGeschafft');
+        break;
       case 'tuerSchlag':
         this.sound.spiele('tuer_schlag', { x: e.x, y: e.y, tonhoehe: 0.85 + Math.random() * 0.3 });
         break;
@@ -1563,6 +1576,12 @@ export class ClientSpiel {
       this.sound?.nacht(nacht);
     }
     if (this.klaenge.eintraege.length) this.#klaengeAktualisieren(jetzt, uhr, andere);
+    if (this.grusel && !this.tutorialAnzeige) {
+      const gdt = this.gruselZeit === undefined ? 0 : Math.min(0.25, (jetzt - this.gruselZeit) / 1000);
+      this.gruselZeit = jetzt;
+      const d = this.spielerDaten;
+      this.grusel.frame(gdt, { x: this.lokal.x, y: this.lokal.y, nacht: uhr.istNacht, nachtArt: this.nachtArt, leben: d?.leben ?? 100, maxLeben: d?.maxLeben ?? 100, tot: !!d?.tot, zombies: andere.filter((e) => e.typ === 'zombie') });
+    }
     this.#umweltGeraeusche(jetzt, uhr);
 
     if (this.platzierung) this.renderer.zeigeVorschau({ typ: this.platzierung.typ, ...this.#platzierungsZiel() });

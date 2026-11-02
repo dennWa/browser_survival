@@ -1878,7 +1878,7 @@ export class Renderer {
       spot.target.position.set(s.x + vx * TASCHENLAMPE.ziel, this.#hy(s.x + vx * TASCHENLAMPE.ziel, s.y + vz * TASCHENLAMPE.ziel), s.y + vz * TASCHENLAMPE.ziel);
       // Schmaler, schwacher Kegel (düster); tagsüber sieht man ihn kaum
       Object.assign(spot, { angle: TASCHENLAMPE.winkel, penumbra: TASCHENLAMPE.rand, distance: TASCHENLAMPE.reichweite, decay: TASCHENLAMPE.decay });
-      spot.intensity = this.nachtsicht ? 14000 : TASCHENLAMPE.staerke + TASCHENLAMPE.staerkeNacht * dunkel;
+      spot.intensity = this.nachtsicht ? 14000 : (TASCHENLAMPE.staerke + TASCHENLAMPE.staerkeNacht * dunkel) * (this.lampeFlackern ?? 1); // Grusel-Direktor lässt sie flackern
       // Schattenkarte nur neu zeichnen, wenn die Lampe überhaupt leuchtet (nachts) – tagsüber spart das einen Szenen-Durchgang.
       // ⚠ Leuchtet sie, muss die Karte aktuell sein: eine eingefrorene Karte projiziert alte Schatten (z. B. das Auto, an dem man
       // eingestiegen ist) an die alte Stelle – das war der „Licht-Schatten, wo das Auto vorher stand“ (Runde 20).

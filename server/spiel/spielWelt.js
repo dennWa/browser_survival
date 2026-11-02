@@ -36,6 +36,7 @@ import { BAUWERKE, PFLANZEN, pruefePlatz } from '../../gemeinsam/welt/bauwerke.j
 import { aktualisiereTutorial, erstelleTutorial, tutorialKonfiguration } from './systeme/tutorialSystem.js';
 import { erzeugeTerritorium, territoriumLaden, territoriumSpeichern } from './systeme/territoriumSystem.js';
 import { aktualisiereMehrspieler } from './systeme/mehrspielerSystem.js';
+import { aktualisiereZiele } from './systeme/zielSystem.js';
 
 /** Welche Entitätstypen jeden Tick im Schnappschuss landen (dynamisch) – und wie sie serialisiert werden. */
 const NETZWERK_SERIALISIERER = {
@@ -305,6 +306,7 @@ export class SpielWelt {
     aktualisiereLoot(this, dt);
     aktualisiereTageszeit(this, dt);
     aktualisiereTutorial(this, dt);
+    aktualisiereZiele(this); // Phase 4.15: Tagebuch zählt die Ereignisse dieses Ticks
   }
 
   /** Dauer von Tag und Nacht – geht auch an die Clients (Uhr, Licht). */

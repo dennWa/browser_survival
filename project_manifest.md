@@ -322,7 +322,8 @@ browser_survival/
 │   │                              kiWerkzeuge.js (EINE Werkzeugliste für MCP+Assistent), kiAusfuehren.js, kiModelle.js,
 │   │                              modelle.js (Werkstatt-Regeln), lootVorschau.js, audio.js, kiAudio.js
 │   ├── ansicht/                   viewport.js (Three.js 3D/2D, Sektoren, Gizmo), werkzeuge.js (Q W E R B N H T O G K I P)
-│   ├── oberflaeche/               icons.js (eigene SVG), menue.js, panels.js, inspektor.js, kiPanel.js, dialoge.js, startbild.js
+│   ├── oberflaeche/               icons.js (eigene SVG), menue.js, panels.js, inspektor.js, kiPanel.js (+ MCP-Dialog), dialoge.js, startbild.js, papierkorb.js, veroeffentlichen.js, assetSuche.js, itemEditor.js
+│   ├── MCP_ANLEITUNG.md           KI per MCP verbinden + Speicher-Stufen, für Menschen
 │   ├── werkstatt/                 (Phase 3) Modell-Werkstatt: modellWerk.js (Bühne + Bearbeitung, Undo), werkstatt.js (Arbeitsbereich)
 │   ├── audio/                     (Phase 2) Audio-Zentrale: audioWerk.js (Dekodieren/Schnitt/Opus/Mischpult), audioZentrale.js
 │   ├── app.js · index.html · studio.css · mcp-bruecke.mjs (stdio→MCP) · starten.sh
@@ -393,6 +394,7 @@ browser_survival/
 │   │   │   ├── fahrzeugSystem.js  Ein-/Aussteigen, Fahren, Zombies anfahren
 │   │   │   ├── zonenSystem.js     Übergangs-Rechtecke erkennen → spieler.zonenwechsel
 │   │   │   ├── ueberlebenSystem.js Hunger, Durst, Heilung, Wiederbelebung
+│   │   │   ├── zielSystem.js      Überlebens-Tagebuch: zählt Ereignisse, hakt Kapitel-Ziele ab (XP), bleibt über den Tod (Daten: konfiguration/ziele.js)
 │   │   │   └── lootSystem.js      Start-Loot, Nachschub an Loot-Punkten, Zombie-Beute
 │   │   ├── karten/
 │   │   │   ├── kartenLader.js     Kartenregister + ASCII → Kacheln/Spawns/Loot-Punkte
@@ -442,6 +444,7 @@ browser_survival/
 │   ├── konfiguration.js           Serverliste (★ ONLINE_SERVER für die Pages-Version), Interpolation, Lokal-Latenz
 │   ├── kern/
 │   │   ├── clientSpiel.js         Laufende Sitzung: Vorhersage, Reconciliation, Interpolation
+│   │   ├── grusel.js              Grusel-Direktor: Herzschlag + roter Puls, Geräusche aus dem Dunkeln, Lampen-Flackern (nur Client)
 │   │   ├── bauModus.js            (v0.11) Bau-Modus: BUILD, Hologramm, Snapping-Ziel, Klicks, Gebiets-Ring
 │   │   ├── spielSchleife.js       requestAnimationFrame-Loop mit festem Takt
 │   │   ├── eingabe.js             Tastatur/Maus/Touch vereint: richtung(), blickWinkel(), Tastenbelegung (TASTEN)
@@ -507,6 +510,8 @@ browser_survival/
 | Startausrüstung | `spielKonfiguration.js` → `spieler.startInventar` |
 | Abbau (Menge, Dauer, Nachwachsen) / was abbaubar ist | `spielKonfiguration.js` → `ressourcen`; Objekt→Ressource/Werkzeug: `gemeinsam/welt/ressourcen.js` |
 | Schlafen (Dauer, Heilung, vorgespulte Stunden) | `spielKonfiguration.js` → `schlafen`; Logik `arbeitSystem.js` (`schlafe`, `spuleZeitVor`) |
+| **Überlebens-Tagebuch** (Kapitel, Ziele, XP-Belohnung) | Daten `server/spiel/konfiguration/ziele.js` (KAPITEL, Zähler-Namen im Kopf); Logik `server/spiel/systeme/zielSystem.js`; an/aus `spielKonfiguration.js` → `ziele.aktiv`; HUD `client/ui/tagebuchAnzeige.js` (Taste J) |
+| **Grusel** (Herzschlag, Nacht-Geräusche, Flackern) | `client/kern/grusel.js` (GRUSEL-Werte); Klänge `ziel_geschafft`, `herzschlag`, `grusel_*` in `client/audio/sound.js` (REZEPTE, ersetzbar über Audio-Zentrale) |
 | **Level / XP** (XP pro Zombie, Stufen) | `spielKonfiguration.js` → `level`; Logik `server/spiel/systeme/levelSystem.js`; HUD `#zeigeLevel` in `hud.js` |
 | **Accounts / Gäste** | Datei `server/daten/konten.json` (Vorlage `konten.beispiel.json`), online: siehe `docs/ONLINE_STELLEN.md`; Gäste an/aus: `server.gaeste` bzw. `GAESTE=0` |
 | Inventar-Fenster, Rucksack-Größe | `client/ui/inventarFenster.js`; Größen `gemeinsam/konstanten.js` (`HOTBAR_PLAETZE`, `INVENTAR_PLAETZE`, `INVENTAR_MAX`), Rucksack `gegenstaende.js` → `rucksack.plaetze` |
@@ -964,3 +969,4 @@ Weiter: `statischerServer.js` liefert `editor/` aus,
 | 0.29.0-dev | 2026-11-01 | **Studio Phase 1 erweitert (1.11–1.16):** Spiel-Optik (echtes Kartenmodell im Editor, `V`), Tag/Abend/Nacht + Wetter-Vorschau, Streuen (S), Straße (L), Ersetzen, Generator Wald/Dorf, verknüpfte Vorlagen (alle Kopien aktualisieren), Weltkarte, Versionen + Vergleich, Notiz-Pins (Z), Laufweg-Prüfung, Balance aller Zonen, Loot-Heatmap, Laufmodus (F6), Messen (M), Ebenen sperren, Hilfslinien + Einrasten, Zuletzt-Reiter, Item-Editor (Items/Loot/Rezepte → `studioDaten.js`, KI-Anleitung automatisch). 🎮 Spiel: `zombieBereiche` (Anzahl, Typ-Mischung, Tageszeit, Patrouille/Horden-Route), `studioDaten.js`-Überlagerung + Icon-Leihe für neue Items. Format: `notizen`, `vorlagenInstanzen`, `zombieBereiche`. 35 KI-/MCP-Werkzeuge. |
 | 0.30.0-dev | 2026-11-02 | **Studio Phase 3 – Modell-Werkstatt:** echte Item-Modelle (Spawnpunkte) und Bauwerk-Modelle in der Ansicht, **Loot-Vorschau** (Beispiel-Items mit Spiel-Würfelregeln, `Umschalt+V`); Werkstatt (`studio/werkstatt/`): Bibliothek, Bühne wie im Spiel (Figur, Grundfläche), Teile aus Grundkörpern, Lage per Gizmo/Zahlen, Material/Textur/Farbton, Animationen + Leerlauf, Spiel-Einstellungen (Höhe, Kollision, Ebene, Grundfläche), Speichern mit Sicherung + Vorschaubild, Angleichen offener Zonen. 🎮 `index.json` `blockiert/ebene/fuss/leerlauf` → `spielordnerTyp`. 16 neue KI-/MCP-Werkzeuge (51 gesamt). Tests `studioModelle.test.js`, Rauchtest erweitert. |
 | 0.31.0-dev | 2026-11-02 | **Studio Phase 2 – Audio-Zentrale (Konzept komplett):** Bibliothek aller Sounds/Musik/Karten-Klänge, Schnitt-Editor (Wellenform, Start/Ende, Fades, dB, Normalisieren, nahtlose Schleife, Stille kürzen → Opus-.ogg als Variante/Ersatz/Musik-Titel), Ereignis-Einstellungen inkl. **Faktor je Zone**, Musik-Ordner mit **Überblendung/Pause**, **Mischpult** (Wetter × Tageszeit × Ort × Zone, echter Spiel-Sound), Papierkorb. 🎮 `gemeinsam/audio/umgebung.js` (Wetter-Schichten, Spiel + Studio), `einstellungen.json zonen` → `Sound.setzeZone`, Musik `_optionen.ueberblendung/pause`. 11 neue KI-/MCP-Werkzeuge (62 gesamt). Tests `studioAudio.test.js`, Rauchtest erweitert. |
+| 0.32.0-dev | 2026-11-02 | **Phase 4 (Nutzer-Feedback, Studio + Spiel):** 🎮 Keuchen aus, Auto-Lenkung weicher, weniger Grip auf Eis/Schnee, Baum/Laterne bremsen hart; **Überlebens-Tagebuch** (5 Kapitel mit Zielen, XP, Rang; bleibt über den Tod; Taste J; `zielSystem.js`, Ereignis `morgen`, `tod` mit Täter/Variante); **Grusel** (Herzschlag + roter Puls bei Zombie-Nähe nachts/knappem Leben, Geräusche aus dem Dunkeln, Taschenlampe flackert; `client/kern/grusel.js`); **weiche Bodenübergänge** (Rauschmaske) + wilder Waldboden `@` (Pilze/Moos/Laub). Studio: Boden-Pinsel 1×1–25×25 mit Wandschutz, Gelände formt beim Halten weiter, echte Vorschaubilder, Papierkorb (20 Tage), Ein-Klick-Veröffentlichen, Vorschlagsmodus, KI-Werkzeuge Items/Loot/Rezepte, Notizen als KI-Aufträge, Werkstatt mit Knochen/Keyframes/Malen/Textur-Effekten (Vogelscheuche), Asset-Suche im Internet (CC0/CC-BY + Credits), 6 Wandarten + Raum umbauen, MCP-Dialog Schritt für Schritt (`studio/MCP_ANLEITUNG.md`), Speicher-Kette Entwurf › Im Spiel › Online. Tests `ziele.test.js` u. a. |

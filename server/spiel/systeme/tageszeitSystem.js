@@ -30,6 +30,7 @@ export function aktualisiereTageszeit(spielWelt, dt) {
     }[plan.art] ?? `Die Nacht bricht herein … ${anzahl > 0 ? 'Etwas kommt näher.' : ''}`.trim();
     meldeAllen(spielWelt, text);
   } else {
+    spielWelt.ereignis({ typ: 'morgen', tag: spielWelt.tag, nachtArt: spielWelt.nachtArt ?? 'normal' }); // zielSystem: Nacht überlebt
     spielWelt.nachtArt = 'normal';
     for (const z of [...spielWelt.alleVomTyp('zombie')]) if (z.nacht) spielWelt.entfernen(z.id);
     meldeAllen(spielWelt, `Tag ${spielWelt.tag}: Der Morgen graut – die Horde zieht ab.`);

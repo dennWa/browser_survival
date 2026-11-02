@@ -27,7 +27,7 @@ function karte(objekte) {
 const AUTO = { typ: 'auto_rot', x: 3, y: 2.5, b: 5.5, h: 3, drehung: 90, blockiert: true };
 
 function aufbau(objekte, konfig = {}) {
-  const welt = new SpielWelt(erstelleKonfiguration({ server: { zufallsStartwert: 3 }, spieler: { startInventar: [] }, ...konfig }), { kartenDefinition: karte([AUTO, ...objekte]) });
+  const welt = new SpielWelt(erstelleKonfiguration({ server: { zufallsStartwert: 3 }, spieler: { startInventar: [] }, ziele: { aktiv: false }, ...konfig }), { kartenDefinition: karte([AUTO, ...objekte]) });
   for (const z of [...welt.alleVomTyp('zombie')]) welt.entfernen(z.id);
   const spieler = welt.spielerBetrittWelt('Fahrer');
   const auto = [...welt.alleVomTyp('fahrzeug')][0];

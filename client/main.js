@@ -102,6 +102,7 @@ eingabe.beiTaste('menue', () => {
 eingabe.beiTaste('karte', () => aktuellesSpiel?.karteUmschalten());
 eingabe.beiTaste('inventar', () => aktuellesSpiel && !aktuellesSpiel.tabTaste() && hud.inventar.zeige()); // hinter dem Auto: Kofferraum
 eingabe.beiTaste('skills', () => aktuellesSpiel && hud.skills.zeige());
+eingabe.beiTaste('tagebuch', () => aktuellesSpiel?.tagebuch?.umschalten());
 eingabe.beiTaste('fallenlassen', () => aktuellesSpiel?.fallenlassen(hud.inventar.platzUnterMaus));
 eingabe.beiTaste('chat', () => aktuellesSpiel && hud.chatOeffnen());
 eingabe.beiTaste('spielerliste', () => aktuellesSpiel && hud.spielerlisteUmschalten(aktuellesSpiel.spielerStatistik()));

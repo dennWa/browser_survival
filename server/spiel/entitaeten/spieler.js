@@ -1,3 +1,4 @@
+import { neueZiele, zieleFuerClient } from '../systeme/zielSystem.js';
 import { INVENTAR_PLAETZE } from '../../../gemeinsam/konstanten.js';
 import { STANDARD_AUSRUESTUNG } from '../konfiguration/gegenstaende.js';
 import { xpFuerNaechstesLevel } from '../systeme/levelSystem.js';
@@ -55,6 +56,8 @@ export function erzeugeSpieler({ id, benutzername, x, y, konfiguration, admin = 
     tempoFaktor: 1,
     /** Statistik (Tab-Liste, öffentlich): getötete Zombies/Spieler (bleiben), Sekunden seit dem letzten Tod */
     statistik: { zombies: 0, spieler: 0, ueberlebt: 0 },
+    /** Überlebens-Tagebuch (systeme/zielSystem.js) – bleibt über den Tod hinaus */
+    ziele: neueZiele(),
     /** Angeln (systeme/angelSystem.js): { phase, rest, x, y, startX, startY } oder null; Pose + Schnur sind öffentlich */
     angeln: null,
     angriffVorher: false, // [intern] Linksklick-Flanke fürs Angeln
@@ -197,7 +200,8 @@ export function spielerDatenPrivat(s, konfiguration, spielWelt = null) {
     bauBlock: konfiguration.basisbau.blockGroesse ?? 1, // Block-Kantenlänge für Boden/Wand/Dach (1 = einzeln)
     spawn: s.spawn, // Respawn-Bett { karte, tx, ty } oder null
     haustiere: s.haustiere?.length ? s.haustiere : undefined, // Runde 27: eigene Tiere [{ art, name }] (Einstellungen → Freilassen)
-    tutorial: spielWelt?.tutorial ? tutorialFuerClient(spielWelt, s) : undefined, // Tutorial-Zone: Kapitel, Aufgaben, Funk (systeme/tutorialSystem.js)
+    tutorial: spielWelt?.tutorial ? tutorialFuerClient(spielWelt, s) : undefined,
+    ziele: spielWelt?.tutorial || s.bot ? undefined : zieleFuerClient(s), // Phase 4.15: Tagebuch (aktuelles Kapitel) // Tutorial-Zone: Kapitel, Aufgaben, Funk (systeme/tutorialSystem.js)
     // Fortschritt in 5-%-Schritten (sonst würde jeder Tick neue Daten schicken)
     arbeit: s.arbeit
       ? { art: s.arbeit.art, fortschritt: Math.round((1 - s.arbeit.rest / s.arbeit.dauer) * 20) / 20, wartet: s.arbeit.fertig === true, amFeuer: s.arbeit.art === 'sitzen' && s.arbeit.bauwerkId != null }

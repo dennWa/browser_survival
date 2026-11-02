@@ -22,6 +22,7 @@ export const TASTEN = Object.freeze({
   abriss: ['KeyX'], // im Bau-Modus: Abriss-Werkzeug
   gebiet: ['KeyV'], // roten Baugebiet-Ring ein-/ausblenden (Hammer in der Hand)
   skills: ['KeyU'], // Fähigkeiten (Skillpunkte verteilen)
+  tagebuch: ['KeyJ'], // Phase 4.15: Überlebens-Tagebuch (Kapitel & Ziele) auf/zu
   fallenlassen: ['KeyQ'], // Item fallen lassen (unter der Maus im Inventar, sonst das in der Hand)
   chat: ['KeyT'], // Chat-Eingabe öffnen
   sprechen: ['KeyC'], // Runde 24: Sprachchat Push-to-talk (halten)

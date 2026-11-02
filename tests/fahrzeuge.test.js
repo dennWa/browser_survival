@@ -28,7 +28,7 @@ const KARTE = {
 const mitte = (t) => t * 32 + 16;
 
 function parkplatz() {
-  const welt = new SpielWelt(erstelleKonfiguration({ server: { zufallsStartwert: 2 }, spieler: { startInventar: [] } }), { kartenDefinition: KARTE });
+  const welt = new SpielWelt(erstelleKonfiguration({ server: { zufallsStartwert: 2 }, spieler: { startInventar: [] }, ziele: { aktiv: false } }), { kartenDefinition: KARTE }); // exakte XP ohne Tagebuch-Bonus
   for (const z of [...welt.alleVomTyp('zombie')]) welt.entfernen(z.id);
   const spieler = welt.spielerBetrittWelt('Fahrer');
   const auto = [...welt.alleVomTyp('fahrzeug')][0];
