@@ -2,7 +2,7 @@
 
 Das Studio ist der Editor für Browser Survival als **eigenes Programm** (Windows, Linux, macOS). Es arbeitet direkt im
 Spielordner: Zonen öffnen, in 3D oder 2D bauen, im echten Spiel testen und mit einem Klick ins Spiel übernehmen.
-Phase 1 = **Karten**. Audio-Zentrale (Phase 2) und Modell-Werkstatt (Phase 3) folgen (Plan: `docs/konzepte/STUDIO_KONZEPT.md`).
+Phase 1 = **Karten**, Phase 3 = **Modell-Werkstatt** (fertig). Die Audio-Zentrale (Phase 2) folgt (Plan: `docs/konzepte/STUDIO_KONZEPT.md`).
 
 ## Starten
 
@@ -47,6 +47,7 @@ Voraussetzung: Node.js ≥ 20 und einmal `npm install`. Das Studio braucht **kei
 | Tag / Abend / Nacht, Wetter (Nebel, Regen, Schnee) | Knöpfe oben rechts (nachts leuchten die Lampen der Zone) |
 | **Als Spieler herumlaufen** | `F6` – Maus schaut, W A S D, Umschalt rennt, Esc beendet |
 | Loot-Heatmap | `Umschalt+H` (grün = wenig, rot = viel) |
+| **Loot-Vorschau** (Beispiel-Items an allen Loot-Punkten, gewürfelt wie im Spiel) | `Umschalt+V` oder Knopf *Loot* oben rechts; Würfel-Knopf = neu würfeln. Gelber Ring = zufällig (Tabelle/Zone), grün = festes Item |
 | Wände niedrig (in Räume schauen) | `X` |
 
 ## Werkzeuge
@@ -140,6 +141,24 @@ Werkzeug **G → Übergang**: Rechteck am Rand ziehen, Zielzone und Ankunftsname
 - **Datei → Klang importieren**: Audiodatei für die offene Zone (`client/audio/karten/<zone>/`) + Credits.
   Wählt man im Klang-Werkzeug eine Datei aus einem anderen Ordner, kopiert das Studio sie automatisch in den Zonenordner.
 
+## Modell-Werkstatt (`Strg+Umschalt+M`, Startbildschirm oder Doppelklick auf ein Modell in der Asset-Leiste)
+
+Links alle Modelle des Spiels (Suche, Bereich), in der Mitte die Bühne **so wie im Spiel**: das Spiel passt jedes Modell
+in Grundfläche × Höhe ein – 1 Rasterkästchen = 1 Kachel = 1 m, daneben eine 1,8-m-Figur, die Grundfläche ist orange.
+
+| Reiter | Was |
+|---|---|
+| **Modell** | Name, Bereich, **Höhe im Spiel**, **Kollision** (steht im Weg / man läuft hindurch), **Ebene** (normal, Boden, oben), **eigene Grundfläche** in Kacheln, ganzes Modell drehen/kippen/spiegeln, Credits, „benutzt in“ Zonen |
+| **Teile** | Grundkörper anfügen (Kiste, Zylinder, Kugel, Kegel, Keil, Ring, Platte), anderes Modell als Teil einfügen; Teil wählen → W/E/R (Schieben/Drehen/Größe) oder Zahlenfelder, umbenennen, an anderes Teil hängen, duplizieren (`Strg+D`), löschen (`Entf`), ein-/ausblenden |
+| **Material** | Farbe, Rauheit, Metall je Material, Textur ersetzen/entfernen, „eigenes Material“ für ein Teil, Farbton/Sättigung/Helligkeit fürs ganze Modell |
+| **Animation** | Drehen, Wippen, Pendeln, Pulsieren, Flackern für Modell oder Teil – die gewählte läuft im Spiel als Leerlauf-Schleife |
+
+**Neues Modell** (+ oben links) startet mit einer Kiste – aus Grundkörpern zusammensetzen. **Speichern** (`Strg+S`) schreibt
+`client/assets/eigene/<name>.glb` + Vorschaubild + `index.json`; die alte Fassung landet in `.studio/modelle/` (Uhr-Knopf =
+zurückholen). **Als Kopie** legt eine neue Datei an. Offene Zonen, die das Modell benutzen, übernehmen Kollision/Ebene/Animation
+sofort (je Zone ein Undo-Schritt); neue Objekte im Karten-Editor bekommen alles automatisch. Alles in der Werkstatt hat
+eigenes Rückgängig (`Strg+Z` / `Strg+Y`). `Esc` = zurück zu den Karten.
+
 ## KI
 
 **Eingebauter Assistent** (Reiter *KI* rechts, `Strg+L`): Zahnrad → Anbieter (Claude, Gemini, OpenAI, Grok, DeepSeek),
@@ -151,7 +170,9 @@ schreiben, z. B. *„Bau eine kleine Tankstelle mit Kiosk und zwei Autos bei 40|
 - Claude Desktop: Konfiguration mit `node <Spielordner>/studio/mcp-bruecke.mjs` (Brücke liest Port/Token aus `.studio/mcp.json`)
 - Andere (Cursor, VS Code …): Streamable HTTP auf derselben URL mit Token.
 
-Solange das Studio läuft, kann die KI Zonen öffnen, bauen, prüfen und Screenshots der Ansicht anschauen. Jede
+Solange das Studio läuft, kann die KI Zonen öffnen, bauen, prüfen und Screenshots der Ansicht anschauen – und in der
+**Modell-Werkstatt** Modelle laden, aus Grundkörpern bauen, umfärben, animieren, Höhe/Kollision/Grundfläche einstellen,
+Bilder der Bühne ansehen und speichern (`modelle_liste`, `werkstatt_oeffnen`, `modell_*`). Jede
 KI-Aktion ist ein eigener Undo-Schritt („KI: …“). Der Server ist nur auf diesem Rechner erreichbar und braucht das Token.
 
 ## Ordner & Dateien
@@ -160,7 +181,8 @@ KI-Aktion ist ein eigener Undo-Schritt („KI: …“). Der Server ist nur auf d
 |---|---|
 | `studio/` | Programm (Electron-Hauptprozess `main/`, Oberfläche `oberflaeche/`, Ansicht `ansicht/`, Logik `kern/`) |
 | `studio/vorlagen/` | gespeicherte Vorlagen (ins Repo committen) |
-| `.studio/` | lokal: Entwürfe, MCP-Verbindung (gitignored) |
+| `studio/werkstatt/` | Modell-Werkstatt (Bühne `modellWerk.js`, Oberfläche `werkstatt.js`) |
+| `.studio/` | lokal: Entwürfe, Versionen, Modell-Sicherungen (`modelle/`), MCP-Verbindung (gitignored) |
 | Einstellungen | Benutzerordner des Programms (Spielordner, KI-Anbieter, verschlüsselte Schlüssel, MCP-Token) |
 
 Spielordner wechseln: Startbildschirm → *Ändern* (oder Datei → Spielordner wechseln).

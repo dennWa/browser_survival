@@ -1,6 +1,6 @@
 # Konzept: „Browser Survival Studio“ – lokales Bearbeitungsprogramm
 
-Stand 2026-11-01 · Status: **Phase 1 (Karten) umgesetzt** – Anleitung `studio/LIESMICH.md`, Umsetzungsstand §13 · **Phase 3 (Modelle) und danach Phase 2 (Audio) in Arbeit** – Plan §14/§15 (Reihenfolge: Nutzer-Entscheidung 2026-11-01)
+Stand 2026-11-01 · Status: **Phase 1 (Karten) umgesetzt** – Anleitung `studio/LIESMICH.md`, Umsetzungsstand §13 · **Phase 3 (Modell-Werkstatt) umgesetzt**, **Phase 2 (Audio) in Arbeit** – Plan §14/§15 (Reihenfolge: Nutzer-Entscheidung 2026-11-01)
 
 > Ein eigenständiges Programm, das lokal läuft, das Spiel kennt und Karten, Audio und Modelle bearbeitet –
 > professionell wie Unity/Godot, aber so einfach, dass Neue ohne Vorwissen mitbauen können.
@@ -351,12 +351,18 @@ Ziel: Modelle so sehen, wie das Spiel sie zeigt, und ohne Blender anpassen. Arbe
 | # | Meilenstein | Ergebnis | Stand |
 |---|---|---|---|
 | 3.1 | **Echte Items & Bauwerke in der Ansicht** | Spawnpunkte mit festem Item zeigen das echte Item-Modell (`client/darstellung/itemModelle.js`), Bauwerke (Kamin, Sofa, Werkbank, Holzwand …) das echte Spiel-Modell; **Loot-Vorschau** (`Umschalt+V`): Beispiel-Items an allen Loot-Punkten, gewürfelt mit den Spiel-Regeln (`studio/kern/lootVorschau.js`), „neu würfeln“ | ✅ |
-| 3.2 | **Werkstatt-Arbeitsbereich** | Startbild-Kachel aktiv, eigener Bereich: Bibliothek aller Modelle (Vorschaubild, Suche, Bereiche, „benutzt in Zonen“), Bühne (Orbit, Raster 1 m = 1 Kachel, Licht, Spielfigur zum Größenvergleich), Infos (Maße, Dreiecke, Datei, Lizenz) | ⏳ |
-| 3.3 | **Maße, Ursprung, Ausrichtung, Grundfläche & Kollision** | Höhe im Spiel, auf den Boden, Drehpunkt unten mittig, 90°-Drehen/Spiegeln, Teile mit Gizmo + Zahlenfeldern; Fußabdruck (Kacheln) + Kollision an/aus + Ebene → `index.json` → `spielordnerTyp` (🎮 neue Objekte übernehmen es) | ⏳ |
-| 3.4 | **Farben & Texturen** | Material-Liste, Farbe/Rauheit/Metall, Textur ersetzen/entfernen, Farbton für das ganze Modell verschieben | ⏳ |
-| 3.5 | **Zusammensetzen** | Neues Modell aus Grundkörpern (Kiste, Zylinder, Kugel, Kegel, Keil, Ring), Teile duplizieren/löschen/umbenennen, anderes Modell als Teil einfügen | ⏳ |
-| 3.6 | **Leerlauf-Animation** | Drehen/Wippen/Pendeln/Pulsieren/Flackern (vorhandene Regeln `editor/kern/animation.js`), Vorschau, „im Spiel abspielen“ → `index.json leerlauf` → Typ `animation` (🎮) | ⏳ |
-| 3.7 | **Speichern & Vorschaubild** | GLB schreiben (alte Datei → `.studio/modelle/` gesichert), „als Kopie“, Vorschaubild neu, Index/Credits/KI-Anleitung nachziehen; KI-/MCP-Werkzeuge `modelle_liste`, `modell_info`, `modell_einstellen` | ⏳ |
+| 3.2 | **Werkstatt-Arbeitsbereich** | Startbild-Kachel aktiv, eigener Bereich: Bibliothek aller Modelle (Vorschaubild, Suche, Bereiche, „benutzt in Zonen“), Bühne (Orbit, Raster 1 m = 1 Kachel, Licht, Spielfigur zum Größenvergleich), Infos (Maße, Dreiecke, Datei, Lizenz) | ✅ |
+| 3.3 | **Maße, Ursprung, Ausrichtung, Grundfläche & Kollision** | Höhe im Spiel, auf den Boden, Drehpunkt unten mittig, 90°-Drehen/Spiegeln, Teile mit Gizmo + Zahlenfeldern; Fußabdruck (Kacheln) + Kollision an/aus + Ebene → `index.json` → `spielordnerTyp` (🎮 neue Objekte übernehmen es) | ✅ |
+| 3.4 | **Farben & Texturen** | Material-Liste, Farbe/Rauheit/Metall, Textur ersetzen/entfernen, Farbton für das ganze Modell verschieben | ✅ |
+| 3.5 | **Zusammensetzen** | Neues Modell aus Grundkörpern (Kiste, Zylinder, Kugel, Kegel, Keil, Ring), Teile duplizieren/löschen/umbenennen, anderes Modell als Teil einfügen | ✅ |
+| 3.6 | **Leerlauf-Animation** | Drehen/Wippen/Pendeln/Pulsieren/Flackern (vorhandene Regeln `editor/kern/animation.js`), Vorschau, „im Spiel abspielen“ → `index.json leerlauf` → Typ `animation` (🎮) | ✅ |
+| 3.7 | **Speichern & Vorschaubild** | GLB schreiben (alte Datei → `.studio/modelle/` gesichert), „als Kopie“, Vorschaubild neu, Index/Credits/KI-Anleitung nachziehen; KI-/MCP-Werkzeuge `modelle_liste`, `modell_info`, `modell_einstellen` | ✅ |
+
+Umsetzung Phase 3: `studio/werkstatt/modellWerk.js` (Bühne, alle Bearbeitungen mit Undo), `studio/werkstatt/werkstatt.js`
+(Arbeitsbereich), `studio/kern/modelle.js` (Regeln, getestet), `studio/kern/kiModelle.js` (16 KI-/MCP-Werkzeuge, dieselben
+Methoden wie die Oberfläche), `Projekt.speichereModell/einstellenModell/modellSicherungen`. 🎮 `index.json`-Felder `blockiert`,
+`ebene`, `fuss`, `leerlauf` → `editor/kern/spielordner.spielordnerTyp`. Nicht drin: Malen auf dem Modell, Knochen/Rigging
+(gibt es im alten Browser-Editor). Tests `tests/studioModelle.test.js`, Rauchtest-Abschnitt „Phase 3“.
 
 ## 15. Umsetzungsplan Phase 2 – Audio-Zentrale (nach Phase 3)
 
