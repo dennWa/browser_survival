@@ -36,7 +36,7 @@ export function neueLeinwand(material) {
     const s = Math.min(1, MAX / Math.max(bild.width, bild.height));
     canvas.width = Math.max(4, Math.round(bild.width * s));
     canvas.height = Math.max(4, Math.round(bild.height * s));
-  } else canvas.width = canvas.height = 512;
+  } else canvas.width = canvas.height = 256; // einfarbige Materialien: kleine Leinwand reicht (Low-Poly, kleine Dateien)
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (bild && (bild.width || bild.videoWidth)) {
     // Textur mit flipY = true (selten bei glTF) steht im Bild kopfüber → so zeichnen, wie die UVs sie lesen
