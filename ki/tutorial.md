@@ -1,0 +1,14 @@
+# Tutorial
+
+> Plan: TUTORIAL_KONZEPT.md (umgesetzt 2026-10-27).
+
+## 22 · Tutorial (umgesetzt 2026-10-27, Plan `docs/konzepte/TUTORIAL_KONZEPT.md`)
+- Start: Hauptmenü `#login-tutorial` → `main.js` anmeldungStarten({server:{typ:'tutorial'}}) → `C:netzwerk/verbindungAufbauen` → `lokalerServer.oeffneTutorialKanal()` (eigener SpielServer, ArbeitsspeicherSpeicher, kartenDefinition TUTORIAL, admin:false); Ende/Abbruch → `beendeTutorial()`; `zurueckZumLogin` → bei „Story starten“ `login.starteStory()`. Flag `localStorage browserSurvival.tutorialFertig` (Knopf `.empfohlen` pulsiert vorher).
+- Karte `S:karten/tutorial.js` (Generator `werkzeuge/karten/tutorial.py`, ⚠ NICHT in KARTEN) mit `tutorial:{punkte,bereiche,tueren}` (Kacheln) → kartenLader reicht `tutorial` durch → `SpielWelt.tutorial = erstelleTutorial()` + `tutorialKonfiguration()` (Prototyp-Schicht: kein Hunger, schnelle Ressourcen, Beet 18 s, Kochen 8 s, keine Horde/Loot/Wetter). Spieler startet ohne Startinventar.
+- Ablauf = Daten `S:tutorial/skript.js` (KAPITEL[].schritte[].aufgaben[].wenn, beiStart/beiEnde-Aktionen, FUNK-Zeilen). Engine `S:systeme/tutorialSystem.js` (`aktualisiereTutorial` am Tick-Ende liest `spielWelt.ereignisse`; Zustand `spieler.tutorial`; Client bekommt `spielerDatenPrivat.tutorial`). Hooks: kampfSystem `tutorialVorSchaden` (Ohnmacht→Checkpoint), zombieSystem `z.gefesselt`, tuerSystem `tuerGesperrt` (Gates), tageszeit ohne Meldungen/Horde. AKTION `tutorial {befehl:'ui'|'ueberspringen'|'kapitel', wert}`.
+- C: `ui/tutorialAnzeige.js` (Panel/Tipp/Funk-Untertitel/Marker per `kamera.weltZuBildschirm`, Pause- & Ende-Dialog, meldet offene Fenster als `ui`), `audio/funkstimme.js` (ogg → Bandpass/Verzerrung/Rauschen/Squelch, max. 2 Zeilen Warteschlange). Esc: `main.js` → offene Fenster zuerst (`clientSpiel.etwasOffen()`), sonst `tutorial.pause()`.
+- Stimme: `python3 werkzeuge/audio/tutorial_stimme.py --piper … --modell de_DE-thorsten-medium.onnx` → `client/audio/tutorial/<id>.ogg` + `stimme.json` (Prüfsummen, nur Geändertes). Neue Funkzeile = FUNK-Eintrag + Skript laufen lassen.
+- ⚠ Zonen-Konfig erbt per Prototyp → nie `{...k}` spreaden (Fix in `erzeugeZombie`: for…in). ⚠ Zombies öffnen keine Türen (brechen sie auf) → Verfolger-Spawns ohne Tür dazwischen planen. ⚠ Einstiegs-Punkt ≤ ~1 Kachel neben dem Auto.
+- Modelle: Kenney Furniture Kit (CC0) `client/assets/eigene/kenney-*.glb`; Größen-Audit in `werkzeuge/assets/eigene_kategorien.mjs` HOEHEN (typ-IDs `sf_<name>_<dm>` → bestehende Karten unverändert).
+- Tests `tests/tutorial.test.js` (Skript-Verweise, Erreichbarkeit, Durchspiel-Bot bis „fertig“, Gates, Sicherheitsnetz, echte Mechanik Hof/Garten).
+- **Audio-Zentrale Wiedergabe (Runde 22):** `audioZentrale.js` Stopp hart (`stoppe`, `abspielNr` verwirft ladende), Live-Regler (`#pegelLive`: Pegel/Variante/Streuung) und `Sound.stoppeKurze()`/`#kurz` für Synth-Kurzgeräusche. Auto-Lenkung: `FAHRZEUG.lenkWinkel` 0.95, `lenkAbfall` 250.

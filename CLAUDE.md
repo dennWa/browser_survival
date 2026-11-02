@@ -1,8 +1,8 @@
 # Hinweise für KI-Sitzungen
 
-1. **Zuerst `project_manifest.md` lesen** – dort stehen Architektur, Dateistruktur, "Wo ändere ich …?" und der Entwicklungsstand.
-2. **`KI_INDEX.md` (abgekürzte Karte für KIs) lesen und nutzen**, um Änderungsstellen zu finden. **Am Ende jedes Auftrags** `KI_INDEX.md` kurz und knapp (nur für KIs verständlich) nachziehen: neue/verschobene Dateien, Systeme, Nachrichten, Fallen/Invarianten, Tests. Auch Datei-Kopfkommentare bei geänderten Dateien aktuell halten.
-3. Nach jeder strukturellen Änderung (neue Datei, neues System, neue Nachricht, Phase abgeschlossen) das Manifest aktualisieren, inkl. Änderungsprotokoll.
+1. **Zuerst nur `KI_INDEX.md` lesen** (kleiner Router, ~5 KB: Regeln, Befehle, Themenkarte). Danach **gezielt nur die eine passende Datei** unter `ki/` öffnen (oder `grep -rn "stichwort" ki/`). **Nicht** alles lesen – das spart Tokens. Das ausführliche Handbuch (`project_manifest.md`, Teile unter `ki/handbuch/`) nur bei Bedarf.
+2. **Am Ende jedes Auftrags** die **passende Themen-Datei unter `ki/`** kurz und knapp (nur für KIs verständlich) nachziehen: neue/verschobene Dateien, Systeme, Nachrichten, Fallen/Invarianten, Tests. Neue Runde = neue Datei `ki/rundeNN.md` + eine Zeile in der Tabelle in `KI_INDEX.md`. Router `KI_INDEX.md` nicht aufblähen. Auch Datei-Kopfkommentare bei geänderten Dateien aktuell halten.
+3. Nach jeder strukturellen Änderung (neue Datei, neues System, neue Nachricht, Phase abgeschlossen) das Manifest aktualisieren (passender Teil unter `ki/handbuch/`, Änderungsprotokoll: `ki/handbuch/aenderungsprotokoll.md`).
    **Hauptordner schlank halten:** neue Konzepte/Pläne nach `docs/konzepte/`, abgeschlossene Runden-Pläne nach `archiv/runden/` (siehe `docs/README.md`, `archiv/README.md`).
 4. Code-Sprache: Deutsch (Bezeichner ohne Umlaute, Kommentare mit Umlauten erlaubt). Vanilla JS, ES-Module, kein Build-Schritt.
 5. Spiellogik nur in `server/spiel/` (autoritativ, umgebungsfrei – keine `node:`-Importe, kein DOM).
