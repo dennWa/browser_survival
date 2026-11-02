@@ -26,8 +26,10 @@ export const FAHRZEUG = Object.freeze({
   lenkWinkel: 0.95, // rad, größter Radeinschlag im Stand/langsam (Runde 22: 0.65 → stärkere Lenkung)
   lenkAbfall: 250, // px/s (Runde 22: 225 → 250, Runde 21: 200): bei diesem Tempo ist der größte Einschlag halbiert
   radstand: 0.55, // Anteil der Fahrzeuglänge
-  lenkTempo: 5, // so schnell (Runde 21: 4 → straffer) (1/s) dreht das „Lenkrad“ zum Anschlag …
-  lenkZurueck: 6.5, // … und zurück in die Mitte
+  lenkTempo: 4.75, // so schnell (1/s) dreht das „Lenkrad“ zum Anschlag (Phase 4: 5 → 4,75 = 5 % lässiger) …
+  lenkZurueck: 6.2, // … und zurück in die Mitte (Phase 4: 6,5 → 6,2)
+  eisHaftung: 0.4, // Phase 4: auf Eis (zugefrorenes Wasser) greifen Gas, Bremse, Rollreibung und Lenkung nur zu diesem Anteil
+  schneeHaftung: 0.8, // … auf Schnee-Boden etwas weniger stark
   abprallen: 0.25, // Anteil des Tempos, der beim Aufprall übrig bleibt (rückwärts)
 });
 
@@ -103,10 +105,11 @@ export function fahre(fz, eingabe, welt, dt) {
   const gas = Number.isFinite(eingabe.y) ? Math.max(-1, Math.min(1, -eingabe.y)) : 0;
   const lenken = Number.isFinite(eingabe.x) ? Math.max(-1, Math.min(1, eingabe.x)) : 0;
   const p = FAHRZEUG;
+  const haft = haftung(fz, welt);
   const anteil = Math.min(1, Math.abs(fz.tempo) / p.max);
-  if (gas > 0.1) fz.tempo += (fz.tempo < 0 ? p.bremse : p.beschleunigung * (1 - 0.75 * anteil * anteil)) * gas * dt;
-  else if (gas < -0.1) fz.tempo -= (fz.tempo > 0 ? p.bremse : p.beschleunigung * 0.7) * -gas * dt;
-  else fz.tempo = Math.sign(fz.tempo) * Math.max(0, Math.abs(fz.tempo) - (p.rollReibung + p.fahrtwind * Math.abs(fz.tempo)) * dt);
+  if (gas > 0.1) fz.tempo += (fz.tempo < 0 ? p.bremse : p.beschleunigung * (1 - 0.75 * anteil * anteil)) * haft * gas * dt;
+  else if (gas < -0.1) fz.tempo -= (fz.tempo > 0 ? p.bremse : p.beschleunigung * 0.7) * haft * -gas * dt;
+  else fz.tempo = Math.sign(fz.tempo) * Math.max(0, Math.abs(fz.tempo) - (p.rollReibung * haft + p.fahrtwind * Math.abs(fz.tempo)) * dt);
   fz.tempo = Math.max(-p.rueckwaertsMax, Math.min(p.max, fz.tempo));
   // Lenkrad folgt der Eingabe weich (kein Sofort-Einschlag)
   const lenkung = Number.isFinite(fz.lenkung) ? fz.lenkung : 0;
@@ -116,7 +119,7 @@ export function fahre(fz, eingabe, welt, dt) {
   // Einspurmodell: Drehrate = v / Radstand · tan(Einschlag); Einschlag wird mit dem Tempo kleiner (rückwärts andersherum, wie im echten Auto)
   // Drehung nur, wenn die neue Pose frei ist (sonst klemmt das Auto in der Wand und ist stuck)
   const einschlag = (fz.lenkung * p.lenkWinkel) / (1 + (fz.tempo / p.lenkAbfall) ** 2);
-  const drehung = ((fz.tempo / Math.max(20, fz.laenge * p.radstand)) * Math.tan(einschlag)) * dt;
+  const drehung = ((fz.tempo / Math.max(20, fz.laenge * p.radstand)) * Math.tan(einschlag)) * (0.35 + 0.65 * haft) * dt; // glatt: Auto folgt der Lenkung träger
   const steckt = !passt(fz, fz.x, fz.y, welt); // schon eingeklemmt (z. B. Altstand) → Freifahr-Modus
   if (drehung !== 0) {
     for (const f of [1, 0.5, 0.25]) {
@@ -158,6 +161,14 @@ export function fahre(fz, eingabe, welt, dt) {
   merkeAufprall(false);
   fz.tempo = -fz.tempo * p.abprallen;
   return { aufprall: true };
+}
+
+/** Haftung 0..1 unter dem Fahrzeug: Eis (zugefrorenes Wasser in Schneezonen) < Schnee-Boden < normal (1) */
+export function haftung(fz, welt) {
+  if (welt.istEis?.(fz.x, fz.y)) return FAHRZEUG.eisHaftung;
+  const g = welt.kachelGroesse;
+  if (g && welt.kachelAn?.(Math.floor(fz.x / g), Math.floor(fz.y / g)) === '*') return FAHRZEUG.schneeHaftung;
+  return 1;
 }
 
 /**

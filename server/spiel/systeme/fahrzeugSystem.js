@@ -156,7 +156,7 @@ function fahreHindernisseUm(spielWelt, fz) {
       welt.setzeRessource(h.id, false);
       spielWelt.ressourcenNachwuchs.set(h.id, spielWelt.konfiguration.ressourcen.holz.nachwachsen);
       spielWelt.ereignis({ typ: 'abgebaut', art: 'holz', x: h.x, y: h.y, id: h.id, von: fahrer?.id ?? null, sx: fz.x, sy: fz.y, fahrzeug: true });
-      fz.tempo *= 0.93;
+      fz.tempo *= spielWelt.konfiguration.fahrzeug.baumBremse ?? 0.45; // Phase 4: Baum bremst mindestens so stark wie eine Laterne
     } else {
       welt.setzeLaterne(h.id, false);
       spielWelt.laternenNachwuchs.set(h.id, spielWelt.konfiguration.fahrzeug.laterneNachwachsen);

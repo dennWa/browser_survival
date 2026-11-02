@@ -1373,7 +1373,7 @@ export class ClientSpiel {
     else if (faellig('hunger', 20, 45)) this.sound.spiele('magen_knurren');
     if (d.durst >= 20) delete this.geraeuschUhr.durst;
     else if (faellig('durst', 20, 45)) this.sound.spiele('durst');
-    if (this.lokal.erschoepft && !this.warErschoepft) this.sound.spiele(this.#istFrau(this.eigeneId) ? 'keuchen_frau' : 'keuchen');
+    // Phase 4 (Nutzer-Wunsch): kein Keuchen mehr bei leerer Ausdauer – zu anstrengend
     this.warErschoepft = !!this.lokal.erschoepft;
     // Runde 23: Kälte – ab 50 % Bibbern (Atem + Zähneklappern), ab 75 % auch Husten
     const kaelte = d.kaelte ?? 0;

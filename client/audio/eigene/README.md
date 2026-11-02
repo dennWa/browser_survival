@@ -91,7 +91,7 @@ Tipp: kurze Dateien (< 3 s), Lautstärke der Aufnahme selbst eher normalisiert.
 | `treffer_spieler` | Spieler wird getroffen |
 | `schaden_mann` | Eigene Figur (Mann) nimmt Schaden – Aufschrei |
 | `schaden_frau` | Eigene Figur (Frau) nimmt Schaden – Aufschrei |
-| `keuchen` | Keuchen, wenn die Ausdauer leer ist (Mann) |
+| `keuchen` | Keuchen bei leerer Ausdauer (Mann) – seit Phase 4 im Spiel abgeschaltet |
 | `keuchen_frau` | Keuchen, wenn die Ausdauer leer ist (Frau) |
 | `spieler_tod` | Spieler stirbt (Mann) |
 | `spieler_tod_frau` | Spieler stirbt (Frau) |

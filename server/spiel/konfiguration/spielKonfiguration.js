@@ -105,8 +105,9 @@ export const STANDARD_KONFIGURATION = Object.freeze({
      * linear von `min` (bei 17 km/h) bis `max` (bei 120 km/h = Vollgas); Entlangschrammen nur `schrammFaktor` davon; `pause` Sekunden Ruhe zwischen zwei Aufprällen.
      */
     aufprallSchaden: { min: 0.5, max: 5, schrammFaktor: 0.25, pause: 0.5 },
-    laterneBremse: 0.6, // Runde 18: Anteil des Tempos, der nach dem Umfahren einer Laterne bleibt (spürbares Abbremsen)
-    laterneSchaden: 0.5, // Schaden am Auto, wenn es eine Straßenlaterne umfährt (ab 70 km/h, LATERNE_MIN_KMH)
+    laterneBremse: 0.5, // Anteil des Tempos, der nach dem Umfahren einer Laterne bleibt (Phase 4: 0,6 → 0,5, härter)
+    laterneSchaden: 0.8, // Schaden am Auto, wenn es eine Straßenlaterne umfährt (ab 70 km/h, LATERNE_MIN_KMH; Phase 4: 0,5 → 0,8)
+    baumBremse: 0.45, // Phase 4: Anteil des Tempos nach dem Umfahren eines Baums (vorher 0,93 – kaum spürbar); bremst stärker als die Laterne
     laterneNachwachsen: 600, // Sekunden, bis eine umgefahrene Straßenlaterne wieder steht (Bäume: ressourcen.holz.nachwachsen)
   },
   /** Runde 23: Test-Bots (systeme/botSystem.js) – so viele laufen je Zone herum; Admin kann welche setzen/entfernen. */

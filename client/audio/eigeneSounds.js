@@ -53,7 +53,7 @@ export const EREIGNISSE = {
   treffer_spieler: ['Waffen & Kampf', 'Spieler wird getroffen'],
   schaden_mann: ['Waffen & Kampf', 'Eigene Figur (Mann) nimmt Schaden – Aufschrei'],
   schaden_frau: ['Waffen & Kampf', 'Eigene Figur (Frau) nimmt Schaden – Aufschrei'],
-  keuchen: ['Waffen & Kampf', 'Keuchen, wenn die Ausdauer leer ist (Mann)'],
+  keuchen: ['Waffen & Kampf', 'Keuchen bei leerer Ausdauer (Mann) – seit Phase 4 im Spiel abgeschaltet'],
   keuchen_frau: ['Waffen & Kampf', 'Keuchen, wenn die Ausdauer leer ist (Frau)', { stumm: true }],
   spieler_tod: ['Waffen & Kampf', 'Spieler stirbt (Mann)'],
   spieler_tod_frau: ['Waffen & Kampf', 'Spieler stirbt (Frau)', { stumm: true }],
