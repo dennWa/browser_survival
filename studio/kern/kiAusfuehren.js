@@ -7,6 +7,7 @@ import { kiWerkzeug, KI_REGELN } from './kiWerkzeuge.js';
 import * as A from './aktionen.js';
 import * as B from './bauhilfen.js';
 import { laufweg, balance } from './analyse.js';
+import { kiModellWerkzeuge } from './kiModelle.js';
 
 /**
  * Führt KI-Werkzeuge (kiWerkzeuge.js) im Studio-Fenster aus – für MCP (Claude Desktop/Code …) UND den eingebauten
@@ -218,6 +219,8 @@ export function erstelleKiAusfuehrer(studio) {
       return { ok: true, text: `Ansicht ${studio.ansicht.modus}, Mitte ${Math.round(studio.ansicht.ziel.x)}|${Math.round(studio.ansicht.ziel.z)}`, bild: studio.ansicht.bildAlsPng() };
     },
   };
+
+  Object.assign(W, kiModellWerkzeuge(studio)); // Modell-Werkstatt (Phase 3)
 
   return {
     async fuehreAus(name, argumente = {}, quelle = 'mcp') {

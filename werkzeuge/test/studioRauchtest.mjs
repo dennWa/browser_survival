@@ -5,7 +5,7 @@
  *   npm run rauchtest:studio            (Linux ohne Bildschirm: xvfb-run -a npm run rauchtest:studio)
  */
 import { createRequire } from 'node:module';
-import { mkdirSync, rmSync, mkdtempSync } from 'node:fs';
+import { mkdirSync, rmSync, mkdtempSync, readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -158,6 +158,33 @@ try {
   pruefe(true, 'Spiel-Optik (echtes Kartenmodell) + Nacht gebaut');
   await fenster.evaluate(() => { window.studio.befehle.aus('ansicht.spielOptik'); window.studio.befehle.aus('ansicht.zeit.tag'); });
 
+  // Phase 3: Loot-Vorschau + Modell-Werkstatt per KI-Werkzeugen (Datei rauchtest-modell.glb wird danach entfernt)
+  await fenster.evaluate(() => window.studio.befehle.aus('ansicht.lootVorschau'));
+  pruefe(await fenster.evaluate(() => window.studio.ansicht.gruppen.lootVorschau.children.length > 0), 'Loot-Vorschau zeigt Beispiel-Items');
+  await fenster.evaluate(() => window.studio.befehle.aus('ansicht.lootVorschau'));
+  r = await ki('werkstatt_oeffnen', { neu: 'Rauchtest Modell' });
+  pruefe(r.ok && (await fenster.locator('#werkstatt.offen').count()), `Werkstatt öffnet: ${r.text}`);
+  r = await ki('modell_teil_hinzu', { form: 'zylinder', name: 'Mast', groesse: [0.1, 2, 0.1], position: [0, 1.5, 0], farbe: '#333333' });
+  pruefe(r.ok, `modell_teil_hinzu: ${r.text}`);
+  r = await ki('modell_material', { material: 'Kiste', farbe: '#aa3322', metall: 0.4 });
+  pruefe(r.ok, 'modell_material');
+  r = await ki('modell_animation', { aktion: 'neu', art: 'drehen', teil: 'Mast', dauer: 3 });
+  pruefe(r.ok, `modell_animation: ${r.text}`);
+  r = await ki('modell_einstellen', { kollision: false, ebene: 'boden' });
+  pruefe(r.ok, 'modell_einstellen');
+  r = await ki('modell_bild', { blick: 'schraeg' });
+  pruefe(r.ok && r.bild?.length > 1000, 'modell_bild liefert ein Bild');
+  await fenster.screenshot({ path: path.join(AUSGABE, 'studio-9-werkstatt.png') });
+  r = await ki('modell_speichern', { als_kopie: 'Rauchtest Modell' });
+  pruefe(r.ok && r.text.includes('rauchtest-modell'), `modell_speichern: ${r.text}`);
+  r = await ki('werkstatt_oeffnen', { modell: 'rauchtest-modell' });
+  r = await ki('modell_info', {});
+  pruefe(r.ok && r.daten.animationen.length === 1 && r.daten.spiel.leerlauf && r.daten.spiel.kollision === false && r.daten.teile.length === 2, 'gespeichertes Modell: Teile, Animation (Leerlauf) und Spiel-Einstellungen kommen zurück');
+  r = await ki('werkstatt_schliessen', {});
+  r = await ki('objekt_platzieren', { id: 'modell:rauchtest-modell', x: 3, y: 3 });
+  pruefe(r.ok, `Werkstatt-Modell in der Zone platziert: ${r.text}`);
+  r = await ki('rueckgaengig', {});
+
   // Testlauf: echtes Spiel in eigenem Fenster
   const neuesFenster = app.waitForEvent('window', { timeout: 20000 });
   await fenster.evaluate(() => window.studio.befehle.aus('zone.testen'));
@@ -175,6 +202,12 @@ try {
   await app.close().catch(() => {});
   rmSync(nutzerDaten, { recursive: true, force: true });
   rmSync(path.join(WURZEL, '.studio/entwuerfe', `${TESTZONE}.json`), { force: true });
+  // Werkstatt-Testmodell wieder entfernen (Datei, Vorschaubild, Sicherungen, Index-Eintrag)
+  for (const d of ['client/assets/eigene/rauchtest-modell.glb', 'client/assets/eigene/vorschau/rauchtest-modell.png']) rmSync(path.join(WURZEL, d), { force: true });
+  const indexDatei = path.join(WURZEL, 'client/assets/eigene/index.json');
+  const index = JSON.parse(readFileSync(indexDatei, 'utf8'));
+  if (index.some((e) => e.datei === 'rauchtest-modell.glb')) writeFileSync(indexDatei, JSON.stringify(index.filter((e) => e.datei !== 'rauchtest-modell.glb')));
+  for (const d of existsSync(path.join(WURZEL, '.studio/modelle')) ? readdirSync(path.join(WURZEL, '.studio/modelle')) : []) if (d.startsWith('rauchtest-modell-')) rmSync(path.join(WURZEL, '.studio/modelle', d));
 }
 console.log(`\n${ok} ok, ${fehler.length} Fehler`);
 process.exitCode = fehler.length ? 1 : 0;

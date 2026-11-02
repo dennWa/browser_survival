@@ -115,3 +115,42 @@ test('freierStem + farbtonDrehen', () => {
   assert.deepEqual(farbtonDrehen([0.5, 0.5, 0.5], 90), [0.5, 0.5, 0.5], 'grau bleibt grau');
   assert.ok(farbtonDrehen([0.2, 0.4, 0.6], 0, 1, 0.5)[2] < 0.6, 'dunkler');
 });
+
+// ---------- 3.7: Speichern mit Sicherung (Hauptprozess, reines Node) ----------
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, existsSync, cpSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { Projekt } from '../studio/main/projekt.mjs';
+
+test('Projekt: Modell speichern (Sicherung der alten Fassung), einstellen, wiederherstellen', () => {
+  const WURZEL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const tmp = mkdtempSync(path.join(tmpdir(), 'studio-werkstatt-'));
+  try {
+    cpSync(path.join(WURZEL, 'server/spiel/karten/kartenLader.js'), path.join(tmp, 'server/spiel/karten/kartenLader.js'));
+    mkdirSync(path.join(tmp, 'client/assets/eigene'), { recursive: true });
+    const p = new Projekt(tmp);
+    const glb = (n) => new Uint8Array([0x67, 0x6c, 0x54, 0x46, 2, 0, 0, n]);
+    assert.throws(() => p.speichereModell({ stem: 'x', bytes: new Uint8Array([1, 2, 3, 4]) }), /glb/);
+    const a = p.speichereModell({ stem: 'kiste', bytes: glb(1), neu: true, felder: { name: 'Kiste', kategorie: 'moebel', masse: { b: 1, h: 1, hoehe: 1 }, zielHoehe: 0.8 }, vorschau: new Uint8Array([9]) });
+    assert.equal(a.sicherung, null);
+    assert.equal(a.eintrag.zielHoehe, 0.8);
+    assert.ok(existsSync(path.join(tmp, 'client/assets/eigene/vorschau/kiste.png')));
+    assert.throws(() => p.speichereModell({ stem: 'kiste', bytes: glb(2), neu: true }), /gibt es schon/);
+    const b = p.speichereModell({ stem: 'kiste', bytes: glb(2), felder: { masse: { b: 2, h: 1, hoehe: 1 } } });
+    assert.ok(b.sicherung && existsSync(path.join(tmp, b.sicherung)), 'alte Fassung gesichert');
+    assert.equal(b.eintrag.masse.b, 2);
+    assert.equal(b.eintrag.name, 'Kiste', 'Name bleibt');
+    assert.equal(p.einstellenModell('kiste.glb', { blockiert: false, ebene: 'boden', urheber: 'Ich', lizenz: 'CC0' }).blockiert, false);
+    assert.equal(p.credits()[0].urheber, 'Ich');
+    assert.throws(() => p.einstellenModell('fehlt.glb', {}), /index\.json/);
+    const s = p.modellSicherungen('kiste');
+    assert.equal(s.length, 1);
+    p.stelleModellWiederHer('kiste', s[0].datei);
+    assert.equal(readFileSync(path.join(tmp, 'client/assets/eigene/kiste.glb'))[7], 1, 'alte Fassung zurück');
+    assert.equal(p.modellSicherungen('kiste').length, 2, 'die ersetzte Fassung wurde auch gesichert');
+    assert.throws(() => p.stelleModellWiederHer('kiste', '../../etc/passwd'));
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});

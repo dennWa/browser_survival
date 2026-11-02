@@ -259,3 +259,31 @@ textarea.feld { height: auto; padding: 6px 8px; resize: vertical; user-select: t
 #tooltip.sichtbar { opacity: 1; }
 #tooltip .kuerzel { color: var(--akzent); margin-left: 8px; }
 #tooltip .tt-text { color: var(--text-2); display: block; margin-top: 2px; }
+
+/* ---------- Modell-Werkstatt (Phase 3, werkstatt/werkstatt.js) ---------- */
+#werkstatt { position: fixed; inset: 0; z-index: 60; display: none; background: var(--hg-0); grid-template-rows: 42px 1fr; }
+#werkstatt.offen { display: grid; }
+.ws-kopf { display: flex; align-items: center; gap: 12px; padding: 0 10px; background: var(--hg-1); border-bottom: 1px solid var(--linie); }
+.ws-titel { display: flex; align-items: center; gap: 8px; color: var(--text-2); }
+.ws-titel b { color: var(--text); }
+.ws-titel .neben, .neben { color: var(--text-3); font-size: 11.5px; }
+.ws-aktionen { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+.ws-mitte { display: grid; grid-template-columns: 270px 1fr 330px; min-height: 0; }
+.ws-links, .ws-rechts { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--linie); background: var(--hg-1); }
+.ws-rechts { border-right: 0; border-left: 1px solid var(--linie); }
+.ws-links .panel-inhalt, .ws-rechts .panel-inhalt { flex: 1; overflow: auto; }
+.ws-filter { display: grid; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--linie); }
+.ws-modell { display: grid; grid-template-columns: 40px 1fr auto; gap: 8px; align-items: center; padding: 4px 10px; cursor: pointer; border-left: 2px solid transparent; }
+.ws-modell img { width: 40px; height: 40px; object-fit: contain; background: #0d0f12; border-radius: 4px; }
+.ws-modell span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ws-modell:hover { background: var(--hg-3); }
+.ws-modell.aktiv { background: var(--akzent-weich); border-left-color: var(--akzent); }
+.ws-buehne { position: relative; min-width: 0; min-height: 0; }
+.ws-buehne canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; outline: none; }
+.ws-leiste { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; gap: 6px; z-index: 2; flex-wrap: wrap; }
+.ws-fuss { position: absolute; left: 10px; bottom: 8px; right: 10px; color: var(--text-2); font-size: 11.5px; text-shadow: 0 1px 2px #000; pointer-events: none; }
+.ws-teile { max-height: 280px; overflow: auto; }
+.ws-teile .liste-eintrag { height: 25px; }
+.ws-mini { padding: 2px 5px !important; height: auto !important; margin-left: auto; }
+.ws-markiert { background: var(--akzent-weich); }
+.ws-rechts input[type='color'] { width: 34px; height: 22px; padding: 0; border: 1px solid var(--linie-hell); background: none; border-radius: 3px; }

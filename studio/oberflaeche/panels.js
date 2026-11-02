@@ -193,9 +193,18 @@ export class AssetPanel {
       const z = e.target.closest('[data-i]');
       if (z) studio.waehleAsset(this.aktuell[Number(z.dataset.i)]);
     });
+    this.el.addEventListener('dblclick', (e) => {
+      const a = this.aktuell[Number(e.target.closest('[data-i]')?.dataset.i)];
+      if (a?.art === 'modell') studio.befehle.aus('modell.bearbeiten'); // Doppelklick → Modell-Werkstatt
+    });
     this.el.addEventListener('contextmenu', (e) => {
       const z = e.target.closest('[data-i]');
       const a = z && this.aktuell[Number(z.dataset.i)];
+      if (a?.art === 'modell') {
+        e.preventDefault();
+        studio.waehleAsset(a);
+        return studio.menues.kontext(e.clientX, e.clientY, ['modell.bearbeiten']);
+      }
       if (a?.art !== 'vorlage' || a.eingebaut) return;
       e.preventDefault();
       studio.waehleAsset(a);

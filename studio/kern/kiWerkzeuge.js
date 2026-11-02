@@ -10,6 +10,52 @@ const zahl = (beschreibung) => ({ type: 'number', description: beschreibung });
 const text = (beschreibung, auswahl) => ({ type: 'string', description: beschreibung, ...(auswahl ? { enum: auswahl } : {}) });
 const rechteck = { x: zahl('linke Kachel'), y: zahl('obere Kachel'), b: zahl('Breite in Kacheln'), h: zahl('Höhe in Kacheln') };
 const objekt = (eigenschaften, pflicht = []) => ({ type: 'object', properties: eigenschaften, required: pflicht });
+const xyz = (beschreibung) => ({ type: 'array', items: { type: 'number' }, description: `${beschreibung} [x, y, z]` });
+const jaNein = (beschreibung) => ({ type: 'boolean', description: beschreibung });
+const W = 'Modell-Werkstatt: ';
+
+/**
+ * Modell-Werkstatt (Phase 3) – ausgeführt von studio/kern/kiModelle.js über dieselben Methoden wie die Oberfläche
+ * (werkstatt/werkstatt.js, werkstatt/modellWerk.js). Teile-/Material-Referenzen: Name (aus modell_info) oder uuid.
+ */
+export const KI_MODELL_WERKZEUGE = [
+  { name: 'modelle_liste', beschreibung: `${W}3D-Modelle des Spiels (client/assets/eigene) suchen: Dateiname (stem), Name, Bereich, Höhe im Spiel, Kollision.`, schema: objekt({ suche: text('Suchwort'), bereich: text('optional: natur, tiere, bau, moebel, fahrzeuge, gegenstaende, essen, deko') }), lesen: true },
+  { name: 'werkstatt_oeffnen', beschreibung: `${W}öffnen und ein Modell laden (modell = stem aus modelle_liste) ODER ein neues Modell aus Grundkörpern beginnen (neu = Name). Ungespeicherte Änderungen gehen dabei verloren.`, schema: objekt({ modell: text('stem, z. B. wooden-chair'), neu: text('Name eines neuen Modells') }) },
+  { name: 'werkstatt_schliessen', beschreibung: `${W}schließen, zurück zum Karten-Editor (ungespeicherte Änderungen bleiben in der Werkstatt erhalten, bis ein anderes Modell geladen wird).`, schema: objekt({}) },
+  { name: 'modell_info', beschreibung: `${W}alles zum offenen Modell: Spiel-Einstellungen, Maße, Teile (Baum mit Lage), Materialien, Animationen, „benutzt in Zonen“.`, schema: objekt({}), lesen: true },
+  {
+    name: 'modell_einstellen',
+    beschreibung: `${W}Spiel-Einstellungen des offenen Modells (gelten nach modell_speichern): Höhe im Spiel (m), Kollision, Ebene, eigene Grundfläche (Kacheln) oder automatisch, Name, Bereich, Credits.`,
+    schema: objekt({ hoehe: zahl('Höhe im Spiel in m (0,05–20)'), kollision: jaNein('steht im Weg (true) oder man läuft hindurch (false)'), ebene: text('moebel = normal, boden = flach (man läuft drüber), oben = über den Figuren', ['moebel', 'boden', 'oben']), grundflaeche_b: zahl('Breite in Kacheln'), grundflaeche_t: zahl('Tiefe in Kacheln'), grundflaeche_auto: jaNein('true = aus den Modell-Proportionen'), name: text('Anzeigename'), bereich: text('natur, tiere, bau, moebel, fahrzeuge, gegenstaende, essen, deko'), urheber: text('Credits'), lizenz: text('z. B. CC0'), quelle: text('URL') }),
+  },
+  {
+    name: 'modell_teil_hinzu',
+    beschreibung: `${W}Grundkörper anfügen (kiste, zylinder, kugel, kegel, keil, ring, platte). Maße/Position in Modell-Einheiten (bei neuen Modellen = Meter), y = oben. Ohne Position steht der Körper mittig auf dem Boden.`,
+    schema: objekt({ form: text('Grundkörper', ['kiste', 'zylinder', 'kugel', 'kegel', 'keil', 'ring', 'platte']), name: text('Teilname'), groesse: xyz('Größe (Breite, Höhe, Tiefe)'), position: xyz('Mittelpunkt'), drehung: xyz('Drehung in Grad'), farbe: text('#rrggbb'), eltern: text('optional: an dieses Teil hängen') }, ['form']),
+  },
+  {
+    name: 'modell_teil_aendern',
+    beschreibung: `${W}ein Teil verschieben/drehen/skalieren, umbenennen, ein-/ausblenden (ausgeblendet = fehlt beim Speichern) oder an ein anderes Teil hängen. Fehlende Felder bleiben.`,
+    schema: objekt({ teil: text('Name oder uuid'), position: xyz('Position'), drehung: xyz('Drehung in Grad'), groesse: xyz('Größe als Faktor'), name: text('neuer Name'), sichtbar: jaNein('sichtbar'), eltern: text('Teil, an das es gehängt wird ("" = Modell)') }, ['teil']),
+  },
+  { name: 'modell_teil_loeschen', beschreibung: `${W}Teil (mit Kindern) entfernen.`, schema: objekt({ teil: text('Name oder uuid') }, ['teil']) },
+  { name: 'modell_teil_duplizieren', beschreibung: `${W}Teil kopieren (liegt daneben). Liefert den neuen Namen.`, schema: objekt({ teil: text('Name oder uuid') }, ['teil']) },
+  {
+    name: 'modell_material',
+    beschreibung: `${W}Material ändern (Farbe, Rauheit 0–1, Metall 0–1). material = Material-Name/uuid aus modell_info oder ein Teil-Name (dessen Material). eigenes = Teil bekommt vorher ein eigenes Material (andere Teile bleiben unverändert).`,
+    schema: objekt({ material: text('Material- oder Teil-Name'), farbe: text('#rrggbb'), rauheit: zahl('0–1'), metall: zahl('0–1'), eigenes: jaNein('nur dieses Teil umfärben') }, ['material']),
+  },
+  { name: 'modell_farbton', beschreibung: `${W}Farben des ganzen Modells verschieben (Farbton in Grad −180…180, Sättigung/Helligkeit als Faktor, 1 = gleich).`, schema: objekt({ grad: zahl('Farbton-Drehung'), saettigung: zahl('Faktor'), helligkeit: zahl('Faktor') }) },
+  { name: 'modell_ausrichten', beschreibung: `${W}ganzes Modell drehen (achse x|y|z, winkel), spiegeln (achse) oder Ursprung unten mittig setzen.`, schema: objekt({ aktion: text('Aktion', ['drehen', 'spiegeln', 'ursprung']), achse: text('x, y oder z', ['x', 'y', 'z']), winkel: zahl('Grad (Standard 90)') }, ['aktion']) },
+  {
+    name: 'modell_animation',
+    beschreibung: `${W}Animationen: neu (art drehen|wippen|pendeln|pulsieren|flackern, teil leer = ganzes Modell, achse, dauer s, staerke ° / Einheiten / Faktor; läuft im Spiel als Leerlauf), loeschen/leerlauf/abspielen (name), stopp. leerlauf mit leerem name = keine Leerlauf-Animation.`,
+    schema: objekt({ aktion: text('Aktion', ['neu', 'loeschen', 'leerlauf', 'abspielen', 'stopp']), art: text('Bewegung', ['drehen', 'wippen', 'pendeln', 'pulsieren', 'flackern']), teil: text('Teil-Name'), achse: text('x, y, z', ['x', 'y', 'z']), dauer: zahl('Sekunden'), staerke: zahl('Stärke'), name: text('Clip-Name') }, ['aktion']),
+  },
+  { name: 'modell_bild', beschreibung: `${W}Bild der Bühne (wie im Spiel eingepasst, mit 1,8-m-Figur und Grundfläche). blick: schraeg, vorne, seite, oben.`, schema: objekt({ blick: text('Blickrichtung', ['schraeg', 'vorne', 'seite', 'oben']) }), lesen: true },
+  { name: 'modell_rueckgaengig', beschreibung: `${W}letzten Schritt zurücknehmen (wiederholen = true: wiederherstellen).`, schema: objekt({ wiederholen: jaNein('wiederholen statt rückgängig') }) },
+  { name: 'modell_speichern', beschreibung: `${W}speichern: ersetzt die .glb (alte Fassung wird gesichert) oder als_kopie = Name einer neuen Datei. Neue Modelle bekommen einen Dateinamen aus dem Namen. Offene Zonen, die das Modell benutzen, werden angeglichen. Danach steht es im Karten-Editor unter Modelle (modell:<stem>).`, schema: objekt({ als_kopie: text('Name der Kopie') }) },
+];
 
 export const KI_WERKZEUGE = Object.freeze([
   {
@@ -137,6 +183,7 @@ export const KI_WERKZEUGE = Object.freeze([
     lesen: true,
     bild: true,
   },
+  ...KI_MODELL_WERKZEUGE,
 ]);
 
 /** Werkzeug nach Name */
@@ -153,4 +200,5 @@ export const KI_REGELN = [
   'Loot: Räume mit Loot-Tabelle (raum_bauen lootTabelle), Loot-Zonen (flaeche_anlegen art=loot) oder einzelne Spawnpunkte (spawnpunkt_setzen).',
   'Übergänge zu anderen Zonen liegen am Kartenrand; die Zielzone braucht einen Ankunftspunkt mit dem angegebenen Namen.',
   'Arbeite in kleinen Schritten, prüfe mit pruefen und ansicht_bild. Fehler lassen sich mit rueckgaengig zurücknehmen.',
+  '3D-Modelle bearbeitest du in der Modell-Werkstatt: modelle_liste → werkstatt_oeffnen (modell oder neu) → modell_info → modell_teil_hinzu/_aendern, modell_material, modell_animation, modell_einstellen (Höhe, Kollision, Grundfläche) → modell_bild zum Prüfen → modell_speichern. Das Spiel passt jedes Modell in Grundfläche × Höhe ein.',
 ].join('\n');

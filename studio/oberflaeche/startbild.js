@@ -2,7 +2,7 @@ import { icon } from './icons.js';
 import { esc } from './dialoge.js';
 
 /**
- * Startbildschirm: Bereiche (Karten jetzt; Audio-Zentrale = Phase 2, Modell-Werkstatt = Phase 3), zuletzt geöffnete Zonen,
+ * Startbildschirm: Bereiche (Karten, Modell-Werkstatt (Phase 3); Audio-Zentrale = Phase 2), zuletzt geöffnete Zonen,
  * Spielordner (änderbar) und KI-Verbindung. Zuletzt geöffnet: localStorage `browserSurvival.studio.zuletzt`.
  */
 const ZULETZT = 'browserSurvival.studio.zuletzt';
@@ -36,7 +36,7 @@ export async function zeigeStartbild(studio) {
       <div class="start-karten">
         <button class="start-karte" data-start="karten">${icon('zone', 26)}<div class="start-karte-titel">Karten bearbeiten</div><div class="start-karte-text">Zonen in 3D und 2D bauen: Böden, Wände, Räume, Objekte, Loot, Spawnpunkte, Klänge, Übergänge – und direkt testen.</div></button>
         <div class="start-karte gesperrt">${icon('audio', 26)}<div class="start-karte-titel">Audio-Zentrale</div><div class="start-karte-text">Sounds schneiden, Musik je Bereich, Wetter & Umgebung. <b>Kommt in Phase 2.</b></div></div>
-        <div class="start-karte gesperrt">${icon('modell', 26)}<div class="start-karte-titel">Modell-Werkstatt</div><div class="start-karte-text">Modelle zuschneiden, einfärben, zusammensetzen. <b>Kommt in Phase 3.</b></div></div>
+        <button class="start-karte" data-start="werkstatt">${icon('modell', 26)}<div class="start-karte-titel">Modell-Werkstatt</div><div class="start-karte-text">Modelle so sehen wie im Spiel, Größe, Kollision und Grundfläche einstellen, einfärben, aus Grundkörpern zusammensetzen, animieren.</div></button>
       </div>
       <div class="start-unten">
         <div class="start-kasten"><div class="start-kasten-titel">Zuletzt geöffnet</div>${letzte.length ? letzte.map((z) => `<div class="liste-eintrag" data-zone="${esc(z.id)}">${icon('zone', 16)}<span>${esc(z.name)}</span><span class="neben">${z.breite} × ${z.hoehe}</span></div>`).join('') : '<div style="color:var(--text-3)">Noch nichts – öffne links eine Zone.</div>'}</div>
@@ -55,6 +55,10 @@ export async function zeigeStartbild(studio) {
       } else if (s === 'karten') {
         el.classList.remove('offen');
         fertig(null);
+      } else if (s === 'werkstatt') {
+        el.classList.remove('offen');
+        fertig(null);
+        studio.werkstatt.oeffne().catch((f) => studio.hinweis(f.message, 'fehler'));
       } else if (s === 'ordner') {
         try {
           const neu = await studio.nativ.aufruf('projekt.ordnerWaehlen');

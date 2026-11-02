@@ -19,6 +19,7 @@ import { zeigeStartbild, merkeZuletzt } from './oberflaeche/startbild.js';
 import { dialog, formular, frage, melde, esc } from './oberflaeche/dialoge.js';
 import { icon } from './oberflaeche/icons.js';
 import { oeffneItemEditor } from './oberflaeche/itemEditor.js';
+import { Werkstatt } from './werkstatt/werkstatt.js';
 import { ladeSpielordner, setzeSpielordner } from '../editor/kern/spielordner.js';
 import { ausDefinition } from '../editor/kern/format.js';
 import { EditorKarte } from '../editor/kern/karte.js';
@@ -84,6 +85,7 @@ class Studio {
     this.pruefung = new PruefPanel(this);
     this.inspektor = new Inspektor(this);
     this.ki = new KiPanel(this);
+    this.werkstatt = new Werkstatt(this);
     window.studioKi = erstelleKiAusfuehrer(this);
     this.#verbinden();
   }
@@ -443,6 +445,8 @@ class Studio {
       { id: 'zone.aktualisieren', gruppe: 'Datei', titel: 'Zonenliste neu laden', icon: 'wiederholen', ausfuehren: () => this.zonenPanel.laden() },
       { id: 'asset.importModell', gruppe: 'Datei', titel: 'Modell importieren …', icon: 'hochladen', ausfuehren: () => this.#dialogModellImport() },
       { id: 'asset.importKlang', gruppe: 'Datei', titel: 'Klang importieren …', icon: 'audio', aktiv: echteZone, ausfuehren: () => this.#dialogKlangImport() },
+      { id: 'werkstatt.oeffnen', gruppe: 'Datei', titel: 'Modell-Werkstatt', icon: 'modell', kuerzel: 'Strg+Umschalt+M', ausfuehren: () => this.werkstatt.oeffne() },
+      { id: 'modell.bearbeiten', gruppe: 'Datei', titel: 'In der Werkstatt bearbeiten', icon: 'modell', versteckt: true, aktiv: () => this.asset?.art === 'modell', ausfuehren: () => this.werkstatt.oeffne(this.asset.id.slice(7)) },
       { id: 'daten.items', gruppe: 'Datei', titel: 'Items, Loot & Rezepte …', icon: 'item', kuerzel: 'Strg+I', ausfuehren: () => oeffneItemEditor(this) },
       { id: 'studio.start', gruppe: 'Datei', titel: 'Startbildschirm', icon: 'hauptmenue', ausfuehren: () => this.#startbild() },
       { id: 'projekt.ordner', gruppe: 'Datei', titel: 'Spielordner wechseln …', icon: 'ordner', ausfuehren: async () => { try { if (await nativ.aufruf('projekt.ordnerWaehlen')) location.reload(); } catch (f) { this.hinweis(f.message, 'fehler'); } } },
@@ -538,7 +542,7 @@ class Studio {
 
   #menues() {
     this.menues.baue([
-      { titel: 'Datei', eintraege: ['zone.neu', 'zone.speichern', 'zone.insSpiel', '-', 'zone.testen', 'zone.testenHier', '-', 'asset.importModell', 'asset.importKlang', '-', 'daten.items', '-', 'zone.schliessen', 'studio.start', 'projekt.ordner'] },
+      { titel: 'Datei', eintraege: ['zone.neu', 'zone.speichern', 'zone.insSpiel', '-', 'zone.testen', 'zone.testenHier', '-', 'asset.importModell', 'asset.importKlang', '-', 'werkstatt.oeffnen', 'daten.items', '-', 'zone.schliessen', 'studio.start', 'projekt.ordner'] },
       { titel: 'Bearbeiten', eintraege: ['bearbeiten.rueckgaengig', 'bearbeiten.wiederholen', '-', 'bearbeiten.kopieren', 'bearbeiten.einfuegen', 'bearbeiten.duplizieren', 'bearbeiten.loeschen', '-', 'bearbeiten.alles', 'bearbeiten.abwaehlen'] },
       { titel: 'Ansicht', eintraege: ['ansicht.2d3d', 'ansicht.fokus', 'ansicht.ganz', '-', 'ansicht.spielOptik', 'ansicht.lootVorschau', 'ansicht.lootNeu', 'ansicht.laufen', 'ansicht.heatmap', 'ansicht.raster', 'hilfslinie.waagerecht', 'hilfslinie.senkrecht', 'hilfslinien.loeschen', 'ansicht.wandNiedrig', 'ansicht.objekte', 'ansicht.overlays', '-', 'ansicht.zeit.tag', 'ansicht.zeit.abend', 'ansicht.zeit.nacht', '-', 'ansicht.wetter.klar', 'ansicht.wetter.nebel', 'ansicht.wetter.regen', 'ansicht.wetter.schnee', '-', 'ansicht.palette'] },
       { titel: 'Zone', eintraege: ['zone.eigenschaften', 'zone.groesse', 'zone.pruefen', 'pruefen.laufweg', 'pruefen.balance', 'zone.weltkarte', '-', 'zone.versionSpeichern', 'zone.versionen', 'zone.vergleichAus', '-', 'zone.ersetzen', 'zone.generieren', '-', 'vorlage.neu', 'vorlage.ausAuswahl', 'vorlage.speichern'] },

@@ -6,6 +6,8 @@
  *   Entwürfe     .studio/entwuerfe/<id>.json   (Arbeitsstand + Verlauf, gitignored)
  *   Vorlagen     studio/vorlagen/<id>.json     (Prefabs, im Repo → für alle Mitbauenden)
  *   Modelle      client/assets/eigene/<stem>.glb + index.json + credits.json (Import mit Credits)
+ *   Werkstatt    speichereModell (alte .glb → .studio/modelle/<stem>-<zeit>.glb), einstellenModell (index.json-Felder,
+ *                Regeln studio/kern/modelle.js), modellSicherungen / stelleModellWiederHer
  *   Sounds       client/audio/eigene/ (Phase 2)
  * Export ins Spiel = derselbe Weg wie `npm run karte:editor` (Prüfung → verarbeiteKarte → alsJsModul → registriere).
  */
@@ -13,6 +15,7 @@ import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync, statSy
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { execFile } from 'node:child_process';
+import { pruefeModellFelder, aktualisiereIndex } from '../kern/modelle.js';
 
 const KEINE_KARTEN = new Set(['kartenLader.js', 'lootZonen.js', 'zonenEinstellungen.js', 'spawnpunkte.js']);
 export const ID_MUSTER = /^[a-z0-9_]{1,40}$/;
@@ -263,6 +266,78 @@ export class Projekt {
     }
     if (meta.urheber || meta.lizenz || meta.url) this.fuegeCreditHinzu({ paket: `${eintrag.name} (${stem}.glb)`, urheber: meta.urheber || 'unbekannt', lizenz: meta.lizenz || 'keine Angabe', url: meta.url || '' });
     return eintrag;
+  }
+
+  // ---------- Modell-Werkstatt (Phase 3) ----------
+  #schreibeIndex(index) {
+    writeFileSync(this.pfad('client/assets/eigene/index.json'), JSON.stringify(index));
+  }
+
+  /** Spiel-/Katalog-Felder eines Modells ändern (ohne die .glb anzufassen). @returns neuer Eintrag */
+  einstellenModell(datei, felder) {
+    const patch = pruefeModellFelder(felder);
+    const index = aktualisiereIndex(this.modellIndex(), datei, patch);
+    this.#schreibeIndex(index);
+    const e = index.find((x) => x.datei === datei);
+    if (patch.urheber || patch.lizenz || patch.url) this.fuegeCreditHinzu({ paket: `${e.name} (${datei})`, urheber: e.urheber || 'unbekannt', lizenz: e.lizenz || 'keine Angabe', url: e.url || '' });
+    return e;
+  }
+
+  /**
+   * Bearbeitetes Modell speichern. Gibt es die Datei schon (und nicht `neu`), wandert die alte Fassung nach
+   * .studio/modelle/<stem>-<zeit>.glb (gitignored, wiederherstellbar). Index: Maße/Größe neu + `felder`.
+   * @param { stem, bytes (glb), vorschau (png bytes)?, felder {name, kategorie, masse, zielHoehe, …}, neu }
+   */
+  speichereModell({ stem, bytes, vorschau, felder = {}, neu = false }) {
+    stem = String(stem ?? '').toLowerCase();
+    if (!STEM_MUSTER.test(stem)) throw new Error('Dateiname nur a–z, 0–9, - und _');
+    if (Buffer.from(bytes).subarray(0, 4).toString('latin1') !== 'glTF') throw new Error('Keine gültige .glb-Datei');
+    const datei = `${stem}.glb`;
+    const ziel = this.#sicher(`client/assets/eigene/${datei}`);
+    const gab = existsSync(ziel);
+    if (gab && neu) throw new Error(`„${datei}“ gibt es schon – anderen Namen wählen`);
+    let sicherung = null;
+    if (gab) {
+      mkdirSync(this.pfad('.studio/modelle'), { recursive: true });
+      const zeit = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 23);
+      sicherung = `.studio/modelle/${stem}-${zeit}.glb`;
+      for (let n = 2; existsSync(this.pfad(sicherung)); n++) sicherung = `.studio/modelle/${stem}-${zeit}-${n}.glb`;
+      copyFileSync(ziel, this.pfad(sicherung));
+    }
+    writeFileSync(ziel, Buffer.from(bytes));
+    let index = this.modellIndex();
+    if (!index.some((e) => e.datei === datei)) {
+      index.push({ datei, name: felder.name || stem, kategorie: felder.kategorie || 'deko' });
+      index.sort((a, b) => a.datei.localeCompare(b.datei, 'de'));
+    }
+    index = aktualisiereIndex(index, datei, pruefeModellFelder({ ...felder, groesse: statSync(ziel).size }));
+    this.#schreibeIndex(index);
+    if (vorschau) {
+      mkdirSync(this.pfad('client/assets/eigene/vorschau'), { recursive: true });
+      writeFileSync(this.#sicher(`client/assets/eigene/vorschau/${stem}.png`), Buffer.from(vorschau));
+    }
+    const e = index.find((x) => x.datei === datei);
+    if (e.urheber || e.lizenz || e.url) this.fuegeCreditHinzu({ paket: `${e.name} (${datei})`, urheber: e.urheber || 'unbekannt', lizenz: e.lizenz || 'keine Angabe', url: e.url || '' });
+    return { eintrag: e, sicherung };
+  }
+
+  /** Gesicherte Fassungen eines Modells (neueste zuerst): [{ datei, zeit, groesse }] */
+  modellSicherungen(stem) {
+    const ordner = this.pfad('.studio/modelle');
+    if (!STEM_MUSTER.test(stem) || !existsSync(ordner)) return [];
+    const muster = new RegExp(`^${stem.replace(/[-]/g, '\\-')}-(\\d{4}-\\d\\d-\\d\\dT[\\d-]+)\\.glb$`);
+    return readdirSync(ordner)
+      .map((d) => ({ d, m: muster.exec(d) }))
+      .filter((x) => x.m)
+      .map(({ d, m }) => ({ datei: `.studio/modelle/${d}`, zeit: m[1], groesse: statSync(path.join(ordner, d)).size }))
+      .sort((a, b) => b.zeit.localeCompare(a.zeit));
+  }
+
+  /** Sicherung zurückholen (die aktuelle Fassung wird dabei selbst gesichert) */
+  stelleModellWiederHer(stem, sicherung) {
+    if (!this.modellSicherungen(stem).some((x) => x.datei === sicherung)) throw new Error('Sicherung nicht gefunden');
+    const bytes = readFileSync(this.#sicher(sicherung));
+    return this.speichereModell({ stem, bytes, felder: {} });
   }
 
   // ---------- Klänge (Karten-Klänge liegen unter client/audio/karten/<zone>/) ----------

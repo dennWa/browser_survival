@@ -141,6 +141,14 @@ const AKTIONEN = {
     await projekt.aktualisiereKiAnleitung();
     return e;
   },
+  'modell.einstellen': async ({ datei, felder }) => projekt.einstellenModell(datei, felder),
+  'modell.speichern': async (d) => {
+    const r = projekt.speichereModell(d);
+    await projekt.aktualisiereKiAnleitung();
+    return r;
+  },
+  'modell.sicherungen': ({ stem }) => projekt.modellSicherungen(stem),
+  'modell.wiederherstellen': ({ stem, sicherung }) => projekt.stelleModellWiederHer(stem, sicherung),
   'projekt.klangDateien': () => projekt.klangDateien(),
   'projekt.klangFuerZone': ({ quelle, zone }) => projekt.klangFuerZone(quelle, zone),
   'projekt.importiereKlang': ({ bytes, meta }) => projekt.importiereKlang(bytes, meta),
