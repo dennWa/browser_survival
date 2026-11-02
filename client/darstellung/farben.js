@@ -22,6 +22,7 @@ export const KACHEL_FARBEN = {
   kies: '#8a8a86',
   pflaster: '#8e8a80',
   waldboden: '#6e5232',
+  wildwald: '#5f5530',
   sand: '#bba27a',
 };
 

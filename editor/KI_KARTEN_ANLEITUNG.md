@@ -99,6 +99,7 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `%` | Kies | Wege | begehbar |
 | `^` | Pflaster | Wege | begehbar |
 | `;` | Waldboden | Böden | begehbar |
+| `@` | Wilder Waldboden (Pilze) | Böden | begehbar |
 | `!` | Sand | Böden | begehbar |
 | `~` | Wasser (See) | Umwelt | blockiert |
 
@@ -785,5 +786,5 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `loot.spawnChance` | Loot-Chance | 0–1 | liegt an einem Loot-Punkt etwas? |
 | `loot.respawnZeit` | Nachschub | 5–7200 s | bis geplünderte Punkte neu gewürfelt werden |
 
-_Kachel-Zeichen gesamt: `0` `,` `*` `_` `=` `-` `.` `:` `+` `T` `#` `H` `P` `B` `Q` `M` `F` `$` `&` `%` `^` `;` `!` `~`_
+_Kachel-Zeichen gesamt: `0` `,` `*` `_` `=` `-` `.` `:` `+` `T` `#` `H` `P` `B` `Q` `M` `F` `$` `&` `%` `^` `;` `@` `!` `~`_
 

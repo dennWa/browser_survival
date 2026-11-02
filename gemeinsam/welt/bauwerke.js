@@ -29,7 +29,7 @@ import { darfBenutzen } from '../basisbau/rechte.js';
  */
 export const EBENEN = Object.freeze(['boden', 'objekt', 'wand', 'tuer', 'dach']);
 /** Worauf gebaut werden darf (Kachelnamen aus KACHELN). Später z. B. 'erde', 'sand' ergänzen. */
-export const BAUBARER_UNTERGRUND = Object.freeze(['gras', 'schnee', 'rasen', 'wiese', 'erde', 'waldboden', 'sand', 'kies']); // Runde 26: + Naturböden
+export const BAUBARER_UNTERGRUND = Object.freeze(['gras', 'schnee', 'rasen', 'wiese', 'erde', 'waldboden', 'wildwald', 'sand', 'kies']); // Runde 26: + Naturböden
 const BASIS = { item: null, nurAuf: BAUBARER_UNTERGRUND };
 const MOEBEL = { item: null, moebel: true }; // Runde 24: Einrichtung – jeder freie Boden, auch drinnen
 

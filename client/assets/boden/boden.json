@@ -40,5 +40,11 @@
     "kacheln": 4,
     "quelle": "https://ambientcg.com/view?id=Ground054",
     "lizenz": "CC0"
+  },
+  "wildwald": {
+    "datei": "boden/wildwald.jpg",
+    "kacheln": 4,
+    "quelle": "https://ambientcg.com/view?id=Ground078 + ScatteredLeaves008 (Pilze/Moos prozedural)",
+    "lizenz": "CC0"
   }
 }

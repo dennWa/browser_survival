@@ -41,7 +41,7 @@ const MOEBEL_HOEHE = {
   kiste: 26, kiste_klein: 16, pflanze: 30, kueche_theke: 30, kueche_herd: 30, kueche_spuele: 30, kueche_kochfeld: 30,
   auto_schwarz: 38, auto_blau: 38, auto_rot: 38, auto_gruen: 38, auto_gelb: 38, transporter: 46, fass: 28, pylone: 18, werkbank: 26,
 };
-const FOTO_BODEN = { rasen: 'rasen', wiese: 'wiese', erde: 'erde', kies: 'kies', pflaster: 'pflaster', waldboden: 'waldboden', sand: 'sand' };
+const FOTO_BODEN = { rasen: 'rasen', wiese: 'wiese', erde: 'erde', kies: 'kies', pflaster: 'pflaster', waldboden: 'waldboden', wildwald: 'wildwald', sand: 'sand' };
 const FORMEN = ['kasten', 'flach', 'stamm', 'krone', 'tanne', 'busch', 'stein', 'licht', 'mast'];
 const UEBERLAGERUNGEN = ['zombieBereiche', 'lootZonen', 'raumFlaechen', 'tierBereiche', 'uebergaenge', 'klaenge', 'spawnpunkte', 'marker', 'ankuenfte', 'bauwerke', 'notizen'];
 const BAUM_TYPEN = new Set(['baum', 'baum_herbst']);

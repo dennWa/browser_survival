@@ -11,10 +11,15 @@ import { FARBEN, KACHEL_FARBEN } from './farben.js';
  * verschneit (Ränder zum Schnee dicht, in der Mitte lückenhaft – man sieht den Asphalt noch), Wasser ist Eis.
  */
 /** Böden, in die der Rasen weich hineinwächst (#grasRand) – Farbe ≈ abgedunkelter Rasen nach #grasTon */
-const GRAS_RAND_BOEDEN = new Set(['asphalt', 'strasse', 'gehweg', 'holz', 'beton', 'fliesen', 'kies', 'pflaster', 'erde', 'sand', 'waldboden']);
-/** Runde 26: Naturböden mit Fototextur blenden an Kanten weich ineinander (#fotoRand); Wert = Rang (höher malt über niedriger) */
-const WEICHE_BOEDEN = { sand: 1, erde: 2, kies: 3, waldboden: 4, wiese: 5, rasen: 7 };
-const RAND_STREIFEN = [0.72, 0.58, 0.44, 0.3, 0.18, 0.08]; // Deckkraft je Streifen von der Kante nach innen
+const GRAS_RAND_BOEDEN = new Set(['asphalt', 'strasse', 'gehweg', 'holz', 'beton', 'fliesen', 'pflaster']);
+/**
+ * Naturböden blenden an Kanten weich ineinander (#weicheRaender, Phase 4.13): Wert = Rang (höher wächst in niedriger hinein).
+ * Statt gerader Streifen eine Rausch-Maske in WELT-Koordinaten → unregelmäßige, über Kachelgrenzen durchgehende Ränder,
+ * auch über Ecken (Diagonal-Nachbarn). Gras (Atlas) und Schnee machen mit.
+ */
+const WEICHE_BOEDEN = { sand: 1, erde: 2, kies: 3, waldboden: 4, wildwald: 4.5, wiese: 5, gras: 6, schnee: 6.5, rasen: 7 };
+const UEBERGANG_TIEFE = 0.85; // so weit (Anteil der Kachel) reicht der Nachbarboden höchstens hinein
+const ACHT = [[0, -1], [0, 1], [-1, 0], [1, 0], [-1, -1], [1, -1], [-1, 1], [1, 1]];
 const GRAS_RAND_FARBE = (a) => `rgba(46, 72, 28, ${a})`;
 
 export class BodenTextur {
@@ -59,7 +64,7 @@ export class BodenTextur {
     // Runde 18 (6.2): Rasen läuft weich in Asphalt/Holz & Co. aus (eigener Durchgang, damit spätere Kacheln ihn nicht übermalen)
     for (let ty = ya; ty < ye; ty++) {
       for (let tx = xa; tx < xe; tx++) {
-        this.#fotoRand(ctx, tx, ty);
+        this.#weicheRaender(ctx, tx, ty);
         this.#grasRand(ctx, tx, ty);
       }
       if (ty % 8 === 7) yield;
@@ -91,11 +96,12 @@ export class BodenTextur {
     return canvas;
   }
 
-  #zeichneBoden(ctx, tx, ty) {
+  /** @param art  andere Bodenart an dieser Stelle malen (weiche Ränder: Nachbarboden in diese Kachel) */
+  #zeichneBoden(ctx, tx, ty, art = null) {
     const g = this.g;
-    let name = KACHELN[this.welt.kachelAn(tx, ty)]?.name;
+    let name = art ?? KACHELN[this.welt.kachelAn(tx, ty)]?.name;
     if (name === 'tuer') name = this.#tuerBoden(tx, ty);
-    if (KACHELN[this.welt.kachelAn(tx, ty)]?.wand || name === 'fenster') return; // wird komplett übermalt
+    if (!art && (KACHELN[this.welt.kachelAn(tx, ty)]?.wand || name === 'fenster')) return; // wird komplett übermalt
 
     const x = tx * g;
     const y = ty * g;
@@ -184,26 +190,63 @@ export class BodenTextur {
     ctx.drawImage(foto.bild, ux * s, uy * s, Math.max(0.5, b * s), Math.max(0.5, h * s), tx * g + dx, ty * g + dy, b + ueber, h + ueber);
   }
 
-  /** Runde 26: Höherrangiger Nachbar-Naturboden läuft in Streifen weich in diese Kachel hinein (Rasen → Erde → Sand …). */
-  #fotoRand(ctx, tx, ty) {
+  /**
+   * Phase 4.13: höherrangige Nachbar-Naturböden (auch diagonal) wachsen mit einer Rausch-Maske in diese Kachel hinein.
+   * An der Kachelkante ist die Deckkraft 1 (kein Saum zum Nachbarn), nach innen franst sie unregelmäßig aus (Welt-Rauschen →
+   * die Front läuft über Kachelgrenzen weiter). Gemalt wird der Nachbarboden in eine kleine Leinwand (#zeichneBoden mit art).
+   */
+  #weicheRaender(ctx, tx, ty) {
     const eigen = KACHELN[this.welt.kachelAn(tx, ty)]?.name;
     if (!(eigen in WEICHE_BOEDEN)) return;
+    const arten = new Map();
+    for (const [dx, dy] of ACHT) {
+      const n = KACHELN[this.welt.kachelAn(tx + dx, ty + dy)]?.name;
+      if (!(n in WEICHE_BOEDEN) || WEICHE_BOEDEN[n] <= WEICHE_BOEDEN[eigen]) continue;
+      if (!arten.has(n)) arten.set(n, []);
+      arten.get(n).push([dx, dy]);
+    }
+    if (!arten.size) return;
     const g = this.g;
-    const streifen = g / 14;
-    for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
-      const nachbar = KACHELN[this.welt.kachelAn(tx + dx, ty + dy)]?.name;
-      if (!(nachbar in WEICHE_BOEDEN) || WEICHE_BOEDEN[nachbar] <= WEICHE_BOEDEN[eigen]) continue;
-      const foto = this.assets?.bodenTextur?.(nachbar);
-      if (!foto) continue;
-      RAND_STREIFEN.forEach((alpha, i) => {
-        ctx.globalAlpha = alpha * (0.75 + 0.25 * (((streuwert(tx * 3 + i, ty * 7 + dx + dy * 3) >> 5) % 100) / 100));
-        const innen = i * streifen;
-        if (dy === -1) this.#fotoStueck(ctx, foto, tx, ty, 0, innen, g, streifen);
-        else if (dy === 1) this.#fotoStueck(ctx, foto, tx, ty, 0, g - innen - streifen, g, streifen);
-        else if (dx === -1) this.#fotoStueck(ctx, foto, tx, ty, innen, 0, streifen, g);
-        else this.#fotoStueck(ctx, foto, tx, ty, g - innen - streifen, 0, streifen, g);
-      });
-      ctx.globalAlpha = 1;
+    const s = ctx.getTransform().a || 1;
+    const n = Math.max(4, Math.round(g * s));
+    if (!this.randLeinwand || this.randLeinwand.width !== n) {
+      this.randLeinwand = neuesCanvas(n, n);
+      this.randCtx = this.randLeinwand.getContext('2d', { willReadFrequently: true });
+    }
+    const k = this.randCtx;
+    for (const [art, richtungen] of [...arten].sort((a, b) => WEICHE_BOEDEN[a[0]] - WEICHE_BOEDEN[b[0]])) {
+      const kanten = richtungen.filter(([dx, dy]) => dx === 0 || dy === 0);
+      // Diagonale nur, wenn keine der beiden angrenzenden Kanten schon dieselbe Art ist (sonst deckt die Kante die Ecke ab)
+      const ecken = richtungen.filter(([dx, dy]) => dx !== 0 && dy !== 0 && !kanten.some(([ex, ey]) => (ex === dx && ey === 0) || (ex === 0 && ey === dy)));
+      k.setTransform(1, 0, 0, 1, 0, 0);
+      k.clearRect(0, 0, n, n);
+      k.setTransform(s, 0, 0, s, -tx * g * s, -ty * g * s);
+      this.#zeichneBoden(k, tx, ty, art);
+      k.setTransform(1, 0, 0, 1, 0, 0);
+      const bild = k.getImageData(0, 0, n, n);
+      const d = bild.data;
+      for (let py = 0; py < n; py++) {
+        const fy = (py + 0.5) / n;
+        for (let px = 0; px < n; px++) {
+          const fx = (px + 0.5) / n;
+          let abstand = 2;
+          for (const [dx, dy] of kanten) abstand = Math.min(abstand, dy === -1 ? fy : dy === 1 ? 1 - fy : dx === -1 ? fx : 1 - fx);
+          for (const [dx, dy] of ecken) abstand = Math.min(abstand, Math.hypot(dx < 0 ? fx : 1 - fx, dy < 0 ? fy : 1 - fy));
+          if (abstand >= UEBERGANG_TIEFE + 0.3) {
+            d[(py * n + px) * 4 + 3] = 0;
+            continue;
+          }
+          const wx = tx + fx;
+          const wy = ty + fy;
+          const rausch = wertRauschen(wx * 2.3, wy * 2.3) * 0.65 + wertRauschen(wx * 6.1 + 17, wy * 6.1 + 9) * 0.35;
+          const t = (abstand + (rausch - 0.5) * 0.7 * Math.min(1, abstand * 4)) / UEBERGANG_TIEFE;
+          let a = Math.max(0, Math.min(1, 1 - t));
+          a = a * a * (3 - 2 * a);
+          d[(py * n + px) * 4 + 3] *= a;
+        }
+      }
+      k.putImageData(bild, 0, 0);
+      ctx.drawImage(this.randLeinwand, 0, 0, n, n, tx * g, ty * g, g, g);
     }
   }
 

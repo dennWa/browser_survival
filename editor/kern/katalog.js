@@ -92,12 +92,13 @@ const KACHEL_KATEGORIE = {
   $: ['Böden', 'Rasen (gepflegt)'],
   0: ['Böden', 'Wiese'],
   ';': ['Böden', 'Waldboden'],
+  '@': ['Böden', 'Wilder Waldboden (Pilze)'],
   '!': ['Böden', 'Sand'],
   '&': ['Wege', 'Erdweg'],
   '%': ['Wege', 'Kies'],
   '^': ['Wege', 'Pflaster'],
 };
-const KACHEL_SYMBOL = { ',': '🌱', '*': '❄', _: '⬛', '=': '🛣', '-': '▦', '.': '⬜', ':': '◻', '+': '🟫', T: '🚪', '#': '🧱', H: '🪵', P: '⬜', B: '⬛', Q: '🪨', M: '🔩', F: '🪟', '~': '🌊', $: '🟩', 0: '🌾', ';': '🍂', '!': '🏖', '&': '🟤', '%': '▫', '^': '🧱' };
+const KACHEL_SYMBOL = { ',': '🌱', '*': '❄', _: '⬛', '=': '🛣', '-': '▦', '.': '⬜', ':': '◻', '+': '🟫', T: '🚪', '#': '🧱', H: '🪵', P: '⬜', B: '⬛', Q: '🪨', M: '🔩', F: '🪟', '~': '🌊', $: '🟩', 0: '🌾', ';': '🍂', '@': '🍄', '!': '🏖', '&': '🟤', '%': '▫', '^': '🧱' };
 
 const M = { blockiert: true };
 /** Kartenobjekte (Möbel, Deko, Natur) mit Standardwerten wie in stadtrand/waldweg. */

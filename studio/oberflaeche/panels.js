@@ -14,7 +14,7 @@ import { esc } from './dialoge.js';
  * Panels des Studios: Zonenliste (links oben), Szene-Baum (links), Assets (unten), Prüfung (rechts, Reiter).
  * Alle lesen nur aus Dokument/Katalog und rufen Studio-Methoden (studio.oeffneZone, studio.waehleAsset …).
  */
-const FOTO = new Set(['rasen', 'wiese', 'erde', 'kies', 'pflaster', 'waldboden', 'sand']);
+const FOTO = new Set(['rasen', 'wiese', 'erde', 'kies', 'pflaster', 'waldboden', 'wildwald', 'sand']);
 const KAT_ICON = { Umwelt: 'baum', Ressourcen: 'baum', Möbel: 'moebel', Fahrzeuge: 'auto', Gebäude: 'vorlage', Wege: 'flaeche', Deko: 'objekt', Gegenstände: 'item', 'Essen & Trinken': 'item', Böden: 'boden', Mauern: 'wand' };
 
 // ---------------- Zonen ----------------
