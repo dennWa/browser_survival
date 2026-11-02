@@ -1,6 +1,6 @@
 # Konzept: „Browser Survival Studio“ – lokales Bearbeitungsprogramm
 
-Stand 2026-11-01 · Status: **Phase 1 (Karten) umgesetzt** – Anleitung `studio/LIESMICH.md`, Umsetzungsstand §13 · **Phase 3 (Modell-Werkstatt) umgesetzt**, **Phase 2 (Audio) in Arbeit** – Plan §14/§15 (Reihenfolge: Nutzer-Entscheidung 2026-11-01)
+Stand 2026-11-01 · Status: **Phase 1 (Karten) umgesetzt** – Anleitung `studio/LIESMICH.md`, Umsetzungsstand §13 · **Phase 3 (Modell-Werkstatt) und Phase 2 (Audio-Zentrale) umgesetzt – Konzept vollständig** – Plan §14/§15 (Reihenfolge: Nutzer-Entscheidung 2026-11-01)
 
 > Ein eigenständiges Programm, das lokal läuft, das Spiel kennt und Karten, Audio und Modelle bearbeitet –
 > professionell wie Unity/Godot, aber so einfach, dass Neue ohne Vorwissen mitbauen können.
@@ -368,8 +368,16 @@ Methoden wie die Oberfläche), `Projekt.speichereModell/einstellenModell/modellS
 
 | # | Meilenstein | Ergebnis | Stand |
 |---|---|---|---|
-| 2.1 | **Bibliothek** | alle Sounds/Musik (`client/audio/eigene`, `audio/karten`, `musik`) mit Wellenform, Dauer, Suche, Ordner/Tags, Vorhören, Verwendung (Ereignis/Zone) | ⏳ |
-| 2.2 | **Schneiden** | Start/Ende, Ein-/Ausblenden, Normalisieren, Lautstärke; Ausschnitt als neue Datei (WAV/OGG) – Dekodieren im Programm, kein Browser-Umweg | ⏳ |
-| 2.3 | **Ereignisse** | Zuordnung Sounds ↔ Spiel-Ereignisse (Schritte je Untergrund, Waffen, Tiere …) mit Lautstärke/Streuung/Verzögerung (`einstellungen.json`) | ⏳ |
-| 2.4 | **Umgebung & Wetter** | Schichten (Regen, Wind, Nacht, Gewitter …) mit Pegel je Wetterlage und Zone, live vorhörbar | ⏳ |
-| 2.5 | **Musik je Zone/Bereich** | Musik je Zone und Fläche mit Überblendung (Klanglandschaft), Vorhören | ⏳ |
+| 2.1 | **Bibliothek** | alle Sounds/Musik (`client/audio/eigene`, `audio/karten`, `musik`) mit Wellenform, Dauer, Suche, Ordner/Tags, Vorhören, Verwendung (Ereignis/Zone) | ✅ |
+| 2.2 | **Schneiden** | Start/Ende, Ein-/Ausblenden, Normalisieren, Lautstärke; Ausschnitt als neue Datei (WAV/OGG) – Dekodieren im Programm, kein Browser-Umweg | ✅ |
+| 2.3 | **Ereignisse** | Zuordnung Sounds ↔ Spiel-Ereignisse (Schritte je Untergrund, Waffen, Tiere …) mit Lautstärke/Streuung/Verzögerung (`einstellungen.json`) | ✅ |
+| 2.4 | **Umgebung & Wetter** | Schichten (Regen, Wind, Nacht, Gewitter …) mit Pegel je Wetterlage und Zone, live vorhörbar | ✅ |
+| 2.5 | **Musik je Zone/Bereich** | Musik je Zone und Fläche mit Überblendung (Klanglandschaft), Vorhören | ✅ |
+
+Umsetzung Phase 2: `studio/audio/audioWerk.js` (Dekodieren, Analyse, Wellenform, Schnitt über `editor/kern/audioSchnitt.js`,
+Opus-Kodierung `editor/ui/audioKodierer.js`, Mischpult mit dem echten `client/audio/sound.js`), `studio/audio/audioZentrale.js`
+(Arbeitsbereich), `studio/kern/audio.js` (Mischpult/Pfade, getestet), `studio/kern/kiAudio.js` (11 KI-/MCP-Werkzeuge),
+`Projekt.schreibeAudio/kopiereAudio/loescheAudio/speichereAudioEinstellungen`. 🎮 Spiel: Umgebungs-Regel nach
+`gemeinsam/audio/umgebung.js` gezogen (Spiel + Mischpult rechnen gleich), Pegel-Faktor je Zone (`einstellungen.json zonen` →
+`Sound.setzeZone`), Musik-Überblendung/Pause je Ordner (`client/musik/einstellungen.json` → `zonenMusik.js`).
+Tests `tests/studioAudio.test.js`, Rauchtest-Abschnitt „Phase 2“.

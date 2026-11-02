@@ -14,6 +14,7 @@ Hier kannst du eigene Soundeffekte ablegen. Sie ersetzen automatisch die mitgeli
 5. `npm run sounds` ausführen (baut `eigene.json`, prüft Tippfehler), dann committen und pushen.
 
 Eigene Dateien werden unverändert abgespielt (Tonhöhe nur mit „Streuung“ aus `einstellungen.json`); Entfernung und Stereo wirken weiter.
+`einstellungen.json` kann je Ereignis auch `"zonen": { "<zonenId>": Faktor }` enthalten (Pegel nur in dieser Zone, z. B. Wind im Schneeland lauter) – am einfachsten über das Mischpult der Studio-Audio-Zentrale.
 Tipp: kurze Dateien (< 3 s), Lautstärke der Aufnahme selbst eher normalisiert.
 
 ## Ereignisse

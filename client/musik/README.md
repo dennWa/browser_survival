@@ -11,7 +11,8 @@ Hier liegt die Hintergrundmusik – **ein Ordner pro Zone**:
 | `<neue-zonen-id>/` | neuer Ordner für jede weitere Zone (Name = Zonen-ID aus `server/spiel/karten/`) |
 
 Unterstützt: `.mp3 .ogg .wav .m4a .flac .opus`. Das Spiel wählt zufällig ein Stück der aktuellen Zone (oder der Reihe nach,
-wenn in `einstellungen.json` `"zufall": false` steht – Reihenfolge über `"reihenfolge": [...]`),
+wenn in `einstellungen.json` `"zufall": false` steht – Reihenfolge über `"reihenfolge": [...]`; je Ordner außerdem
+`"ueberblendung"` (Sekunden Ein-/Ausblenden, Standard 3) und `"pause"` (Sekunden zwischen Stücken, Standard 4)),
 blendet beim Zonenwechsel sanft über und spielt danach das nächste. Lautstärke: ⚙ Einstellungen → „Musik“.
 
 **Am einfachsten:** Map-Editor lokal starten (`npm run editor:lokal`) → 🎵 Audio-Zentrale → Gruppe Musik: Titel hochladen,

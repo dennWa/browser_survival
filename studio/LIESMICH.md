@@ -2,7 +2,7 @@
 
 Das Studio ist der Editor für Browser Survival als **eigenes Programm** (Windows, Linux, macOS). Es arbeitet direkt im
 Spielordner: Zonen öffnen, in 3D oder 2D bauen, im echten Spiel testen und mit einem Klick ins Spiel übernehmen.
-Phase 1 = **Karten**, Phase 3 = **Modell-Werkstatt** (fertig). Die Audio-Zentrale (Phase 2) folgt (Plan: `docs/konzepte/STUDIO_KONZEPT.md`).
+Bereiche: **Karten** (Phase 1), **Audio-Zentrale** (Phase 2) und **Modell-Werkstatt** (Phase 3) – Plan: `docs/konzepte/STUDIO_KONZEPT.md`.
 
 ## Starten
 
@@ -159,6 +159,22 @@ zurückholen). **Als Kopie** legt eine neue Datei an. Offene Zonen, die das Mode
 sofort (je Zone ein Undo-Schritt); neue Objekte im Karten-Editor bekommen alles automatisch. Alles in der Werkstatt hat
 eigenes Rückgängig (`Strg+Z` / `Strg+Y`). `Esc` = zurück zu den Karten.
 
+## Audio-Zentrale (`Strg+Umschalt+A` oder Startbildschirm)
+
+Links alle Klänge des Spiels nach Gruppen (Musik, Atmosphäre & Wetter, Tiere, Waffen …, Karten-Klänge) mit Suche,
+rechts die Details. `Leertaste` = anhören/stoppen, `Esc` = zurück.
+
+| Bereich | Was |
+|---|---|
+| **Ereignis** (z. B. `pistole`, `schritt_gras`) | Anhören (Datei, Sample oder Synthese – genau der Spielklang), **Pegel**, Tonhöhen-Streuung, Verzögerung, max. Dauer, „einmal“, **Faktor je Zone** (z. B. Wind im Schneeland ×1,5); Dateien anhören, schneiden, löschen (Papierkorb `.studio/audio-papierkorb/`), Datei importieren oder vorhandene zuordnen |
+| **Schneiden** (Schere-Knopf an einer Datei oder nach dem Import) | Wellenform, Griffe ziehen = Start/Ende, Ein-/Ausblenden, Lautstärke (dB), Normalisieren, nahtlose Schleife mit Überblendung, „Stille abschneiden“, Vorhören → speichern als neue Variante, als Ersatz, als Musik-Titel oder über die Datei (Opus-`.ogg`) |
+| **Musik-Ordner** (je Zone, „Alle Zonen“, Hauptmenü) | Titel anhören/schneiden/löschen, Reihenfolge ▲▼, zufällig, **Überblendung** und **Pause** zwischen Stücken; Musik nur in einem Teil einer Zone = Klangzone (G → Klangzone, Bus Musik) im Karten-Editor |
+| **Mischpult** | Wetter × Tageszeit × Ort (draußen/Haus/Auto) × Zone: zeigt, welche Umgebungs-Schichten (Wind, Regen, Sturm, Vögel, Grillen …) wie stark laufen – **gleiche Regel wie im Spiel** – und spielt sie mit dem echten Spiel-Sound ab. Regler: Pegel für alle Zonen und Faktor für die gewählte Zone |
+
+Alles wird sofort in den Spielordner geschrieben (`client/audio/eigene/` + `einstellungen.json`, `client/musik/<ordner>/` +
+`einstellungen.json`), die Indexe (`eigene.json`, `musik.json`) baut das Studio selbst neu. Importierte Dateien können
+Credits (Urheber, Lizenz, Quelle) mitbringen → `credits.json`.
+
 ## KI
 
 **Eingebauter Assistent** (Reiter *KI* rechts, `Strg+L`): Zahnrad → Anbieter (Claude, Gemini, OpenAI, Grok, DeepSeek),
@@ -172,7 +188,9 @@ schreiben, z. B. *„Bau eine kleine Tankstelle mit Kiosk und zwei Autos bei 40|
 
 Solange das Studio läuft, kann die KI Zonen öffnen, bauen, prüfen und Screenshots der Ansicht anschauen – und in der
 **Modell-Werkstatt** Modelle laden, aus Grundkörpern bauen, umfärben, animieren, Höhe/Kollision/Grundfläche einstellen,
-Bilder der Bühne ansehen und speichern (`modelle_liste`, `werkstatt_oeffnen`, `modell_*`). Jede
+Bilder der Bühne ansehen und speichern (`modelle_liste`, `werkstatt_oeffnen`, `modell_*`) – und in der **Audio-Zentrale**
+Klänge analysieren (Dauer, Pegel, Stille), schneiden, Ereignissen zuordnen, Pegel/Zonen-Faktoren und Musik-Überblendung
+einstellen und das Mischpult abfragen (`audio_*`, `musik_*`, `mischpult`). Jede
 KI-Aktion ist ein eigener Undo-Schritt („KI: …“). Der Server ist nur auf diesem Rechner erreichbar und braucht das Token.
 
 ## Ordner & Dateien
@@ -182,7 +200,8 @@ KI-Aktion ist ein eigener Undo-Schritt („KI: …“). Der Server ist nur auf d
 | `studio/` | Programm (Electron-Hauptprozess `main/`, Oberfläche `oberflaeche/`, Ansicht `ansicht/`, Logik `kern/`) |
 | `studio/vorlagen/` | gespeicherte Vorlagen (ins Repo committen) |
 | `studio/werkstatt/` | Modell-Werkstatt (Bühne `modellWerk.js`, Oberfläche `werkstatt.js`) |
-| `.studio/` | lokal: Entwürfe, Versionen, Modell-Sicherungen (`modelle/`), MCP-Verbindung (gitignored) |
+| `studio/audio/` | Audio-Zentrale (Werk `audioWerk.js`, Oberfläche `audioZentrale.js`) |
+| `.studio/` | lokal: Entwürfe, Versionen, Modell-Sicherungen (`modelle/`), Audio-Papierkorb, MCP-Verbindung (gitignored) |
 | Einstellungen | Benutzerordner des Programms (Spielordner, KI-Anbieter, verschlüsselte Schlüssel, MCP-Token) |
 
 Spielordner wechseln: Startbildschirm → *Ändern* (oder Datei → Spielordner wechseln).
