@@ -46,6 +46,6 @@
 
 - ☑ Unit-Tests `tests/runde28.test.js` (13 Tests, grün)
 - ☑ `npm run ki:anleitung` gelaufen
-- ☐ Teil B committen + pushen (main)
-- ☐ `KI_INDEX.md` (neuer Abschnitt Runde 28) + `project_manifest.md` (Änderungsprotokoll) nachziehen
+- ☑ Teil B committen + pushen (main) (`667f8ed`)
+- ☑ `KI_INDEX.md` (neuer Abschnitt Runde 28) + `project_manifest.md` (Änderungsprotokoll) nachziehen
 - ☐ Sichtprüfung Mütze/Kleidung (siehe 8), danach diese Datei nach `archiv/runden/` verschieben
