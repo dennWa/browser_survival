@@ -6,8 +6,9 @@ import * as THREE from 'three';
  * Ein InstancedMesh mit festem Pool – kostet keine Lichter/Shader-Wechsel und läuft auch auf Handys.
  * Nur Optik, keine Spiellogik. Gefällte Bäume (welt.istRessourceDa) lassen nichts mehr fallen.
  * Runde 23: `sturm` (0..1, wetterEffekt) → viel mehr Blätter, die fast waagerecht davonwehen.
+ * Runde 29: `sturm` folgt jetzt der Windstufe (renderer): schon bei leichtem Wind fliegen ein paar Blätter, je stärker, desto mehr und schneller.
  */
-const POOL = 80;
+const POOL = 150;
 const REICHWEITE = 520; // px um den Fokus, in denen Bäume Blätter verlieren
 const FALL_TEMPO = 15; // px/s
 const BODEN = 0.6;
@@ -47,15 +48,15 @@ export class BlaetterEffekt {
     this.mesh.material.opacity = 0.92 * (1 - dunkel * 0.6);
     this.warte -= dt;
     if (this.warte <= 0) {
-      this.warte = (0.12 + Math.random() * 0.25) / (1 + sturm * 5);
+      this.warte = (0.14 + Math.random() * 0.3) / (1 + sturm * 14);
       this.#neuesBlatt(fokus);
     }
-    const sturmWind = sturm * 140;
+    const sturmWind = sturm * (30 + 190 * sturm);
     let n = 0;
     for (let i = 0; i < POOL; i++) {
       const b = this.blaetter[i];
       if (!b.aktiv) continue;
-      b.y -= FALL_TEMPO * dt * (0.8 + 0.4 * Math.sin(b.phase * 0.7));
+      b.y -= FALL_TEMPO * dt * (0.8 + 0.4 * Math.sin(b.phase * 0.7)) * (1 - 0.45 * sturm);
       b.phase += dt * b.tempo;
       b.x += Math.cos(b.phase) * 14 * dt + (b.wind + sturmWind) * dt;
       b.z += Math.sin(b.phase * 0.8) * 10 * dt;

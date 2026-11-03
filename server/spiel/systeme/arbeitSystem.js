@@ -1,7 +1,7 @@
 import { BETT_REICHWEITE } from '../../../gemeinsam/konstanten.js';
 import { ABBAU_REICHWEITE } from '../../../gemeinsam/welt/ressourcen.js';
 import { sekundenFuerStunden, tageszeit } from '../../../gemeinsam/tageszeit.js';
-import { fuegeZumInventarHinzu, legeAufBoden, nutzeWerkzeug } from './inventarSystem.js';
+import { aktualisiereAusruestung, fuegeZumInventarHinzu, konsumiere, legeAufBoden, nutzeWerkzeug } from './inventarSystem.js';
 import { gibXp } from './levelSystem.js';
 import { GEGENSTAENDE } from '../konfiguration/gegenstaende.js';
 import { sammelFaktor } from '../../../gemeinsam/spieler/skills.js';
@@ -10,7 +10,8 @@ import { BAUWERKE } from '../../../gemeinsam/welt/bauwerke.js';
 import { bettBei } from '../../../gemeinsam/welt/einrichtung.js';
 
 /**
- * Arbeiten, die Zeit brauchen: Bäume fällen / Steine abbauen (Werkzeug nötig, nutzt sich ab) und Schlafen im Bett; Sitzen am Feuer (start: stationSystem).
+ * Arbeiten, die Zeit brauchen: Bäume fällen / Steine abbauen (Werkzeug nötig, nutzt sich ab) und Schlafen im Bett; Sitzen am Feuer (start: stationSystem);
+ * Runde 29: Essen/Trinken/Medizin (art 'konsum', start: inventarSystem.starteKonsum, Takt-Ereignis 'konsumTakt' = Geräusch).
  *
  *   spieler.arbeit = { art: 'holz' | 'stein' | 'schlafen', dauer, rest, x, y, ressourceId?, ort?, naechsterSchlag }
  *
@@ -23,6 +24,7 @@ import { bettBei } from '../../../gemeinsam/welt/einrichtung.js';
 const ABBRUCH_WEG = 6;
 const SITZ_HEILUNG = 0.5; // Leben pro Sekunde am Lagerfeuer
 export const SCHLAG_TAKT = 0.85; // Sekunden zwischen zwei Hack-Geräuschen (passt zur Animation)
+const KONSUM_TAKT = 1.15; // Sekunden zwischen zwei Kau-/Schluck-/Verband-Geräuschen
 
 /** AKTION 'abbauen': nächsten Baum/Stein in Reichweite bearbeiten. */
 export function starteAbbau(spielWelt, spieler) {
@@ -82,8 +84,8 @@ export function aktualisiereArbeit(spielWelt, dt) {
     if (!a) continue;
     // Wer im Bett liegt, bleibt liegen, bis er ausgeschlafen hat – nur Schaden weckt (fuegeSchadenZu → brecheArbeitAb)
     const schlaeft = a.art === 'schlafen';
-    // Sitzen/Zerlegen: Linksklick (Holz nachlegen, Werkzeug-Schläge) beendet die Arbeit nicht – nur Bewegung
-    const klickErlaubt = a.art === 'sitzen' || a.art === 'zerlegen';
+    // Sitzen/Zerlegen/Konsum: Linksklick (Holz nachlegen, Werkzeug-Schläge, gehaltene Taste) beendet die Arbeit nicht – nur Bewegung
+    const klickErlaubt = a.art === 'sitzen' || a.art === 'zerlegen' || a.art === 'konsum';
     if (spieler.tot || (!schlaeft && ((spieler.angriff && !klickErlaubt) || Math.hypot(spieler.x - a.x, spieler.y - a.y) > ABBRUCH_WEG))) {
       spieler.arbeit = null;
       continue;
@@ -107,6 +109,10 @@ export function aktualisiereArbeit(spielWelt, dt) {
       zerlegeWeiter(spielWelt, spieler, a, dt);
       continue;
     }
+    if (a.art === 'konsum') {
+      konsumiereWeiter(spielWelt, spieler, a, dt);
+      continue;
+    }
     if (!spielWelt.welt.istRessourceDa(a.ressourceId)) {
       spieler.arbeit = null;
       continue;
@@ -122,6 +128,24 @@ export function aktualisiereArbeit(spielWelt, dt) {
     if (a.rest <= 0) schliesseAbbauAb(spielWelt, spieler, r);
   }
   aktualisiereNachwachsen(spielWelt, dt);
+}
+
+/** Runde 29: Kau-/Schluck-Takt; am Ende wirkt das Item (liegt es noch da? sonst gleiches Item in einem anderen Platz). */
+function konsumiereWeiter(spielWelt, spieler, a, dt) {
+  a.naechsterSchlag -= dt;
+  if (a.naechsterSchlag <= 0) {
+    a.naechsterSchlag += KONSUM_TAKT;
+    spielWelt.ereignis({ typ: 'konsumTakt', klang: a.klang, von: spieler.id, x: spieler.x, y: spieler.y });
+  }
+  a.rest -= dt;
+  if (a.rest > 0) return;
+  spieler.arbeit = null;
+  const slot = spieler.inventar[a.slot]?.defId === a.defId ? a.slot : spieler.inventar.findIndex((e) => e?.defId === a.defId);
+  if (slot < 0 || !konsumiere(spielWelt, spieler, slot)) return;
+  if (a.handLeeren && spieler.ausgeruestet === slot) {
+    spieler.ausgeruestet = null; // Doppelklick im Inventar: nach dem Verzehr bleibt die Hand leer
+    aktualisiereAusruestung(spieler);
+  }
 }
 
 function schliesseAbbauAb(spielWelt, spieler, r) {

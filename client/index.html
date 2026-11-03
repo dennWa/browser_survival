@@ -36,8 +36,6 @@
         <div class="hud-links">
           <span id="hud-uhr" title="Tag 10 Minuten, Nacht 5 Minuten – nachts kommt die Horde">☀ 06:00</span>
           <span id="hud-status"></span>
-          <!-- Runde 28: Nässe-Stufe (klamm … klatschnass), Tippen erklärt -->
-          <button id="hud-naesse" type="button" hidden title="Nässe"><svg class="ui-icon" aria-hidden="true"><use href="#i-naesse"/></svg><span class="naesse-text"></span><span class="naesse-stufen"><i></i><i></i><i></i><i></i><i></i></span></button>
         </div>
         <!-- Runde 23: Chat/Rucksack/Feld/Karte/Lampe nur noch auf Touch (am PC: T, Tab, Rechtsklick, M, L) -->
         <div class="hud-knoepfe">
@@ -68,6 +66,8 @@
         <div class="wert" id="wert-durst" title="Durst"><span class="symbol"><svg class="ui-icon" aria-hidden="true"><use href="#i-durst"/></svg></span><div class="balken"><div class="fuellung"></div></div><span class="warn" aria-hidden="true">!</span></div>
         <div class="wert" id="wert-ausdauer" title="Ausdauer (Shift = sprinten)"><span class="symbol"><svg class="ui-icon" aria-hidden="true"><use href="#i-ausdauer"/></svg></span><div class="balken"><div class="fuellung"></div></div></div>
         <div class="wert" id="wert-kaelte" title="Kälte – drinnen, am Feuer oder mit warmer Kleidung sinkt sie" hidden><span class="symbol"><svg class="ui-icon" aria-hidden="true"><use href="#i-schneeflocke"/></svg></span><div class="balken"><div class="fuellung"></div></div><span class="warn" aria-hidden="true">!</span></div>
+        <!-- Runde 28: Nässe-Stufe (klamm … klatschnass), Runde 29: bei den anderen Werten -->
+        <div id="hud-naesse" hidden title="Nässe"><svg class="ui-icon" aria-hidden="true"><use href="#i-naesse"/></svg><span class="naesse-text"></span><span class="naesse-stufen"><i></i><i></i><i></i><i></i><i></i></span></div>
         <div class="wert" id="wert-muedigkeit" title="Müdigkeit – schlafen hilft (Doppelbett am besten). Ab 85: langsamer, keine Heilung" hidden><span class="symbol emoji-symbol">😴</span><div class="balken"><div class="fuellung"></div></div><span class="warn" aria-hidden="true">!</span></div>
         <div id="hud-zustand" hidden></div>
       </div>
@@ -87,28 +87,29 @@
       <!-- Admin-Menü (nur für Accounts mit Admin-Recht; der Server prüft jeden Befehl) -->
       <div id="admin-panel" hidden>
         <h3>Admin <button type="button" id="admin-zu" class="admin-zu" aria-label="Admin-Menü schließen">✕</button></h3>
-        <button type="button" data-befehl="gottmodus">Gottmodus</button>
-        <button type="button" data-befehl="unsichtbar">Unsichtbar</button>
-        <button type="button" data-befehl="fliegen">Fliegen (Umschalt+B)</button>
-        <button type="button" data-befehl="heilen">Heilen &amp; satt</button>
-        <button type="button" data-befehl="ausruesten">Waffen &amp; Munition</button>
-        <!-- Runde 28: einzelne Waffe aus einer Liste (mit Munition) -->
-        <button type="button" data-waffenliste>Waffe spawnen …</button>
-        <div id="admin-waffen" class="admin-waffen" hidden></div>
-        <button type="button" data-befehl="zombieSpawnen">Zombie spawnen</button>
-        <button type="button" data-befehl="zombiesToeten">Alle Zombies töten</button>
-        <button type="button" data-befehl="zeitSpringen">Tag ⇄ Nacht</button>
-        <button type="button" data-befehl="zeitVor12">⏩ +12 Stunden (Pflanzen wachsen)</button>
-        <button type="button" data-befehl="spieltagVor">📅 Spieltag +1 (Horden-Stufe)</button>
-        <button type="button" data-befehl="unendlichMunition">∞ Unendlich Munition</button>
-        <button type="button" data-befehl="unendlichAusdauer">∞ Unendlich Ausdauer</button>
-        <button type="button" data-befehl="wetter">Wetter wechseln</button>
-        <button type="button" data-befehl="flaggeEntfernen">🚩 Meine Basis-Flagge entfernen</button>
-        <button type="button" data-befehl="botSetzen">🤖 Bot setzen (dann Linksklick/Tippen)</button>
-        <button type="button" data-befehl="botEntfernen">🤖 Bot entfernen (dann Linksklick/Tippen)</button>
-        <button type="button" data-befehl="botsEntfernen">🤖 Alle Bots der Zone entfernen</button>
-        <button type="button" data-nachtsicht>Nachtsicht</button>
-        <button type="button" data-entwickler class="dev-knopf">🛠 Developer</button>
+        <table id="admin-tabelle">
+          <tr><td><button type="button" data-befehl="gottmodus">Gottmodus</button></td><td>Kein Schaden, kein Hunger, keine Kälte</td></tr>
+          <tr><td><button type="button" data-befehl="unsichtbar">Unsichtbar</button></td><td>Zombies bemerken dich nicht</td></tr>
+          <tr><td><button type="button" data-befehl="fliegen">Fliegen</button></td><td>Über alles hinweg (auch Umschalt+B)</td></tr>
+          <tr><td><button type="button" data-befehl="heilen">Heilen &amp; satt</button></td><td>Leben, Hunger, Durst voll</td></tr>
+          <tr><td><button type="button" data-befehl="ausruesten">Waffen &amp; Munition</button></td><td>Ausrüstung ins Inventar</td></tr>
+          <tr><td><button type="button" data-waffenliste>Waffe spawnen …</button></td><td>Einzelne Waffe mit Munition aus der Liste</td></tr>
+          <tr id="admin-waffen-zeile" hidden><td colspan="2"><div id="admin-waffen" class="admin-waffen"></div></td></tr>
+          <tr><td><button type="button" data-befehl="zombieSpawnen">Zombie spawnen</button></td><td>Ein Zombie neben dir</td></tr>
+          <tr><td><button type="button" data-befehl="zombiesToeten">Alle Zombies töten</button></td><td>Räumt die Zone leer</td></tr>
+          <tr><td><button type="button" data-befehl="zeitSpringen">Tag ⇄ Nacht</button></td><td>Springt zur anderen Tageszeit</td></tr>
+          <tr><td><button type="button" data-befehl="zeitVor12">⏩ +12 Stunden</button></td><td>Zeit vorspulen, Pflanzen wachsen</td></tr>
+          <tr><td><button type="button" data-befehl="spieltagVor">📅 Spieltag +1</button></td><td>Erhöht die Horden-Stufe</td></tr>
+          <tr><td><button type="button" data-befehl="unendlichMunition">∞ Munition</button></td><td>Magazin wird nie leer</td></tr>
+          <tr><td><button type="button" data-befehl="unendlichAusdauer">∞ Ausdauer</button></td><td>Sprinten kostet nichts</td></tr>
+          <tr><td><button type="button" data-befehl="wetter">Wetter wechseln</button></td><td>Schaltet die Wetterlagen der Zone durch</td></tr>
+          <tr><td><button type="button" data-befehl="flaggeEntfernen">🚩 Flagge entfernen</button></td><td>Meine Basis-Flagge weg</td></tr>
+          <tr><td><button type="button" data-befehl="botSetzen">🤖 Bot setzen</button></td><td>Danach Linksklick/Tippen auf die Stelle</td></tr>
+          <tr><td><button type="button" data-befehl="botEntfernen">🤖 Bot entfernen</button></td><td>Danach Linksklick/Tippen auf den Bot</td></tr>
+          <tr><td><button type="button" data-befehl="botsEntfernen">🤖 Alle Bots weg</button></td><td>Alle Bots dieser Zone entfernen</td></tr>
+          <tr><td><button type="button" data-nachtsicht>Nachtsicht</button></td><td>Dunkelheit aus (nur optisch, nur für dich)</td></tr>
+          <tr><td><button type="button" data-entwickler class="dev-knopf">🛠 Developer</button></td><td>Spielwerte live ändern</td></tr>
+        </table>
       </div>
       <div id="hud-meldungen" aria-live="polite"></div>
       <!-- Bau-Menü (Basisbau, Taste B): Reiter, Bauteil-Karten, Werkzeuge – wird von ui/bauMenue.js gefüllt -->
@@ -271,9 +272,11 @@
             </div>
           </div>
           <div id="inventar-werte"></div>
+          <!-- Runde 29: Items im kleinen Umkreis (antippen = aufheben) -->
+          <div id="inventar-umgebung"><h4>Liegt in der Nähe</h4><div class="umgebung-liste"></div></div>
         </section>
         <section class="inv-items">
-          <h3 class="inv-titel">Schnellleiste <small>Tasten 1–9, 0 · Doppelklick auf Essen/Trinken = sofort verbrauchen</small></h3>
+          <h3 class="inv-titel">Schnellleiste <small>Tasten 1–9, 0 · Doppelklick auf Essen/Trinken = verbrauchen (dauert, stehen bleiben)</small></h3>
           <div id="inventar-schnell" class="inv-raster"></div>
           <h3 class="inv-titel">Tasche</h3>
           <div id="inventar-tasche" class="inv-raster"></div>

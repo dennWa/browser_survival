@@ -1,3 +1,5 @@
+import { STANDARD_KONFIGURATION } from '../server/spiel/konfiguration/spielKonfiguration.js';
+STANDARD_KONFIGURATION.konsum.dauer = 0; // Runde 29: Konsum-Dauer hier aus (eigener Test in runde29.test.js)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { SpielServer } from '../server/spiel/spielServer.js';
@@ -223,9 +225,9 @@ const laufe = (welt, n) => {
 test('Nässe: im Regen draußen 5 Stufen, drinnen 1 Stufe pro Minute trocknen, HUD bekommt die Stufe', () => {
   const { welt, spieler, konfiguration } = feld({ wetter: { aktiv: true } });
   setzeWetter(welt, 'regen', 99999);
-  laufe(welt, 30 * 40);
-  assert.equal(naesseStufe(spieler.naesse), 2, `nach 40 s feucht (${spieler.naesse})`);
-  laufe(welt, 30 * 150);
+  laufe(welt, 30 * 17);
+  assert.equal(naesseStufe(spieler.naesse), 2, `nach 17 s feucht (${spieler.naesse})`);
+  laufe(welt, 30 * 70);
   assert.equal(naesseStufe(spieler.naesse), 5, 'klatschnass');
   assert.equal(spielerDatenPrivat(spieler, konfiguration, welt).naesse, 5);
   // rein ins Haus (Innenboden '.') → pro Minute eine Stufe besser

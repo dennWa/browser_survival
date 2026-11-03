@@ -29,7 +29,8 @@ export const NAESSE_NAMEN = Object.freeze(['trocken', 'klamm', 'feucht', 'nass',
 
 /**
  * Runde 28: Nässe & Erkältung (Werte: konfiguration.naesse). Pro Tick aus ueberlebenSystem (vor der Kälte).
- * Nässe steigt draußen bei Regen/Gewitter (Schnee schwächer), sinkt drinnen/im Auto/im Bett (1 Stufe/min), am Feuer schneller.
+ * Nässe steigt draußen bei Regen/Gewitter (Schnee schwächer), sinkt drinnen/im Auto/im Bett (1 Stufe/min), am Feuer schneller,
+ * draußen nur bei klarem Wetter am Tag (1 Stufe je 2 min).
  */
 export function aktualisiereNaesse(spielWelt, spieler, dt, { regenschutz = 0, feuer = false } = {}) {
   const k = spielWelt.konfiguration.naesse;
@@ -39,12 +40,13 @@ export function aktualisiereNaesse(spielWelt, spieler, dt, { regenschutz = 0, fe
   }
   const z = (spieler.zustand ??= neuerZustand());
   const art = spielWelt.wetter?.art;
-  const drinnen = !!spieler.fahrzeug || !!spieler.mitfahrt || spieler.arbeit?.art === 'schlafen' || spielWelt.welt.istInnen(spieler.x, spieler.y);
-  const niederschlag = art === 'regen' ? 1 : art === 'gewitter' ? k.gewitterFaktor : art === 'schnee' || art === 'schneesturm' ? k.schneeFaktor : 0;
+  const drinnen = !!spieler.fahrzeug || !!spieler.mitfahrt || spieler.arbeit?.art === 'schlafen' || spielWelt.welt.istUnterDach(spieler.x, spieler.y);
+  const niederschlag = art === 'regen' ? 1 : art === 'gewitter' || art === 'starkregen' ? k.gewitterFaktor : art === 'schnee' || art === 'schneesturm' ? k.schneeFaktor : 0;
   let n = spieler.naesse ?? 0;
   const vorher = naesseStufe(n);
   if (!drinnen && niederschlag > 0) n += (dt / k.regenSekunden) * niederschlag * Math.max(0, 1 - regenschutz);
-  else n -= dt / (feuer ? k.trocknenFeuer : drinnen ? k.trocknenDrinnen : k.trocknenDraussen);
+  else if (feuer || drinnen) n -= dt / (feuer ? k.trocknenFeuer : k.trocknenDrinnen);
+  else if (art === 'klar' && !spielWelt.istNacht) n -= dt / k.trocknenDraussen; // Runde 29: draußen nur bei Sonne – nachts oder bei Nebel/Sturm bleibt man nass
   spieler.naesse = Math.max(0, Math.min(5, n));
   const stufe = naesseStufe(spieler.naesse);
   if (stufe > vorher && stufe >= 3) spielWelt.melde(spieler.id, `Du bist ${NAESSE_NAMEN[stufe]} – such dir ein Dach, sonst erkältest du dich`);

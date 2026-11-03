@@ -1,3 +1,5 @@
+import { STANDARD_KONFIGURATION } from '../server/spiel/konfiguration/spielKonfiguration.js';
+STANDARD_KONFIGURATION.konsum.dauer = 0; // Runde 29: Konsum-Dauer hier aus (eigener Test in runde29.test.js)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { TICK_DAUER_S } from '../gemeinsam/konstanten.js';
@@ -103,7 +105,7 @@ test('Wetter: Gewitter, Sturm, Nebel, Regen kommen vor; Gewitter löscht Feuer w
   for (const art of ['klar', 'regen', 'gewitter', 'sturm', 'nebel']) assert.ok(gesehen.has(art), `${art} (${[...gesehen]})`);
   assert.ok(!gesehen.has('schnee') && !gesehen.has('schneesturm'));
   assert.ok(regnet('gewitter') && regnet('regen') && !regnet('sturm') && !regnet('schneesturm'));
-  assert.deepEqual(wetterDerZone(welt), ['klar', 'regen', 'gewitter', 'sturm', 'nebel']);
+  assert.deepEqual(wetterDerZone(welt), ['klar', 'regen', 'starkregen', 'gewitter', 'sturm', 'nebel']);
   assert.ok(WETTER_ARTEN.includes('schneesturm'));
   welt.welt.schnee = true;
   assert.deepEqual(wetterDerZone(welt), ['klar', 'schnee', 'schneesturm', 'sturm', 'nebel']);
@@ -115,11 +117,11 @@ test('Admin „Wetter wechseln“ schaltet alle Arten der Zone durch', async () 
   spieler.admin = true;
   welt.wetter = { art: 'klar', rest: 9999 };
   const folge = [];
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     aktion(welt, spieler, { art: AKTIONEN.ADMIN, befehl: ADMIN_BEFEHLE.WETTER });
     folge.push(welt.wetter.art);
   }
-  assert.deepEqual(folge, ['regen', 'gewitter', 'sturm', 'nebel', 'klar']);
+  assert.deepEqual(folge, ['regen', 'starkregen', 'gewitter', 'sturm', 'nebel', 'klar']);
 });
 
 test('Überfahren: Aufprall-Ereignis trägt das Ziel (Matsch-Sound im Client)', async () => {

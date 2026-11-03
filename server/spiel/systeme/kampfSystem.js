@@ -1,8 +1,8 @@
 import { brecheArbeitAb, starteZerlegen, ZERLEGE_WERKZEUGE } from './arbeitSystem.js';
-import { strahlGegenWaende, strahlTrifftKreis } from '../../../gemeinsam/physik/strahl.js';
+import { strahlGegenWaende, strahlTrifftBox, strahlTrifftKreis } from '../../../gemeinsam/physik/strahl.js';
 import { bewegeKoerper } from '../../../gemeinsam/physik/bewegung.js';
 import { NAHKAMPF_KEGEL, STANDARD_AUSRUESTUNG, waffenWerte } from '../konfiguration/gegenstaende.js';
-import { aktuelleWaffe, kleidungsSchutz, konsumiere, legeAufBoden, nutzeWerkzeug, pflanzeSamenAusHand, legeRucksackAb, legeKleidungAb, starteNachladen, zaehleMunition } from './inventarSystem.js';
+import { aktuelleWaffe, kleidungsSchutz, legeAufBoden, starteKonsum, nutzeWerkzeug, pflanzeSamenAusHand, legeRucksackAb, legeKleidungAb, starteNachladen, zaehleMunition } from './inventarSystem.js';
 import { nachTreffer } from './gesundheitSystem.js';
 import { gibXp, setzeLevelZurueck } from './levelSystem.js';
 import { staerkeFaktor } from '../../../gemeinsam/spieler/skills.js';
@@ -16,6 +16,7 @@ import { explodiere } from './sonderZombieSystem.js';
 import { werfe } from './explosionSystem.js';
 import { haustierGestorben } from './haustierSystem.js';
 import { streckeNieder } from './mehrspielerSystem.js';
+import { wehreDich } from './botSystem.js';
 
 /**
  * (Linksklick am Ufer mit Angel im Inventar ist KEIN Angriff: behandleAngelKlick läuft zuerst, siehe angelSystem.js.)
@@ -42,8 +43,8 @@ export function aktualisiereKampf(spielWelt, dt) {
       // Samen in der Hand: Linksklick pflanzt ins nächste freie Beet (kein Angriff)
       spieler.angriffsAbklingzeit = pflanzeSamenAusHand(spielWelt, spieler, def) ? 0.5 : 1.2;
     } else if (def.kategorie === 'nahrung' || def.kategorie === 'getraenk' || def.kategorie === 'medizin') {
-      // Essen/Trinken/Medizin in der Hand: Linksklick verbraucht ein Stück
-      spieler.angriffsAbklingzeit = konsumiere(spielWelt, spieler, spieler.ausgeruestet) ? 0.8 : 0.4;
+      // Essen/Trinken/Medizin in der Hand: Linksklick verbraucht ein Stück (Runde 29: dauert, solange man stehen bleibt)
+      spieler.angriffsAbklingzeit = spieler.arbeit?.art === 'konsum' ? 0.2 : starteKonsum(spielWelt, spieler, spieler.ausgeruestet) ? 0.8 : 0.4;
     } else if (eintrag?.defId === 'holz') {
       // Holz in der Hand: Linksklick aufs Lagerfeuer = nachlegen (+3 min)
       spieler.angriffsAbklingzeit = schuereFeuer(spielWelt, spieler, spieler.ausgeruestet) ? 0.6 : 1.0;
@@ -118,9 +119,21 @@ function feuereStrahl(spielWelt, schuetze, winkel, def) {
       ziel = kandidat;
     }
   }
-  // stoff = Material am Einschlag (Client färbt Staub/Splitter passend; Blut gibt es nur bei 'treffer')
-  const stoff = ziel ? 'fleisch' : wand.getroffen ? stoffAm(spielWelt.welt, schuetze.x + dx * (bestT + 2), schuetze.y + dy * (bestT + 2)) : null;
-  spielWelt.ereignis({ typ: 'schuss', von: schuetze.id, x: schuetze.x, y: schuetze.y, zx: schuetze.x + dx * bestT, zy: schuetze.y + dy * bestT, stoff, ...(def.pfeil ? { pfeil: true } : {}) });
+  // Runde 29: Autos fangen Schüsse ab und gehen davon kaputt (Pfeile prallen ab, zählen aber als Einschlag)
+  let auto = null;
+  for (const fz of spielWelt.alleVomTyp('fahrzeug')) {
+    if (fz === schuetze.fahrzeug) continue;
+    const t = strahlTrifftBox(schuetze.x, schuetze.y, dx, dy, fz.x, fz.y, fz.winkel, fz.laenge / 2, fz.breite / 2);
+    if (t !== null && t < bestT) {
+      bestT = t;
+      auto = fz;
+      ziel = null;
+    }
+  }
+  // stoff = Material am Einschlag (Client färbt Staub/Splitter passend, setzt Einschusslöcher; Blut gibt es nur bei 'treffer')
+  const stoff = auto ? 'metall' : ziel ? 'fleisch' : wand.getroffen ? stoffAm(spielWelt.welt, schuetze.x + dx * (bestT + 2), schuetze.y + dy * (bestT + 2)) : null;
+  spielWelt.ereignis({ typ: 'schuss', von: schuetze.id, x: schuetze.x, y: schuetze.y, zx: schuetze.x + dx * bestT, zy: schuetze.y + dy * bestT, stoff, ...(auto ? { fz: auto.id } : {}), ...(def.pfeil ? { pfeil: true } : {}) });
+  if (auto && !def.pfeil) schlageFahrzeug(spielWelt, auto, def.schaden * (spielWelt.konfiguration.fahrzeug.schussFaktor ?? 0));
   if (ziel) fuegeSchadenZu(spielWelt, ziel, def.schaden, schuetze, winkel, { durchschlag: def.durchschlag ?? 0, schuss: true });
   // Runde 24: Pfeile/Bolzen bleiben oft heil liegen (etwas vor dem Einschlag) und lassen sich wieder aufheben
   if (def.pfeil && def.munition && spielWelt.zufall.zahl() < (def.bergen ?? 0)) {
@@ -167,8 +180,12 @@ function nahkampf(spielWelt, spieler, def) {
 function* moeglicheZiele(spielWelt, angreifer) {
   yield* spielWelt.alleVomTyp('zombie');
   for (const t of spielWelt.alleVomTyp('tier')) if (!t.besitzer) yield t; // Runde 24: gezähmte Haustiere trifft man nicht
-  if (!spielWelt.konfiguration.kampf.pvp) return;
-  for (const s of spielWelt.alleVomTyp('spieler')) if (s !== angreifer && !s.tot) yield s;
+  // Bots trifft man immer; zurück schießen sie nur auf den, der sie angegriffen hat (Runde 29). Sonst nur mit PvP.
+  const pvp = spielWelt.konfiguration.kampf.pvp;
+  for (const s of spielWelt.alleVomTyp('spieler')) {
+    if (s === angreifer || s.tot) continue;
+    if (pvp || (s.bot && !angreifer.bot) || angreifer.bot?.feindId === s.id) yield s;
+  }
 }
 
 function radiusVon(spielWelt, entitaet) {
@@ -194,7 +211,8 @@ export function fuegeSchadenZu(spielWelt, ziel, menge, quelle, winkel = 0, optio
   ziel.leben -= menge;
   if (ziel.angeln) brecheAngelnAb(ziel);
   if (ziel.arbeit) brecheArbeitAb(spielWelt, ziel, ziel.arbeit.art === 'schlafen' ? 'Aufgeschreckt!' : null);
-  spielWelt.ereignis({ typ: 'treffer', x: ziel.x, y: ziel.y, winkel, ziel: ziel.typ, ...(ziel.panzer > 0 ? { panzer: true } : {}) });
+  spielWelt.ereignis({ typ: 'treffer', id: ziel.id, x: ziel.x, y: ziel.y, winkel, ziel: ziel.typ, ...(ziel.panzer > 0 ? { panzer: true } : {}) });
+  if (ziel.bot && quelle?.typ === 'spieler' && !quelle.bot) wehreDich(ziel, quelle); // Runde 29: Bot schießt zurück
 
   if (ziel.typ === 'zombie') {
     const r = spielWelt.konfiguration.kampf.rueckstoss * ziel.rueckstossFaktor * (optionen.rueckstoss ?? 1);

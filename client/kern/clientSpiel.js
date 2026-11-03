@@ -1,4 +1,4 @@
-import { AUFHEB_REICHWEITE, BETT_REICHWEITE, TICK_DAUER_MS, TICK_DAUER_S, WERKBANK_REICHWEITE } from '../../gemeinsam/konstanten.js';
+import { AUFHEB_REICHWEITE, BETT_REICHWEITE, TICK_DAUER_MS, TICK_DAUER_S, UMGEBUNG_RADIUS, WERKBANK_REICHWEITE } from '../../gemeinsam/konstanten.js';
 import { wetterSchichten } from '../../gemeinsam/audio/umgebung.js';
 import { naheHandwerk, rezepteFuerOrt } from '../../gemeinsam/spieler/handwerk.js';
 import { ABBAU_REICHWEITE, RESSOURCEN_OBJEKTE } from '../../gemeinsam/welt/ressourcen.js';
@@ -255,6 +255,18 @@ export class ClientSpiel {
     if (this.#naechsterGegenstand()) this.#aktion(AKTIONEN.AUFHEBEN);
   }
 
+  /** Runde 29: Item aus der Umgebungs-Liste im Inventar aufheben */
+  aufhebenZiel(id) {
+    this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.AUFHEBEN, ziel: id });
+  }
+
+  /** Runde 29: Taste ^ – läuft sprintend in Blickrichtung, bis man selbst lenkt (nur zu Fuß) */
+  autorunUmschalten() {
+    this.autorun = !this.autorun && !this.lokal.fahrzeug && !this.spielerDaten?.tot;
+    if (this.autorun) this.autoLaufStoppen();
+    this.hud.meldung(this.autorun ? 'Autorun an (WASD = aus)' : 'Autorun aus');
+  }
+
   /**
    * Taste E / Aktions-Knopf: macht das Naheliegendste – Gegenstand aufheben, sonst Baum/Stein abbauen,
    * sonst Werkbank öffnen, sonst ins Bett legen.
@@ -287,7 +299,7 @@ export class ClientSpiel {
   autoLaufStarten(tx, ty, erkundet = true, { tipp = false } = {}) {
     if (this.spielerDaten?.tot || this.lokal.fahrzeug) return tipp ? false : this.hud.meldung('Auto-Lauf geht nur zu Fuß');
     if (!erkundet) return this.hud.meldung('Dorthin kannst du nur, wo du schon warst');
-    if (this.welt.istBlockiert(tx, ty)) return tipp ? false : this.hud.meldung('Dort kommt man nicht hin');
+    if (this.welt.istBlockiert(tx, ty) && !this.welt.istWatbar(tx, ty)) return tipp ? false : this.hud.meldung('Dort kommt man nicht hin');
     const pfad = findePfad(this.welt, this.lokal.x, this.lokal.y, (tx + 0.5) * this.welt.kachelGroesse, (ty + 0.5) * this.welt.kachelGroesse, { maxKnoten: tipp ? 20000 : 90000, tuerKosten: 6 });
     if (!pfad || pfad.length === 0) return tipp ? false : this.hud.meldung(pfad ? 'Du bist schon da' : 'Dorthin gibt es keinen Weg');
     this.autoLauf = { ziel: { tx, ty }, pfad, stuck: 0, letzteX: this.lokal.x, letzteY: this.lokal.y, neuVersuche: 0, tipp };
@@ -832,7 +844,7 @@ export class ClientSpiel {
     this.#aktion(AKTIONEN.NACHLADEN);
   }
 
-  /** Doppelklick im Inventar auf Essen/Trinken/Medizin: sofort verbrauchen (Server prüft Kategorie & Abklingzeit). */
+  /** Doppelklick im Inventar auf Essen/Trinken/Medizin: verbrauchen (Server prüft Kategorie, Runde 29: dauert, siehe starteKonsum). */
   konsumieren(slot) {
     if (this.spielerDaten?.tot) return;
     this.#aktion(AKTIONEN.KONSUMIEREN, slot);
@@ -1107,6 +1119,13 @@ export class ClientSpiel {
     const tot = this.spielerDaten?.tot ?? false;
     let richtung = tot ? { x: 0, y: 0 } : this.eingabe.richtung();
     let autoBlick = null;
+    if (this.autorun) {
+      if (tot || this.lokal.fahrzeug || richtung.x !== 0 || richtung.y !== 0) this.autorun = false;
+      else {
+        const b = this.#blick();
+        richtung = { x: Math.cos(b), y: Math.sin(b) };
+      }
+    }
     if (this.autoLauf) {
       const manuell = richtung.x !== 0 || richtung.y !== 0 || this.eingabe.angriff() || this.eingabe.sprint();
       if (tot || manuell || this.lokal.fahrzeug) this.autoLaufStoppen();
@@ -1154,7 +1173,7 @@ export class ClientSpiel {
       y: richtung.y,
       blick: autoBlick ?? this.#blick(),
       angriff,
-      sprint: !tot && this.eingabe.sprint(),
+      sprint: !tot && (this.eingabe.sprint() || !!this.autorun),
     };
     // Ego-Ansicht: Blickneigung mitschicken (Server prüft damit Treffer auf Gelände in der Höhe)
     const neigung = this.eingabe.neigung?.();
@@ -1216,19 +1235,31 @@ export class ClientSpiel {
   #ereignisSound(e) {
     if (!this.sound) return;
     switch (e.typ) {
+      case 'schuss':
+        this.renderer.einschlag?.(e, this.welt.kachelGroesse); // Runde 29: Einschussloch (Wand/Auto)
+        break;
+      case 'konsumTakt':
+        if (!this.#istBot(e.von)) this.sound.spiele(e.klang, { x: e.x, y: e.y, lautstaerke: 0.9 }); // Runde 29: Kauen/Schlucken/Verband
+        break;
       case 'feuer':
         // Runde 24: eigener Klang je Waffe; Schalldämpfer = gedämpftes „Plopp“
         this.sound.spiele(SCHUSS_KLANG[e.item] ?? (e.leise ? 'schuss_leise' : e.waffe === 'schrotflinte' || e.waffe === 'automatikgewehr' ? e.waffe : 'pistole'), { x: e.x, y: e.y });
         this.#kampfInDerNaehe(e);
         break;
       case 'treffer':
-        this.sound.spiele(e.panzer ? 'treffer_panzer' : e.ziel === 'zombie' ? 'treffer_zombie' : 'treffer_spieler', { x: e.x, y: e.y });
+        this.sound.spiele(e.panzer ? 'treffer_panzer' : e.ziel === 'zombie' || this.#istBot(e.id) ? 'treffer_zombie' : 'treffer_spieler', { x: e.x, y: e.y });
+        // Runde 18: eigener Schaden → Aufschrei je Figur (höchstens alle 0,7 s). Runde 29: nur bei echten Treffern, nicht mehr aus der
+        // Differenz der Lebenspunkte – sonst schrie die Figur beim Essen/Trinken, wenn die Daten kamen und Leben zwischendurch gesunken war
+        if (e.ziel === 'spieler' && e.id === this.eigeneId && performance.now() - (this.letzterSchadenTon ?? 0) > 700) {
+          this.letzterSchadenTon = performance.now();
+          this.sound.spiele(this.eigeneDaten?.aussehen?.koerper === 'frau' ? 'schaden_frau' : 'schaden_mann');
+        }
         this.#kampfInDerNaehe(e);
         break;
       case 'tod':
         if (e.ziel === 'zombie') this.#zombieSound('zombie_tod', e);
         else if (e.ziel === 'tier') this.sound.spiele('hase_tod', { x: e.x, y: e.y });
-        else this.sound.spiele(this.#istFrau(e.id) ? 'spieler_tod_frau' : 'spieler_tod', { x: e.x, y: e.y });
+        else if (!this.#istBot(e.id)) this.sound.spiele(this.#istFrau(e.id) ? 'spieler_tod_frau' : 'spieler_tod', { x: e.x, y: e.y }); // Runde 29: Bots stumm
         break;
       case 'nahkampf':
         this.sound.spiele('nahkampf', { x: e.x, y: e.y });
@@ -1271,7 +1302,7 @@ export class ClientSpiel {
         if (e.von === this.eigeneId) this.sound.spiele('leer');
         break;
       case 'anziehen':
-        this.sound.spiele('anziehen', { x: e.x, y: e.y });
+        if (!this.#istBot(e.von)) this.sound.spiele('anziehen', { x: e.x, y: e.y });
         break;
       case 'behaelterAuf': // Runde 25: Schrank/Kiste der Karte geöffnet – leises Knarzen + Wühlen
         this.sound.spiele('tuer_auf', { x: e.x, y: e.y, lautstaerke: 0.55, tonhoehe: 1.35 });
@@ -1386,7 +1417,7 @@ export class ClientSpiel {
         break;
       case 'husten': // Runde 28: Erkältung – leise im Hintergrund (eigene Figur), andere räumlich
         if (e.von === this.eigeneId) this.sound.spiele('husten', { lautstaerke: 0.35 + 0.35 * (e.staerke ?? 0) });
-        else this.sound.spiele('husten', { x: e.x, y: e.y, lautstaerke: 0.5, weite: 500 });
+        else if (!this.#istBot(e.von)) this.sound.spiele('husten', { x: e.x, y: e.y, lautstaerke: 0.5, weite: 500 });
         break;
       case 'blutfleck': // Runde 28: Blutspur (bleibt ~1 min liegen)
         this.renderer.blutfleck?.(e.x, e.y);
@@ -1398,19 +1429,11 @@ export class ClientSpiel {
   #datenSound(vorher, daten) {
     if (!this.sound) return;
     const anzahl = (d) => d.inventar.reduce((s, e) => s + (e ? e.menge : 0), 0);
-    if (daten.hunger > vorher.hunger + 1) this.sound.spiele('essen');
-    else if (daten.durst > vorher.durst + 1) this.sound.spiele('trinken');
-    else if (daten.leben > vorher.leben + 5 && !vorher.tot) this.sound.spiele('heilen');
+    if (daten.leben > vorher.leben + 5 && !vorher.tot) this.sound.spiele('heilen');
     else if (anzahl(daten) > anzahl(vorher) && !daten.nachladen) this.sound.spiele('aufheben');
     if (daten.nachladen && !vorher.nachladen) {
       const waffe = daten.ausgeruestet !== null ? daten.inventar[daten.ausgeruestet]?.defId : null;
       this.sound.spiele(waffe === 'gewehr' ? 'nachladen_gewehr' : waffe === 'bogen' || waffe === 'armbrust' ? 'werkeln' : 'nachladen', waffe === 'bogen' ? { tonhoehe: 1.6, lautstaerke: 0.4 } : {});
-    }
-    // Runde 18: eigener Schaden → Aufschrei je Figur (höchstens alle 0,7 s)
-    const jetzt = performance.now();
-    if (daten.leben < vorher.leben - 0.5 && !daten.tot && jetzt - (this.letzterSchadenTon ?? 0) > 700) {
-      this.letzterSchadenTon = jetzt;
-      this.sound.spiele(this.eigeneDaten?.aussehen?.koerper === 'frau' ? 'schaden_frau' : 'schaden_mann');
     }
   }
 
@@ -1444,38 +1467,34 @@ export class ClientSpiel {
     else if (faellig('zittern', kaelte >= 85 ? 6 : 12, kaelte >= 85 ? 12 : 24)) this.sound.spiele('zaehneklappern');
     if (kaelte < 75 || d.zustand?.erkaeltung) delete this.geraeuschUhr.husten;
     else if (faellig('husten', 18, 40)) this.sound.spiele('husten', { lautstaerke: 0.6 });
-    const draussen = !this.lokal.fahrzeug && !this.welt.istInnen(this.lokal.x, this.lokal.y);
-    const vogelWetter = this.wetter === 'klar' || this.wetter === 'nebel';
-    if (draussen && vogelWetter && !this.welt.schnee && (uhr.helligkeit ?? 1) > 0.6 && faellig('vogel', 8, 25)) {
-      // irgendwo in 150–400 px Entfernung, damit es räumlich klingt
-      const w = Math.random() * Math.PI * 2;
-      const r = 150 + Math.random() * 250;
-      this.sound.spiele('vogel', { x: this.lokal.x + Math.cos(w) * r, y: this.lokal.y + Math.sin(w) * r, tonhoehe: 0.85 + Math.random() * 0.3 });
-    }
-    // Runde 23: Donner kommt jetzt mit dem Blitz (wetterEffekt.beiBlitz → #donner). Nachts draußen: Eule, fernes Heulen,
+    // Runde 29 (Nutzer-Wunsch): kein einzelnes Vogelgezwitscher mehr obendrauf – die Schleife „tag“ reicht; auch kein Hundejaulen nachts
+    // Runde 23: Donner kommt jetzt mit dem Blitz (wetterEffekt.beiBlitz → #donner). Nachts draußen: Eule,
     // fernes Zombie-Stöhnen (Horror-Kulisse) – zufällig verteilt um den Spieler, leise und dumpf
     const nacht = 1 - (uhr.helligkeit ?? 1);
-    const ruhigesWetter = !['regen', 'gewitter', 'sturm', 'schneesturm'].includes(this.wetter);
+    const ruhigesWetter = !['regen', 'starkregen', 'gewitter', 'sturm', 'schneesturm'].includes(this.wetter);
     const irgendwo = (min, max) => {
       const w = Math.random() * Math.PI * 2;
       const r = min + Math.random() * (max - min);
       return { x: this.lokal.x + Math.cos(w) * r, y: this.lokal.y + Math.sin(w) * r };
     };
     if (nacht > 0.5) {
-      if (ruhigesWetter && faellig('eule', 18, 55)) this.sound.spiele('eule', { ...irgendwo(350, 700), weite: 1100, kurve: 1.1 });
-      if (faellig('heulen', 70, 170)) this.sound.spiele('heulen', { ...irgendwo(800, 1000), weite: 1300, kurve: 1, lautstaerke: 0.8 });
-      if (faellig('zombieFerne', 30, 80)) this.sound.spiele('zombie_ferne', { ...irgendwo(650, 900), weite: 1200, kurve: 1, raeumlich: true, dumpf: true });
+      if (ruhigesWetter && faellig('eule', 18, 55)) this.sound.spiele('eule', { ...irgendwo(350, 700), weite: 1100, kurve: 1.1, draussen: true });
+      if (faellig('zombieFerne', 30, 80)) this.sound.spiele('zombie_ferne', { ...irgendwo(650, 900), weite: 1200, kurve: 1, raeumlich: true, dumpf: true, draussen: true });
     } else {
       delete this.geraeuschUhr.eule;
-      delete this.geraeuschUhr.heulen;
     }
   }
 
-  /** Blitz (wetterEffekt): Donner verzögert wie in echt (Schall ist langsamer als Licht), nah = sofort & laut. */
+  /** Blitz (wetterEffekt): Donner verzögert wie in echt (Schall ist langsamer als Licht) – Runde 29: 0,5–2 s (nah = eher früh), drinnen dumpf. */
   #donner(staerke, nah) {
     if (!this.sound) return;
-    const verzoegerung = nah ? 80 + Math.random() * 150 : 1200 + Math.random() * 3200;
-    setTimeout(() => this.sound?.spiele(nah ? 'donner_nah' : 'donner', { lautstaerke: nah ? 1 : 0.55 + staerke * 0.45 }), verzoegerung);
+    const verzoegerung = nah ? 500 + Math.random() * 400 : 800 + Math.random() * 1200;
+    setTimeout(() => this.sound?.spiele(nah ? 'donner_nah' : 'donner', { lautstaerke: nah ? 1 : 0.55 + staerke * 0.45, draussen: true }), verzoegerung);
+  }
+
+  /** Runde 29: Ist das ein Bot? (Bots sind stumm: keine Stimmen, kein Husten) */
+  #istBot(id) {
+    return !!this.schnappschuesse[this.schnappschuesse.length - 1]?.entitaeten.get(id)?.bot;
   }
 
   /** Spielt die Figur (Spieler-ID) eine Frau? (Schmerz-/Tod-/Keuch-Laute) */
@@ -1617,7 +1636,7 @@ export class ClientSpiel {
     if (this.werkbankOffen && !naheHandwerk(this.welt, this.lokal.x, this.lokal.y, this.werkbankOrt)) this.werkbankUmschalten(false); // weggegangen/Feuer aus → zu // weggegangen → zu
     const uhr = tageszeit(this.serverZeit + (jetzt - this.zeitEmpfangen) / 1000, this.tageszeitDauer);
     // Nachtgeräusche (Grillen) nach Dunkelheit, in 10-%-Stufen (Ereignis nacht); Regel: gemeinsam/audio/umgebung.js
-    const nacht = Math.round(wetterSchichten({ w: this.renderer.wetterEffekt, hell: uhr.helligkeit ?? 1, wetter: this.wetter, schneeZone: !!this.welt.schnee }).nacht * 10) / 10;
+    const nacht = Math.round(wetterSchichten({ w: this.renderer.wetterEffekt, hell: uhr.helligkeit ?? 1, wetter: this.wetter, schneeZone: !!this.welt.schnee, drinnen: !!this.lokal.fahrzeug || this.welt.istUnterDach(this.lokal.x, this.lokal.y) }).nacht * 10) / 10;
     if (nacht !== this.letzteNachtStufe) {
       this.letzteNachtStufe = nacht;
       this.sound?.nacht(nacht);
@@ -1699,18 +1718,28 @@ export class ClientSpiel {
       this.letzteMiniKarte = jetzt;
       this.karte.zeichneMini(this.hud.el.minikarte, eigen, this.#minikartenPunkte());
     }
+    if (this.hud.inventar.offen && jetzt - (this.letzteUmgebung ?? 0) > 250) {
+      this.letzteUmgebung = jetzt;
+      this.hud.inventar.zeigeUmgebung(this.#itemsInDerNaehe(), this.itemDefinitionen);
+    }
     if (!this.hud.el.spielerliste.hidden && jetzt - this.letzteListe > 1000) {
       this.letzteListe = jetzt;
       this.hud.zeigeSpielerliste(this.spielerStatistik());
     }
-    // Runde 24: drinnen hört man den Regen gedämpft – dafür prasselt er aufs Dach (Schicht regen_dach)
-    const drinnenRegen = !this.lokal.fahrzeug && this.welt.istInnen(this.lokal.x, this.lokal.y);
+    // Runde 24: drinnen hört man den Regen gedämpft – dafür prasselt er aufs Dach (Schicht regen_dach). Runde 29: Türrahmen zählt als drinnen
+    const drinnenRegen = !this.lokal.fahrzeug && this.welt.istUnterDach(this.lokal.x, this.lokal.y);
     const regen = Math.round(wetterSchichten({ w: this.renderer.wetterEffekt, imHaus: drinnenRegen }).regen * 20) / 20;
     if (regen !== this.letzterRegenTon) {
       this.letzterRegenTon = regen;
       this.sound?.regen(regen);
     }
     this.#atmosphaereSchichten(jetzt);
+  }
+
+  /** Runde 29: Items im kleinen Umkreis, nächste zuerst (Inventar: „liegt in der Nähe“) */
+  #itemsInDerNaehe() {
+    const abstand = (g) => Math.hypot(g.x - this.lokal.x, g.y - this.lokal.y);
+    return this.gegenstaende.filter((g) => abstand(g) <= UMGEBUNG_RADIUS).sort((a, b) => abstand(a) - abstand(b)).slice(0, 12);
   }
 
   /**
@@ -1723,10 +1752,12 @@ export class ClientSpiel {
     const w = this.renderer.wetterEffekt;
     const uhr = tageszeit(this.serverZeit + (jetzt - this.zeitEmpfangen) / 1000, this.tageszeitDauer);
     const hell = uhr.helligkeit ?? 1;
-    const drinnen = !!this.lokal.fahrzeug || this.welt.istInnen(this.lokal.x, this.lokal.y);
-    const imHaus = !this.lokal.fahrzeug && this.welt.istInnen(this.lokal.x, this.lokal.y);
+    // Runde 29: Türrahmen zählt als drinnen (sonst klang es dort kurz nach draußen)
+    const imHaus = !this.lokal.fahrzeug && this.welt.istUnterDach(this.lokal.x, this.lokal.y);
+    const drinnen = !!this.lokal.fahrzeug || imHaus;
+    this.sound.setzeDrinnen(drinnen);
     // Wetter-/Tageszeit-Schichten: Regel gemeinsam/audio/umgebung.js (auch Studio-Mischpult)
-    const { sturm, schneesturm, regen_stark, tag, nacht_wind, wind_leicht, wind_stark, regen_dach } = wetterSchichten({ w, hell, drinnen, imHaus, wetter: this.wetter, schneeZone: !!this.welt.schnee });
+    const { sturm, schneesturm, regen_stark, tag, nacht_wind, wind_leicht, wind_stark, blizzard_a, blizzard_b, regen_dach } = wetterSchichten({ w, hell, drinnen, imHaus, wetter: this.wetter, schneeZone: !!this.welt.schnee, zeit: jetzt / 1000 });
     const schichten = {
       sturm,
       schneesturm,
@@ -1735,6 +1766,8 @@ export class ClientSpiel {
       nacht_wind,
       wind_leicht,
       wind_stark,
+      blizzard_a,
+      blizzard_b,
       regen_dach,
       kamin: this.#naehe((b) => b.typ === 'kamin' && b.brennt, 420),
       generator: this.#naehe((b) => b.typ === 'generator' && b.laeuft, 520) * 0.8,
@@ -1747,7 +1780,7 @@ export class ClientSpiel {
       const r = Math.round(wert * 40) / 40;
       if (this.#schichtStand[name] === r) continue;
       this.#schichtStand[name] = r;
-      this.sound.schicht(name, r, name.startsWith('wind_') ? 0.9 : 1.8);
+      this.sound.schicht(name, r, name.startsWith('wind_') || name.startsWith('blizzard_') ? 0.9 : 1.8);
     }
   }
 

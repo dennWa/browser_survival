@@ -25,6 +25,11 @@ import { erzeugeAngel } from './angelModell.js';
 import { WetterEffekt } from './wetterEffekt.js';
 import { BAUM_WIND } from './baumModell.js';
 import { BlaetterEffekt } from './blaetterEffekt.js';
+import { MuellEffekt } from './muellEffekt.js';
+import { Einschlaege } from './einschlaege.js';
+
+/** Runde 29: So tief (px) sinken Figuren im Wasser ein */
+const WASSER_TIEFE = 15;
 import { SonderEffekte } from './sonderEffekte.js';
 import { LICHTER, hatStrom, leuchtet } from '../../gemeinsam/welt/einrichtung.js';
 import { erkenneGeraet, merkeAutoProfil } from './geraet.js';
@@ -350,6 +355,7 @@ export class Renderer {
     this.tiere = new Map(); // Tier-ID → { gruppe, aktualisiere }
     this.angelnde = new Map(); // Spieler-ID → Angel-Darstellung (Rute, Schnur, Pose)
     this.wetterEffekt = new WetterEffekt(this.szene); // Regen-Striche + weiche Übergänge für Nebel/Licht
+    this.einschlaege = new Einschlaege(this.szene); // Runde 29: Einschusslöcher
     this.aufschlaege = []; // Werkzeug-Treffer der Figuren in diesem Bild (#merkeAufschlag → clientSpiel: Hack-Sound)
     this.fahrZoom = 1; // Kamera geht beim Fahren etwas weiter weg
 
@@ -489,6 +495,9 @@ export class Renderer {
     this.zeigeVorschau(null);
     this.blaetter?.entfernen();
     this.blaetter = new BlaetterEffekt(this.szene, welt);
+    this.muell?.entfernen();
+    this.muell = new MuellEffekt(this.szene, welt); // Runde 29: Müll fliegt bei starkem Wetter über die Straßen
+    this.einschlaege.leeren();
     this.reifenspuren.setzeWelt(welt);
     // vom Ladebildschirm schon gebaut (bereiteVor) – sonst am Stück
     this.karte = this.vorbereitet?.welt === welt
@@ -568,7 +577,8 @@ export class Renderer {
     this.karte.aktualisiereDurchsicht(dt, fokus.x, fokus.y, !this.egoHaken);
     this.natur?.aktualisiere(fokus, this.welt.bauwerkeVersion, !!this.egoHaken);
     const tuerAbstand = this.karte.aktualisiereTuerSchimmer(fokus);
-    this.blaetter?.aktualisiere(dt, fokus, jetzt, dunkel, Math.max(this.wetterEffekt.sturm, (this.wetterEffekt.windStufe - 1.2) / 3));
+    this.blaetter?.aktualisiere(dt, fokus, jetzt, dunkel, Math.max(this.wetterEffekt.sturm, Math.min(1, Math.max(0, this.wetterEffekt.windStufe - 0.2) / 2.6)));
+    this.muell?.aktualisiere(dt, fokus, Math.max(0, Math.min(1, (this.wetterEffekt.windStufe - 1.3) / 1.4)) * Math.max(this.wetterEffekt.regen, this.wetterEffekt.sturm));
     this.#aktualisiereFahrzeuge(entitaeten, fokus);
     this.#aktualisiereFiguren(entitaeten, fokus, dt, jetzt);
     this.egoHaken?.(this.kamera3d, fokus); // EGO-PROTOTYP (client/ego/, siehe docs/EGO_PROTOTYP.md)
@@ -763,7 +773,7 @@ export class Renderer {
       }
       t.gruppe.visible = Math.abs(e.x - fokus.x) < SICHTWEITE && Math.abs(e.y - fokus.y) < SICHTWEITE;
       if (!t.gruppe.visible) continue;
-      t.gruppe.position.set(e.x, this.#hy(e.x, e.y), e.y);
+      t.gruppe.position.set(e.x, this.#hy(e.x, e.y) - (this.welt?.istWasser(e.x, e.y) ? WASSER_TIEFE * 0.6 : 0), e.y); // Runde 29: Hund watet
       t.gruppe.rotation.y = Math.PI / 2 - e.blick;
       t.aktualisiere(e, jetzt);
     }
@@ -1440,7 +1450,10 @@ export class Renderer {
       } else {
         // Sitzen: mit eigenem Clip senkt der Clip die Hüfte selbst, sonst wird die Figur abgesenkt (prozedurale Beine)
         const sitzTiefe = e.arbeit === 'sitzen' && !f.aktionen?.sitzen ? SITZ_TIEFE : 0;
-        f.gruppe.position.set(e.x, this.#hy(e.x, e.y) - sitzTiefe + (e.fliegen ? 34 + Math.sin(jetzt / 260) * 3 : 0), e.y); // Flugmodus (Admin): schwebt; Gelände-Höhe darunter
+        // Runde 29: im Wasser sinkt man leicht ein (weich, damit es am Ufer nicht springt)
+        const tiefeZiel = !e.fliegen && this.welt?.istWasser(e.x, e.y) ? WASSER_TIEFE : 0;
+        f.wasserTiefe = (f.wasserTiefe ?? 0) + (tiefeZiel - (f.wasserTiefe ?? 0)) * Math.min(1, dt * 8);
+        f.gruppe.position.set(e.x, this.#hy(e.x, e.y) - sitzTiefe - f.wasserTiefe + (e.fliegen ? 34 + Math.sin(jetzt / 260) * 3 : 0), e.y); // Flugmodus (Admin): schwebt; Gelände-Höhe darunter
         f.gruppe.rotation.set(0, Math.PI / 2 - e.blick, 0, 'YXZ');
       }
 
@@ -1518,8 +1531,8 @@ export class Renderer {
       f.mixer.update(dt + (f.animRest ?? 0));
       f.animRest = 0;
       this.#merkeAufschlag(f, e, name);
-      if (f.waffe) f.waffe.visible = !e.tot;
-      if (!schlaeft && !e.tot) aktualisiereHaltung(f, e, jetzt, this.dunkel ?? 0);
+      if (f.waffe) f.waffe.visible = !e.tot && !e.niedergestreckt;
+      if (!schlaeft && !e.tot && !e.niedergestreckt) aktualisiereHaltung(f, e, jetzt, this.dunkel ?? 0); // am Boden keine Arm-Haltung (Bots zuckten sonst)
     }
     for (const [id, f] of this.figuren) {
       if (gesehen.has(id)) continue;
@@ -1664,6 +1677,16 @@ export class Renderer {
     if (vorher === undefined) return;
     const getroffen = vorher <= jetzt ? vorher < anteil && jetzt >= anteil : vorher < anteil || jetzt >= anteil;
     if (getroffen) this.aufschlaege.push({ id: e.id, x: e.x, y: e.y, arbeit: e.arbeit, blick: e.blick });
+  }
+
+  /** Runde 29: Einschussloch aus dem 'schuss'-Ereignis (fz = getroffenes Auto, sonst Wand/Tür; Treffer auf Körper und ins Leere nicht) */
+  einschlag(e, kachelGroesse) {
+    if (!e.stoff || e.stoff === 'fleisch' || e.pfeil) return;
+    const boden = this.#hy(e.zx, e.zy);
+    if (e.fz !== undefined) {
+      const auto = this.fahrzeuge.get(e.fz);
+      if (auto) this.einschlaege.auto(auto, e.zx, e.zy, e.zx - e.x, e.zy - e.y, boden);
+    } else this.einschlaege.wand(e.zx, e.zy, e.zx - e.x, e.zy - e.y, kachelGroesse, boden);
   }
 
   /** Runde 28: Blutfleck (Ereignis 'blutfleck' vom Server) */

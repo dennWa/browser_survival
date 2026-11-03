@@ -28,9 +28,12 @@ Tipp: kurze Dateien (< 3 s), Lautstärke der Aufnahme selbst eher normalisiert.
 | `nacht` | Nachtgeräusche – Grillen (Schleife, nur nachts) |
 | `schritt_schnee` | Schritte im Schnee (Knirschen, jeder Tritt; Schneefall selbst ist lautlos) |
 | `schritt_gras` | Schritte im Gras (jeder Tritt; 6 Aufnahmen, zufällig) |
+| `schritt_innen` | Schritte in Häusern (jeder Tritt, 8 Aufnahmen) |
 | `donner` | Ferner Donner bei Gewitter (verzögert nach dem Blitz) |
 | `donner_nah` | Naher Donnerschlag (Blitz ganz in der Nähe) |
-| `regen_stark` | Starkregen bei Gewitter (Schleife, zusätzlich zum Regen) |
+| `regen_stark` | Starkregen (Wetter Starkregen/Gewitter, Schleife, ersetzt den normalen Regen) |
+| `blizzard_a` | Winterkarten: Blizzard statt Wind (Schleife, wechselt sich mit blizzard_b ab) |
+| `blizzard_b` | Winterkarten: Blizzard statt Wind (Schleife, wechselt sich mit blizzard_a ab) |
 | `wind_leicht` | Wind leicht – sanftes Rauschen draußen (Schleife, Stärke folgt Wind + Böen wie die Bäume) |
 | `wind_stark` | Wind stark – kräftige Böen (Schleife, kommt bei starkem Wind/Böen dazu) |
 
@@ -68,11 +71,11 @@ Tipp: kurze Dateien (< 3 s), Lautstärke der Aufnahme selbst eher normalisiert.
 | Dateiname (ohne Endung) | Wann? |
 |---|---|
 | `hase_flucht` | Hase erschrickt und hoppelt davon |
-| `vogel` | Vogelgezwitscher (tagsüber draußen, zufällig alle 8–25 s; nicht in Schneezonen) |
+| `vogel` | Einzelnes Vogelgezwitscher (Runde 29: im Spiel nicht mehr benutzt, die Schleife „tag“ reicht) |
 | `hase_tod` | Hase wird erlegt (ohne eigene Datei lautlos) |
 | `hase_schreck` | Hase erschrickt – kurzes Fiepen (ohne eigene Datei lautlos) |
 | `eule` | Eule ruft (nachts draußen, zufällig, fern) |
-| `heulen` | Fernes Heulen (Wolf/Hund, nachts, selten) |
+| `heulen` | Fernes Heulen (Wolf/Hund; Runde 29: im Spiel nicht mehr benutzt) |
 
 ### Waffen & Kampf
 
@@ -95,15 +98,15 @@ Tipp: kurze Dateien (< 3 s), Lautstärke der Aufnahme selbst eher normalisiert.
 | `keuchen_frau` | Keuchen, wenn die Ausdauer leer ist (Frau) |
 | `spieler_tod` | Spieler stirbt (Mann) |
 | `spieler_tod_frau` | Spieler stirbt (Frau) |
-| `zittern` | Frierender Atem bei Unterkühlung (zusammen mit „zaehneklappern“) |
+| `zittern` | Frierender Atem (Runde 28: im Spiel nicht mehr benutzt – beim Frieren nur noch „zaehneklappern“) |
 | `zaehneklappern` | Zähneklappern bei Unterkühlung |
-| `husten` | Husten bei starker Kälte |
+| `husten` | Husten bei starker Kälte und bei Erkältung (leise, je kränker desto öfter) |
 
 ### Inventar & Items
 
 | Dateiname (ohne Endung) | Wann? |
 |---|---|
-| `anziehen` | Kleidung an-/ausziehen |
+| `anziehen` | Kleidung an-/ausziehen (Rascheln) |
 
 ### Zombies
 
@@ -210,11 +213,12 @@ Tipp: kurze Dateien (< 3 s), Lautstärke der Aufnahme selbst eher normalisiert.
 |---|---|
 | `aufheben` | Item aufheben (leises Rascheln) |
 | `beute` | Beute / Kiste durchsucht |
-| `essen` | Essen |
-| `trinken` | Trinken |
+| `essen` | Essen (Kauen, im Takt solange es dauert) |
+| `trinken` | Trinken (Schlucken, im Takt solange es dauert) |
 | `magen_knurren` | Magenknurren bei großem Hunger (unter 20 %, zufällig) |
 | `durst` | Trockenes Räuspern/Schlucken bei großem Durst (unter 20 %, zufällig) |
 | `heilen` | Heilen (Verband/Medizin) |
+| `verband` | Verbinden/Medizin nehmen (Stoff, im Takt solange es dauert) |
 | `taschenlampe` | Taschenlampe an/aus (L) |
 | `inventar_auf` | Inventar öffnen (Tab) |
 | `inventar_zu` | Inventar schließen |
@@ -223,7 +227,8 @@ Tipp: kurze Dateien (< 3 s), Lautstärke der Aufnahme selbst eher normalisiert.
 
 | Dateiname (ohne Endung) | Wann? |
 |---|---|
-| `ui_klick` | Klick auf einen Knopf (Login, Menüs, HUD) |
+| `ui_klick` | Klick auf einen Knopf im Spiel (HUD, Fenster) |
+| `menue_klick` | Klick auf einen Knopf im Hauptmenü (alles vor dem Spiel) |
 | `ui_fehler` | Geht hier nicht (z. B. Bauen an falscher Stelle) |
 | `level_auf` | Level-Aufstieg |
 

@@ -747,14 +747,14 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 ### Sounds im Spiel (Info: was es schon gibt – Karten-Klänge setzt man im Editor)
 | Gruppe | Ereignisse |
 |---|---|
-| Atmosphäre & Wetter | wind, regen, nacht, schritt_schnee, schritt_gras, donner, donner_nah, regen_stark, wind_leicht, wind_stark, regen_dach, kamin, sturm, schneesturm, tag, nacht_wind |
+| Atmosphäre & Wetter | wind, regen, nacht, schritt_schnee, schritt_gras, schritt_innen, donner, donner_nah, regen_stark, blizzard_a, blizzard_b, wind_leicht, wind_stark, regen_dach, kamin, sturm, schneesturm, tag, nacht_wind |
 | Tiere | schnurren, summen, hase_flucht, vogel, hase_tod, hase_schreck, eule, heulen, bellen, miau, gackern |
 | Bauen, Handwerk & Arbeit | generator, dosenalarm, grube, hack_holz, baum_faellt, hack_stein, stein_bricht, hack_felsen, felsen_bricht, gebaut, werkeln, graben, tuer_auf, tuer_zu, feuer_an, feuer_aus, knistern, holz_nachlegen, brutzel, brutzeln, fertig, verbrannt, angel_wurf, angel_biss, gefangen, falle_auf, falle_zu |
 | Waffen & Kampf | pistole, schrotflinte, automatikgewehr, revolver, mp, sturmgewehr, leer, nachladen, nahkampf, treffer_zombie, treffer_spieler, schaden_mann, schaden_frau, keuchen, keuchen_frau, spieler_tod, spieler_tod_frau, zittern, zaehneklappern, husten, gewehr, bogen, armbrust, schuss_leise, nachladen_gewehr, molotow, brand, explosion |
-| Inventar & Items | anziehen, aufheben, beute, essen, trinken, magen_knurren, durst, heilen, taschenlampe, inventar_auf, inventar_zu |
+| Inventar & Items | anziehen, aufheben, beute, essen, trinken, magen_knurren, durst, heilen, verband, taschenlampe, inventar_auf, inventar_zu |
 | Zombies | zombie_stoehnen, zombie_angriff, zombie_tod, zombie_schrei, spucke, spucke_trifft, zuendung, treffer_panzer, zombie_ferne, tuer_schlag, tuer_bricht |
 | Fahrzeuge | motor, autotuer, aufprall, fahrzeug_schaden, fahrzeug_kaputt, ueberfahren |
-| Oberfläche & Menüs | ui_klick, ui_fehler, level_auf |
+| Oberfläche & Menüs | ui_klick, menue_klick, ui_fehler, level_auf |
 
 ### Musik-Ordner (Zonen-Wert `musik`)
 | Ordner | Stücke |

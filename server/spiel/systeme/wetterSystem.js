@@ -1,6 +1,6 @@
 /**
  * Wetter pro Zone (Runde 23 erweitert), unabhängig von Tag/Nacht:
- *   'klar' | 'regen' | 'gewitter' (Regen + Blitz/Donner) | 'sturm' (starker Wind, trocken) | 'nebel'
+ *   'klar' | 'regen' | 'starkregen' (Runde 29: Regen, fester Wind) | 'gewitter' (Regen + Blitz/Donner) | 'sturm' (starker Wind, trocken) | 'nebel'
  *   Schneezonen (Karte `schnee`): 'schnee' statt 'regen', 'schneesturm' statt 'gewitter' – lautlos, löschen kein Feuer.
  * Wechselt zufällig – Wetterphasen dauern konfiguration.wetter.dauerMin…dauerMax Sekunden (1–5 Minuten), dazwischen ist
  * es klar (pauseMin…pauseMax). Anteile: regenAnteil = Niederschlag (sonst Nebel/Sturm), davon gewitterAnteil = Gewitter
@@ -13,11 +13,11 @@
 export const WACHSTUM_REGEN_FAKTOR = 2;
 
 /** Alle Wetterarten (Validierung, Admin-Auswahl). */
-export const WETTER_ARTEN = Object.freeze(['klar', 'regen', 'gewitter', 'sturm', 'nebel', 'schnee', 'schneesturm']);
+export const WETTER_ARTEN = Object.freeze(['klar', 'regen', 'starkregen', 'gewitter', 'sturm', 'nebel', 'schnee', 'schneesturm']);
 
 /** Regnet es (Feuer aus, Pflanzen wachsen schneller)? */
 export function regnet(art) {
-  return art === 'regen' || art === 'gewitter';
+  return art === 'regen' || art === 'starkregen' || art === 'gewitter';
 }
 
 /** Windstufen, aus denen der Grundwind sein nächstes Ziel würfelt (Wert, Gewicht). */
@@ -41,7 +41,7 @@ export function aktualisiereWetter(spielWelt, dt) {
   if (w.rest > 0) return;
   if (w.art === 'klar') {
     const z = spielWelt.zufall;
-    if (z.zahl() < k.regenAnteil) w.art = z.zahl() < (k.gewitterAnteil ?? 0) ? sturmNiederschlag(spielWelt) : niederschlag(spielWelt);
+    if (z.zahl() < k.regenAnteil) w.art = z.zahl() < (k.gewitterAnteil ?? 0) ? sturmNiederschlag(spielWelt) : !spielWelt.welt?.schnee && z.zahl() < (k.starkregenAnteil ?? 0) ? 'starkregen' : niederschlag(spielWelt);
     else w.art = z.zahl() < (k.sturmAnteil ?? 0) ? 'sturm' : 'nebel';
     w.rest = k.dauerMin + z.zahl() * (k.dauerMax - k.dauerMin);
   } else {
@@ -62,7 +62,7 @@ export function sturmNiederschlag(spielWelt) {
 
 /** Wetterarten, die in dieser Zone vorkommen (Admin-Knopf schaltet sie der Reihe nach durch). */
 export function wetterDerZone(spielWelt) {
-  return ['klar', niederschlag(spielWelt), sturmNiederschlag(spielWelt), 'sturm', 'nebel'];
+  return spielWelt.welt?.schnee ? ['klar', 'schnee', 'schneesturm', 'sturm', 'nebel'] : ['klar', 'regen', 'starkregen', 'gewitter', 'sturm', 'nebel'];
 }
 
 /** Setzt das Wetter von Hand (Tests, Admin-/Konsolenbefehl). */
@@ -87,6 +87,7 @@ function aktualisiereWind(spielWelt, w, dt) {
   let ziel = w.windZiel;
   if (w.art === 'sturm' || w.art === 'schneesturm') ziel = 1;
   else if (w.art === 'gewitter') ziel = Math.max(ziel, 0.75);
+  else if (w.art === 'starkregen') ziel = Math.max(ziel, 0.7);
   else if (w.art === 'regen') ziel = Math.max(ziel, 0.45);
   else if (w.art === 'nebel') ziel = Math.min(ziel, 0.12);
   const schritt = (k.windTempo ?? 0.025) * dt;

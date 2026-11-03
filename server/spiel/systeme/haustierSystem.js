@@ -1,4 +1,4 @@
-import { bewegeKoerper } from '../../../gemeinsam/physik/bewegung.js';
+import { bewegeKoerper, wasserFaktor } from '../../../gemeinsam/physik/bewegung.js';
 import { lerpWinkel } from '../../../gemeinsam/mathe.js';
 import { KACHELN } from '../../../gemeinsam/welt/kacheln.js';
 import { erzeugeTier } from '../entitaeten/tier.js';
@@ -121,6 +121,7 @@ function streune(spielWelt, t, w, dt) {
 function laufeZu(spielWelt, t, ziel, tempo, dt) {
   const winkel = Math.atan2(ziel.y - t.y, ziel.x - t.x);
   const vorher = { x: t.x, y: t.y };
+  tempo *= wasserFaktor(spielWelt.welt, t.x, t.y); // Runde 29: Hund watet mit, Katze bleibt am Ufer (bewegung.js)
   bewegeKoerper(t, Math.cos(winkel) * tempo * dt, Math.sin(winkel) * tempo * dt, t.radius, spielWelt.welt);
   t.blick = lerpWinkel(t.blick, winkel, Math.min(1, dt * 8));
   if (Math.hypot(t.x - vorher.x, t.y - vorher.y) < tempo * dt * 0.2) t.wanderZiel = null;

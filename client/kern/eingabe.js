@@ -28,6 +28,7 @@ export const TASTEN = Object.freeze({
   sprechen: ['KeyC'], // Runde 24: Sprachchat Push-to-talk (halten)
   spielerliste: ['KeyI'], // Spieler-Info: wer ist online (Level, Kills, überlebte Zeit)
   kofferraum: ['KeyG'], // Kofferraum des Autos öffnen (daneben stehen oder drinsitzen)
+  autorun: ['Backquote'], // ^ (deutsche Tastatur): Autorun an/aus – läuft sprintend in Blickrichtung, WASD beendet
   sitzen: ['Quote'], // Ä (deutsche Tastatur; physisch die '-Taste): hinsetzen/aufstehen – überall, am Lagerfeuer heilend
   tuer: ['KeyF'], // Lagerfeuer an/aus (Name historisch)
   nachladen: ['KeyR'],

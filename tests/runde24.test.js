@@ -1,3 +1,5 @@
+import { STANDARD_KONFIGURATION } from '../server/spiel/konfiguration/spielKonfiguration.js';
+STANDARD_KONFIGURATION.konsum.dauer = 0; // Runde 29: Konsum-Dauer hier aus (eigener Test in runde29.test.js)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { TICK_DAUER_S } from '../gemeinsam/konstanten.js';

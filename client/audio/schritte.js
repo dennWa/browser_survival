@@ -1,10 +1,11 @@
 import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
 
 /**
- * Schritt-Geräusche: wer über Schnee läuft, knirscht (Ereignis `schritt_schnee`, Kenney-Samples bzw. Synthese); auf Gras `schritt_gras` (6 eigene Aufnahmen).
+ * Schritt-Geräusche: wer über Schnee läuft, knirscht (Ereignis `schritt_schnee`, Kenney-Samples bzw. Synthese); auf Gras `schritt_gras` (6 eigene Aufnahmen);
+ * Runde 29: in Häusern `schritt_innen` (8 Aufnahmen).
  * Rein clientseitig und nur Atmosphäre – gezählt wird die zurückgelegte Strecke je Spieler/Zombie (interpolierte Entitäten),
  * alle SCHRITT px gibt es einen Tritt. Ton räumlich (Entfernung/Stereo macht sound.spiele).
- * Untergrund: Kachel `schnee` = voll, Straße/Gehweg in einer Schneezone (welt.schnee) = leiser (verschneit), drinnen/anderswo = nichts.
+ * Untergrund: Kachel `schnee` = voll, Straße/Gehweg in einer Schneezone (welt.schnee) = leiser (verschneit), anderswo = nichts.
  * Weitere Untergründe (Gras, Holz …) später hier ergänzen: `untergrundFuer` liefert Ereignis + Pegel.
  */
 const SCHRITT = 60; // px zwischen zwei Tritten (Gehen ≈ 2,5/s, Sprinten ≈ 4/s)
@@ -16,7 +17,8 @@ const MAX_PRO_BILD = 6;
 export function untergrundFuer(welt, x, y) {
   const g = welt.kachelGroesse;
   const k = KACHELN[welt.kachelAn(Math.floor(x / g), Math.floor(y / g))];
-  if (!k || k.innen || k.blockiert || k.wasser) return null;
+  if (k?.innen) return { ereignis: 'schritt_innen', pegel: 1 };
+  if (!k || k.blockiert || k.wasser) return null;
   if (k.name === 'schnee') return { ereignis: 'schritt_schnee', pegel: 1 };
   if (welt.schnee && (k.name === 'strasse' || k.name === 'asphalt' || k.name === 'gehweg')) return { ereignis: 'schritt_schnee', pegel: 0.55 };
   if (k.name === 'gras' || k.name === 'rasen' || k.name === 'wiese' || k.name === 'waldboden' || k.name === 'wildwald') return { ereignis: 'schritt_gras', pegel: 1 };

@@ -385,6 +385,16 @@ export class Welt {
     return KACHELN[zeichen]?.blockiert ?? true;
   }
 
+  /** Runde 29: Wasser kann man durchwaten (Mensch, Zombie, Hund; physik/bewegung.js) – istBlockiert bleibt für Autos, Bauen, Spawnen, Katzen & Co. wahr */
+  istWatbar(tx, ty) {
+    return KACHELN[this.kachelAn(tx, ty)]?.wasser === true && !this.moebelBlockiert.has(ty * this.breite + tx);
+  }
+
+  /** Runde 29: Steht man hier im (nicht zugefrorenen) Wasser? */
+  istWasser(x, y) {
+    return !this.schnee && KACHELN[this.kachelAn(Math.floor(x / this.kachelGroesse), Math.floor(y / this.kachelGroesse))]?.wasser === true;
+  }
+
   /** Steht man hier auf Eis? (zugefrorenes Wasser in einer Schneezone – Rutschen, siehe physik/bewegung.js) */
   istEis(x, y) {
     if (!this.schnee) return false;

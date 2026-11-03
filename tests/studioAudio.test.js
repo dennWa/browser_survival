@@ -19,7 +19,7 @@ const WURZEL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 test('wetterSchichten: Gewitter = Starkregen, Schneezone = Schneesturm statt Sturm, drinnen gedämpft, Grillen nur ruhig', () => {
   const gewitter = wetterSchichten({ w: vorschauWetter('gewitter'), hell: 1, wetter: 'gewitter' });
-  assert.ok(gewitter.regen_stark > 0.9 && gewitter.regen === 1 && gewitter.nacht === 0);
+  assert.ok(gewitter.regen_stark > 0.9 && gewitter.regen === 0 && gewitter.nacht === 0);
   const schnee = wetterSchichten({ w: vorschauWetter('schneesturm'), hell: 1, wetter: 'schneesturm', schneeZone: true });
   assert.ok(schnee.schneesturm > 0.9 && schnee.sturm === 0);
   const haus = wetterSchichten({ w: vorschauWetter('regen'), hell: 1, drinnen: true, imHaus: true, wetter: 'regen' });
@@ -28,7 +28,7 @@ test('wetterSchichten: Gewitter = Starkregen, Schneezone = Schneesturm statt Stu
   assert.equal(haus.tag, 0);
   const nacht = wetterSchichten({ w: vorschauWetter('klar'), hell: 0.05, wetter: 'klar' });
   assert.ok(nacht.nacht > 0.9 && nacht.tag === 0);
-  assert.deepEqual(wetterZiel('quatsch'), { regen: 0, schnee: 0, nebel: 0, sturm: 0, gewitter: 0 });
+  assert.deepEqual(wetterZiel('quatsch'), { regen: 0, schnee: 0, nebel: 0, sturm: 0, gewitter: 0, starkregen: 0 });
 });
 
 test('mischpult: alle Schichten in fester Reihenfolge, Wind läuft immer', () => {

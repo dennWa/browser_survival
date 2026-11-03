@@ -1,4 +1,4 @@
-# Runde 28 (2026-11-02, neueste)
+# Runde 28 (2026-11-02)
 
 > Abhakliste archiv/runden/RUNDE28_FORTSCHRITT.md, Tests tests/runde28.test.js. Hauptmenü, Slots, Charakter, Kleidung, Handy-Punkte.
 

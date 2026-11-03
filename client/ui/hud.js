@@ -37,7 +37,7 @@ const ERKLAERUNG = {
   level: 'Erfahrung für Zombies, Abbauen und Ziele. Jeder Aufstieg gibt einen Fähigkeitspunkt. Beim Tod geht das Level verloren.',
   kaelte: 'Steigt draußen bei Nacht, Regen und in der Kälte – nass noch schneller. Drinnen, am Feuer und mit warmer Kleidung sinkt sie.',
   muedigkeit: 'Steigt mit der Zeit. Schlafen im Bett hilft. Ab 85 % bist du langsamer und heilst nicht.',
-  naesse: 'Im Regen draußen wirst du nach und nach nass (klamm, feucht, nass, sehr nass, klatschnass). Drinnen trocknest du – eine Stufe pro Minute, am Feuer schneller. Ab „feucht“ droht nach 5 Minuten eine Erkältung.',
+  naesse: 'Im Regen draußen wirst du schnell nass (klamm, feucht, nass, sehr nass, klatschnass – alle 15 s eine Stufe). Drinnen trocknest du eine Stufe pro Minute, am Feuer schneller, draußen nur bei Sonne (alle 2 Minuten). Ab „feucht“ droht nach 5 Minuten eine Erkältung.',
   erkaeltung: 'Wird mit der Zeit schlimmer: du hustest öfter, ab 30 % rennst du langsamer, ab 50 % verlierst du langsam Leben. Antibiotika helfen; Wärme und Trockenheit bremsen sie.',
 };
 const NAESSE_NAMEN = ['trocken', 'klamm', 'feucht', 'nass', 'sehr nass', 'klatschnass'];
@@ -216,10 +216,11 @@ export class Hud {
     this.el.adminPanel.querySelector('[data-nachtsicht]').addEventListener('click', () => this.#aktionen.nachtsicht?.());
     // Runde 28: Waffe spawnen → Liste aller Waffen (Fern- und Nahkampf) aus den Item-Definitionen
     const waffenListe = dokument.getElementById('admin-waffen');
+    const waffenZeile = dokument.getElementById('admin-waffen-zeile');
     this.el.adminPanel.querySelector('[data-waffenliste]').addEventListener('click', (e) => {
-      waffenListe.hidden = !waffenListe.hidden;
-      e.currentTarget.classList.toggle('an', !waffenListe.hidden);
-      if (waffenListe.hidden || waffenListe.childElementCount) return;
+      waffenZeile.hidden = !waffenZeile.hidden;
+      e.currentTarget.classList.toggle('an', !waffenZeile.hidden);
+      if (waffenZeile.hidden || waffenListe.childElementCount) return;
       const waffen = Object.entries(this.#itemDefs ?? {}).filter(([, d]) => d.kategorie === 'fernkampf' || d.kategorie === 'nahkampf');
       waffen.sort((a, b) => (a[1].kategorie === b[1].kategorie ? a[1].name.localeCompare(b[1].name) : a[1].kategorie === 'fernkampf' ? -1 : 1));
       waffenListe.replaceChildren(
@@ -248,6 +249,7 @@ export class Hud {
       tauschen: (von, nach) => this.#aktionen.tauschen?.(von, nach),
       ablegen: (slot) => this.#aktionen.ablegen?.(slot),
       rucksackAblegen: () => this.#aktionen.rucksackAblegen?.(),
+      aufhebenZiel: (id) => this.#aktionen.aufhebenZiel?.(id),
       herstellen: (rezept) => this.#aktionen.herstellen?.(rezept),
       anlegen: (slot) => this.#aktionen.anlegen?.(slot), // Runde 23: Kleidung anziehen
       ausziehen: (stelle) => this.#aktionen.ausziehen?.(stelle),
@@ -256,7 +258,6 @@ export class Hud {
     el('hud-inventar').addEventListener('click', () => this.inventar.zeige());
     this.el.naesse = el('hud-naesse');
     this.el.statusErklaerung = el('status-erklaerung');
-    this.el.naesse.addEventListener('click', () => this.statusErklaerungUmschalten(true));
     this.el.statusErklaerung.addEventListener('click', () => this.statusErklaerungUmschalten(false));
     // Runde 28: Statusleiste (oben links) antippen/anklicken → große Erklärung (Chips erklären sich weiter selbst)
     el('hud-werte').addEventListener('click', (e) => !e.target.closest('.zustand-chip') && this.statusErklaerungUmschalten());
@@ -949,7 +950,7 @@ export class Hud {
     if (!arbeit || abbau) return;
     const text = arbeit.wartet
       ? '💤 Warte, bis alle schlafen …'
-      : ({ angeln: '🎣 …', holz: '🪓 Baum fällen …', stein: '⛏ Stein abbauen …', eisenerz: '⛏ Eisenerz abbauen …', kochen: '🍳 Braten …', schlafen: '💤 Schlafen …', sitzen: arbeit.amFeuer ? '🔥 Am Feuer … (bewegen/Ä = aufstehen)' : '🪑 Sitzt … (bewegen/Ä = aufstehen)', zerlegen: '🔨 Abbauen …' }[arbeit.art] ?? '…');
+      : ({ angeln: '🎣 …', holz: '🪓 Baum fällen …', stein: '⛏ Stein abbauen …', eisenerz: '⛏ Eisenerz abbauen …', kochen: '🍳 Braten …', schlafen: '💤 Schlafen …', sitzen: arbeit.amFeuer ? '🔥 Am Feuer … (bewegen/Ä = aufstehen)' : '🪑 Sitzt … (bewegen/Ä = aufstehen)', zerlegen: '🔨 Abbauen …', konsum: { essen: '🍽 Essen … (bewegen = abbrechen)', trinken: '🥤 Trinken … (bewegen = abbrechen)', verband: '🩹 Verbinden … (bewegen = abbrechen)' }[arbeit.klang] }[arbeit.art] ?? '…');
     this.el.arbeitText.textContent = text;
     this.el.arbeit.classList.toggle('ohne-balken', arbeit.art === 'sitzen');
     this.el.arbeit.querySelector('.fuellung').style.width = `${Math.round(arbeit.fortschritt * 100)}%`;

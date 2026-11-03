@@ -38,6 +38,8 @@ export const KISTE_PLAETZE = 16;
 export const KOFFERRAUM_PLAETZE = 10;
 
 /** So nah (px) muss man an einem Gegenstand stehen, um ihn aufzuheben. */
+/** Runde 29: So weit reicht die Liste „liegt in der Nähe“ im Inventar (px) */
+export const UMGEBUNG_RADIUS = 110;
 export const AUFHEB_REICHWEITE = 48;
 
 /** So nah (px, bis zur Türkante) muss man an einer Tür stehen, um sie zu öffnen/schließen. */

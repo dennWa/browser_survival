@@ -473,10 +473,11 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
   display: flex;
   flex-direction: column;
   gap: 6px;
-  width: 190px;
-  padding: 10px;
+  width: min(620px, calc(100% - 24px));
+  padding: 12px;
+  z-index: 30; /* über Schnellleiste und Hinweisen */
   pointer-events: auto;
-  background: rgba(0, 0, 0, 0.72);
+  background: rgba(12, 14, 18, 0.97);
   border: 1px solid rgba(212, 160, 23, 0.6);
   border-radius: 8px;
 }
@@ -493,6 +494,13 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
 }
 
 #admin-panel button:hover { background: rgba(255, 255, 255, 0.18); }
+/* Runde 29: Tabelle Knopf | Was macht das (Desktop gut lesbar); schmal/Handy nur die Knöpfe */
+#admin-tabelle { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+#admin-tabelle td { padding: 3px 0; vertical-align: middle; border-bottom: 1px solid rgba(255, 255, 255, 0.07); }
+#admin-tabelle td:first-child { width: 42%; padding-right: 10px; }
+#admin-tabelle td:nth-child(2) { color: #e8e6df; }
+#admin-tabelle button { width: 100%; font-weight: 600; color: #fff; }
+#admin-waffen-zeile[hidden] { display: none; }
 #admin-panel { max-height: calc(100% - 80px - env(safe-area-inset-top)); overflow-y: auto; overscroll-behavior: contain; }
 .admin-waffen { display: flex; flex-direction: column; gap: 4px; padding: 4px 0 4px 8px; border-left: 2px solid rgba(212, 160, 23, 0.6); grid-column: 1 / -1; }
 .admin-waffen button { min-height: 32px !important; font-size: 0.8rem; }
@@ -511,14 +519,17 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
   #hotbar { gap: 3px; }
   #knopf-nachladen { bottom: 150px; right: 16px; }
   #hud-meldungen { top: 52px; }
-  #admin-panel { top: 48px; width: 165px; gap: 4px; padding: 8px; }
+  #admin-panel { top: 48px; width: 180px; gap: 4px; padding: 8px; }
   #admin-panel button { min-height: 32px; font-size: 0.8rem; }
+  #admin-tabelle td:nth-child(2) { display: none; }
+  #admin-tabelle td:first-child { width: auto; padding-right: 0; }
 }
 
 /* Handy quer: zweispaltig und flach, damit der rechte Stick frei bleibt */
 @media (max-height: 500px) {
-  #admin-panel { display: grid; grid-template-columns: 1fr 1fr; width: 300px; }
-  #admin-panel h3 { grid-column: 1 / -1; }
+  #admin-panel { width: 300px; }
+  #admin-tabelle tbody { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+  #admin-tabelle tr, #admin-tabelle td:first-child { display: block; border: 0; padding: 0; }
 }
 
 
@@ -1310,6 +1321,12 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
 .ausr-slot .slot-icon { position: absolute; inset: 4px; width: calc(100% - 8px); height: calc(100% - 8px); }
 .ausr-slot small { position: absolute; left: 0; right: 0; bottom: -1px; font-size: 0.55rem; color: var(--text-gedimmt); pointer-events: none; text-shadow: 0 1px 2px #000; }
 .ausr-slot.drop-ziel { border-color: #e8c35a; box-shadow: 0 0 0 2px rgba(232, 195, 90, 0.4); }
+#inventar-umgebung h4 { margin: 0 0 4px; font-size: 0.75rem; color: var(--text-gedimmt); font-weight: 600; }
+.umgebung-liste { display: flex; flex-direction: column; gap: 3px; max-height: 148px; overflow-y: auto; touch-action: pan-y; }
+.umgebung-item { display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 2px 8px; text-align: left; font-size: 0.8rem; color: var(--text); background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 7px; }
+.umgebung-item:hover { background: rgba(255, 255, 255, 0.14); }
+.umgebung-item canvas { width: 28px; height: 28px; flex: none; }
+.umgebung-leer { margin: 0; font-size: 0.75rem; color: var(--text-gedimmt); }
 #inventar-werte { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; font-size: 0.75rem; }
 #inventar-werte .inv-wert { display: flex; align-items: center; gap: 5px; padding: 5px 7px; background: rgba(255, 255, 255, 0.05); border-radius: 7px; }
 #inventar-werte .inv-wert b { margin-left: auto; color: #fff; }
@@ -1752,15 +1769,12 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
 
 /* Runde 28: Nässe-Symbol oben, Status-Erklärung (Statusleiste antippen) */
 #hud-werte { pointer-events: auto; cursor: pointer; }
-#hud-naesse {
-  display: inline-flex; align-items: center; gap: 6px; margin-left: 6px; padding: 4px 9px; pointer-events: auto; cursor: pointer;
-  font-size: 0.78rem; color: #cfe6ff; background: rgba(10, 30, 55, 0.72); border: 1px solid rgba(120, 180, 240, 0.45); border-radius: 12px;
-}
+#hud-naesse { display: flex; align-items: center; gap: 6px; padding: 1px 2px; font-size: 0.75rem; color: #cfe6ff; }
+#hud-naesse[hidden] { display: none; }
 #hud-naesse .ui-icon { width: 16px; height: 16px; color: #7cc0ff; }
 .naesse-stufen { display: inline-flex; gap: 2px; }
 .naesse-stufen i { width: 5px; height: 9px; border-radius: 2px; background: rgba(255, 255, 255, 0.18); }
 .naesse-stufen i.an { background: #59adff; }
-#hud-naesse[data-stufe='5'], #hud-naesse[data-stufe='4'] { border-color: rgba(120, 180, 255, 0.85); }
 @media (max-width: 520px) { #hud-naesse .naesse-text { display: none; } }
 #status-erklaerung {
   position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 40; width: min(460px, calc(100vw - 24px));

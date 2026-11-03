@@ -3,7 +3,7 @@
  * 8 Richtungen; diagonal nur, wenn beide angrenzenden geraden Kacheln frei sind (keine Ecken schneiden).
  * Blockiert ist, was auch die Bewegung blockiert (Wände, Fenster, Möbel, geschlossene Türen).
  * Mit `tuerKosten` gelten geschlossene Türen als passierbar, aber teuer – so planen Zombies den Weg
- * durch eine Tür und brechen sie unterwegs auf (zombieSystem).
+ * durch eine Tür und brechen sie unterwegs auf (zombieSystem). Runde 29: Wasser ist begehbar, aber teuer (`waten`, halbes Tempo).
  */
 const WURZEL_2 = Math.SQRT2;
 const RICHTUNGEN = [
@@ -14,7 +14,7 @@ const RICHTUNGEN = [
 /**
  * @returns {Array<{x, y}> | null}  Wegpunkte (Kachelmitten in Weltpixeln) ohne Startkachel, oder null
  */
-export function findePfad(welt, startX, startY, zielX, zielY, { maxKnoten = 8000, tuerKosten = null } = {}) {
+export function findePfad(welt, startX, startY, zielX, zielY, { maxKnoten = 8000, tuerKosten = null, waten = true } = {}) {
   const g = welt.kachelGroesse;
   const breite = welt.breite;
   const sx = Math.floor(startX / g);
@@ -22,7 +22,9 @@ export function findePfad(welt, startX, startY, zielX, zielY, { maxKnoten = 8000
   const zx = Math.floor(zielX / g);
   const zy = Math.floor(zielY / g);
   const durchTuer = (tx, ty) => tuerKosten !== null && welt.istGeschlosseneTuer(tx, ty);
-  if (welt.istBlockiert(zx, zy) && !durchTuer(zx, zy)) return null;
+  const nass = (tx, ty) => waten && welt.istWatbar?.(tx, ty) === true;
+  const blockiert = (tx, ty) => welt.istBlockiert(tx, ty) && !nass(tx, ty);
+  if (blockiert(zx, zy) && !durchTuer(zx, zy)) return null;
   if (sx === zx && sy === zy) return [];
 
   const start = sy * breite + sx;
@@ -45,13 +47,13 @@ export function findePfad(welt, startX, startY, zielX, zielY, { maxKnoten = 8000
     for (const [dx, dy, schrittKosten] of RICHTUNGEN) {
       const nx = ax + dx;
       const ny = ay + dy;
-      let extra = 0;
-      if (welt.istBlockiert(nx, ny)) {
+      let extra = nass(nx, ny) ? 1 : 0;
+      if (blockiert(nx, ny)) {
         // Geschlossene Tür: nur gerade hindurch, kostet extra (Aufbrechen dauert)
         if (dx !== 0 && dy !== 0 || !durchTuer(nx, ny)) continue;
         extra = tuerKosten;
       }
-      if (dx !== 0 && dy !== 0 && (welt.istBlockiert(ax + dx, ay) || welt.istBlockiert(ax, ay + dy))) continue;
+      if (dx !== 0 && dy !== 0 && (blockiert(ax + dx, ay) || blockiert(ax, ay + dy))) continue;
       const nachbar = ny * breite + nx;
       const neueKosten = kosten.get(aktuell) + schrittKosten + extra;
       if (neueKosten < (kosten.get(nachbar) ?? Infinity)) {

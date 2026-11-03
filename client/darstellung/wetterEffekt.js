@@ -4,7 +4,7 @@ import * as THREE from 'three';
 /**
  * Wetter (Darstellung): Regen = fallende Striche rund um den Spieler, Schnee = langsam taumelnde Flocken (nur Schneezonen,
  * lautlos), Nebel = dichterer Nebel + graue Stimmung.
- * Der Server schickt nur die Art ('klar' | 'regen' | 'gewitter' | 'sturm' | 'nebel' | 'schnee' | 'schneesturm', ZUSTAND.wetter);
+ * Der Server schickt nur die Art ('klar' | 'regen' | 'starkregen' | 'gewitter' | 'sturm' | 'nebel' | 'schnee' | 'schneesturm', ZUSTAND.wetter);
  * hier blenden sich die Werte weich über (regen/nebel/schnee/sturm/gewitter 0..1 → Renderer: Nebelweite, Lichtstärke,
  * Himmelsfarbe, Ton). Runde 23: Gewitter = dichter, schräger Regen + Blitze (`blitz` 0..1, Haken `beiBlitz(staerke, nah)` →
  * Donner im clientSpiel), Sturm = starker Wind (Bäume, schräger Niederschlag), Schneesturm = dichter, waagerecht treibender Schnee.
@@ -107,6 +107,7 @@ export class WetterEffekt {
     this.boe = 0; // 0..1 aktuelle Böe (für Ton und Blätter)
     this.sturm = 0; // 0..1 Sturmstärke (Sturm, Gewitter, Schneesturm)
     this.gewitter = 0; // 0..1
+    this.starkregen = 0; // 0..1 (Runde 29: dichterer Regen, eigener Ton)
     this.blitz = 0; // 0..1 aktuelle Helligkeit eines Blitzes (Renderer hellt Licht/Himmel auf)
     this.naechsterBlitz = 4;
     this.blitzFolge = []; // Zeitpunkte (s) der Nachblitze
@@ -190,7 +191,7 @@ export class WetterEffekt {
   }
 
   setzeArt(art) {
-    this.art = ['regen', 'gewitter', 'sturm', 'nebel', 'schnee', 'schneesturm'].includes(art) ? art : 'klar';
+    this.art = ['regen', 'starkregen', 'gewitter', 'sturm', 'nebel', 'schnee', 'schneesturm'].includes(art) ? art : 'klar';
   }
 
   /** Stärke des Wetters für Ton & Licht (0 = klar … 1 = voll). */
@@ -202,11 +203,11 @@ export class WetterEffekt {
   aktualisiere(dt, fokusX, fokusY, drinnen = false) {
     if (!Number.isFinite(dt) || dt < 0) dt = 0;
     // Runde 26: einmal NaN = für immer NaN (Nebel/Himmel kaputt) → Zustände reparieren
-    for (const k of ['regen', 'nebel', 'schnee', 'sturm', 'gewitter', 'boe', 'windZeit', 'aussen', 'bewoelkt']) if (!Number.isFinite(this[k])) this[k] = k === 'aussen' ? 1 : 0;
+    for (const k of ['regen', 'nebel', 'schnee', 'sturm', 'gewitter', 'starkregen', 'boe', 'windZeit', 'aussen', 'bewoelkt']) if (!Number.isFinite(this[k])) this[k] = k === 'aussen' ? 1 : 0;
     if (!Number.isFinite(this.windStufe)) this.windStufe = 1;
     const a = this.art;
     // Zielwerte je Wetterlage: gemeinsam/audio/umgebung.js (auch Studio-Mischpult)
-    const { regen: zielRegen, schnee: zielSchnee, nebel: zielNebel, sturm: zielSturm, gewitter: zielGewitter } = wetterZiel(a);
+    const { regen: zielRegen, schnee: zielSchnee, nebel: zielNebel, sturm: zielSturm, gewitter: zielGewitter, starkregen: zielStark } = wetterZiel(a);
     const schritt = BLENDE_PRO_SEKUNDE * dt;
     const blende = (wert, ziel) => wert + Math.max(-schritt, Math.min(schritt, ziel - wert));
     this.regen = blende(this.regen, zielRegen);
@@ -214,6 +215,7 @@ export class WetterEffekt {
     this.schnee = blende(this.schnee, zielSchnee);
     this.sturm = blende(this.sturm, zielSturm);
     this.gewitter = blende(this.gewitter, zielGewitter);
+    this.starkregen = blende(this.starkregen, zielStark);
     // Wind passt sich dem Wetter an: Nebel = fast windstill, klar = leicht (mit Böen), Regen = mittel, Sturm = stark mit Böen
     this.windZeit += dt;
     const boeSchnell = 0.5 + 0.5 * Math.sin(this.windZeit * 0.9) * Math.sin(this.windZeit * 0.37 + 2);
@@ -249,8 +251,9 @@ export class WetterEffekt {
     const u = this.material.uniforms;
     u.uZeit.value = this.zeit;
     u.uFokus.value.set(fokusX, 0, fokusY);
-    u.uAnteil.value = Math.min(1, this.regen * (0.55 + 0.45 * this.gewitter) + 0.05);
-    u.uDeckkraft.value = (0.5 + 0.12 * this.gewitter) * this.regen * this.aussen;
+    const stark = Math.max(this.gewitter, this.starkregen);
+    u.uAnteil.value = Math.min(1, this.regen * (0.55 + 0.45 * stark) + 0.05);
+    u.uDeckkraft.value = (0.5 + 0.12 * stark) * this.regen * this.aussen;
     u.uWind.value = windSchraeg;
   }
 

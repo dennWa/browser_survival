@@ -100,6 +100,7 @@ export const STANDARD_KONFIGURATION = Object.freeze({
   fahrzeug: {
     haltbarkeit: 10,
     ueberfahrSchaden: 0.5, // pro überfahrenem Zombie (verhindert endloses Zombie-Farmen mit dem Auto)
+    schussFaktor: 0.02, // Runde 29: Schüsse: Schaden der Waffe × Faktor = Haltbarkeit (Pistole ~20 Schuss bis zum Wrack)
     /**
      * Aufprall an Wand/anderem Fahrzeug ab 17 km/h (gemeinsam/physik/fahrzeug.js AUFPRALL_MIN_KMH): Schaden am eigenen Auto,
      * linear von `min` (bei 17 km/h) bis `max` (bei 120 km/h = Vollgas); Entlangschrammen nur `schrammFaktor` davon; `pause` Sekunden Ruhe zwischen zwei Aufprällen.
@@ -154,6 +155,7 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     nacht: 0.12,
     schneeNacht: 0.25,
     regen: 0.15,
+    starkregen: 0.2, // Runde 29
     gewitter: 0.25,
     sturm: 0.12,
     schnee: 0.2,
@@ -224,6 +226,7 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     pauseMax: 420,
     regenAnteil: 0.6, // Anteil Niederschlag (Regen/Schnee), Rest Nebel bzw. Sturm
     gewitterAnteil: 0.3, // vom Niederschlag: Gewitter (Schneezonen: Schneesturm)
+    starkregenAnteil: 0.35, // Runde 29: vom übrigen Regen: Starkregen (eigener Ton regen_stark, Wind ≥ 0,7)
     sturmAnteil: 0.35, // vom Rest: Sturm statt Nebel
     windMin: 45, // Runde 24: Sekunden, bis der Grundwind ein neues Ziel würfelt (ruhig/leicht/frisch/stark)
     windMax: 150,
@@ -298,18 +301,18 @@ export const STANDARD_KONFIGURATION = Object.freeze({
   /**
    * Runde 28: Nässe (5 Stufen: klamm, feucht, nass, sehr nass, klatschnass) und Erkältung (gesundheitSystem.aktualisiereNaesse).
    * Draußen im Regen steigt die Nässe um 1 Stufe je `regenSekunden` (Regenschutz der Kleidung bremst), drinnen/im Auto sinkt
-   * sie um 1 Stufe je `trocknenDrinnen` s (am Feuer schneller, draußen ohne Regen langsamer).
+   * sie um 1 Stufe je `trocknenDrinnen` s (am Feuer schneller; draußen nur bei Sonne am Tag, 1 Stufe je `trocknenDraussen` s).
    * Ab Stufe `risikoAb` (feucht) läuft der Erkältungs-Zähler; nach `erkaeltungNach` s ohne Trocknen → Erkältung (0..100, wird
    * mit der Zeit schlimmer). Ab `sprintAb` nur noch `sprintFaktor` Sprinttempo, ab `schadenAb` sanfter Lebensverlust.
    * Husten: alle hustenMax … hustenMin s (je schlimmer, desto öfter). Heilung: Antibiotika.
    */
   naesse: {
-    regenSekunden: 36,
+    regenSekunden: 15, // Runde 29 (Nutzer-Wunsch): nach 15 s im Regen wird man nass
     gewitterFaktor: 1.5,
     schneeFaktor: 0.35,
     trocknenDrinnen: 60, // 1 Stufe pro Minute (Nutzer-Wunsch)
     trocknenFeuer: 30,
-    trocknenDraussen: 120,
+    trocknenDraussen: 120, // Runde 29: alle 2 min eine Stufe, nur bei klarem Wetter am Tag
     risikoAb: 2,
     erkaeltungNach: 300, // 5 Minuten mindestens feucht
     erkaeltungProMinute: 4, // 0 → 100 in ~25 min
@@ -322,6 +325,8 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     hustenMin: 7,
     kaelteProStufe: 0.15, // nass friert man schneller (+15 % je Stufe)
   },
+  /** Runde 29: Essen, Trinken, Medizin brauchen Zeit (s); man muss stehen bleiben, Laufen/Schaden bricht ab (arbeitSystem). 0 = sofort */
+  konsum: { dauer: 5 },
   /** Runde 24 (P14): Gruppen, Handel, Niederstrecken (systeme/mehrspielerSystem.js). niederDauer 0 = sofort tot */
   mehrspieler: {
     reichweite: 90, // px: einladen, handeln, helfen

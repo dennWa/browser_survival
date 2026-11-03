@@ -68,7 +68,7 @@ const musik = new ZonenMusik(sound); // Zonen-Musik aus client/musik/<zone>/ (l�
 // Phase 10.2 (Audio-Zentrale): Klick-Sound für Knöpfe (nicht für Aktionsknöpfe im Spiel), Inventar auf/zu, Hauptmenü-Musik
 document.addEventListener('click', (e) => {
   const knopf = e.target.closest?.('button');
-  if (knopf && !knopf.id.startsWith('knopf-') && knopf.id !== 'hud-licht') sound.spiele('ui_klick');
+  if (knopf && !knopf.id.startsWith('knopf-') && knopf.id !== 'hud-licht') sound.spiele(aktuellesSpiel ? 'ui_klick' : 'menue_klick'); // Runde 29: eigener Klang im Hauptmenü
 }, true);
 hud.inventar.beiUmschalten = (offen) => sound.spiele(offen ? 'inventar_auf' : 'inventar_zu');
 // Tutorial (docs/konzepte/TUTORIAL_KONZEPT.md): eigene Zone, lokal; am Ende „Story jetzt starten?“
@@ -119,6 +119,7 @@ eingabe.beiTaste('spielerliste', () => aktuellesSpiel && hud.spielerlisteUmschal
 eingabe.beiTaste('nachladen', () => aktuellesSpiel?.nachladen());
 eingabe.beiTaste('kofferraum', () => aktuellesSpiel?.kofferraum());
 eingabe.beiTaste('sitzen', () => aktuellesSpiel?.sitzen());
+eingabe.beiTaste('autorun', () => aktuellesSpiel?.autorunUmschalten());
 eingabe.beiTaste('bauen', () => aktuellesSpiel?.bauUmschalten(eingabe.sprint())); // Umschalt+B (Admin): Flugmodus
 eingabe.beiTaste('abriss', () => aktuellesSpiel?.bauAbriss());
 eingabe.beiTaste('gebiet', () => aktuellesSpiel?.bauGebiet());
@@ -132,6 +133,7 @@ hud.beiTon(tonUmschalten);
 eingabe.beiTaste('ton', tonUmschalten);
 hud.beiAktionen({
   aufheben: () => aktuellesSpiel?.aufheben(),
+  aufhebenZiel: (id) => aktuellesSpiel?.aufhebenZiel(id),
   nachladen: () => aktuellesSpiel?.nachladen(),
   angeln: () => aktuellesSpiel?.angeln(),
   benutzen: (slot) => aktuellesSpiel?.benutzen(slot),

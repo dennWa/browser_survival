@@ -3,6 +3,8 @@
  * Lautstärke je Ereignis: eigene/lautstaerke.txt bzw. eigene/einstellungen.json (Audio-Zentrale) → eigene.json. Ereignisliste: eigeneSounds.js.
  * Dauergeräusche (Phase 10.2): wind, regen, nacht, motor laufen als Schleife – aus der eigenen Datei, sonst synthetisch.
  * Runde 26: Wünsche vor dem Entsperren (Regen/Nacht/Schichten) werden bei 'running' nachgeholt (#nachholen).
+ * Runde 29: Draußen-Schichten laufen über den Tiefpass #draussenFilter – setzeDrinnen(true) macht sie dumpf wie durch die Wand
+ * (kein zweiter Satz Dateien); spiele({ draussen: true }) = Kurzgeräusch von draußen, drinnen leise und dumpf.
  * Einstellungen je Ereignis: lautstaerke (Faktor, alle Quellen), streuung (± Tonhöhe je Abspielen), loop.
  *
  * Räumlicher Klang: Lautstärke nimmt mit der Entfernung zum Hörer (eigener Spieler) ab,
@@ -25,6 +27,12 @@ const HOERWEITE = 900; // px, ab hier unhörbar
 const ANSCHLAG = 0.004;
 /** Geräusche minimal in die Zukunft planen: kommt der Haupt-Thread zu spät, beginnt sonst die Hülle mittendrin. */
 const VORLAUF = 0.012;
+/** Runde 29: Klang von draußen, wenn man drinnen ist */
+const DRINNEN_GRENZFREQUENZ = 620;
+const DRAUSSEN_GRENZFREQUENZ = 20000;
+const DRINNEN_KURZ_PEGEL = 0.4;
+/** Diese Schichten kommen von draußen (Kamin, Regen aufs Dach, Generator & Co. nicht) */
+const DRAUSSEN_SCHICHTEN = new Set(['sturm', 'schneesturm', 'regen_stark', 'tag', 'nacht_wind', 'wind_leicht', 'wind_stark', 'blizzard_a', 'blizzard_b']);
 
 /** Relative Lautstärke je Aufnahme (alle Proben sind auf etwa gleiche Lautheit normalisiert). */
 const PROBEN_PEGEL = {
@@ -41,6 +49,8 @@ export class Sound {
   #musikBus = null;
   #regen = null;
   #atmoBus = null; // Wind & Co. laufen am Kompressor vorbei: laute Schüsse drücken sie sonst weg ("Wind bricht ab")
+  #draussenFilter = null; // Runde 29: alle Draußen-Schichten → Tiefpass → #atmoBus
+  #drinnen = false;
   #rauschen = null;
   #wind = null;
   #motor = null;
@@ -126,6 +136,11 @@ export class Sound {
     this.#musikBus = ctx.createGain();
     this.#effekte.connect(kompressor).connect(this.#ausgang);
     this.#atmoBus.connect(this.#ausgang);
+    this.#draussenFilter = ctx.createBiquadFilter();
+    this.#draussenFilter.type = 'lowpass';
+    this.#draussenFilter.Q.value = 0.3;
+    this.#draussenFilter.frequency.value = this.#drinnen ? DRINNEN_GRENZFREQUENZ : DRAUSSEN_GRENZFREQUENZ;
+    this.#draussenFilter.connect(this.#atmoBus);
     this.#musikBus.connect(this.#ausgang); // Musik am Kompressor vorbei (Schüsse drücken sie nicht weg)
     this.#ausgang.connect(ctx.destination);
     // Wächter: liest hinter dem Kompressor mit – NaN dort (instabiler Filter) macht ihn für immer stumm → Neuaufbau
@@ -370,6 +385,13 @@ export class Sound {
     return quelle;
   }
 
+  /** Runde 29: Hörer ist drinnen (Haus, Türrahmen, Auto) → Draußen-Schichten klingen dumpf, weich überblendet */
+  setzeDrinnen(drinnen) {
+    if (drinnen === this.#drinnen) return;
+    this.#drinnen = drinnen;
+    if (this.#ctx) this.#draussenFilter.frequency.setTargetAtTime(drinnen ? DRINNEN_GRENZFREQUENZ : DRAUSSEN_GRENZFREQUENZ, this.#ctx.currentTime, 0.18);
+  }
+
   setzeHoerer(x, y) {
     this.#hoerer.x = x;
     this.#hoerer.y = y;
@@ -379,7 +401,7 @@ export class Sound {
    * Spielt ein Geräusch. Ohne x/y: direkt "im Kopf" (eigene Aktionen).
    * @param optionen { x, y, lautstaerke = 1, tonhoehe = 1 }
    */
-  spiele(name, { x, y, lautstaerke = 1, tonhoehe = 1, dumpf = false, raeumlich = false, weite = HOERWEITE, kurve = 1.6 } = {}) {
+  spiele(name, { x, y, lautstaerke = 1, tonhoehe = 1, dumpf = false, raeumlich = false, weite = HOERWEITE, kurve = 1.6, draussen = false } = {}) {
     const ctx = this.#ctx;
     const rezept = REZEPTE[name];
     const proben = this.#proben[name];
@@ -404,6 +426,10 @@ export class Sound {
       // Ferne klingt dumpfer (Luft schluckt Höhen), hinter Wänden noch mehr
       if (abstand > 120) tiefpass = 900 + 16000 * nah * nah;
       if (dumpf) tiefpass = Math.min(tiefpass || 20000, 650 + 900 * nah);
+    }
+    if (draussen && this.#drinnen) {
+      gain *= DRINNEN_KURZ_PEGEL;
+      tiefpass = Math.min(tiefpass || 20000, DRINNEN_GRENZFREQUENZ + 300);
     }
     if (gain < 0.01) return;
 
@@ -582,7 +608,7 @@ export class Sound {
     if (eigen) {
       const g = ctx.createGain();
       g.gain.value = WIND_EIGEN * pegel;
-      eigen.connect(g).connect(this.#atmoBus);
+      eigen.connect(g).connect(this.#draussenFilter);
       eigen.start();
       this.#wind = Object.assign([eigen], { synth: false, regler: (p) => (g.gain.value = WIND_EIGEN * p) });
       return;
@@ -611,7 +637,7 @@ export class Sound {
     brummen.frequency.value = 49; // Netzbrummen der Notbeleuchtung
     const brummGain = ctx.createGain();
     brummGain.gain.value = WIND_BRUMM * pegel;
-    quelle.connect(filter).connect(gain).connect(this.#atmoBus);
+    quelle.connect(filter).connect(gain).connect(this.#draussenFilter);
     brummen.connect(brummGain).connect(this.#atmoBus);
     for (const knoten of [quelle, lfo, lfo2, brummen]) knoten.start();
     this.#wind = Object.assign([quelle, lfo, lfo2, brummen], {
@@ -660,7 +686,7 @@ export class Sound {
       if (eigen) {
         const gain = ctx.createGain();
         gain.gain.value = 0;
-        eigen.connect(gain).connect(this.#atmoBus);
+        eigen.connect(gain).connect(this.#draussenFilter);
         eigen.start();
         this.#regen = { quelle: eigen, gain, faktor: 0.6 };
       }
@@ -678,7 +704,7 @@ export class Sound {
       tief.frequency.value = 7500;
       const gain = ctx.createGain();
       gain.gain.value = 0;
-      quelle.connect(hoch).connect(tief).connect(gain).connect(this.#atmoBus);
+      quelle.connect(hoch).connect(tief).connect(gain).connect(this.#draussenFilter);
       quelle.start();
       this.#regen = { quelle, gain, faktor: 0.16, synth: true };
     }
@@ -712,7 +738,7 @@ export class Sound {
       if (!quelle) return;
       const gain = ctx.createGain();
       gain.gain.value = 0;
-      quelle.connect(gain).connect(this.#atmoBus);
+      quelle.connect(gain).connect(DRAUSSEN_SCHICHTEN.has(name) ? this.#draussenFilter : this.#atmoBus);
       // zufälliger Einstieg in die Schleife, damit es nicht jedes Mal gleich beginnt
       quelle.start(0, Math.random() * (quelle.buffer?.duration ?? 0));
       s = { quelle, gain };
@@ -743,7 +769,7 @@ export class Sound {
       }
       const gain = ctx.createGain();
       gain.gain.value = 0;
-      quelle.connect(gain).connect(this.#atmoBus);
+      quelle.connect(gain).connect(this.#draussenFilter);
       quelle.start();
       this.#nacht = { quelle, gain, faktor: eigen ? 0.5 : 0.09, synth: !eigen };
     }
@@ -834,6 +860,24 @@ const REZEPTE = {
       z += 0.045 + Math.random() * 0.035;
     }
     return dauer + 0.05;
+  },
+  // Runde 29: Kleidung – zwei weiche Stoffwischer (Rauschen), keine Stimme mehr (die alten Red-Library-Dateien hatten Sprache drin)
+  anziehen: ({ ctx, ausgang, t, rauschen }) => {
+    for (const [ab, lang, hoch] of [[0, 0.16, 1500], [0.17, 0.22, 1100]]) {
+      const q = ctx.createBufferSource();
+      q.buffer = rauschen;
+      const f = ctx.createBiquadFilter();
+      f.type = 'bandpass';
+      f.frequency.value = hoch;
+      f.Q.value = 0.8;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, t + ab);
+      g.gain.linearRampToValueAtTime(0.22, t + ab + lang * 0.35);
+      g.gain.linearRampToValueAtTime(0, t + ab + lang);
+      q.connect(f).connect(g).connect(ausgang);
+      q.start(t + ab, Math.random() * 1.5, lang);
+    }
+    return 0.42;
   },
   leer: ({ ctx, ausgang, t }) => {
     klick(ctx, ausgang, t, 2200, 0.25);

@@ -12,12 +12,14 @@ import { pruefeAussehen } from '../../../gemeinsam/spieler/aussehen.js';
  * Sie benutzen exakt denselben Eingabeweg wie echte Spieler (eingabePuffer/aktionsPuffer) – keine Sonderphysik, kein Wallhack
  * (Zombies nur mit freier Sichtlinie). Nicht gespeichert, keine Zonenwechsel, zählen nicht beim Schlafen mit.
  * Anzahl je Zone: konfiguration.bots.proKarte (Zone legt sie an); Admin: Bot setzen/entfernen per Klick (adminSystem).
+ * Runde 29: Wer einen Bot trifft, wird für FEIND_ZEIT s sein Ziel (wehreDich, kampfSystem) – auch ohne PvP, er schießt zurück.
  */
 const NAMEN = ['Anna', 'Ben', 'Clara', 'David', 'Emil', 'Frieda', 'Greta', 'Hugo', 'Ida', 'Jonas', 'Karla', 'Lenny'];
 const SICHT = 430; // px, so weit „sieht“ ein Bot Zombies
 const WAHRNEHMUNG_TAKT = 0.2; // s
 const LOOT_RADIUS = 420;
 const SCHUSS_ABSTAND = { min: 130, max: 330 };
+const FEIND_ZEIT = 30; // s
 
 /** Bot in die Zone setzen (an einem Startpunkt oder an x/y). @returns Spieler-Entität */
 export function spawneBot(spielWelt, { x = null, y = null } = {}) {
@@ -43,6 +45,18 @@ export function entferneBot(spielWelt, bot) {
   if (bot?.bot) spielWelt.entfernen(bot.id);
 }
 
+/** Runde 29: Ein Spieler hat den Bot getroffen → Bot greift ihn an (Ziel wechselt sofort, kurze Schrecksekunde). */
+export function wehreDich(bot, angreifer) {
+  const b = bot.bot;
+  b.feindId = angreifer.id;
+  b.feindRest = FEIND_ZEIT;
+  if (b.zielId !== angreifer.id) {
+    b.zielId = angreifer.id;
+    b.reaktion = 0.35;
+    b.pfad = null;
+  }
+}
+
 /** Pro Tick (vor den Spieler-Eingaben): jeder Bot schiebt genau eine Eingabe und ggf. eine Aktion in seine Puffer. */
 export function aktualisiereBots(spielWelt, dt) {
   for (const bot of spielWelt.alleVomTyp('spieler')) {
@@ -55,12 +69,17 @@ function denke(spielWelt, bot, dt) {
   const b = bot.bot;
   const z = spielWelt.zufall;
   b.aktionWarte = Math.max(0, b.aktionWarte - dt);
+  if (b.feindRest > 0 && (b.feindRest -= dt) <= 0) b.feindId = null;
   b.wahrnehmung -= dt;
   if (b.wahrnehmung <= 0) {
     b.wahrnehmung = WAHRNEHMUNG_TAKT;
     nimmWahr(spielWelt, bot);
   }
   versorge(spielWelt, bot);
+  if (bot.arbeit?.art === 'konsum' && !b.zielId) {
+    bot.eingabePuffer.push({ seq: ++b.seq, x: 0, y: 0, blick: bot.blick, angriff: false, sprint: false }); // Runde 29: beim Essen stehen bleiben
+    return;
+  }
   let richtung = { x: 0, y: 0 };
   let angriff = false;
   let sprint = false;
@@ -113,7 +132,11 @@ function nimmWahr(spielWelt, bot) {
   const b = bot.bot;
   let bester = null;
   let bestAbstand = SICHT;
-  for (const zombie of spielWelt.alleVomTyp('zombie')) {
+  const feind = b.feindId ? spielWelt.holen(b.feindId) : null;
+  if (feind?.tot || !feind) b.feindId = null;
+  // Runde 29: der Angreifer geht vor Zombies, solange man ihn sieht
+  else if (Math.hypot(feind.x - bot.x, feind.y - bot.y) < SICHT * 1.3 && sichtlinieFrei(spielWelt.welt, bot.x, bot.y, feind.x, feind.y)) bester = feind;
+  if (!bester) for (const zombie of spielWelt.alleVomTyp('zombie')) {
     if (zombie.tot) continue;
     const abstand = Math.hypot(zombie.x - bot.x, zombie.y - bot.y);
     if (abstand >= bestAbstand) continue;
@@ -142,7 +165,7 @@ function versorge(spielWelt, bot) {
   if (slot < 0 && bot.hunger < 35) slot = slotVon((d) => d.kategorie === 'nahrung');
   if (slot >= 0) {
     bot.aktionsPuffer.push({ art: AKTIONEN.KONSUMIEREN, slot });
-    b.aktionWarte = 1.5;
+    b.aktionWarte = 1.5 + (spielWelt.konfiguration.konsum?.dauer ?? 0);
   }
 }
 

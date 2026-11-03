@@ -548,7 +548,7 @@ export class SpielServer {
     if (n.art === AKTIONEN.GRUPPE || n.art === AKTIONEN.HANDEL || n.art === AKTIONEN.HELFEN) {
       Object.assign(aktion, { was: n.was ?? null, ziel: Number.isInteger(n.ziel) ? n.ziel : null, name: typeof n.name === 'string' ? n.name.slice(0, 20) : null });
     }
-    if (n.art === AKTIONEN.TAUSCHEN) aktion.ziel = n.ziel;
+    if (n.art === AKTIONEN.TAUSCHEN || n.art === AKTIONEN.AUFHEBEN) aktion.ziel = n.ziel; // Aufheben: gezielt aus der Umgebungs-Liste (Runde 29)
     if (n.art === AKTIONEN.AUSZIEHEN) aktion.stelle = n.stelle;
     if (n.art === AKTIONEN.ABLEGEN) aktion.einzeln = n.einzeln === true;
     if (n.art === AKTIONEN.PLATZIEREN || n.art === AKTIONEN.FELD || n.art === AKTIONEN.FELD_ENTFERNEN) Object.assign(aktion, { tx: n.tx, ty: n.ty });

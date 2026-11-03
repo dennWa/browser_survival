@@ -12,6 +12,12 @@ export const FLUG_TEMPO = 480; // px/s im Admin-Flugmodus (Gehen 80, Rennen 150)
 const FLUG_SPRINT = 3;
 /** Eis: so schnell (Anteil pro Sekunde) passt sich die Geschwindigkeit dem Wunsch an – klein = rutschiger */
 export const EIS_GRIFF = 2.2;
+/** Runde 29: Im Wasser halbes Tempo (Spieler, Zombies, Hunde) */
+export const WASSER_TEMPO = 0.5;
+export const wasserFaktor = (welt, x, y) => (welt.istWasser?.(x, y) ? WASSER_TEMPO : 1);
+/** Runde 29: Wer darf ins Wasser? Tiere nicht (Katzen warten am Ufer) – außer Hunden. */
+const watet = (k) => k.typ !== 'tier' || k.art === 'hund';
+const gehBlockiert = (k, welt, tx, ty) => welt.istBlockiert(tx, ty) && !(watet(k) && welt.istWatbar?.(tx, ty));
 
 /** Macht aus einer (evtl. manipulierten) Eingabe einen gültigen Richtungsvektor mit Länge ≤ 1. */
 export function richtungAusEingabe(eingabe) {
@@ -54,7 +60,7 @@ export function wendeEingabeAn(koerper, eingabe, welt, parameter, dt) {
   // Runde 28: sprintMalus (Erkältung) bremst nur das Rennen
   const faktor = sprintet ? parameter.sprintFaktor * (koerper.sprintMalus ?? 1) : willSprinten ? (parameter.joggFaktor ?? 1) : 1;
   // tempoFaktor: Skill "Schnelligkeit" (Server setzt ihn am Spieler, der Client übernimmt ihn für die Vorhersage)
-  const tempo = parameter.geschwindigkeit * (koerper.tempoFaktor ?? 1) * faktor;
+  const tempo = parameter.geschwindigkeit * (koerper.tempoFaktor ?? 1) * faktor * wasserFaktor(welt, koerper.x, koerper.y);
   if (welt.istEis?.(koerper.x, koerper.y)) {
     // Eis (Runde 18): Die Geschwindigkeit folgt dem Wunsch nur träge → beim Anhalten und bei schnellen Seitwärts-Drehungen rutscht man weiter
     const griff = Math.min(1, EIS_GRIFF * dt);
@@ -139,11 +145,11 @@ function gleiteInOeffnung(k, richtungX, richtungY, tempo, r, welt) {
   const weite = g * GLEIT_ANTEIL;
   if (richtungX !== 0) {
     const tx = Math.floor((k.x + richtungX * (r + 1)) / g); // Spalte direkt voraus
-    const mitte = suchePassendeMitte(k.y, weite, g, (ty) => !welt.istBlockiert(tx, ty) && !welt.istBlockiert(Math.floor(k.x / g), ty));
+    const mitte = suchePassendeMitte(k.y, weite, g, (ty) => !gehBlockiert(k, welt, tx, ty) && !gehBlockiert(k, welt, Math.floor(k.x / g), ty));
     if (mitte !== null) bewegeY(k, Math.sign(mitte - k.y) * Math.min(Math.abs(mitte - k.y), tempo), r, welt);
   } else {
     const ty = Math.floor((k.y + richtungY * (r + 1)) / g);
-    const mitte = suchePassendeMitte(k.x, weite, g, (tx) => !welt.istBlockiert(tx, ty) && !welt.istBlockiert(tx, Math.floor(k.y / g)));
+    const mitte = suchePassendeMitte(k.x, weite, g, (tx) => !gehBlockiert(k, welt, tx, ty) && !gehBlockiert(k, welt, tx, Math.floor(k.y / g)));
     if (mitte !== null) bewegeX(k, Math.sign(mitte - k.x) * Math.min(Math.abs(mitte - k.x), tempo), r, welt);
   }
 }
@@ -173,7 +179,7 @@ function bewegeX(k, dx, r, welt) {
     const von = Math.floor((k.x + r) / g);
     const bis = Math.floor((neuX + r - EPSILON) / g);
     for (let tx = von; tx <= bis; tx++) {
-      if (spalteBlockiert(welt, tx, ty0, ty1)) {
+      if (spalteBlockiert(k, welt, tx, ty0, ty1)) {
         neuX = Math.min(neuX, tx * g - r - EPSILON);
         break;
       }
@@ -182,7 +188,7 @@ function bewegeX(k, dx, r, welt) {
     const von = Math.floor((k.x - r) / g);
     const bis = Math.floor((neuX - r) / g);
     for (let tx = von; tx >= bis; tx--) {
-      if (spalteBlockiert(welt, tx, ty0, ty1)) {
+      if (spalteBlockiert(k, welt, tx, ty0, ty1)) {
         neuX = Math.max(neuX, (tx + 1) * g + r + EPSILON);
         break;
       }
@@ -200,7 +206,7 @@ function bewegeY(k, dy, r, welt) {
     const von = Math.floor((k.y + r) / g);
     const bis = Math.floor((neuY + r - EPSILON) / g);
     for (let ty = von; ty <= bis; ty++) {
-      if (zeileBlockiert(welt, ty, tx0, tx1)) {
+      if (zeileBlockiert(k, welt, ty, tx0, tx1)) {
         neuY = Math.min(neuY, ty * g - r - EPSILON);
         break;
       }
@@ -209,7 +215,7 @@ function bewegeY(k, dy, r, welt) {
     const von = Math.floor((k.y - r) / g);
     const bis = Math.floor((neuY - r) / g);
     for (let ty = von; ty >= bis; ty--) {
-      if (zeileBlockiert(welt, ty, tx0, tx1)) {
+      if (zeileBlockiert(k, welt, ty, tx0, tx1)) {
         neuY = Math.max(neuY, (ty + 1) * g + r + EPSILON);
         break;
       }
@@ -218,12 +224,12 @@ function bewegeY(k, dy, r, welt) {
   k.y = neuY;
 }
 
-function spalteBlockiert(welt, tx, ty0, ty1) {
-  for (let ty = ty0; ty <= ty1; ty++) if (welt.istBlockiert(tx, ty)) return true;
+function spalteBlockiert(k, welt, tx, ty0, ty1) {
+  for (let ty = ty0; ty <= ty1; ty++) if (gehBlockiert(k, welt, tx, ty)) return true;
   return false;
 }
 
-function zeileBlockiert(welt, ty, tx0, tx1) {
-  for (let tx = tx0; tx <= tx1; tx++) if (welt.istBlockiert(tx, ty)) return true;
+function zeileBlockiert(k, welt, ty, tx0, tx1) {
+  for (let tx = tx0; tx <= tx1; tx++) if (gehBlockiert(k, welt, tx, ty)) return true;
   return false;
 }

@@ -213,7 +213,7 @@ export function handelFuerClient(spielWelt, spieler) {
 /** Aus kampfSystem.toeten: statt zu sterben niedergestreckt werden? (true = ist jetzt niedergestreckt) */
 export function streckeNieder(spielWelt, spieler) {
   const k = spielWelt.konfiguration.mehrspieler;
-  if (!k?.niederDauer || spielWelt.tutorial || spieler.niedergestreckt > 0) return false;
+  if (!k?.niederDauer || spielWelt.tutorial || spieler.niedergestreckt > 0 || spieler.bot) return false; // Runde 29: Bots sterben gleich (lagen sonst zuckend am Boden)
   const helfer = [...spielWelt.alleVomTyp('spieler')].some((s) => s !== spieler && !s.tot && !s.bot && !(s.niedergestreckt > 0));
   if (!helfer) return false;
   Object.assign(spieler, { niedergestreckt: k.niederDauer, leben: 1, arbeit: null, angriff: false });

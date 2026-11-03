@@ -64,6 +64,33 @@ export function wegFrei(welt, ax, ay, bx, by, radius) {
 }
 
 /**
+ * Runde 29: Schnittpunkt Strahl ↔ gedrehtes Rechteck (Auto: Mitte, Winkel, halbe Länge/Breite).
+ * @returns Abstand t ≥ 0 bis zum Eintritt, oder null
+ */
+export function strahlTrifftBox(ox, oy, dx, dy, mx, my, winkel, halbLaenge, halbBreite) {
+  const c = Math.cos(winkel);
+  const s = Math.sin(winkel);
+  const px = (ox - mx) * c + (oy - my) * s;
+  const py = -(ox - mx) * s + (oy - my) * c;
+  const rx = dx * c + dy * s;
+  const ry = -dx * s + dy * c;
+  let ein = -Infinity;
+  let aus = Infinity;
+  for (const [p, r, h] of [[px, rx, halbLaenge], [py, ry, halbBreite]]) {
+    if (Math.abs(r) < 1e-9) {
+      if (Math.abs(p) > h) return null;
+      continue;
+    }
+    const a = (-h - p) / r;
+    const b = (h - p) / r;
+    ein = Math.max(ein, Math.min(a, b));
+    aus = Math.min(aus, Math.max(a, b));
+  }
+  if (ein > aus || aus < 0) return null;
+  return Math.max(0, ein);
+}
+
+/**
  * Schnittpunkt Strahl ↔ Kreis.
  * @param dx, dy  normierte Richtung
  * @returns Abstand t ≥ 0 bis zum Eintritt in den Kreis, oder null

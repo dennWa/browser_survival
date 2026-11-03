@@ -1,5 +1,5 @@
 import { sitztAmFeuer } from './stationSystem.js';
-import { bewegeKoerper } from '../../../gemeinsam/physik/bewegung.js';
+import { bewegeKoerper, wasserFaktor } from '../../../gemeinsam/physik/bewegung.js';
 import { sichtlinieFrei, wegFrei } from '../../../gemeinsam/physik/strahl.js';
 import { lerpWinkel } from '../../../gemeinsam/mathe.js';
 import { findePfad } from '../../../gemeinsam/physik/pfadfindung.js';
@@ -348,7 +348,7 @@ function schlurfe(spielWelt, z, dt, k) {
 
 function gehe(spielWelt, z, punkt, tempo, dt) {
   const winkel = Math.atan2(punkt.y - z.y, punkt.x - z.x);
-  const weg = tempo * dt * (z.bremse > 0 ? spielWelt.konfiguration.fallen.drahtBremse : 1);
+  const weg = tempo * dt * (z.bremse > 0 ? spielWelt.konfiguration.fallen.drahtBremse : 1) * wasserFaktor(spielWelt.welt, z.x, z.y); // Runde 29: im Wasser halbes Tempo
   bewegeKoerper(z, Math.cos(winkel) * weg, Math.sin(winkel) * weg, z.radius, spielWelt.welt);
   z.blick = lerpWinkel(z.blick, winkel, Math.min(1, dt * DREHGESCHWINDIGKEIT));
 }

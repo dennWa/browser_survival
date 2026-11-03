@@ -96,7 +96,7 @@ export function wendeSpielstandAn(spieler, stand, spielWelt) {
   // Position nur, wenn gleiche Karte und begehbar (Karte könnte sich geändert haben)
   const g = spielWelt.welt.kachelGroesse;
   if (stand.karte === spielWelt.karte.daten.id && Number.isFinite(stand.x) && Number.isFinite(stand.y)) {
-    if (!spielWelt.welt.istBlockiert(Math.floor(stand.x / g), Math.floor(stand.y / g))) {
+    if (!spielWelt.welt.istBlockiert(Math.floor(stand.x / g), Math.floor(stand.y / g)) || spielWelt.welt.istWatbar(Math.floor(stand.x / g), Math.floor(stand.y / g))) {
       spieler.x = stand.x;
       spieler.y = stand.y;
     }

@@ -1,5 +1,5 @@
 import { tutorialAktion } from './tutorialSystem.js';
-import { AUFHEB_REICHWEITE, INVENTAR_MAX, INVENTAR_PLAETZE, TICK_DAUER_S } from '../../../gemeinsam/konstanten.js';
+import { AUFHEB_REICHWEITE, INVENTAR_MAX, INVENTAR_PLAETZE, TICK_DAUER_S, UMGEBUNG_RADIUS } from '../../../gemeinsam/konstanten.js';
 import { samenZiel } from '../../../gemeinsam/welt/bauwerke.js';
 import { AKTIONEN } from '../../../gemeinsam/protokoll.js';
 import { GEGENSTAENDE, STANDARD_AUSRUESTUNG, UNBEWAFFNET, waffenWerte } from '../konfiguration/gegenstaende.js';
@@ -92,7 +92,7 @@ export function verarbeiteAktionen(spielWelt) {
           stelleHer(spielWelt, spieler, aktion.rezept);
           break;
         case AKTIONEN.AUFHEBEN:
-          aufheben(spielWelt, spieler);
+          aufheben(spielWelt, spieler, aktion.ziel);
           break;
         case AKTIONEN.BENUTZEN:
           benutzen(spielWelt, spieler, aktion.slot);
@@ -100,9 +100,13 @@ export function verarbeiteAktionen(spielWelt) {
         case AKTIONEN.KONSUMIEREN:
           // Doppelklick im Inventar: sofort essen/trinken/heilen (gleiche Abklingzeit wie der Linksklick aus der Hand)
           // Runde 28: eigene kurze Sperre statt der Angriffs-Abklingzeit – vorher schluckte ein Schuss/Schlag kurz davor den Doppelklick still
-          if ((spielWelt.tick - (spieler.letzterKonsumTick ?? -1e9)) * TICK_DAUER_S >= KONSUM_SPERRE_S && spieler.inventar[aktion.slot] && konsumiere(spielWelt, spieler, aktion.slot)) {
+          if (spieler.arbeit?.art !== 'konsum' && (spielWelt.tick - (spieler.letzterKonsumTick ?? -1e9)) * TICK_DAUER_S >= KONSUM_SPERRE_S && spieler.inventar[aktion.slot] && starteKonsum(spielWelt, spieler, aktion.slot)) {
             spieler.letzterKonsumTick = spielWelt.tick;
             spieler.angriffsAbklingzeit = Math.max(spieler.angriffsAbklingzeit, 0.5);
+            if (spieler.arbeit?.art === 'konsum') {
+              spieler.arbeit.handLeeren = true; // Runde 29: das macht arbeitSystem am Ende
+              break;
+            }
             // Der erste Klick des Doppelklicks hat das Item in die Hand genommen (BENUTZEN) – nach dem Verzehr bleibt die Hand leer
             if (spieler.ausgeruestet === aktion.slot) {
               spieler.ausgeruestet = null;
@@ -283,10 +287,13 @@ export function starteNachladen(spielWelt, spieler) {
 
 // ---------------------------------------------------------------------------
 
-function aufheben(spielWelt, spieler) {
+function aufheben(spielWelt, spieler, zielId) {
   let naechster = null;
   let bestAbstand = AUFHEB_REICHWEITE + AUFHEB_TOLERANZ;
-  for (const g of spielWelt.alleVomTyp('gegenstand')) {
+  // Runde 29: gezielt aus der Umgebungs-Liste im Inventar (etwas weiterer Radius), sonst das Nächste
+  const ziel = Number.isInteger(zielId) ? spielWelt.holen(zielId) : null;
+  if (ziel?.typ === 'gegenstand' && Math.hypot(ziel.x - spieler.x, ziel.y - spieler.y) <= UMGEBUNG_RADIUS + AUFHEB_TOLERANZ) naechster = ziel;
+  else for (const g of spielWelt.alleVomTyp('gegenstand')) {
     const abstand = Math.hypot(g.x - spieler.x, g.y - spieler.y);
     if (abstand <= bestAbstand) {
       naechster = g;
@@ -408,8 +415,35 @@ function verstaerkeTuer(spielWelt, spieler, slot) {
   if (verstaerkeNaechsteTuer(spielWelt, spieler)) verbrauche(spieler, slot);
 }
 
+/** Darf man das jetzt zu sich nehmen? (sonst Meldung) */
+function kannKonsumieren(spielWelt, spieler, def) {
+  if (def.kategorie === 'nahrung' || def.kategorie === 'getraenk') return true;
+  if (def.kategorie !== 'medizin') return false;
+  // Runde 24: Medizin mit `heilt` (Blutung, Infektion, Bruch, Vergiftung) geht auch bei vollem Leben
+  if (spieler.leben < spieler.maxLeben || (def.heilt ?? []).some((was) => hatZustand(spieler, was))) return true;
+  spielWelt.melde(spieler.id, def.heilt ? 'Das brauchst du gerade nicht' : 'Du bist nicht verletzt');
+  return false;
+}
+
 /**
- * Essen, Trinken, Medizin aus der Hand verbrauchen (Linksklick). @returns true, wenn etwas verbraucht wurde
+ * Runde 29: Essen/Trinken/Medizin brauchen konfiguration.konsum.dauer Sekunden (spieler.arbeit art 'konsum', arbeitSystem):
+ * stehen bleiben, Laufen oder Schaden bricht ab, erst am Ende wirkt es (konsumiere). @returns true = läuft (oder gleich erledigt)
+ */
+export function starteKonsum(spielWelt, spieler, slot) {
+  const eintrag = spieler.inventar[slot];
+  const def = eintrag && GEGENSTAENDE[eintrag.defId];
+  if (!def) return false;
+  const dauer = spielWelt.konfiguration.konsum?.dauer ?? 0;
+  if (def.fuellen || !(dauer > 0)) return konsumiere(spielWelt, spieler, slot);
+  if (!kannKonsumieren(spielWelt, spieler, def)) return false;
+  const klang = def.kategorie === 'medizin' ? 'verband' : def.kategorie === 'getraenk' ? 'trinken' : 'essen';
+  spieler.arbeit = { art: 'konsum', dauer, rest: dauer, x: spieler.x, y: spieler.y, slot, defId: eintrag.defId, klang, naechsterSchlag: 0.1 };
+  spieler.nachladenRest = 0;
+  return true;
+}
+
+/**
+ * Essen, Trinken, Medizin wirken (sofort; Spieler: über starteKonsum). @returns true, wenn etwas verbraucht wurde
  * Gurke & Co. mit `durstwert` stillen beides; `boost` (Energydrink) = Sekunden Sprinten ohne Ausdauerverbrauch.
  */
 export function konsumiere(spielWelt, spieler, slot) {
@@ -417,13 +451,8 @@ export function konsumiere(spielWelt, spieler, slot) {
   const def = eintrag && GEGENSTAENDE[eintrag.defId];
   if (!def) return false;
   if (def.fuellen) return fuelleAmWasser(spielWelt, spieler, slot); // Runde 24: leere Flasche
+  if (!kannKonsumieren(spielWelt, spieler, def)) return false;
   if (def.kategorie === 'medizin') {
-    // Runde 24: Medizin mit `heilt` (Blutung, Infektion, Bruch, Vergiftung) geht auch bei vollem Leben
-    const hilft = (def.heilt ?? []).some((was) => hatZustand(spieler, was));
-    if (spieler.leben >= spieler.maxLeben && !hilft) {
-      spielWelt.melde(spieler.id, def.heilt ? 'Das brauchst du gerade nicht' : 'Du bist nicht verletzt');
-      return false;
-    }
     spieler.leben = Math.min(spieler.maxLeben, spieler.leben + def.heilung);
     wendeItemAn(spielWelt, spieler, def);
   } else if (def.kategorie === 'nahrung' || def.kategorie === 'getraenk') {
@@ -431,8 +460,6 @@ export function konsumiere(spielWelt, spieler, slot) {
     if (def.durstwert) spieler.durst = Math.min(100, spieler.durst + def.durstwert);
     if (def.boost) spieler.boostRest = def.boost;
     wendeItemAn(spielWelt, spieler, def); // Vergiftung (roh/dreckig/verdorben), Buffs
-  } else {
-    return false;
   }
   spielWelt.ereignis({ typ: def.kategorie === 'getraenk' ? 'getrunken' : def.kategorie === 'medizin' ? 'geheilt' : 'gegessen', von: spieler.id, x: spieler.x, y: spieler.y });
   verbrauche(spieler, slot);

@@ -48,7 +48,7 @@
     "lautstaerke": 0.35
   },
   "donner": {
-    "lautstaerke": 0.9
+    "lautstaerke": 1.4
   },
   "donner_nah": {
     "lautstaerke": 1.1
@@ -122,7 +122,7 @@
     "lautstaerke": 0.6
   },
   "anziehen": {
-    "lautstaerke": 0.6
+    "lautstaerke": 0.7
   },
   "wind_leicht": {
     "lautstaerke": 0.55
@@ -208,5 +208,30 @@
   },
   "summen": {
     "lautstaerke": 0.5
+  },
+  "blizzard_a": {
+    "lautstaerke": 0.8
+  },
+  "blizzard_b": {
+    "lautstaerke": 0.8
+  },
+  "schritt_innen": {
+    "lautstaerke": 0.45,
+    "streuung": 0.06
+  },
+  "menue_klick": {
+    "lautstaerke": 0.9
+  },
+  "essen": {
+    "lautstaerke": 1.2,
+    "streuung": 0.06
+  },
+  "trinken": {
+    "lautstaerke": 1,
+    "streuung": 0.05
+  },
+  "verband": {
+    "lautstaerke": 0.8,
+    "streuung": 0.06
   }
 }

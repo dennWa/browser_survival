@@ -59,6 +59,9 @@ export class InventarFenster {
     this.rucksackKnopf.addEventListener('click', () => this.#aktionen.rucksackAblegen?.());
     for (let slot = 0; slot < INVENTAR_PLAETZE + 16; slot++) this.#baueSlot(slot);
     this.werte = el('inventar-werte');
+    this.umgebung = el('inventar-umgebung').querySelector('.umgebung-liste');
+    this.umgebungStand = null;
+    this.zeigeUmgebung([], {});
     this.name = el('inventar-name');
     this.vorschau = new CharakterVorschau(el('inventar-figur'));
     /** main.js: () => { aussehen, name } der eigenen Figur */
@@ -114,6 +117,26 @@ export class InventarFenster {
     this.#daten = daten;
     this.#itemDefinitionen = itemDefinitionen ?? {};
     if (this.offen) this.#zeichne();
+  }
+
+  /** Runde 29: Items um den Spieler (clientSpiel, ~4×/s, nur bei offenem Inventar) – antippen hebt auf */
+  zeigeUmgebung(liste, itemDefinitionen) {
+    const stand = liste.map((g) => `${g.id}:${g.menge}`).join();
+    if (stand === this.umgebungStand) return;
+    this.umgebungStand = stand;
+    const d = this.dokument;
+    this.umgebung.replaceChildren(
+      ...liste.map((g) => {
+        const name = itemDefinitionen[g.defId]?.name ?? g.defId;
+        const knopf = Object.assign(d.createElement('button'), { type: 'button', className: 'umgebung-item', title: `${name} aufheben` });
+        const icon = Object.assign(d.createElement('canvas'), { width: 64, height: 64 });
+        this.zeichneIcon(icon, g.defId);
+        knopf.append(icon, Object.assign(d.createElement('span'), { textContent: g.menge > 1 ? `${name} ×${g.menge}` : name }));
+        knopf.addEventListener('click', () => this.#aktionen.aufhebenZiel?.(g.id));
+        return knopf;
+      }),
+    );
+    if (!liste.length) this.umgebung.append(Object.assign(d.createElement('p'), { className: 'umgebung-leer', textContent: 'Hier liegt nichts' }));
   }
 
   // ---------------------------------------------------------------------------

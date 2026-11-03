@@ -2,7 +2,7 @@ import { KACHELN } from './kacheln.js';
 
 /**
  * Wasser & Angeln – Regeln, die Server (Auswerfen) UND Client (Hinweis "Linksklick: auswerfen") brauchen.
- * Wasserkacheln: gemeinsam/welt/kacheln.js (wasser: true) – nicht begehbar, aber Sicht & Schüsse gehen drüber.
+ * Wasserkacheln: gemeinsam/welt/kacheln.js (wasser: true) – Runde 29: watbar (halbes Tempo, welt.istWatbar), für Autos/Bauen weiter blockiert; Sicht & Schüsse gehen drüber.
  */
 const MIN_WURF = 36; // px: mindestens so weit weg muss das Wasser sein
 
