@@ -33,6 +33,7 @@ const WASSER_TIEFE = 15;
 import { SonderEffekte } from './sonderEffekte.js';
 import { LICHTER, hatStrom, leuchtet } from '../../gemeinsam/welt/einrichtung.js';
 import { erkenneGeraet, merkeAutoProfil } from './geraet.js';
+import { texturiereZombie, zombieMaterial } from './zombieTextur.js';
 
 /**
  * Renderer mit Three.js (WebGL): schräge Kamera, echte Lichter und Schatten, Tag & Nacht.
@@ -61,7 +62,7 @@ import { erkenneGeraet, merkeAutoProfil } from './geraet.js';
  *   - Grafikprofil „Auto“ (Standard, geraet.js erkenneGeraet): schwache Grafikchips starten auf mittel/niedrig, bei dauerhaft
  *     < 40 FPS eine Basis tiefer (gemerkt); Schattenkarten in sparsamen Stufen nur jedes 2. Bild (#schattenDran)
  *   - Zombie-Figuren aus einem Pool (#holeFigur), höchstens NEUE_FIGUREN_JE_BILD neue Klone pro Bild, entfernte Zombies nur jedes
- *     2. Bild animiert (ANIM_HALB_AB); Zombie-Modelle: alte Kenney-Figur + Spielordner-GLBs (ZOMBIE_MODELLE, zombieModellFuer)
+ *     2. Bild animiert (ANIM_HALB_AB); Zombie-Modelle: Spielordner-GLBs mit Atlas-Textur (ZOMBIE_MODELLE, zombieModellFuer, zombieTextur.js), Kenney-Figur nur noch Fallback
  *   - alle Shader beim Laden vorkompiliert (#vorkompilieren), Materialien geteilt
  *   - adaptive Qualität (QUALITAETS_STUFEN): fallen die FPS, werden erst Details gespart (Retina-Auflösung,
  *     Schattenauflösung, Baum-Umrisse/-Schatten) und erst ganz zum Schluss die Auflösung unter 1 – nie unter 0,8
@@ -143,12 +144,14 @@ const SONDER_TOENE = {
   explosiv: { farbe: [1, 0.62, 0.5], leuchten: [0.5, 0.12, 0] },
 };
 const SONDER_MATERIAL = {};
-/** Welches Modell trägt welche Zombie-Variante? normal: abwechselnd alte Kenney-Figur und grüner Zombie (Abwechslung) */
+/**
+ * Welches Modell trägt welche Zombie-Variante? Runde 29: alle mit dem Atlas `skins/zombieAtlas.webp` (zombieTextur.js);
+ * Sonder-Varianten = „gruen“ + Tönung (SONDER_TOENE) + Anbauteile. Fehlt das GLB/der Atlas, greift die alte Kenney-Figur.
+ */
 function zombieModellFuer(e) {
   if (e.variante === 'brocken') return 'koloss';
   if (e.variante === 'halb') return 'halb';
-  if (e.variante === 'normal' || !e.variante) return (e.id ?? 0) % 2 ? 'gruen' : null;
-  return null;
+  return 'gruen';
 }
 const SPRECHBLASE_MS = 4000; // Chat-Sprechblase: Grunddauer + 60 ms je Zeichen …
 const SPRECHBLASE_MAX_MS = 10000; // … höchstens so lange
@@ -961,11 +964,22 @@ export class Renderer {
   /** Zusätzliche Zombie-Modelle (ZOMBIE_MODELLE) laden; fehlt eins, tragen die Zombies die alte Kenney-Figur. */
   async #ladeZombieModelle() {
     this.zombieModelle = {};
+    // Atlas (Runde 29); fehlt er, bleiben die GLBs bei ihrer Palette
+    this.zombieAtlas = await new THREE.TextureLoader().loadAsync(new URL('3d/skins/zombieAtlas.webp', ASSETS).href).then(
+      (t) => {
+        t.colorSpace = THREE.SRGBColorSpace;
+        t.anisotropy = 4;
+        return t;
+      },
+      () => null,
+    );
     await Promise.all(
       Object.entries(ZOMBIE_MODELLE).map(async ([name, def]) => {
         try {
           const gltf = await new GLTFLoader().loadAsync(new URL(def.datei, ASSETS).href);
           const modell = gltf.scene;
+          modell.updateMatrixWorld(true);
+          if (this.zombieAtlas) texturiereZombie(modell, this.zombieAtlas);
           // ⚠ Skelett-Modelle erst nach Matrix-/Skelett-Update messen (sonst ~100× falsch, siehe KI_INDEX §18)
           modell.updateMatrixWorld(true);
           modell.traverse((o) => {
@@ -1794,6 +1808,13 @@ export class Renderer {
   #neueGlbZombie(e, z) {
     const modell = SkeletonUtils.clone(z.modell);
     modell.scale.setScalar(z.massstab * (e.groesse ?? 1));
+    const ton = this.zombieAtlas ? SONDER_TOENE[e.variante] : null;
+    if (ton) {
+      const material = zombieMaterial(this.zombieAtlas, ton.farbe, ton.leuchten);
+      modell.traverse((o) => {
+        if (o.isMesh) o.material = material;
+      });
+    }
     const gruppe = new THREE.Group();
     gruppe.add(modell);
     this.szene.add(gruppe);
@@ -1808,6 +1829,7 @@ export class Renderer {
     mixer.setTime(Math.random() * 2);
     const figur = { gruppe, mixer, aktionen, aktuell: 'stehen', koerper: AUSSEHEN.koerper.standard, glb: z };
     richteFigurEin(figur, modell);
+    this.#sonderTeile(figur, e, z.def.hoehe);
     return figur;
   }
 
@@ -1843,8 +1865,8 @@ export class Renderer {
    * Runde 24: Anbauteile der Sonder-Zombies (an der Figurgruppe, in Welt-Pixeln; Figur ≈ FIGUR_HOEHE hoch):
    * gepanzert = Helm + Brust-/Schulterplatten, explosiv = glühende Beulen (blinken beim Zünden, `figur.beulen`), spucker = Giftblase am Hals.
    */
-  #sonderTeile(figur, e) {
-    const g = e.groesse ?? 1;
+  #sonderTeile(figur, e, skala = 1) {
+    const g = (e.groesse ?? 1) * skala;
     const teile = [];
     if (e.variante === 'gepanzert') {
       const metall = (SONDER_MATERIAL.metall ??= new THREE.MeshStandardMaterial({ color: 0x5d646b, metalness: 0.7, roughness: 0.45 }));
