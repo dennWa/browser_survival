@@ -213,6 +213,16 @@ export class KartenModell {
     this.durchsicht?.aktualisiere(dt, x, y, an);
   }
 
+  /** Runde 32: Ich-Ansicht – Dachunterseite sichtbar (Decke), Draufsicht wieder nur Oberseite. */
+  dachDoppelseitig(an) {
+    const seite = an ? THREE.DoubleSide : THREE.FrontSide;
+    for (const m of [this.daecher?.material, this.daecher?.flachMaterial]) {
+      if (!m || m.side === seite) continue;
+      m.side = seite;
+      m.needsUpdate = true;
+    }
+  }
+
   /** Liegt der Punkt draußen oder im gerade geöffneten Raum? (Beschriftungen in geschlossenen Räumen bleiben aus.) */
   istEinsehbar(x, y) {
     return this.daecher ? this.daecher.einsehbar(x, y) : true;

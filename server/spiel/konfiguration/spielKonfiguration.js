@@ -218,13 +218,13 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     blutmondAlle: 10, // jede 10. Nacht: Blutmond (doppelte Horde, roter Mond)
     blutmondFaktor: 2,
   },
-  /** Wetter: wechselt zufällig zwischen klar, Regen, Gewitter, Sturm und Nebel (Dauer 1–5 Minuten). Regen halbiert die Wachstumszeit. */
+  /** Wetter: wechselt zufällig zwischen klar, Regen, Gewitter, Sturm und Nebel. Runde 32: jede Phase (auch „klar“) 3–6 Minuten. Regen halbiert die Wachstumszeit. */
   wetter: {
     aktiv: true,
-    dauerMin: 60,
-    dauerMax: 300,
-    pauseMin: 90,
-    pauseMax: 420,
+    dauerMin: 180,
+    dauerMax: 360,
+    pauseMin: 180,
+    pauseMax: 360,
     regenAnteil: 0.6, // Anteil Niederschlag (Regen/Schnee), Rest Nebel bzw. Sturm
     gewitterAnteil: 0.3, // vom Niederschlag: Gewitter (Schneezonen: Schneesturm)
     starkregenAnteil: 0.35, // Runde 29: vom übrigen Regen: Starkregen (eigener Ton regen_stark, Wind ≥ 0,7)

@@ -1542,7 +1542,7 @@ export class ClientSpiel {
     if (feuer) this.sound.spiele('knistern', { x: (feuer.tx + 0.5) * g, y: (feuer.ty + 0.5) * g, lautstaerke: 0.8 });
   }
 
-  /** Hasen, die gerade erschrecken (ruhend → flucht), hoppeln hörbar davon (Phase 10.2, Ereignis hase_flucht). */
+  /** Hasen-Zustände merken (früher: hörbar davonhoppeln, Phase 10.2 – Runde 32 stumm geschaltet). */
   #tierGeraeusche() {
     const letzter = this.schnappschuesse[this.schnappschuesse.length - 1];
     if (!this.sound || !letzter || letzter === this.#tierSchnappschuss) return;
@@ -1552,8 +1552,7 @@ export class ClientSpiel {
       if (t.typ !== 'tier') continue;
       neu.set(t.id, t.zustand);
       if (t.zustand === 'flucht' && this.#tierZustand.get(t.id) && this.#tierZustand.get(t.id) !== 'flucht' && Math.hypot(t.x - this.lokal.x, t.y - this.lokal.y) < 700) {
-        this.sound.spiele('hase_flucht', { x: t.x, y: t.y });
-        this.sound.spiele('hase_schreck', { x: t.x, y: t.y, lautstaerke: 0.8 }); // Runde 23: kurzes Fiepen
+        // Runde 32: Hasen-Geräusche (Flucht/Fiepen) aus – Nutzer-Wunsch; nur der Todesklang bleibt (Ereignis 'treffer' → hase_tod)
       }
     }
     this.#tierZustand = neu;

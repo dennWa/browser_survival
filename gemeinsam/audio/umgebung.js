@@ -55,7 +55,7 @@ export function wetterSchichten({ w, hell = 1, drinnen = false, imHaus = false, 
   const wechsel = (Math.sin((zeit / BLIZZARD_ZYKLUS) * Math.PI * 2) + 1) * (Math.PI / 4); // 0..π/2, gleiche Leistung
   const windFrei = schneeZone ? 0 : leise;
   return {
-    regen: w.regen * (1 - stark) * (imHaus ? 0.16 : 1), // Runde 31: drinnen nochmal 20 % leiser (vorher 0,2)
+    regen: w.regen * (1 - stark) * (imHaus ? 0.112 : 1), // Runde 32: im Haus −30 % (vorher 0,16); im Auto unverändert (imHaus = false)
     // Grillen: nur bei ruhigem Wetter, nicht in Schneezonen
     nacht: schneeZone || !ruhig ? 0 : (1 - hell) * leise,
     sturm: Math.max(0, w.sturm - schneesturm) * daempfung,

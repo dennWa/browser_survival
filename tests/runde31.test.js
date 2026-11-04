@@ -182,7 +182,7 @@ test('Schritte: Asphalt/Straße/Gehweg/Pflaster → schritt_asphalt; Gras unver�
 
 test('Lautstärken: Regen drinnen noch leiser, schwacher Wind draußen leiser aber drinnen unverändert', () => {
   const haus = wetterSchichten({ w: vorschauWetter('regen'), hell: 1, drinnen: true, imHaus: true, wetter: 'regen' });
-  assert.equal(haus.regen, 0.16);
+  assert.ok(Math.abs(haus.regen - 0.112) < 1e-9); // Runde 32: −30 %
   const w = { ...vorschauWetter('klar'), windStufe: 1 };
   const draussen = wetterSchichten({ w, hell: 1, wetter: 'klar' }).wind_leicht;
   const drinnen = wetterSchichten({ w, hell: 1, drinnen: true, wetter: 'klar' }).wind_leicht;

@@ -326,7 +326,7 @@ test('Angeln: 10 % Doppelfang; Bewegung bricht ab; ohne Angel / ohne Wasser wird
 });
 
 // ---------------------------------------------------------------------------
-test('Wetter: wechselt, Regen/Nebel dauern 1–5 Minuten, Wetter geht im Schnappschuss mit', () => {
+test('Wetter: wechselt, Regen/Nebel dauern 3–6 Minuten, Wetter geht im Schnappschuss mit', () => {
   const { welt } = neueWelt({ wetter: { aktiv: true } });
   assert.equal(welt.schnappschuss().wetter, 'klar');
   const gesehen = new Set();
@@ -346,7 +346,7 @@ test('Wetter: wechselt, Regen/Nebel dauern 1–5 Minuten, Wetter geht im Schnapp
   }
   assert.ok(gesehen.has('regen') && gesehen.has('nebel') && gesehen.has('klar'), `alle Wetterarten (${[...gesehen]})`);
   assert.ok(dauern.length > 3);
-  assert.ok(dauern.every((d) => d >= 59 && d <= 301), `Dauer 1–5 min: ${dauern.map(Math.round)}`);
+  assert.ok(dauern.every((d) => d >= 179 && d <= 361), `Dauer 3–6 min (Runde 32): ${dauern.map(Math.round)}`);
   setzeWetter(welt, 'regen', 5);
   assert.equal(welt.schnappschuss().wetter, 'regen');
 });

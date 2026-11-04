@@ -35,7 +35,7 @@
     "lautstaerke": 0.5
   },
   "nacht": {
-    "lautstaerke": 0.6
+    "lautstaerke": 0.48
   },
   "vogel": {
     "lautstaerke": 0.5,
@@ -85,7 +85,7 @@
     "streuung": 0.06
   },
   "ueberfahren": {
-    "lautstaerke": 1,
+    "lautstaerke": 0.8,
     "streuung": 0.08
   },
   "aufprall": {
@@ -183,7 +183,7 @@
     "streuung": 0.08
   },
   "regen_dach": {
-    "lautstaerke": 0.8
+    "lautstaerke": 0.56
   },
   "kamin": {
     "lautstaerke": 0.9
@@ -227,7 +227,7 @@
     "streuung": 0.06
   },
   "menue_klick": {
-    "lautstaerke": 0.72
+    "lautstaerke": 0.504
   },
   "essen": {
     "lautstaerke": 1.2,

@@ -157,7 +157,7 @@ export const SCHNEELAND = {
     k: { name: 'Villa', lootTabelle: 'wohnung' },
   },
   einstellungen: {
-    wetter: { regenAnteil: 0.8, dauerMin: 90, dauerMax: 300, pauseMin: 60, pauseMax: 240 }, // regenAnteil = Anteil Schneefall (Rest Nebel)
+    wetter: { regenAnteil: 0.8, dauerMin: 180, dauerMax: 360, pauseMin: 180, pauseMax: 300 }, // Runde 32: 3–6 min je Wetter // regenAnteil = Anteil Schneefall (Rest Nebel)
     tiere: { hasenProTausend: 1.5, hasenMax: 10 },
   },
   objekte: [

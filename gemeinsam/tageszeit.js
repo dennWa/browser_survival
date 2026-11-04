@@ -7,12 +7,15 @@
 const TAG_BEGINN_STUNDE = 6;
 const TAG_STUNDEN = 15; // 06:00 → 21:00
 const NACHT_STUNDEN = 9; // 21:00 → 06:00
-const DAEMMERUNG_ANTEIL = 0.08; // so viel vom Tag (am Anfang und Ende) ist Dämmerung
+const DAEMMERUNG_ANTEIL = 0.08; // so viel vom Tag (am Ende) ist Dämmerung
+/** Runde 32: Morgen-Übergang länger (06:00 → ~08:15 erst voll hell) + Bodennebel bis ~09:00 (`morgen`) */
+const MORGEN_ANTEIL = 0.15;
+const MORGEN_NEBEL_ENDE = 0.2;
 
 /**
  * @param zeit   Sekunden seit Tagesbeginn
  * @param dauer  { tagSekunden, nachtSekunden }
- * @returns {{ istNacht, stunde, minute, uhrzeit, helligkeit, anteil }}
+ * @returns {{ istNacht, stunde, minute, uhrzeit, helligkeit, anteil, morgen }}
  *   helligkeit 0 (Nacht) … 1 (Mittag) · anteil = Fortschritt im aktuellen Tag bzw. in der Nacht (0..1, für Sonne/Mond)
  */
 export function tageszeit(zeit, { tagSekunden, nachtSekunden }) {
@@ -28,10 +31,16 @@ export function tageszeit(zeit, { tagSekunden, nachtSekunden }) {
 
   const anteil = istNacht ? (t - tagSekunden) / nachtSekunden : t / tagSekunden;
   let helligkeit = 0;
+  let morgen = 0;
   if (!istNacht) {
-    // sanft hoch am Morgen, Plateau, sanft runter am Abend
-    helligkeit = Math.min(1, anteil / DAEMMERUNG_ANTEIL, (1 - anteil) / DAEMMERUNG_ANTEIL);
+    // sanft hoch am Morgen (länger, Runde 32), Plateau, sanft runter am Abend
+    helligkeit = Math.min(1, anteil / MORGEN_ANTEIL, (1 - anteil) / DAEMMERUNG_ANTEIL);
     helligkeit = helligkeit * helligkeit * (3 - 2 * helligkeit); // Smoothstep
+    // Bodennebel: in der letzten Nachtstunde schon da (s. u.), am Morgen voll, bis MORGEN_NEBEL_ENDE weg
+    morgen = Math.max(0, 1 - anteil / MORGEN_NEBEL_ENDE);
+    morgen = morgen * morgen * (3 - 2 * morgen);
+  } else if (anteil > 0.85) {
+    morgen = (anteil - 0.85) / 0.15; // 04:40 → 06:00 zieht der Nebel auf
   }
   return {
     istNacht,
@@ -40,6 +49,7 @@ export function tageszeit(zeit, { tagSekunden, nachtSekunden }) {
     uhrzeit: `${String(stunde).padStart(2, '0')}:${String(minute).padStart(2, '0')}`,
     helligkeit,
     anteil,
+    morgen, // Runde 32: 0..1 Stärke des Morgennebels (Renderer: Bodennebel, warmer Dunst)
   };
 }
 

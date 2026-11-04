@@ -19,3 +19,11 @@
 - Zelt: Bauwerk `zelt` (teile.js Kosten `ast: 5`, Einrichtung; Schlafplatz + Spawn wie Schlafsack, `bettQualitaet.zelt 0.8`), Modell `r32_zelt.glb` (moebelModelle case 'zelt').
 - Deko im Editor-Katalog: r32_fels_*, r32_erzpack_*, r32_fass_*, r32_eichenstamm, r32_stumpf_0..7, r32_holzbau_*, r32_hazmat_0/6, r32_vorrat (Packungen), r32_tier_*.
 - Nicht nutzbar (gesichtet): Low Poly Landscape Set (Terrain ohne Farben), Trees & Bushes Pack (ohne Farben), Gras-Demo-Modelle (Rip kaputt), Military Tents (zerfallen).
+
+## Phase 3 – Sound/Wetter/Licht
+- Lautstärken (`client/audio/eigene/einstellungen.json`): regen_dach 0,56 (−30 %), nacht/Grillen 0,48 (−20 %), menue_klick 0,504 (−30 %), ueberfahren 0,8 (Zombie zermatschen −20 %). `umgebung.js` regen im Haus ×0,112 (vorher 0,16); Auto unverändert (imHaus=false im Auto). Tests runde31/studioAudio angepasst.
+- Hasen: `clientSpiel.#tierGeraeusche` spielt hase_flucht/hase_schreck nicht mehr; hase_tod bleibt.
+- Wetter K:`wetter` dauer/pause 180–360 s (Schneeland 180–360 / 180–300). Test mechaniken 3–6 min.
+- Nacht: `NACHT_EIGENLEUCHTEN` 0,32 (−20 %); Zombies `ZOMBIE_NACHT_LEUCHTEN` 0,09 × dunkel über `#zombieNachtLeuchten` (emissiveMap = map, nur Materialien ohne eigenes Glühen; GLB-Zombies).
+- Morgen: `gemeinsam/tageszeit.js` Morgen-Rampe MORGEN_ANTEIL 0,15 (06:00 → ~08:15 hell), neues Feld `morgen` (0..1; ab 04:40 nachts auf, bis ~09:00 weg). Renderer: warmer Dunst (Hintergrund → DAEMMERUNG), Nebel dichter, `client/darstellung/bodenNebel.js` (3 Wolken-Ebenen über Boden, folgen Kamera, auch bei Wetter nebel ×0,55).
+- Ego: `#egoSichtweite` = weiteste Bodenstelle der Draufsicht-Kamera bei ZOOM_MAX (Ecken projiziert, Cache je Seitenverhältnis); Ego-Nebel ab 0,7. Ego: Dächer bleiben zu (`aktualisiereDaecher(-1e6…)`) + `kartenModell.dachDoppelseitig(true)` = Decke.

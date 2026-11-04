@@ -34,6 +34,7 @@ import { SonderEffekte } from './sonderEffekte.js';
 import { LICHTER, hatStrom, leuchtet } from '../../gemeinsam/welt/einrichtung.js';
 import { erkenneGeraet, merkeAutoProfil } from './geraet.js';
 import { texturiereZombie, zombieMaterial } from './zombieTextur.js';
+import { BodenNebel } from './bodenNebel.js';
 
 /**
  * Renderer mit Three.js (WebGL): schräge Kamera, echte Lichter und Schatten, Tag & Nacht.
@@ -102,7 +103,12 @@ const _blick = new THREE.Vector3();
 const _wolkenFarbe = new THREE.Color();
 const NACHT_MOND = 0.1; // Mondlicht bei voller Dunkelheit (Runde 23: 0,13 → 0,1, düsterer)
 const NACHT_UMGEBUNG = 0.095; // Himmelslicht bei voller Dunkelheit (Runde 23: 0,12 → 0,095)
-const NACHT_EIGENLEUCHTEN = 0.4; // (Runde 18: 0,2 → 0,4, eigene Figur bleibt nachts erkennbar) Emissive-Stärke der Spieler-Figur bei voller Dunkelheit (nur Orientierung, kein echtes Licht)
+/** Runde 32: Zombies sind in voller Dunkelheit minimal zu sehen (Eigenleuchten nach Textur) */
+const ZOMBIE_NACHT_LEUCHTEN = 0.09;
+const _morgenDunst = new THREE.Color();
+const _nebelFarbe = new THREE.Color();
+const _nebelGrau = new THREE.Color(0.7, 0.72, 0.75);
+const NACHT_EIGENLEUCHTEN = 0.32; // Runde 32: 0,4 → 0,32 (Figur in voller Dunkelheit 20 % dunkler); (Runde 18: 0,2 → 0,4, eigene Figur bleibt nachts erkennbar) Emissive-Stärke der Spieler-Figur bei voller Dunkelheit (nur Orientierung, kein echtes Licht)
 const TASCHENLAMPEN_ANSATZ = { vorn: 16, hoehe: 36 }; // Lichtkegel beginnt knapp vor der Brust (px vor der Körpermitte, Höhe über Boden)
 // So viele Kartenlampen leuchten gleichzeitig echt (die nächsten); jede echte Lichtquelle kostet in jedem Pixel → klein halten,
 // die übrigen Lampen zeigen nachts nur ihren Lichtschein am Boden (kartenModell.js)
@@ -334,6 +340,7 @@ export class Renderer {
     this.itemMaterialien = new Map(); // defId → { normal, markiert, breite, hoehe }
     this.figurMaterialien = new Map(); // Skin-Schlüssel → Material (geteilt)
     this.spielerMaterialien = []; // Spieler-Skins: bekommen nachts ein schwaches Eigenleuchten
+    this.bodenNebel = new BodenNebel(this.szene); // Runde 32: Morgennebel
     this.#baueLichter(); // Taschenlampen, Lampen-Pool, Kegel, Mündungsblitze, Scheinwerfer (Anzahl je Profil, LICHT_BUDGET)
     this.bildNr = 0;
     this.figurPool = new Map(); // Pool-Schlüssel → [Figur] (verschwundene Zombies, werden wiederverwendet statt neu geklont)
@@ -576,7 +583,10 @@ export class Renderer {
     this.dunkel = this.nachtsicht ? 1 - (tageszeit?.helligkeit ?? 1) : dunkel; // für Haltungen (Lampe nur nachts vorn)
 
     this.karte.aktualisiere(dt, dunkel, fokus);
-    this.karte.aktualisiereDaecher(fokus.x, fokus.y);
+    // Runde 32: In der Ich-Ansicht bleiben alle Dächer zu → drinnen hat man eine Decke über sich (Dach doppelseitig, s. kartenModell)
+    if (this.egoHaken) this.karte.aktualisiereDaecher(-1e6, -1e6);
+    else this.karte.aktualisiereDaecher(fokus.x, fokus.y);
+    this.karte.dachDoppelseitig?.(!!this.egoHaken);
     this.#innenAbschirmung(dt, fokus);
     this.karte.aktualisiereDurchsicht(dt, fokus.x, fokus.y, !this.egoHaken);
     this.natur?.aktualisiere(fokus, this.welt.bauwerkeVersion, !!this.egoHaken);
@@ -1839,6 +1849,22 @@ export class Renderer {
     return neu;
   }
 
+  /** Runde 32: Zombie-Materialien (ohne eigenes Glühen) leuchten nachts ganz schwach nach ihrer Textur – sonst stockdunkel. */
+  #zombieNachtLeuchten(modell) {
+    this.zombieNachtMaterialien ??= new Set();
+    modell.traverse((o) => {
+      if (!o.isMesh) return;
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+        if (!m?.emissive || this.zombieNachtMaterialien.has(m) || m.emissiveIntensity > 0) continue;
+        m.emissive.setRGB(1, 1, 1);
+        m.emissiveMap = m.map ?? null;
+        m.emissiveIntensity = 0;
+        m.needsUpdate = true;
+        this.zombieNachtMaterialien.add(m);
+      }
+    });
+  }
+
   /** GLB-Zombie (ZOMBIE_MODELLE): eigenes Skelett + Clips stehen/gehen/rennen/angriff */
   #neueGlbZombie(e, z) {
     const modell = SkeletonUtils.clone(z.modell);
@@ -1850,6 +1876,7 @@ export class Renderer {
         if (o.isMesh) o.material = material;
       });
     }
+    this.#zombieNachtLeuchten(modell);
     const gruppe = new THREE.Group();
     gruppe.add(modell);
     this.szene.add(gruppe);
@@ -2184,6 +2211,7 @@ export class Renderer {
     }
     const eigenLeuchten = NACHT_EIGENLEUCHTEN * dunkel;
     for (const m of this.spielerMaterialien) m.emissiveIntensity = eigenLeuchten;
+    if (this.zombieNachtMaterialien) for (const m of this.zombieNachtMaterialien) m.emissiveIntensity = ZOMBIE_NACHT_LEUCHTEN * dunkel;
     // Nebel wandert mit der Kamera (Zoom, Auto-Fahrt): sonst liegt beim Rauszoomen/Fahren alles hinter dem Nebel
     const abstand = this.istAbstand ?? (this.grundAbstand ?? 1) * this.zoom * this.fahrZoom;
     const istZoom = abstand / ((this.grundAbstand ?? 1) * this.fahrZoom);
@@ -2230,7 +2258,15 @@ export class Renderer {
       this.szene.background.lerp(_blutHimmel, 0.8 * b);
       this.szene.fog.color.copy(this.szene.background);
     }
-    const dicht = Math.min(1, nebel + 0.35 * regen);
+    // Runde 32: Morgen-Übergang – warmer Dunst + Bodennebel (tageszeit.morgen), Wetter läuft normal weiter
+    const morgen = this.nachtsicht ? 0 : (tageszeit?.morgen ?? 0);
+    if (morgen > 0.001) {
+      this.szene.background.lerp(_morgenDunst.copy(DAEMMERUNG.hintergrund).multiplyScalar(0.35 + 0.65 * hell), 0.45 * morgen);
+      this.szene.fog.color.copy(this.szene.background);
+    }
+    _nebelFarbe.setRGB(0.95, 0.9, 0.86).lerp(_nebelGrau, Math.max(regen, nebel)).multiplyScalar(0.12 + 0.88 * hell);
+    this.bodenNebel.aktualisiere(this.egoHaken ? 0.6 * Math.max(morgen, 0.5 * nebel) : Math.max(morgen, 0.55 * nebel), ziel.x, ziel.z, performance.now() / 1000, _nebelFarbe, this.#hy(ziel.x, ziel.z));
+    const dicht = Math.min(1, nebel + 0.35 * regen + 0.4 * morgen);
     // Dichter Nebel darf kräftig sein, aber nie die Figur selbst verschlucken (Top-Down: Kamera ~677 px × Zoom entfernt)
     const kamAbstand = KAMERA_VERSATZ.length() * abstand;
     const nah = Math.max((650 + hell * 600) * abstand * (1 - 0.82 * dicht), kamAbstand * 1.04); // Nebel beginnt erst hinter der Figur
@@ -2265,7 +2301,7 @@ export class Renderer {
     }
     let schnitt;
     if (ego) {
-      this.szene.fog.near = egoSicht * 0.45;
+      this.szene.fog.near = egoSicht * 0.7; // Runde 32: Nebel erst spät (vorher 0,45) – bis zur Sichtgrenze erkennbar
       this.szene.fog.far = egoSicht;
       // Ego: echter Horizont – Bildhöhe der Horizontlinie aus der Kameraneigung; der Himmel füllt alles darüber
       kamera.getWorldDirection(_blick);
@@ -2459,12 +2495,32 @@ export class Renderer {
     this.leinwand.style.filter = g > 0 ? `saturate(${(1 - 0.55 * g).toFixed(2)}) brightness(${(1 - 0.1 * g).toFixed(2)}) contrast(${(1 - 0.07 * g).toFixed(2)})` : '';
   }
 
-  /** Sichtweite der Ich-Ansicht in px: Halbbreite des Draufsicht-Bildes am Boden bei EGO_SICHT_ZOOM (Bildschirm-Seitenverhältnis, mindestens 1:1) */
+  /**
+   * Sichtweite der Ich-Ansicht in px (Runde 32): exakt die weiteste Bodenstelle, die die Draufsicht beim weitesten Rauszoomen
+   * (EGO_SICHT_ZOOM) noch zeigt – Bildecken der Draufsicht-Kamera auf den Boden projiziert, größter Abstand zum Blickziel.
+   * (Runde 31 nahm nur die Halbbreite → Ego sah weniger weit als oben/schräg in der Draufsicht.)
+   */
   #egoSichtweite() {
-    const abstand = KAMERA_VERSATZ.length() * (this.grundAbstand ?? 1) * EGO_SICHT_ZOOM;
-    const halbHoehe = Math.tan((38 * Math.PI) / 360) * abstand;
-    return halbHoehe * Math.max(1, this.kamera3d.aspect) * EGO_SICHT_FAKTOR;
+    const k = this.kamera3d;
+    const schluessel = `${k.aspect.toFixed(3)}|${this.grundAbstand ?? 1}`;
+    if (this.#egoSichtCache?.schluessel === schluessel) return this.#egoSichtCache.wert;
+    const probe = new THREE.PerspectiveCamera(k.fov, k.aspect, 1, 1e6);
+    probe.position.copy(KAMERA_VERSATZ).multiplyScalar((this.grundAbstand ?? 1) * EGO_SICHT_ZOOM);
+    probe.lookAt(0, 0, 0);
+    probe.updateMatrixWorld(true);
+    let weiteste = 0;
+    const p = new THREE.Vector3();
+    for (const [x, y] of [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, 1], [-1, 0], [1, 0]]) {
+      p.set(x, y, 0.5).unproject(probe).sub(probe.position).normalize();
+      if (p.y >= -1e-4) continue; // Strahl trifft den Boden nicht
+      const t = -probe.position.y / p.y;
+      weiteste = Math.max(weiteste, Math.hypot(probe.position.x + p.x * t, probe.position.z + p.z * t));
+    }
+    const wert = (weiteste || Math.tan((38 * Math.PI) / 360) * KAMERA_VERSATZ.length() * (this.grundAbstand ?? 1) * EGO_SICHT_ZOOM) * EGO_SICHT_FAKTOR;
+    this.#egoSichtCache = { schluessel, wert };
+    return wert;
   }
+  #egoSichtCache = null;
 
   /** Kameraabstand = Bildschirmgröße × Zoom; Nebel wandert mit, damit man beim Rauszoomen nicht ins Graue schaut. */
   #kameraAbstand() {
