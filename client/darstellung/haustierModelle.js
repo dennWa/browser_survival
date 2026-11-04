@@ -1,11 +1,12 @@
 import * as THREE from 'three';
 import { SkeletonUtils } from '../vendor/three/addons.js';
 import { ladeEigenesModell } from './eigeneModelle.js';
+import { ladeKatzenTextur, texturiereKatze } from './katzeTextur.js';
 
 /**
  * Runde 24: Modelle für Haustiere & Hühner (Tier-Entitäten art 'hund' | 'katze' | 'huhn').
  *   Hund: Quaternius-Husky bzw. -Shiba (Spielordner, CC0, Clips Idle/Walk/Gallop/Attack/Death) – je nach Tier-ID.
- *   Katze, Huhn: statische Spielordner-Modelle (cat.glb, chicken.glb) – Gehen/Picken prozedural (Wippen, Nicken).
+ *   Katze, Huhn: statische Spielordner-Modelle (cat.glb, chicken.glb; Katze optional mit eigener Textur, katzeTextur.js) – Gehen/Picken prozedural (Wippen, Nicken).
  * Bis das GLB da ist: kleiner Platzhalter. Front = +z, Ursprung = Füße. Höhen in Weltpixeln (Figur 64 ≈ 1,8 m).
  */
 const MODELLE = {
@@ -20,7 +21,12 @@ function ladeVorlage(datei, hoehe) {
     vorlagen.set(
       datei,
       ladeEigenesModell(new URL(`../assets/eigene/${datei}.glb`, import.meta.url).href)
-        .then((szene) => {
+        .then(async (szene) => {
+          // Runde 30: eigene Katzen-Textur (assets/3d/skins/katze.png + katze_zonen.json), fehlt sie → Katze bleibt wie sie ist
+          if (datei === 'cat') {
+            const k = await ladeKatzenTextur(new URL('../assets/', import.meta.url));
+            if (k) texturiereKatze(szene, k);
+          }
           const probe = SkeletonUtils.clone(szene);
           probe.updateMatrixWorld(true);
           let skelett = false;

@@ -1,0 +1,21 @@
+{
+  "_info": "Zonen der Katzen-Textur (Runde 30). Pixel [x, y, breite, hoehe] in einer 1024x1024-Textur, y nach unten. Quelle fuer katzeTextur.js UND werkzeuge/assets/katze_vorlage.py.",
+  "groesse": 1024,
+  "zonen": {
+    "seite": [16, 16, 560, 213],
+    "brust": [592, 16, 165, 213],
+    "hinterteil": [773, 16, 165, 213],
+    "ruecken": [16, 245, 560, 165],
+    "bauch": [16, 426, 560, 165],
+    "bein": [592, 245, 128, 346],
+    "schwanz": [736, 245, 96, 346],
+    "ohr": [848, 245, 96, 96],
+    "auge": [848, 357, 64, 64],
+    "rosa": [848, 437, 64, 64],
+    "kopf_gesicht": [16, 607, 176, 192],
+    "kopf_seite": [208, 607, 272, 192],
+    "kopf_hinten": [496, 607, 176, 192],
+    "kopf_oben": [688, 607, 160, 224],
+    "kopf_unten": [864, 607, 144, 224]
+  }
+}
