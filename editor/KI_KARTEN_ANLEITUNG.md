@@ -275,7 +275,7 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | werkzeug | `feuerzeug` Feuerzeug, `feuerbohrer` Feuerbohrer, `angel` Angel |
 | samen | `samen_tomate` Tomatensamen, `samen_gurke` Gurkensamen, `samen_kartoffel` Saatkartoffeln, `samen_paprika` Paprikasamen, `samen_weizen` Weizenkörner, `samen_karotte` Karottensamen, `samen_kuerbis` Kürbiskerne, `samen_erdbeere` Erdbeersamen |
 
-### Eigene 3D-Modelle (Aktion `modell`, Feld `modell` = Name ohne .glb; `hoehe` = Zielhöhe in m) – 465 Stück
+### Eigene 3D-Modelle (Aktion `modell`, Feld `modell` = Name ohne .glb; `hoehe` = Zielhöhe in m) – 470 Stück
 | modell | Name | Kategorie | Standardhöhe m | Fußabdruck m |
 |---|---|---|---|---|
 | `arrow-sign` | Arrow Sign | bau | 2.05 | 1.9 × 0.4 |
@@ -382,6 +382,7 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `wooden-fence` | Wooden Fence | bau | 1.03 | 1.8 × 0.9 |
 | `wooden-sign` | Wooden Sign | bau | 1.98 | 1.1 × 0.3 |
 | `wooden-wall` | Wooden Wall | bau | 0.53 | 1.4 × 0.1 |
+| `aeste` | Aeste | deko | 1 | 0.3 × 0.1 |
 | `americanfootball-ball` | Americanfootball Ball | deko | 0.42 | 0.2 × 0.2 |
 | `banner-wall` | Banner Wall | deko | 2.85 | 1.6 × 0.6 |
 | `basket-ball` | Basket Ball | deko | 0.42 | 0.4 × 0.4 |
@@ -406,12 +407,14 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `gem-blue` | Gem Blue | deko | 0.79 | 0.4 × 0.3 |
 | `gem-green` | Gem Green | deko | 0.57 | 0.6 × 0.6 |
 | `gem-pink` | Gem Pink | deko | 0.73 | 0.4 × 0.4 |
+| `hase` | Hase | deko | 40 | 40 × 40 |
 | `painting-canvas` | Painting Canvas | deko | 1.89 | 1 × 1.5 |
+| `papier` | Papier | deko | 0.11 | 1 × 1 |
 | `plant-2` | Plant 2 | deko | 0.25 | 1 × 1 |
 | `plant` | Plant | deko | 1.01 | 1.3 × 1.4 |
 | `planter--bushes` | Planter  Bushes | deko | 1.12 | 2.4 × 0.8 |
 | `tennis-ball` | Tennis Ball | deko | 0.07 | 9.4 × 9.4 |
-| `vogelscheuche` | Vogelscheuche | deko | 2.1 | 1.703 × 0.62 |
+| `vogelscheuche` | Vogelscheuche | deko | 2.175 | 1.703 × 0.62 |
 | `volleyball-ball` | Volleyball Ball | deko | 0.49 | 0.5 × 0.5 |
 | `air-fryer` | Air Fryer | essen | 0.6 | 0.5 × 0.6 |
 | `blender` | Blender | essen | 0.66 | 0.4 × 0.3 |
@@ -447,6 +450,8 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `soda-can` | Soda Can | essen | 0.12 | 6.1 × 6.1 |
 | `soda` | Soda | essen | 0.3 | 0.9 × 0.9 |
 | `spoon` | Spoon | essen | 0.05 | 0.1 × 0.3 |
+| `steak-1` | Steak 1 | essen | 0.008 | 1.6 × 0.7 |
+| `steak-2` | Steak 2 | essen | 0.008 | 1.6 × 0.7 |
 | `tea-cup` | Tea Cup | essen | 0.11 | 0.2 × 0.2 |
 | `toaster` | Toaster | essen | 0.27 | 0.4 × 0.2 |
 | `water-bottle` | Water Bottle | essen | 0.3 | 0.5 × 0.5 |

@@ -12,3 +12,7 @@
 - **Auto:** `baumBremse` 0,45→0,2; `FAHRZEUG.abprallenFahrzeug` 0,55 (Wand 0,25); `fahre` merkt `fz.aufprall.mit` (getroffene Fahrzeug-ID); `fahrzeugSystem.stosseFahrzeugAn` schiebt unbesetzte Ziele (K:`fahrzeug.stossFaktor` 0,4).
 - **Regen-Graustich:** `WetterEffekt.graustich` (regen×0,22, starkregen×0,7, gewitter×1, × `aussen`, Zeitkonstante 7 s) → `renderer.#setzeGraustich` = CSS-Filter saturate/brightness/contrast auf dem 3D-Canvas.
 - ⚠ Nicht im echten Spiel geprüft: In-App-Browser blockiert rAF (Ladebildschirm hängt bei 0 %), Chrome-Erweiterung nicht verbunden. Geprüft: Tests, Menü lädt fehlerfrei, Icon-/Modell-Render. Rinde-Helligkeit, Graustich, Ast-Modelle am Boden bitte im Spiel ansehen. `tests/studio.test.js`/`bloecke`/`wandDurchsicht` rot = fehlendes `three`/SDK in dieser Umgebung.
+
+## ZIP-Modelle (2026-11-04)
+- `verteilen bitte/*.zip` (gitignored) enthielt nur OBJ ohne MTL/Textur (`model_0/1.obj`, Z-up). Konvertiert per Python-`trimesh` (Z→Y-up, zentriert, Boden y=0, entartete Faces raus, Flat-PBR-Farbe) → `client/assets/eigene/steak-1.glb` (rosa) / `steak-2.glb` (braun). Kategorie `essen`, `HOEHEN` 0.008 (Slab 1,6×0,04 → ~0,4 m breit). Credit ungeprüft (ZIP ohne Credits).
+- ⚠ `npm run eigene:vorschau` braucht `npm install` (`ws`); danach `eigene:index`, `ki:anleitung`. Test `studio.test.js` „Ins Spiel…" schlägt schon vorher fehl.

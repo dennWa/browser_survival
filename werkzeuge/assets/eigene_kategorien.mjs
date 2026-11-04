@@ -62,7 +62,7 @@ export const KATEGORIEN = {
   essen: L(`
     air-fryer blender bottle bottle-2 bowl burger can can-broken can-red coffee-cup coffee-machine crate-lettuce
     crate-of-buns crate-of-carrots crate-of-potatoes crate-of-tomatoes crushed-soda-can donut fork fry-pan glass-cup
-    ice-cream milkjar pan pizza plastic-cup plate pot pot-2 pot2 sauce-pan soda soda-can spoon tea-cup toaster water-bottle`),
+    ice-cream milkjar pan pizza plastic-cup plate pot pot-2 pot2 sauce-pan soda soda-can spoon steak-1 steak-2 tea-cup toaster water-bottle`),
   deko: L(`
     americanfootball-ball banner-wall basket-ball blood blood-splat blood-splat-2 bone bonfire candle-melted chalice
     debris-papers debris-papers-2 debris-pile eight-vases fire-pit-1 fire-pit-1-2 fire-pit-3 fish-bowl flag football
@@ -91,7 +91,7 @@ export const HOEHEN = {
   chair: 0.95, 'bed-single': 0.75, 'single-bed': 1, 'vending-machine': 1.85, can: 0.15, 'can-red': 0.15, 'can-broken': 0.15,
   pot: 0.3, 'ceiling-lamp-3': 0.4, 'ceiling-lamp-4': 0.4, 'ceiling-lamp-5': 0.4, 'plant-big-2': 1.5, clover: 0.3, 'clover-2': 0.3,
   'flower-single': 0.5, 'flower-single-2': 0.5, 'flower-group': 0.6, 'flower-group-2': 0.6, fern: 0.9, axe2: 0.9, 'wood-log': 0.45,
-  bonfire: 0.8, tv: 0.7, grass: 0.5,
+  bonfire: 0.8, tv: 0.7, grass: 0.5, 'steak-1': 0.008, 'steak-2': 0.008,
   // Kenney Furniture Kit (CC0)
   'kenney-toilette': 0.8, 'kenney-waschbecken': 0.95, 'kenney-dusche': 2.1, 'kenney-spiegel': 0.7, 'kenney-muelleimer': 0.6,
   'kenney-garderobe': 1.8, 'kenney-buerostuhl': 1.0, 'kenney-nachttisch': 0.6, 'kenney-bildschirm': 0.45, 'kenney-laptop': 0.25,
