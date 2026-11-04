@@ -51,7 +51,7 @@ export class Welt {
     this.tuerAnKachel = new Map(); // Kachelindex → Tür-ID
     for (const tuer of this.tueren) for (const { tx, ty } of tuer.kacheln) this.tuerAnKachel.set(ty * this.breite + tx, tuer.id);
     this.geschlosseneTueren = new Set();
-    /** [{ id, typ, art, werkzeug, x, y, radius, objekt }]  x/y = Mitte in Weltpixeln */
+    /** [{ id, typ, art, werkzeug, werkzeuge, x, y, radius, objekt }]  x/y = Mitte in Weltpixeln */
     this.ressourcen = findeRessourcen(this);
     this.ressourceAnKachel = new Map(); // Kachelindex → Ressourcen-ID (nur blockierende, z. B. Steine)
     for (const r of this.ressourcen) {
@@ -59,6 +59,8 @@ export class Welt {
       for (const index of bedeckteKacheln(r.objekt, this.breite)) this.ressourceAnKachel.set(index, r.id);
     }
     this.abgebaut = new Set();
+    /** Runde 31: Ressourcen-ID (Baum) → so oft wurde schon Rinde abgeschnitten (heller Stamm; bis zum Nachwachsen/Serverneustart) */
+    this.rindeAb = new Map();
     /** Straßenlaternen (Objekt `licht` mit `mast`): [{ id, x, y, radius, objekt }] – Fahrzeuge können sie ab UMFAHR_MIN_KMH umfahren (laternenUmgefahren) */
     this.laternen = findeLaternen(this);
     this.laternenUmgefahren = new Set();
@@ -183,12 +185,24 @@ export class Welt {
     this.ressourcenVersion++;
   }
 
-  /** Nächster vorhandener Knoten, dessen Rand höchstens `reichweite` px entfernt ist – oder null. */
-  naechsteRessource(x, y, reichweite) {
+  /** Runde 31: Rinde-Zähler setzen (Server) bzw. aus der Nachricht übernehmen (Client: { id: anzahl }) */
+  setzeRinde(id, anzahl) {
+    if (anzahl > 0) this.rindeAb.set(id, anzahl);
+    else this.rindeAb.delete(id);
+    this.ressourcenVersion++;
+  }
+
+  uebernimmRinde(objekt) {
+    this.rindeAb = new Map(Object.entries(objekt ?? {}).map(([id, n]) => [Number(id), n]));
+    this.ressourcenVersion++;
+  }
+
+  /** Nächster vorhandener Knoten, dessen Rand höchstens `reichweite` px entfernt ist – oder null. `passt(r)` filtert (z. B. nur Knoten mit passendem Werkzeug). */
+  naechsteRessource(x, y, reichweite, passt = null) {
     let beste = null;
     let bestAbstand = reichweite;
     for (const r of this.ressourcen) {
-      if (this.abgebaut.has(r.id)) continue;
+      if (this.abgebaut.has(r.id) || (passt && !passt(r))) continue;
       const abstand = Math.hypot(r.x - x, r.y - y) - r.radius;
       if (abstand <= bestAbstand) {
         beste = r;
@@ -470,7 +484,7 @@ function findeRessourcen(welt) {
     const def = RESSOURCEN_OBJEKTE[o.typ];
     if (!def) continue;
     const gross = o.groesse === 'gross';
-    liste.push({ id: liste.length, typ: o.typ, art: def.art, werkzeug: def.werkzeug, groesse: o.groesse ?? 'klein', x: (o.x + o.b / 2) * g, y: (o.y + o.h / 2) * g, radius: gross ? def.radius * 1.2 : def.radius, objekt: o });
+    liste.push({ id: liste.length, typ: o.typ, art: def.art, werkzeug: def.werkzeug, werkzeuge: def.werkzeuge ?? [def.werkzeug], groesse: o.groesse ?? 'klein', x: (o.x + o.b / 2) * g, y: (o.y + o.h / 2) * g, radius: gross ? def.radius * 1.2 : def.radius, objekt: o });
   }
   return liste;
 }

@@ -1,4 +1,4 @@
-import { AUFPRALL_MIN_KMH, LATERNE_MIN_KMH, tempoZuKmh, EINSTIEG_ABSTAND, FAHRZEUG_MAX_KMH, abstandZumFahrzeug, ausstiegsPunkt, fahrzeugKacheln, kmhZuTempo, passt } from '../../../gemeinsam/physik/fahrzeug.js';
+import { FAHRZEUG, AUFPRALL_MIN_KMH, LATERNE_MIN_KMH, tempoZuKmh, EINSTIEG_ABSTAND, FAHRZEUG_MAX_KMH, abstandZumFahrzeug, ausstiegsPunkt, fahrzeugKacheln, kmhZuTempo, passt } from '../../../gemeinsam/physik/fahrzeug.js';
 import { fuegeSchadenZu, toeten } from './kampfSystem.js';
 import { schliesseKiste } from './kistenSystem.js';
 import { erzeugeFahrzeug } from '../entitaeten/fahrzeug.js';
@@ -202,6 +202,17 @@ function verarbeiteAufprall(spielWelt, fz) {
   const vorn = fz.laenge / 2;
   spielWelt.ereignis({ typ: 'aufprall', x: fz.x + Math.cos(fz.winkel) * vorn * Math.sign(fz.tempo || 1), y: fz.y + Math.sin(fz.winkel) * vorn * Math.sign(fz.tempo || 1), tempo: Math.abs(fz.tempo) });
   schlageFahrzeug(spielWelt, fz, schaden);
+  stosseFahrzeugAn(spielWelt, fz, -Math.sign(fz.tempo || 1) * kmhZuTempo(kmh), fz.aufprall.mit); // fz.tempo ist schon umgekehrt
+}
+
+/** Runde 31: Zusammenstoß – das getroffene, unbesetzte Fahrzeug bekommt einen Stoß in Fahrtrichtung des Rammers (ein Teil des Tempos, entlang seiner Längsachse). */
+function stosseFahrzeugAn(spielWelt, fz, tempo, andereId) {
+  if (andereId === undefined || andereId === null) return;
+  const anderes = spielWelt.holen(andereId);
+  if (!anderes || anderes.typ !== 'fahrzeug' || anderes.kaputt || anderes.fahrerId !== null) return;
+  const stoss = (spielWelt.konfiguration.fahrzeug.stossFaktor ?? 0.4) * tempo;
+  const mitFahrtrichtung = Math.cos(fz.winkel) * Math.cos(anderes.winkel) + Math.sin(fz.winkel) * Math.sin(anderes.winkel);
+  anderes.tempo = Math.max(-FAHRZEUG.rueckwaertsMax, Math.min(FAHRZEUG.max, anderes.tempo + stoss * mitFahrtrichtung));
 }
 
 /** Bäume & Straßenlaternen unter dem Fahrzeug bei ≥ AUFPRALL_MIN_KMH: umgefahren (Baum kippt wie beim Fällen, Laterne knickt um); Baum bremst etwas, Laterne deutlich (laterneBremse) + kleiner Schaden. */

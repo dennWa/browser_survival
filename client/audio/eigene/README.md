@@ -29,6 +29,7 @@ Tipp: kurze Dateien (< 3 s), Lautstärke der Aufnahme selbst eher normalisiert.
 | `schritt_schnee` | Schritte im Schnee (Knirschen, jeder Tritt; Schneefall selbst ist lautlos) |
 | `schritt_gras` | Schritte im Gras (jeder Tritt; 6 Aufnahmen, zufällig) |
 | `schritt_innen` | Schritte in Häusern (jeder Tritt, 8 Aufnahmen) |
+| `schritt_asphalt` | Schritte auf Asphalt, Straße, Gehweg, Pflaster (jeder Tritt, 7 Aufnahmen) |
 | `donner` | Ferner Donner bei Gewitter (verzögert nach dem Blitz) |
 | `donner_nah` | Naher Donnerschlag (Blitz ganz in der Nähe) |
 | `regen_stark` | Starkregen (Wetter Starkregen/Gewitter, Schleife, ersetzt den normalen Regen) |
@@ -184,6 +185,7 @@ Tipp: kurze Dateien (< 3 s), Lautstärke der Aufnahme selbst eher normalisiert.
 |---|---|
 | `hack_holz` | Axt trifft Baum (jeder Hieb) |
 | `baum_faellt` | Baum fällt um (Holzfällen fertig) |
+| `rinde_schnitzen` | Rinde vom Baum schneiden (läuft einmal pro Vorgang, 6 s = Länge des Holzfällens) |
 | `hack_stein` | Spitzhacke trifft Eisenerz |
 | `stein_bricht` | Eisenerz ist abgebaut |
 | `hack_felsen` | Spitzhacke trifft Fels/Stein |

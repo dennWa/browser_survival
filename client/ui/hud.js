@@ -945,7 +945,7 @@ export class Hud {
     if (schluessel === this.#letzteArbeit) return;
     this.#letzteArbeit = schluessel;
     // Abbau (Baum/Stein/Eisen): nur der kleine Balken direkt über dem Objekt (weltPopups, clientSpiel) – kein Text mehr
-    const abbau = arbeit && ['holz', 'stein', 'eisenerz'].includes(arbeit.art);
+    const abbau = arbeit && ['holz', 'rinde', 'ast', 'stein', 'eisenerz'].includes(arbeit.art);
     this.el.arbeit.hidden = !arbeit || abbau;
     if (!arbeit || abbau) return;
     const text = arbeit.wartet

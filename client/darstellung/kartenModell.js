@@ -71,6 +71,10 @@ export const BODEN_BLOCK = 32;
 /** Modell-Animationen laufen nur bis zu dieser Entfernung (Kacheln) von der Kamera – spart Rechenzeit auf großen Karten */
 const ANIMATION_WEITE = 40;
 
+/** Runde 31: Helligkeit des Baumstamms nach 0…3 abgeschnittenen Rinden-Stücken (Multiplikator auf die Vertexfarbe) */
+const RINDE_HELLIGKEIT = [1, 1.45, 1.9, 2.4];
+const _rindeFarbe = new THREE.Color();
+
 export class KartenModell {
   /**
    * @param mitSchnitt  Funktion, die einem Material den Wand-Schnitt (siehe Renderer) verpasst
@@ -830,6 +834,7 @@ export class KartenModell {
         const teil = art.teile.get(block);
         const index = teil.naechster++;
         for (const mesh of teil.meshes) eintrag.teile.push({ mesh, index, matrix });
+        if (art.modell) eintrag.rinde = { mesh: teil.meshes[0], index, stand: 0 }; // Runde 31: Rinde-Mesh → Stamm wird heller, wenn Rinde abgeschnitten wurde
         if (art.toene && teil.laub) {
           // Laubfarbe je Baum leicht anders (Ton aus der Liste × kleine Helligkeitsschwankung) – nur das Laub, die Rinde bleibt
           const ton = art.toene[Math.floor(streuung(o.y, o.x) * art.toene.length)];
@@ -902,6 +907,15 @@ export class KartenModell {
       if (eintrag.stumpf) {
         eintrag.stumpf.mesh.setMatrixAt(eintrag.stumpf.index, da ? NULL_MATRIX : eintrag.stumpf.matrix);
         geaendert.add(eintrag.stumpf.mesh);
+      }
+      // Runde 31: je abgeschnittener Rinde (max. 3) wird der Stamm heller; Instanzfarbe nur anlegen, wenn nötig
+      const rinde = eintrag.rinde;
+      const schnitte = this.welt.rindeAb.get(id) ?? 0;
+      if (rinde && rinde.stand !== schnitte) {
+        rinde.stand = schnitte;
+        const hell = RINDE_HELLIGKEIT[Math.min(schnitte, RINDE_HELLIGKEIT.length - 1)];
+        rinde.mesh.setColorAt(rinde.index, _rindeFarbe.setRGB(hell, hell, hell, THREE.LinearSRGBColorSpace));
+        rinde.mesh.instanceColor.needsUpdate = true;
       }
     }
     for (const m of geaendert) m.instanceMatrix.needsUpdate = true;

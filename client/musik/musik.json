@@ -9,5 +9,10 @@
     "Kevin MacLeod - Local Forecast - Elevator.ogg"
   ],
   "stadtrand": [],
-  "waldweg": []
+  "waldweg": [],
+  "_optionen": {
+    "hauptmenue": {
+      "ueberblendung": 1
+    }
+  }
 }

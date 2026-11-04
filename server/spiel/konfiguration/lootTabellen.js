@@ -112,6 +112,7 @@ const BASIS_LOOT_TABELLEN = Object.freeze({
     { id: 'hammer', gewicht: 2 },
   ],
   verwaltung: [
+    { id: 'papier', gewicht: 3 },
     { id: 'kaffee', gewicht: 2 },
     { id: 'muesliriegel', gewicht: 2 },
     { id: 'energydrink', gewicht: 1 },
@@ -127,6 +128,7 @@ const BASIS_LOOT_TABELLEN = Object.freeze({
   ],
   // Wohnhäuser: vor allem Essen & Trinken, Waffen nur selten
   wohnung: [
+    { id: 'papier', gewicht: 3 },
     { id: 'golfschlaeger', gewicht: 0.4 }, // Runde 26
     { id: 'bratpfanne', gewicht: 0.5 }, // Runde 26
     { id: 'revolver', gewicht: 0.15 }, // Runde 26
@@ -261,6 +263,7 @@ const BASIS_LOOT_TABELLEN = Object.freeze({
     { id: 'mod_schalldaempfer', gewicht: 0.4 },
   ],
   kiosk: [
+    { id: 'papier', gewicht: 2 },
     { id: 'alkohol', gewicht: 1.5 },
     { id: 'energydrink', gewicht: 3 },
     { id: 'muesliriegel', gewicht: 3 },
@@ -281,6 +284,7 @@ const BASIS_LOOT_TABELLEN = Object.freeze({
   ],
   // Zone "Waldweg": Försterhütte
   huette: [
+    { id: 'papier', gewicht: 2 },
     { id: 'kampfmesser', gewicht: 0.6 }, // Runde 26
     { id: 'revolver', gewicht: 0.3 }, // Runde 26
     { id: 'munition_357', gewicht: 0.8 }, // Runde 26
@@ -317,6 +321,7 @@ const BASIS_LOOT_TABELLEN = Object.freeze({
   ],
   // Runde 25: durchsuchbare Behälter auf der Karte (gemeinsam/welt/behaelter.js → loot)
   schrank: [
+    { id: 'papier', gewicht: 2 },
     { id: 'kapuzenpulli', gewicht: 2 },
     { id: 'jeans', gewicht: 2 },
     { id: 'muetze', gewicht: 1.5 },
@@ -332,6 +337,7 @@ const BASIS_LOOT_TABELLEN = Object.freeze({
     { id: 'baseballschlaeger', gewicht: 0.4 },
   ],
   kommode: [
+    { id: 'papier', gewicht: 2 },
     { id: 'stoff', gewicht: 3 },
     { id: 'muetze', gewicht: 1 },
     { id: 'handschuhe', gewicht: 1 },

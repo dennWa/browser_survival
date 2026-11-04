@@ -44,9 +44,10 @@ Playwright-Skripte: nach Login auf `#laden` hidden warten (Aufwärmphase), sonst
 | `ki/studio.md` | Studio `studio/` (Desktop-Editor, MCP, Werkstatt, Audio) + Phase 4 |
 | `ki/runde28.md` | Runde 28 (Hauptmenü, Slots, Kleidung, Nässe/Blutung) |
 | `ki/runde29.md` | Runde 29 ( Sound-Paket, Wasser, Konsum-Dauer, Bots wehren sich, Autos beschießbar, Einschusslöcher) |
-| `ki/runde30.md` | Runde 30 (neueste: Zombie-Atlas-Textur, UV-Umprojektion `zombieTextur.js`) |
+| `ki/runde30.md` | Runde 30 (Zombie-Atlas-Textur, UV-Umprojektion `zombieTextur.js`) |
+| `ki/runde31.md` | Runde 31 (neueste: Ast/Rinde/Feuerbohrer, Zombie-/Asphalt-Sounds, Lautstärken, Auto-Zusammenstoß, Ego-Sicht, Regen-Graustich) |
 
-**Faustregel:** Spiellogik/Netz → `ki/kern.md` + `ki/fallen.md`. Datei suchen → `ki/dateikarte.md`. Neueste Änderungen → `ki/runde30.md`. Editor → `ki/editor.md`.
+**Faustregel:** Spiellogik/Netz → `ki/kern.md` + `ki/fallen.md`. Datei suchen → `ki/dateikarte.md`. Neueste Änderungen → `ki/runde31.md`. Editor → `ki/editor.md`.
 Ausführliches Handbuch (für Menschen): `project_manifest.md` (ebenfalls aufgeteilt unter `ki/handbuch/`).
 
 ## Pflege (Pflicht am Auftragsende)

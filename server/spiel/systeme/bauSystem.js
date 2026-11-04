@@ -134,13 +134,23 @@ function hackeSchlag(spielWelt, spieler, tx, ty) {
   spielWelt.setzeAktion(spieler, 'hacke', HACKE_ANIMATION);
 }
 
-/** Runde 24: Kamin an (Feuerzeug) / aus – brennt `kaminDauer` s, Holz in der Hand legt nach (stationSystem.schuereFeuer). */
+/** Runde 31: Womit zündet man? Feuerzeug (10 Feuer) vor Feuerbohrer (2 Feuer) – beide nutzen sich ab (haltbarkeit in gegenstaende.js). */
+function zuendQuelle(spieler) {
+  return ['feuerzeug', 'feuerbohrer'].find((id) => spieler.inventar.some((e) => e?.defId === id)) ?? null;
+}
+
+/** Runde 24: Kamin an (Feuerzeug/Feuerbohrer) / aus – brennt `kaminDauer` s, Holz in der Hand legt nach (stationSystem.schuereFeuer). */
 function zuendeKamin(spielWelt, spieler, b) {
   if (b.brennt) Object.assign(b, { brennt: false, brennRest: 0 });
-  else if (!spieler.inventar.some((e) => e?.defId === 'feuerzeug')) {
-    spielWelt.melde(spieler.id, 'Du brauchst ein Feuerzeug');
-    return;
-  } else Object.assign(b, { brennt: true, brennRest: spielWelt.konfiguration.bauen.kaminDauer });
+  else {
+    const quelle = zuendQuelle(spieler);
+    if (!quelle) {
+      spielWelt.melde(spieler.id, 'Du brauchst ein Feuerzeug oder einen Feuerbohrer');
+      return;
+    }
+    nutzeWerkzeug(spielWelt, spieler, quelle);
+    Object.assign(b, { brennt: true, brennRest: spielWelt.konfiguration.bauen.kaminDauer });
+  }
   spielWelt.welt.setzeBauwerk(b);
   spielWelt.ereignis({ typ: 'lagerfeuer', an: b.brennt, x: mitteX(spielWelt, b), y: mitteY(spielWelt, b) });
 }
@@ -178,14 +188,16 @@ export function feuer(spielWelt, spieler) {
     Object.assign(b, { brennt: false, brennRest: 0 });
     spielWelt.melde(spieler.id, 'Feuer gelöscht');
   } else {
-    if (!spieler.inventar.some((e) => e?.defId === 'feuerzeug')) {
-      spielWelt.melde(spieler.id, 'Du brauchst ein Feuerzeug');
+    const quelle = zuendQuelle(spieler);
+    if (!quelle) {
+      spielWelt.melde(spieler.id, 'Du brauchst ein Feuerzeug oder einen Feuerbohrer');
       return true;
     }
     if (regnet(spielWelt.wetter?.art)) {
       spielWelt.melde(spieler.id, 'Bei Regen brennt nichts');
       return true;
     }
+    nutzeWerkzeug(spielWelt, spieler, quelle);
     Object.assign(b, { brennt: true, brennRest: spielWelt.konfiguration.bauen.brennDauer });
     spielWelt.melde(spieler.id, 'Das Feuer brennt');
   }

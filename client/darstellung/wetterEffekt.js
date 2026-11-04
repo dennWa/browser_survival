@@ -107,6 +107,7 @@ export class WetterEffekt {
     this.boe = 0; // 0..1 aktuelle Böe (für Ton und Blätter)
     this.sturm = 0; // 0..1 Sturmstärke (Sturm, Gewitter, Schneesturm)
     this.gewitter = 0; // 0..1
+    this.graustich = 0; // Runde 31: 0..1, Bild verliert bei mittlerem/starkem Regen langsam Farbe (Renderer setzt CSS-Filter)
     this.starkregen = 0; // 0..1 (Runde 29: dichterer Regen, eigener Ton)
     this.blitz = 0; // 0..1 aktuelle Helligkeit eines Blitzes (Renderer hellt Licht/Himmel auf)
     this.naechsterBlitz = 4;
@@ -233,6 +234,9 @@ export class WetterEffekt {
     const windSchraeg = this.sturm * (0.55 + 0.45 * boeSchnell);
     this.#blitze(dt);
     this.aussen += ((drinnen ? 0 : 1) - this.aussen) * Math.min(1, dt * 4);
+    // Runde 31: Graustich – leichter Regen kaum (0,22), Starkregen deutlich (0,7), Gewitter voll; langsam (Zeitkonstante ~7 s), drinnen aus
+    const nass = Math.max(this.regen * 0.22, this.starkregen * 0.7, this.gewitter) * this.aussen;
+    this.graustich += (nass - this.graustich) * (1 - Math.exp(-dt / 7));
     const schneit = this.schnee > 0.01 && this.aussen > 0.01;
     this.schneeFlocken.visible = schneit;
     if (schneit) {

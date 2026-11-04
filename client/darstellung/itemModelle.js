@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { vereineGeometrien, matrixAus } from './geometrie.js';
 import { erzeugeWaffe, WAFFEN_NAMEN } from './waffenModelle.js';
+import { GLTFLoader } from '../vendor/three/addons.js';
 
 /**
  * 3D-Modelle für Gegenstände am Boden – prozedural aus einfachen Körpern, jeweils zu EINER Geometrie mit
@@ -8,6 +9,8 @@ import { erzeugeWaffe, WAFFEN_NAMEN } from './waffenModelle.js';
  *
  * Neues Modell? → In BAUPLAENE eine Funktion `defId: () => [teil(...), ...]` ergänzen.
  * Waffen & Werkzeuge kommen automatisch aus waffenModelle.js (liegen flach auf der Seite).
+ * Runde 31: Ast (6 Varianten, je nach Item-ID) und Papier kommen aus .glb (assets/eigene/aeste.glb, papier.glb – `ladeGlbItemModelle`);
+ * bis sie geladen sind (oder falls sie fehlen) gelten die einfachen Baupläne `ast`/`papier` unten.
  * Ohne Bauplan zeigt der Renderer weiter das flache Icon (Fallback).
  *
  * Maße: 1 Einheit = 1 Weltpixel, vor ITEM_SKALA. Der Boden ist y = 0, Modelle werden automatisch draufgestellt.
@@ -63,6 +66,11 @@ const BAUPLAENE = {
   // Rucksäcke liegen auf dem Rücken; Größe & Farbe je nach Variante
   rucksack: () => rucksackLiegend(1, null),
   rucksack_klein: () => rucksackLiegend(0.8, 0x9a7a3a),
+  // Runde 31: Ast/Papier-Ersatz (bis die .glb geladen ist), Rinde (Platzhalter) und Feuerbohrer
+  ast: () => [rolle(0.9, 12, 0x6e4b2b), rolle(0.5, 4, 0x6e4b2b, 2, 0.8, 0.6, 0.6)],
+  papier: () => [box(8, 0.5, 7, 0xf1eee4, 0, 0, 0, 0.2), box(5, 0.5, 4, 0xe6e2d6, 0.4, 0.5, 0, -0.3)],
+  rinde: () => [box(9, 0.9, 5, 0x6b4a2e, 0, 0, 0, 0.15), box(8, 0.8, 3.2, 0x7d5a38, 0.3, 0.8, 0.2, 0.1), box(9, 0.5, 1, 0x4f3520, 0, 1.4, -2.1, 0.15)],
+  feuerbohrer: () => [rolle(0.45, 11, 0xc9b28a, 0, 1.2, 0, 0.2), box(9, 0.7, 1.2, 0x6b4a2e, -0.5, 1.9, 1.8, 0.35), rolle(0.4, 9, 0x8a5a2b, 0.5, 0.4, -2.2, -0.1)],
   // Runde 23: Kleidung – einfache Low-Poly-Formen in der Item-Farbe (gegenstaende.js `farbe`)
   muetze: () => [box(6, 3.2, 6, 0x8a2f2f, 0, 0, 0), box(6.6, 1.4, 6.6, 0xb04848, 0, 0, 0), box(2, 1.8, 2, 0xc85a5a, 0, 3.2, 0)],
   kapuzenpulli: () => gefaltet(0x4f5f70, 0x6c7d90),
@@ -148,7 +156,47 @@ function schuhPaar(farbe, hoehe) {
   return teile;
 }
 
-export function itemGeometrie(defId) {
+/** .glb-Items: Datei, Länge/Breite in Weltpixeln, Farbe (Ast: braun, Papier: weiß), Ast-Teile heißen `ast_0 … ast_5` */
+const GLB_ITEMS = {
+  ast: { datei: 'aeste.glb', groesse: 26, farbe: 0x6e4b2b, liegend: true },
+  papier: { datei: 'papier.glb', groesse: 17, farbe: 0xf3f0e6, liegend: false },
+};
+const glbGeometrien = new Map(); // defId → [Geometrie je Variante]
+
+/** Lädt Ast-/Papier-Modelle einmal (Fehler = Ersatz-Bauplan bleibt). Beim Start aufrufen, bevor Items auftauchen. */
+export async function ladeGlbItemModelle() {
+  const lader = new GLTFLoader();
+  await Promise.all(
+    Object.entries(GLB_ITEMS).map(async ([defId, { datei, groesse, farbe, liegend }]) => {
+      try {
+        const gltf = await lader.loadAsync(new URL(`../assets/eigene/${datei}`, import.meta.url).href);
+        gltf.scene.updateMatrixWorld(true);
+        const varianten = [];
+        gltf.scene.traverse((o) => {
+          if (!o.isMesh) return;
+          const matrix = new THREE.Matrix4().makeScale(groesse, groesse, groesse);
+          if (liegend) matrix.premultiply(new THREE.Matrix4().makeRotationZ(Math.PI / 2)); // Ast: Länge (y) → liegt entlang x
+          matrix.multiply(o.matrixWorld);
+          const geometrie = vereineGeometrien([{ geometrie: o.geometry, matrix, farbe: new THREE.Color(farbe) }], { mitFarbe: true });
+          aufDenBoden(geometrie);
+          varianten.push(geometrie);
+        });
+        if (varianten.length) glbGeometrien.set(defId, varianten);
+      } catch {
+        // Datei fehlt → Ersatz-Bauplan
+      }
+    }),
+  );
+}
+
+/** Wie viele Varianten hat das Item (Ast: 6)? Der Renderer wählt je Item-ID eine. */
+export function itemVarianten(defId) {
+  return glbGeometrien.get(defId)?.length ?? 1;
+}
+
+export function itemGeometrie(defId, variante = 0) {
+  const glb = glbGeometrien.get(defId);
+  if (glb) return glb[variante % glb.length];
   if (cache.has(defId)) return cache.get(defId);
   let geometrie = null;
   if (BAUPLAENE[defId]) {

@@ -96,6 +96,10 @@ const ROH_GEGENSTAENDE = {
   verkohlt: { name: 'Verkohltes Essen', kategorie: 'material', stapelbar: 10, beschreibung: 'Zu lange im Feuer – ungenießbar' },
   muell: { name: 'Müll', kategorie: 'material', stapelbar: 10, beschreibung: 'Aus dem See gefischt – nutzlos' },
   schrott: { name: 'Schrott', kategorie: 'material', stapelbar: 10, beschreibung: 'Rostiges Metall aus dem See' },
+  // Runde 31: Büsche (Machete/Axt/Messer) geben Äste, Bäume Rinde (Machete/Messer in der Hand, 3× je Baum); Papier/Rinde/Stoff/Verband = Brennstoff fürs Lagerfeuer-Rezept
+  ast: { name: 'Ast', kategorie: 'material', stapelbar: 20, beschreibung: 'Von einem Busch abgeschnitten – mit Rinde zum Feuerbohrer' },
+  rinde: { name: 'Baumrinde', kategorie: 'material', stapelbar: 20, beschreibung: 'Mit Machete oder Messer vom Baum geschnitten – Zunder fürs Lagerfeuer, mit einem Ast ein Feuerbohrer' },
+  papier: { name: 'Papier', kategorie: 'material', stapelbar: 20, mengeBeimFund: [1, 3], beschreibung: 'Zerknüllt – brennt gut, Zunder fürs Lagerfeuer' },
   bretter: { name: 'Bretter', kategorie: 'material', stapelbar: 10, beschreibung: 'Vor einer geschlossenen Tür benutzen: verstärkt sie' },
   // Rucksäcke: werden beim Aufheben angelegt (falls man noch keinen trägt) → `plaetze` zusätzliche Inventarplätze.
   // Trägt man schon einen: im Inventar "benutzen" = tauschen (Inhalt wandert mit)
@@ -139,7 +143,8 @@ const ROH_GEGENSTAENDE = {
   benzin: { name: 'Benzinkanister', kategorie: 'material', beschreibung: 'Treibstoff für den Generator (15 min Strom)' },
   alkohol: { name: 'Hochprozentiges', kategorie: 'material', beschreibung: 'Brennt gut – für Molotowcocktails' },
   // --- Werkzeug & Garten ---
-  feuerzeug: { name: 'Feuerzeug', kategorie: 'werkzeug', beschreibung: 'Zum Anzünden von Lagerfeuern (F)' },
+  feuerzeug: { name: 'Feuerzeug', kategorie: 'werkzeug', haltbarkeit: 10, verbraucht: true, beschreibung: 'Zum Anzünden von Lagerfeuern und Kaminen (F) – reicht für 10 Feuer' },
+  feuerbohrer: { name: 'Feuerbohrer', kategorie: 'werkzeug', haltbarkeit: 2, verbraucht: true, beschreibung: 'Zündet ein Lagerfeuer oder Kamin (F) – nur 2 Mal, dann ist er verbraucht. Aus Rinde + Ast ohne Werkbank herstellbar' },
   samen_tomate: { name: 'Tomatensamen', kategorie: 'samen', pflanze: 'tomate', stapelbar: 10, beschreibung: 'In ein Beet pflanzen (E am Beet)' },
   samen_gurke: { name: 'Gurkensamen', kategorie: 'samen', pflanze: 'gurke', stapelbar: 10, beschreibung: 'In ein Beet pflanzen (E am Beet)' },
   samen_kartoffel: { name: 'Saatkartoffeln', kategorie: 'samen', pflanze: 'kartoffel', stapelbar: 10, beschreibung: 'In ein Beet pflanzen (E am Beet)' },

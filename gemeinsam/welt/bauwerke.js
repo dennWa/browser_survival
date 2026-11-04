@@ -279,7 +279,7 @@ export function bauwerkAktion(b, inventar, name = null, flaggeDort = null) {
       return { art: 'licht', text: b.an === false ? 'Licht an' : 'Licht aus', symbol: '💡' };
     case 'kamin':
       if (b.brennt) return { art: 'handwerk', station: 'feuer', text: 'Am Kamin kochen', symbol: '🍲' }; // Runde 24: Kochstelle (brennt von selbst aus)
-      return { art: 'kamin', text: b.brennt ? 'Kaminfeuer löschen' : hat('feuerzeug') ? 'Kamin anzünden' : 'Kamin (Feuerzeug nötig)', symbol: '🔥' };
+      return { art: 'kamin', text: b.brennt ? 'Kaminfeuer löschen' : hat('feuerzeug') || hat('feuerbohrer') ? 'Kamin anzünden' : 'Kamin (Feuerzeug nötig)', symbol: '🔥' };
     case 'generator':
       return { art: 'generator', text: b.laeuft ? 'Generator aus' : hat('benzin') || (b.brennRest ?? 0) > 0 ? 'Generator starten' : 'Generator (Benzin nötig)', symbol: '⚡' };
     case 'radio':

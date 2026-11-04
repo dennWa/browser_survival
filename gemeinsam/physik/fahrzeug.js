@@ -31,6 +31,7 @@ export const FAHRZEUG = Object.freeze({
   eisHaftung: 0.4, // Phase 4: auf Eis (zugefrorenes Wasser) greifen Gas, Bremse, Rollreibung und Lenkung nur zu diesem Anteil
   schneeHaftung: 0.8, // … auf Schnee-Boden etwas weniger stark
   abprallen: 0.25, // Anteil des Tempos, der beim Aufprall übrig bleibt (rückwärts)
+  abprallenFahrzeug: 0.55, // Runde 31: gegen ein anderes Fahrzeug wirft es das Auto spürbar zurück (kein abruptes Stehenbleiben)
 });
 
 /** Anzeige-Höchstgeschwindigkeit (Tacho): FAHRZEUG.max entspricht 120 km/h (Runde 20, vorher 70 – wirkte zu lahm) */
@@ -99,7 +100,7 @@ export function fahrzeugAusObjekt(o, g) {
 /**
  * Ein Schritt Fahren. @returns { aufprall: true/false }
  * Zusätzlich merkt sich `fz.aufprall = { kmh, schramm }` (stärkster Aufprall seit dem Abholen durch den Server – der setzt es zurück):
- * Wand/anderes Fahrzeug getroffen, kmh = Tempo davor, schramm = nur an der Wand entlanggeschrammt.
+ * Wand/anderes Fahrzeug getroffen, kmh = Tempo davor, schramm = nur an der Wand entlanggeschrammt, mit = ID des getroffenen Fahrzeugs (Runde 31).
  */
 export function fahre(fz, eingabe, welt, dt) {
   const gas = Number.isFinite(eingabe.y) ? Math.max(-1, Math.min(1, -eingabe.y)) : 0;
@@ -159,8 +160,29 @@ export function fahre(fz, eingabe, welt, dt) {
     return { aufprall: true };
   }
   merkeAufprall(false);
-  fz.tempo = -fz.tempo * p.abprallen;
+  const anderes = fahrzeugImWeg(fz, fz.x + dx, fz.y + dy, welt);
+  if (anderes !== null && fz.aufprall) fz.aufprall.mit = anderes;
+  fz.tempo = -fz.tempo * (anderes !== null ? p.abprallenFahrzeug : p.abprallen);
   return { aufprall: true };
+}
+
+/** ID eines anderen Fahrzeugs, das an (x, y) im Weg steht (drei Kreise wie `passt`), sonst null – für den Rückstoß beim Zusammenstoß */
+function fahrzeugImWeg(fz, x, y, welt) {
+  if (!welt.fahrzeugAnKachel || welt.fahrzeugAnKachel.size === 0) return null;
+  const r = (fz.breite / 2) * 0.92;
+  const versatz = fz.laenge / 2 - fz.breite / 2;
+  const g = welt.kachelGroesse;
+  for (const s of [versatz, 0, -versatz]) {
+    const cx = x + Math.cos(fz.winkel) * s;
+    const cy = y + Math.sin(fz.winkel) * s;
+    for (let ty = Math.floor((cy - r) / g); ty <= Math.floor((cy + r) / g); ty++) {
+      for (let tx = Math.floor((cx - r) / g); tx <= Math.floor((cx + r) / g); tx++) {
+        const id = welt.fahrzeugAnKachel.get(ty * welt.breite + tx);
+        if (id !== undefined && id !== fz.id) return id;
+      }
+    }
+  }
+  return null;
 }
 
 /** Haftung 0..1 unter dem Fahrzeug: Eis (zugefrorenes Wasser in Schneezonen) < Schnee-Boden < normal (1) */

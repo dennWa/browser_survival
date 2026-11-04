@@ -263,7 +263,7 @@
     "dateien": [
       "menue_klick.ogg"
     ],
-    "lautstaerke": 0.9
+    "lautstaerke": 0.72
   },
   "miau": {
     "dateien": [
@@ -326,7 +326,7 @@
     "dateien": [
       "regen_dach.ogg"
     ],
-    "lautstaerke": 1
+    "lautstaerke": 0.8
   },
   "regen_stark": {
     "dateien": [
@@ -346,6 +346,12 @@
       "revolver_1.ogg"
     ],
     "lautstaerke": 1
+  },
+  "rinde_schnitzen": {
+    "dateien": [
+      "rinde_schnitzen.ogg"
+    ],
+    "lautstaerke": 0.8
   },
   "schaden_frau": {
     "dateien": [
@@ -386,6 +392,19 @@
     ],
     "lautstaerke": 0.8
   },
+  "schritt_asphalt": {
+    "dateien": [
+      "schritt_asphalt_0.ogg",
+      "schritt_asphalt_1.ogg",
+      "schritt_asphalt_2.ogg",
+      "schritt_asphalt_3.ogg",
+      "schritt_asphalt_4.ogg",
+      "schritt_asphalt_5.ogg",
+      "schritt_asphalt_6.ogg"
+    ],
+    "lautstaerke": 0.5,
+    "streuung": 0.06
+  },
   "schritt_gras": {
     "dateien": [
       "schritt_gras_0.wav",
@@ -395,7 +414,7 @@
       "schritt_gras_4.wav",
       "schritt_gras_5.wav"
     ],
-    "lautstaerke": 0.5,
+    "lautstaerke": 0.425,
     "streuung": 0.08
   },
   "schritt_innen": {
@@ -409,7 +428,7 @@
       "schritt_innen_6.ogg",
       "schritt_innen_7.ogg"
     ],
-    "lautstaerke": 0.45,
+    "lautstaerke": 0.3825,
     "streuung": 0.06
   },
   "schuss_leise": {
@@ -564,11 +583,7 @@
       "zombie_angriff_2.ogg",
       "zombie_angriff_3.ogg",
       "zombie_angriff_4.ogg",
-      "zombie_angriff_5.ogg",
-      "zombie_angriff_6.ogg",
-      "zombie_angriff_7.ogg",
-      "zombie_angriff_8.ogg",
-      "zombie_angriff_9.ogg"
+      "zombie_angriff_5.ogg"
     ],
     "lautstaerke": 0.75,
     "streuung": 0.05
@@ -607,7 +622,12 @@
       "zombie_stoehnen_10.ogg",
       "zombie_stoehnen_11.ogg",
       "zombie_stoehnen_12.ogg",
-      "zombie_stoehnen_13.ogg"
+      "zombie_stoehnen_13.ogg",
+      "zombie_stoehnen_14.ogg",
+      "zombie_stoehnen_15.ogg",
+      "zombie_stoehnen_16.ogg",
+      "zombie_stoehnen_17.ogg",
+      "zombie_stoehnen_18.ogg"
     ],
     "lautstaerke": 0.6,
     "streuung": 0.06
@@ -617,8 +637,7 @@
       "zombie_tod_0.ogg",
       "zombie_tod_1.ogg",
       "zombie_tod_2.ogg",
-      "zombie_tod_3.ogg",
-      "zombie_tod_4.ogg"
+      "zombie_tod_3.ogg"
     ],
     "lautstaerke": 0.675,
     "streuung": 0.05

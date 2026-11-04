@@ -19,6 +19,7 @@ export const EREIGNISSE = {
   schritt_schnee: ['Atmosphäre & Wetter', 'Schritte im Schnee (Knirschen, jeder Tritt; Schneefall selbst ist lautlos)'],
   schritt_gras: ['Atmosphäre & Wetter', 'Schritte im Gras (jeder Tritt; 6 Aufnahmen, zufällig)'],
   schritt_innen: ['Atmosphäre & Wetter', 'Schritte in Häusern (jeder Tritt, 8 Aufnahmen)', { stumm: true }],
+  schritt_asphalt: ['Atmosphäre & Wetter', 'Schritte auf Asphalt, Straße, Gehweg, Pflaster (jeder Tritt, 7 Aufnahmen)', { stumm: true }],
   donner: ['Atmosphäre & Wetter', 'Ferner Donner bei Gewitter (verzögert nach dem Blitz)'],
   donner_nah: ['Atmosphäre & Wetter', 'Naher Donnerschlag (Blitz ganz in der Nähe)', { stumm: true }],
   regen_stark: ['Atmosphäre & Wetter', 'Starkregen (Wetter Starkregen/Gewitter, Schleife, ersetzt den normalen Regen)', { loop: true, stumm: true }],
@@ -99,6 +100,7 @@ export const EREIGNISSE = {
   // Bauen, Handwerk & Arbeit
   hack_holz: ['Bauen, Handwerk & Arbeit', 'Axt trifft Baum (jeder Hieb)'],
   baum_faellt: ['Bauen, Handwerk & Arbeit', 'Baum fällt um (Holzfällen fertig)'],
+  rinde_schnitzen: ['Bauen, Handwerk & Arbeit', 'Rinde vom Baum schneiden (läuft einmal pro Vorgang, 6 s = Länge des Holzfällens)', { stumm: true }],
   hack_stein: ['Bauen, Handwerk & Arbeit', 'Spitzhacke trifft Eisenerz'],
   stein_bricht: ['Bauen, Handwerk & Arbeit', 'Eisenerz ist abgebaut'],
   hack_felsen: ['Bauen, Handwerk & Arbeit', 'Spitzhacke trifft Fels/Stein'],

@@ -55,7 +55,7 @@ export function wetterSchichten({ w, hell = 1, drinnen = false, imHaus = false, 
   const wechsel = (Math.sin((zeit / BLIZZARD_ZYKLUS) * Math.PI * 2) + 1) * (Math.PI / 4); // 0..π/2, gleiche Leistung
   const windFrei = schneeZone ? 0 : leise;
   return {
-    regen: w.regen * (1 - stark) * (imHaus ? 0.2 : 1),
+    regen: w.regen * (1 - stark) * (imHaus ? 0.16 : 1), // Runde 31: drinnen nochmal 20 % leiser (vorher 0,2)
     // Grillen: nur bei ruhigem Wetter, nicht in Schneezonen
     nacht: schneeZone || !ruhig ? 0 : (1 - hell) * leise,
     sturm: Math.max(0, w.sturm - schneesturm) * daempfung,
@@ -65,7 +65,8 @@ export function wetterSchichten({ w, hell = 1, drinnen = false, imHaus = false, 
     // Runde 28: Nachtwind aus – lief nachts zusätzlich zu wind_leicht (zwei Windgeräusche gleichzeitig). Die Windaufnahmen bleiben.
     nacht_wind: 0,
     // Runde 26: Windton folgt der Stufe der Bäume (0..3); Runde 28: leicht ↔ stark überblenden statt doppelt übereinander
-    wind_leicht: wind01((w.windStufe - 0.3) / 1.6) * 0.75 * (1 - 0.8 * wind01((w.windStufe - 1.5) / 1.3) ** 1.3) * windFrei,
+    // Runde 31: schwacher Wind draußen einen Tick leiser (×0,8); drinnen unverändert (windFrei = DRINNEN_LEISE)
+    wind_leicht: wind01((w.windStufe - 0.3) / 1.6) * 0.75 * (drinnen ? 1 : 0.8) * (1 - 0.8 * wind01((w.windStufe - 1.5) / 1.3) ** 1.3) * windFrei,
     wind_stark: wind01((w.windStufe - 1.5) / 1.3) ** 1.3 * (1 - 0.6 * w.sturm) * windFrei,
     blizzard_a: blizzard * Math.cos(wechsel),
     blizzard_b: blizzard * Math.sin(wechsel),

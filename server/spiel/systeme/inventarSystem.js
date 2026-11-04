@@ -485,7 +485,7 @@ export function nutzeWerkzeug(spielWelt, spieler, defId) {
   if (eintrag.haltbarkeit > 0) return;
   entferneSlot(spieler, platz);
   spielWelt.ereignis({ typ: 'werkzeugKaputt', von: spieler.id, x: spieler.x, y: spieler.y });
-  spielWelt.melde(spieler.id, `💥 ${def.name} ist kaputt!`);
+  spielWelt.melde(spieler.id, def.verbraucht ? `${def.name} ist aufgebraucht` : `💥 ${def.name} ist kaputt!`);
 }
 
 /** Samen in der Hand: ins nächste freie Beet in Reichweite pflanzen (Linksklick). @returns true, wenn gepflanzt */

@@ -56,7 +56,7 @@ export const NACHRICHT = Object.freeze({
   SPIELER_LISTE: 'spielerListe',
   /** { offen: [Tür-IDs] } – Türzustand, nur wenn er sich geändert hat (IDs: Welt.tueren) */
   TUEREN: 'tueren',
-  /** { abgebaut: [Ressourcen-IDs], laternen: [Laternen-IDs] } – gefällte Bäume / abgebaute Steine / umgefahrene Straßenlaternen, nur bei Änderung (IDs: Welt.ressourcen bzw. Welt.laternen) */
+  /** { abgebaut: [Ressourcen-IDs], rinde: { Baum-ID: Schnitte } (Runde 31), laternen: [Laternen-IDs] } – gefällte Bäume / abgebaute Steine / umgefahrene Straßenlaternen, nur bei Änderung (IDs: Welt.ressourcen bzw. Welt.laternen) */
   RESSOURCEN: 'ressourcen',
   /** { liste: [Bauwerke] } – alle gebauten Dinge (gemeinsam/welt/bauwerke.js), nur bei Änderung */
   BAUWERKE: 'bauwerke',

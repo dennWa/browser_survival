@@ -1,7 +1,7 @@
 import { AUFHEB_REICHWEITE, BETT_REICHWEITE, TICK_DAUER_MS, TICK_DAUER_S, UMGEBUNG_RADIUS, WERKBANK_REICHWEITE } from '../../gemeinsam/konstanten.js';
 import { wetterSchichten } from '../../gemeinsam/audio/umgebung.js';
 import { naheHandwerk, rezepteFuerOrt } from '../../gemeinsam/spieler/handwerk.js';
-import { ABBAU_REICHWEITE, RESSOURCEN_OBJEKTE } from '../../gemeinsam/welt/ressourcen.js';
+import { ABBAU_REICHWEITE, abbauArtFuer, abbauText } from '../../gemeinsam/welt/ressourcen.js';
 import { BAUWERKE, BAUWERK_REICHWEITE, bauwerkAktion, feuerText, kachelInReichweite, pruefePlatz, samenZiel, zielKachel } from '../../gemeinsam/welt/bauwerke.js';
 import { wurfZiel } from '../../gemeinsam/welt/wasser.js';
 import { findePfad } from '../../gemeinsam/physik/pfadfindung.js';
@@ -94,6 +94,7 @@ export class ClientSpiel {
     this.klangZeit = { zoneSeit: performance.now(), kampf: -Infinity, letzte: null };
     if (anmeldeDaten.tueren) this.welt.uebernimmOffeneTueren(anmeldeDaten.tueren);
     if (anmeldeDaten.abgebaut) this.welt.uebernimmAbgebaute(anmeldeDaten.abgebaut);
+    if (anmeldeDaten.rinde) this.welt.uebernimmRinde(anmeldeDaten.rinde);
     if (anmeldeDaten.laternen) this.welt.uebernimmLaternen(anmeldeDaten.laternen);
     if (anmeldeDaten.bauwerke) this.welt.uebernimmBauwerke(anmeldeDaten.bauwerke);
     /** Platzier-Modus (Bauwerk-Item bzw. Erdfeld mit der Hacke): { slot, defId, typ, name, art?: 'feld' } oder null */
@@ -588,13 +589,13 @@ export class ClientSpiel {
   #abbauBalken() {
     const a = this.spielerDaten?.arbeit;
     const popups = this.hud.weltPopups;
-    if (!a || !['holz', 'stein', 'eisenerz'].includes(a.art)) {
+    if (!a || !['holz', 'rinde', 'ast', 'stein', 'eisenerz'].includes(a.art)) {
       popups.setzeBalken(null);
       popups.aktualisiere(this.renderer.kamera);
       return;
     }
     const r = this.welt.naechsteRessource(this.lokal.x, this.lokal.y, ABBAU_REICHWEITE + 16);
-    popups.setzeBalken(r ? { x: r.x, y: r.y, hoehe: a.art === 'holz' ? (r.groesse === 'gross' ? 150 : 110) : 52, fortschritt: a.fortschritt ?? 0 } : null);
+    popups.setzeBalken(r ? { x: r.x, y: r.y, hoehe: a.art === 'holz' || a.art === 'rinde' ? (r.groesse === 'gross' ? 150 : 110) : a.art === 'ast' ? 40 : 52, fortschritt: a.fortschritt ?? 0 } : null);
     popups.aktualisiere(this.renderer.kamera);
   }
 
@@ -643,9 +644,13 @@ export class ClientSpiel {
     const behaelter = naechsterBehaelter(this.behaelter, x, y, this.welt.kachelGroesse);
     const bettNaeher = behaelter && this.welt.naechstesObjekt(x, y, Math.min(BETT_REICHWEITE, abstandZumBehaelter(behaelter, x, y, this.welt.kachelGroesse)), (o) => o.typ.startsWith('bett'));
     if (behaelter && !bettNaeher) return { art: 'behaelter', nr: behaelter.nr, text: `${BEHAELTER[behaelter.art].name} durchsuchen`, symbol: BEHAELTER[behaelter.art].symbol };
-    const ressource = this.welt.naechsteRessource(x, y, ABBAU_REICHWEITE);
-    if (ressource) return { art: 'abbauen', text: RESSOURCEN_OBJEKTE[ressource.typ].aktion, symbol: ressource.art === 'holz' ? '🪓' : '⛏' };
     const inventar = this.spielerDaten?.inventar ?? [];
+    // Runde 31: Machete/Messer in der Hand → am Baum „Rinde abschneiden“ (max. 3×), Busch → „Ast abschneiden“; Knoten ohne passendes Werkzeug werden übergangen
+    const handId = this.spielerDaten?.ausgeruestet != null ? inventar[this.spielerDaten.ausgeruestet]?.defId ?? null : null;
+    const hatItem = (id) => inventar.some((e) => e?.defId === id);
+    const wahl = (r) => abbauArtFuer(r, handId, hatItem, this.welt.rindeAb.get(r.id) ?? 0);
+    const ressource = this.welt.naechsteRessource(x, y, ABBAU_REICHWEITE, (r) => wahl(r) !== null);
+    if (ressource) return { art: 'abbauen', ...abbauText(ressource, wahl(ressource).art) };
     // Basisbau: Kisten, Türen und Betten gehören ihrem Besitzer – erst Benutzbares, dann der "gesperrt"-Hinweis
     const aktionFuer = (b) => bauwerkAktion(b, inventar, this.bau.name, this.bau.territorium.gebietBei(b.tx, b.ty));
     const bauwerk =
@@ -1001,6 +1006,7 @@ export class ClientSpiel {
         break;
       case NACHRICHT.RESSOURCEN:
         this.welt.uebernimmAbgebaute(n.abgebaut);
+        this.welt.uebernimmRinde(n.rinde);
         this.welt.uebernimmLaternen(n.laternen ?? []);
         break;
       case NACHRICHT.BAUWERKE:
@@ -1315,8 +1321,12 @@ export class ClientSpiel {
         // Runde 23: Hack-Geräusche kommen aus der Animation (renderer.aufschlaege → #aufschlagSounds), damit Ton und Schlag
         // zusammenpassen und mit dem letzten Schlag enden. Das Server-Ereignis bleibt nur als Takt für Tests/Bots.
         break;
+      case 'rindeStart':
+        // Runde 31: einmaliges Schnitz-Geräusch, 6 s lang = Dauer des Holzfällens (Rinde schneiden dauert genauso lang)
+        this.sound.spiele('rinde_schnitzen', { x: e.x, y: e.y });
+        break;
       case 'abgebaut':
-        this.sound.spiele(e.art === 'holz' ? 'baum_faellt' : e.art === 'eisenerz' ? 'stein_bricht' : 'felsen_bricht', { x: e.x, y: e.y });
+        if (e.art !== 'rinde' && e.art !== 'ast') this.sound.spiele(e.art === 'holz' ? 'baum_faellt' : e.art === 'eisenerz' ? 'stein_bricht' : 'felsen_bricht', { x: e.x, y: e.y });
         if (e.von === this.eigeneId && e.menge) {
           // Runde 23: „+2 🪵“ dort, wo abgebaut wurde (statt Textmeldung); Bonus-Apfel kurz danach
           this.hud.weltPopups.plus(e.art, e.menge, e.x, e.y, e.art === 'holz' ? 60 : 36);
@@ -1515,7 +1525,8 @@ export class ClientSpiel {
     const liste = this.renderer.aufschlaege;
     if (!liste.length) return;
     for (const a of liste) {
-      const name = a.arbeit === 'holz' || a.arbeit === 'zerlegen' ? 'hack_holz' : a.arbeit === 'eisenerz' ? 'hack_stein' : 'hack_felsen';
+      if (a.arbeit === 'rinde') continue; // Rinde: ein langes Schnitz-Geräusch statt Hieben (Ereignis rindeStart)
+      const name = a.arbeit === 'holz' || a.arbeit === 'ast' || a.arbeit === 'zerlegen' ? 'hack_holz' : a.arbeit === 'eisenerz' ? 'hack_stein' : 'hack_felsen';
       this.sound?.spiele(name, { x: a.x + Math.cos(a.blick ?? 0) * 20, y: a.y + Math.sin(a.blick ?? 0) * 20 });
     }
     liste.length = 0;

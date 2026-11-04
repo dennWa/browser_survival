@@ -16,7 +16,7 @@ import { FAHRZEUG, FAHRZEUG_MODELLE } from '../../gemeinsam/physik/fahrzeug.js';
 import { erzeugeFrisur } from './haarModell.js';
 import { kleidungsVorlage, kleideFigur, outfitFuer } from './kleidungModell.js';
 import { AUSSEHEN, skinFuer, pruefeAussehen, aussehenOption } from '../../gemeinsam/spieler/aussehen.js';
-import { itemGeometrie, ITEM_MATERIAL, rucksackTeile } from './itemModelle.js';
+import { itemGeometrie, itemVarianten, ladeGlbItemModelle, ITEM_MATERIAL, rucksackTeile } from './itemModelle.js';
 import { zeichneBeschriftung, zeichneItemName, zeichneSprechblase } from './beschriftung.js';
 import { richteFigurEin, aktualisiereHaltung, ARBEIT_KLIP, istBeidhaendigerSchlag } from './figurHaltung.js';
 import { erzeugeWaffe, WAFFEN_NAMEN } from './waffenModelle.js';
@@ -83,7 +83,7 @@ const LAUF_TEMPO = { mann: 100, frau: 83 };
 const GEH_TEMPO = { mann: 47, frau: 38 };
 const GEH_GRENZE = 90; // darunter Geh-Clip, darüber Lauf-Clip (Grundtempo = leichtes Joggen 100, Joggen erschöpft 125, Rennen 170)
 const SCHLAG_KLIPS = new Set(['hacken', 'spitzhacke', 'abbauen', 'hacke', 'nahkampf']); // Clips, die ein Werkzeug schwingen (figurHaltung legt es in die Hände)
-const HACK_ARBEIT = new Set(['holz', 'stein', 'eisenerz']);
+const HACK_ARBEIT = new Set(['holz', 'rinde', 'ast', 'stein', 'eisenerz']);
 const AUFSCHLAG = { hacken: 0.5, spitzhacke: 0.48, abbauen: 0.48 }; // Runde 23: Treffer-Zeitpunkt je Werkzeug-Clip (Anteil)
 const SCHNITT_RADIUS = 0; // 0 = aus: kein Durchschauen durch Wände mehr (verdeckte Figur zeigt stattdessen die Silhouette)
 const SCHNITT_HOEHE = 10; // bis zu dieser Höhe bleiben aufgeschnittene Wände als Sockel stehen
@@ -190,7 +190,7 @@ const ADAPTIV_MAX_STUFE = 4; // im Profil "hoch" wird höchstens bis hier gespar
 const AUFWAERM_MS = 6000; // so lange nach dem Betreten nicht messen (Shader, Texturen, erste Frames)
 const ZOOM_MIN = 0.32; // so nah kommt die Kamera an die Figur (Runde 18: näher als vorher 0,5)
 const ZOOM_MAX = 1.12; // weiter raus geht nicht (Runde 18: 1,35 war noch zu weit)
-const EGO_SICHT_ZOOM = 1.35; // Sichtweite der Ich-Ansicht = Draufsicht bei diesem Zoom (unabhängig vom Zoom-Limit)
+const EGO_SICHT_ZOOM = ZOOM_MAX; // Sichtweite der Ich-Ansicht = Draufsicht beim weitesten Rauszoomen (Runde 31: war fest 1,35 > ZOOM_MAX → Ego sah ~20 % weiter = Vorteil)
 /** Ich-Ansicht sieht nicht weiter als die Draufsicht beim weitesten Rauszoomen: Halbbreite des Bildes am Boden (1 = Halbbreite, 2 = ganzer Durchmesser) */
 const EGO_SICHT_FAKTOR = 1;
 /** Lichtfarben für Tag, Nacht und Dämmerung (siehe #tageslicht) */
@@ -568,6 +568,7 @@ export class Renderer {
     this.schnitt.uFokus.value.set(fokus.x, _ziel.y, fokus.y);
     this.wetterEffekt.setzeArt(wetter);
     this.wetterEffekt.aktualisiere(dt, fokus.x, fokus.y, !!this.welt?.istUnterDach(fokus.x, fokus.y) && !fokus.fahrzeugId); // Runde 28: auch in der Türzarge
+    this.#setzeGraustich(this.wetterEffekt.graustich);
     this.wetterEffekt.setzeInnenMaske(this.welt); // kein Regen im Haus (nur bei Niederschlag und geänderten Bauwerken neu)
     BAUM_WIND.uWindStufe.value = this.wetterEffekt.windStufe;
     BAUM_WIND.uWindZeit.value = this.wetterEffekt.windZeit % 600;
@@ -950,7 +951,7 @@ export class Renderer {
     this.basisModell = modell;
     const lader = new THREE.TextureLoader();
     this.skins = {};
-    await Promise.all([this.#ladeSurvivor(), this.#ladeZombieModelle()]);
+    await Promise.all([this.#ladeSurvivor(), this.#ladeZombieModelle(), ladeGlbItemModelle()]);
     await Promise.all(
       Object.entries(info.skins).map(async ([name, pfad]) => {
         const textur = await lader.loadAsync(new URL(pfad, ASSETS).href);
@@ -2057,7 +2058,7 @@ export class Renderer {
 
   /** 3D-Modell (itemModelle.js) – oder, falls es keins gibt, das flache Icon. */
   #itemMesh(g) {
-    const geometrie = itemGeometrie(g.defId);
+    const geometrie = itemGeometrie(g.defId, g.id % itemVarianten(g.defId)); // Runde 31: Ast = 6 Varianten, je nach Item-ID
     let mesh;
     if (geometrie) {
       mesh = new THREE.Mesh(geometrie, ITEM_MATERIAL);
@@ -2412,6 +2413,15 @@ export class Renderer {
       const ueberName = e.istEigener ? 4 : 18; // fremde Spieler: über Name + Lebensbalken
       zeichneSprechblase(ctx, blase.text, kopf.x, kopf.y - ueberName, Math.min(1, (blase.bis - jetzt) / 500));
     }
+  }
+
+  /** Runde 31: Regenwetter entsättigt/dunkelt das 3D-Bild leicht (CSS-Filter auf dem WebGL-Canvas; nur gesetzt, solange es regnet) */
+  #grauStand = 0;
+  #setzeGraustich(grau) {
+    const g = Math.round(grau * 50) / 50;
+    if (g === this.#grauStand) return;
+    this.#grauStand = g;
+    this.leinwand.style.filter = g > 0 ? `saturate(${(1 - 0.55 * g).toFixed(2)}) brightness(${(1 - 0.1 * g).toFixed(2)}) contrast(${(1 - 0.07 * g).toFixed(2)})` : '';
   }
 
   /** Sichtweite der Ich-Ansicht in px: Halbbreite des Draufsicht-Bildes am Boden bei EGO_SICHT_ZOOM (Bildschirm-Seitenverhältnis, mindestens 1:1) */

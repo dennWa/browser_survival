@@ -16,7 +16,7 @@
     "lautstaerke": 0.3
   },
   "schritt_gras": {
-    "lautstaerke": 0.5,
+    "lautstaerke": 0.425,
     "streuung": 0.08
   },
   "sturm": {
@@ -183,7 +183,7 @@
     "streuung": 0.08
   },
   "regen_dach": {
-    "lautstaerke": 1
+    "lautstaerke": 0.8
   },
   "kamin": {
     "lautstaerke": 0.9
@@ -215,12 +215,19 @@
   "blizzard_b": {
     "lautstaerke": 0.8
   },
+  "schritt_asphalt": {
+    "lautstaerke": 0.5,
+    "streuung": 0.06
+  },
+  "rinde_schnitzen": {
+    "lautstaerke": 0.8
+  },
   "schritt_innen": {
-    "lautstaerke": 0.45,
+    "lautstaerke": 0.3825,
     "streuung": 0.06
   },
   "menue_klick": {
-    "lautstaerke": 0.9
+    "lautstaerke": 0.72
   },
   "essen": {
     "lautstaerke": 1.2,

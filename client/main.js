@@ -85,15 +85,18 @@ tutorial.kapitelNamen = KAPITEL.map((k) => k.titel);
 const hauptmenueMusik = () => {
   if (aktuellesSpiel || new URLSearchParams(location.search).has('editorTest')) return;
   sound.entsperren();
-  musik.setzeZone('hauptmenue');
+  musik.setzeZone('hauptmenue').then(() => musik.anstossen());
 };
-for (const art of ['pointerdown', 'keydown']) window.addEventListener(art, hauptmenueMusik, { once: true, passive: true });
+// Runde 31: Musik schon beim Laden vorbereiten (Index + Stück im Cache; läuft sofort los, wenn der Browser Autoplay erlaubt),
+// sonst startet sie beim allerersten Klick/Tastendruck/Antippen ohne Verzögerung.
+for (const art of ['pointerdown', 'mousedown', 'touchstart', 'keydown']) window.addEventListener(art, hauptmenueMusik, { once: true, passive: true });
 hud.zeigeTon(sound.stumm);
 hud.einstellungen.verbinde({ sound, renderer: () => renderer });
 hud.einstellungen.verbindeHandy({ hud, touch: eingabe.touch });
 hud.einstellungen.verbindeHaustiere({ liste: () => aktuellesSpiel?.haustiere() ?? [], freilassen: (h) => aktuellesSpiel?.haustierFreilassen(h) });
 
 let aktuellesSpiel = null;
+hauptmenueMusik(); // Runde 31: Musik sofort vorbereiten (nach der Deklaration von aktuellesSpiel)
 const ego = new EgoModus({ eingabe, leinwand, holeRenderer: () => renderer, holeSpiel: () => aktuellesSpiel }); // EGO-PROTOTYP: Taste C / Ego-Knopf (Handy)
 ego.beiUmschalten = (an) => hud.zeigeEgo(an);
 let assets = null;

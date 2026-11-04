@@ -25,6 +25,7 @@ export class ZonenMusik {
   #letztes = null;
   #timer = null;
   #laden = null;
+  #liste = null; // Stücke der aktuellen Zone (für anstossen)
 
   constructor(sound) {
     this.#sound = sound;
@@ -67,7 +68,18 @@ export class ZonenMusik {
     this.#stoppeAktuelles(Math.max(0.1, this.#index?._optionen?.[alt]?.ueberblendung ?? 2)); // Standard wie bisher 2 s
     const liste = await this.stuecke(zone);
     if (zone !== this.#zone || liste.length === 0) return;
+    this.#liste = liste;
     this.#naechstes(liste);
+  }
+
+  /**
+   * Runde 31: Ton ist jetzt entsperrt (erste Geste) – ist die Musik der Zone noch gesperrt/wartet sie auf den Wiederholungs-Timer
+   * (3 s bzw. 15 s), sofort starten. So beginnt die Hauptmenü-Musik beim ersten Klick/Tastendruck statt Sekunden später.
+   */
+  anstossen() {
+    if (!this.#zone || !this.#liste || this.#lauf) return;
+    clearTimeout(this.#timer);
+    this.#naechstes(this.#liste);
   }
 
   stoppen() {

@@ -62,7 +62,7 @@ const HALTUNGEN = {
 /** Arbeit → Werkzeug in der Hand (zerlegen: das ausgerüstete Werkzeug) */
 const ARBEIT_WERKZEUG = { holz: 'axt', stein: 'spitzhacke', eisenerz: 'spitzhacke' };
 /** Arbeit/Aktion → Clip, der den Schlag macht (wenn die Figur ihn hat) */
-export const ARBEIT_KLIP = { holz: 'hacken', stein: 'spitzhacke', eisenerz: 'spitzhacke', zerlegen: 'abbauen' };
+export const ARBEIT_KLIP = { holz: 'hacken', rinde: 'abbauen', ast: 'abbauen', stein: 'spitzhacke', eisenerz: 'spitzhacke', zerlegen: 'abbauen' }; // Runde 31: Rinde/Ast = Arbeits-Clip „abbauen“ (Messer/Machete in der Hand)
 const HACK_TAKT_MS = 850; // ein Schlag
 const ANSCHLAG_MS = 5000; // so lange bleibt eine Waffe nach dem letzten Schuss/Schlag im Anschlag, dann gehen beide Arme runter
 const ANSCHLAG_TEMPO = 7; // 1/s: Heben/Senken der Waffe

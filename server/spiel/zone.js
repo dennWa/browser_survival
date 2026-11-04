@@ -66,7 +66,7 @@ export class Zone {
     const pakete = [];
     if (w.gegenstaendeVersion !== g.gegenstaende) pakete.push(kodiere({ typ: NACHRICHT.GEGENSTAENDE, gegenstaende: w.gegenstaendeListe() }));
     if (w.tuerenVersion !== g.tueren) pakete.push(kodiere({ typ: NACHRICHT.TUEREN, offen: w.welt.offeneTueren() }));
-    if (w.welt.ressourcenVersion !== g.ressourcen) pakete.push(kodiere({ typ: NACHRICHT.RESSOURCEN, abgebaut: [...w.welt.abgebaut], laternen: [...w.welt.laternenUmgefahren] }));
+    if (w.welt.ressourcenVersion !== g.ressourcen) pakete.push(kodiere({ typ: NACHRICHT.RESSOURCEN, abgebaut: [...w.welt.abgebaut], rinde: Object.fromEntries(w.welt.rindeAb), laternen: [...w.welt.laternenUmgefahren] }));
     if (w.welt.bauwerkeVersion !== g.bauwerke) {
       // Wenige Änderungen (ein Hammerschlag) → nur das Delta; sehr viele (Weltstand geladen) → ganze Liste
       const delta = w.nimmBauwerkAenderungen();
@@ -115,6 +115,7 @@ export class Zone {
       gegenstaende: w.gegenstaendeListe(),
       tueren: w.welt.offeneTueren(),
       abgebaut: [...w.welt.abgebaut],
+      rinde: Object.fromEntries(w.welt.rindeAb),
       laternen: [...w.welt.laternenUmgefahren],
       bauwerke: w.bauwerkeOeffentlich(),
       tageszeit: w.tageszeitDauer(),

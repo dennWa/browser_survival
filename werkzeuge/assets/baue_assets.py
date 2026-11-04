@@ -890,6 +890,42 @@ def nur_items():
     pfad.write_text(json.dumps(atlas, ensure_ascii=False, indent=1), encoding='utf-8')
 
 
+def haenge_editor_items_an():
+    """`python3 baue_assets.py --editor-items`: neue Item-Anträge (editor_grafiken/*.grafik.json, art 'item') an den BESTEHENDEN Atlas hängen –
+    ohne Quellen-Downloads und ohne Vollbau (Runde 31: Ast, Rinde, Papier, Feuerbohrer). Bereits vorhandene IDs bleiben unberührt.
+    Ein voller Lauf (`main`/`--nur-items`) baut dieselben Anträge ohnehin mit ein."""
+    pfad = ZIEL / 'atlas.json'
+    atlas = json.loads(pfad.read_text(encoding='utf-8'))
+    icons = atlas['items']['icons']
+    neue = [g for g in lies_editor_grafiken() if g['art'] == 'item' and g['id'] not in icons]
+    if not neue:
+        print('Keine neuen Item-Anträge.')
+        return
+    blatt = Image.open(ZIEL / atlas['items']['bild']).convert('RGBA')
+    spalten = blatt.width // ITEM_ICON_GROESSE
+    for g in neue:
+        platz = len(icons)  # Slots sind lückenlos fortlaufend belegt (baue_items)
+        bild = g['pil'].copy()
+        if bild.getchannel('A').getbbox():
+            bild = bild.crop(bild.getchannel('A').getbbox())
+        bild.thumbnail((ITEM_ICON_GROESSE, ITEM_ICON_GROESSE), Image.LANCZOS)
+        zeile = platz // spalten
+        if (zeile + 1) * ITEM_ICON_GROESSE > blatt.height:
+            gross = Image.new('RGBA', (blatt.width, (zeile + 1) * ITEM_ICON_GROESSE), (0, 0, 0, 0))
+            gross.paste(blatt, (0, 0))
+            blatt = gross
+        x = (platz % spalten) * ITEM_ICON_GROESSE + (ITEM_ICON_GROESSE - bild.width) // 2
+        y = zeile * ITEM_ICON_GROESSE + (ITEM_ICON_GROESSE - bild.height) // 2
+        blatt.paste(bild, (x, y))
+        icons[g['id']] = {'x': x, 'y': y, 'b': bild.width, 'h': bild.height, 'weltGroesse': int(g.get('weltGroesse') or 22)}
+        atlas['lizenzen'].append({'paket': g['name'], 'urheber': g['urheber'], 'lizenz': g['lizenz'], 'url': g['quelle']})
+        with open(ZIEL / 'LIZENZEN.md', 'a', encoding='utf-8') as f:
+            f.write(f"| [{g['name']}]({g['quelle']}) | {g['urheber']} | {g['lizenz']} | {g.get('zweck') or 'Map-Editor: ' + g['id']} |\n")
+        print(f"    + {g['id']}")
+    blatt.save(ZIEL / atlas['items']['bild'], 'WEBP', quality=92, method=6)
+    pfad.write_text(json.dumps(atlas, ensure_ascii=False, indent=1), encoding='utf-8')
+
+
 def main():
     if ZIEL.exists():
         shutil.rmtree(ZIEL)
@@ -909,4 +945,4 @@ def main():
 
 if __name__ == '__main__':
     import sys
-    nur_items() if '--nur-items' in sys.argv else main()
+    haenge_editor_items_an() if '--editor-items' in sys.argv else nur_items() if '--nur-items' in sys.argv else main()

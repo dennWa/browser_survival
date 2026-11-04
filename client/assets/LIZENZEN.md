@@ -15,3 +15,7 @@ Alle Grafiken stammen aus frei nutzbaren Paketen. Bei **CC-BY** ist die Namensne
 | [Glitch Food & Drink Items](https://opengameart.org/content/glitch-food-drink-items-svg) | Tiny Speck (Glitch) | CC0 | Essen & Getränke, Holz |
 | [Stylized Nature MegaKit (Gras)](https://quaternius.com/packs/stylizednaturemegakit.html) | Quaternius (quaternius.com) | CC0 | 3D-Gras auf der Karte (client/assets/3d/natur) |
 | Adventurer Man / Woman (Spielerfiguren) | Quaternius (quaternius.com), Pipeline werkzeuge/assets/figuren | CC0 | Spieler-Figur (client/assets/3d/figur_mann.glb, figur_frau.glb) |
+| [Ast](https://skfb.ly/6ZFUw) | Kieran (Branches, Sketchfab; Icon aus eigenem 3D-Render) | CC-BY | Item-Icon Ast |
+| [Feuerbohrer](https://github.com/dennwa/browser_survival) | Browser Survival (eigene Platzhalter-Modelle, Icon aus 3D-Render) | CC0 | Item-Icon Feuerbohrer |
+| [Papier](https://sketchfab.com/3d-models/crumpled-paper-f19ea7ce149c4b25a527abecec1da524) | Darxkl05 (Crumpled paper, Sketchfab; Icon aus eigenem 3D-Render) | CC-BY | Item-Icon Papier |
+| [Baumrinde](https://github.com/dennwa/browser_survival) | Browser Survival (eigene Platzhalter-Modelle, Icon aus 3D-Render) | CC0 | Item-Icon Baumrinde |

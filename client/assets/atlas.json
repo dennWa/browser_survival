@@ -989,6 +989,34 @@
     "b": 72,
     "h": 49,
     "weltGroesse": 18
+   },
+   "ast": {
+    "x": 371,
+    "y": 1250,
+    "b": 49,
+    "h": 19,
+    "weltGroesse": 24
+   },
+   "feuerbohrer": {
+    "x": 447,
+    "y": 1245,
+    "b": 41,
+    "h": 30,
+    "weltGroesse": 22
+   },
+   "papier": {
+    "x": 512,
+    "y": 1237,
+    "b": 56,
+    "h": 45,
+    "weltGroesse": 20
+   },
+   "rinde": {
+    "x": 11,
+    "y": 1311,
+    "b": 49,
+    "h": 41,
+    "weltGroesse": 20
    }
   }
  },
@@ -1322,6 +1350,30 @@
    "urheber": "Quaternius (quaternius.com)",
    "lizenz": "CC0",
    "url": "https://quaternius.com/packs/stylizednaturemegakit.html"
+  },
+  {
+   "paket": "Ast",
+   "urheber": "Kieran (Branches, Sketchfab; Icon aus eigenem 3D-Render)",
+   "lizenz": "CC-BY",
+   "url": "https://skfb.ly/6ZFUw"
+  },
+  {
+   "paket": "Feuerbohrer",
+   "urheber": "Browser Survival (eigene Platzhalter-Modelle, Icon aus 3D-Render)",
+   "lizenz": "CC0",
+   "url": "https://github.com/dennwa/browser_survival"
+  },
+  {
+   "paket": "Papier",
+   "urheber": "Darxkl05 (Crumpled paper, Sketchfab; Icon aus eigenem 3D-Render)",
+   "lizenz": "CC-BY",
+   "url": "https://sketchfab.com/3d-models/crumpled-paper-f19ea7ce149c4b25a527abecec1da524"
+  },
+  {
+   "paket": "Baumrinde",
+   "urheber": "Browser Survival (eigene Platzhalter-Modelle, Icon aus 3D-Render)",
+   "lizenz": "CC0",
+   "url": "https://github.com/dennwa/browser_survival"
   }
  ]
 }

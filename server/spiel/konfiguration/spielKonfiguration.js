@@ -108,7 +108,8 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     aufprallSchaden: { min: 0.5, max: 5, schrammFaktor: 0.25, pause: 0.5 },
     laterneBremse: 0.5, // Anteil des Tempos, der nach dem Umfahren einer Laterne bleibt (Phase 4: 0,6 → 0,5, härter)
     laterneSchaden: 0.8, // Schaden am Auto, wenn es eine Straßenlaterne umfährt (ab 70 km/h, LATERNE_MIN_KMH; Phase 4: 0,5 → 0,8)
-    baumBremse: 0.45, // Phase 4: Anteil des Tempos nach dem Umfahren eines Baums (vorher 0,93 – kaum spürbar); bremst stärker als die Laterne
+    baumBremse: 0.2, // Anteil des Tempos nach dem Umfahren eines Baums (Phase 4: 0,45; Runde 31: 0,2 = deutlich spürbar gebremst)
+    stossFaktor: 0.4, // Runde 31: Zusammenstoß – unbesetztes getroffenes Fahrzeug bekommt diesen Anteil des Rammer-Tempos (Rammer selbst prallt mit FAHRZEUG.abprallenFahrzeug zurück)
     laterneNachwachsen: 600, // Sekunden, bis eine umgefahrene Straßenlaterne wieder steht (Bäume: ressourcen.holz.nachwachsen)
   },
   /** Runde 23: Test-Bots (systeme/botSystem.js) – so viele laufen je Zone herum; Admin kann welche setzen/entfernen. */
@@ -253,6 +254,8 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     holz: { menge: 1, mengeGross: 2, chanceAufMehr: 0.2, dauer: 6, nachwachsen: 300, apfelChance: 0.1 },
     stein: { menge: 1, mengeGross: 2, chanceAufMehr: 0.2, dauer: 8, nachwachsen: 240 },
     eisenerz: { menge: 1, chanceAufMehr: 0.2, dauer: 10, nachwachsen: 420 },
+    // Runde 31: Busch → Ast (Machete/Axt/Messer). Rinde schneiden dauert wie Holzfällen (holz.dauer), höchstens RINDE_MAX (gemeinsam/welt/ressourcen.js) Mal je Baum
+    ast: { menge: 1, chanceAufMehr: 0.25, dauer: 4, nachwachsen: 240 },
   },
 
   /**

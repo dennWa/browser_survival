@@ -800,7 +800,7 @@ export class Sound {
     let endeHoerer = null;
     audio.addEventListener('ended', () => endeHoerer?.());
     audio.addEventListener('error', () => endeHoerer?.(true));
-    audio.play().then(() => gain.gain.setTargetAtTime(1, ctx.currentTime, fade / 3)).catch(() => endeHoerer?.(true));
+    audio.play().then(() => gain.gain.setTargetAtTime(1, ctx.currentTime, fade / 3)).catch(() => endeHoerer?.(true)); // Autoplay gesperrt → ZonenMusik.anstossen() startet bei der ersten Geste neu
     let ziel = 1;
     const eintrag = {
       abgebrochen: () => {

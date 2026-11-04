@@ -111,7 +111,7 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `baum_herbst` | Herbstbaum (Holz) | Ressourcen | 3.5 × 3.5 | begehbar, ebene oben, abbaubar |
 | `stein` | Stein | Ressourcen | 1 × 1 | blockiert, abbaubar |
 | `eisenerz` | Eisenerz | Ressourcen | 1 × 1 | blockiert, abbaubar |
-| `busch` | Busch | Umwelt | 1.5 × 1.5 | begehbar, ebene oben |
+| `busch` | Busch | Umwelt | 1.5 × 1.5 | begehbar, ebene oben, abbaubar |
 | `licht` | Lampe | Gebäude | 1 × 1 | begehbar, ebene licht |
 | `werkbank` | Werkbank (Crafting) | Gebäude | 2 × 1 | blockiert |
 | `bett` | Bett | Möbel | 2 × 4 | blockiert |
@@ -238,19 +238,19 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `notaufnahme` | verband, schmerzmittel, erste_hilfe_kasten, feuerwehrbeil |
 | `zombie` | munition_9mm, munition_12, verband, muesliriegel, energydrink, pfeil, munition_gewehr, munition_357 |
 | `boss` | pistole, schrotflinte, machete, feuerwehrbeil, hammer, munition_357, gewehr, armbrust |
-| `verwaltung` | kaffee, muesliriegel, energydrink, munition_9mm |
+| `verwaltung` | papier, kaffee, muesliriegel, energydrink, munition_9mm |
 | `kueche` | kuechenmesser, konservendose, kaese, milch, bratpfanne, hammer |
-| `wohnung` | apfel, wasserflasche, stoff, broetchen, konservendose, milch, marmelade, rucksack_klein |
+| `wohnung` | apfel, wasserflasche, papier, stoff, broetchen, konservendose, milch, marmelade |
 | `tankstelle` | energydrink, muesliriegel, benzin, wasserflasche, feuerzeug, sandwich, kaffee, rucksack_klein |
 | `werkstatt` | hammer, wasserflasche, falle, brecheisen, arbeitsweste, benzin, handschuhe, feuerwehrbeil |
 | `supermarkt` | konservendose, wasserflasche, broetchen, apfel, kaese, milch, marmelade, feuerzeug |
 | `polizei` | munition_9mm, munition_357, verband, kaffee, revolver, schutzweste, pistole, rucksack_gross |
 | `waffenkammer` | munition_9mm, munition_12, munition_357, pistole, schrotflinte, munition_gewehr, revolver, gewehr |
-| `kiosk` | energydrink, muesliriegel, sandwich, wasserflasche, feuerzeug, alkohol, samen_tomate |
+| `kiosk` | energydrink, muesliriegel, papier, sandwich, wasserflasche, feuerzeug, alkohol, samen_tomate |
 | `angler` | angel, konservendose, wasserflasche, kaffee, verband, feuerzeug, rucksack_klein |
-| `huette` | konservendose, wasserflasche, stoff, feuerzeug, munition_gewehr, pfeil, winterjacke, thermohose |
-| `schrank` | kapuzenpulli, jeans, stoff, muetze, turnschuhe, handschuhe, winterjacke, lederjacke |
-| `kommode` | stoff, verband, muetze, handschuhe, schmerzmittel, feuerzeug, alkohol, munition_9mm |
+| `huette` | konservendose, wasserflasche, papier, stoff, feuerzeug, munition_gewehr, pfeil, winterjacke |
+| `schrank` | papier, kapuzenpulli, jeans, stoff, muetze, turnschuhe, handschuhe, winterjacke |
+| `kommode` | stoff, papier, verband, muetze, handschuhe, schmerzmittel, feuerzeug, alkohol |
 | `kuehlschrank` | milch, kaese, wasserflasche, ei, apfel, verdorben, sandwich, energydrink |
 | `vorratsregal` | konservendose, marmelade, muesliriegel, wasserflasche, brot, kaffee, leere_flasche, mehl |
 | `holzkiste` | holz, bretter, schrott, konservendose, stoff, wasserflasche, hammer, munition_9mm |
@@ -267,12 +267,12 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | fernkampf | `pistole` Pistole (9 mm), `schrotflinte` Schrotflinte (Kal. 12), `gewehr` Jagdgewehr, `bogen` Bogen, `revolver` Revolver (.357), `mp` Maschinenpistole, `sturmgewehr` Sturmgewehr, `armbrust` Armbrust |
 | munition | `munition_9mm` Munition 9 mm, `munition_12` Schrotpatronen Kal. 12, `munition_gewehr` Gewehrpatronen, `munition_357` Revolverpatronen .357, `pfeil` Pfeile, `bolzen` Armbrustbolzen |
 | mod | `mod_zielfernrohr` Zielfernrohr, `mod_magazin` Erweitertes Magazin, `mod_schalldaempfer` Schalldämpfer |
-| material | `holz` Holz, `stein` Stein, `eisenerz` Eisenerz, `eisenbarren` Eisenbarren, `verkohlt` Verkohltes Essen, `muell` Müll, `schrott` Schrott, `bretter` Bretter, `schwarzpulver` Schwarzpulver, `huhn` Huhn, `benzin` Benzinkanister, `alkohol` Hochprozentiges, `weizen` Weizen, `mehl` Mehl, `stoff` Stofffetzen |
+| material | `holz` Holz, `stein` Stein, `eisenerz` Eisenerz, `eisenbarren` Eisenbarren, `verkohlt` Verkohltes Essen, `muell` Müll, `schrott` Schrott, `ast` Ast, `rinde` Baumrinde, `papier` Papier, `bretter` Bretter, `schwarzpulver` Schwarzpulver, `huhn` Huhn, `benzin` Benzinkanister, `alkohol` Hochprozentiges, `weizen` Weizen, `mehl` Mehl, `stoff` Stofffetzen |
 | rucksack | `rucksack_klein` Kleiner Rucksack, `rucksack` Rucksack, `rucksack_gross` Großer Rucksack |
 | kleidung | `muetze` Wollmütze, `kapuzenpulli` Kapuzenpulli, `winterjacke` Winterjacke, `arbeitsweste` Arbeitsweste, `handschuhe` Handschuhe, `jeans` Jeans, `thermohose` Thermohose, `stiefel` Winterstiefel, `turnschuhe` Turnschuhe, `lederjacke` Lederjacke, `schutzweste` Schutzweste, `regenmantel` Regenmantel, `helm` Bauhelm, `motorradhelm` Motorradhelm, `kampfhose` Cargohose mit Polstern, `gummistiefel` Gummistiefel, `lederhandschuhe` Lederhandschuhe |
 | bauwerk | `werkbank` Werkbank, `lagerfeuer` Lagerfeuer, `schmelzofen` Schmelzofen, `falle` Bärenfalle, `sprengfalle` Sprengfalle, `stacheldraht` Stacheldraht, `fallgrube` Fallgrube (Bausatz), `dosenalarm` Dosenalarm |
 | wurf | `granate` Rohrbombe, `molotow` Molotowcocktail |
-| werkzeug | `feuerzeug` Feuerzeug, `angel` Angel |
+| werkzeug | `feuerzeug` Feuerzeug, `feuerbohrer` Feuerbohrer, `angel` Angel |
 | samen | `samen_tomate` Tomatensamen, `samen_gurke` Gurkensamen, `samen_kartoffel` Saatkartoffeln, `samen_paprika` Paprikasamen, `samen_weizen` Weizenkörner, `samen_karotte` Karottensamen, `samen_kuerbis` Kürbiskerne, `samen_erdbeere` Erdbeersamen |
 
 ### Eigene 3D-Modelle (Aktion `modell`, Feld `modell` = Name ohne .glb; `hoehe` = Zielhöhe in m) – 465 Stück
@@ -747,9 +747,9 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 ### Sounds im Spiel (Info: was es schon gibt – Karten-Klänge setzt man im Editor)
 | Gruppe | Ereignisse |
 |---|---|
-| Atmosphäre & Wetter | wind, regen, nacht, schritt_schnee, schritt_gras, schritt_innen, donner, donner_nah, regen_stark, blizzard_a, blizzard_b, wind_leicht, wind_stark, regen_dach, kamin, sturm, schneesturm, tag, nacht_wind |
+| Atmosphäre & Wetter | wind, regen, nacht, schritt_schnee, schritt_gras, schritt_innen, schritt_asphalt, donner, donner_nah, regen_stark, blizzard_a, blizzard_b, wind_leicht, wind_stark, regen_dach, kamin, sturm, schneesturm, tag, nacht_wind |
 | Tiere | schnurren, summen, hase_flucht, vogel, hase_tod, hase_schreck, eule, heulen, bellen, miau, gackern |
-| Bauen, Handwerk & Arbeit | generator, dosenalarm, grube, hack_holz, baum_faellt, hack_stein, stein_bricht, hack_felsen, felsen_bricht, gebaut, werkeln, graben, tuer_auf, tuer_zu, feuer_an, feuer_aus, knistern, holz_nachlegen, brutzel, brutzeln, fertig, verbrannt, angel_wurf, angel_biss, gefangen, falle_auf, falle_zu |
+| Bauen, Handwerk & Arbeit | generator, dosenalarm, grube, hack_holz, baum_faellt, rinde_schnitzen, hack_stein, stein_bricht, hack_felsen, felsen_bricht, gebaut, werkeln, graben, tuer_auf, tuer_zu, feuer_an, feuer_aus, knistern, holz_nachlegen, brutzel, brutzeln, fertig, verbrannt, angel_wurf, angel_biss, gefangen, falle_auf, falle_zu |
 | Waffen & Kampf | pistole, schrotflinte, automatikgewehr, revolver, mp, sturmgewehr, leer, nachladen, nahkampf, treffer_zombie, treffer_spieler, schaden_mann, schaden_frau, keuchen, keuchen_frau, spieler_tod, spieler_tod_frau, zittern, zaehneklappern, husten, gewehr, bogen, armbrust, schuss_leise, nachladen_gewehr, molotow, brand, explosion |
 | Inventar & Items | anziehen, aufheben, beute, essen, trinken, magen_knurren, durst, heilen, verband, taschenlampe, inventar_auf, inventar_zu |
 | Zombies | zombie_stoehnen, zombie_angriff, zombie_tod, zombie_schrei, spucke, spucke_trifft, zuendung, treffer_panzer, zombie_ferne, tuer_schlag, tuer_bricht |
@@ -764,6 +764,7 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `radio` | 3 |
 | `stadtrand` | 0 |
 | `waldweg` | 0 |
+| `_optionen` |  |
 
 ### Zonen-Werte (Aktion `wert`, `pfad` = gruppe.name)
 | pfad | Bedeutung | Bereich | Hinweis |

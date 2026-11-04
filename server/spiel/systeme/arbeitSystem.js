@@ -1,5 +1,5 @@
 import { BETT_REICHWEITE } from '../../../gemeinsam/konstanten.js';
-import { ABBAU_REICHWEITE } from '../../../gemeinsam/welt/ressourcen.js';
+import { ABBAU_REICHWEITE, abbauArtFuer } from '../../../gemeinsam/welt/ressourcen.js';
 import { sekundenFuerStunden, tageszeit } from '../../../gemeinsam/tageszeit.js';
 import { aktualisiereAusruestung, fuegeZumInventarHinzu, konsumiere, legeAufBoden, nutzeWerkzeug } from './inventarSystem.js';
 import { gibXp } from './levelSystem.js';
@@ -13,7 +13,7 @@ import { bettBei } from '../../../gemeinsam/welt/einrichtung.js';
  * Arbeiten, die Zeit brauchen: Bäume fällen / Steine abbauen (Werkzeug nötig, nutzt sich ab) und Schlafen im Bett; Sitzen am Feuer (start: stationSystem);
  * Runde 29: Essen/Trinken/Medizin (art 'konsum', start: inventarSystem.starteKonsum, Takt-Ereignis 'konsumTakt' = Geräusch).
  *
- *   spieler.arbeit = { art: 'holz' | 'stein' | 'schlafen', dauer, rest, x, y, ressourceId?, ort?, naechsterSchlag }
+ *   spieler.arbeit = { art: 'holz' | 'rinde' | 'ast' | 'stein' | 'eisenerz' | 'schlafen', werkzeug?, dauer, rest, x, y, ressourceId?, ort?, naechsterSchlag }
  *
  * Schlafen geht in jedem Bett, dauert konfiguration.schlafen.dauer Sekunden und spult die Uhr vor – aber nur,
  * wenn alle lebenden Spieler schlafen (wer früher fertig ist, bleibt liegen, bis alle soweit sind).
@@ -26,20 +26,29 @@ const SITZ_HEILUNG = 0.5; // Leben pro Sekunde am Lagerfeuer
 export const SCHLAG_TAKT = 0.85; // Sekunden zwischen zwei Hack-Geräuschen (passt zur Animation)
 const KONSUM_TAKT = 1.15; // Sekunden zwischen zwei Kau-/Schluck-/Verband-Geräuschen
 
-/** AKTION 'abbauen': nächsten Baum/Stein in Reichweite bearbeiten. */
+/** Fehlt-Hinweis je Ressourcenart */
+const WERKZEUG_TEXT = { holz: 'eine Axt', ast: 'eine Machete, Axt oder ein Messer', stein: 'eine Spitzhacke', eisenerz: 'eine Spitzhacke' };
+
+/**
+ * AKTION 'abbauen': nächsten Baum/Strauch/Stein in Reichweite bearbeiten, für den du das Werkzeug hast.
+ * Runde 31: Machete/Messer in der Hand → am Baum Rinde schneiden (art 'rinde', Dauer wie Holzfällen, max. 3× je Baum), Busch → Ast.
+ */
 export function starteAbbau(spielWelt, spieler) {
-  const r = spielWelt.welt.naechsteRessource(spieler.x, spieler.y, ABBAU_REICHWEITE);
+  const welt = spielWelt.welt;
+  const handId = spieler.inventar[spieler.ausgeruestet ?? -1]?.defId ?? null;
+  const hat = (id) => spieler.inventar.some((e) => e?.defId === id);
+  const wahl = (r) => abbauArtFuer(r, handId, hat, welt.rindeAb.get(r.id) ?? 0);
+  const r = welt.naechsteRessource(spieler.x, spieler.y, ABBAU_REICHWEITE, (k) => wahl(k) !== null);
   if (!r) {
-    spielWelt.melde(spieler.id, 'Hier gibt es nichts abzubauen');
+    const ohneWerkzeug = welt.naechsteRessource(spieler.x, spieler.y, ABBAU_REICHWEITE);
+    spielWelt.melde(spieler.id, ohneWerkzeug ? `Du brauchst ${WERKZEUG_TEXT[ohneWerkzeug.art]}` : 'Hier gibt es nichts abzubauen');
     return;
   }
-  if (!spieler.inventar.some((e) => e?.defId === r.werkzeug)) {
-    spielWelt.melde(spieler.id, `Du brauchst ${r.werkzeug === 'axt' ? 'eine Axt' : 'eine Spitzhacke'}`);
-    return;
-  }
-  const dauer = spielWelt.konfiguration.ressourcen[r.art].dauer * sammelFaktor(spieler.skills);
-  spieler.arbeit = { art: r.art, dauer, rest: dauer, x: spieler.x, y: spieler.y, ressourceId: r.id, naechsterSchlag: SCHLAG_TAKT * 0.6 };
+  const { art, werkzeug } = wahl(r);
+  const dauer = spielWelt.konfiguration.ressourcen[art === 'rinde' ? 'holz' : art].dauer * sammelFaktor(spieler.skills);
+  spieler.arbeit = { art, werkzeug, dauer, rest: dauer, x: spieler.x, y: spieler.y, ressourceId: r.id, naechsterSchlag: SCHLAG_TAKT * 0.6 };
   spieler.nachladenRest = 0;
+  if (art === 'rinde') spielWelt.ereignis({ typ: 'rindeStart', x: r.x, y: r.y, von: spieler.id }); // einmal: Schnitz-Geräusch (6 s = Dauer des Holzfällens)
 }
 
 /** AKTION 'schlafen': in ein Bett in Reichweite legen (nicht, wenn Zombies hinter einem her sind). */
@@ -122,10 +131,10 @@ export function aktualisiereArbeit(spielWelt, dt) {
     a.naechsterSchlag -= dt;
     if (a.naechsterSchlag <= 0) {
       a.naechsterSchlag += SCHLAG_TAKT;
-      spielWelt.ereignis({ typ: 'hack', art: a.art, x: r.x, y: r.y });
+      if (a.art !== 'rinde') spielWelt.ereignis({ typ: 'hack', art: a.art, x: r.x, y: r.y });
     }
     a.rest -= dt;
-    if (a.rest <= 0) schliesseAbbauAb(spielWelt, spieler, r);
+    if (a.rest <= 0) schliesseAbbauAb(spielWelt, spieler, r, a);
   }
   aktualisiereNachwachsen(spielWelt, dt);
 }
@@ -148,21 +157,24 @@ function konsumiereWeiter(spielWelt, spieler, a, dt) {
   }
 }
 
-function schliesseAbbauAb(spielWelt, spieler, r) {
+function schliesseAbbauAb(spielWelt, spieler, r, a) {
+  spieler.arbeit = null;
+  nutzeWerkzeug(spielWelt, spieler, a.werkzeug);
+  if (a.art === 'rinde') {
+    // Runde 31: Baum bleibt stehen, Stamm wird heller (Client: welt.rindeAb); nach RINDE_MAX Schnitten nur noch fällen
+    spielWelt.welt.setzeRinde(r.id, (spielWelt.welt.rindeAb.get(r.id) ?? 0) + 1);
+    gebeItem(spielWelt, spieler, 'rinde', 1);
+    gibXp(spielWelt, spieler, spielWelt.konfiguration.level.xpProAbbau ?? 0);
+    spielWelt.ereignis({ typ: 'abgebaut', art: 'rinde', x: r.x, y: r.y, id: r.id, von: spieler.id, sx: spieler.x, sy: spieler.y, menge: 1 });
+    return;
+  }
   const k = spielWelt.konfiguration.ressourcen[r.art];
   // Große Bäume/Steine geben mehr (mengeGross), beide mit Glückschance auf +1
   const grundMenge = r.groesse === 'gross' ? k.mengeGross ?? k.menge : k.menge;
   const menge = grundMenge + (spielWelt.zufall.zahl() < (k.chanceAufMehr ?? 0) ? 1 : 0);
-  const nachwachsen = k.nachwachsen;
-  spieler.arbeit = null;
-  nutzeWerkzeug(spielWelt, spieler, r.werkzeug);
-  const rest = fuegeZumInventarHinzu(spieler, r.art, menge);
-  if (rest > 0) {
-    legeAufBoden(spielWelt, { defId: r.art, menge: rest }, spieler.x, spieler.y);
-    spielWelt.melde(spieler.id, 'Inventar voll – liegt am Boden');
-  }
+  gebeItem(spielWelt, spieler, r.art, menge);
   spielWelt.welt.setzeRessource(r.id, false);
-  spielWelt.ressourcenNachwuchs.set(r.id, nachwachsen);
+  spielWelt.ressourcenNachwuchs.set(r.id, k.nachwachsen);
   gibXp(spielWelt, spieler, spielWelt.konfiguration.level.xpProAbbau ?? 0);
   // Bäume werfen manchmal einen Apfel ab (konfiguration.ressourcen.holz.apfelChance)
   const apfel = r.art === 'holz' && spielWelt.zufall.zahl() < (k.apfelChance ?? 0);
@@ -172,6 +184,15 @@ function schliesseAbbauAb(spielWelt, spieler, r) {
   }
   // menge/bonus: Client zeigt „+N <Icon>“ an der Abbaustelle (ui/weltPopups.js) statt einer Textmeldung
   spielWelt.ereignis({ typ: 'abgebaut', art: r.art, x: r.x, y: r.y, id: r.id, von: spieler.id, sx: spieler.x, sy: spieler.y, menge, bonus: apfel ? 'apfel' : undefined });
+}
+
+/** Item ins Inventar, Überhang liegt am Boden */
+function gebeItem(spielWelt, spieler, defId, menge) {
+  const rest = fuegeZumInventarHinzu(spieler, defId, menge);
+  if (rest > 0) {
+    legeAufBoden(spielWelt, { defId, menge: rest }, spieler.x, spieler.y);
+    spielWelt.melde(spieler.id, 'Inventar voll – liegt am Boden');
+  }
 }
 
 /** Ein Tick Schlaf: Heilung verteilt sich über die Schlafdauer; am Ende aufwachen (und evtl. Zeit vorspulen). */
@@ -277,6 +298,7 @@ function aktualisiereNachwachsen(spielWelt, dt) {
       continue;
     }
     spielWelt.ressourcenNachwuchs.delete(id);
+    if (spielWelt.welt.rindeAb.has(id)) spielWelt.welt.setzeRinde(id, 0); // neuer Baum = wieder volle Rinde
     spielWelt.welt.setzeRessource(id, true);
   }
 }

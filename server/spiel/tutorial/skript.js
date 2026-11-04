@@ -305,14 +305,14 @@ export const KAPITEL = [
   {
     titel: 'Garten',
     start: 'garten',
-    sichere: { holz: 3, axt: 1, spitzhacke: 1 },
+    sichere: { holz: 3, papier: 1, axt: 1, spitzhacke: 1 }, // Runde 31: Lagerfeuer braucht Holz + Brennstoff (Papier)
     stunde: 8,
     schritte: [
       {
         id: 'k8_feuer',
         funk: ['k8_feuer'],
         aufgaben: [
-          { text: 'Bau ein Lagerfeuer und stell es auf', taste: T('Tab → Bauen', '🎒 → Bauen'), wenn: { ereignis: 'gebaut', wo: { bauwerk: 'lagerfeuer' } } },
+          { text: 'Bau ein Lagerfeuer (3 Holz + Papier) und stell es auf', taste: T('Tab → Bauen', '🎒 → Bauen'), wenn: { ereignis: 'gebaut', wo: { bauwerk: 'lagerfeuer' } } },
           { text: 'Nimm das Feuerzeug', taste: T('E', '✋'), wenn: { hat: { feuerzeug: 1 } } },
         ],
         ziel: 'garten',
