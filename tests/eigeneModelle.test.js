@@ -10,7 +10,8 @@ import { BEHAELTER_TYPEN } from '../gemeinsam/welt/behaelter.js';
 
 const GLB = 'data:model/gltf-binary;base64,AAAA';
 // Stadtrand ohne die eingebauten Behälter-Modelle (die ergänzt der Lader selbst unter `typen`, Runde 25)
-const OHNE_BEHAELTER = { ...STADTRAND, objekte: STADTRAND.objekte.filter((o) => !BEHAELTER_TYPEN[o.typ]) };
+// Runde 32: Stadtrand hat jetzt eigene Deko-Typen (r32_*) – für diesen Test ohne typen
+const OHNE_BEHAELTER = { ...STADTRAND, typen: undefined, objekte: STADTRAND.objekte.filter((o) => !BEHAELTER_TYPEN[o.typ] && !o.typ.startsWith('r32_')) };
 
 test('Spiel bekommt nur eigene Typen mit gültigem Modell (Pfad oder eingebettet)', () => {
   const typen = {

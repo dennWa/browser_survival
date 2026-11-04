@@ -108,7 +108,7 @@ const ZOMBIE_NACHT_LEUCHTEN = 0.09;
 const FACKEL_FARBE = new THREE.Color(0xff9a40);
 /** Runde 32: tote Zombies liegen so lange (s), höchstens so viele gleichzeitig */
 const ZOMBIE_LEICHE_S = 120;
-const ZOMBIE_LEICHEN_MAX = 40;
+const ZOMBIE_LEICHEN_MAX = 25; // Performance: Skinning kostet auch liegend
 const _morgenDunst = new THREE.Color();
 const _nebelFarbe = new THREE.Color();
 const _nebelGrau = new THREE.Color(0.7, 0.72, 0.75);
