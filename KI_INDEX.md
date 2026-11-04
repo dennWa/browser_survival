@@ -46,9 +46,10 @@ Playwright-Skripte: nach Login auf `#laden` hidden warten (Aufwärmphase), sonst
 | `ki/runde29.md` | Runde 29 ( Sound-Paket, Wasser, Konsum-Dauer, Bots wehren sich, Autos beschießbar, Einschusslöcher) |
 | `ki/runde30.md` | Runde 30 (Zombie-Atlas-Textur, UV-Umprojektion `zombieTextur.js`) |
 | `ki/runde31.md` | Runde 31 (Ast/Rinde/Feuerbohrer, Zombie-/Asphalt-Sounds, Lautstärken, Auto-Zusammenstoß, Ego-Sicht, Regen-Graustich) |
-| `ki/runde32.md` | Runde 32 (neueste: Nutzer-Modellpakete → Bäume/Gras/Steine/Items/Waffen/Tiere/Figuren, Zelt, Sound/Wetter/Licht, Gameplay) |
+| `ki/runde33.md` | Runde 33 (neueste: Ego-Sichtradius, Rasen aus, Busch-Modelle, Fleisch-Textur, Doppelaxt/Dynamit/RPG) |
+| `ki/runde32.md` | Runde 32 ( Nutzer-Modellpakete → Bäume/Gras/Steine/Items/Waffen/Tiere/Figuren, Zelt, Sound/Wetter/Licht, Gameplay) |
 
-**Faustregel:** Spiellogik/Netz → `ki/kern.md` + `ki/fallen.md`. Datei suchen → `ki/dateikarte.md`. Neueste Änderungen → `ki/runde32.md`. Editor → `ki/editor.md`.
+**Faustregel:** Spiellogik/Netz → `ki/kern.md` + `ki/fallen.md`. Datei suchen → `ki/dateikarte.md`. Neueste Änderungen → `ki/runde33.md`. Editor → `ki/editor.md`.
 Ausführliches Handbuch (für Menschen): `project_manifest.md` (ebenfalls aufgeteilt unter `ki/handbuch/`).
 
 ## Pflege (Pflicht am Auftragsende)

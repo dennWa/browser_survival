@@ -2605,14 +2605,19 @@ export class Renderer {
     probe.position.copy(KAMERA_VERSATZ).multiplyScalar((this.grundAbstand ?? 1) * EGO_SICHT_ZOOM);
     probe.lookAt(0, 0, 0);
     probe.updateMatrixWorld(true);
-    let weiteste = 0;
+    // Runde 33: Radius = Mittel der Bodenabstände der vier Bildkanten-Mitten (oben/unten/links/rechts) der Draufsicht bei ZOOM_MAX
+    // (vorher weiteste Bildecke → Ego sah deutlich weiter als Third Person = Vorteil)
+    let summe = 0;
+    let anzahl = 0;
     const p = new THREE.Vector3();
-    for (const [x, y] of [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, 1], [-1, 0], [1, 0]]) {
+    for (const [x, y] of [[0, 1], [-1, 0], [1, 0], [0, -1]]) {
       p.set(x, y, 0.5).unproject(probe).sub(probe.position).normalize();
       if (p.y >= -1e-4) continue; // Strahl trifft den Boden nicht
       const t = -probe.position.y / p.y;
-      weiteste = Math.max(weiteste, Math.hypot(probe.position.x + p.x * t, probe.position.z + p.z * t));
+      summe += Math.hypot(probe.position.x + p.x * t, probe.position.z + p.z * t);
+      anzahl++;
     }
+    const weiteste = anzahl ? summe / anzahl : 0;
     const wert = (weiteste || Math.tan((38 * Math.PI) / 360) * KAMERA_VERSATZ.length() * (this.grundAbstand ?? 1) * EGO_SICHT_ZOOM) * EGO_SICHT_FAKTOR;
     this.#egoSichtCache = { schluessel, wert };
     return wert;

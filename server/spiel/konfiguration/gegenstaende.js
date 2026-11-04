@@ -72,6 +72,9 @@ const ROH_GEGENSTAENDE = {
   mp: { name: 'Maschinenpistole', kategorie: 'fernkampf', ausruestung: 'schrotflinte', schaden: 13, munition: 'munition_9mm', magazin: 30, abklingzeit: 0.09, reichweite: 430, streuung: 0.075, nachladezeit: 1.7, laerm: 1.25, mods: ['schalldaempfer'], beschreibung: 'Taste halten = Dauerfeuer, frisst Munition' },
   sturmgewehr: { name: 'Sturmgewehr', kategorie: 'fernkampf', ausruestung: 'schrotflinte', schaden: 28, munition: 'munition_gewehr', magazin: 20, abklingzeit: 0.13, reichweite: 760, streuung: 0.04, nachladezeit: 2.3, laerm: 1.6, durchschlag: 0.45, mods: ['zielfernrohr'], beschreibung: 'Taste halten = Dauerfeuer, sehr laut' },
   vorschlaghammer: { name: 'Vorschlaghammer', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 62, reichweite: 84, abklingzeit: 1.3, haltbarkeit: 120, rueckstoss: 3.2, durchschlag: 0.5, beschreibung: 'Langsam, aber wer getroffen wird, fliegt', reparatur: { holz: 1, eisenbarren: 1 } },
+  // Runde 33: Waffen aus dem Weapons Pack (vorher nur Editor-Deko)
+  doppelaxt: { name: 'Doppelaxt', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 58, reichweite: 82, abklingzeit: 1.0, haltbarkeit: 90, kegel: 0.9, rueckstoss: 2.4, beschreibung: 'Schwer, breiter Schwung', reparatur: { eisenbarren: 1 } },
+  raketenwerfer: { name: 'Raketenwerfer (RPG)', kategorie: 'fernkampf', ausruestung: 'schrotflinte', schaden: 40, munition: 'rakete', magazin: 1, abklingzeit: 1.5, reichweite: 700, streuung: 0.01, nachladezeit: 3.2, laerm: 2.2, rueckstoss: 3, sprengRadius: 125, sprengSchaden: 120, beschreibung: 'Rakete explodiert am Einschlag – auch du kannst getroffen werden' },
   katana: { name: 'Katana', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 46, reichweite: 90, abklingzeit: 0.6, haltbarkeit: 60, kegel: 0.95, beschreibung: 'Breiter, schneller Schnitt', reparatur: { eisenbarren: 1 } },
   bratpfanne: { name: 'Bratpfanne', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 17, reichweite: 66, abklingzeit: 0.55, haltbarkeit: 200, rueckstoss: 2, beschreibung: 'Klassiker. Macht „Doing“.', reparatur: { stein: 1 } },
   golfschlaeger: { name: 'Golfschläger', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 24, reichweite: 88, abklingzeit: 0.65, haltbarkeit: 50, rueckstoss: 2.3, reparatur: { eisenbarren: 1 } },
@@ -81,6 +84,7 @@ const ROH_GEGENSTAENDE = {
   munition_9mm: { name: 'Munition 9 mm', kategorie: 'munition', stapelbar: 60, mengeBeimFund: [5, 15] },
   munition_12: { name: 'Schrotpatronen Kal. 12', kategorie: 'munition', stapelbar: 30, mengeBeimFund: [2, 6] },
   munition_gewehr: { name: 'Gewehrpatronen', kategorie: 'munition', mengeBeimFund: [2, 5] },
+  rakete: { name: 'Rakete', kategorie: 'munition', mengeBeimFund: [1, 2], beschreibung: 'Für den Raketenwerfer' }, // Runde 33
   munition_357: { name: 'Revolverpatronen .357', kategorie: 'munition', mengeBeimFund: [3, 8] }, // Runde 26
   pfeil: { name: 'Pfeile', kategorie: 'munition', mengeBeimFund: [3, 6], beschreibung: 'Für den Bogen – an der Werkbank selbst bauen' },
   bolzen: { name: 'Armbrustbolzen', kategorie: 'munition', mengeBeimFund: [2, 4] },
@@ -137,6 +141,7 @@ const ROH_GEGENSTAENDE = {
   dosenalarm: { name: 'Dosenalarm', kategorie: 'bauwerk', bauwerk: 'dosenalarm', beschreibung: 'Klappert, wenn Zombies vorbeikommen – du bekommst eine Meldung' },
   // Runde 24: Wurfwaffen (in die Hand nehmen, Linksklick wirft dorthin, wo die Maus zeigt)
   granate: { name: 'Rohrbombe', kategorie: 'wurf', wurf: 'granate', inHand: true, ausruestung: 'wurf', wurfweite: 320, zuender: 1, sprengRadius: 105, sprengSchaden: 80, beschreibung: 'Werfen (Linksklick): explodiert nach 1 Sekunde' },
+  dynamit: { name: 'Dynamit', kategorie: 'wurf', wurf: 'granate', inHand: true, ausruestung: 'wurf', wurfweite: 300, zuender: 3, sprengRadius: 150, sprengSchaden: 140, beschreibung: 'Werfen (Linksklick): explodiert nach 3 Sekunden, große Sprengkraft' }, // Runde 33
   molotow: { name: 'Molotowcocktail', kategorie: 'wurf', wurf: 'molotow', inHand: true, ausruestung: 'wurf', wurfweite: 300, brandRadius: 64, brandDauer: 9, brandSchaden: 14, beschreibung: 'Werfen (Linksklick): setzt den Boden 9 Sekunden in Brand' },
   schwarzpulver: { name: 'Schwarzpulver', kategorie: 'material', beschreibung: 'Aus Kohle (verkohltes Essen) und Stein – für Sprengstoff' },
   huhn: { name: 'Huhn', kategorie: 'material', beschreibung: 'Eingefangenes Huhn – für einen Hühnerstall (Bau-Menü → Farm)' },

@@ -14,7 +14,7 @@ import { schuereFeuer, sitztAmFeuer } from './stationSystem.js';
 import { tutorialVorSchaden } from './tutorialSystem.js';
 import { lasseBossLootFallen, lasseZombieLootFallen } from './lootSystem.js';
 import { explodiere } from './sonderZombieSystem.js';
-import { werfe } from './explosionSystem.js';
+import { werfe, explosion } from './explosionSystem.js';
 import { haustierGestorben } from './haustierSystem.js';
 import { streckeNieder } from './mehrspielerSystem.js';
 import { wehreDich } from './botSystem.js';
@@ -136,6 +136,8 @@ function feuereStrahl(spielWelt, schuetze, winkel, def) {
   spielWelt.ereignis({ typ: 'schuss', von: schuetze.id, x: schuetze.x, y: schuetze.y, zx: schuetze.x + dx * bestT, zy: schuetze.y + dy * bestT, stoff, ...(auto ? { fz: auto.id } : {}), ...(def.pfeil ? { pfeil: true } : {}) });
   if (auto && !def.pfeil) schlageFahrzeug(spielWelt, auto, def.schaden * (spielWelt.konfiguration.fahrzeug.schussFaktor ?? 0));
   if (ziel) fuegeSchadenZu(spielWelt, ziel, def.schaden, schuetze, winkel, { durchschlag: def.durchschlag ?? 0, schuss: true });
+  // Runde 33: Raketen explodieren am Einschlagpunkt
+  if (def.sprengRadius) explosion(spielWelt, schuetze.x + dx * bestT, schuetze.y + dy * bestT, { radius: def.sprengRadius, schaden: def.sprengSchaden ?? 100, quelle: schuetze });
   // Runde 24: Pfeile/Bolzen bleiben oft heil liegen (etwas vor dem Einschlag) und lassen sich wieder aufheben
   if (def.pfeil && def.munition && spielWelt.zufall.zahl() < (def.bergen ?? 0)) {
     const t = Math.max(0, bestT - 10);

@@ -107,6 +107,60 @@
   "laub": true,
   "bytes": 131820
  },
+ "busch_0": {
+  "datei": "busch_0.glb",
+  "quelle": "Trees Low Poly (luxe3dworld) Krone #0 als Busch",
+  "hoehe": 3.0,
+  "breite": 2.402,
+  "dreiecke": 540,
+  "laub": true,
+  "bytes": 82808
+ },
+ "busch_1": {
+  "datei": "busch_1.glb",
+  "quelle": "Trees Low Poly (luxe3dworld) Krone #1 als Busch",
+  "hoehe": 3.3,
+  "breite": 2.622,
+  "dreiecke": 540,
+  "laub": true,
+  "bytes": 82824
+ },
+ "busch_2": {
+  "datei": "busch_2.glb",
+  "quelle": "Trees Low Poly (luxe3dworld) Krone #2 als Busch",
+  "hoehe": 3.6,
+  "breite": 3.017,
+  "dreiecke": 540,
+  "laub": true,
+  "bytes": 82824
+ },
+ "busch_3": {
+  "datei": "busch_3.glb",
+  "quelle": "Trees Low Poly (luxe3dworld) Krone #3 als Busch",
+  "hoehe": 3.0,
+  "breite": 2.348,
+  "dreiecke": 538,
+  "laub": true,
+  "bytes": 82596
+ },
+ "busch_4": {
+  "datei": "busch_4.glb",
+  "quelle": "Trees Low Poly (luxe3dworld) Krone #4 als Busch",
+  "hoehe": 3.3,
+  "breite": 2.444,
+  "dreiecke": 512,
+  "laub": true,
+  "bytes": 79800
+ },
+ "busch_5": {
+  "datei": "busch_5.glb",
+  "quelle": "Trees Low Poly (luxe3dworld) Krone #5 als Busch",
+  "hoehe": 3.6,
+  "breite": 2.835,
+  "dreiecke": 540,
+  "laub": true,
+  "bytes": 82824
+ },
  "kiefer_n0": {
   "datei": "kiefer_n0.glb",
   "quelle": "Low Poly Forest Tree Pack (99.Miles) Tree_Trunk_01.001_Tree_Trunk_01_0",
@@ -205,42 +259,6 @@
   "dreiecke": 109,
   "laub": false,
   "bytes": 10128
- },
- "busch_0": {
-  "datei": "busch_0.glb",
-  "quelle": "Low Poly Forest Tree Pack (99.Miles) Background_Tree_Atlas.009_Background_Tree_Atlas_0",
-  "hoehe": 1.2,
-  "breite": 0.787,
-  "dreiecke": 40,
-  "laub": false,
-  "bytes": 4348
- },
- "busch_1": {
-  "datei": "busch_1.glb",
-  "quelle": "Low Poly Forest Tree Pack (99.Miles) Background_Tree_Atlas.010_Background_Tree_Atlas_0",
-  "hoehe": 1.45,
-  "breite": 2.068,
-  "dreiecke": 92,
-  "laub": false,
-  "bytes": 8716
- },
- "busch_2": {
-  "datei": "busch_2.glb",
-  "quelle": "Low Poly Forest Tree Pack (99.Miles) Background_Tree_Atlas.011_Background_Tree_Atlas_0",
-  "hoehe": 1.7,
-  "breite": 1.524,
-  "dreiecke": 24,
-  "laub": false,
-  "bytes": 2996
- },
- "busch_3": {
-  "datei": "busch_3.glb",
-  "quelle": "Low Poly Forest Tree Pack (99.Miles) Background_Tree_Atlas.012_Background_Tree_Atlas_0",
-  "hoehe": 1.2,
-  "breite": 1.462,
-  "dreiecke": 67,
-  "laub": false,
-  "bytes": 6612
  },
  "nadel_7": {
   "datei": "nadel_7.glb",

@@ -1031,6 +1031,34 @@
     "b": 51,
     "h": 63,
     "weltGroesse": 22
+   },
+   "doppelaxt": {
+    "x": 244,
+    "y": 1296,
+    "b": 16,
+    "h": 72,
+    "weltGroesse": 34
+   },
+   "dynamit": {
+    "x": 307,
+    "y": 1296,
+    "b": 33,
+    "h": 72,
+    "weltGroesse": 20
+   },
+   "rakete": {
+    "x": 360,
+    "y": 1307,
+    "b": 72,
+    "h": 49,
+    "weltGroesse": 20
+   },
+   "raketenwerfer": {
+    "x": 439,
+    "y": 1296,
+    "b": 58,
+    "h": 72,
+    "weltGroesse": 38
    }
   }
  },
@@ -1398,6 +1426,30 @@
   {
    "paket": "Brennende Fackel",
    "urheber": "Browser Survival (eigenes Icon, Runde 32)",
+   "lizenz": "CC0",
+   "url": "https://github.com/dennwa/browser_survival"
+  },
+  {
+   "paket": "Doppelaxt",
+   "urheber": "Low poly Weapons Pack 001 (Nutzer-Paket, Runde 32)",
+   "lizenz": "CC0",
+   "url": "https://github.com/dennwa/browser_survival"
+  },
+  {
+   "paket": "Dynamit",
+   "urheber": "Low poly Weapons Pack 001 (Nutzer-Paket, Runde 32)",
+   "lizenz": "CC0",
+   "url": "https://github.com/dennwa/browser_survival"
+  },
+  {
+   "paket": "Rakete",
+   "urheber": "Low poly Weapons Pack 001 (Nutzer-Paket, Runde 32)",
+   "lizenz": "CC0",
+   "url": "https://github.com/dennwa/browser_survival"
+  },
+  {
+   "paket": "Raketenwerfer",
+   "urheber": "Low poly Weapons Pack 001 (Nutzer-Paket, Runde 32)",
    "lizenz": "CC0",
    "url": "https://github.com/dennwa/browser_survival"
   }

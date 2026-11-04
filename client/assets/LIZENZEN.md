@@ -21,3 +21,7 @@ Alle Grafiken stammen aus frei nutzbaren Paketen. Bei **CC-BY** ist die Namensne
 | [Baumrinde](https://github.com/dennwa/browser_survival) | Browser Survival (eigene Platzhalter-Modelle, Icon aus 3D-Render) | CC0 | Item-Icon Baumrinde |
 | [Fackel](https://github.com/dennwa/browser_survival) | Browser Survival (eigenes Icon, Runde 32) | CC0 | Item-Icon Fackel |
 | [Brennende Fackel](https://github.com/dennwa/browser_survival) | Browser Survival (eigenes Icon, Runde 32) | CC0 | Item-Icon Brennende Fackel |
+| [Doppelaxt](https://github.com/dennwa/browser_survival) | Low poly Weapons Pack 001 (Nutzer-Paket, Runde 32) | CC0 | Item-Icon Doppelaxt |
+| [Dynamit](https://github.com/dennwa/browser_survival) | Low poly Weapons Pack 001 (Nutzer-Paket, Runde 32) | CC0 | Item-Icon Dynamit |
+| [Rakete](https://github.com/dennwa/browser_survival) | Low poly Weapons Pack 001 (Nutzer-Paket, Runde 32) | CC0 | Item-Icon Rakete |
+| [Raketenwerfer](https://github.com/dennwa/browser_survival) | Low poly Weapons Pack 001 (Nutzer-Paket, Runde 32) | CC0 | Item-Icon Raketenwerfer |

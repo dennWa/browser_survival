@@ -30,8 +30,8 @@ export const STREUUNG = { gras: RASEN, wiese: RASEN, rasen: RASEN };
 
 /** Karten-ID → Streuung an/aus (Karten ohne Eintrag bleiben wie gehabt). `true` = STREUUNG, oder eigene Liste je Untergrund. */
 export const ZONEN = {
-  stadtrand: true, // Runde 32: neuer Rasen wieder an (vorher aus, Nutzer-Wunsch 2026-10-20)
-  waldweg: true,
+  stadtrand: false, // Runde 33: Rasen auf Nutzerwunsch wieder aus (Runde 32 hatte ihn an)
+  waldweg: false,
 };
 
 /** Nur Büschel innerhalb dieses Abstands (px) um die Kamera werden gezeichnet (Dreiecke sparen) */

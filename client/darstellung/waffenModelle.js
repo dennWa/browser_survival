@@ -330,14 +330,20 @@ const R32_WAFFEN = {
   pistole: { teil: 'pistole', laenge: 9, griff: 0.2, muendung: 1 },
   revolver: { teil: 'pistole', laenge: 10, griff: 0.2, muendung: 1 },
   granate: { teil: 'granate', laenge: 4, griff: 0.5 },
+  // Runde 33: eigene Dateien r32_waffe_*.glb
+  doppelaxt: { teil: 'axt_doppel', laenge: 32, griff: 0.1 },
+  dynamit: { teil: 'dynamit', laenge: 7, griff: 0.5 },
+  raketenwerfer: { teil: 'raketenwerfer', laenge: 34, griff: 0.4, muendung: 1, dreh: 0 },
   taschenlampe: { teil: 'taschenlampe', laenge: 8, griff: 0.3, muendung: 1 },
 };
 const r32Geometrien = new Map(); // Teilname → Geometrie (Länge 1)
 
 /** Lädt r32_waffen.glb einmal; danach liefert erzeugeWaffe die neuen Modelle (fehlt die Datei → prozedural wie bisher). */
 export async function ladeR32Waffen() {
-  const teile = await ladeGlbGeometrien('r32_waffen.glb');
-  for (const [name, t] of teile) r32Geometrien.set(name, t.geometrie);
+  for (const datei of ['r32_waffen.glb', 'r32_waffe_axt_doppel.glb', 'r32_waffe_dynamit.glb', 'r32_waffe_raketenwerfer.glb']) {
+    const teile = await ladeGlbGeometrien(datei);
+    for (const [name, t] of teile) r32Geometrien.set(name, t.geometrie);
+  }
 }
 
 function r32Waffe(name) {
@@ -376,6 +382,10 @@ function fackel(brennt) {
   g.userData.muendung = new THREE.Vector3(0, 0, 16);
   return g;
 }
+// Runde 33: Platzhalter (nur bis r32_waffe_*.glb geladen ist; echte Modelle über R32_WAFFEN)
+BAUPLAENE.doppelaxt = () => BAUPLAENE.katana();
+BAUPLAENE.dynamit = () => BAUPLAENE.granate();
+BAUPLAENE.raketenwerfer = () => BAUPLAENE.sturmgewehr();
 BAUPLAENE.fackel = () => fackel(false);
 BAUPLAENE.fackel_brennend = () => fackel(true);
 
@@ -415,8 +425,8 @@ export function erzeugeWaffe(name, mods = null) {
 /** Haltungsart pro Modell: 'pistole' | 'gewehr' | 'nahkampf' | 'lampe' (Werkzeuge bei der Arbeit: 'hacken') */
 export function haltungFuer(name) {
   if (name === 'pistole' || name === 'revolver') return 'pistole';
-  if (name === 'schrotflinte' || name === 'gewehr' || name === 'bogen' || name === 'armbrust' || name === 'mp' || name === 'sturmgewehr') return 'gewehr';
+  if (name === 'schrotflinte' || name === 'gewehr' || name === 'bogen' || name === 'armbrust' || name === 'mp' || name === 'sturmgewehr' || name === 'raketenwerfer') return 'gewehr';
   if (name === 'taschenlampe') return 'lampe'; // Runde 32: Fackel = Nahkampf-Haltung (schwingt)
-  if (name === 'essen' || name === 'trinken' || name === 'holz' || name === 'samen' || name === 'granate' || name === 'molotow') return 'seitlich'; // entspannt neben dem Körper tragen, kein Schwung (Runde 19)
+  if (name === 'essen' || name === 'trinken' || name === 'holz' || name === 'samen' || name === 'granate' || name === 'dynamit' || name === 'molotow') return 'seitlich'; // entspannt neben dem Körper tragen, kein Schwung (Runde 19)
   return 'nahkampf';
 }

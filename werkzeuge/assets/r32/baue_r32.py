@@ -134,6 +134,11 @@ def baeume():
     for n, g in enumerate(gruppen):
         baum(f'laubbaum_{n:02d}', [r_teile[i] for i in g], laub_je[n], 7.2 + (n % 4) * 0.6, 'Trees Low Poly (luxe3dworld) #%d' % n)
 
+    # 1b) Runde 33: Büsche = Laubkronen derselben Bäume ohne Stamm (~1100 Dreiecke, Laubtextur) statt der groben Hintergrund-Büsche (24–92 Dreiecke)
+    for n in range(6):
+        if laub_je[n]:
+            baum(f'busch_{n}', [], laub_je[n], 3.0 + 0.3 * (n % 3), 'Trees Low Poly (luxe3dworld) Krone #%d als Busch' % n)
+
     # 2) Low Poly Forest Tree Pack (99.Miles): Kiefern = Tree_Trunk_01* + Tree_Branches_01* (Alpha-Karten), Trunk_02 + Branches_02 = Herbstkiefer
     wald = mw.lade_glb(sf('wald'))
     staemme = [t for t in wald if t['name'].startswith('Tree_Trunk')]
@@ -156,9 +161,7 @@ def baeume():
         if sz[1] > 15:
             baum(f'nadel_{nadel}', [(t['v'], t['f'], None, fc)], [], 11 + nadel % 3, f'Low Poly Forest Tree Pack (99.Miles) {t["name"]}')
             nadel += 1
-        elif sz[1] > 1.5 and sz[0] / sz[1] < 2:
-            baum(f'busch_{busch}', [(t['v'], t['f'], None, fc)], [], 1.2 + 0.25 * (busch % 3), f'Low Poly Forest Tree Pack (99.Miles) {t["name"]}')
-            busch += 1
+        # Runde 33: Atlas-Büsche (zu grob) entfallen, s. 1b
     with open(os.path.join(BAEUME, 'baeume.json'), 'w', encoding='utf-8') as d:
         json.dump(index, d, indent=1, ensure_ascii=False)
         d.write('\n')
@@ -285,6 +288,33 @@ def essen():
 
 
 # ---------------------------------------------------------------------------------------------------------------- Steak
+def steak_textur(roh, n=128):
+    """Fleisch-Textur: roh = rosa mit hellen Fettadern + Fettrand, gebraten = braun mit Grillstreifen. Deterministisch."""
+    rng = np.random.default_rng(7 if roh else 8)
+
+    def rauschen(zellen):
+        g = rng.random((zellen, zellen))
+        return np.asarray(Image.fromarray((g * 255).astype(np.uint8)).resize((n, n), Image.BICUBIC), float) / 255.0
+
+    r = 0.5 * rauschen(6) + 0.3 * rauschen(14) + 0.2 * rauschen(32)
+    yy, xx = np.mgrid[0:n, 0:n] / (n - 1)
+    rand = np.minimum.reduce([xx, 1 - xx, yy, 1 - yy])
+    if roh:
+        basis = np.array([196, 70, 78], float)
+        adern = np.clip((r - 0.58) * 6, 0, 1)[..., None]  # helle Fettadern
+        farbe = basis * (0.82 + 0.3 * r[..., None]) * (1 - adern) + np.array([238, 214, 206]) * adern
+        fett = np.clip((0.09 - rand) * 14, 0, 1)[..., None]  # Fettrand
+        farbe = farbe * (1 - fett) + np.array([236, 222, 210]) * fett
+    else:
+        basis = np.array([128, 74, 44], float)
+        farbe = basis * (0.8 + 0.4 * r[..., None])
+        streifen = (np.sin((xx + yy) * 34) > 0.55)[..., None] * 1.0  # Grillstreifen
+        farbe = farbe * (1 - 0.55 * streifen * (0.6 + 0.4 * r[..., None]))
+        rand_dunkel = np.clip((0.1 - rand) * 10, 0, 1)[..., None]
+        farbe = farbe * (1 - 0.35 * rand_dunkel)
+    return Image.fromarray(np.clip(farbe, 0, 255).astype(np.uint8), 'RGB')
+
+
 def steak():
     """Steak-Pack (vorher als 2 Reihen-GLBs eingebaut) → einzelne Steaks (Komponenten, nach Abstand gruppiert)."""
     aus = {}
@@ -300,7 +330,15 @@ def steak():
             if len(st[1]) > 30 and schl not in gesehen:  # Rip enthält jedes Steak doppelt
                 gesehen.add(schl)
                 stuecke.append(st)
-        aus['roh' if roh else 'gebraten'] = [mesh(f'{"roh" if roh else "gebraten"}_{i}', normiere(s[0], ziel_groesse=1.0), s[1], s[3]) for i, s in enumerate(stuecke)]
+        # Runde 33: Quelle hat keine Textur (nur 1 Farbe) → prozedurale Marmorierung/Grillstreifen, Draufsicht-Projektion als UV
+        bild = steak_textur(roh)
+        liste = []
+        for i, st in enumerate(stuecke):
+            v = normiere(st[0], ziel_groesse=1.0)
+            mn, mx = v.min(0), v.max(0)
+            uv = ((v[:, [0, 2]] - mn[[0, 2]]) / np.maximum(mx[[0, 2]] - mn[[0, 2]], 1e-9))[st[1]]
+            liste.append(mesh(f'{"roh" if roh else "gebraten"}_{i}', v, st[1], None, uv, bild, mat='roh' if roh else 'gebraten'))
+        aus['roh' if roh else 'gebraten'] = liste
     alle = aus.get('roh', []) + aus.get('gebraten', [])
     if alle:
         schreibe(os.path.join(EIGENE, 'r32_steaks.glb'), alle, rauheit=0.55)

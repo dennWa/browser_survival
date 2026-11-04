@@ -31,7 +31,7 @@ const BAUM_PX_JE_METER = 19;
 
 /** Runde 32: Laubbäume „Trees Low Poly“ (luxe3dworld), Kiefern/Nadelbäume/Büsche „Low Poly Forest Tree Pack“ (99.Miles) – baue_r32.py */
 const LAUB = Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`laubbaum_${String(i).padStart(2, '0')}`, 1]));
-const BUESCHE = { busch_0: 1, busch_1: 1, busch_2: 1, busch_3: 1 };
+const BUESCHE = Object.fromEntries(Array.from({ length: 6 }, (_, i) => [`busch_${i}`, 1])); // Runde 33: Laubkronen (vorher grobe Atlas-Büsche)
 
 /** Baum-Mischung je Karte (Gewichte = Häufigkeit). Unbekannte Karten (Editor, Tutorial) → `standard`. */
 const BAUM_MISCHUNG = {
@@ -50,7 +50,7 @@ export const BAUM_VARIANTE_INFO = {
   kiefer_n2: { toene: null, massstab: 0.9 },
   kiefer_herbst: { toene: null },
   ...Object.fromEntries(Array.from({ length: 8 }, (_, i) => [`nadel_${i}`, { toene: null, massstab: 0.8 }])),
-  ...Object.fromEntries(Object.keys(BUESCHE).map((n) => [n, { toene: null, massstab: 2.6 }])),
+  ...Object.fromEntries(Object.keys(BUESCHE).map((n) => [n, { toene: null, massstab: 1 }])),
 };
 
 /** Liste [[variante, gewicht], …] für einen Baumtyp auf einer Karte – null, wenn der Typ kein Modellbaum ist (Busch, Tanne). */

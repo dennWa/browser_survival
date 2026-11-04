@@ -100,6 +100,8 @@ const BASIS_LOOT_TABELLEN = Object.freeze({
   // Beute der Boss-Zombies (Brocken): immer eine Waffe – die passende Munition kommt dazu (lootSystem.lasseBossLootFallen)
   boss: [
     { id: 'sturmgewehr', gewicht: 0.5 }, // Runde 26
+    { id: 'raketenwerfer', gewicht: 0.15 }, // Runde 33
+    { id: 'rakete', gewicht: 0.3 },
     { id: 'mp', gewicht: 0.5 }, // Runde 26
     { id: 'munition_357', gewicht: 1 }, // Runde 26
     { id: 'gewehr', gewicht: 1 },
@@ -252,6 +254,10 @@ const BASIS_LOOT_TABELLEN = Object.freeze({
   ],
   waffenkammer: [
     { id: 'sturmgewehr', gewicht: 0.6 }, // Runde 26
+    { id: 'raketenwerfer', gewicht: 0.2 }, // Runde 33
+    { id: 'rakete', gewicht: 0.5 },
+    { id: 'dynamit', gewicht: 0.6 },
+    { id: 'doppelaxt', gewicht: 0.5 },
     { id: 'mp', gewicht: 0.8 }, // Runde 26
     { id: 'revolver', gewicht: 1 }, // Runde 26
     { id: 'munition_357', gewicht: 2 }, // Runde 26

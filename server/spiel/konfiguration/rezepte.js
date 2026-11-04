@@ -260,6 +260,22 @@ export const REZEPTE = {
     ergebnis: 'granate',
     level: 3,
   },
+  dynamit: {
+    name: 'Dynamit',
+    kategorie: 'Fallen',
+    beschreibung: 'Werfen: explodiert nach 3 Sekunden (140 Schaden, großer Radius).',
+    zutaten: { schwarzpulver: 4, stoff: 1 },
+    ergebnis: 'dynamit',
+    level: 4,
+  },
+  rakete: {
+    name: 'Rakete',
+    kategorie: 'Munition',
+    beschreibung: 'Munition für den Raketenwerfer.',
+    zutaten: { schwarzpulver: 3, eisenbarren: 2 },
+    ergebnis: 'rakete',
+    level: 5,
+  },
   sprengfalle: {
     name: 'Sprengfalle',
     kategorie: 'Fallen',

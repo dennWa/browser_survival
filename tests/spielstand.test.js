@@ -84,7 +84,7 @@ test('Kaputte oder manipulierte Spielstände werden bereinigt', () => {
       hunger: -50,
       durst: 'viel',
       inventar: [
-        { defId: 'raketenwerfer', menge: 1 },
+        { defId: 'unbekanntes_item_x', menge: 1 },
         { defId: 'munition_9mm', menge: 100000 },
         { defId: 'pistole', menge: 5, magazin: 999 },
         { defId: 'apfel', menge: -3 },
