@@ -26,7 +26,7 @@ const MODELLE = {
   stehlampe: { datei: 'floor-lamp', b: 0.5, h: 0.5, hoehe: 1.8 },
   radio: { datei: 'radio', b: 0.55, h: 0.3, hoehe: 0.4 },
 };
-export const MOEBEL_NAMEN = Object.freeze([...Object.keys(MODELLE), 'plattenspieler', 'lichterkette', 'vorhang', 'generator', 'huehnerstall', 'bienenstock', 'doppelbett', 'schlafsack', 'vorratsschrank', 'regentonne', 'brunnen', 'amboss', 'webstuhl', 'chemietisch']);
+export const MOEBEL_NAMEN = Object.freeze([...Object.keys(MODELLE), 'plattenspieler', 'lichterkette', 'vorhang', 'generator', 'huehnerstall', 'bienenstock', 'doppelbett', 'schlafsack', 'zelt', 'vorratsschrank', 'regentonne', 'brunnen', 'amboss', 'webstuhl', 'chemietisch']);
 
 const holz = new THREE.MeshStandardMaterial({ color: 0x6b4426, roughness: 0.8 });
 const dunkel = new THREE.MeshStandardMaterial({ color: 0x202226, roughness: 0.5, metalness: 0.3 });
@@ -213,6 +213,16 @@ export function baueMoebel(b, gruppe) {
       gruppe.add(box(30, 6, 30, holz, 0, 3, 0), box(30, 12, 3, holz, 0, 9, -14));
       gruppe.add(box(28, 4, 27, stoffHell, 0, 8, 1), box(28, 2, 17, stoffBlau, 0, 10.5, 6));
       gruppe.add(box(11, 3, 6, stoffHell, -7, 11, -9), box(11, 3, 6, stoffHell, 7, 11, -9));
+      break;
+    }
+    case 'zelt': {
+      // Runde 32: „Low-poly Survival Tent“ (simonaskLDE, CC-BY) – r32_zelt.glb, 1 × 1 Kachel, Platzhalter bis geladen
+      const platz = box(26, 16, 26, stoffGruen, 0, 8, 0);
+      gruppe.add(platz);
+      ladeEigenesModell(new URL('../assets/eigene/r32_zelt.glb', import.meta.url).href).then((szene) => {
+        gruppe.remove(platz);
+        gruppe.add(eigenesModellInhalt(szene, { b: 1.15, h: 1.15, hoehe: 0.8, einheit: KACHEL }));
+      }, () => {});
       break;
     }
     case 'schlafsack': {

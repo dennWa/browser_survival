@@ -89,7 +89,7 @@ function hebeNormalen(geometrie) {
 
 /** Windschwanken für Gras: Spitze schwingt (Quadrat der Höhe), Phase je Büschel aus der Position. */
 function grasMaterial(textur, hoehe) {
-  const material = new THREE.MeshStandardMaterial({ map: textur, roughness: 1, metalness: 0, side: THREE.DoubleSide });
+  const material = new THREE.MeshStandardMaterial({ map: textur, roughness: 1, metalness: 0, side: THREE.DoubleSide, alphaTest: 0.5 }); // Runde 32: Gras-Atlas mit Alpha (Karten)
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uWindZeit = BAUM_WIND.uWindZeit;
     shader.uniforms.uWindStufe = BAUM_WIND.uWindStufe;

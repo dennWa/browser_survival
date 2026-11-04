@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "spiel", "runtimeExecutable": "node", "runtimeArgs": ["server/node/start.js", "--gast"], "port": 8080 }
+  ]
+}

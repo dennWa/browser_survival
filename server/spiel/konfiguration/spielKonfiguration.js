@@ -295,7 +295,7 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     erschoepftAb: 85,
     erschoepftTempo: 0.85,
     schlafErholung: 70,
-    bettQualitaet: { bett: 1, doppelbett: 1.3, schlafsack: 0.6 },
+    bettQualitaet: { bett: 1, doppelbett: 1.3, schlafsack: 0.6, zelt: 0.8 },
     vorratFaktor: 0.2, // Vorratsschrank: Essen verdirbt nur 20 % so schnell
     sattFaktor: 0.5, // Buff „satt“: Hunger sinkt halb so schnell
     warmFaktor: 0.5, // Buff „warm“: Kälte steigt halb so schnell

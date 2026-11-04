@@ -18,18 +18,20 @@
  */
 
 /** Verteilung je Untergrund (Kachelname) */
-export const STREUUNG = {
-  gras: [
-    { art: 'gras', proKachel: 0.85, hoehe: [12, 20] },
-    { art: 'gras_wispy_a', proKachel: 0.08, hoehe: [14, 22] },
-    { art: 'gras_wispy_b', proKachel: 0.08, hoehe: [13, 20] },
-    { art: 'gras_hoch', proKachel: 0.12, hoehe: [20, 29], farbe: [0.8, 1.05] },
-  ],
-};
+// Runde 32: neuer Rasen = Karten-Büschel aus dem Atlas „Gras, Blumen, Steine und Pilze“ (VIS-All; baue_r32.py → 3d/natur/)
+const RASEN = [
+  { art: 'gras', proKachel: 1.1, hoehe: [11, 18] },
+  { art: 'gras_wispy_a', proKachel: 0.25, hoehe: [12, 20] },
+  { art: 'gras_wispy_b', proKachel: 0.2, hoehe: [10, 16] },
+  { art: 'gras_hoch', proKachel: 0.12, hoehe: [18, 27], farbe: [0.8, 1.05] },
+  { art: 'blumen', proKachel: 0.06, hoehe: [8, 12], farbe: [0.95, 1.1] },
+];
+export const STREUUNG = { gras: RASEN, wiese: RASEN, rasen: RASEN };
 
 /** Karten-ID → Streuung an/aus (Karten ohne Eintrag bleiben wie gehabt). `true` = STREUUNG, oder eigene Liste je Untergrund. */
 export const ZONEN = {
-  stadtrand: false, // vorübergehend AUS (Nutzer-Wunsch 2026-10-20: Spiel optisch zurücksetzen) – wieder an mit `true`
+  stadtrand: true, // Runde 32: neuer Rasen wieder an (vorher aus, Nutzer-Wunsch 2026-10-20)
+  waldweg: true,
 };
 
 /** Nur Büschel innerhalb dieses Abstands (px) um die Kamera werden gezeichnet (Dreiecke sparen) */

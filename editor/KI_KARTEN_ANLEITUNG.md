@@ -182,6 +182,7 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `bett` | Bett | blockiert, ebene objekt |
 | `doppelbett` | Doppelbett | blockiert, ebene objekt |
 | `schlafsack` | Schlafsack | begehbar, ebene objekt |
+| `zelt` | Zelt | blockiert, ebene objekt |
 | `gewaechshaus` | Gewächshaus-Beet | begehbar, ebene objekt |
 | `huehnerstall` | Hühnerstall | blockiert, ebene objekt |
 | `bienenstock` | Bienenstock | blockiert, ebene objekt |
@@ -275,7 +276,7 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | werkzeug | `feuerzeug` Feuerzeug, `feuerbohrer` Feuerbohrer, `angel` Angel |
 | samen | `samen_tomate` Tomatensamen, `samen_gurke` Gurkensamen, `samen_kartoffel` Saatkartoffeln, `samen_paprika` Paprikasamen, `samen_weizen` Weizenkörner, `samen_karotte` Karottensamen, `samen_kuerbis` Kürbiskerne, `samen_erdbeere` Erdbeersamen |
 
-### Eigene 3D-Modelle (Aktion `modell`, Feld `modell` = Name ohne .glb; `hoehe` = Zielhöhe in m) – 470 Stück
+### Eigene 3D-Modelle (Aktion `modell`, Feld `modell` = Name ohne .glb; `hoehe` = Zielhöhe in m) – 536 Stück
 | modell | Name | Kategorie | Standardhöhe m | Fußabdruck m |
 |---|---|---|---|---|
 | `arrow-sign` | Arrow Sign | bau | 2.05 | 1.9 × 0.4 |
@@ -413,6 +414,74 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `plant-2` | Plant 2 | deko | 0.25 | 1 × 1 |
 | `plant` | Plant | deko | 1.01 | 1.3 × 1.4 |
 | `planter--bushes` | Planter  Bushes | deko | 1.12 | 2.4 × 0.8 |
+| `r32_eichenstamm` | R32_eichenstamm | deko | 0.41 | 0.4 × 1 |
+| `r32_eisenerz` | R32_eisenerz | deko | 0.7 | 1 × 0.8 |
+| `r32_erzpack_object_10` | R32_erzpack_object_10 | deko | 0.83 | 1 × 0.9 |
+| `r32_erzpack_object_11` | R32_erzpack_object_11 | deko | 0.84 | 1 × 1 |
+| `r32_erzpack_object_12` | R32_erzpack_object_12 | deko | 0.59 | 1 × 1 |
+| `r32_erzpack_object_13` | R32_erzpack_object_13 | deko | 0.84 | 0.9 × 1 |
+| `r32_erzpack_object_15` | R32_erzpack_object_15 | deko | 0.67 | 1 × 0.7 |
+| `r32_erzpack_object_3` | R32_erzpack_object_3 | deko | 0.79 | 1 × 0.9 |
+| `r32_erzpack_object_4` | R32_erzpack_object_4 | deko | 1 | 0.8 × 0.7 |
+| `r32_erzpack_object_5` | R32_erzpack_object_5 | deko | 0.52 | 1 × 0.7 |
+| `r32_erzpack_object_6` | R32_erzpack_object_6 | deko | 0.88 | 0.9 × 1 |
+| `r32_erzpack_object_8` | R32_erzpack_object_8 | deko | 0.9 | 1 × 1 |
+| `r32_essen` | R32_essen | deko | 1 | 1 × 1 |
+| `r32_fass_0` | R32_fass_0 | deko | 1 | 0.7 × 0.7 |
+| `r32_fass_1` | R32_fass_1 | deko | 1 | 0.7 × 0.7 |
+| `r32_fass_2` | R32_fass_2 | deko | 1 | 0.7 × 0.7 |
+| `r32_fass_3` | R32_fass_3 | deko | 1 | 0.7 × 0.7 |
+| `r32_fass_4` | R32_fass_4 | deko | 1 | 0.7 × 0.7 |
+| `r32_fels_0` | R32_fels_0 | deko | 0.62 | 0.9 × 1 |
+| `r32_fels_1` | R32_fels_1 | deko | 0.66 | 1 × 0.9 |
+| `r32_fels_2` | R32_fels_2 | deko | 0.64 | 1 × 0.9 |
+| `r32_fels_3` | R32_fels_3 | deko | 0.53 | 1 × 1 |
+| `r32_fels_4` | R32_fels_4 | deko | 0.38 | 1 × 0.5 |
+| `r32_fels_5` | R32_fels_5 | deko | 1 | 0.6 × 0.7 |
+| `r32_fels_6` | R32_fels_6 | deko | 0.36 | 1 × 1 |
+| `r32_fels_7` | R32_fels_7 | deko | 0.37 | 1 × 0.8 |
+| `r32_fels_8` | R32_fels_8 | deko | 0.63 | 1 × 0.9 |
+| `r32_hazmat_0` | R32_hazmat_0 | deko | 1 | 0.4 × 0.1 |
+| `r32_hazmat_6` | R32_hazmat_6 | deko | 1 | 0.4 × 0.2 |
+| `r32_holzbau_0` | R32_holzbau_0 | deko | 1 | 0.1 × 0.9 |
+| `r32_holzbau_1` | R32_holzbau_1 | deko | 1 | 0.1 × 0.9 |
+| `r32_holzbau_10` | R32_holzbau_10 | deko | 1 | 0.1 × 0.5 |
+| `r32_holzbau_11` | R32_holzbau_11 | deko | 0.09 | 1 × 1 |
+| `r32_holzbau_2` | R32_holzbau_2 | deko | 1 | 0.1 × 0.9 |
+| `r32_holzbau_3` | R32_holzbau_3 | deko | 1 | 0.1 × 0.3 |
+| `r32_holzbau_4` | R32_holzbau_4 | deko | 0.45 | 0.3 × 1 |
+| `r32_holzbau_7` | R32_holzbau_7 | deko | 1 | 0.1 × 0.1 |
+| `r32_holzbau_8` | R32_holzbau_8 | deko | 0.72 | 0.4 × 1 |
+| `r32_holzbau_9` | R32_holzbau_9 | deko | 1 | 0.1 × 0.9 |
+| `r32_rohstoffe` | R32_rohstoffe | deko | 1 | 1 × 0.9 |
+| `r32_steaks` | R32_steaks | deko | 0.36 | 1 × 1 |
+| `r32_steine` | R32_steine | deko | 0.6 | 1 × 1 |
+| `r32_stumpf_0` | R32_stumpf_0 | deko | 1 | 0.6 × 0.7 |
+| `r32_stumpf_1` | R32_stumpf_1 | deko | 1 | 1.2 × 1.5 |
+| `r32_stumpf_2` | R32_stumpf_2 | deko | 1 | 1.1 × 1.1 |
+| `r32_stumpf_3` | R32_stumpf_3 | deko | 1 | 0.8 × 0.6 |
+| `r32_stumpf_4` | R32_stumpf_4 | deko | 1 | 0.6 × 0.7 |
+| `r32_stumpf_5` | R32_stumpf_5 | deko | 1 | 1.2 × 1.5 |
+| `r32_stumpf_6` | R32_stumpf_6 | deko | 1 | 1.1 × 1.1 |
+| `r32_stumpf_7` | R32_stumpf_7 | deko | 1 | 0.8 × 0.6 |
+| `r32_tier_baer` | R32_tier_baer | deko | 1 | 0.6 × 1.6 |
+| `r32_tier_fuchs` | R32_tier_fuchs | deko | 1 | 0.3 × 1.7 |
+| `r32_tier_hase` | R32_tier_hase | deko | 1 | 0.4 × 1.1 |
+| `r32_tier_hund` | R32_tier_hund | deko | 1 | 0.4 × 1.4 |
+| `r32_tier_katze` | R32_tier_katze | deko | 1 | 0.4 × 1.2 |
+| `r32_tier_ratte` | R32_tier_ratte | deko | 1 | 0.9 × 3.9 |
+| `r32_tier_reh` | R32_tier_reh | deko | 1 | 0.4 × 1 |
+| `r32_tier_wildschwein` | R32_tier_wildschwein | deko | 1 | 0.5 × 1.8 |
+| `r32_tier_wolf` | R32_tier_wolf | deko | 1 | 0.4 × 1.6 |
+| `r32_tier_ziege` | R32_tier_ziege | deko | 1 | 0.4 × 1.3 |
+| `r32_vorrat` | R32_vorrat | deko | 1 | 1 × 1 |
+| `r32_waffe_axt_doppel` | R32_waffe_axt_doppel | deko | 1.07 | 0.2 × 1 |
+| `r32_waffe_dynamit` | R32_waffe_dynamit | deko | 2.13 | 0.9 × 1 |
+| `r32_waffe_raketenwerfer` | R32_waffe_raketenwerfer | deko | 0.2 | 0.1 × 1 |
+| `r32_waffe_rundschild` | R32_waffe_rundschild | deko | 1 | 0.2 × 1 |
+| `r32_waffe_schild` | R32_waffe_schild | deko | 0.79 | 0.2 × 1 |
+| `r32_waffen` | R32_waffen | deko | 2.13 | 2 × 1 |
+| `r32_zelt` | R32_zelt | deko | 0.65 | 0.9 × 1 |
 | `tennis-ball` | Tennis Ball | deko | 0.07 | 9.4 × 9.4 |
 | `vogelscheuche` | Vogelscheuche | deko | 2.175 | 1.703 × 0.62 |
 | `volleyball-ball` | Volleyball Ball | deko | 0.49 | 0.5 × 0.5 |
@@ -450,8 +519,6 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `soda-can` | Soda Can | essen | 0.12 | 6.1 × 6.1 |
 | `soda` | Soda | essen | 0.3 | 0.9 × 0.9 |
 | `spoon` | Spoon | essen | 0.05 | 0.1 × 0.3 |
-| `steak-1` | Steak 1 | essen | 0.008 | 1.6 × 0.7 |
-| `steak-2` | Steak 2 | essen | 0.008 | 1.6 × 0.7 |
 | `tea-cup` | Tea Cup | essen | 0.11 | 0.2 × 0.2 |
 | `toaster` | Toaster | essen | 0.27 | 0.4 × 0.2 |
 | `water-bottle` | Water Bottle | essen | 0.3 | 0.5 × 0.5 |

@@ -1,0 +1,198 @@
+[
+ {
+  "id": "frau_36",
+  "datei": "frau_36.glb",
+  "koerper": "frau",
+  "quelle": "Character_36_Female_Character_36_Female_0",
+  "bytes": 91236
+ },
+ {
+  "id": "frau_37",
+  "datei": "frau_37.glb",
+  "koerper": "frau",
+  "quelle": "Character_37_Female_Character_37_Female_0",
+  "bytes": 97448
+ },
+ {
+  "id": "frau_38",
+  "datei": "frau_38.glb",
+  "koerper": "frau",
+  "quelle": "Character_38_Female_Character_38_Female_0",
+  "bytes": 94752
+ },
+ {
+  "id": "frau_39",
+  "datei": "frau_39.glb",
+  "koerper": "frau",
+  "quelle": "Character_39_Female_Character_39_Female_0",
+  "bytes": 94168
+ },
+ {
+  "id": "frau_40",
+  "datei": "frau_40.glb",
+  "koerper": "frau",
+  "quelle": "Character_40_Female_Character_40_Female_0",
+  "bytes": 92740
+ },
+ {
+  "id": "frau_41",
+  "datei": "frau_41.glb",
+  "koerper": "frau",
+  "quelle": "Character_41_Female_Character_41_Female_0",
+  "bytes": 94732
+ },
+ {
+  "id": "frau_42",
+  "datei": "frau_42.glb",
+  "koerper": "frau",
+  "quelle": "Character_42_Female_Character_42_Female_0",
+  "bytes": 106984
+ },
+ {
+  "id": "frau_44",
+  "datei": "frau_44.glb",
+  "koerper": "frau",
+  "quelle": "Character_44_Female_Character_44_Female_0",
+  "bytes": 99492
+ },
+ {
+  "id": "frau_45",
+  "datei": "frau_45.glb",
+  "koerper": "frau",
+  "quelle": "Character_45_Female_Character_45_Female_0",
+  "bytes": 103064
+ },
+ {
+  "id": "frau_46",
+  "datei": "frau_46.glb",
+  "koerper": "frau",
+  "quelle": "Character_46_Female_Character_46_Female_0",
+  "bytes": 104148
+ },
+ {
+  "id": "frau_34",
+  "datei": "frau_34.glb",
+  "koerper": "frau",
+  "quelle": "Character_Male_33.004_Character_34_Female_0",
+  "bytes": 95476
+ },
+ {
+  "id": "mann_40",
+  "datei": "mann_40.glb",
+  "koerper": "mann",
+  "quelle": "Character_Male_33.006_Character_Male_40_0",
+  "bytes": 90480
+ },
+ {
+  "id": "mann_41",
+  "datei": "mann_41.glb",
+  "koerper": "mann",
+  "quelle": "Character_Male_33.007_Character_Male_41_0",
+  "bytes": 94212
+ },
+ {
+  "id": "frau_35",
+  "datei": "frau_35.glb",
+  "koerper": "frau",
+  "quelle": "Character_Male_33.009_Character_35_Female_0",
+  "bytes": 95908
+ },
+ {
+  "id": "frau_43",
+  "datei": "frau_43.glb",
+  "koerper": "frau",
+  "quelle": "Character_Male_33.010_Character_43_Female_0",
+  "bytes": 97344
+ },
+ {
+  "id": "mann_33",
+  "datei": "mann_33.glb",
+  "koerper": "mann",
+  "quelle": "Character_Male_33_Character_Male_33_0",
+  "bytes": 96640
+ },
+ {
+  "id": "mann_34",
+  "datei": "mann_34.glb",
+  "koerper": "mann",
+  "quelle": "Character_Male_34_Character_Male_34_0",
+  "bytes": 92432
+ },
+ {
+  "id": "mann_35",
+  "datei": "mann_35.glb",
+  "koerper": "mann",
+  "quelle": "Character_Male_35_Character_Male_35_0",
+  "bytes": 96104
+ },
+ {
+  "id": "mann_36",
+  "datei": "mann_36.glb",
+  "koerper": "mann",
+  "quelle": "Character_Male_36_Character_Male_36_0",
+  "bytes": 92248
+ },
+ {
+  "id": "mann_37",
+  "datei": "mann_37.glb",
+  "koerper": "mann",
+  "quelle": "Character_Male_37_Character_Male_37_0",
+  "bytes": 92996
+ },
+ {
+  "id": "mann_38",
+  "datei": "mann_38.glb",
+  "koerper": "mann",
+  "quelle": "Character_Male_38_Character_Male_38_0",
+  "bytes": 91144
+ },
+ {
+  "id": "mann_39",
+  "datei": "mann_39.glb",
+  "koerper": "mann",
+  "quelle": "Character_Male_39_Character_Male_39_0",
+  "bytes": 91232
+ },
+ {
+  "id": "mann_42",
+  "datei": "mann_42.glb",
+  "koerper": "mann",
+  "quelle": "Character_Male_42_Character_Male_42_0",
+  "bytes": 93220
+ },
+ {
+  "id": "mann_43",
+  "datei": "mann_43.glb",
+  "koerper": "mann",
+  "quelle": "Character_Male_43_Character_Male_43_0",
+  "bytes": 94568
+ },
+ {
+  "id": "mann_44",
+  "datei": "mann_44.glb",
+  "koerper": "mann",
+  "quelle": "Character_Male_44_Character_Male_44_0",
+  "bytes": 93308
+ },
+ {
+  "id": "mann_45",
+  "datei": "mann_45.glb",
+  "koerper": "mann",
+  "quelle": "Character_Male_45_Character_Male_45_0",
+  "bytes": 99744
+ },
+ {
+  "id": "sheriff_b",
+  "datei": "sheriff_b.glb",
+  "koerper": "mann",
+  "quelle": "Character_Sheriff_N_01_Character_Sheriff_N_01_0",
+  "bytes": 124004
+ },
+ {
+  "id": "sheriff",
+  "datei": "sheriff.glb",
+  "koerper": "mann",
+  "quelle": "Character_Sheriff_N_Character_Sheriff_N_0",
+  "bytes": 135080
+ }
+]

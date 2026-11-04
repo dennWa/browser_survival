@@ -16,10 +16,10 @@ import { FAHRZEUG, FAHRZEUG_MODELLE } from '../../gemeinsam/physik/fahrzeug.js';
 import { erzeugeFrisur } from './haarModell.js';
 import { kleidungsVorlage, kleideFigur, outfitFuer } from './kleidungModell.js';
 import { AUSSEHEN, skinFuer, pruefeAussehen, aussehenOption } from '../../gemeinsam/spieler/aussehen.js';
-import { itemGeometrie, itemVarianten, ladeGlbItemModelle, ITEM_MATERIAL, rucksackTeile } from './itemModelle.js';
+import { itemGeometrie, itemVarianten, ladeGlbItemModelle, ladeR32ItemModelle, itemMaterialFuer, ITEM_MATERIAL, rucksackTeile } from './itemModelle.js';
 import { zeichneBeschriftung, zeichneItemName, zeichneSprechblase } from './beschriftung.js';
 import { richteFigurEin, aktualisiereHaltung, ARBEIT_KLIP, istBeidhaendigerSchlag } from './figurHaltung.js';
-import { erzeugeWaffe, WAFFEN_NAMEN } from './waffenModelle.js';
+import { erzeugeWaffe, WAFFEN_NAMEN , ladeR32Waffen } from './waffenModelle.js';
 import { erzeugeTier } from './tierModelle.js';
 import { erzeugeAngel } from './angelModell.js';
 import { WetterEffekt } from './wetterEffekt.js';
@@ -951,7 +951,7 @@ export class Renderer {
     this.basisModell = modell;
     const lader = new THREE.TextureLoader();
     this.skins = {};
-    await Promise.all([this.#ladeSurvivor(), this.#ladeZombieModelle(), ladeGlbItemModelle()]);
+    await Promise.all([this.#ladeSurvivor(), this.#ladeZombieModelle(), ladeGlbItemModelle(), ladeR32ItemModelle(), ladeR32Waffen()]);
     await Promise.all(
       Object.entries(info.skins).map(async ([name, pfad]) => {
         const textur = await lader.loadAsync(new URL(pfad, ASSETS).href);
@@ -1438,7 +1438,7 @@ export class Renderer {
       gesehen.add(e.id);
       let f = this.figuren.get(e.id);
       // Eigene Figur wird manchmal schon vor dem ersten Server-Stand (mit Aussehen) gebaut → dann neu bauen
-      if (f && e.typ === 'spieler' && f.koerper !== (e.aussehen?.koerper ?? AUSSEHEN.koerper.standard)) {
+      if (f && e.typ === 'spieler' && (f.koerper !== (e.aussehen?.koerper ?? AUSSEHEN.koerper.standard) || (f.survivor && f.figurSchluessel !== this.#figurSchluessel(e)))) {
         this.szene.remove(f.gruppe);
         f.mixer.stopAllAction();
         f = null;
@@ -1638,9 +1638,41 @@ export class Renderer {
     return sv.materialien.get(original);
   }
 
+  /**
+   * Runde 32: eigene Figur-Modelle (aussehen.figur, client/assets/3d/figuren/<id>.glb – Skelett der Spielfigur, ohne Clips).
+   * Lädt bei Bedarf; bis dahin (oder bei Fehler) gilt die Standardfigur. Liefert { modell, clips, massstab, materialien } oder null.
+   */
+  #r32Figur(id) {
+    if (!id || id === AUSSEHEN.figur.standard) return null;
+    this.r32Figuren ??= new Map();
+    const eintrag = this.r32Figuren.get(id);
+    if (eintrag) return eintrag.fertig ?? null;
+    const neu = { fertig: null };
+    this.r32Figuren.set(id, neu);
+    neu.versprechen = new GLTFLoader()
+      .loadAsync(new URL(`3d/figuren/${id}.glb`, ASSETS).href)
+      .then((gltf) => {
+        const basis = this.survivor?.mann;
+        if (!basis) return;
+        gltf.scene.traverse((t) => {
+          if (t.material?.map) t.material.map.colorSpace = THREE.SRGBColorSpace;
+        });
+        neu.fertig = { modell: gltf.scene, clips: basis.clips, massstab: basis.massstab, materialien: new Map(), r32: true };
+      })
+      .catch((fehler) => console.warn('Figur nicht geladen', id, fehler));
+    return null;
+  }
+
+  /** Schlüssel, ob eine Spielerfigur neu gebaut werden muss (Geschlecht, Figur-Modell geladen?). */
+  #figurSchluessel(e) {
+    const koerper = e.aussehen?.koerper ?? AUSSEHEN.koerper.standard;
+    const id = e.aussehen?.figur;
+    return `${koerper}|${this.#r32Figur(id) ? id : 'standard'}`;
+  }
+
   #neueSurvivorFigur(e) {
     const koerper = e.aussehen?.koerper ?? AUSSEHEN.koerper.standard;
-    const sv = this.survivor[koerper === 'frau' ? 'frau' : 'mann'];
+    const sv = this.#r32Figur(e.aussehen?.figur) ?? this.survivor[koerper === 'frau' ? 'frau' : 'mann'];
     const modell = SkeletonUtils.clone(sv.modell);
     modell.traverse((teil) => {
       if (!teil.isMesh) return;
@@ -1667,7 +1699,7 @@ export class Renderer {
     }
     aktionen.stehen.play();
     mixer.setTime(Math.random() * 2);
-    const figur = { gruppe, mixer, aktionen, aktuell: 'stehen', koerper, survivor: true, tot: false, modell };
+    const figur = { gruppe, mixer, aktionen, aktuell: 'stehen', koerper, survivor: true, tot: false, modell, r32: !!sv.r32, figurSchluessel: this.#figurSchluessel(e) };
     richteFigurEin(figur, modell);
     figur.klipHacken = !!(figur.knochen.rechts && figur.knochen.links);
     figur.klips = new Set(Object.keys(aktionen));
@@ -1718,6 +1750,8 @@ export class Renderer {
     const figur = this.#neueSurvivorFigur({ typ: 'spieler', aussehen });
     this.szene.remove(figur.gruppe);
     figur.mixer.setTime(0);
+    // Runde 32: eigenes Figur-Modell lädt noch → Vorschau baut nach dem Laden neu (charakterVorschau.setze)
+    if (aussehen?.figur && !figur.r32 && aussehen.figur !== AUSSEHEN.figur.standard) figur.wartet = this.r32Figuren?.get(aussehen.figur)?.versprechen;
     this.#setzeKleidung(figur, kleidung, aussehen);
     return figur;
   }
@@ -1742,7 +1776,7 @@ export class Renderer {
       teil.material = !f ? basis : Array.isArray(basis) ? basis.map((m) => this.#kleidungsMaterial(m, f)) : this.#kleidungsMaterial(basis, f);
     });
     const sv = this.survivor?.[figur.koerper === 'frau' ? 'frau' : 'mann'];
-    if (!sv) return;
+    if (!sv || figur.r32) return; // Runde 32: eigene Figur-Modelle tragen ihre eigene Kleidung/Frisur
     try {
       kleideFigur(figur, kleidungsVorlage(sv.modell), outfitFuer(option, kleidung, this.itemDefinitionen), (f, art) => this.#stoffMaterial(f, art));
     } catch (fehler) {
@@ -2058,10 +2092,11 @@ export class Renderer {
 
   /** 3D-Modell (itemModelle.js) – oder, falls es keins gibt, das flache Icon. */
   #itemMesh(g) {
-    const geometrie = itemGeometrie(g.defId, g.id % itemVarianten(g.defId)); // Runde 31: Ast = 6 Varianten, je nach Item-ID
+    const variante = g.id % itemVarianten(g.defId); // Runde 31: Ast = 6 Varianten, je nach Item-ID (Runde 32: auch Fleisch)
+    const geometrie = itemGeometrie(g.defId, variante);
     let mesh;
     if (geometrie) {
-      mesh = new THREE.Mesh(geometrie, ITEM_MATERIAL);
+      mesh = new THREE.Mesh(geometrie, itemMaterialFuer(g.defId, variante));
       mesh.castShadow = true;
       mesh.rotation.y = ((g.id * 2.399) % (Math.PI * 2)); // jedes Item liegt anders da
       mesh.position.set(g.x, this.#hy(g.x, g.y), g.y);

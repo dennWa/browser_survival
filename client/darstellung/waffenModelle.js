@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { ladeGlbGeometrien, R32_MATERIAL } from './glbGeometrien.js';
 
 /**
  * Waffen- und Werkzeugmodelle für die Hand der Figuren – prozedural aus einfachen Körpern
@@ -8,6 +9,8 @@ import * as THREE from 'three';
  * die Waffe zeigt entlang +z (nach vorne), +y ist oben.
  * mündung: Punkt (lokal), aus dem Schüsse kommen bzw. an dem die Taschenlampe leuchtet.
  * Runde 26: revolver, mp, sturmgewehr, vorschlaghammer, katana, bratpfanne, golfschlaeger, kampfmesser.
+ * Runde 32: Modelle aus „Low poly Weapons Pack 001“ (r32_waffen.glb, `ladeR32Waffen` beim Start) ersetzen die prozeduralen,
+ * wo es eins gibt (R32_WAFFEN); neue Waffe `fackel` (prozedural, brennend mit `mods` 'brennt').
  */
 const metall = new THREE.MeshStandardMaterial({ color: 0x2b2e33, roughness: 0.45, metalness: 0.7 });
 const metallHell = new THREE.MeshStandardMaterial({ color: 0xb9c0c8, roughness: 0.25, metalness: 0.9 });
@@ -311,6 +314,70 @@ const BAUPLAENE = {
   },
 };
 
+/**
+ * Runde 32: GLB-Ersatz (r32_waffen.glb, Teile in z von 0 = Griffende bis 1 = Spitze/Mündung; y = „unten“ je nach Layout).
+ * laenge = Weltpixel (vor SICHTBARKEIT), griff = Anteil der Länge, an dem die Hand greift, muendung = Anteil (Schussaustritt),
+ * kopf: true = Teil steht mit y nach oben (Bogen), dreh = Drehung um z (Griff nach unten).
+ */
+const R32_WAFFEN = {
+  katana: { teil: 'katana', laenge: 30, griff: 0.08 },
+  speer: { teil: 'speer', laenge: 42, griff: 0.38 },
+  vorschlaghammer: { teil: 'vorschlaghammer', laenge: 26, griff: 0.08 },
+  hammer: { teil: 'hammer', laenge: 12, griff: 0.15 },
+  bogen: { teil: 'bogen', laenge: 30, griff: 0.5, kopf: true, muendung: 0.5 },
+  sturmgewehr: { teil: 'sturmgewehr', laenge: 30, griff: 0.38, muendung: 1, dreh: Math.PI },
+  mp: { teil: 'sturmgewehr', laenge: 24, griff: 0.38, muendung: 1, dreh: Math.PI },
+  pistole: { teil: 'pistole', laenge: 9, griff: 0.2, muendung: 1 },
+  revolver: { teil: 'pistole', laenge: 10, griff: 0.2, muendung: 1 },
+  granate: { teil: 'granate', laenge: 4, griff: 0.5 },
+  taschenlampe: { teil: 'taschenlampe', laenge: 8, griff: 0.3, muendung: 1 },
+};
+const r32Geometrien = new Map(); // Teilname → Geometrie (Länge 1)
+
+/** Lädt r32_waffen.glb einmal; danach liefert erzeugeWaffe die neuen Modelle (fehlt die Datei → prozedural wie bisher). */
+export async function ladeR32Waffen() {
+  const teile = await ladeGlbGeometrien('r32_waffen.glb');
+  for (const [name, t] of teile) r32Geometrien.set(name, t.geometrie);
+}
+
+function r32Waffe(name) {
+  const d = R32_WAFFEN[name];
+  const geo = d && r32Geometrien.get(d.teil);
+  if (!geo) return null;
+  const g = new THREE.Group();
+  const m = new THREE.Mesh(geo, R32_MATERIAL);
+  m.castShadow = true;
+  m.scale.setScalar(d.laenge);
+  if (d.kopf) {
+    m.rotation.x = -Math.PI / 2; // Länge (z) → y: Bogen steht senkrecht
+    m.position.set(0, -d.laenge * d.griff, -2);
+  } else {
+    m.rotation.z = d.dreh ?? 0;
+    m.position.set(0, 0, -d.laenge * d.griff);
+  }
+  g.add(m);
+  if (d.muendung !== undefined) g.userData.muendung = d.kopf ? new THREE.Vector3(0, 0, 10) : new THREE.Vector3(0, 0.6, d.laenge * (d.muendung - d.griff));
+  if (name === 'taschenlampe') g.userData.linse = m;
+  return g;
+}
+
+/** Runde 32: Fackel – Stock mit Stoffkopf; mit mods ['brennt'] Flamme (leuchtend) obendrauf. */
+function fackel(brennt) {
+  const g = new THREE.Group();
+  g.add(rohr(0.7, 16, holz, 0, 0, 4));
+  g.add(rohr(1.4, 3.6, new THREE.MeshStandardMaterial({ color: brennt ? 0x2a2420 : 0xcfc4a8, roughness: 0.95 }), 0, 0, 12.5));
+  if (brennt) {
+    const flamme = new THREE.Mesh(new THREE.ConeGeometry(1.6, 5, 7), new THREE.MeshStandardMaterial({ color: 0xffa030, emissive: 0xff7a10, emissiveIntensity: 2.2, transparent: true, opacity: 0.9 }));
+    flamme.rotation.x = Math.PI / 2;
+    flamme.position.set(0, 0, 16.5);
+    g.add(flamme);
+    g.userData.flamme = flamme;
+  }
+  g.userData.muendung = new THREE.Vector3(0, 0, 16);
+  return g;
+}
+BAUPLAENE.fackel = () => fackel(false);
+
 /** Alle Modellnamen (zum Vorkompilieren der Shader beim Laden). */
 export const WAFFEN_NAMEN = Object.keys(BAUPLAENE);
 
@@ -327,7 +394,7 @@ const SICHTBARKEIT = 1.5;
 
 /** Neues Modell (jede Figur bekommt ihr eigenes, weil es mitbewegt wird). */
 export function erzeugeWaffe(name, mods = null) {
-  const modell = (BAUPLAENE[name] ?? BAUPLAENE.taschenlampe)();
+  const modell = name === 'fackel' ? fackel(!!mods?.includes('brennt')) : r32Waffe(name) ?? (BAUPLAENE[name] ?? BAUPLAENE.taschenlampe)();
   // Runde 24: Aufsätze sichtbar machen (Schalldämpfer verlängert den Lauf, Zielfernrohr oben drauf, großes Magazin unten)
   const m = modell.userData.muendung;
   if (m && mods?.includes('schalldaempfer')) {
@@ -348,7 +415,7 @@ export function erzeugeWaffe(name, mods = null) {
 export function haltungFuer(name) {
   if (name === 'pistole' || name === 'revolver') return 'pistole';
   if (name === 'schrotflinte' || name === 'gewehr' || name === 'bogen' || name === 'armbrust' || name === 'mp' || name === 'sturmgewehr') return 'gewehr';
-  if (name === 'taschenlampe') return 'lampe';
+  if (name === 'taschenlampe' || name === 'fackel') return 'lampe';
   if (name === 'essen' || name === 'trinken' || name === 'holz' || name === 'samen' || name === 'granate' || name === 'molotow') return 'seitlich'; // entspannt neben dem Körper tragen, kein Schwung (Runde 19)
   return 'nahkampf';
 }

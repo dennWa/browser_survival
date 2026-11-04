@@ -111,6 +111,12 @@ export class CharakterVorschau {
     if (this.#figur) this.#szene.remove(this.#figur.gruppe);
     this.#figur = figur;
     this.#szene.add(figur.gruppe);
+    // Runde 32: Figur-Modell wird noch geladen → danach neu aufbauen
+    figur.wartet?.then(() => {
+      if (this.#stand !== stand) return;
+      this.#stand = null;
+      this.setze(aussehen, kleidung);
+    });
   }
 
   start() {

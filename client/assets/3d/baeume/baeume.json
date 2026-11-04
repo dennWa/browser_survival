@@ -1,74 +1,254 @@
 {
- "laubbaum_a": {
-  "datei": "laubbaum_a.glb",
-  "quelle": "tree.glb",
-  "hoehe": 9.182,
-  "breite": 4.241,
-  "dreiecke": 3505,
+ "laubbaum_00": {
+  "datei": "laubbaum_00.glb",
+  "quelle": "Trees Low Poly (luxe3dworld) #0",
+  "hoehe": 7.2,
+  "breite": 5.493,
+  "dreiecke": 1130,
   "laub": true,
-  "bytes": 187384
+  "bytes": 133164
  },
- "laubbaum_b": {
-  "datei": "laubbaum_b.glb",
-  "quelle": "tree-4.glb",
-  "hoehe": 6.763,
-  "breite": 4.22,
-  "dreiecke": 3182,
+ "laubbaum_01": {
+  "datei": "laubbaum_01.glb",
+  "quelle": "Trees Low Poly (luxe3dworld) #1",
+  "hoehe": 7.8,
+  "breite": 5.906,
+  "dreiecke": 1128,
   "laub": true,
-  "bytes": 152904
+  "bytes": 132996
  },
- "laubbaum_c": {
-  "datei": "laubbaum_c.glb",
-  "quelle": "tree-5.glb",
-  "hoehe": 9.196,
-  "breite": 3.826,
-  "dreiecke": 4066,
+ "laubbaum_02": {
+  "datei": "laubbaum_02.glb",
+  "quelle": "Trees Low Poly (luxe3dworld) #2",
+  "hoehe": 8.4,
+  "breite": 6.709,
+  "dreiecke": 1128,
   "laub": true,
-  "bytes": 146960
+  "bytes": 132996
  },
- "laubbaum_d": {
-  "datei": "laubbaum_d.glb",
-  "quelle": "tree-2.glb",
-  "hoehe": 7.4,
-  "breite": 4.464,
-  "dreiecke": 5648,
+ "laubbaum_03": {
+  "datei": "laubbaum_03.glb",
+  "quelle": "Trees Low Poly (luxe3dworld) #3",
+  "hoehe": 9.0,
+  "breite": 6.711,
+  "dreiecke": 1126,
   "laub": true,
-  "bytes": 213212
+  "bytes": 132764
  },
- "kiefer_a": {
-  "datei": "kiefer_a.glb",
-  "quelle": "pine.glb",
-  "hoehe": 7.141,
-  "breite": 5.728,
-  "dreiecke": 3648,
+ "laubbaum_04": {
+  "datei": "laubbaum_04.glb",
+  "quelle": "Trees Low Poly (luxe3dworld) #4",
+  "hoehe": 7.2,
+  "breite": 5.021,
+  "dreiecke": 1079,
   "laub": true,
-  "bytes": 115036
+  "bytes": 128208
  },
- "kiefer_b": {
-  "datei": "kiefer_b.glb",
-  "quelle": "pine-3.glb",
-  "hoehe": 10.001,
-  "breite": 5.802,
-  "dreiecke": 3370,
+ "laubbaum_05": {
+  "datei": "laubbaum_05.glb",
+  "quelle": "Trees Low Poly (luxe3dworld) #5",
+  "hoehe": 7.8,
+  "breite": 5.853,
+  "dreiecke": 1128,
   "laub": true,
-  "bytes": 119060
+  "bytes": 132996
  },
- "kiefer_c": {
-  "datei": "kiefer_c.glb",
-  "quelle": "pine-b.glb",
-  "hoehe": 8.489,
-  "breite": 6.42,
-  "dreiecke": 1646,
+ "laubbaum_06": {
+  "datei": "laubbaum_06.glb",
+  "quelle": "Trees Low Poly (luxe3dworld) #6",
+  "hoehe": 8.4,
+  "breite": 6.279,
+  "dreiecke": 1128,
   "laub": true,
-  "bytes": 71544
+  "bytes": 132996
  },
- "totbaum_a": {
-  "datei": "totbaum_a.glb",
-  "quelle": "dead-tree-4.glb",
-  "hoehe": 9.16,
-  "breite": 6.149,
-  "dreiecke": 6169,
+ "laubbaum_07": {
+  "datei": "laubbaum_07.glb",
+  "quelle": "Trees Low Poly (luxe3dworld) #7",
+  "hoehe": 9.0,
+  "breite": 10.345,
+  "dreiecke": 1084,
+  "laub": true,
+  "bytes": 128736
+ },
+ "laubbaum_08": {
+  "datei": "laubbaum_08.glb",
+  "quelle": "Trees Low Poly (luxe3dworld) #8",
+  "hoehe": 7.2,
+  "breite": 7.127,
+  "dreiecke": 1126,
+  "laub": true,
+  "bytes": 132780
+ },
+ "laubbaum_09": {
+  "datei": "laubbaum_09.glb",
+  "quelle": "Trees Low Poly (luxe3dworld) #9",
+  "hoehe": 7.8,
+  "breite": 10.852,
+  "dreiecke": 1134,
+  "laub": true,
+  "bytes": 133600
+ },
+ "laubbaum_10": {
+  "datei": "laubbaum_10.glb",
+  "quelle": "Trees Low Poly (luxe3dworld) #10",
+  "hoehe": 8.4,
+  "breite": 6.442,
+  "dreiecke": 1125,
+  "laub": true,
+  "bytes": 132672
+ },
+ "laubbaum_11": {
+  "datei": "laubbaum_11.glb",
+  "quelle": "Trees Low Poly (luxe3dworld) #11",
+  "hoehe": 9.0,
+  "breite": 7.36,
+  "dreiecke": 1117,
+  "laub": true,
+  "bytes": 131820
+ },
+ "kiefer_n0": {
+  "datei": "kiefer_n0.glb",
+  "quelle": "Low Poly Forest Tree Pack (99.Miles) Tree_Trunk_01.001_Tree_Trunk_01_0",
+  "hoehe": 10.5,
+  "breite": 3.226,
+  "dreiecke": 630,
+  "laub": true,
+  "bytes": 87816
+ },
+ "kiefer_n1": {
+  "datei": "kiefer_n1.glb",
+  "quelle": "Low Poly Forest Tree Pack (99.Miles) Tree_Trunk_01.002_Tree_Trunk_01_0",
+  "hoehe": 11.2,
+  "breite": 6.11,
+  "dreiecke": 624,
+  "laub": true,
+  "bytes": 85408
+ },
+ "kiefer_n2": {
+  "datei": "kiefer_n2.glb",
+  "quelle": "Low Poly Forest Tree Pack (99.Miles) Tree_Trunk_01_Tree_Trunk_01_0",
+  "hoehe": 11.9,
+  "breite": 6.806,
+  "dreiecke": 624,
+  "laub": true,
+  "bytes": 85404
+ },
+ "kiefer_herbst": {
+  "datei": "kiefer_herbst.glb",
+  "quelle": "Low Poly Forest Tree Pack (99.Miles) Tree_Trunk_02_Tree_Trunk_02_0",
+  "hoehe": 8.5,
+  "breite": 5.489,
+  "dreiecke": 285,
+  "laub": true,
+  "bytes": 60012
+ },
+ "nadel_0": {
+  "datei": "nadel_0.glb",
+  "quelle": "Low Poly Forest Tree Pack (99.Miles) Background_Tree_Atlas.001_Background_Tree_Atlas_0",
+  "hoehe": 11.0,
+  "breite": 4.285,
+  "dreiecke": 101,
   "laub": false,
-  "bytes": 148568
+  "bytes": 9456
+ },
+ "nadel_1": {
+  "datei": "nadel_1.glb",
+  "quelle": "Low Poly Forest Tree Pack (99.Miles) Background_Tree_Atlas.002_Background_Tree_Atlas_0",
+  "hoehe": 12.0,
+  "breite": 4.897,
+  "dreiecke": 36,
+  "laub": false,
+  "bytes": 3992
+ },
+ "nadel_2": {
+  "datei": "nadel_2.glb",
+  "quelle": "Low Poly Forest Tree Pack (99.Miles) Background_Tree_Atlas.003_Background_Tree_Atlas_0",
+  "hoehe": 13.0,
+  "breite": 3.523,
+  "dreiecke": 109,
+  "laub": false,
+  "bytes": 10128
+ },
+ "nadel_3": {
+  "datei": "nadel_3.glb",
+  "quelle": "Low Poly Forest Tree Pack (99.Miles) Background_Tree_Atlas.004_Background_Tree_Atlas_0",
+  "hoehe": 11.0,
+  "breite": 5.109,
+  "dreiecke": 109,
+  "laub": false,
+  "bytes": 10128
+ },
+ "nadel_4": {
+  "datei": "nadel_4.glb",
+  "quelle": "Low Poly Forest Tree Pack (99.Miles) Background_Tree_Atlas.005_Background_Tree_Atlas_0",
+  "hoehe": 12.0,
+  "breite": 3.198,
+  "dreiecke": 109,
+  "laub": false,
+  "bytes": 10128
+ },
+ "nadel_5": {
+  "datei": "nadel_5.glb",
+  "quelle": "Low Poly Forest Tree Pack (99.Miles) Background_Tree_Atlas.006_Background_Tree_Atlas_0",
+  "hoehe": 13.0,
+  "breite": 3.076,
+  "dreiecke": 113,
+  "laub": false,
+  "bytes": 10464
+ },
+ "nadel_6": {
+  "datei": "nadel_6.glb",
+  "quelle": "Low Poly Forest Tree Pack (99.Miles) Background_Tree_Atlas.007_Background_Tree_Atlas_0",
+  "hoehe": 11.0,
+  "breite": 2.755,
+  "dreiecke": 109,
+  "laub": false,
+  "bytes": 10128
+ },
+ "busch_0": {
+  "datei": "busch_0.glb",
+  "quelle": "Low Poly Forest Tree Pack (99.Miles) Background_Tree_Atlas.009_Background_Tree_Atlas_0",
+  "hoehe": 1.2,
+  "breite": 0.787,
+  "dreiecke": 40,
+  "laub": false,
+  "bytes": 4348
+ },
+ "busch_1": {
+  "datei": "busch_1.glb",
+  "quelle": "Low Poly Forest Tree Pack (99.Miles) Background_Tree_Atlas.010_Background_Tree_Atlas_0",
+  "hoehe": 1.45,
+  "breite": 2.068,
+  "dreiecke": 92,
+  "laub": false,
+  "bytes": 8716
+ },
+ "busch_2": {
+  "datei": "busch_2.glb",
+  "quelle": "Low Poly Forest Tree Pack (99.Miles) Background_Tree_Atlas.011_Background_Tree_Atlas_0",
+  "hoehe": 1.7,
+  "breite": 1.524,
+  "dreiecke": 24,
+  "laub": false,
+  "bytes": 2996
+ },
+ "busch_3": {
+  "datei": "busch_3.glb",
+  "quelle": "Low Poly Forest Tree Pack (99.Miles) Background_Tree_Atlas.012_Background_Tree_Atlas_0",
+  "hoehe": 1.2,
+  "breite": 1.462,
+  "dreiecke": 67,
+  "laub": false,
+  "bytes": 6612
+ },
+ "nadel_7": {
+  "datei": "nadel_7.glb",
+  "quelle": "Low Poly Forest Tree Pack (99.Miles) Background_Tree_Atlas_Background_Tree_Atlas_0",
+  "hoehe": 12.0,
+  "breite": 3.252,
+  "dreiecke": 108,
+  "laub": false,
+  "bytes": 10044
  }
 }

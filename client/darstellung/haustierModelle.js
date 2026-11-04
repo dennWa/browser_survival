@@ -5,13 +5,14 @@ import { ladeKatzenTextur, texturiereKatze } from './katzeTextur.js';
 
 /**
  * Runde 24: Modelle für Haustiere & Hühner (Tier-Entitäten art 'hund' | 'katze' | 'huhn').
- *   Hund: Quaternius-Husky bzw. -Shiba (Spielordner, CC0, Clips Idle/Walk/Gallop/Attack/Death) – je nach Tier-ID.
+ *   Runde 32: Hund + Katze = PS1-Tierpaket (statisch, Textur). Vorher Husky/Shiba (Clips) bzw. cat.glb + katzeTextur.js.
  *   Katze, Huhn: statische Spielordner-Modelle (cat.glb, chicken.glb; Katze optional mit eigener Textur, katzeTextur.js) – Gehen/Picken prozedural (Wippen, Nicken).
  * Bis das GLB da ist: kleiner Platzhalter. Front = +z, Ursprung = Füße. Höhen in Weltpixeln (Figur 64 ≈ 1,8 m).
  */
 const MODELLE = {
-  hund: { dateien: ['husky', 'shiba-inu'], hoehe: 26, clips: { stehen: 'Idle', gehen: 'Walk', rennen: 'Gallop', angriff: 'Attack', sitzen: 'Idle_2_HeadLow' } },
-  katze: { dateien: ['cat'], hoehe: 18 }, // Runde 27: vorher 13 (kleiner als Huhn/Hase) → ≈ 50 cm mit Kopf
+  // Runde 32: Hund/Katze = „Retro PS1 Animal Pack“ (Goee; r32_tier_*.glb, statisch → Bewegung prozedural wie das Huhn)
+  hund: { dateien: ['r32_tier_hund'], hoehe: 24 },
+  katze: { dateien: ['r32_tier_katze'], hoehe: 18 }, // Runde 27: vorher 13 (kleiner als Huhn/Hase) → ≈ 50 cm mit Kopf
   huhn: { dateien: ['chicken'], hoehe: 13 },
 };
 const vorlagen = new Map(); // datei → Promise<{ szene, massstab, versatz, drehung }>
@@ -119,6 +120,8 @@ export function erzeugeHaustier(art, id = 0) {
         innen.position.y = tempo > 8 ? Math.abs(Math.sin(t * 12)) * 1.6 : 0;
         innen.rotation.z = tempo > 8 ? Math.sin(t * 12) * 0.08 : 0;
         innen.rotation.x = tempo <= 8 && art === 'huhn' ? Math.max(0, Math.sin(t * 2.2)) ** 6 * 0.6 : 0;
+        if (e.aktion === 'angriff') innen.rotation.x = -Math.abs(Math.sin(t * 9)) * 0.25; // Hund schnappt
+        if (art !== 'huhn' && tempo <= 8) innen.scale.y = 1 + Math.sin(t * 1.8) * 0.015; // atmen
       };
     }
   });

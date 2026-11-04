@@ -16,6 +16,20 @@ export const AUSSEHEN = Object.freeze({
     standard: 'mann',
     optionen: { mann: { name: 'Männlich', skin: 'humanMaleA' }, frau: { name: 'Weiblich', skin: 'humanFemaleA' } },
   },
+  // Runde 32: Figur-Modell („Characters_ Extras“, Elbolilloduro, CC-BY; gerigged auf das Skelett der Spielfigur,
+  // client/assets/3d/figuren/<id>.glb). `koerper` = passendes Geschlecht. Bei einer eigenen Figur gelten Frisur/Kleidung des Modells.
+  figur: {
+    name: 'Figur',
+    aktiv: true,
+    standard: 'standard',
+    optionen: {
+      standard: { name: 'Abenteurer' },
+      ...Object.fromEntries([33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45].map((n, i) => [`mann_${n}`, { name: `Mann ${i + 1}`, koerper: 'mann' }])),
+      sheriff: { name: 'Sheriff', koerper: 'mann' },
+      sheriff_b: { name: 'Sheriff 2', koerper: 'mann' },
+      ...Object.fromEntries([34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46].map((n, i) => [`frau_${n}`, { name: `Frau ${i + 1}`, koerper: 'frau' }])),
+    },
+  },
   haare: {
     name: 'Frisur',
     aktiv: true,
@@ -83,6 +97,7 @@ export const AUSSEHEN = Object.freeze({
 /** Reihenfolge/Gruppen im Charakter-Editor (Haarfarbe hängt unter „Frisur“). */
 export const AUSSEHEN_GRUPPEN = Object.freeze([
   { titel: 'Geschlecht', merkmale: ['koerper'] },
+  { titel: 'Figur', merkmale: ['figur'] },
   { titel: 'Haare', merkmale: ['haare', 'haarfarbe'] },
   { titel: 'Oberteil', merkmale: ['oberteil'] },
   { titel: 'Hose', merkmale: ['hose'] },
@@ -96,6 +111,9 @@ export function pruefeAussehen(roh) {
     const wert = roh?.[merkmal];
     aussehen[merkmal] = typeof wert === 'string' && Object.hasOwn(def.optionen, wert) ? wert : def.standard;
   }
+  // Runde 32: Figur muss zum Geschlecht passen
+  const figur = AUSSEHEN.figur.optionen[aussehen.figur];
+  if (figur.koerper && figur.koerper !== aussehen.koerper) aussehen.figur = AUSSEHEN.figur.standard;
   return aussehen;
 }
 

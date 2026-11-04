@@ -5,7 +5,9 @@ import { ladeEigenesModell } from './eigeneModelle.js';
 /**
  * Bäume und Büsche für die Karte.
  *
- * Runde 25 – Bäume ('baum', 'baum_herbst') sind echte Low-Poly-Modelle aus dem Quaternius „Stylized Nature MegaKit“ (CC0),
+ * Runde 32: Bäume UND Büsche ('baum', 'baum_herbst', 'busch') kommen aus den Nutzer-Paketen (werkzeuge/assets/r32/baue_r32.py → 3d/baeume/);
+ * die alten Quaternius-Bäume sind entfernt. Je Variante eigene Laub-Textur → kartenModell legt je Variante ein eigenes Laub-Material an.
+ * Runde 25 – Bäume ('baum', 'baum_herbst') waren Low-Poly-Modelle aus dem Quaternius „Stylized Nature MegaKit“ (CC0),
  * aufbereitet von werkzeuge/assets/baue_baeume.py → client/assets/3d/baeume/<variante>.glb (Rinde mit Vertexfarben,
  * Laub als 256-px-Alpha-Cutout). Je Karte eine eigene Mischung (`baumVarianten(typ, kartenId)`): Stadtrand = Laubbäume,
  * Waldweg = Laubbäume + Kiefern (+ vereinzelt tote Bäume im Herbstwald). Herbst = dieselben Laubbäume, Laub per Instanzfarbe
@@ -27,21 +29,28 @@ const UMRISS = 1.6; // Dicke des schwarzen Umrisses (Busch, Tanne)
 /** Weltpixel je Modell-Meter für die Baum-Modelle (Kachel = 32 px = 1 m; Bäume bewusst etwas kleiner, damit die Kamera nicht im Laub hängt) */
 const BAUM_PX_JE_METER = 19;
 
+/** Runde 32: Laubbäume „Trees Low Poly“ (luxe3dworld), Kiefern/Nadelbäume/Büsche „Low Poly Forest Tree Pack“ (99.Miles) – baue_r32.py */
+const LAUB = Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`laubbaum_${String(i).padStart(2, '0')}`, 1]));
+const BUESCHE = { busch_0: 1, busch_1: 1, busch_2: 1, busch_3: 1 };
+
 /** Baum-Mischung je Karte (Gewichte = Häufigkeit). Unbekannte Karten (Editor, Tutorial) → `standard`. */
 const BAUM_MISCHUNG = {
-  standard: { baum: { laubbaum_a: 3, laubbaum_b: 2, laubbaum_c: 2, laubbaum_d: 3 }, baum_herbst: { laubbaum_a: 3, laubbaum_b: 2, laubbaum_c: 2, laubbaum_d: 3 } },
+  standard: { baum: { ...LAUB, kiefer_n0: 1, kiefer_n1: 1 }, baum_herbst: { ...LAUB, kiefer_herbst: 2 }, busch: BUESCHE },
   waldweg: {
-    baum: { laubbaum_a: 2, laubbaum_d: 2, laubbaum_c: 1, kiefer_a: 2, kiefer_b: 2, kiefer_c: 2 },
-    baum_herbst: { laubbaum_a: 3, laubbaum_b: 2, laubbaum_d: 3, totbaum_a: 1 },
+    baum: { ...LAUB, kiefer_n0: 3, kiefer_n1: 3, kiefer_n2: 3, nadel_0: 1, nadel_2: 1, nadel_3: 1, nadel_5: 1 },
+    baum_herbst: { ...LAUB, kiefer_herbst: 4 },
+    busch: BUESCHE,
   },
 };
 
 /** Je Variante: Größenfaktor und eigene Laub-Töne (statt BAUM_LAUB_TOENE des Typs; null = ungetönt). */
 export const BAUM_VARIANTE_INFO = {
-  kiefer_a: { toene: [[1.25, 1.45, 1.3], [1.1, 1.35, 1.35], [1.35, 1.5, 1.15]] },
-  kiefer_b: { toene: [[1.25, 1.45, 1.3], [1.1, 1.35, 1.35], [1.35, 1.5, 1.15]], massstab: 0.9 },
-  kiefer_c: { toene: [[1.25, 1.45, 1.3], [1.1, 1.35, 1.35], [1.35, 1.5, 1.15]] },
-  totbaum_a: { toene: null, massstab: 0.62 },
+  kiefer_n0: { toene: null },
+  kiefer_n1: { toene: null, massstab: 0.95 },
+  kiefer_n2: { toene: null, massstab: 0.9 },
+  kiefer_herbst: { toene: null },
+  ...Object.fromEntries(Array.from({ length: 8 }, (_, i) => [`nadel_${i}`, { toene: null, massstab: 0.8 }])),
+  ...Object.fromEntries(Object.keys(BUESCHE).map((n) => [n, { toene: null, massstab: 2.6 }])),
 };
 
 /** Liste [[variante, gewicht], …] für einen Baumtyp auf einer Karte – null, wenn der Typ kein Modellbaum ist (Busch, Tanne). */

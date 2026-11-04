@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { vereineGeometrien, matrixAus } from './geometrie.js';
 import { erzeugeWaffe, WAFFEN_NAMEN } from './waffenModelle.js';
 import { GLTFLoader } from '../vendor/three/addons.js';
+import { ladeGlbGeometrien, einpassen, R32_MATERIAL } from './glbGeometrien.js';
 
 /**
  * 3D-Modelle für Gegenstände am Boden – prozedural aus einfachen Körpern, jeweils zu EINER Geometrie mit
@@ -11,6 +12,7 @@ import { GLTFLoader } from '../vendor/three/addons.js';
  * Waffen & Werkzeuge kommen automatisch aus waffenModelle.js (liegen flach auf der Seite).
  * Runde 31: Ast (6 Varianten, je nach Item-ID) und Papier kommen aus .glb (assets/eigene/aeste.glb, papier.glb – `ladeGlbItemModelle`);
  * bis sie geladen sind (oder falls sie fehlen) gelten die einfachen Baupläne `ast`/`papier` unten.
+ * Runde 32: Essen/Trinken, Fleisch, Stein/Eisenerz aus Sammel-GLBs (`ladeR32ItemModelle`, `itemMaterialFuer` – texturiert).
  * Ohne Bauplan zeigt der Renderer weiter das flache Icon (Fallback).
  *
  * Maße: 1 Einheit = 1 Weltpixel, vor ITEM_SKALA. Der Boden ist y = 0, Modelle werden automatisch draufgestellt.
@@ -189,6 +191,47 @@ export async function ladeGlbItemModelle() {
   );
 }
 
+/**
+ * Runde 32: Items aus den Nutzer-Paketen (Sammel-GLBs, baue_r32.py). Größe = längste Kante in Weltpixeln.
+ * Essen/Trinken (Food Collection, texturiert), Fleisch (Steak-Pack, mehrere Varianten), Stein/Eisenerz (Ore and crystals).
+ */
+const ESSEN_GROESSE = {
+  konservendose: 15, marmelade: 13, muesliriegel: 17, energydrink: 15, wasserflasche: 22, milch: 20, kaffee: 15, alkohol: 24,
+  leere_flasche: 22, schmerzmittel: 11, antibiotika: 12, mehl: 18, doerrfleisch: 17, raeucherfisch: 15, eingelegte_gurken: 14,
+  eintopf: 15, fischsuppe: 14, kuerbissuppe: 15, trockenobst: 18, honig: 15, wasser_dreckig: 18,
+};
+const R32_ITEMS = [
+  { datei: 'r32_essen.glb', namen: Object.fromEntries(Object.entries(ESSEN_GROESSE).map(([id, g]) => [id, { teile: [id], groesse: g }])) },
+  { datei: 'r32_rohstoffe.glb', namen: { stein: { teile: ['stein'], groesse: 16 }, eisenerz: { teile: ['eisenerz'], groesse: 16 } } },
+  { datei: 'r32_steaks.glb', namen: { fleisch: { praefix: 'roh_', groesse: 18 }, fleisch_gebraten: { praefix: 'gebraten_', groesse: 18 } } },
+];
+const r32Materialien = new Map(); // defId → [Material je Variante] (texturierte Items)
+
+/** Runde 32: Sammel-GLB-Items laden (beim Start, zusammen mit ladeGlbItemModelle). */
+export async function ladeR32ItemModelle() {
+  await Promise.all(
+    R32_ITEMS.map(async ({ datei, namen }) => {
+      const teile = await ladeGlbGeometrien(datei);
+      for (const [defId, { teile: liste, praefix, groesse }] of Object.entries(namen)) {
+        const passende = liste ? liste.map((n) => teile.get(n)).filter(Boolean) : [...teile].filter(([n]) => n.startsWith(praefix)).map(([, t]) => t);
+        if (!passende.length) continue;
+        glbGeometrien.set(defId, passende.map((t) => {
+          const geo = einpassen(t.geometrie, groesse);
+          aufDenBoden(geo);
+          return geo;
+        }));
+        r32Materialien.set(defId, passende.map((t) => t.material ?? R32_MATERIAL));
+      }
+    }),
+  );
+}
+
+/** Material fürs Item-Mesh (texturierte Sammel-GLB-Items) – sonst das gemeinsame Vertexfarben-Material. */
+export function itemMaterialFuer(defId, variante = 0) {
+  const liste = r32Materialien.get(defId);
+  return liste ? liste[variante % liste.length] : ITEM_MATERIAL;
+}
+
 /** Wie viele Varianten hat das Item (Ast: 6)? Der Renderer wählt je Item-ID eine. */
 export function itemVarianten(defId) {
   return glbGeometrien.get(defId)?.length ?? 1;
@@ -219,7 +262,7 @@ function ausWaffe(name) {
   modell.updateMatrixWorld(true);
   const teile = [];
   modell.traverse((o) => {
-    if (o.isMesh) teile.push({ geometrie: o.geometry, matrix: o.matrixWorld.clone(), farbe: o.material.color.clone() });
+    if (o.isMesh) teile.push({ geometrie: o.geometry, matrix: o.matrixWorld.clone(), farbe: o.geometry.attributes.color ? null : o.material.color.clone() });
   });
   return vereineGeometrien(teile, { mitFarbe: true });
 }

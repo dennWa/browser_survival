@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { WAND_ARTEN, KACHELN } from '../../gemeinsam/welt/kacheln.js';
 import { RESSOURCEN_OBJEKTE } from '../../gemeinsam/welt/ressourcen.js';
+import { ladeGlbGeometrien, einpassen } from './glbGeometrien.js';
 import { baueBaum, baueStumpf, toonMaterial, ladeTanneAusGlb, BAUM_LAUB_TOENE, BAUM_VARIANTE_INFO, BAUM_GRUNDFLAECHE, baumVarianten, waehleBaumVariante, ladeBaumVariante, leereBaumGeometrie, laubMaterial, baumWindMaterial } from './baumModell.js';
 import { BodenTextur } from './bodenTextur.js';
 import { Daecher } from './dachModell.js';
@@ -738,8 +739,8 @@ export class KartenModell {
       artVon.set(o, varianten ? `${o.typ}|${waehleBaumVariante(varianten, streuung(o.x + 11, o.y + 5))}` : o.typ);
     }
     const rindeMaterial = baumWindMaterial(this.mitSchnitt(toonMaterial({ vertexColors: true })));
-    const laubMat = baumWindMaterial(this.mitSchnitt(laubMaterial()), { laub: true });
     for (const schluesselArt of new Set(artVon.values())) {
+      const laubMat = baumWindMaterial(this.mitSchnitt(laubMaterial()), { laub: true }); // Runde 32: je Variante eigene Laub-Textur
       const [typ, variante] = schluesselArt.split('|');
       const bloecke = new Map();
       for (const o of baeume) if (artVon.get(o) === schluesselArt) bloecke.set(blockVon(o), (bloecke.get(blockVon(o)) ?? 0) + 1);
@@ -756,7 +757,10 @@ export class KartenModell {
         this.baumArten.set(schluesselArt, { teile, grundflaeche: BAUM_GRUNDFLAECHE / (info.massstab ?? 1), toene, modell: true });
         ladeBaumVariante(variante).then((modell) => {
           if (!modell) return;
-          if (modell.laubTextur && laubMat.map !== modell.laubTextur) laubMat.map = modell.laubTextur; // gleiche Shader-Variante (map war schon gesetzt)
+          if (modell.laubTextur && laubMat.map !== modell.laubTextur) {
+            modell.laubTextur.colorSpace = THREE.SRGBColorSpace;
+            laubMat.map = modell.laubTextur; // gleiche Shader-Variante (map war schon gesetzt)
+          }
           for (const t of teile.values()) {
             t.meshes[0].geometry = modell.rinde;
             t.meshes[1].geometry = modell.laub ?? leer;
@@ -799,14 +803,34 @@ export class KartenModell {
     }
     const erzGeo = vereineGeometrien(erzTeile, { mitFarbe: true });
     const erzMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.35, flatShading: true });
+    // Runde 32: Steine = 3 Fels-Varianten (r32_steine.glb), Eisenerz = Fels mit roten Erzbrocken (r32_eisenerz.glb); bis zum Laden die alten Körper
+    const STEIN_VARIANTEN = 3;
+    const steinVariante = (o) => Math.floor(streuung(o.y + 3, o.x + 1) * STEIN_VARIANTEN) % STEIN_VARIANTEN;
     const steinBloecke = new Map();
     const erzBloecke = new Map();
     for (const o of steine) {
-      const ziel = o.typ === 'eisenerz' ? erzBloecke : steinBloecke;
-      ziel.set(blockVon(o), (ziel.get(blockVon(o)) ?? 0) + 1);
+      const erz = o.typ === 'eisenerz';
+      const ziel = erz ? erzBloecke : steinBloecke;
+      const k = erz ? blockVon(o) : `${blockVon(o)}#${steinVariante(o)}`;
+      ziel.set(k, (ziel.get(k) ?? 0) + 1);
     }
-    const steinMeshes = new Map([...steinBloecke].map(([k, n]) => [k, { mesh: neuesMesh(steinGeo, steinMaterial, n, k), naechster: 0 }]));
+    const steinMaterialNeu = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, flatShading: true });
+    const steinMeshes = new Map([...steinBloecke].map(([k, n]) => [k, { mesh: neuesMesh(steinGeo, steinMaterial, n, k.split('#')[0]), naechster: 0 }]));
     const erzMeshes = new Map([...erzBloecke].map(([k, n]) => [k, { mesh: neuesMesh(erzGeo, erzMaterial, n, k), naechster: 0 }]));
+    ladeGlbGeometrien('r32_steine.glb').then((teile) => {
+      const geos = [...teile.values()].slice(0, STEIN_VARIANTEN).map((t) => einpassen(t.geometrie, 34, -8));
+      if (geos.length < STEIN_VARIANTEN) return;
+      for (const [k, e] of steinMeshes) {
+        e.mesh.geometry = geos[Number(k.split('#')[1])];
+        e.mesh.material = steinMaterialNeu;
+      }
+    });
+    ladeGlbGeometrien('r32_eisenerz.glb').then((teile) => {
+      const t = teile.get('eisenerz');
+      if (!t) return;
+      const geo = einpassen(t.geometrie, 36, -8);
+      for (const e of erzMeshes.values()) e.mesh.geometry = geo;
+    });
 
     // Pro Ressourcen-ID merken, welche Instanzen dazugehören
     this.ressourcenInstanzen = new Map();
@@ -821,10 +845,10 @@ export class KartenModell {
         const erz = o.typ === 'eisenerz';
         const m = new THREE.Matrix4().compose(
           new THREE.Vector3(x, 6 + this.hy(x, z), z),
-          new THREE.Quaternion().setFromEuler(erz ? new THREE.Euler(0, zufall * 7, 0) : new THREE.Euler(zufall * 3, zufall * 7, zufall * 2)),
+          new THREE.Quaternion().setFromEuler(new THREE.Euler(0, zufall * 7, 0)), // Runde 32: Fels-Modelle stehen auf flacher Unterseite
           new THREE.Vector3(1 + zufall * 0.4, 0.7 + zufall * 0.3, 1.1 - zufall * 0.3).multiplyScalar((erz ? 1 : o.groesse === 'gross' ? 1.3 : 0.8) * (o.skalierung ?? 1)),
         );
-        const ziel = (erz ? erzMeshes : steinMeshes).get(block);
+        const ziel = erz ? erzMeshes.get(block) : steinMeshes.get(`${block}#${steinVariante(o)}`);
         eintrag.teile.push({ mesh: ziel.mesh, index: ziel.naechster++, matrix: m });
       } else {
         const art = this.baumArten.get(artVon.get(o));

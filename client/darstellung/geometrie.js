@@ -24,7 +24,14 @@ export function vereineGeometrien(teile, { mitFarbe = false } = {}) {
     position.set(g.attributes.position.array, versatz * 3);
     normal.set(g.attributes.normal.array, versatz * 3);
     if (g.attributes.uv) uv.set(g.attributes.uv.array, versatz * 2);
-    if (farbe) {
+    if (farbe && !teile[i].farbe && g.attributes.color) {
+      // Runde 32: vorhandene Vertexfarben (GLB, auch normierte Uint8-VEC4) übernehmen
+      const c = new THREE.Color();
+      for (let k = 0; k < n; k++) {
+        c.fromBufferAttribute(g.attributes.color, k);
+        farbe.set([c.r, c.g, c.b], (versatz + k) * 3);
+      }
+    } else if (farbe) {
       const c = teile[i].farbe ?? new THREE.Color(1, 1, 1);
       for (let k = 0; k < n; k++) farbe.set([c.r, c.g, c.b], (versatz + k) * 3);
     }

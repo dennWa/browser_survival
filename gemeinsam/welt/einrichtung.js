@@ -58,7 +58,7 @@ export function istGemuetlich(welt, x, y, innen) {
 export const MOEBEL_TYPEN = new Set(['sofa', 'sessel', 'stuhl', 'tisch', 'esstisch', 'regal', 'teppich', 'bild', 'pflanze', 'vorhang', 'kerze', 'oellampe', 'stehlampe', 'lichterkette', 'kamin', 'radio', 'plattenspieler']);
 
 /** Runde 24: gebaute Schlafplätze (E: Spawn Point + schlafen). */
-export const BETT_TYPEN = new Set(['bett', 'doppelbett', 'schlafsack']);
+export const BETT_TYPEN = new Set(['bett', 'doppelbett', 'schlafsack', 'zelt']);
 
 /** Nächster Schlafplatz in `reichweite` px: { x, y, laengs, typ, bauwerkId? } oder null. Karten-Betten zählen als 'bett'. */
 export function bettBei(welt, x, y, reichweite) {

@@ -71,6 +71,7 @@ export class CharakterErstellung {
         for (const [wert, option] of Object.entries(def.optionen)) {
           const knopf = Object.assign(d.createElement('button'), { type: 'button', title: option.name });
           knopf.dataset.wert = wert;
+          if (option.koerper) knopf.dataset.koerper = option.koerper; // Runde 32: Figur nur beim passenden Geschlecht
           if ('farbe' in option) {
             const tupfer = Object.assign(d.createElement('span'), { className: 'ce-tupfer' });
             if (option.farbe) tupfer.style.background = option.farbe;
@@ -97,7 +98,7 @@ export class CharakterErstellung {
     const neu = {};
     for (const [merkmal, def] of Object.entries(AUSSEHEN)) {
       if (!def.aktiv) continue;
-      const werte = Object.keys(def.optionen);
+      const werte = Object.entries(def.optionen).filter(([, o]) => !o.koerper || o.koerper === neu.koerper).map(([w]) => w);
       neu[merkmal] = werte[Math.floor(Math.random() * werte.length)];
     }
     this.aussehen = pruefeAussehen(neu);
@@ -107,7 +108,10 @@ export class CharakterErstellung {
 
   #markiere() {
     for (const zeile of this.el.optionen.querySelectorAll('.ce-wahl')) {
-      for (const k of zeile.querySelectorAll('button')) k.classList.toggle('aktiv', this.aussehen[zeile.dataset.merkmal] === k.dataset.wert);
+      for (const k of zeile.querySelectorAll('button')) {
+        k.classList.toggle('aktiv', this.aussehen[zeile.dataset.merkmal] === k.dataset.wert);
+        k.hidden = !!k.dataset.koerper && k.dataset.koerper !== this.aussehen.koerper;
+      }
     }
   }
 

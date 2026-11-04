@@ -67,6 +67,7 @@ export const BAUWERKE = Object.freeze({
   bett: { ...BASIS, name: 'Bett', blockiert: true, geschuetzt: true },
   doppelbett: { ...BASIS, name: 'Doppelbett', blockiert: true, geschuetzt: true },
   schlafsack: { item: null, name: 'Schlafsack', blockiert: false, geschuetzt: true },
+  zelt: { ...BASIS, name: 'Zelt', blockiert: true, geschuetzt: true, draussen: true }, // Runde 32: 5 Äste (teile.js), Schlafplatz + Spawn
   // Runde 24: Farm (Bau-Menü „Farm“)
   gewaechshaus: { item: null, name: 'Gewächshaus-Beet', blockiert: false, nurAuf: ['gras', 'schnee', 'rasen', 'wiese', 'erde'] },
   huehnerstall: { item: null, name: 'Hühnerstall', blockiert: true, draussen: true },
@@ -269,6 +270,7 @@ export function bauwerkAktion(b, inventar, name = null, flaggeDort = null) {
       return { art: 'tuerSchalten', text: b.offen ? 'Tor schließen' : 'Tor öffnen', symbol: '🚧' };
     case 'bett':
     case 'doppelbett':
+    case 'zelt':
     case 'schlafsack': // Runde 24: E = schlafen + Spawn Point (Qualität: konfiguration.gesundheit.bettQualitaet)
       return { art: 'spawn', text: 'Schlafen (setzt Spawn Point)', symbol: '🛏' };
     // Runde 24 (Cozy)
