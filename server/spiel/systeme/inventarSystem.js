@@ -12,10 +12,10 @@ import { fuehreAdminBefehlAus } from './adminSystem.js';
 import { verstaerkeTuer as verstaerkeNaechsteTuer } from './tuerSystem.js';
 import { brecheSchlafAb, starteAbbau, starteSchlafen } from './arbeitSystem.js';
 import { stelleHer } from './craftingSystem.js';
-import { benutzeBauwerk, feuer, platziere } from './bauSystem.js';
+import { benutzeBauwerk, feuer, platziere, zuendeFackel } from './bauSystem.js';
 import { setzeSkillpunkt } from './levelSystem.js';
 import { fahrzeugAktion } from './fahrzeugSystem.js';
-import { legeInKiste, nimmAusKiste, oeffneBehaelter, oeffneKofferraum, schliesseKiste } from './kistenSystem.js';
+import { legeInKiste, nimmAusKiste, oeffneBehaelter, oeffneKofferraum, oeffneLeiche, schliesseKiste } from './kistenSystem.js';
 import { entferneFeld, legeFeldAn } from './bauSystem.js';
 import { legeInStation, nimmAusStation, schliesseStation, setzeAmFeuer, setzeHin } from './stationSystem.js';
 import { baue, reisseAb } from './basisbauSystem.js';
@@ -187,6 +187,9 @@ export function verarbeiteAktionen(spielWelt) {
         case AKTIONEN.BEHAELTER:
           oeffneBehaelter(spielWelt, spieler, aktion.ziel);
           break;
+        case AKTIONEN.LEICHE: // Runde 32
+          oeffneLeiche(spielWelt, spieler, aktion.ziel);
+          break;
         case AKTIONEN.KOFFERRAUM:
           oeffneKofferraum(spielWelt, spieler);
           break;
@@ -195,6 +198,9 @@ export function verarbeiteAktionen(spielWelt) {
           break;
         case AKTIONEN.FEUER:
           feuer(spielWelt, spieler);
+          break;
+        case AKTIONEN.ANZUENDEN: // Runde 32: Fackel im Inventar anzünden
+          zuendeFackel(spielWelt, spieler, aktion.slot);
           break;
         case AKTIONEN.BAUWERK:
           benutzeBauwerk(spielWelt, spieler);

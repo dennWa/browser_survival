@@ -1,0 +1,12 @@
+{
+ "format": "browser-survival-grafik",
+ "id": "fackel",
+ "name": "Fackel",
+ "art": "item",
+ "lizenz": "CC0",
+ "urheber": "Browser Survival (eigenes Icon, Runde 32)",
+ "quelle": "https://github.com/dennwa/browser_survival",
+ "zweck": "Item-Icon Fackel",
+ "weltGroesse": 22,
+ "bild": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEgAAABICAYAAABV7bNHAAABv0lEQVR4nO3bIU4DQRTG8ekeAI0bh0D3CEjCCbjBZxCkQSGQVZjegBMQJEeoXoHDVXOBkk26yaZ0mw77Zua91+/vKfTHfANN2hAYY4wxxhhjjDHGGDNcu37fSj5eExzitIJIboDaPRQpJBdA7QiGBJI5INxcJT3pqUiNRZzl/XybAjAFyRRQV7y8CD1SyhP/L1JjdVq3D89JX389v5u5BcIOpz89pXDMANXCMQGEwbRScSRqLE0rtamnRzUQKt47JoA04KgFwoR7RxJHJRD2pvXx+lINRyXQoUv5FKQcOOqAMPJC9HvzE1ZPj+V/IE1AGPmT3uF0rT6/ZmOnJNfpUQV07P+dDmcMIyeOGiAcmdahepTcOF3Zv4HEtELFqp4gKMdRMbF4wr1zlkBIvHfOCggGplX9BEXl06oGBCPTqgIEQ9OqdoKikWkVB4KxaRUFgsFpFQOCYZxiJygau3eKAcHovVMECManVeQERcPTygoEB9PKBgQn08p6gqKDaWUBgqNpiQPB2bREgeAUR/QERUf3jigQHN47w0R+u8vB+5a9TEt0You39R8IDziid9Bih+RlWmo+S8EYY4wxFur0CyOU8e1VvG+8AAAAAElFTkSuQmCC"
+}

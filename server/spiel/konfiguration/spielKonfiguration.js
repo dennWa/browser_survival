@@ -111,6 +111,9 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     baumBremse: 0.2, // Anteil des Tempos nach dem Umfahren eines Baums (Phase 4: 0,45; Runde 31: 0,2 = deutlich spürbar gebremst)
     stossFaktor: 0.4, // Runde 31: Zusammenstoß – unbesetztes getroffenes Fahrzeug bekommt diesen Anteil des Rammer-Tempos (Rammer selbst prallt mit FAHRZEUG.abprallenFahrzeug zurück)
     laterneNachwachsen: 600, // Sekunden, bis eine umgefahrene Straßenlaterne wieder steht (Bäume: ressourcen.holz.nachwachsen)
+    insassenSchaden: 0.3, // Runde 32: Aufprall bei Vollgas gegen Baum/Wand/Auto → 30 % der Lebenspunkte der Insassen (darunter linear ab 17 km/h)
+    bombeAuto: 0.5, // Runde 32: überfahrener Bombenzombie → 50 % der Auto-Haltbarkeit
+    bombeInsassen: 0.5, // … und 50 % der Lebenspunkte von Fahrer/Beifahrer
   },
   /** Runde 23: Test-Bots (systeme/botSystem.js) – so viele laufen je Zone herum; Admin kann welche setzen/entfernen. */
   bots: {
@@ -245,6 +248,7 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     behaelterNachfuellen: 1800, // Runde 25: Sekunden, bis ein leer geräumter Schrank/eine Kiste der Karte neu gefüllt ist
     /** Sekunden, die das Inventar eines Toten am Boden liegt, bevor es verschwindet */
     todesVerfall: 180,
+    leicheLiegt: 120, // Runde 32: so lange liegt die Leiche eines Spielers, danach bleibt nur ein Rucksack (bis zum Neustart)
   },
   /**
    * Abbau: menge = sicherer Ertrag, chanceAufMehr = Wahrscheinlichkeit (0..1) für +1, dauer in Sekunden,

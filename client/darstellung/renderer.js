@@ -105,6 +105,10 @@ const NACHT_MOND = 0.1; // Mondlicht bei voller Dunkelheit (Runde 23: 0,13 → 0
 const NACHT_UMGEBUNG = 0.095; // Himmelslicht bei voller Dunkelheit (Runde 23: 0,12 → 0,095)
 /** Runde 32: Zombies sind in voller Dunkelheit minimal zu sehen (Eigenleuchten nach Textur) */
 const ZOMBIE_NACHT_LEUCHTEN = 0.09;
+const FACKEL_FARBE = new THREE.Color(0xff9a40);
+/** Runde 32: tote Zombies liegen so lange (s), höchstens so viele gleichzeitig */
+const ZOMBIE_LEICHE_S = 120;
+const ZOMBIE_LEICHEN_MAX = 40;
 const _morgenDunst = new THREE.Color();
 const _nebelFarbe = new THREE.Color();
 const _nebelGrau = new THREE.Color(0.7, 0.72, 0.75);
@@ -597,6 +601,7 @@ export class Renderer {
     this.#aktualisiereFiguren(entitaeten, fokus, dt, jetzt);
     this.egoHaken?.(this.kamera3d, fokus); // EGO-PROTOTYP (client/ego/, siehe docs/EGO_PROTOTYP.md)
     this.#aktualisiereTiere(entitaeten, fokus, jetzt);
+    this.#aktualisiereLeichen(entitaeten, dt, jetzt); // Runde 32
     this.#aktualisiereAngeln(entitaeten, fokus, jetzt);
     this.#aktualisiereTaschenlampen(entitaeten, fokus, dunkel);
     this.#aktualisiereScheinwerfer(entitaeten, fokus, dunkel);
@@ -774,6 +779,61 @@ export class Renderer {
   }
 
   /** Tiere (Hasen): ein Modell pro Tier, hüpft beim Laufen. */
+  /**
+   * Runde 32: Leichen toter Spieler (Entität 'leiche'): liegende Figur (Sterbe-Pose, Aussehen des Toten) bzw. nach 2 min ein Rucksack.
+   * Zombie-Leichen: siehe #aktualisiereFiguren (tote Zombies bleiben ZOMBIE_LEICHE_S liegen).
+   */
+  #aktualisiereLeichen(entitaeten, dt, jetzt) {
+    this.leichen ??= new Map();
+    const gesehen = new Set();
+    for (const e of entitaeten) {
+      if (e.typ !== 'leiche') continue;
+      gesehen.add(e.id);
+      let l = this.leichen.get(e.id);
+      const art = e.rucksack ? 'rucksack' : 'koerper';
+      if (l && l.art !== art) {
+        this.szene.remove(l.gruppe);
+        l.figur?.mixer.stopAllAction();
+        l = null;
+      }
+      if (!l) {
+        const gruppe = new THREE.Group();
+        let figur = null;
+        if (art === 'koerper' && this.survivor) {
+          figur = this.#neueSurvivorFigur({ typ: 'spieler', aussehen: e.aussehen });
+          this.szene.remove(figur.gruppe);
+          figur.aktionen.stehen.stop();
+          figur.aktionen.sterben.reset().play();
+          figur.mixer.setTime(figur.aktionen.sterben.getClip().duration + 0.1); // liegend (Ende des Sterbe-Clips)
+          gruppe.add(figur.gruppe);
+          gruppe.rotation.y = -e.blick + Math.PI / 2;
+        } else {
+          this.rucksackGeometrie ??= vereineGeometrien(rucksackTeile(), { mitFarbe: true });
+          const mesh = new THREE.Mesh(this.rucksackGeometrie, ITEM_MATERIAL);
+          mesh.rotation.x = -Math.PI / 2; // liegt auf dem Rücken
+          mesh.position.y = 4;
+          mesh.castShadow = true;
+          gruppe.add(mesh);
+        }
+        this.szene.add(gruppe);
+        l = { gruppe, figur, art };
+        this.leichen.set(e.id, l);
+      }
+      l.gruppe.position.set(e.x, this.#hy(e.x, e.y), e.y);
+    }
+    for (const [id, l] of this.leichen) {
+      if (gesehen.has(id)) continue;
+      this.szene.remove(l.gruppe);
+      l.figur?.mixer.stopAllAction();
+      this.leichen.delete(id);
+    }
+  }
+
+  /** Runde 32: Ereignis 'tod' eines Zombies (clientSpiel) – seine Figur bleibt danach ZOMBIE_LEICHE_S liegen. */
+  zombieGestorben(id) {
+    (this.toteZombies ??= new Map()).set(id, performance.now());
+  }
+
   #aktualisiereTiere(entitaeten, fokus, jetzt) {
     const gesehen = new Set();
     for (const e of entitaeten) {
@@ -1443,7 +1503,9 @@ export class Renderer {
     const gesehen = this.gesehenFiguren ?? (this.gesehenFiguren = new Set());
     gesehen.clear();
     let neuGebaut = 0;
+    this.fackeln = []; // Runde 32: brennende Fackeln in der Hand → Licht (#aktualisiereLampenPool)
     for (const e of entitaeten) {
+      if (e.typ === 'spieler' && e.waffe === 'fackel_brennend' && !e.tot) this.fackeln.push({ x: e.x, y: 30 + this.#hy(e.x, e.y), z: e.y, farbe: FACKEL_FARBE, reichweite: 260, staerke: 300, objekt: { feuer: true, x: e.id, y: 0 } });
       if (e.typ !== 'spieler' && e.typ !== 'zombie') continue;
       gesehen.add(e.id);
       let f = this.figuren.get(e.id);
@@ -1559,6 +1621,38 @@ export class Renderer {
       if (f.waffe) f.waffe.visible = !e.tot && !e.niedergestreckt;
       if (!schlaeft && !e.tot && !e.niedergestreckt) aktualisiereHaltung(f, e, jetzt, this.dunkel ?? 0); // am Boden keine Arm-Haltung (Bots zuckten sonst)
     }
+    // Runde 32: tote Zombies bleiben liegen (Sterbe-Clip, ZOMBIE_LEICHE_S lang, max. ZOMBIE_LEICHEN_MAX), statt sofort zu verschwinden
+    this.zombieLeichen ??= new Map();
+    for (const [id, f] of this.figuren) {
+      if (gesehen.has(id) || !this.toteZombies?.has(id) || !f.aktionen?.sterben) continue;
+      this.figuren.delete(id);
+      this.toteZombies.delete(id);
+      if (f.waffe) f.waffe.visible = false;
+      for (const a of Object.values(f.aktionen)) if (a !== f.aktionen.sterben) a.fadeOut(0.15);
+      f.aktionen.sterben.setLoop(THREE.LoopOnce, 1);
+      f.aktionen.sterben.clampWhenFinished = true;
+      f.aktionen.sterben.reset().fadeIn(0.1).play();
+      this.zombieLeichen.set(id, { f, bis: jetzt + ZOMBIE_LEICHE_S * 1000 });
+      if (this.zombieLeichen.size > ZOMBIE_LEICHEN_MAX) {
+        const [altId, alt] = this.zombieLeichen.entries().next().value;
+        this.szene.remove(alt.f.gruppe);
+        alt.f.mixer.stopAllAction();
+        this.zombieLeichen.delete(altId);
+      }
+    }
+    for (const [id, l] of this.zombieLeichen) {
+      if (jetzt < l.bis) {
+        if (!l.fertig) {
+          l.f.mixer.update(dt);
+          l.fertig = !l.f.aktionen.sterben.isRunning();
+        }
+        continue;
+      }
+      this.szene.remove(l.f.gruppe);
+      l.f.mixer.stopAllAction();
+      this.zombieLeichen.delete(id);
+    }
+    if (this.toteZombies?.size > 200) this.toteZombies.clear();
     for (const [id, f] of this.figuren) {
       if (gesehen.has(id)) continue;
       this.szene.remove(f.gruppe);
@@ -2053,7 +2147,8 @@ export class Renderer {
 
   /** Nur die nächsten Kartenlampen bekommen ein echtes Licht aus dem Pool (feste Lichteranzahl = keine Shader-Neubauten). */
   #aktualisiereLampenPool(fokus, jetzt, dunkel) {
-    if (dunkel < 0.03 || this.karte.lampen.length + this.feuerLampen.length === 0) {
+    const fackeln = this.fackeln ?? [];
+    if (dunkel < 0.03 || this.karte.lampen.length + this.feuerLampen.length + fackeln.length === 0) {
       for (const l of this.lampenPool) l.intensity = 0;
       for (const l of this.kegelPool) l.intensity = 0;
       return;
@@ -2083,8 +2178,10 @@ export class Renderer {
       licht.penumbra = 0.45;
       licht.intensity = lampe.staerke * 2.2 * flackern(lampe.objekt, jetzt) * dunkel;
     });
+    // Runde 32: Fackeln bewegen sich → jedes Bild, sie belegen die ersten Pool-Lichter (max. 2)
+    const fackelLichter = fackeln.length ? [...fackeln].sort((a, b) => Math.hypot(a.x - fokus.x, a.z - fokus.y) - Math.hypot(b.x - fokus.x, b.z - fokus.y)).slice(0, Math.min(2, this.lampenPool.length)) : [];
     this.lampenPool.forEach((licht, i) => {
-      const lampe = this.naechsteLampen[i];
+      const lampe = i < fackelLichter.length ? fackelLichter[i] : this.naechsteLampen[i - fackelLichter.length];
       if (!lampe) {
         licht.intensity = 0;
         return;

@@ -303,5 +303,5 @@ test('Kleidung: Tod lässt sie fallen, Spielstand speichert und prüft sie', asy
   spieler.gottmodus = false;
   toeten(welt, spieler, null, { endgueltig: true });
   assert.equal(spieler.kleidung.oberkoerper, null);
-  assert.ok([...welt.alleVomTyp('gegenstand')].some((g) => g.defId === 'arbeitsweste'));
+  assert.ok([...welt.alleVomTyp('leiche')][0].inhalt.some((e) => e?.defId === 'arbeitsweste')); // Runde 32: in der Leiche
 });

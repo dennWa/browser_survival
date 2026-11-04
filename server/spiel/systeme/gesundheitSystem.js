@@ -207,7 +207,7 @@ export function lasseVerderben(eintraege, sekunden) {
     if (!def?.verdirbt) continue;
     e.verderb = (e.verderb ?? def.verdirbt) - sekunden;
     if (e.verderb > 0) continue;
-    e.defId = 'verdorben';
+    e.defId = def.verdirbtZu ?? 'verdorben'; // Runde 32: z. B. brennende Fackel → Ast
     delete e.verderb;
   }
 }

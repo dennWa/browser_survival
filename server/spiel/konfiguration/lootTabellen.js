@@ -165,6 +165,7 @@ const BASIS_LOOT_TABELLEN = Object.freeze({
     { id: 'rucksack_klein', gewicht: 1.5 },
     { id: 'rucksack', gewicht: 0.5 },
     { id: 'feuerzeug', gewicht: 1.5 },
+    { id: 'fackel', gewicht: 1 }, // Runde 32
     { id: 'samen_tomate', gewicht: 1 },
     { id: 'samen_gurke', gewicht: 1 },
     { id: 'samen_kartoffel', gewicht: 1 },
@@ -178,6 +179,7 @@ const BASIS_LOOT_TABELLEN = Object.freeze({
     { id: 'sandwich', gewicht: 2 },
     { id: 'kaffee', gewicht: 2 },
     { id: 'feuerzeug', gewicht: 3 },
+    { id: 'fackel', gewicht: 1 }, // Runde 32
     { id: 'rucksack_klein', gewicht: 0.5 },
   ],
   werkstatt: [
@@ -202,6 +204,7 @@ const BASIS_LOOT_TABELLEN = Object.freeze({
     { id: 'falle', gewicht: 2 },
     { id: 'angel', gewicht: 1 },
     { id: 'feuerzeug', gewicht: 1 },
+    { id: 'fackel', gewicht: 1 }, // Runde 32
     { id: 'rucksack_gross', gewicht: 0.5 },
   ],
   supermarkt: [
@@ -224,6 +227,7 @@ const BASIS_LOOT_TABELLEN = Object.freeze({
     { id: 'rucksack', gewicht: 1 },
     { id: 'rucksack_klein', gewicht: 1 },
     { id: 'feuerzeug', gewicht: 2 },
+    { id: 'fackel', gewicht: 1 }, // Runde 32
     { id: 'samen_tomate', gewicht: 1.5 },
     { id: 'samen_gurke', gewicht: 1.5 },
     { id: 'samen_kartoffel', gewicht: 1.5 },
@@ -270,6 +274,7 @@ const BASIS_LOOT_TABELLEN = Object.freeze({
     { id: 'sandwich', gewicht: 2 },
     { id: 'wasserflasche', gewicht: 2 },
     { id: 'feuerzeug', gewicht: 2 },
+    { id: 'fackel', gewicht: 1 }, // Runde 32
     { id: 'samen_tomate', gewicht: 1 },
   ],
   // Zone "Waldweg": Angelhütte am See
@@ -280,6 +285,7 @@ const BASIS_LOOT_TABELLEN = Object.freeze({
     { id: 'kaffee', gewicht: 1 },
     { id: 'verband', gewicht: 1 },
     { id: 'feuerzeug', gewicht: 1 },
+    { id: 'fackel', gewicht: 1 }, // Runde 32
     { id: 'rucksack_klein', gewicht: 0.6 },
   ],
   // Zone "Waldweg": Försterhütte
@@ -310,6 +316,7 @@ const BASIS_LOOT_TABELLEN = Object.freeze({
     { id: 'konservendose', gewicht: 3 },
     { id: 'wasserflasche', gewicht: 3 },
     { id: 'feuerzeug', gewicht: 2 },
+    { id: 'fackel', gewicht: 1 }, // Runde 32
     { id: 'spitzhacke', gewicht: 1 },
     { id: 'hacke', gewicht: 1 },
     { id: 'axt', gewicht: 1 },
@@ -344,6 +351,7 @@ const BASIS_LOOT_TABELLEN = Object.freeze({
     { id: 'verband', gewicht: 1.5 },
     { id: 'schmerzmittel', gewicht: 1 },
     { id: 'feuerzeug', gewicht: 1 },
+    { id: 'fackel', gewicht: 1 }, // Runde 32
     { id: 'munition_9mm', gewicht: 0.6 },
     { id: 'samen_tomate', gewicht: 0.6 },
     { id: 'kuechenmesser', gewicht: 0.6 },
@@ -393,6 +401,7 @@ const BASIS_LOOT_TABELLEN = Object.freeze({
     { id: 'eisenbarren', gewicht: 1 },
     { id: 'brecheisen', gewicht: 1 },
     { id: 'feuerzeug', gewicht: 1 },
+    { id: 'fackel', gewicht: 1 }, // Runde 32
     { id: 'schwarzpulver', gewicht: 0.5 },
     { id: 'mod_magazin', gewicht: 0.2 },
     { id: 'lederhandschuhe', gewicht: 0.8 },

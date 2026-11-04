@@ -1,0 +1,12 @@
+{
+ "format": "browser-survival-grafik",
+ "id": "fackel_brennend",
+ "name": "Brennende Fackel",
+ "art": "item",
+ "lizenz": "CC0",
+ "urheber": "Browser Survival (eigenes Icon, Runde 32)",
+ "quelle": "https://github.com/dennwa/browser_survival",
+ "zweck": "Item-Icon Brennende Fackel",
+ "weltGroesse": 22,
+ "bild": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEgAAABICAYAAABV7bNHAAACRUlEQVR4nO3aIU8DMRgG4N5pgkDh6gjBYLA4NNkPQKL4/H7EPCgkP2BB40ASJCE4HJqgKTm2I82tvfXrtb1+3/VNMGxcuGfv201MiJKSkp6om0MlBqQWE4gagMQaSA1sD3ugEFhsgVSA9rAGCoVWTwJiNvO+FkugPhxsi9gBKRuAZ4vYAbmgYFrECkhtu3ENzBWJFVCog5klkPJ4C3f5GzZAzu1BNosFkNKbgATY1iIWQOggEOspt8elReSBvOOISQ4Izg5UyPYYr0UVCNY4i4uTzZtZLnEX6zy/unqryAM1kfu79lfcFckRhxQQaNNqcnq7+kEjIZtWU8KR6/bcv37/P4ZCMvy+rz1kgGw4vW3qYnjgkAACbVomHD1WJE+cv+cJotPalsdL+2OuOFk3CAbgYBFIAg3BeXpZ4TRIXSgsXE393LHhmFB8WlXlPi0MkglnaLJskNRwmpwf7YyCkx0QdD4tt/n4/BLHez/p/6GcgMAwrRanyfXDe2VrSaz2ZAVkwmnT4NgwYuJkAwQ90zKlRYmNk8W7GDhMS4yYURsEmeNkMTHpcO5MEgiQ586kgIDAtEZvkMx8WqMBAZFpjQIEhKY1WoMkkWklBwJi00oKBASnlQwICOMka5Akdu4kAwKi504SICA+rSQNkoSnFRUIGEwrGhAwmVbUBkkG04oCBIymFRwImE0rKBAwxQnaIMno3AkKBAzPHT1BXt1F53vLHKYVdGLzu+cNCA44Qc+g+RqJy7SiBSxnUklJSUlJSUmJyCu/+25FnZyuDUwAAAAASUVORK5CYII="
+}

@@ -2,7 +2,8 @@ import { brecheArbeitAb, starteZerlegen, ZERLEGE_WERKZEUGE } from './arbeitSyste
 import { strahlGegenWaende, strahlTrifftBox, strahlTrifftKreis } from '../../../gemeinsam/physik/strahl.js';
 import { bewegeKoerper } from '../../../gemeinsam/physik/bewegung.js';
 import { NAHKAMPF_KEGEL, STANDARD_AUSRUESTUNG, waffenWerte } from '../konfiguration/gegenstaende.js';
-import { aktuelleWaffe, kleidungsSchutz, legeAufBoden, starteKonsum, nutzeWerkzeug, pflanzeSamenAusHand, legeRucksackAb, legeKleidungAb, starteNachladen, zaehleMunition } from './inventarSystem.js';
+import { aktuelleWaffe, kleidungsSchutz, legeAufBoden, starteKonsum, nutzeWerkzeug, pflanzeSamenAusHand, starteNachladen, zaehleMunition, passeInventarAn, aktualisiereAusruestung } from './inventarSystem.js';
+import { legeLeicheAn } from './leichenSystem.js';
 import { nachTreffer } from './gesundheitSystem.js';
 import { gibXp, setzeLevelZurueck } from './levelSystem.js';
 import { staerkeFaktor } from '../../../gemeinsam/spieler/skills.js';
@@ -269,15 +270,11 @@ export function toeten(spielWelt, ziel, quelle = null, optionen = {}) {
   ziel.statistik.ueberlebt = 0;
   if (ziel.fahrzeug || ziel.mitfahrt) aussteigen(spielWelt, ziel, { erzwingen: true });
   raeumeZombiesWeg(spielWelt, ziel.x, ziel.y, spielWelt.konfiguration.spieler.todesZombieRadius);
-  // Spieler: alles fällt zu Boden (auch Rucksack und Kleidung), nach respawnZeit geht's am Startpunkt weiter
-  legeRucksackAb(spielWelt, ziel, spielWelt.konfiguration.loot.todesVerfall);
-  legeKleidungAb(spielWelt, ziel, spielWelt.konfiguration.loot.todesVerfall);
-  ziel.inventar.forEach((eintrag, slot) => {
-    if (!eintrag) return;
-    const w = (slot / ziel.inventar.length) * Math.PI * 2;
-    legeAufBoden(spielWelt, eintrag, ziel.x + Math.cos(w) * 14, ziel.y + Math.sin(w) * 14, spielWelt.konfiguration.loot.todesVerfall);
-    ziel.inventar[slot] = null;
-  });
+  // Runde 32: Spieler hinterlässt eine Leiche (wie eine Kiste durchsuchbar; nach loot.leicheLiegt s bleibt ein Rucksack bis zum Neustart).
+  // Vorher fiel alles verstreut zu Boden (loot.todesVerfall). Nach respawnZeit geht's am Startpunkt weiter.
+  legeLeicheAn(spielWelt, ziel);
+  passeInventarAn(spielWelt, ziel);
+  aktualisiereAusruestung(ziel);
   Object.assign(ziel, {
     tot: true,
     leben: 0,

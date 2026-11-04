@@ -272,7 +272,7 @@ test('Zombie hinter Wand sieht Spieler nicht – hört aber Schüsse', () => {
 // ---------------------------------------------------------------------------
 // Überleben, Tod & Respawn
 
-test('Verhungern kostet Leben, Tod lässt Inventar fallen, danach Respawn', () => {
+test('Verhungern kostet Leben, Tod hinterlässt eine Leiche mit dem Inventar (Runde 32), danach Respawn', () => {
   const { welt, spieler, konfiguration } = neueWelt();
   welt.konfiguration.zombie.aggroRadius = 0;
   spieler.hunger = 0;
@@ -282,7 +282,9 @@ test('Verhungern kostet Leben, Tod lässt Inventar fallen, danach Respawn', () =
   ticks(welt, Math.ceil(2.5 / TICK_DAUER_S));
   assert.equal(spieler.tot, true);
   assert.deepEqual(spieler.inventar.filter(Boolean), []);
-  assert.equal(welt.anzahlVomTyp('gegenstand'), 2);
+  const leiche = [...welt.alleVomTyp('leiche')][0];
+  assert.ok(leiche, 'Leiche liegt');
+  assert.deepEqual(leiche.inhalt.filter(Boolean).map((e) => e.defId).sort(), ['apfel', 'machete']);
 
   ticks(welt, Math.ceil((konfiguration.spieler.respawnZeit + 0.5) / TICK_DAUER_S));
   assert.equal(spieler.tot, false);
@@ -622,17 +624,37 @@ test('Startausrüstung: Pistole (30 Schuss, in der Hand), Axt, Spitzhacke, Angel
   assert.equal(spieler.inventar[1]?.defId, 'axt', 'nach dem Respawn wieder ausgerüstet');
 });
 
-test('Inventar eines Toten verschwindet nach loot.todesVerfall Sekunden', () => {
-  const { welt, spieler, konfiguration } = neueWelt({ loot: { todesVerfall: 2 } });
+test('Runde 32: Leiche → nach loot.leicheLiegt ein Rucksack (bleibt), durchsuchbar wie eine Kiste, leer geräumt weg', () => {
+  const { welt, spieler } = neueWelt({ loot: { leicheLiegt: 2 } });
+  welt.konfiguration.zombie.aggroRadius = 0;
   bewaffne(spieler);
   spieler.leben = 0.4;
   spieler.hunger = 0;
   ticks(welt, Math.ceil(1 / TICK_DAUER_S));
   assert.equal(spieler.tot, true);
-  assert.ok([...welt.alleVomTyp('gegenstand')].some((g) => g.defId === 'pistole'));
+  const leiche = [...welt.alleVomTyp('leiche')][0];
+  assert.ok(leiche.inhalt.some((e) => e?.defId === 'pistole'));
+  assert.equal(leiche.rucksack, false);
   ticks(welt, Math.ceil(2.2 / TICK_DAUER_S));
-  assert.ok(![...welt.alleVomTyp('gegenstand')].some((g) => g.defId === 'pistole'), 'nach Ablauf weg');
-  assert.equal(konfiguration.loot.todesVerfall, 2);
+  assert.equal(leiche.rucksack, true, 'Körper weg, Rucksack bleibt');
+  ticks(welt, Math.ceil(5 / TICK_DAUER_S));
+  assert.ok(welt.holen(leiche.id), 'Rucksack liegt weiter');
+  const aktion = (_w, s, a) => {
+    s.aktionsPuffer.push({ slot: null, ...a });
+    welt.aktualisiere(TICK_DAUER_S);
+  };
+  // Ein anderer Spieler durchsucht ihn und nimmt alles
+  const finder = welt.spielerBetrittWelt('Finder');
+  finder.x = leiche.x + 10;
+  finder.y = leiche.y;
+  finder.inventar.fill(null);
+  aktion(welt, finder, { art: AKTIONEN.LEICHE, ziel: leiche.id });
+  assert.equal(finder.offeneKiste, `l${leiche.id}`);
+  leiche.inhalt.forEach((e, i) => e && aktion(welt, finder, { art: AKTIONEN.KISTE_NEHMEN, slot: i }));
+  assert.ok(finder.inventar.some((e) => e?.defId === 'pistole'));
+  aktion(welt, finder, { art: AKTIONEN.KISTE_SCHLIESSEN });
+  ticks(welt, 2);
+  assert.equal(welt.holen(leiche.id), undefined, 'leerer Rucksack verschwindet');
 });
 
 // ---------------------------------------------------------------------------
@@ -927,14 +949,14 @@ test('Rucksack: Aufheben legt ihn an (+8 Plätze), Ablegen gibt Inhalt zurück, 
   assert.ok(spieler.inventar.some((e) => e?.defId === 'kaese'), 'Käse ist ins Grund-Inventar gerückt');
   const boden = [...welt.alleVomTyp('gegenstand')].filter((g) => g.defId === 'rucksack_gross');
   assert.equal(boden.length, 1);
-  // wieder aufheben und sterben → Rucksack liegt am Boden, Inventar wieder 16
+  // wieder aufheben und sterben → Rucksack steckt in der Leiche (Runde 32), Inventar wieder 16
   spieler.aktionsPuffer.push({ art: AKTIONEN.AUFHEBEN, slot: null });
   welt.aktualisiere(TICK_DAUER_S);
   assert.equal(spieler.rucksack, 'rucksack_gross');
   fuegeSchadenZu(welt, spieler, 9999, null);
   assert.equal(spieler.rucksack, null);
   assert.equal(spieler.inventar.length, 16);
-  assert.equal([...welt.alleVomTyp('gegenstand')].filter((g) => g.defId === 'rucksack_gross').length, 1);
+  assert.ok([...welt.alleVomTyp('leiche')][0].inhalt.some((e) => e?.defId === 'rucksack_gross'));
 });
 
 test('Im Haus: Lärm wird draußen nicht gehört – wer schon jagt, bleibt dran', () => {

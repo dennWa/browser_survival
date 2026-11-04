@@ -1,3 +1,4 @@
+import { aktualisiereLeichen } from './leichenSystem.js';
 import { BEET_TYPEN } from '../../../gemeinsam/welt/bauwerke.js';
 import { FALLEN_TYPEN, aktualisiereFalle, neueFallenWerte } from './fallenSystem.js';
 import { BAUWERKE, BAUWERK_REICHWEITE, PFLANZEN, bauwerkAktion, feldKacheln, kachelInReichweite, pruefePlatz } from '../../../gemeinsam/welt/bauwerke.js';
@@ -175,6 +176,24 @@ function schalteGenerator(spielWelt, spieler, b) {
   spielWelt.ereignis({ typ: 'generator', an: b.laeuft, x: mitteX(spielWelt, b), y: mitteY(spielWelt, b) });
 }
 
+/** Runde 32: Fackel im Slot anzünden (Feuerzeug vor Feuerbohrer). @returns true, wenn sie brennt */
+export function zuendeFackel(spielWelt, spieler, slot) {
+  const eintrag = spieler.inventar[slot];
+  if (eintrag?.defId !== 'fackel') return false;
+  const quelle = zuendQuelle(spieler);
+  if (!quelle) {
+    spielWelt.melde(spieler.id, 'Du brauchst ein Feuerzeug oder einen Feuerbohrer');
+    return false;
+  }
+  nutzeWerkzeug(spielWelt, spieler, quelle);
+  eintrag.defId = 'fackel_brennend';
+  delete eintrag.haltbarkeit;
+  delete eintrag.verderb;
+  spielWelt.ereignis({ typ: 'lagerfeuer', an: true, x: spieler.x, y: spieler.y });
+  spielWelt.melde(spieler.id, '🔥 Fackel brennt');
+  return true;
+}
+
 /** F am Lagerfeuer: anzünden (nur mit Feuerzeug) bzw. löschen. @returns true, wenn ein Feuer in Reichweite war */
 export function feuer(spielWelt, spieler) {
   const kamin = spielWelt.welt.naechstesBauwerk(spieler.x, spieler.y, BAUWERK_REICHWEITE, (x) => x.typ === 'kamin');
@@ -183,7 +202,11 @@ export function feuer(spielWelt, spieler) {
     return true;
   }
   const b = spielWelt.welt.naechstesBauwerk(spieler.x, spieler.y, BAUWERK_REICHWEITE, (x) => x.typ === 'lagerfeuer');
-  if (!b) return false;
+  if (!b) {
+    // Runde 32: kein Feuer in der Nähe, aber eine Fackel in der Hand → anzünden
+    if (spieler.inventar[spieler.ausgeruestet]?.defId === 'fackel') return zuendeFackel(spielWelt, spieler, spieler.ausgeruestet);
+    return false;
+  }
   if (b.brennt) {
     Object.assign(b, { brennt: false, brennRest: 0 });
     spielWelt.melde(spieler.id, 'Feuer gelöscht');
@@ -344,6 +367,7 @@ function fuelleFlasche(spielWelt, spieler, b) {
 export function aktualisiereBauwerke(spielWelt, dt, spielSekunden = dt) {
   const welt = spielWelt.welt;
   if (dt > 0) aktualisiereKisten(spielWelt);
+  if (dt > 0) aktualisiereLeichen(spielWelt, dt); // Runde 32
   spielWelt.behaelterTakt = (spielWelt.behaelterTakt ?? 0) - dt;
   if (spielWelt.behaelterTakt <= 0) {
     aktualisiereBehaelter(spielWelt, 1 - spielWelt.behaelterTakt);

@@ -242,20 +242,20 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `verwaltung` | papier, kaffee, muesliriegel, energydrink, munition_9mm |
 | `kueche` | kuechenmesser, konservendose, kaese, milch, bratpfanne, hammer |
 | `wohnung` | apfel, wasserflasche, papier, stoff, broetchen, konservendose, milch, marmelade |
-| `tankstelle` | energydrink, muesliriegel, benzin, wasserflasche, feuerzeug, sandwich, kaffee, rucksack_klein |
+| `tankstelle` | energydrink, muesliriegel, benzin, wasserflasche, feuerzeug, sandwich, kaffee, fackel |
 | `werkstatt` | hammer, wasserflasche, falle, brecheisen, arbeitsweste, benzin, handschuhe, feuerwehrbeil |
 | `supermarkt` | konservendose, wasserflasche, broetchen, apfel, kaese, milch, marmelade, feuerzeug |
 | `polizei` | munition_9mm, munition_357, verband, kaffee, revolver, schutzweste, pistole, rucksack_gross |
 | `waffenkammer` | munition_9mm, munition_12, munition_357, pistole, schrotflinte, munition_gewehr, revolver, gewehr |
-| `kiosk` | energydrink, muesliriegel, papier, sandwich, wasserflasche, feuerzeug, alkohol, samen_tomate |
-| `angler` | angel, konservendose, wasserflasche, kaffee, verband, feuerzeug, rucksack_klein |
+| `kiosk` | energydrink, muesliriegel, papier, sandwich, wasserflasche, feuerzeug, alkohol, fackel |
+| `angler` | angel, konservendose, wasserflasche, kaffee, verband, feuerzeug, fackel, rucksack_klein |
 | `huette` | konservendose, wasserflasche, papier, stoff, feuerzeug, munition_gewehr, pfeil, winterjacke |
 | `schrank` | papier, kapuzenpulli, jeans, stoff, muetze, turnschuhe, handschuhe, winterjacke |
-| `kommode` | stoff, papier, verband, muetze, handschuhe, schmerzmittel, feuerzeug, alkohol |
+| `kommode` | stoff, papier, verband, muetze, handschuhe, schmerzmittel, feuerzeug, fackel |
 | `kuehlschrank` | milch, kaese, wasserflasche, ei, apfel, verdorben, sandwich, energydrink |
 | `vorratsregal` | konservendose, marmelade, muesliriegel, wasserflasche, brot, kaffee, leere_flasche, mehl |
 | `holzkiste` | holz, bretter, schrott, konservendose, stoff, wasserflasche, hammer, munition_9mm |
-| `werkzeugkiste` | schrott, hammer, eisenbarren, brecheisen, feuerzeug, lederhandschuhe, vorschlaghammer, schwarzpulver |
+| `werkzeugkiste` | schrott, hammer, eisenbarren, brecheisen, feuerzeug, fackel, lederhandschuhe, vorschlaghammer |
 | `truhe` | munition_9mm, munition_12, doerrfleisch, munition_gewehr, erste_hilfe_kasten, eisenbarren, antibiotika, machete |
 
 ### Items (für Loot-Zonen `items[].id`)
@@ -264,7 +264,7 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | nahrung | `konservendose` Konservendose, `marmelade` Glas Marmelade, `apfel` Äpfel, `broetchen` Brötchen, `kaese` Käse, `muesliriegel` Müsliriegel, `sandwich` Sandwich, `tomate` Tomate, `gurke` Gurke, `kartoffel` Kartoffel, `tomate_gebraten` Gebratene Tomate, `gurke_gebraten` Gebratene Gurke, `ofenkartoffel` Ofenkartoffel, `paprika` Paprika, `paprika_gebraten` Gebratene Paprika, `karotte` Karotte, `karotte_gebraten` Gebratene Karotte, `kuerbis` Kürbis, `kuerbis_gebraten` Ofenkürbis, `erdbeere` Erdbeeren, `ei` Ei, `spiegelei` Spiegelei, `honig` Honig, `fleisch` Hasenfleisch, `fleisch_gebraten` Hasenbraten, `fisch_barsch` Barsch, `fisch_forelle` Forelle, `fisch_hecht` Hecht, `fisch_barsch_gebraten` Gebratener Barsch, `fisch_forelle_gebraten` Gebratene Forelle, `fisch_hecht_gebraten` Gebratener Hecht, `verdorben` Verdorbenes Essen, `brot` Brot, `eintopf` Eintopf, `fischsuppe` Fischsuppe, `kuerbissuppe` Kürbissuppe, `pfannkuchen` Pfannkuchen, `doerrfleisch` Dörrfleisch, `raeucherfisch` Räucherfisch, `eingelegte_gurken` Eingelegte Gurken, `trockenobst` Trockenobst |
 | getraenk | `wasserflasche` Wasserflasche, `energydrink` Energydrink, `milch` Milch, `kaffee` Kaffee, `leere_flasche` Leere Flasche, `wasser_dreckig` Dreckiges Wasser |
 | medizin | `verband` Verband, `schmerzmittel` Schmerzmittel, `erste_hilfe_kasten` Erste-Hilfe-Kasten, `antibiotika` Antibiotika, `schiene` Schiene, `aktivkohle` Aktivkohle |
-| nahkampf | `skalpell` Skalpell, `kuechenmesser` Küchenmesser, `hammer` Hammer, `machete` Machete, `feuerwehrbeil` Feuerwehrbeil, `baseballschlaeger` Baseballschläger, `brecheisen` Brecheisen, `speer` Speer, `axt` Axt, `spitzhacke` Spitzhacke, `hacke` Hacke, `vorschlaghammer` Vorschlaghammer, `katana` Katana, `bratpfanne` Bratpfanne, `golfschlaeger` Golfschläger, `kampfmesser` Kampfmesser |
+| nahkampf | `skalpell` Skalpell, `kuechenmesser` Küchenmesser, `hammer` Hammer, `machete` Machete, `feuerwehrbeil` Feuerwehrbeil, `baseballschlaeger` Baseballschläger, `brecheisen` Brecheisen, `speer` Speer, `axt` Axt, `spitzhacke` Spitzhacke, `hacke` Hacke, `vorschlaghammer` Vorschlaghammer, `katana` Katana, `bratpfanne` Bratpfanne, `golfschlaeger` Golfschläger, `kampfmesser` Kampfmesser, `fackel` Fackel, `fackel_brennend` Brennende Fackel |
 | fernkampf | `pistole` Pistole (9 mm), `schrotflinte` Schrotflinte (Kal. 12), `gewehr` Jagdgewehr, `bogen` Bogen, `revolver` Revolver (.357), `mp` Maschinenpistole, `sturmgewehr` Sturmgewehr, `armbrust` Armbrust |
 | munition | `munition_9mm` Munition 9 mm, `munition_12` Schrotpatronen Kal. 12, `munition_gewehr` Gewehrpatronen, `munition_357` Revolverpatronen .357, `pfeil` Pfeile, `bolzen` Armbrustbolzen |
 | mod | `mod_zielfernrohr` Zielfernrohr, `mod_magazin` Erweitertes Magazin, `mod_schalldaempfer` Schalldämpfer |

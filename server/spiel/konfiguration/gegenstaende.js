@@ -143,6 +143,10 @@ const ROH_GEGENSTAENDE = {
   benzin: { name: 'Benzinkanister', kategorie: 'material', beschreibung: 'Treibstoff für den Generator (15 min Strom)' },
   alkohol: { name: 'Hochprozentiges', kategorie: 'material', beschreibung: 'Brennt gut – für Molotowcocktails' },
   // --- Werkzeug & Garten ---
+  // Runde 32: Fackel – Nahkampf; im Inventar (Rechtsklick → Anzünden) oder mit F in der Hand anzünden (Feuerzeug/Feuerbohrer).
+  // Brennend leuchtet sie (Renderer: Licht wie Lagerfeuer) und brennt `verdirbt` s, danach bleibt ein Ast (verdirbtZu).
+  fackel: { name: 'Fackel', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 12, reichweite: 66, abklingzeit: 0.55, haltbarkeit: 40, beschreibung: 'Anzünden: Rechtsklick → Anzünden oder F in der Hand (Feuerzeug/Feuerbohrer). Brennend: Licht + mehr Schaden' },
+  fackel_brennend: { name: 'Brennende Fackel', kategorie: 'nahkampf', ausruestung: 'messer', schaden: 20, reichweite: 66, abklingzeit: 0.55, verdirbt: 300, verdirbtZu: 'ast', licht: { farbe: 0xff9a40, reichweite: 260, staerke: 300 }, beschreibung: 'Leuchtet ~5 Minuten, dann ist nur noch ein Ast übrig' },
   feuerzeug: { name: 'Feuerzeug', kategorie: 'werkzeug', haltbarkeit: 10, verbraucht: true, beschreibung: 'Zum Anzünden von Lagerfeuern und Kaminen (F) – reicht für 10 Feuer' },
   feuerbohrer: { name: 'Feuerbohrer', kategorie: 'werkzeug', haltbarkeit: 2, verbraucht: true, beschreibung: 'Zündet ein Lagerfeuer oder Kamin (F) – nur 2 Mal, dann ist er verbraucht. Aus Rinde + Ast ohne Werkbank herstellbar' },
   samen_tomate: { name: 'Tomatensamen', kategorie: 'samen', pflanze: 'tomate', stapelbar: 10, beschreibung: 'In ein Beet pflanzen (E am Beet)' },

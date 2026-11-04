@@ -520,7 +520,7 @@ export class SpielServer {
     if (n.art === AKTIONEN.FELD && !(Number.isInteger(n.tx) && Number.isInteger(n.ty))) return;
     if (n.art === AKTIONEN.BAUEN && !(Object.hasOwn(BAUTEILE, n.teil) && Number.isInteger(n.tx) && Number.isInteger(n.ty))) return;
     if (n.art === AKTIONEN.ABREISSEN && !(Number.isInteger(n.tx) && Number.isInteger(n.ty) && (n.ebene === undefined || EBENEN.includes(n.ebene)))) return;
-    if ((n.art === AKTIONEN.KONSUMIEREN || n.art === AKTIONEN.ANLEGEN || n.art === AKTIONEN.REPARIEREN || n.art === AKTIONEN.MODS_ABNEHMEN) && !gueltigerSlot(slot)) return;
+    if ((n.art === AKTIONEN.KONSUMIEREN || n.art === AKTIONEN.ANZUENDEN || n.art === AKTIONEN.ANLEGEN || n.art === AKTIONEN.REPARIEREN || n.art === AKTIONEN.MODS_ABNEHMEN) && !gueltigerSlot(slot)) return;
     if (n.art === AKTIONEN.AUSZIEHEN && !['kopf', 'oberkoerper', 'haende', 'beine', 'fuesse', 'ruecken'].includes(n.stelle)) return;
     if ((n.art === AKTIONEN.KISTE_LEGEN || n.art === AKTIONEN.KISTE_NEHMEN || n.art === AKTIONEN.STATION_LEGEN || n.art === AKTIONEN.STATION_NEHMEN) && slot === null) return;
     if (n.art === AKTIONEN.FELD_ENTFERNEN && !(Number.isInteger(n.tx) && Number.isInteger(n.ty))) return;
@@ -528,7 +528,7 @@ export class SpielServer {
     if (n.art === AKTIONEN.ADMIN && n.befehl === ADMIN_BEFEHLE.WAFFE_GEBEN && !(typeof n.wert === 'string' && ['fernkampf', 'nahkampf'].includes(GEGENSTAENDE[n.wert]?.kategorie))) return;
     if (n.art === AKTIONEN.HERSTELLEN && !Object.hasOwn(REZEPTE, n.rezept)) return;
     if (n.art === AKTIONEN.MUSIK && !(Number.isInteger(n.ziel) && pruefeMusikWahl(n.quelle, n.wert))) return;
-    if ((n.art === AKTIONEN.HAUSTIER || n.art === AKTIONEN.BEHAELTER) && !(Number.isInteger(n.ziel) && n.ziel >= 0)) return;
+    if ((n.art === AKTIONEN.HAUSTIER || n.art === AKTIONEN.BEHAELTER || n.art === AKTIONEN.LEICHE) && !(Number.isInteger(n.ziel) && n.ziel >= 0)) return;
     if (n.art === AKTIONEN.HAUSTIER_FREILASSEN && !(['hund', 'katze'].includes(n.tierArt) && typeof n.name === 'string' && n.name.length <= 20)) return;
     if (n.art === AKTIONEN.GRUPPE && !['einladen', 'annehmen', 'ablehnen', 'verlassen', 'entfernen'].includes(n.was)) return;
     if (n.art === AKTIONEN.HANDEL && !['anfragen', 'annehmen', 'ablehnen', 'anbieten', 'zurueck', 'bereit', 'abbrechen'].includes(n.was)) return;
@@ -543,7 +543,7 @@ export class SpielServer {
     }
     if (n.art === AKTIONEN.HERSTELLEN) aktion.rezept = n.rezept;
     if (n.art === AKTIONEN.MUSIK) Object.assign(aktion, { ziel: n.ziel, quelle: n.quelle, wert: n.wert ?? null });
-    if (n.art === AKTIONEN.HAUSTIER || n.art === AKTIONEN.BEHAELTER) aktion.ziel = n.ziel;
+    if (n.art === AKTIONEN.HAUSTIER || n.art === AKTIONEN.BEHAELTER || n.art === AKTIONEN.LEICHE) aktion.ziel = n.ziel;
     if (n.art === AKTIONEN.HAUSTIER_FREILASSEN) Object.assign(aktion, { tierArt: n.tierArt, name: n.name });
     if (n.art === AKTIONEN.GRUPPE || n.art === AKTIONEN.HANDEL || n.art === AKTIONEN.HELFEN) {
       Object.assign(aktion, { was: n.was ?? null, ziel: Number.isInteger(n.ziel) ? n.ziel : null, name: typeof n.name === 'string' ? n.name.slice(0, 20) : null });

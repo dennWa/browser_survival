@@ -141,7 +141,8 @@ hud.beiAktionen({
   angeln: () => aktuellesSpiel?.angeln(),
   benutzen: (slot) => aktuellesSpiel?.benutzen(slot),
   konsumieren: (slot) => aktuellesSpiel?.konsumieren(slot),
-  ablegen: (slot) => aktuellesSpiel?.ablegen(slot),
+  ablegen: (slot, einzeln = false) => aktuellesSpiel?.ablegen(slot, einzeln),
+  anzuenden: (slot) => aktuellesSpiel?.slotAktion(AKTIONEN.ANZUENDEN, slot), // Runde 32: Fackel
   tauschen: (von, nach) => aktuellesSpiel?.tauschen(von, nach),
   rucksackAblegen: () => aktuellesSpiel?.rucksackAblegen(),
   anlegen: (slot) => aktuellesSpiel?.anlegen(slot),

@@ -19,3 +19,5 @@ Alle Grafiken stammen aus frei nutzbaren Paketen. Bei **CC-BY** ist die Namensne
 | [Feuerbohrer](https://github.com/dennwa/browser_survival) | Browser Survival (eigene Platzhalter-Modelle, Icon aus 3D-Render) | CC0 | Item-Icon Feuerbohrer |
 | [Papier](https://sketchfab.com/3d-models/crumpled-paper-f19ea7ce149c4b25a527abecec1da524) | Darxkl05 (Crumpled paper, Sketchfab; Icon aus eigenem 3D-Render) | CC-BY | Item-Icon Papier |
 | [Baumrinde](https://github.com/dennwa/browser_survival) | Browser Survival (eigene Platzhalter-Modelle, Icon aus 3D-Render) | CC0 | Item-Icon Baumrinde |
+| [Fackel](https://github.com/dennwa/browser_survival) | Browser Survival (eigenes Icon, Runde 32) | CC0 | Item-Icon Fackel |
+| [Brennende Fackel](https://github.com/dennwa/browser_survival) | Browser Survival (eigenes Icon, Runde 32) | CC0 | Item-Icon Brennende Fackel |

@@ -377,6 +377,7 @@ function fackel(brennt) {
   return g;
 }
 BAUPLAENE.fackel = () => fackel(false);
+BAUPLAENE.fackel_brennend = () => fackel(true);
 
 /** Alle Modellnamen (zum Vorkompilieren der Shader beim Laden). */
 export const WAFFEN_NAMEN = Object.keys(BAUPLAENE);
@@ -415,7 +416,7 @@ export function erzeugeWaffe(name, mods = null) {
 export function haltungFuer(name) {
   if (name === 'pistole' || name === 'revolver') return 'pistole';
   if (name === 'schrotflinte' || name === 'gewehr' || name === 'bogen' || name === 'armbrust' || name === 'mp' || name === 'sturmgewehr') return 'gewehr';
-  if (name === 'taschenlampe' || name === 'fackel') return 'lampe';
+  if (name === 'taschenlampe') return 'lampe'; // Runde 32: Fackel = Nahkampf-Haltung (schwingt)
   if (name === 'essen' || name === 'trinken' || name === 'holz' || name === 'samen' || name === 'granate' || name === 'molotow') return 'seitlich'; // entspannt neben dem Körper tragen, kein Schwung (Runde 19)
   return 'nahkampf';
 }

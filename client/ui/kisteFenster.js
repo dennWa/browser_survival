@@ -24,7 +24,8 @@ export class KisteFenster {
     this.info = dokument.getElementById('kiste-info');
     this.titel = dokument.getElementById('kiste-titel');
     dokument.getElementById('kiste-schliessen').addEventListener('click', () => this.#aktionen.schliessen?.());
-    for (let i = 0; i < KISTE_PLAETZE; i++) this.#kisten.push(this.#baueSlot(this.rasterKiste, i, (slot) => this.#aktionen.nehmen?.(slot)));
+    // Runde 32: Leichen toter Spieler haben mehr Plätze (Inventar + Rucksack + Kleidung) – überzählige Plätze bleiben verborgen
+    for (let i = 0; i < Math.max(KISTE_PLAETZE, 44); i++) this.#kisten.push(this.#baueSlot(this.rasterKiste, i, (slot) => this.#aktionen.nehmen?.(slot)));
     for (let i = 0; i < INVENTAR_MAX; i++) this.#inventar.push(this.#baueSlot(this.rasterInventar, i, (slot) => this.#aktionen.legen?.(slot)));
   }
 

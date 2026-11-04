@@ -37,6 +37,7 @@ import { aktualisiereTutorial, erstelleTutorial, tutorialKonfiguration } from '.
 import { erzeugeTerritorium, territoriumLaden, territoriumSpeichern } from './systeme/territoriumSystem.js';
 import { aktualisiereMehrspieler } from './systeme/mehrspielerSystem.js';
 import { aktualisiereZiele } from './systeme/zielSystem.js';
+import { leicheZuNetzwerk } from './systeme/leichenSystem.js';
 
 /** Welche Entitätstypen jeden Tick im Schnappschuss landen (dynamisch) – und wie sie serialisiert werden. */
 const NETZWERK_SERIALISIERER = {
@@ -44,6 +45,7 @@ const NETZWERK_SERIALISIERER = {
   zombie: zombieZuNetzwerk,
   tier: tierZuNetzwerk,
   fahrzeug: fahrzeugZuNetzwerk,
+  leiche: leicheZuNetzwerk, // Runde 32
 };
 
 /**

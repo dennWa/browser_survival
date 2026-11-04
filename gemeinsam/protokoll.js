@@ -88,6 +88,8 @@ export const AKTIONEN = Object.freeze({
   ANLEGEN: 'anlegen', // { slot } Runde 23: Kleidung (oder Rucksack) aus dem Inventar anziehen
   AUSZIEHEN: 'ausziehen', // { stelle } Runde 23: Kleidung an kopf|oberkoerper|haende|beine|fuesse ausziehen (ruecken = Rucksack ablegen)
   PLATZIEREN: 'platzieren', // { slot, tx, ty } Bauwerk-Item (oder Hacke → Beet) auf Kachel tx/ty aufstellen
+  LEICHE: 'leiche', // { ziel: Entitäts-ID } Runde 32: Leiche/Rucksack eines toten Spielers durchsuchen
+  ANZUENDEN: 'anzuenden', // { slot } Runde 32: Fackel im Inventar anzünden (Feuerzeug/Feuerbohrer nötig)
   FEUER: 'feuer', // F: nächstes Lagerfeuer anzünden (Feuerzeug nötig) / löschen – sonst wie 'tuer'
   BAUWERK: 'bauwerk', // E am nächsten Bauwerk: Falle aufnehmen/spannen, Feuer-/Ofen-Menü öffnen, pflanzen, ernten
   BAUEN: 'bauen', // { teil, tx, ty, drehung? } Basisbau: Bauteil (gemeinsam/basisbau/teile.js) setzen, auch die Basis-Flagge; Hammer in der Hand nötig

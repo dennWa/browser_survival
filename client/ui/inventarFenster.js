@@ -169,7 +169,8 @@ export class InventarFenster {
     });
     knopf.addEventListener('contextmenu', (e) => {
       e.preventDefault();
-      if (e.pointerType !== 'touch') this.#aktionen.ablegen?.(slot);
+      // Runde 32: Rechtsklick (Desktop) → Kontextmenü (Essen/Trinken/Benutzen/Anziehen/Anzünden/Ablegen …); Touch: lange drücken bleibt ohne Menü
+      if (e.pointerType !== 'touch' && this.#daten?.inventar[slot]) this.#zeigeKontextmenue(slot, e.clientX, e.clientY);
     });
   }
 
@@ -242,6 +243,57 @@ export class InventarFenster {
     if (element && this.el.contains(element)) return { art: 'fenster' };
     return { art: 'boden' };
   }
+
+  /**
+   * Runde 32: Kontextmenü eines Inventarplatzes – Einträge je nach Item-Art (itemKontextEintraege), schließt bei Klick daneben/Esc.
+   */
+  #zeigeKontextmenue(slot, x, y) {
+    this.#schliesseKontextmenue();
+    const e = this.#daten?.inventar[slot];
+    const def = e && this.#itemDefinitionen[e.defId];
+    if (!def) return;
+    const d = this.dokument;
+    const menue = Object.assign(d.createElement('div'), { className: 'inv-kontext' });
+    menue.append(Object.assign(d.createElement('div'), { className: 'inv-kontext-titel', textContent: def.name }));
+    for (const { text, aktion } of itemKontextEintraege(def, e)) {
+      const k = Object.assign(d.createElement('button'), { type: 'button', textContent: text });
+      k.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        this.#schliesseKontextmenue();
+        if (aktion === 'einzeln') this.#aktionen.ablegen?.(slot, true);
+        else this.#aktionen[aktion]?.(slot);
+      });
+      menue.append(k);
+    }
+    d.body.append(menue);
+    const r = menue.getBoundingClientRect();
+    menue.style.left = `${Math.min(x, (d.defaultView?.innerWidth ?? 1e4) - r.width - 4)}px`;
+    menue.style.top = `${Math.min(y, (d.defaultView?.innerHeight ?? 1e4) - r.height - 4)}px`;
+    this.#kontext = menue;
+    const zu = (ev) => {
+      if (ev.type === 'keydown' && ev.key !== 'Escape') return;
+      if (ev.type === 'pointerdown' && menue.contains(ev.target)) return;
+      this.#schliesseKontextmenue();
+    };
+    this.#kontextZu = zu;
+    setTimeout(() => {
+      d.addEventListener('pointerdown', zu, true);
+      d.addEventListener('keydown', zu, true);
+    });
+  }
+
+  #schliesseKontextmenue() {
+    this.#kontext?.remove();
+    this.#kontext = null;
+    if (this.#kontextZu) {
+      this.dokument.removeEventListener('pointerdown', this.#kontextZu, true);
+      this.dokument.removeEventListener('keydown', this.#kontextZu, true);
+      this.#kontextZu = null;
+    }
+  }
+
+  #kontext = null;
+  #kontextZu = null;
 
   #zeigeInfo(slot) {
     const e = this.#daten?.inventar[slot];
@@ -355,4 +407,23 @@ export class InventarFenster {
       this.zeichneIcon(s.icon, defId);
     });
   }
+}
+
+/**
+ * Runde 32: Einträge des Rechtsklick-Menüs je Item: [{ text, aktion }] – aktion = Name in den Inventar-Aktionen
+ * (konsumieren | benutzen | anlegen | anzuenden | modsAbnehmen | ablegen) bzw. 'einzeln' (1 Stück ablegen).
+ */
+export function itemKontextEintraege(def, eintrag = {}) {
+  const liste = [];
+  if (def.kategorie === 'nahrung') liste.push({ text: '🍴 Essen', aktion: 'konsumieren' });
+  else if (def.kategorie === 'getraenk') liste.push({ text: '🥤 Trinken', aktion: 'konsumieren' });
+  else if (def.kategorie === 'medizin') liste.push({ text: '🩹 Benutzen', aktion: 'konsumieren' });
+  if (def.slot || def.kategorie === 'kleidung' || def.kategorie === 'rucksack') liste.push({ text: '👕 Anziehen', aktion: 'anlegen' });
+  if (eintrag.defId === 'fackel') liste.push({ text: '🔥 Anzünden', aktion: 'anzuenden' });
+  if (['nahkampf', 'fernkampf', 'werkzeug', 'wurf', 'bauwerk', 'samen'].includes(def.kategorie) || def.inHand || def.werkzeug) liste.push({ text: '✋ In die Hand nehmen', aktion: 'benutzen' });
+  else if (!liste.length) liste.push({ text: '✋ Nutzen', aktion: 'benutzen' });
+  if (eintrag.mods?.length) liste.push({ text: '🔧 Aufsätze abnehmen', aktion: 'modsAbnehmen' });
+  if ((eintrag.menge ?? 1) > 1) liste.push({ text: '⬇ 1 ablegen', aktion: 'einzeln' });
+  liste.push({ text: '⬇ Ablegen', aktion: 'ablegen' });
+  return liste;
 }

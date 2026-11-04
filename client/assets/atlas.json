@@ -1017,6 +1017,20 @@
     "b": 49,
     "h": 41,
     "weltGroesse": 20
+   },
+   "fackel": {
+    "x": 86,
+    "y": 1307,
+    "b": 43,
+    "h": 49,
+    "weltGroesse": 22
+   },
+   "fackel_brennend": {
+    "x": 154,
+    "y": 1300,
+    "b": 51,
+    "h": 63,
+    "weltGroesse": 22
    }
   }
  },
@@ -1372,6 +1386,18 @@
   {
    "paket": "Baumrinde",
    "urheber": "Browser Survival (eigene Platzhalter-Modelle, Icon aus 3D-Render)",
+   "lizenz": "CC0",
+   "url": "https://github.com/dennwa/browser_survival"
+  },
+  {
+   "paket": "Fackel",
+   "urheber": "Browser Survival (eigenes Icon, Runde 32)",
+   "lizenz": "CC0",
+   "url": "https://github.com/dennwa/browser_survival"
+  },
+  {
+   "paket": "Brennende Fackel",
+   "urheber": "Browser Survival (eigenes Icon, Runde 32)",
    "lizenz": "CC0",
    "url": "https://github.com/dennwa/browser_survival"
   }

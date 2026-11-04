@@ -282,6 +282,7 @@ export class ClientSpiel {
     if (was.art === 'helfen') return this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.HELFEN, ziel: was.id });
     if (was.art === 'haustier') return this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.HAUSTIER, ziel: was.id });
     if (was.art === 'behaelter') return this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.BEHAELTER, ziel: was.nr }); // Runde 25
+    if (was.art === 'leiche') return this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.LEICHE, ziel: was.id }); // Runde 32
     if (was.art === 'aufheben') this.#aktion(AKTIONEN.AUFHEBEN);
     else if (was.art === 'abbauen') this.#aktion(AKTIONEN.ABBAUEN);
     else if (was.art === 'bauwerk' && was.bauwerkArt === 'musik') this.musikFenster.zeige(this.welt.bauwerke.get(was.bauwerkId)); // Runde 24
@@ -624,6 +625,23 @@ export class ClientSpiel {
     return null;
   }
 
+  /** Runde 32: Leiche oder Rucksack eines Toten in Reichweite (60 px, wie leichenSystem.LEICHE_REICHWEITE) */
+  #naechsteLeiche() {
+    const letzter = this.schnappschuesse[this.schnappschuesse.length - 1];
+    let beste = null;
+    let bester = 60;
+    for (const e of letzter?.entitaeten.values() ?? []) {
+      if (e.typ !== 'leiche') continue;
+      const d = Math.hypot(e.x - this.lokal.x, e.y - this.lokal.y);
+      if (d <= bester) {
+        bester = d;
+        beste = e;
+      }
+    }
+    if (!beste) return null;
+    return { art: 'leiche', id: beste.id, text: beste.rucksack ? `Rucksack von ${beste.name} durchsuchen` : `${beste.name} durchsuchen`, symbol: beste.rucksack ? '🎒' : '💀' };
+  }
+
   /** Was würde E gerade tun? → { art, text } oder null */
   #interaktion() {
     if (this.spielerDaten?.tot || this.spielerDaten?.arbeit || this.spielerDaten?.niedergestreckt) return null;
@@ -640,6 +658,8 @@ export class ClientSpiel {
     if (mitspieler) return mitspieler;
     const tier = this.#naechstesHaustier(); // Runde 24: Hund/Katze/Huhn
     if (tier) return tier;
+    const leiche = this.#naechsteLeiche(); // Runde 32: Leiche/Rucksack eines toten Spielers
+    if (leiche) return leiche;
     // Runde 25: Schrank/Kiste der Karte durchsuchen (E bzw. Aktions-Knopf am Handy)
     const behaelter = naechsterBehaelter(this.behaelter, x, y, this.welt.kachelGroesse);
     const bettNaeher = behaelter && this.welt.naechstesObjekt(x, y, Math.min(BETT_REICHWEITE, abstandZumBehaelter(behaelter, x, y, this.welt.kachelGroesse)), (o) => o.typ.startsWith('bett'));
@@ -1263,6 +1283,7 @@ export class ClientSpiel {
         this.#kampfInDerNaehe(e);
         break;
       case 'tod':
+        if (e.ziel === 'zombie') this.renderer?.zombieGestorben?.(e.id); // Runde 32: Leiche bleibt 2 min liegen
         if (e.ziel === 'zombie') this.#zombieSound('zombie_tod', e);
         else if (e.ziel === 'tier') this.sound.spiele('hase_tod', { x: e.x, y: e.y });
         else if (!this.#istBot(e.id)) this.sound.spiele(this.#istFrau(e.id) ? 'spieler_tod_frau' : 'spieler_tod', { x: e.x, y: e.y }); // Runde 29: Bots stumm

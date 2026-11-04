@@ -8,6 +8,7 @@ import { entferneSlot, fuegeZumInventarHinzu } from './inventarSystem.js';
 import { BEHAELTER, BEHAELTER_REICHWEITE, abstandZumBehaelter, findeBehaelter } from '../../../gemeinsam/welt/behaelter.js';
 import { LOOT_TABELLEN } from '../konfiguration/lootTabellen.js';
 import { pruefeEintrag } from '../spielstand.js';
+import { LEICHE_REICHWEITE } from './leichenSystem.js';
 
 /**
  * Lagerkisten (Bauwerk 'kiste', 16 Plätze, bauwerk.inhalt = Array aus null | { defId, menge, magazin? }).
@@ -68,6 +69,16 @@ export function oeffneBehaelter(spielWelt, spieler, nr) {
   spielWelt.ereignis({ typ: 'behaelterAuf', x: b.x * spielWelt.welt.kachelGroesse, y: b.y * spielWelt.welt.kachelGroesse, art: b.art, von: spieler.id });
   if (neu && b.inhalt.every((e) => e === null)) spielWelt.melde(spieler.id, `${BEHAELTER[b.art].symbol} ${BEHAELTER[b.art].name}: leider leer`);
   sendeKiste(spielWelt, spieler, behaelterVon(spielWelt, b.id));
+}
+
+/** Runde 32: AKTION leiche { ziel: ID } – Leiche/Rucksack eines Toten durchsuchen (in Reichweite, zu Fuß). */
+export function oeffneLeiche(spielWelt, spieler, id) {
+  const l = spielWelt.holen(id);
+  if (l?.typ !== 'leiche' || spieler.fahrzeug || spieler.tot) return;
+  if (Math.hypot(l.x - spieler.x, l.y - spieler.y) > LEICHE_REICHWEITE + 8) return;
+  spieler.offeneKiste = `l${l.id}`;
+  spielWelt.ereignis({ typ: 'behaelterAuf', x: l.x, y: l.y, art: 'leiche', von: spieler.id });
+  sendeKiste(spielWelt, spieler, behaelterVon(spielWelt, spieler.offeneKiste));
 }
 
 /** Pro Sekunde: leer geräumte Karten-Behälter füllen sich nach einer Weile neu (nur wenn gerade niemand hineinschaut). */
@@ -135,6 +146,11 @@ function offeneKiste(spielWelt, spieler) {
 }
 
 function behaelterVon(spielWelt, ref) {
+  if (typeof ref === 'string' && ref[0] === 'l') {
+    // Runde 32: Leiche / zurückgelassener Rucksack eines Toten
+    const l = spielWelt.holen(Number(ref.slice(1)));
+    return l?.typ === 'leiche' ? { id: ref, inhalt: l.inhalt, titel: l.rucksack ? `🎒 Rucksack von ${l.name}` : `💀 ${l.name}`, leiche: l } : null;
+  }
   if (typeof ref === 'string' && ref[0] === 'm') {
     const b = spielWelt.behaelter?.[Number(ref.slice(1))];
     if (!b?.inhalt) return null;
@@ -215,7 +231,9 @@ export function aktualisiereKisten(spielWelt) {
       schliesseKiste(spielWelt, s);
       continue;
     }
-    const weg = b.fahrzeug
+    const weg = b.leiche
+      ? s.fahrzeug || Math.hypot(b.leiche.x - s.x, b.leiche.y - s.y) > LEICHE_REICHWEITE + OEFFNEN_TOLERANZ
+      : b.fahrzeug
       ? !s.fahrzeug && abstandZumFahrzeug(b.fahrzeug, s.x, s.y) > EINSTIEG_ABSTAND + OEFFNEN_TOLERANZ
       : b.karte
         ? s.fahrzeug || abstandZumBehaelter(b.karte, s.x, s.y, g) > BEHAELTER_REICHWEITE + OEFFNEN_TOLERANZ

@@ -59,6 +59,10 @@ export const REZEPTE = {
     zutaten: { holz: 3, stoff: 1 },
     ergebnis: 'lagerfeuer',
   },
+  // Runde 32: Fackel = 1 Ast + 2 Zunder (Papier, Verband oder Stofffetzen) – anzünden mit Feuerzeug/Feuerbohrer
+  fackel_papier: { name: 'Fackel (Papier)', kategorie: 'Waffen', ort: 'inventar', beschreibung: 'Ast mit Papier umwickelt. Anzünden: Rechtsklick → Anzünden (Feuerzeug/Feuerbohrer).', zutaten: { ast: 1, papier: 2 }, ergebnis: 'fackel' },
+  fackel_verband: { name: 'Fackel (Verband)', kategorie: 'Waffen', ort: 'inventar', beschreibung: 'Ast mit Verband umwickelt.', zutaten: { ast: 1, verband: 2 }, ergebnis: 'fackel' },
+  fackel_stoff: { name: 'Fackel (Stofffetzen)', kategorie: 'Waffen', ort: 'inventar', beschreibung: 'Ast mit Stofffetzen umwickelt.', zutaten: { ast: 1, stoff: 2 }, ergebnis: 'fackel' },
   lagerfeuer_verband: {
     name: 'Lagerfeuer (mit Verband)',
     kategorie: 'Bauen',

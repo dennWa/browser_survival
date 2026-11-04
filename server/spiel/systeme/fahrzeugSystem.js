@@ -1,6 +1,7 @@
 import { FAHRZEUG, AUFPRALL_MIN_KMH, LATERNE_MIN_KMH, tempoZuKmh, EINSTIEG_ABSTAND, FAHRZEUG_MAX_KMH, abstandZumFahrzeug, ausstiegsPunkt, fahrzeugKacheln, kmhZuTempo, passt } from '../../../gemeinsam/physik/fahrzeug.js';
 import { fuegeSchadenZu, toeten } from './kampfSystem.js';
 import { schliesseKiste } from './kistenSystem.js';
+import { explodiere } from './sonderZombieSystem.js';
 import { erzeugeFahrzeug } from '../entitaeten/fahrzeug.js';
 
 /**
@@ -33,6 +34,25 @@ export function schlageFahrzeug(spielWelt, fz, schlaege) {
   fz.fahrerId = null;
   fz.tempo = 0;
   spielWelt.ereignis({ typ: 'fahrzeugKaputt', id: fz.id, x: fz.x, y: fz.y });
+}
+
+/**
+ * Runde 32: Insassen (Fahrer + Beifahrer) verletzen – `anteil` der eigenen Maximal-Lebenspunkte (Aufprall: bis
+ * konfiguration.fahrzeug.insassenSchaden = 30 % bei Vollgas, Bombenzombie überfahren: bombeInsassen = 50 %).
+ */
+function verletzeInsassen(spielWelt, fz, anteil, winkel = 0) {
+  if (!(anteil > 0)) return;
+  const ids = [fz.fahrerId, fz.beifahrerId].filter((id) => id !== null && id !== undefined);
+  for (const id of ids) {
+    const s = spielWelt.holen(id);
+    if (!s || s.typ !== 'spieler' || s.tot) continue;
+    fuegeSchadenZu(spielWelt, s, (s.maxLeben ?? 100) * anteil, null, winkel, { explosion: true });
+  }
+}
+
+/** Runde 32: Aufprall-Anteil 0..1 aus dem Tempo (ab AUFPRALL_MIN_KMH, 1 = Vollgas). */
+function aufprallAnteil(kmh) {
+  return Math.min(1, Math.max(0, (kmh - AUFPRALL_MIN_KMH) / (FAHRZEUG_MAX_KMH - AUFPRALL_MIN_KMH)));
 }
 
 export function fahrzeugAktion(spielWelt, spieler) {
@@ -196,8 +216,10 @@ function verarbeiteAufprall(spielWelt, fz) {
   if (fz.aufprallPause > 0) return;
   const k = spielWelt.konfiguration.fahrzeug.aufprallSchaden;
   const { kmh, schramm } = fz.aufprall;
-  const anteil = Math.min(1, Math.max(0, (kmh - AUFPRALL_MIN_KMH) / (FAHRZEUG_MAX_KMH - AUFPRALL_MIN_KMH)));
+  const anteil = aufprallAnteil(kmh);
   const schaden = (k.min + (k.max - k.min) * anteil) * (schramm ? k.schrammFaktor : 1);
+  // Runde 32: Insassen nehmen Schaden je nach Tempo (Vollgas frontal = insassenSchaden, Schrammen anteilig)
+  verletzeInsassen(spielWelt, fz, (spielWelt.konfiguration.fahrzeug.insassenSchaden ?? 0.3) * anteil * (schramm ? k.schrammFaktor : 1), fz.winkel);
   fz.aufprallPause = k.pause;
   const vorn = fz.laenge / 2;
   spielWelt.ereignis({ typ: 'aufprall', x: fz.x + Math.cos(fz.winkel) * vorn * Math.sign(fz.tempo || 1), y: fz.y + Math.sin(fz.winkel) * vorn * Math.sign(fz.tempo || 1), tempo: Math.abs(fz.tempo) });
@@ -225,6 +247,7 @@ function fahreHindernisseUm(spielWelt, fz) {
     if (abstandZumFahrzeug(fz, h.x, h.y) > h.radius + 2) continue;
     if (h.typ === 'laterne' && tempoZuKmh(fz.tempo) < LATERNE_MIN_KMH) continue; // Laternen erst ab LATERNE_MIN_KMH
     if (h.typ === 'baum') {
+      verletzeInsassen(spielWelt, fz, (spielWelt.konfiguration.fahrzeug.insassenSchaden ?? 0.3) * aufprallAnteil(tempoZuKmh(Math.abs(fz.tempo))), fz.winkel); // Runde 32
       welt.setzeRessource(h.id, false);
       spielWelt.ressourcenNachwuchs.set(h.id, spielWelt.konfiguration.ressourcen.holz.nachwachsen);
       spielWelt.ereignis({ typ: 'abgebaut', art: 'holz', x: h.x, y: h.y, id: h.id, von: fahrer?.id ?? null, sx: fz.x, sy: fz.y, fahrzeug: true });
@@ -276,6 +299,17 @@ function fahreZombiesAn(spielWelt, fz) {
     if (fz.treffer.has(z.id)) continue;
     if (abstandZumFahrzeug(fz, z.x, z.y) > z.radius + 2) continue;
     fz.treffer.set(z.id, 0.6);
+    if (z.variante === 'explosiv') {
+      // Runde 32: Bombenzombie überfahren → explodiert; Auto verliert bombeAuto (50 %) der Haltbarkeit, Insassen bombeInsassen (50 %) ihres Lebens
+      const k = spielWelt.konfiguration.fahrzeug;
+      const vorher = fz.leben;
+      explodiere(spielWelt, z);
+      fz.leben = vorher; // Explosion trifft im Auto nur das Auto (kampfSystem) – hier genau festgelegt statt doppelt
+      verletzeInsassen(spielWelt, fz, k.bombeInsassen ?? 0.5, fz.winkel);
+      schlageFahrzeug(spielWelt, fz, (fz.maxLeben ?? k.haltbarkeit) * (k.bombeAuto ?? 0.5));
+      if (fz.kaputt) return;
+      continue;
+    }
     const schaden = Math.abs(fz.tempo) * ANFAHR_SCHADEN;
     spielWelt.ereignis({ typ: 'aufprall', x: z.x, y: z.y, tempo: Math.abs(fz.tempo), ziel: 'zombie' }); // ziel → Client: Matsch-Sound
     fuegeSchadenZu(spielWelt, z, schaden, fahrer, fz.winkel + (fz.tempo < 0 ? Math.PI : 0), { ohneXp: true }); // Roadkill bringt 0 XP
