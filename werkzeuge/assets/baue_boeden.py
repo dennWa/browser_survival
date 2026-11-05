@@ -27,6 +27,7 @@ GROESSE = 256
 # name: (ambientCG-ID, Kacheln je Bild, Sättigung, Helligkeit) – leicht entsättigt, passend zum Low-Poly-Look
 BOEDEN = {
     'rasen': ('Grass004', 4, 0.85, 0.9),
+    'gras': ('Grass001', 4, 1.0, 1.0),  # Runde 36: Standard-Rasen der Welt (Zeichen ,) – vorher flache Atlas-Kachel (Schachbrett-Optik)
     'wiese': ('Ground037', 4, 0.9, 0.95),
     'erde': ('Ground106', 4, 0.9, 1.0),
     'kies': ('Gravel043', 3, 0.8, 1.0),

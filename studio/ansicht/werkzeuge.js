@@ -18,7 +18,7 @@ export const WERKZEUGE = [
   { id: 'drehen', titel: 'Drehen', icon: 'drehen', kuerzel: 'E', text: 'Ring ziehen – rastet in 15°-Schritten.' },
   { id: 'skalieren', titel: 'Größe', icon: 'skalieren', kuerzel: 'R', text: 'Größer/kleiner – die Grundfläche (Kollision) wächst mit.' },
   { trenner: true },
-  { id: 'boden', titel: 'Boden malen', icon: 'boden', kuerzel: 'B', text: 'Bodenkachel aus den Assets wählen und malen. [ ] = Pinselgröße.' },
+  { id: 'boden', titel: 'Boden malen', icon: 'boden', kuerzel: 'B', text: 'Bodenkachel aus den Assets wählen und malen. Pinselgröße: 1×1 · 2×2 · 4×4 · 8×8 · 16×16 oder frei (1–25); Tasten [ ] ändern sie um 1.' },
   { id: 'wand', titel: 'Wand ziehen', icon: 'wand', kuerzel: 'N', text: 'Gerade Wand, Fenster oder Tür ziehen.' },
   { id: 'raum', titel: 'Raum bauen', icon: 'raum', kuerzel: 'H', text: 'Rechteck ziehen: Wände, Boden, Tür und Loot in einem Schritt.' },
   { id: 'gelaende', titel: 'Gelände', icon: 'gelaende', kuerzel: 'T', text: 'Heben, senken, glätten, ebnen – Maus gedrückt halten formt weiter.' },
@@ -95,7 +95,7 @@ export class Werkzeuge {
         return [
           { art: 'hinweis', text: this.studio.asset?.art === 'kachel' ? `Kachel: ${this.studio.asset.name}` : 'Bodenkachel unten in den Assets wählen' },
           { art: 'segment', feld: 'modus', werte: [['pinsel', 'Pinsel'], ['rechteck', 'Rechteck'], ['fuellen', 'Füllen']] },
-          { art: 'segment', feld: 'groesse', werte: [['1', '1×1'], ['2', '2×2'], ['3', '3×3'], ['5', '5×5'], ['9', '9×9']] },
+          { art: 'segment', feld: 'groesse', werte: [['1', '1×1'], ['2', '2×2'], ['4', '4×4'], ['8', '8×8'], ['16', '16×16']] },
           { art: 'zahl', feld: 'groesse', titel: 'Größe', min: 1, max: 25, schritt: 1 },
           { art: 'schalter', feld: 'waendeSchuetzen', titel: 'Wände, Fenster & Türen schützen' },
         ];

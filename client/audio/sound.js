@@ -1,3 +1,4 @@
+
 /**
  * Sound-System: Geräusche = eigene Dateien (audio/eigene, Vorrang) > echte Samples (audio/samples) > Web-Audio-Synthese (REZEPTE).
  * Lautstärke je Ereignis: eigene/lautstaerke.txt bzw. eigene/einstellungen.json (Audio-Zentrale) → eigene.json. Ereignisliste: eigeneSounds.js.
@@ -16,6 +17,8 @@
  *
  * Browser erlauben Ton erst nach einer Nutzeraktion → entsperren() beim Login-Klick aufrufen.
  */
+/** Runde 36: Touch-Gerät (Handy/Tablet) → Musik ohne <audio>-Tag, damit Spotify/Podcasts im Hintergrund weiterlaufen */
+const MISCHEN = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
 const SPEICHER_SCHLUESSEL = 'browserSurvival.ton';
 /** Regler in den Einstellungen: gesamt = alles, effekte = Aktionen/Kampf/Zombies, atmosphaere = Wind, Regen & Brummen, musik = Zonen-Musik (client/musik). */
 export const LAUTSTAERKE_KANAELE = Object.freeze({ gesamt: 'Gesamt', effekte: 'Effekte', atmosphaere: 'Wind & Regen', musik: 'Musik' });
@@ -127,6 +130,8 @@ export class Sound {
   #baueKontext() {
     const AudioKontext = window.AudioContext || window.webkitAudioContext;
     if (!AudioKontext) return false;
+    // Runde 36: Handy-Musik/Podcast (Spotify …) soll weiterlaufen: iOS „ambient“ = mit anderen Apps mischen
+    try { if (navigator.audioSession) navigator.audioSession.type = 'ambient'; } catch { /* ältere Browser */ }
     const ctx = new AudioKontext();
     this.#ctx = ctx;
     const kompressor = ctx.createDynamicsCompressor(); // verhindert Übersteuern bei vielen Schüssen
@@ -788,6 +793,8 @@ export class Sound {
   spieleMusik(url, { fade = 3, schleife = false, ab = 0 } = {}) {
     const ctx = this.#ctx;
     if (!ctx) return null;
+    // Touch-Geräte: KEIN <audio>-Tag (Android wertet es als Medienwiedergabe, nimmt den Audiofokus und pausiert Spotify & Co.)
+    if (MISCHEN) return this.#spieleMusikPuffer(url, { fade, schleife, ab });
     const audio = new Audio(url);
     audio.crossOrigin = 'anonymous';
     audio.preload = 'auto';
@@ -827,6 +834,63 @@ export class Sound {
         setTimeout(() => {
           audio.pause();
           quelle.disconnect();
+          gain.disconnect();
+        }, fadeSekunden * 1000 + 300);
+      },
+    };
+  }
+
+  /** Runde 36: Musik als dekodierter Puffer (nur WebAudio, kein Audiofokus). Gleiche Rückgabe wie spieleMusik. */
+  #spieleMusikPuffer(url, { fade, schleife, ab }) {
+    const ctx = this.#ctx;
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    gain.connect(this.#musikBus);
+    let quelle = null;
+    let endeHoerer = null;
+    let aus = false;
+    let ziel = 1;
+    const eintrag = {
+      abgebrochen: () => {
+        aus = true;
+        try { quelle?.stop(); } catch { /* schon gestoppt */ }
+        const fn = endeHoerer;
+        endeHoerer = null;
+        fn?.('neustart');
+      },
+    };
+    this.#musikSpieler.add(eintrag);
+    fetch(url)
+      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
+      .then((daten) => ctx.decodeAudioData(daten))
+      .then((puffer) => {
+        if (aus) return;
+        quelle = ctx.createBufferSource();
+        quelle.buffer = puffer;
+        quelle.loop = schleife;
+        quelle.connect(gain);
+        quelle.onended = () => {
+          this.#musikSpieler.delete(eintrag);
+          if (!aus) endeHoerer?.();
+        };
+        quelle.start(0, ab > 0 ? ab % puffer.duration : 0);
+        gain.gain.setTargetAtTime(ziel, ctx.currentTime, fade / 3);
+      })
+      .catch(() => { this.#musikSpieler.delete(eintrag); if (!aus) endeHoerer?.(true); });
+    return {
+      beiEnde: (fn) => (endeHoerer = fn),
+      lautstaerke: (wert) => {
+        if (Math.abs(wert - ziel) < 0.01) return;
+        ziel = wert;
+        gain.gain.setTargetAtTime(wert, ctx.currentTime, 0.25);
+      },
+      stoppen: (fadeSekunden = fade) => {
+        endeHoerer = null;
+        aus = true;
+        this.#musikSpieler.delete(eintrag);
+        gain.gain.setTargetAtTime(0, ctx.currentTime, Math.max(0.05, fadeSekunden / 3));
+        setTimeout(() => {
+          try { quelle?.stop(); } catch { /* schon gestoppt */ }
           gain.disconnect();
         }, fadeSekunden * 1000 + 300);
       },
