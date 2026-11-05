@@ -93,6 +93,7 @@ export const AKTIONEN = Object.freeze({
   FEUER: 'feuer', // F: nächstes Lagerfeuer anzünden (Feuerzeug nötig) / löschen – sonst wie 'tuer'
   BAUWERK: 'bauwerk', // E am nächsten Bauwerk: Falle aufnehmen/spannen, Feuer-/Ofen-Menü öffnen, pflanzen, ernten
   BAUEN: 'bauen', // { teil, tx, ty, drehung? } Basisbau: Bauteil (gemeinsam/basisbau/teile.js) setzen, auch die Basis-Flagge; Hammer in der Hand nötig
+  BAU_BLOCK: 'bauBlock', // { wert: 1|2|4|8 } Basisbau: Kantenlänge der Blöcke (Boden/Wand/Dach) für diesen Spieler wählen (Rechtsklick im Bau-Modus)
   ABREISSEN: 'abreissen', // { tx, ty, ebene? } mit dem Hammer ein eigenes Bauteil abreißen (75 % der Kosten zurück)
   FELD: 'feld', // { tx, ty } mit der Hacke in der Hand (Taste G) ein quadratisches Erdfeld um die Kachel anlegen
   KISTE_LEGEN: 'kisteLegen', // { slot } Stapel aus dem Inventar in die geöffnete Lagerkiste legen

@@ -18,7 +18,7 @@ import { fahrzeugAktion } from './fahrzeugSystem.js';
 import { legeInKiste, nimmAusKiste, oeffneBehaelter, oeffneKofferraum, oeffneLeiche, schliesseKiste } from './kistenSystem.js';
 import { entferneFeld, legeFeldAn } from './bauSystem.js';
 import { legeInStation, nimmAusStation, schliesseStation, setzeAmFeuer, setzeHin } from './stationSystem.js';
-import { baue, reisseAb } from './basisbauSystem.js';
+import { setzeBauBlock, baue, reisseAb } from './basisbauSystem.js';
 import { wendeItemAn } from './gesundheitSystem.js';
 import { istWasserKachel } from '../../../gemeinsam/welt/wasser.js';
 import { gruppenAktion, handelAktion, helfen } from './mehrspielerSystem.js';
@@ -174,6 +174,9 @@ export function verarbeiteAktionen(spielWelt) {
           break;
         case AKTIONEN.BAUEN:
           baue(spielWelt, spieler, aktion);
+          break;
+        case AKTIONEN.BAU_BLOCK:
+          setzeBauBlock(spielWelt, spieler, aktion.wert);
           break;
         case AKTIONEN.ABREISSEN:
           reisseAb(spielWelt, spieler, aktion);

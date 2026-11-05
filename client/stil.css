@@ -935,6 +935,11 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
 #bau-menue .bau-kosten .fehlt { color: var(--fehler); }
 #bau-menue .bau-werkzeuge { display: flex; flex-wrap: wrap; gap: 4px; }
 #bau-menue .bau-knopf { padding: 3px 9px; font-size: 0.78rem; color: var(--text); background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 8px; }
+.bau-groessen { position: fixed; z-index: 90; display: flex; flex-direction: column; gap: 4px; padding: 8px; min-width: 104px; background: rgba(18, 20, 26, 0.96); border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 10px; box-shadow: 0 6px 22px rgba(0, 0, 0, 0.5); }
+.bau-groessen-titel { font-size: 0.7rem; opacity: 0.65; text-align: center; margin-bottom: 2px; }
+.bau-groessen .bau-groesse { padding: 7px 12px; font-size: 0.9rem; color: var(--text); background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 8px; cursor: pointer; }
+.bau-groessen .bau-groesse:hover { background: rgba(255, 255, 255, 0.16); }
+.bau-groessen .bau-groesse.aktiv { background: #8a4a1c; border-color: #ff8a1f; color: #fff; }
 #bau-menue .bau-knopf:disabled { opacity: 0.35; }
 #bau-menue .bau-knopf.aktiv { background: #8a4a1c; border-color: #ff8a1f; color: #fff; }
 #bau-menue .bau-ok { font-weight: 700; color: #fff; background: #3f7d2c; border: 0; }

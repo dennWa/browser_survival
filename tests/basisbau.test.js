@@ -565,6 +565,32 @@ test('Blöcke: Boden/Wand/Dach werden als 2×2 gesetzt (halber Preis), Abriss gi
   assert.equal(anzahl(spieler, 'holz'), vorher + 3, '75 % von 4 Holz pro Kachel, abgerundet');
 });
 
+test('Block-Größe pro Spieler (Rechtsklick-Auswahl): 1×1 / 4×4 / 8×8, ungültige Werte werden ignoriert, Rückerstattung folgt der Größe beim Bauen', () => {
+  const { welt, spieler } = neueWelt({ basisbau: { radiusKacheln: 15, blockGroesse: 2 } });
+  fuegeZumInventarHinzu(spieler, 'holz', 400);
+  flagge(welt, spieler);
+  aktion(welt, spieler, { art: AKTIONEN.BAU_BLOCK, wert: 3 }); // ungültig
+  aktion(welt, spieler, { art: AKTIONEN.BAU_BLOCK, wert: 'x' });
+  assert.equal(spieler.bauBlock, undefined, 'ungültig → Server-Standard bleibt');
+  aktion(welt, spieler, { art: AKTIONEN.BAU_BLOCK, wert: 1 });
+  baue(welt, spieler, 'holzboden', 13, 13);
+  assert.equal(typ(welt, 13, 13, 'boden'), 'holzboden');
+  assert.equal(typ(welt, 12, 12, 'boden'), undefined, '1×1 = nur diese Kachel');
+  let vorher = anzahl(spieler, 'holz');
+  reisseAb(welt, spieler, 13, 13);
+  assert.equal(anzahl(spieler, 'holz'), vorher + 6, '1×1: kein Blockrabatt → 75 % von 8 Holz');
+  aktion(welt, spieler, { art: AKTIONEN.BAU_BLOCK, wert: 4 });
+  const holz = anzahl(spieler, 'holz');
+  baue(welt, spieler, 'holzboden', 14, 14); // Raster 4: (12..15, 12..15)
+  for (const [x, y] of [[12, 12], [15, 15], [12, 15], [15, 12]]) assert.equal(typ(welt, x, y, 'boden'), 'holzboden', `${x},${y}`);
+  assert.equal(typ(welt, 16, 12, 'boden'), undefined);
+  assert.equal(holz - anzahl(spieler, 'holz'), 64, '4×4 = 16 Kacheln × 8 Holz × 0,5');
+  vorher = anzahl(spieler, 'holz');
+  reisseAb(welt, spieler, 14, 14);
+  assert.equal(anzahl(spieler, 'holz'), vorher + 3, '75 % von 4 Holz pro Kachel');
+  assert.equal(spieler.bauBlock, 4);
+});
+
 test('Zaun: kostet 2 Eisenerz, blockiert, Tor lässt sich öffnen, Zombies kommen nicht durch', () => {
   const { welt, spieler } = neueWelt();
   fuegeZumInventarHinzu(spieler, 'eisenerz', 10);

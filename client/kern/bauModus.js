@@ -147,6 +147,35 @@ export class BauModus {
     this.hud.meldung(this.radiusSichtbar ? 'Baugebiet sichtbar' : 'Baugebiet ausgeblendet');
   }
 
+  /**
+   * Rechtsklick im Bau-Modus: Ist ein Block-Bauteil (Boden/Wand/Dach) gewählt → Größen-Popup 1×1 / 4×4 / 8×8 an der Maus
+   * (zweiter Rechtsklick schließt es), sonst Auswahl lösen. @returns true, wenn etwas passiert ist
+   */
+  rechtsklick(x, y) {
+    if (!this.aktiv) return false;
+    if (this.hud.bauMenue.groessenOffen) {
+      this.hud.bauMenue.schliesseGroessen();
+      return true;
+    }
+    if (this.auswahl && this.auswahl !== 'abriss' && BAUTEILE[this.auswahl]?.block) return this.groessenwahl(x, y);
+    return this.abbrechen();
+  }
+
+  /** Größen-Popup öffnen (Rechtsklick auf Block-Bauteil bzw. Knopf ▦). */
+  groessenwahl(x, y) {
+    if (!this.aktiv) return false;
+    const { daten } = this.kontext();
+    this.hud.bauMenue.zeigeGroessen(x ?? window.innerWidth / 2, y ?? window.innerHeight / 2, daten?.bauBlock ?? 1);
+    return true;
+  }
+
+  /** Block-Größe (1 | 4 | 8) beim Server setzen – gilt für Boden, Wand und Dach. */
+  setzeBlock(n) {
+    if (![1, 2, 4, 8].includes(n)) return;
+    this.senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.BAU_BLOCK, wert: n });
+    this.hud.meldung(`Block-Größe ${n}×${n}`);
+  }
+
   /** Rechtsklick: Auswahl lösen. @returns true, wenn etwas gelöst wurde */
   abbrechen() {
     if (!this.aktiv || !this.auswahl) return false;
@@ -165,6 +194,15 @@ export class BauModus {
         return this.drehen();
       case 'radius':
         return this.radiusUmschalten();
+      case 'groesse': {
+        const r = this.hud.bauMenue.knoepfe.groesse.getBoundingClientRect();
+        return this.hud.bauMenue.groessenOffen ? this.hud.bauMenue.schliesseGroessen() : this.groessenwahl(r.left, r.top - 130);
+      }
+      case 'groessenZu':
+        this.klickGesperrt = true; // der schließende Klick baut nicht (bis die Taste losgelassen ist)
+        return;
+      case 'block':
+        return this.setzeBlock(wert);
       case 'bauen':
         return this.bestaetige();
       case 'schliessen':

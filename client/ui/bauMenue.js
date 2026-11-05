@@ -6,13 +6,16 @@ import { BAUTEILE, KATEGORIEN, blockGroesseFuer, fehlendesMaterial, kostenFuer, 
  * Die Karten entstehen aus der Registry gemeinsam/basisbau/teile.js – ein neues Bauteil taucht hier von selbst auf.
  *
  * Reine Anzeige: Entscheidungen trifft kern/bauModus.js, das über beiAktion(art, wert) angesprochen wird:
- *   'waehle' (Bauteil-ID) · 'abriss' · 'drehen' · 'radius' · 'bauen' · 'schliessen' · 'kategorie' (Reiter)
+ *   'waehle' (Bauteil-ID) · 'abriss' · 'drehen' · 'radius' · 'bauen' · 'schliessen' · 'kategorie' (Reiter) · 'groesse' (Knopf ▦ → Auswahl) · 'block' (Wert 1|4|8)
+ * Größen-Auswahl (Rechtsklick bzw. ▦): kleines Popup `zeigeGroessen(x, y, aktuell)`, schließt bei Wahl, Klick daneben, Esc.
  */
 export class BauMenue {
   #wurzel;
   #beiAktion = () => {};
   #signatur = '';
   #kategorie = KATEGORIEN[0];
+  #groessenPopup = null;
+  #schliesser = null;
 
   constructor(dokument) {
     this.dokument = dokument;
@@ -28,6 +31,7 @@ export class BauMenue {
     for (const [art, text, titel, extra] of [
       ['abriss', '🔨 Abriss', 'Mit dem Hammer ein eigenes Bauteil abreißen: 75 % der Kosten zurück (X)', ''],
       ['drehen', '↻ Drehen', 'Fenster, Türrahmen und Möbel drehen (R) – ohne Eingabe richtet sich das Teil selbst aus', ''],
+      ['groesse', '▦ Größe', 'Größe für Boden, Wand und Dach wählen: 1×1, 4×4 oder 8×8 (Rechtsklick)', ''],
       ['radius', '◎ Gebiet', 'Roten Baugebiet-Ring ein-/ausblenden (V) – nur du siehst ihn', ''],
       ['bauen', '✓ Bauen', 'Am Hologramm bauen (Touch: Knopf, PC: Linksklick)', 'nur-touch bau-ok'],
     ]) {
@@ -39,6 +43,54 @@ export class BauMenue {
     const kopf = el('div', 'bau-kopf');
     kopf.append(this.reiter, this.werkzeuge, this.status, this.zu);
     this.#wurzel.append(kopf, this.karten);
+  }
+
+  /** Popup 1×1 / 4×4 / 8×8 (Block-Größe für Boden/Wand/Dach) an Bildschirmposition x/y. Wahl → beiAktion('block', n). */
+  zeigeGroessen(x, y, aktuell) {
+    this.schliesseGroessen();
+    const popup = this.dokument.createElement('div');
+    popup.className = 'bau-groessen';
+    const titel = Object.assign(this.dokument.createElement('div'), { className: 'bau-groessen-titel', textContent: 'Größe wählen' });
+    popup.append(titel);
+    for (const n of [1, 4, 8]) {
+      const knopf = Object.assign(this.dokument.createElement('button'), { type: 'button', className: `bau-groesse${n === aktuell ? ' aktiv' : ''}`, textContent: `${n}×${n}` });
+      knopf.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.schliesseGroessen();
+        this.#beiAktion('block', n);
+      });
+      popup.append(knopf);
+    }
+    this.dokument.body.append(popup);
+    const breite = popup.offsetWidth || 110;
+    const hoehe = popup.offsetHeight || 130;
+    popup.style.left = `${Math.max(4, Math.min(x, (this.dokument.defaultView?.innerWidth ?? 1000) - breite - 4))}px`;
+    popup.style.top = `${Math.max(4, Math.min(y, (this.dokument.defaultView?.innerHeight ?? 700) - hoehe - 4))}px`;
+    this.#groessenPopup = popup;
+    // Klick daneben oder Esc schließt (contextmenu kommt nach dem pointerdown → der öffnende Klick schließt nicht sofort)
+    this.#schliesser = (e) => {
+      if (e.type === 'keydown' && e.key !== 'Escape') return;
+      if (e.type !== 'keydown' && popup.contains(e.target)) return;
+      if (e.type === 'keydown') e.stopPropagation(); // Esc schließt nur das Popup, nicht den ganzen Bau-Modus
+      else this.#beiAktion('groessenZu'); // Klick daneben darf nicht gleich bauen
+      this.schliesseGroessen();
+    };
+    this.dokument.addEventListener('pointerdown', this.#schliesser, true);
+    this.dokument.addEventListener('keydown', this.#schliesser, true);
+  }
+
+  get groessenOffen() {
+    return !!this.#groessenPopup;
+  }
+
+  schliesseGroessen() {
+    if (this.#schliesser) {
+      this.dokument.removeEventListener('pointerdown', this.#schliesser, true);
+      this.dokument.removeEventListener('keydown', this.#schliesser, true);
+      this.#schliesser = null;
+    }
+    this.#groessenPopup?.remove();
+    this.#groessenPopup = null;
   }
 
   beiAktion(fn) {
@@ -58,7 +110,10 @@ export class BauMenue {
 
   zeige(an) {
     this.#wurzel.hidden = !an;
-    if (!an) this.#signatur = '';
+    if (!an) {
+      this.#signatur = '';
+      this.schliesseGroessen();
+    }
   }
 
   /**
@@ -83,11 +138,12 @@ export class BauMenue {
     this.knoepfe.radius.classList.toggle('aktiv', radiusAn);
     this.knoepfe.radius.disabled = !hatFlagge;
     this.knoepfe.drehen.disabled = !(auswahl && auswahl !== 'abriss' && BAUTEILE[auswahl]?.ausrichtung);
+    this.knoepfe.groesse.textContent = `▦ ${blockGroesse}×${blockGroesse}`;
     this.knoepfe.bauen.disabled = !auswahl;
     this.knoepfe.bauen.textContent = auswahl === 'abriss' ? '✓ Abreißen' : '✓ Bauen';
     this.status.title = istTouch
       ? 'Rechter Stick: Ziel wählen · ganz drücken oder ✓ = bauen'
-      : 'Linksklick bauen · Rechtsklick Auswahl lösen · R drehen · X abreißen · V Gebiet · B beenden';
+      : 'Linksklick bauen · Rechtsklick Größe (Boden/Wand/Dach) bzw. Auswahl lösen · R drehen · X abreißen · V Gebiet · B beenden';
 
     this.reiter.replaceChildren(
       ...KATEGORIEN.map((k) => {

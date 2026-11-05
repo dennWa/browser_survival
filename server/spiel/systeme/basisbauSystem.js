@@ -1,6 +1,6 @@
 import { BETT_TYPEN } from '../../../gemeinsam/welt/einrichtung.js';
 import { BAUWERKE, ebeneVon, kachelInReichweite } from '../../../gemeinsam/welt/bauwerke.js';
-import { BAUTEILE, BAU_REICHWEITE_BASIS, fehlendesMaterial, fussabdruck, kostenFuer, kostenProKachel, rueckerstattung } from '../../../gemeinsam/basisbau/teile.js';
+import { BAUTEILE, BAU_REICHWEITE_BASIS, blockGroesseFuer, fehlendesMaterial, fussabdruck, kostenFuer, kostenProKachel, rueckerstattung } from '../../../gemeinsam/basisbau/teile.js';
 import { autoDrehung, findeAbrissZiel, pruefeBauteil } from '../../../gemeinsam/basisbau/platzierung.js';
 import { darfAbreissen } from '../../../gemeinsam/basisbau/rechte.js';
 import { GEGENSTAENDE } from '../konfiguration/gegenstaende.js';
@@ -46,7 +46,7 @@ export function baue(spielWelt, spieler, { teil: teilId, tx, ty, drehung = null 
     return;
   }
 
-  const blockGroesse = spielWelt.konfiguration.basisbau.blockGroesse ?? 1;
+  const blockGroesse = blockFuerSpieler(spielWelt, spieler);
   const kontext = { territorium: spielWelt.territorium, name: spieler.name, spieler: { x: spieler.x, y: spieler.y }, flaggenOptionen: flaggenOptionen(spielWelt.konfiguration), blockGroesse };
   const pruefung = pruefeBauteil(welt, teilId, tx, ty, kontext);
   if (!pruefung.ok) return spielWelt.melde(spieler.id, pruefung.grund);
@@ -60,7 +60,8 @@ export function baue(spielWelt, spieler, { teil: teilId, tx, ty, drehung = null 
 
   for (const [defId, menge] of Object.entries(kosten)) entferneItems(spieler, defId, menge);
   for (const k of kacheln) {
-    const zusatz = teil.ausrichtung ? { drehung: ebeneVon(teilId) === 'tuer' ? autoDrehung(welt, teilId, k.tx, k.ty) : drehung === 0 || drehung === 1 ? drehung : autoDrehung(welt, teilId, k.tx, k.ty) } : {};
+    const zusatz = teil.block ? { blk: blockGroesseFuer(teilId, blockGroesse) } : {}; // Kantenlänge beim Setzen → Rückerstattung beim Abriss
+    if (teil.ausrichtung) zusatz.drehung = ebeneVon(teilId) === 'tuer' ? autoDrehung(welt, teilId, k.tx, k.ty) : drehung === 0 || drehung === 1 ? drehung : autoDrehung(welt, teilId, k.tx, k.ty);
     welt.setzeBauwerk(neuesBauwerk(spielWelt, teilId, k.tx, k.ty, spieler.name, zusatz));
   }
   tx = kacheln[0].tx;
@@ -68,6 +69,19 @@ export function baue(spielWelt, spieler, { teil: teilId, tx, ty, drehung = null 
   const g = welt.kachelGroesse;
   spielWelt.ereignis({ typ: 'gebaut', bauwerk: teilId, x: (tx + 0.5) * g, y: (ty + 0.5) * g, von: spieler.id });
   if (BETT_TYPEN.has(teilId)) spielWelt.melde(spieler.id, 'Schlafplatz steht – mit E schlafen & Spawn Point setzen');
+}
+
+/** Erlaubte Block-Kantenlängen (Boden/Wand/Dach), wählbar per Rechtsklick im Bau-Modus. */
+export const BLOCK_GROESSEN = Object.freeze([1, 2, 4, 8]);
+
+/** Block-Kantenlänge dieses Spielers: eigene Wahl, sonst Server-Standard (konfiguration.basisbau.blockGroesse). */
+export function blockFuerSpieler(spielWelt, spieler) {
+  return BLOCK_GROESSEN.includes(spieler.bauBlock) ? spieler.bauBlock : spielWelt.konfiguration.basisbau.blockGroesse ?? 1;
+}
+
+/** AKTION bauBlock: Block-Größe wählen (1×1 … 8×8). Nur für den Spieler selbst, wirkt auf das nächste Bauen. */
+export function setzeBauBlock(spielWelt, spieler, wert) {
+  if (BLOCK_GROESSEN.includes(wert)) spieler.bauBlock = wert;
 }
 
 /** AKTION abreissen. Eine Türöffnung nimmt ihre Tür mit. */
@@ -91,7 +105,7 @@ export function reisseAb(spielWelt, spieler, { tx, ty, ebene = null }) {
   for (const b of abzureissen) {
     if (BAUWERKE[b.typ]?.kiste) leereKiste(spielWelt, spieler, b);
     if (BETT_TYPEN.has(b.typ)) vergissSpawnBei(spielWelt, b);
-    for (const [defId, menge] of Object.entries(rueckerstattung(kostenProKachel(b.typ, spielWelt.konfiguration.basisbau.blockGroesse ?? 1), spielWelt.konfiguration.basisbau.rueckgabe))) {
+    for (const [defId, menge] of Object.entries(rueckerstattung(kostenProKachel(b.typ, b.blk ?? spielWelt.konfiguration.basisbau.blockGroesse ?? 1), spielWelt.konfiguration.basisbau.rueckgabe))) {
       const rest = fuegeZumInventarHinzu(spieler, defId, menge);
       if (rest > 0) legeAufBoden(spielWelt, { defId, menge: rest }, spieler.x, spieler.y); // Inventar voll → vor die Füße
       erhalten.set(defId, (erhalten.get(defId) ?? 0) + menge);

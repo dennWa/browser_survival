@@ -206,7 +206,7 @@ export function spielerDatenPrivat(s, konfiguration, spielWelt = null) {
     unendlichMunition: s.unendlichMunition,
     flagge: spielWelt ? flaggeFuerClient(spielWelt, s) : null, // eigenes Baugebiet { tx, ty, radius } – nur der Besitzer erfährt es
     bauRadius: spielWelt ? radiusFuer(s, konfiguration) : konfiguration.basisbau.radiusKacheln, // Radius einer neuen Flagge (fürs Hologramm)
-    bauBlock: konfiguration.basisbau.blockGroesse ?? 1, // Block-Kantenlänge für Boden/Wand/Dach (1 = einzeln)
+    bauBlock: [1, 2, 4, 8].includes(s.bauBlock) ? s.bauBlock : konfiguration.basisbau.blockGroesse ?? 1, // Block-Kantenlänge für Boden/Wand/Dach (1 = einzeln)
     spawn: s.spawn, // Respawn-Bett { karte, tx, ty } oder null
     haustiere: s.haustiere?.length ? s.haustiere : undefined, // Runde 27: eigene Tiere [{ art, name }] (Einstellungen → Freilassen)
     tutorial: spielWelt?.tutorial ? tutorialFuerClient(spielWelt, s) : undefined,

@@ -519,6 +519,7 @@ export class SpielServer {
     if (n.art === AKTIONEN.PLATZIEREN && !(gueltigerSlot(slot) && Number.isInteger(n.tx) && Number.isInteger(n.ty))) return;
     if (n.art === AKTIONEN.FELD && !(Number.isInteger(n.tx) && Number.isInteger(n.ty))) return;
     if (n.art === AKTIONEN.BAUEN && !(Object.hasOwn(BAUTEILE, n.teil) && Number.isInteger(n.tx) && Number.isInteger(n.ty))) return;
+    if (n.art === AKTIONEN.BAU_BLOCK && ![1, 2, 4, 8].includes(n.wert)) return;
     if (n.art === AKTIONEN.ABREISSEN && !(Number.isInteger(n.tx) && Number.isInteger(n.ty) && (n.ebene === undefined || EBENEN.includes(n.ebene)))) return;
     if ((n.art === AKTIONEN.KONSUMIEREN || n.art === AKTIONEN.ANZUENDEN || n.art === AKTIONEN.ANLEGEN || n.art === AKTIONEN.REPARIEREN || n.art === AKTIONEN.MODS_ABNEHMEN) && !gueltigerSlot(slot)) return;
     if (n.art === AKTIONEN.AUSZIEHEN && !['kopf', 'oberkoerper', 'haende', 'beine', 'fuesse', 'ruecken'].includes(n.stelle)) return;
@@ -553,6 +554,7 @@ export class SpielServer {
     if (n.art === AKTIONEN.ABLEGEN) aktion.einzeln = n.einzeln === true;
     if (n.art === AKTIONEN.PLATZIEREN || n.art === AKTIONEN.FELD || n.art === AKTIONEN.FELD_ENTFERNEN) Object.assign(aktion, { tx: n.tx, ty: n.ty });
     if (n.art === AKTIONEN.BAUEN) Object.assign(aktion, { teil: n.teil, tx: n.tx, ty: n.ty, drehung: n.drehung === 0 || n.drehung === 1 ? n.drehung : null });
+    if (n.art === AKTIONEN.BAU_BLOCK) aktion.wert = n.wert;
     if (n.art === AKTIONEN.ABREISSEN) Object.assign(aktion, { tx: n.tx, ty: n.ty, ebene: n.ebene ?? null });
     if (n.art === AKTIONEN.SKILL) aktion.skill = typeof n.skill === 'string' ? n.skill : null;
     if (n.art === AKTIONEN.TUTORIAL) {

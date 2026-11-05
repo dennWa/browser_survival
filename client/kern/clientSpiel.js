@@ -858,7 +858,7 @@ export class ClientSpiel {
 
   /** Rechtsklick: im Bau-Modus löst er die Auswahl, sonst bricht er das Platzieren ab. */
   rechtsklick() {
-    if (this.bau.aktiv) this.bau.abbrechen();
+    if (this.bau.aktiv) this.bau.rechtsklick(this.eingabe.mausX, this.eingabe.mausY);
     else if (this.platzierung) this.platzierungAbbrechen();
     else if (this.#handZiel()?.art === 'hacke') this.feldEntfernen();
     else this.zielAntippen(this.eingabe.mausX, this.eingabe.mausY); // Zombie anvisieren
