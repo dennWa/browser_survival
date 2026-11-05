@@ -2,7 +2,7 @@
 // Von Hand gepflegt (Runde 19); `npm run eigene:index` schreibt `kategorie` und `zielHoehe` nach index.json.
 // Kategorie-Schlüssel → Baukasten-Bereich (editor/kern/katalog.js MODELL_KATEGORIEN):
 //   natur · tiere · bau · moebel · fahrzeuge · gegenstaende · essen · deko
-// Neue Modelle: hier eintragen (Name ohne .glb). Fehlt ein Eintrag, gilt `deko`.
+// Neue Modelle: hier eintragen (Name ohne .glb). Fehlt ein Eintrag, greifen die Namensmuster (REGELN unten, r32_*), sonst `deko`.
 
 const L = (text) => text.trim().split(/\s+/);
 
@@ -102,5 +102,14 @@ export const HOEHEN = {
 export const kategorieVon = (() => {
   const karte = new Map();
   for (const [kat, liste] of Object.entries(KATEGORIEN)) for (const stem of liste) karte.set(stem, kat);
-  return (stem) => karte.get(stem) ?? 'deko';
+  // Runde 36: Modellpakete (r32_*) und Einzelfälle per Namensmuster einsortieren (vorher alles pauschal `deko`)
+  const REGELN = [
+    [/^r32_tier_|^hase$/, 'tiere'],
+    [/^aeste$/, 'natur'],
+    [/^r32_(eichenstamm|eisenerz|erzpack_object_\d+|fels_\d+|steine|stumpf_\d+|rohstoffe)$/, 'natur'],
+    [/^r32_(essen|steaks|vorrat)$/, 'essen'],
+    [/^r32_holzbau_\d+$|^r32_zelt$/, 'bau'],
+    [/^r32_(fass_\d+|hazmat_\d+|waffe_.+|waffen)$/, 'gegenstaende'],
+  ];
+  return (stem) => karte.get(stem) ?? REGELN.find(([re]) => re.test(stem))?.[1] ?? 'deko';
 })();

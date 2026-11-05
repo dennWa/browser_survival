@@ -13,10 +13,10 @@
     "verzoegerung": 0.2
   },
   "schritt_schnee": {
-    "lautstaerke": 0.3
+    "lautstaerke": 0.27
   },
   "schritt_gras": {
-    "lautstaerke": 0.425,
+    "lautstaerke": 0.3825,
     "streuung": 0.08
   },
   "sturm": {
@@ -38,7 +38,7 @@
     "lautstaerke": 0.48
   },
   "vogel": {
-    "lautstaerke": 0.5,
+    "lautstaerke": 0.45,
     "streuung": 0.05
   },
   "eule": {
@@ -54,23 +54,23 @@
     "lautstaerke": 1.1
   },
   "zombie_stoehnen": {
-    "lautstaerke": 0.6,
+    "lautstaerke": 0.54,
     "streuung": 0.06
   },
   "zombie_angriff": {
-    "lautstaerke": 0.75,
-    "streuung": 0.05
-  },
-  "zombie_schrei": {
-    "lautstaerke": 0.75,
-    "streuung": 0.05
-  },
-  "zombie_tod": {
     "lautstaerke": 0.675,
     "streuung": 0.05
   },
+  "zombie_schrei": {
+    "lautstaerke": 0.675,
+    "streuung": 0.05
+  },
+  "zombie_tod": {
+    "lautstaerke": 0.6075,
+    "streuung": 0.05
+  },
   "zombie_ferne": {
-    "lautstaerke": 0.262
+    "lautstaerke": 0.2358
   },
   "hack_holz": {
     "lautstaerke": 0.8,
@@ -216,14 +216,14 @@
     "lautstaerke": 0.8
   },
   "schritt_asphalt": {
-    "lautstaerke": 0.5,
+    "lautstaerke": 0.45,
     "streuung": 0.06
   },
   "rinde_schnitzen": {
     "lautstaerke": 0.8
   },
   "schritt_innen": {
-    "lautstaerke": 0.3825,
+    "lautstaerke": 0.3443,
     "streuung": 0.06
   },
   "menue_klick": {

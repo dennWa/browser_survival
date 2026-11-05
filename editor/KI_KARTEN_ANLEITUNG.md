@@ -315,6 +315,17 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `pipes4-b` | Pipes4 B | bau | 0.67 | 0.7 × 3.4 |
 | `plastic-barrier` | Plastic Barrier | bau | 0.6 | 1 × 0.3 |
 | `post` | Post | bau | 3.01 | 0.4 × 0.4 |
+| `r32_holzbau_0` | R32_holzbau_0 | bau | 1 | 0.1 × 0.9 |
+| `r32_holzbau_1` | R32_holzbau_1 | bau | 1 | 0.1 × 0.9 |
+| `r32_holzbau_10` | R32_holzbau_10 | bau | 1 | 0.1 × 0.5 |
+| `r32_holzbau_11` | R32_holzbau_11 | bau | 0.09 | 1 × 1 |
+| `r32_holzbau_2` | R32_holzbau_2 | bau | 1 | 0.1 × 0.9 |
+| `r32_holzbau_3` | R32_holzbau_3 | bau | 1 | 0.1 × 0.3 |
+| `r32_holzbau_4` | R32_holzbau_4 | bau | 0.45 | 0.3 × 1 |
+| `r32_holzbau_7` | R32_holzbau_7 | bau | 1 | 0.1 × 0.1 |
+| `r32_holzbau_8` | R32_holzbau_8 | bau | 0.72 | 0.4 × 1 |
+| `r32_holzbau_9` | R32_holzbau_9 | bau | 1 | 0.1 × 0.9 |
+| `r32_zelt` | R32_zelt | bau | 0.65 | 0.9 × 1 |
 | `rock-path-round-small-2` | Rock Path Round Small 2 | bau | 0.1 | 1.1 × 1.4 |
 | `rock-path-round-small-3` | Rock Path Round Small 3 | bau | 0.11 | 1.1 × 1.5 |
 | `rock-path-round-small` | Rock Path Round Small | bau | 0.11 | 1.2 × 1.3 |
@@ -383,7 +394,6 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `wooden-fence` | Wooden Fence | bau | 1.03 | 1.8 × 0.9 |
 | `wooden-sign` | Wooden Sign | bau | 1.98 | 1.1 × 0.3 |
 | `wooden-wall` | Wooden Wall | bau | 0.53 | 1.4 × 0.1 |
-| `aeste` | Aeste | deko | 1 | 0.3 × 0.1 |
 | `americanfootball-ball` | Americanfootball Ball | deko | 0.42 | 0.2 × 0.2 |
 | `banner-wall` | Banner Wall | deko | 2.85 | 1.6 × 0.6 |
 | `basket-ball` | Basket Ball | deko | 0.42 | 0.4 × 0.4 |
@@ -408,84 +418,11 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `gem-blue` | Gem Blue | deko | 0.79 | 0.4 × 0.3 |
 | `gem-green` | Gem Green | deko | 0.57 | 0.6 × 0.6 |
 | `gem-pink` | Gem Pink | deko | 0.73 | 0.4 × 0.4 |
-| `hase` | Hase | deko | 40 | 40 × 40 |
 | `painting-canvas` | Painting Canvas | deko | 1.89 | 1 × 1.5 |
 | `papier` | Papier | deko | 0.11 | 1 × 1 |
 | `plant-2` | Plant 2 | deko | 0.25 | 1 × 1 |
 | `plant` | Plant | deko | 1.01 | 1.3 × 1.4 |
 | `planter--bushes` | Planter  Bushes | deko | 1.12 | 2.4 × 0.8 |
-| `r32_eichenstamm` | R32_eichenstamm | deko | 0.41 | 0.4 × 1 |
-| `r32_eisenerz` | R32_eisenerz | deko | 0.7 | 1 × 0.8 |
-| `r32_erzpack_object_10` | R32_erzpack_object_10 | deko | 0.83 | 1 × 0.9 |
-| `r32_erzpack_object_11` | R32_erzpack_object_11 | deko | 0.84 | 1 × 1 |
-| `r32_erzpack_object_12` | R32_erzpack_object_12 | deko | 0.59 | 1 × 1 |
-| `r32_erzpack_object_13` | R32_erzpack_object_13 | deko | 0.84 | 0.9 × 1 |
-| `r32_erzpack_object_14` | R32_erzpack_object_14 | deko | 0.92 | 1 × 0.6 |
-| `r32_erzpack_object_15` | R32_erzpack_object_15 | deko | 0.67 | 1 × 0.7 |
-| `r32_erzpack_object_16` | R32_erzpack_object_16 | deko | 0.43 | 1 × 0.6 |
-| `r32_erzpack_object_3` | R32_erzpack_object_3 | deko | 0.79 | 1 × 0.9 |
-| `r32_erzpack_object_4` | R32_erzpack_object_4 | deko | 1 | 0.8 × 0.7 |
-| `r32_erzpack_object_5` | R32_erzpack_object_5 | deko | 0.52 | 1 × 0.7 |
-| `r32_erzpack_object_6` | R32_erzpack_object_6 | deko | 0.88 | 0.9 × 1 |
-| `r32_erzpack_object_7` | R32_erzpack_object_7 | deko | 1 | 0.9 × 0.9 |
-| `r32_erzpack_object_8` | R32_erzpack_object_8 | deko | 0.9 | 1 × 1 |
-| `r32_erzpack_object_9` | R32_erzpack_object_9 | deko | 0.86 | 1 × 1 |
-| `r32_essen` | R32_essen | deko | 1 | 1 × 1 |
-| `r32_fass_0` | R32_fass_0 | deko | 1 | 0.7 × 0.7 |
-| `r32_fass_1` | R32_fass_1 | deko | 1 | 0.7 × 0.7 |
-| `r32_fass_2` | R32_fass_2 | deko | 1 | 0.7 × 0.7 |
-| `r32_fass_3` | R32_fass_3 | deko | 1 | 0.7 × 0.7 |
-| `r32_fass_4` | R32_fass_4 | deko | 1 | 0.7 × 0.7 |
-| `r32_fels_0` | R32_fels_0 | deko | 0.62 | 0.9 × 1 |
-| `r32_fels_1` | R32_fels_1 | deko | 0.66 | 1 × 0.9 |
-| `r32_fels_2` | R32_fels_2 | deko | 0.64 | 1 × 0.9 |
-| `r32_fels_3` | R32_fels_3 | deko | 0.53 | 1 × 1 |
-| `r32_fels_4` | R32_fels_4 | deko | 0.38 | 1 × 0.5 |
-| `r32_fels_5` | R32_fels_5 | deko | 1 | 0.6 × 0.7 |
-| `r32_fels_6` | R32_fels_6 | deko | 0.36 | 1 × 1 |
-| `r32_fels_7` | R32_fels_7 | deko | 0.37 | 1 × 0.8 |
-| `r32_fels_8` | R32_fels_8 | deko | 0.63 | 1 × 0.9 |
-| `r32_hazmat_0` | R32_hazmat_0 | deko | 1 | 0.4 × 0.1 |
-| `r32_hazmat_6` | R32_hazmat_6 | deko | 1 | 0.4 × 0.2 |
-| `r32_holzbau_0` | R32_holzbau_0 | deko | 1 | 0.1 × 0.9 |
-| `r32_holzbau_1` | R32_holzbau_1 | deko | 1 | 0.1 × 0.9 |
-| `r32_holzbau_10` | R32_holzbau_10 | deko | 1 | 0.1 × 0.5 |
-| `r32_holzbau_11` | R32_holzbau_11 | deko | 0.09 | 1 × 1 |
-| `r32_holzbau_2` | R32_holzbau_2 | deko | 1 | 0.1 × 0.9 |
-| `r32_holzbau_3` | R32_holzbau_3 | deko | 1 | 0.1 × 0.3 |
-| `r32_holzbau_4` | R32_holzbau_4 | deko | 0.45 | 0.3 × 1 |
-| `r32_holzbau_7` | R32_holzbau_7 | deko | 1 | 0.1 × 0.1 |
-| `r32_holzbau_8` | R32_holzbau_8 | deko | 0.72 | 0.4 × 1 |
-| `r32_holzbau_9` | R32_holzbau_9 | deko | 1 | 0.1 × 0.9 |
-| `r32_rohstoffe` | R32_rohstoffe | deko | 1 | 1 × 0.9 |
-| `r32_steaks` | R32_steaks | deko | 0.36 | 1 × 1 |
-| `r32_steine` | R32_steine | deko | 0.6 | 1 × 1 |
-| `r32_stumpf_0` | R32_stumpf_0 | deko | 1 | 0.6 × 0.7 |
-| `r32_stumpf_1` | R32_stumpf_1 | deko | 1 | 1.2 × 1.5 |
-| `r32_stumpf_2` | R32_stumpf_2 | deko | 1 | 1.1 × 1.1 |
-| `r32_stumpf_3` | R32_stumpf_3 | deko | 1 | 0.8 × 0.6 |
-| `r32_stumpf_4` | R32_stumpf_4 | deko | 1 | 0.6 × 0.7 |
-| `r32_stumpf_5` | R32_stumpf_5 | deko | 1 | 1.2 × 1.5 |
-| `r32_stumpf_6` | R32_stumpf_6 | deko | 1 | 1.1 × 1.1 |
-| `r32_stumpf_7` | R32_stumpf_7 | deko | 1 | 0.8 × 0.6 |
-| `r32_tier_baer` | R32_tier_baer | deko | 1 | 0.6 × 1.6 |
-| `r32_tier_fuchs` | R32_tier_fuchs | deko | 1 | 0.3 × 1.7 |
-| `r32_tier_hase` | R32_tier_hase | deko | 1 | 0.4 × 1.1 |
-| `r32_tier_hund` | R32_tier_hund | deko | 1 | 0.4 × 1.4 |
-| `r32_tier_katze` | R32_tier_katze | deko | 1 | 0.4 × 1.2 |
-| `r32_tier_ratte` | R32_tier_ratte | deko | 1 | 0.9 × 3.9 |
-| `r32_tier_reh` | R32_tier_reh | deko | 1 | 0.4 × 1 |
-| `r32_tier_wildschwein` | R32_tier_wildschwein | deko | 1 | 0.5 × 1.8 |
-| `r32_tier_wolf` | R32_tier_wolf | deko | 1 | 0.4 × 1.6 |
-| `r32_tier_ziege` | R32_tier_ziege | deko | 1 | 0.4 × 1.3 |
-| `r32_vorrat` | R32_vorrat | deko | 1 | 1 × 1 |
-| `r32_waffe_axt_doppel` | R32_waffe_axt_doppel | deko | 1.07 | 0.2 × 1 |
-| `r32_waffe_dynamit` | R32_waffe_dynamit | deko | 2.13 | 0.9 × 1 |
-| `r32_waffe_raketenwerfer` | R32_waffe_raketenwerfer | deko | 0.2 | 0.1 × 1 |
-| `r32_waffe_rundschild` | R32_waffe_rundschild | deko | 1 | 0.2 × 1 |
-| `r32_waffe_schild` | R32_waffe_schild | deko | 0.79 | 0.2 × 1 |
-| `r32_waffen` | R32_waffen | deko | 2.13 | 2 × 1 |
-| `r32_zelt` | R32_zelt | deko | 0.65 | 0.9 × 1 |
 | `tennis-ball` | Tennis Ball | deko | 0.07 | 9.4 × 9.4 |
 | `vogelscheuche` | Vogelscheuche | deko | 2.175 | 1.703 × 0.62 |
 | `volleyball-ball` | Volleyball Ball | deko | 0.49 | 0.5 × 0.5 |
@@ -519,6 +456,9 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `pot-2` | Pot 2 | essen | 0.42 | 1.2 × 1.4 |
 | `pot` | Pot | essen | 0.3 | 1.7 × 2 |
 | `pot2` | Pot2 | essen | 0.33 | 0.8 × 0.5 |
+| `r32_essen` | R32_essen | essen | 1 | 1 × 1 |
+| `r32_steaks` | R32_steaks | essen | 0.36 | 1 × 1 |
+| `r32_vorrat` | R32_vorrat | essen | 1 | 1 × 1 |
 | `sauce-pan` | Sauce Pan | essen | 0.22 | 0.3 × 0.7 |
 | `soda-can` | Soda Can | essen | 0.12 | 6.1 × 6.1 |
 | `soda` | Soda | essen | 0.3 | 0.9 × 0.9 |
@@ -612,6 +552,19 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `propane-tank` | Propane Tank | gegenstaende | 1.2 | 2.2 × 2 |
 | `protein-powder` | Protein Powder | gegenstaende | 0.27 | 0.2 × 0.2 |
 | `punching-bag` | Punching Bag | gegenstaende | 1.82 | 0.6 × 0.6 |
+| `r32_fass_0` | R32_fass_0 | gegenstaende | 1 | 0.7 × 0.7 |
+| `r32_fass_1` | R32_fass_1 | gegenstaende | 1 | 0.7 × 0.7 |
+| `r32_fass_2` | R32_fass_2 | gegenstaende | 1 | 0.7 × 0.7 |
+| `r32_fass_3` | R32_fass_3 | gegenstaende | 1 | 0.7 × 0.7 |
+| `r32_fass_4` | R32_fass_4 | gegenstaende | 1 | 0.7 × 0.7 |
+| `r32_hazmat_0` | R32_hazmat_0 | gegenstaende | 1 | 0.4 × 0.1 |
+| `r32_hazmat_6` | R32_hazmat_6 | gegenstaende | 1 | 0.4 × 0.2 |
+| `r32_waffe_axt_doppel` | R32_waffe_axt_doppel | gegenstaende | 1.07 | 0.2 × 1 |
+| `r32_waffe_dynamit` | R32_waffe_dynamit | gegenstaende | 2.13 | 0.9 × 1 |
+| `r32_waffe_raketenwerfer` | R32_waffe_raketenwerfer | gegenstaende | 0.2 | 0.1 × 1 |
+| `r32_waffe_rundschild` | R32_waffe_rundschild | gegenstaende | 1 | 0.2 × 1 |
+| `r32_waffe_schild` | R32_waffe_schild | gegenstaende | 0.79 | 0.2 × 1 |
+| `r32_waffen` | R32_waffen | gegenstaende | 2.13 | 2 × 1 |
 | `radio` | Radio | gegenstaende | 0.3 | 1.7 × 0.6 |
 | `rifle` | Rifle | gegenstaende | 0.52 | 0.1 × 1.6 |
 | `round-brush` | Round Brush | gegenstaende | 0.33 | 0.1 × 0.1 |
@@ -726,6 +679,7 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `wooden-chair` | Wooden Chair | moebel | 1.04 | 0.5 × 0.5 |
 | `wooden-kitchen-sink` | Wooden Kitchen Sink | moebel | 1.26 | 1 × 0.6 |
 | `wool-carpet` | Wool Carpet | moebel | 0.05 | 3.3 × 2.1 |
+| `aeste` | Aeste | natur | 1 | 0.3 × 0.1 |
 | `bush-with-flowers` | Bush With Flowers | natur | 1.58 | 1.9 × 2 |
 | `bush` | Bush | natur | 1.58 | 1.9 × 2 |
 | `clover-2` | Clover 2 | natur | 0.3 | 0.9 × 0.8 |
@@ -769,6 +723,41 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `pine` | Pine | natur | 7.38 | 5.7 × 5.2 |
 | `plant-big-2` | Plant Big 2 | natur | 1.5 | 2.9 × 3.1 |
 | `plant-big` | Plant Big | natur | 0.25 | 1.3 × 1.4 |
+| `r32_eichenstamm` | R32_eichenstamm | natur | 0.41 | 0.4 × 1 |
+| `r32_eisenerz` | R32_eisenerz | natur | 0.7 | 1 × 0.8 |
+| `r32_erzpack_object_10` | R32_erzpack_object_10 | natur | 0.83 | 1 × 0.9 |
+| `r32_erzpack_object_11` | R32_erzpack_object_11 | natur | 0.84 | 1 × 1 |
+| `r32_erzpack_object_12` | R32_erzpack_object_12 | natur | 0.59 | 1 × 1 |
+| `r32_erzpack_object_13` | R32_erzpack_object_13 | natur | 0.84 | 0.9 × 1 |
+| `r32_erzpack_object_14` | R32_erzpack_object_14 | natur | 0.92 | 1 × 0.6 |
+| `r32_erzpack_object_15` | R32_erzpack_object_15 | natur | 0.67 | 1 × 0.7 |
+| `r32_erzpack_object_16` | R32_erzpack_object_16 | natur | 0.43 | 1 × 0.6 |
+| `r32_erzpack_object_3` | R32_erzpack_object_3 | natur | 0.79 | 1 × 0.9 |
+| `r32_erzpack_object_4` | R32_erzpack_object_4 | natur | 1 | 0.8 × 0.7 |
+| `r32_erzpack_object_5` | R32_erzpack_object_5 | natur | 0.52 | 1 × 0.7 |
+| `r32_erzpack_object_6` | R32_erzpack_object_6 | natur | 0.88 | 0.9 × 1 |
+| `r32_erzpack_object_7` | R32_erzpack_object_7 | natur | 1 | 0.9 × 0.9 |
+| `r32_erzpack_object_8` | R32_erzpack_object_8 | natur | 0.9 | 1 × 1 |
+| `r32_erzpack_object_9` | R32_erzpack_object_9 | natur | 0.86 | 1 × 1 |
+| `r32_fels_0` | R32_fels_0 | natur | 0.62 | 0.9 × 1 |
+| `r32_fels_1` | R32_fels_1 | natur | 0.66 | 1 × 0.9 |
+| `r32_fels_2` | R32_fels_2 | natur | 0.64 | 1 × 0.9 |
+| `r32_fels_3` | R32_fels_3 | natur | 0.53 | 1 × 1 |
+| `r32_fels_4` | R32_fels_4 | natur | 0.38 | 1 × 0.5 |
+| `r32_fels_5` | R32_fels_5 | natur | 1 | 0.6 × 0.7 |
+| `r32_fels_6` | R32_fels_6 | natur | 0.36 | 1 × 1 |
+| `r32_fels_7` | R32_fels_7 | natur | 0.37 | 1 × 0.8 |
+| `r32_fels_8` | R32_fels_8 | natur | 0.63 | 1 × 0.9 |
+| `r32_rohstoffe` | R32_rohstoffe | natur | 1 | 1 × 0.9 |
+| `r32_steine` | R32_steine | natur | 0.6 | 1 × 1 |
+| `r32_stumpf_0` | R32_stumpf_0 | natur | 1 | 0.6 × 0.7 |
+| `r32_stumpf_1` | R32_stumpf_1 | natur | 1 | 1.2 × 1.5 |
+| `r32_stumpf_2` | R32_stumpf_2 | natur | 1 | 1.1 × 1.1 |
+| `r32_stumpf_3` | R32_stumpf_3 | natur | 1 | 0.8 × 0.6 |
+| `r32_stumpf_4` | R32_stumpf_4 | natur | 1 | 0.6 × 0.7 |
+| `r32_stumpf_5` | R32_stumpf_5 | natur | 1 | 1.2 × 1.5 |
+| `r32_stumpf_6` | R32_stumpf_6 | natur | 1 | 1.1 × 1.1 |
+| `r32_stumpf_7` | R32_stumpf_7 | natur | 1 | 0.8 × 0.6 |
 | `rock-medium-2` | Rock Medium 2 | natur | 2.32 | 3.4 × 3.5 |
 | `rock-medium-3` | Rock Medium 3 | natur | 2.26 | 3.2 × 3 |
 | `rock-medium` | Rock Medium | natur | 1.9 | 3 × 2.5 |
@@ -802,12 +791,23 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `duck` | Duck | tiere | 0.4 | 10.8 × 5.9 |
 | `fox` | Fox | tiere | 0.5 | 1.1 × 5.6 |
 | `german-shepard` | German Shepard | tiere | 0.65 | 0.5 × 1.5 |
+| `hase` | Hase | tiere | 40 | 40 × 40 |
 | `horse` | Horse | tiere | 1.7 | 1.4 × 5.7 |
 | `husky` | Husky | tiere | 0.6 | 1 × 3.9 |
 | `lis` | Lis | tiere | 0.5 | 1.1 × 1.4 |
 | `lowpoly-squirrel` | Lowpoly Squirrel | tiere | 0.3 | 0.8 × 0.8 |
 | `parasaurolophus` | Parasaurolophus | tiere | 5 | 2 × 11.8 |
 | `penguin` | Penguin | tiere | 0.7 | 5.2 × 4.4 |
+| `r32_tier_baer` | R32_tier_baer | tiere | 1 | 0.6 × 1.6 |
+| `r32_tier_fuchs` | R32_tier_fuchs | tiere | 1 | 0.3 × 1.7 |
+| `r32_tier_hase` | R32_tier_hase | tiere | 1 | 0.4 × 1.1 |
+| `r32_tier_hund` | R32_tier_hund | tiere | 1 | 0.4 × 1.4 |
+| `r32_tier_katze` | R32_tier_katze | tiere | 1 | 0.4 × 1.2 |
+| `r32_tier_ratte` | R32_tier_ratte | tiere | 1 | 0.9 × 3.9 |
+| `r32_tier_reh` | R32_tier_reh | tiere | 1 | 0.4 × 1 |
+| `r32_tier_wildschwein` | R32_tier_wildschwein | tiere | 1 | 0.5 × 1.8 |
+| `r32_tier_wolf` | R32_tier_wolf | tiere | 1 | 0.4 × 1.6 |
+| `r32_tier_ziege` | R32_tier_ziege | tiere | 1 | 0.4 × 1.3 |
 | `shiba-inu` | Shiba Inu | tiere | 0.4 | 1.1 × 4.2 |
 | `stag` | Stag | tiere | 1.6 | 2.6 × 4.8 |
 | `stegosaurus` | Stegosaurus | tiere | 4 | 5.1 × 22.9 |
