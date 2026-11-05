@@ -420,16 +420,16 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `r32_erzpack_object_11` | R32_erzpack_object_11 | deko | 0.84 | 1 × 1 |
 | `r32_erzpack_object_12` | R32_erzpack_object_12 | deko | 0.59 | 1 × 1 |
 | `r32_erzpack_object_13` | R32_erzpack_object_13 | deko | 0.84 | 0.9 × 1 |
-| `r32_erzpack_object_14` | R32_erzpack_object_14 | deko |  | 1 × 0.6 |
+| `r32_erzpack_object_14` | R32_erzpack_object_14 | deko | 0.92 | 1 × 0.6 |
 | `r32_erzpack_object_15` | R32_erzpack_object_15 | deko | 0.67 | 1 × 0.7 |
-| `r32_erzpack_object_16` | R32_erzpack_object_16 | deko |  | 1 × 0.6 |
+| `r32_erzpack_object_16` | R32_erzpack_object_16 | deko | 0.43 | 1 × 0.6 |
 | `r32_erzpack_object_3` | R32_erzpack_object_3 | deko | 0.79 | 1 × 0.9 |
 | `r32_erzpack_object_4` | R32_erzpack_object_4 | deko | 1 | 0.8 × 0.7 |
 | `r32_erzpack_object_5` | R32_erzpack_object_5 | deko | 0.52 | 1 × 0.7 |
 | `r32_erzpack_object_6` | R32_erzpack_object_6 | deko | 0.88 | 0.9 × 1 |
-| `r32_erzpack_object_7` | R32_erzpack_object_7 | deko |  | 0.9 × 0.9 |
+| `r32_erzpack_object_7` | R32_erzpack_object_7 | deko | 1 | 0.9 × 0.9 |
 | `r32_erzpack_object_8` | R32_erzpack_object_8 | deko | 0.9 | 1 × 1 |
-| `r32_erzpack_object_9` | R32_erzpack_object_9 | deko |  | 1 × 1 |
+| `r32_erzpack_object_9` | R32_erzpack_object_9 | deko | 0.86 | 1 × 1 |
 | `r32_essen` | R32_essen | deko | 1 | 1 × 1 |
 | `r32_fass_0` | R32_fass_0 | deko | 1 | 0.7 × 0.7 |
 | `r32_fass_1` | R32_fass_1 | deko | 1 | 0.7 × 0.7 |
