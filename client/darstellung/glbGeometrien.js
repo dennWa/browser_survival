@@ -40,10 +40,10 @@ export function ladeGlbGeometrien(datei) {
 }
 
 /** Geometrie: Mitte x/z auf 0, Unterkante y = boden, größte Ausdehnung = groesse (Weltpixel). Gibt eine Kopie zurück. */
-export function einpassen(geometrie, groesse, boden = 0) {
+export function einpassen(geometrie, groesse, boden = 0, box = null) {
   const g = geometrie.clone();
   g.computeBoundingBox();
-  const b = g.boundingBox;
+  const b = box ?? g.boundingBox; // box: gemeinsame Einpass-Box mehrerer zusammengehöriger Teile (Runde 35)
   const s = groesse / Math.max(b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z, 1e-6);
   g.translate(-(b.min.x + b.max.x) / 2, -b.min.y, -(b.min.z + b.max.z) / 2);
   g.scale(s, s, s);

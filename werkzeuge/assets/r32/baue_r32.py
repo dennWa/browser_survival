@@ -1,7 +1,7 @@
 """Runde 32: Nutzer-Modellpakete (`verteilen bitte/_entpackt/*`, `verteilen bitte/_sketchfab/*.glb`) → Spiel-Assets.
 
 Aufruf (aus dem Projektordner):  python -I werkzeuge/assets/r32/baue_r32.py [abschnitt …]
-Abschnitte: baeume steine gras essen steak waffen tiere deko stuempfe  (ohne Angabe: alle)
+Abschnitte: baeume steine gras essen steak waffen tiere deko stuempfe fass_erz  (ohne Angabe: alle)
 
 Quellen liegen NICHT im Repo (gitignored `verteilen bitte/`): ZIPs entpacken nach `_entpackt/<Paket>/`, Sketchfab-Sammlung per
 API nach `_sketchfab/<uid>.glb` laden (siehe ki/runde32.md). Ausgaben:
@@ -482,7 +482,44 @@ def stuempfe():
     schreibe(os.path.join(BAEUME, 'stumpf.glb'), meshes, max_textur=512)
 
 
-ABSCHNITTE = {'baeume': baeume, 'steine': steine, 'gras': gras, 'essen': essen, 'steak': steak, 'waffen': waffen, 'tiere': tiere, 'deko': deko, 'stuempfe': stuempfe}
+def _texturiert(name, t, hoehe=None, groesse=None, v=None):
+    """Mesh mit Original-Textur (bzw. Materialfarbe bei untexturierten Teilen) und weichen Normalen."""
+    v = normiere(t['v'] if v is None else v, ziel_hoehe=hoehe, ziel_groesse=groesse)
+    fc = None if t['bild'] is not None else np.tile(t['farbe'] or [0.6, 0.6, 0.6], (len(t['f']), 1))
+    m = mesh(name, v, t['f'], fc, t['fuv'], t['bild'], mat=(t.get('material') or name).replace('.', '_'))
+    m['nor'] = mw.weiche_normalen(v, t['f'])
+    return m
+
+
+def fass_erz():
+    """Runde 35: Fässer („Barrel Pack“) und Erz/Steine/Kristalle („Ore and crystals“) mit Original-Texturen statt Farb-Backen.
+    Quellen: `verteilen bitte/_sketchfab/fass_pack.glb` und `erz_pack.glb` (Downloads des Nutzers).
+      r32_fass_0..4.glb          Fass mit Textur, Höhe 1 (Editor-Deko)
+      r32_steine.glb             stein_0..7 = rock1..rock8 (Textur 256 px), größte Ausdehnung 1
+      r32_eisenerz.glb           eisenerz_fels (Textur) + eisenerz_erz (rote Brocken, Vertexfarbe), gemeinsam auf Größe 1 normiert
+      r32_erzpack_object_<n>.glb übrige Teile (Kristalle usw.) als Editor-Deko"""
+    for i, x in enumerate(sorted(mw.lade_glb(os.path.join(S, 'fass_pack.glb')), key=lambda t: t['name'])):
+        schreibe(os.path.join(EIGENE, f'r32_fass_{i}.glb'), [_texturiert('fass', x, hoehe=1.0)], max_textur=512)
+    erz = {t['name']: t for t in mw.lade_glb(os.path.join(S, 'erz_pack.glb'))}
+    felsen = [erz[f'Object_{n}'] for n in (6, 7, 8, 9, 10, 11, 12, 13)]
+    schreibe(os.path.join(EIGENE, 'r32_steine.glb'), [_texturiert(f'stein_{i}', t, groesse=1.0) for i, t in enumerate(felsen)], max_textur=256)
+    # Eisenerz: Fels (rock4) + rote Brocken, die Brocken etwas größer drum herum; beide mit EINER Normierung
+    fels, rot = erz['Object_9'], erz['Object_17']
+    fv = normiere(fels['v'], ziel_groesse=1.0)
+    rv = normiere(rot['v'], ziel_groesse=1.25)
+    rv[:, 1] -= 0.02
+    alle = normiere(np.vstack([fv, rv]), ziel_groesse=1.0)
+    schreibe(os.path.join(EIGENE, 'r32_eisenerz.glb'),
+             [_texturiert('eisenerz_fels', fels, v=alle[:len(fv)]), _texturiert('eisenerz_erz', rot, v=alle[len(fv):])], max_textur=256, metall=0.2, rauheit=0.6)
+    # Rest (Kristalle, Felsbrocken) als Editor-Deko
+    for n in range(3, 17):
+        t = erz.get(f'Object_{n}')
+        if t:
+            kristall = n in (14, 15, 16)
+            schreibe(os.path.join(EIGENE, f'r32_erzpack_object_{n}.glb'), [_texturiert(f'erz_{n}', t, groesse=1.0)], max_textur=256, metall=0.1 if kristall else 0.0, rauheit=0.4 if kristall else 0.8)
+
+
+ABSCHNITTE = {'baeume': baeume, 'steine': steine, 'gras': gras, 'essen': essen, 'steak': steak, 'waffen': waffen, 'tiere': tiere, 'deko': deko, 'stuempfe': stuempfe, 'fass_erz': fass_erz}
 if __name__ == '__main__':
     for name in sys.argv[1:] or ABSCHNITTE:
         print('==', name)

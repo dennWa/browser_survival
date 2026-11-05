@@ -30,7 +30,9 @@ const UMRISS = 1.6; // Dicke des schwarzen Umrisses (Busch, Tanne)
 const BAUM_PX_JE_METER = 19;
 
 /** Runde 32: Laubbäume „Trees Low Poly“ (luxe3dworld), Kiefern/Nadelbäume/Büsche „Low Poly Forest Tree Pack“ (99.Miles) – baue_r32.py */
-const LAUB = Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`laubbaum_${String(i).padStart(2, '0')}`, 1]));
+// Runde 35: laubbaum_07/08/09 haben Kronenteile, die seitlich bis auf Bodenhöhe ragen (Äste „aus dem Boden“), 08/09 zudem schwebende Stämme → nicht verwenden
+const LAUB_AUSGELASSEN = new Set([7, 8, 9]);
+const LAUB = Object.fromEntries(Array.from({ length: 12 }, (_, i) => i).filter((i) => !LAUB_AUSGELASSEN.has(i)).map((i) => [`laubbaum_${String(i).padStart(2, '0')}`, 1]));
 const BUESCHE = Object.fromEntries(Array.from({ length: 6 }, (_, i) => [`busch_${i}`, 1])); // Runde 33: Laubkronen (vorher grobe Atlas-Büsche)
 
 /** Baum-Mischung je Karte (Gewichte = Häufigkeit). Unbekannte Karten (Editor, Tutorial) → `standard`. */

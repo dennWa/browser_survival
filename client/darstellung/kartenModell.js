@@ -649,6 +649,7 @@ export class KartenModell {
     for (const { l, i } of this.mastInstanzen) {
       const weg = this.welt.laternenUmgefahren.has(l.laterneId);
       l.aus = weg;
+      l.kopfWeg = false;
       this.mastMesh.setMatrixAt(l.laterneId, weg ? NULL_MATRIX : this.mastMatrizen[l.laterneId]);
       this.lampenGluehen.setMatrixAt(i, weg ? NULL_MATRIX : this.gluehMatrizen[i]);
       this.lampenSchein.setMatrixAt(i, weg ? NULL_MATRIX : this.scheinMatrizen[i]);
@@ -656,6 +657,28 @@ export class KartenModell {
     this.mastMesh.instanceMatrix.needsUpdate = true;
     this.lampenGluehen.instanceMatrix.needsUpdate = true;
     this.lampenSchein.instanceMatrix.needsUpdate = true;
+  }
+
+  /**
+   * Runde 35: Laternen-Masten, deren Lampenkopf über dem oberen Bildrand liegt, ausblenden – sonst ragt nur ein loser dunkler Balken
+   * ins Bild (in der Draufsicht stehen Masten oben nah an der Kamera und werden beim Reinzoomen größer). Licht/Glühen bleiben.
+   * @param kamera THREE.PerspectiveCamera (matrixWorldInverse/projectionMatrix aktuell)
+   */
+  blendeMastenAusserhalb(kamera) {
+    if (!this.mastMesh) return;
+    let geaendert = false;
+    for (const { l } of this.mastInstanzen) {
+      if (l.aus) continue;
+      _vektor.set(l.x, this.hy(l.x, l.z) + LATERNEN_LICHTHOEHE + 4, l.z).applyMatrix4(kamera.matrixWorldInverse);
+      const hinter = _vektor.z > 0; // hinter der Kamera
+      _vektor.applyMatrix4(kamera.projectionMatrix);
+      const ueberRand = !hinter && _vektor.y > 1;
+      if (ueberRand === !!l.kopfWeg) continue;
+      l.kopfWeg = ueberRand;
+      this.mastMesh.setMatrixAt(l.laterneId, ueberRand ? NULL_MATRIX : this.mastMatrizen[l.laterneId]);
+      geaendert = true;
+    }
+    if (geaendert) this.mastMesh.instanceMatrix.needsUpdate = true;
   }
 
   /** Mast einer Laterne als eigene Gruppe (für die Umkipp-Animation) – oder null. */
@@ -830,7 +853,7 @@ export class KartenModell {
     const erzGeo = vereineGeometrien(erzTeile, { mitFarbe: true });
     const erzMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.35, flatShading: true });
     // Runde 32: Steine = 3 Fels-Varianten (r32_steine.glb), Eisenerz = Fels mit roten Erzbrocken (r32_eisenerz.glb); bis zum Laden die alten Körper
-    const STEIN_VARIANTEN = 3;
+    const STEIN_VARIANTEN = 6; // Runde 35: 6 texturierte Felsen (r32_steine.glb stein_0..5, je eigene Textur)
     const steinVariante = (o) => Math.floor(streuung(o.y + 3, o.x + 1) * STEIN_VARIANTEN) % STEIN_VARIANTEN;
     const steinBloecke = new Map();
     const erzBloecke = new Map();
@@ -842,20 +865,33 @@ export class KartenModell {
     }
     const steinMaterialNeu = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, flatShading: true });
     const steinMeshes = new Map([...steinBloecke].map(([k, n]) => [k, { mesh: neuesMesh(steinGeo, steinMaterial, n, k.split('#')[0]), naechster: 0 }]));
-    const erzMeshes = new Map([...erzBloecke].map(([k, n]) => [k, { mesh: neuesMesh(erzGeo, erzMaterial, n, k), naechster: 0 }]));
+    const erzMeshes = new Map([...erzBloecke].map(([k, n]) => [k, { mesh: neuesMesh(erzGeo, erzMaterial, n, k), mesh2: neuesMesh(leereBaumGeometrie(), erzMaterial, n, k), naechster: 0 }]));
     ladeGlbGeometrien('r32_steine.glb').then((teile) => {
-      const geos = [...teile.values()].slice(0, STEIN_VARIANTEN).map((t) => einpassen(t.geometrie, 34, -8));
-      if (geos.length < STEIN_VARIANTEN) return;
+      const liste = Array.from({ length: STEIN_VARIANTEN }, (_, i) => teile.get(`stein_${i}`));
+      if (liste.some((t) => !t)) return;
+      const geos = liste.map((t) => einpassen(t.geometrie, 50, -10));
       for (const [k, e] of steinMeshes) {
-        e.mesh.geometry = geos[Number(k.split('#')[1])];
-        e.mesh.material = steinMaterialNeu;
+        const v = Number(k.split('#')[1]);
+        e.mesh.geometry = geos[v];
+        e.mesh.material = liste[v].material ?? steinMaterialNeu;
       }
     });
+    // Eisenerz: Fels (Textur) + rote Brocken (Materialfarbe) als zwei Meshes mit gleicher Instanz-Matrix; gleiche Einpassung für beide
     ladeGlbGeometrien('r32_eisenerz.glb').then((teile) => {
-      const t = teile.get('eisenerz');
-      if (!t) return;
-      const geo = einpassen(t.geometrie, 36, -8);
-      for (const e of erzMeshes.values()) e.mesh.geometry = geo;
+      const fels = teile.get('eisenerz_fels');
+      const erz = teile.get('eisenerz_erz');
+      if (!fels || !erz) return;
+      const gesamt = new THREE.Box3().union(fels.geometrie.boundingBox).union(erz.geometrie.boundingBox);
+      const geoF = einpassen(fels.geometrie, 52, -10, gesamt);
+      const geoE = einpassen(erz.geometrie, 52, -10, gesamt);
+      const matFels = fels.material ?? steinMaterialNeu;
+      const matErz = erz.material ?? erzMaterial;
+      for (const e of erzMeshes.values()) {
+        e.mesh.geometry = geoF;
+        e.mesh.material = matFels;
+        e.mesh2.geometry = geoE;
+        e.mesh2.material = matErz;
+      }
     });
 
     // Pro Ressourcen-ID merken, welche Instanzen dazugehören
@@ -870,12 +906,14 @@ export class KartenModell {
       if (o.typ === 'stein' || o.typ === 'eisenerz') {
         const erz = o.typ === 'eisenerz';
         const m = new THREE.Matrix4().compose(
-          new THREE.Vector3(x, 6 + this.hy(x, z), z),
+          new THREE.Vector3(x, 8 + this.hy(x, z), z),
           new THREE.Quaternion().setFromEuler(new THREE.Euler(0, zufall * 7, 0)), // Runde 32: Fels-Modelle stehen auf flacher Unterseite
-          new THREE.Vector3(1 + zufall * 0.4, 0.7 + zufall * 0.3, 1.1 - zufall * 0.3).multiplyScalar((erz ? 1 : o.groesse === 'gross' ? 1.3 : 0.8) * (o.skalierung ?? 1)),
+          new THREE.Vector3(1 + zufall * 0.4, 0.7 + zufall * 0.3, 1.1 - zufall * 0.3).multiplyScalar((erz ? 1 : o.groesse === 'gross' ? 1.55 : 1) * (o.skalierung ?? 1)),
         );
         const ziel = erz ? erzMeshes.get(block) : steinMeshes.get(`${block}#${steinVariante(o)}`);
-        eintrag.teile.push({ mesh: ziel.mesh, index: ziel.naechster++, matrix: m });
+        const index = ziel.naechster++;
+        eintrag.teile.push({ mesh: ziel.mesh, index, matrix: m });
+        if (ziel.mesh2) eintrag.teile.push({ mesh: ziel.mesh2, index, matrix: m });
       } else {
         const art = this.baumArten.get(artVon.get(o));
         // Größe passend zur Grundfläche, dazu etwas Zufall in Größe und Drehung – kein Baum gleicht dem anderen
@@ -899,6 +937,7 @@ export class KartenModell {
       if (r) this.ressourcenInstanzen.set(r.id, eintrag);
     }
     const meshes = [...stuempfe.values(), ...steinMeshes.values(), ...erzMeshes.values()].map((e) => e.mesh);
+    for (const e of erzMeshes.values()) meshes.push(e.mesh2);
     for (const art of this.baumArten.values()) for (const t of art.teile.values()) meshes.push(...t.meshes);
     for (const m of meshes) {
       m.instanceMatrix.needsUpdate = true;

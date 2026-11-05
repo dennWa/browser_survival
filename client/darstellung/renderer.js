@@ -637,6 +637,10 @@ export class Renderer {
       weite = Math.min(weite, Math.hypot(dx, dz, kp.y) + 2 * (this.welt?.kachelGroesse ?? 32));
     }
     this.karte.kulle(this.kamera3d.position, weite);
+    if (!this.egoHaken) {
+      this.kamera3d.updateMatrixWorld();
+      this.karte.blendeMastenAusserhalb(this.kamera3d); // Runde 35: lose Mast-Balken am oberen Bildrand weg
+    }
 
     this.gl.render(this.szene, this.kamera3d);
     this.#zeichneSilhouette(fokus);
@@ -815,10 +819,14 @@ export class Renderer {
           mesh.castShadow = true;
           gruppe.add(mesh);
         }
+        // Frischer Tod: Der Spieler fällt noch (seine Figur spielt 'sterben') – die Leiche erscheint erst, wenn er liegt
+        const faellt = art === 'koerper' && figur && entitaeten.some((s) => s.typ === 'spieler' && s.tot && Math.abs(s.x - e.x) < 6 && Math.abs(s.y - e.y) < 6 && this.figuren.get(s.id)?.gesehenAlsLebendBisTod);
+        const sichtbarAb = faellt ? jetzt + figur.aktionen.sterben.getClip().duration * 1000 : 0;
         this.szene.add(gruppe);
-        l = { gruppe, figur, art };
+        l = { gruppe, figur, art, sichtbarAb };
         this.leichen.set(e.id, l);
       }
+      l.gruppe.visible = jetzt >= l.sichtbarAb;
       l.gruppe.position.set(e.x, this.#hy(e.x, e.y), e.y);
     }
     for (const [id, l] of this.leichen) {
@@ -1606,7 +1614,10 @@ export class Renderer {
         f.aktionen[f.aktuell]?.fadeOut(name === 'sterben' ? 0.08 : 0.15);
         f.aktuell = name;
       }
-      if (f.survivor) f.gesehenAlsLebend = !e.tot;
+      if (f.survivor) {
+        f.gesehenAlsLebendBisTod = e.tot ? f.gesehenAlsLebendBisTod || f.gesehenAlsLebend === true : false; // Tod live miterlebt (Leiche wartet auf Fall-Ende)
+        f.gesehenAlsLebend = !e.tot;
+      }
       f.aktionen[name].timeScale = zeitfaktor;
       if (!!e.rucksack !== !!f.rucksack) this.#setzeRucksack(f, !!e.rucksack);
       if (f.survivor && kleidungsSchluessel(e.kleidung, e.aussehen) !== f.kleidungSchluessel) this.#setzeKleidung(f, e.kleidung, e.aussehen);
