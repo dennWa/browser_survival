@@ -1483,6 +1483,9 @@ export class Renderer {
     if (this.natur) this.natur.gruppe.visible = profil.natur !== false; // Gras nur in den Profilen hoch/mittel
     this.karte?.setzeBodenMassstab(this.#bodenMassstab());
     if (this.#baueLichter() && this.welt) this.#vorkompilieren(); // andere Lichteranzahl → alle Shader einmal neu (kurzer Hänger)
+    // ⚠ „Nebel-/Schwarz-Bug“ beim Qualitätswechsel: Wird der Sonnenschatten neu eingeschaltet, ist die Schattenkarte leer – nachts/in der
+    // Dämmerung zeichnet #tageslicht sie nicht (autoUpdate aus) → leere Karte = „alles liegt im Schatten“ = schwarzes Bild. Einmal erzwingen.
+    this.mond.shadow.needsUpdate = true;
     this.messung = { frames: 0, zeit: 0, seit: 0 };
     this.guteFenster = 0;
     this.schlechteFenster = 0;
@@ -1503,6 +1506,7 @@ export class Renderer {
       this.mond.shadow.mapSize.set(schatten, schatten);
       this.mond.shadow.map?.dispose();
       this.mond.shadow.map = null;
+      this.mond.shadow.needsUpdate = true; // neue Karte sofort füllen (sonst nachts leer = schwarz, s. #wendeProfilAn)
     }
     if (neu.baumDetail !== vorher.baumDetail) this.karte?.setzeBaumDetail(neu.baumDetail);
   }
