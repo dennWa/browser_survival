@@ -1,0 +1,6 @@
+# Runde 34 (2026-11-05) – Baumstümpfe aus Modellpaket
+- Stumpf gefällter Bäume = Sketchfab „low poly tree trunk variety pack“ (5 Rindentexturen × 4 Formen = 20 Meshes `stumpf_<gruppe>_<form>`) → `client/assets/3d/baeume/stumpf.glb` (2,4 MB, Textur 512 px, weiche Normalen, Fuß y=0, Fußbreite 1, Höhe ×0.55). Bau: `python werkzeuge/assets/r32/baue_r32.py stuempfe` (Quelle lokal `verteilen bitte/_sketchfab/baumstumpf_pack.glb`, gitignored; ohne `-I`, braucht trimesh). `modellwerk.weiche_normalen`/Feld `nor` im Writer neu.
+- `baumModell.ladeStuempfe()` (20 Einträge {geometrie,textur,gruppe,form}), `stumpfMaterial()`, `STUMPF_BREITE=26`. Alte prozedurale `baueStumpf` entfernt. `r32_stumpf_0..7` (Editor-Deko auf Karten) bleiben.
+- `kartenModell.#baueRessourcen`: Pools je `Block#Gruppe#Form` (Gruppe/Form per `streuung` vom Baum), `mesh.count=0` – Slot wird erst beim Fällen belegt (`#zeigeRessourcen`), Nachwuchs gibt ihn frei (`pool.frei`). ⚠ Vorher: pro Baum ein Null-Matrix-Slot; bei 1000-Dreieck-Stümpfen wäre das teuer. Material je Gruppe, Textur nach Laden gesetzt (Platzhalter wie Laub → kein Shader-Neubau).
+- ⚠ Erste Version backte Textur auf Vertexfarben pro Dreieck → verpixelt. Texturen behalten.
+- Tests: bloecke/ki-anleitung/studio/wandDurchsicht schlugen schon vorher fehl (CRLF-Checkout), unverändert.

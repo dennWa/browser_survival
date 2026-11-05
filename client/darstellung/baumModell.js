@@ -107,14 +107,14 @@ export function leereBaumGeometrie() {
 }
 
 let platzhalterTextur = null;
+function platzhalter() {
+  platzhalterTextur ??= Object.assign(new THREE.DataTexture(new Uint8Array([90, 140, 60, 255]), 1, 1), { needsUpdate: true });
+  return platzhalterTextur;
+}
 /** Material fürs Laub: Toon + Blatt-Textur (Alpha-Cutout, doppelseitig) + Vertexfarbe; Textur wird nach dem Laden gesetzt. */
 export function laubMaterial() {
-  platzhalterTextur ??= Object.assign(new THREE.DataTexture(new Uint8Array([90, 140, 60, 255]), 1, 1), { needsUpdate: true });
-  return toonMaterial({ vertexColors: true, map: platzhalterTextur, alphaTest: 0.5, side: THREE.DoubleSide });
+  return toonMaterial({ vertexColors: true, map: platzhalter(), alphaTest: 0.5, side: THREE.DoubleSide });
 }
-
-const STAMM = new THREE.Color(0x7a4a26);
-const STAMM_DUNKEL = new THREE.Color(0x5c3519);
 
 const FARBEN = {
   busch: [0x4f9c2c, 0x3d8124, 0x63b336],
@@ -268,15 +268,39 @@ export function baumWindMaterial(material, { laub = false } = {}) {
   return material;
 }
 
-/** Stumpf eines gefällten Baums: Stamm-Rest mit heller Schnittfläche (Jahresringe angedeutet). */
-export function baueStumpf() {
-  const teile = [
-    { geometrie: new THREE.CylinderGeometry(8, 10, 10, 10, 1), matrix: matrixAus(0, 5, 0), farbe: STAMM },
-    { geometrie: new THREE.CylinderGeometry(10, 15, 5, 10, 1), matrix: matrixAus(0, 2.5, 0), farbe: STAMM_DUNKEL },
-    { geometrie: new THREE.CylinderGeometry(7, 7, 0.6, 10, 1), matrix: matrixAus(0, 10.3, 0), farbe: new THREE.Color(0xd9b07a) },
-    { geometrie: new THREE.CylinderGeometry(3.5, 3.5, 0.6, 8, 1), matrix: matrixAus(0, 10.5, 0), farbe: new THREE.Color(0xb88a52) },
-  ];
-  return vereineGeometrien(teile, { mitFarbe: true });
+/**
+ * Stümpfe gefällter Bäume (Runde 34): Baumstumpf-Pack, gebaut von baue_r32.py → 3d/baeume/stumpf.glb mit 20 Meshes `stumpf_<gruppe>_<form>`
+ * (5 Rindentexturen × 4 Formen, Fuß auf y = 0, Fußbreite = STUMPF_BREITE Weltpixel; kartenModell skaliert je Baum).
+ * @returns {Promise<{ geometrie: THREE.BufferGeometry, textur: THREE.Texture, gruppe: number, form: number }[] | null>} null, wenn die Datei fehlt
+ */
+export const STUMPF_BREITE = 26;
+export const STUMPF_GRUPPEN = 5;
+export const STUMPF_FORMEN = 4;
+let stumpfCache = null;
+export function ladeStuempfe() {
+  stumpfCache ??= ladeEigenesModell(new URL('../assets/3d/baeume/stumpf.glb', import.meta.url).href).then(
+    (szene) => {
+      szene.updateMatrixWorld(true);
+      const liste = [];
+      szene.traverse((t) => {
+        const treffer = t.isMesh && /^stumpf_(\d+)_(\d+)$/.exec(t.name);
+        if (!treffer) return;
+        const geometrie = t.geometry.clone().applyMatrix4(t.matrixWorld).scale(STUMPF_BREITE, STUMPF_BREITE, STUMPF_BREITE);
+        geometrie.computeBoundingSphere();
+        const textur = t.material.map;
+        textur.colorSpace = THREE.SRGBColorSpace;
+        liste.push({ geometrie, textur, gruppe: Number(treffer[1]), form: Number(treffer[2]) });
+      });
+      return liste.length === STUMPF_GRUPPEN * STUMPF_FORMEN ? liste : null;
+    },
+    () => null,
+  );
+  return stumpfCache;
+}
+
+/** Material für einen Stumpf (Toon + Rindentextur; Textur wird nach dem Laden gesetzt, bis dahin Platzhalter wie beim Laub). */
+export function stumpfMaterial() {
+  return toonMaterial({ map: platzhalter() });
 }
 
 let toonVerlauf = null;

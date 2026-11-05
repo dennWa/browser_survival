@@ -179,6 +179,29 @@ def gruppiere(v, f, lab, abstand):
     return neu.reshape(-1)[lab]
 
 
+def weiche_normalen(v, f, winkel=50.0):
+    """Normalen je Flächenecke (M×3×3): über Positions-verschweißte Ecken gemittelt, aber nur Flächen innerhalb `winkel`° (harte Kanten bleiben)."""
+    tri = v[f]
+    n = np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0])
+    n /= np.linalg.norm(n, axis=1, keepdims=True) + 1e-12
+    w = verschweisse(v, f)
+    schwelle = math.cos(math.radians(winkel))
+    aus = np.zeros((len(f), 3, 3))
+    summe = {}
+    for fi in range(len(f)):
+        for e in range(3):
+            summe.setdefault(w[fi, e], []).append(fi)
+    for punkt, flaechen in summe.items():
+        fl = np.array(flaechen)
+        for fi in fl:
+            gleich = fl[(n[fl] @ n[fi]) >= schwelle]
+            nn = n[gleich].sum(0)
+            nn /= np.linalg.norm(nn) + 1e-12
+            e = int(np.nonzero(w[fi] == punkt)[0][0])
+            aus[fi, e] = nn
+    return aus
+
+
 def teilmesh(v, f, maske):
     ff = f[maske]
     benutzt, inv = np.unique(ff.reshape(-1), return_inverse=True)
@@ -287,6 +310,8 @@ def schreibe_glb(pfad, meshes, metall=0.0, rauheit=0.8, max_textur=512):
         n = np.cross(tri[1::3] - tri[0::3], tri[2::3] - tri[0::3])
         n /= np.linalg.norm(n, axis=1, keepdims=True) + 1e-12
         nor = np.repeat(n, 3, axis=0).astype(np.float32)
+        if m.get('nor') is not None:  # optionale weiche Normalen (M×3×3), sonst flach
+            nor = np.asarray(m['nor'], np.float32).reshape(-1, 3)
         attr = {}
         attr['POSITION'] = len(accs)
         accs.append({'bufferView': ansicht(tri.tobytes()), 'componentType': 5126, 'count': len(tri), 'type': 'VEC3',

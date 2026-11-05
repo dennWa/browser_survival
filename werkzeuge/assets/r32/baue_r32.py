@@ -1,7 +1,7 @@
 """Runde 32: Nutzer-Modellpakete (`verteilen bitte/_entpackt/*`, `verteilen bitte/_sketchfab/*.glb`) → Spiel-Assets.
 
 Aufruf (aus dem Projektordner):  python -I werkzeuge/assets/r32/baue_r32.py [abschnitt …]
-Abschnitte: baeume steine gras essen steak waffen tiere deko   (ohne Angabe: alle)
+Abschnitte: baeume steine gras essen steak waffen tiere deko stuempfe  (ohne Angabe: alle)
 
 Quellen liegen NICHT im Repo (gitignored `verteilen bitte/`): ZIPs entpacken nach `_entpackt/<Paket>/`, Sketchfab-Sammlung per
 API nach `_sketchfab/<uid>.glb` laden (siehe ki/runde32.md). Ausgaben:
@@ -457,7 +457,32 @@ def deko():
     # PS1-Tiere, die keine Spielrolle haben, sind über tiere() schon als r32_tier_*.glb im Editor-Katalog
 
 
-ABSCHNITTE = {'baeume': baeume, 'steine': steine, 'gras': gras, 'essen': essen, 'steak': steak, 'waffen': waffen, 'tiere': tiere, 'deko': deko}
+def stuempfe():
+    """Baumstumpf-Pack (Sketchfab „low poly tree trunk variety pack“): 5 Gruppen (= 5 Rindentexturen) × 4 Stümpfe = 20 Meshes
+    `stumpf_<gruppe>_<form>` → 3d/baeume/stumpf.glb (Textur 512 px je Gruppe, weiche Normalen, Fuß mittig auf y = 0, Fußbreite ≈ 1,
+    Höhe × 0.55 = gedrungen). Gruppen von links nach rechts im Pack, Formen nach Lage in z."""
+    gruppen = mw.lade_glb(os.path.join(S, 'baumstumpf_pack.glb'))
+    gruppen.sort(key=lambda x: -x['v'][:, 0].mean())
+    meshes = []
+    for gi, x in enumerate(gruppen):
+        lab = mw.komponenten(mw.verschweisse(x['v'], x['f']))
+        reihe = []
+        for k in range(int(lab.max()) + 1):
+            m = lab == k
+            v, f = mw.teilmesh(x['v'], x['f'], m)
+            reihe.append((v, f, x['fuv'][m]))
+        reihe.sort(key=lambda t: -t[0][:, 2].mean())
+        for i, (v, f, fuv) in enumerate(reihe):
+            v = v - np.array([(v[:, 0].min() + v[:, 0].max()) / 2, v[:, 1].min(), (v[:, 2].min() + v[:, 2].max()) / 2])
+            v = v / max(np.ptp(v[:, 0]), np.ptp(v[:, 2]))
+            v[:, 1] *= 0.55
+            t = mesh(f'stumpf_{gi}_{i}', v, f, None, fuv, x['bild'], mat=f'rinde_{gi}')
+            t['nor'] = mw.weiche_normalen(v, f)
+            meshes.append(t)
+    schreibe(os.path.join(BAEUME, 'stumpf.glb'), meshes, max_textur=512)
+
+
+ABSCHNITTE = {'baeume': baeume, 'steine': steine, 'gras': gras, 'essen': essen, 'steak': steak, 'waffen': waffen, 'tiere': tiere, 'deko': deko, 'stuempfe': stuempfe}
 if __name__ == '__main__':
     for name in sys.argv[1:] or ABSCHNITTE:
         print('==', name)

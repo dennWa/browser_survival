@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { WAND_ARTEN, KACHELN } from '../../gemeinsam/welt/kacheln.js';
 import { RESSOURCEN_OBJEKTE } from '../../gemeinsam/welt/ressourcen.js';
 import { ladeGlbGeometrien, einpassen } from './glbGeometrien.js';
-import { baueBaum, baueStumpf, toonMaterial, ladeTanneAusGlb, BAUM_LAUB_TOENE, BAUM_VARIANTE_INFO, BAUM_GRUNDFLAECHE, baumVarianten, waehleBaumVariante, ladeBaumVariante, leereBaumGeometrie, laubMaterial, baumWindMaterial } from './baumModell.js';
+import { baueBaum, ladeStuempfe, stumpfMaterial, STUMPF_GRUPPEN, STUMPF_FORMEN, toonMaterial, ladeTanneAusGlb, BAUM_LAUB_TOENE, BAUM_VARIANTE_INFO, BAUM_GRUNDFLAECHE, baumVarianten, waehleBaumVariante, ladeBaumVariante, leereBaumGeometrie, laubMaterial, baumWindMaterial } from './baumModell.js';
 import { BodenTextur } from './bodenTextur.js';
 import { Daecher } from './dachModell.js';
 import { WandDurchsicht } from './wandDurchsicht.js';
@@ -740,9 +740,9 @@ export class KartenModell {
     // Büsche/Tannen: Körper (Toon, Vertexfarben) + schwarzer Umriss wie gehabt.
     const umrissMaterial = this.mitSchnitt(new THREE.MeshBasicMaterial({ color: 0x14100c, side: THREE.BackSide }));
     this.baumArten = new Map();
-    const stumpfGeo = baueStumpf();
-    const stumpfMaterial = toonMaterial({ vertexColors: true });
-    const stuempfe = new Map(); // Block → { mesh, naechster }
+    const stuempfe = new Map(); // `Block#Gruppe#Form` → { mesh, frei: [freie Slots] } – mesh.count = belegte Slots (nur gefällte Bäume zeichnen einen Stumpf)
+    const stumpfMaterialien = Array.from({ length: STUMPF_GRUPPEN }, () => this.mitSchnitt(stumpfMaterial())); // Runde 34: je Rindentextur ein Material
+    const stumpfArt = (o) => `${Math.floor(streuung(o.x + 2, o.y + 9) * STUMPF_GRUPPEN) % STUMPF_GRUPPEN}#${Math.floor(streuung(o.x + 7, o.y + 13) * STUMPF_FORMEN) % STUMPF_FORMEN}`;
     const artVon = new Map(); // Objekt → Schlüssel in baumArten ('busch', 'tanne' oder 'baum|laubbaum_a' …)
     for (const o of baeume) {
       const varianten = baumVarianten(o.typ, this.welt.id);
@@ -800,8 +800,24 @@ export class KartenModell {
       }
     }
     const stammBloecke = new Map();
-    for (const o of baeume) if (o.typ !== 'busch') stammBloecke.set(blockVon(o), (stammBloecke.get(blockVon(o)) ?? 0) + 1);
-    for (const [schluessel, anzahl] of stammBloecke) stuempfe.set(schluessel, { mesh: neuesMesh(stumpfGeo, stumpfMaterial, anzahl, schluessel), naechster: 0 });
+    for (const o of baeume) {
+      if (o.typ === 'busch') continue;
+      const k = `${blockVon(o)}#${stumpfArt(o)}`;
+      stammBloecke.set(k, (stammBloecke.get(k) ?? 0) + 1);
+    }
+    for (const [schluessel, anzahl] of stammBloecke) {
+      const [block, gruppe] = schluessel.split('#');
+      const mesh = neuesMesh(leereBaumGeometrie(), stumpfMaterialien[Number(gruppe)], anzahl, block);
+      mesh.count = 0; // wächst mit gefällten Bäumen
+      stuempfe.set(schluessel, { mesh, frei: [] });
+    }
+    ladeStuempfe().then((liste) => {
+      if (!liste) return;
+      for (const { geometrie, textur, gruppe, form } of liste) {
+        stumpfMaterialien[gruppe].map = textur;
+        for (const [schluessel, e] of stuempfe) if (schluessel.endsWith(`#${gruppe}#${form}`)) e.mesh.geometry = geometrie;
+      }
+    });
 
     // Steine & Eisenerz
     const steinGeo = new THREE.DodecahedronGeometry(14, 0);
@@ -876,12 +892,10 @@ export class KartenModell {
           teil.laub.setColorAt(index, new THREE.Color().setRGB(ton[0] * hell, ton[1] * hell, ton[2] * hell, THREE.LinearSRGBColorSpace));
         }
         if (o.typ !== 'busch') {
-          const st = stuempfe.get(block);
-          eintrag.stumpf = { mesh: st.mesh, index: st.naechster++, matrix: matrixAus(x, this.hy(x, z), z, zufall * 5, groesse * 1.3) };
+          eintrag.stumpf = { pool: stuempfe.get(`${block}#${stumpfArt(o)}`), slot: -1, matrix: matrixAus(x, this.hy(x, z), z, zufall * 5, groesse * 1.1) };
         }
       }
       for (const t of eintrag.teile) t.mesh.setMatrixAt(t.index, t.matrix);
-      if (eintrag.stumpf) eintrag.stumpf.mesh.setMatrixAt(eintrag.stumpf.index, NULL_MATRIX);
       if (r) this.ressourcenInstanzen.set(r.id, eintrag);
     }
     const meshes = [...stuempfe.values(), ...steinMeshes.values(), ...erzMeshes.values()].map((e) => e.mesh);
@@ -938,9 +952,17 @@ export class KartenModell {
         t.mesh.setMatrixAt(t.index, da ? t.matrix : NULL_MATRIX);
         geaendert.add(t.mesh);
       }
-      if (eintrag.stumpf) {
-        eintrag.stumpf.mesh.setMatrixAt(eintrag.stumpf.index, da ? NULL_MATRIX : eintrag.stumpf.matrix);
-        geaendert.add(eintrag.stumpf.mesh);
+      const st = eintrag.stumpf;
+      if (st && !da && st.slot < 0) {
+        // Stumpf belegt einen Slot im Pool (mesh.count wächst nur mit gefällten Bäumen → ausgeblendete Stümpfe kosten nichts)
+        st.slot = st.pool.frei.pop() ?? st.pool.mesh.count++;
+        st.pool.mesh.setMatrixAt(st.slot, st.matrix);
+        geaendert.add(st.pool.mesh);
+      } else if (st && da && st.slot >= 0) {
+        st.pool.mesh.setMatrixAt(st.slot, NULL_MATRIX);
+        st.pool.frei.push(st.slot);
+        st.slot = -1;
+        geaendert.add(st.pool.mesh);
       }
       // Runde 31: je abgeschnittener Rinde (max. 3) wird der Stamm heller; Instanzfarbe nur anlegen, wenn nötig
       const rinde = eintrag.rinde;
