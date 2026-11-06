@@ -12,3 +12,4 @@
 - **Blick-Fixierung:** `spielerDaten.arbeit.ziel` = Ressourcen-ID; `ClientSpiel.abbauBlick()` → `#festerTakt` überschreibt Maus/Stick (`autoBlick`), Ego-Modus (`egoModus.js`) ignoriert Mausbewegung/Stick und dreht `yaw` zum Ziel. Gilt für holz/rinde/ast/stein/eisenerz.
 - ⚠ Fallen: Tests, die Abbau-Ausbeute prüfen, müssen aufheben (`hebeAlleAuf`). Neue abbaubare Deko-Typen = `RESSOURCEN_OBJEKTE`-Eintrag + Modellgruppe in `ressourcenGruppen` (läuft automatisch über `welt.ressourcen`).
 - Tests: `tests/runde38.test.js` (13). `studio.test.js` rot = fehlendes `@modelcontextprotocol/sdk` (wie vorher).
+- Nachtrag: Holz-Bodenitem 15 px (vorher 27); Icons stein/eisenerz neu aus r32_rohstoffe.glb (editor_grafiken/{stein,eisenerz}.grafik.json); r32_rohstoffe.glb 'eisenerz' = Fels + rostrote Erzbrocken (per Skript neu geschrieben, baue_r32.py erzeugt noch die alte Variante).

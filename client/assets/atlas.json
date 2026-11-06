@@ -193,18 +193,18 @@
     "weltGroesse": 26
    },
    "stein": {
-    "x": 216,
-    "y": 223,
-    "b": 72,
-    "h": 58,
-    "weltGroesse": 22
+    "x": 221,
+    "y": 216,
+    "b": 62,
+    "h": 72,
+    "weltGroesse": 16
    },
    "eisenerz": {
     "x": 288,
-    "y": 218,
+    "y": 225,
     "b": 72,
-    "h": 67,
-    "weltGroesse": 22
+    "h": 54,
+    "weltGroesse": 16
    },
    "rucksack_klein": {
     "x": 360,
