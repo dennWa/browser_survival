@@ -2377,7 +2377,8 @@ export class Renderer {
       this.szene.fog.color.copy(this.szene.background);
     }
     _nebelFarbe.setRGB(0.95, 0.9, 0.86).lerp(_nebelGrau, Math.max(regen, nebel)).multiplyScalar(0.12 + 0.88 * hell);
-    this.bodenNebel.aktualisiere(this.egoHaken ? 0.6 * Math.max(morgen, 0.5 * nebel) : Math.max(morgen, 0.55 * nebel), ziel.x, ziel.z, performance.now() / 1000, _nebelFarbe, this.#hy(ziel.x, ziel.z));
+    // Runde 37: in Gebäuden kein Bodennebel (legte einen grauen Schleier über den Innenboden); innenAnteil blendet weich aus
+    this.bodenNebel.aktualisiere((1 - this.innenAnteil) * (this.egoHaken ? 0.6 * Math.max(morgen, 0.5 * nebel) : Math.max(morgen, 0.55 * nebel)), ziel.x, ziel.z, performance.now() / 1000, _nebelFarbe, this.#hy(ziel.x, ziel.z));
     const dicht = Math.min(1, nebel + 0.35 * regen + 0.4 * morgen);
     // Dichter Nebel darf kräftig sein, aber nie die Figur selbst verschlucken (Top-Down: Kamera ~677 px × Zoom entfernt)
     const kamAbstand = KAMERA_VERSATZ.length() * abstand;

@@ -7,6 +7,8 @@ import { FARBEN, KACHEL_FARBEN } from './farben.js';
  * Bodentexturen aus dem Atlas bzw. prozedural (Asphalt, Straße mit Markierungen, Gehwegplatten),
  * Bodendeko (Teppiche, Blut, Parkplatzmarkierungen) und Türschwellen.
  * Wände, Möbel und Bäume sind im 3D-Renderer echte Körper und fehlen hier bewusst.
+
+ * Runde 37: Innenböden holz/fliesen/beton = durchgehende Fläche (#innenBoden), Asphalt ohne Körnung (#weicherTon).
  * Schneezonen (welt.schnee): Kachel 'schnee' prozedural (bläulich-weiße Verwehungen, Glitzer); Straßen/Gehwege/Asphalt sind
  * verschneit (Ränder zum Schnee dicht, in der Mitte lückenhaft – man sieht den Asphalt noch), Wasser ist Eis.
  */
@@ -115,6 +117,10 @@ export class BodenTextur {
       this.#fotoStueck(ctx, foto, tx, ty, 0, 0, g, g);
       return;
     }
+    if (name === 'holz' || name === 'fliesen' || name === 'beton') {
+      this.#innenBoden(ctx, tx, ty, name);
+      return;
+    }
     const varianten = this.assets?.boden(name);
     const bild = this.assets?.umgebungBild;
     if (varianten && bild) {
@@ -137,7 +143,7 @@ export class BodenTextur {
     // Prozedurale Böden (Asphalt, Straße) bzw. Ersatzfarben ohne Assets
     ctx.fillStyle = KACHEL_FARBEN[name] ?? '#ff00ff';
     ctx.fillRect(x, y, g + 0.25, g + 0.25);
-    if (name === 'asphalt' || name === 'strasse') this.#asphaltKoernung(ctx, tx, ty);
+    if (name === 'asphalt' || name === 'strasse') this.#weicherTon(ctx, tx, ty, 0.07); // Runde 37: keine Körnchen mehr, nur sanfte Tönung
     if (name === 'strasse') this.#strassenMarkierung(ctx, tx, ty);
     if (name === 'gehweg') this.#gehwegPlatten(ctx, tx, ty);
     if (name === 'wasser') this.#wasser(ctx, tx, ty);
@@ -399,13 +405,60 @@ export class BodenTextur {
       ctx.stroke();
     }
   }
-  #asphaltKoernung(ctx, tx, ty) {
+  /**
+   * Runde 37: sanfte, weltfeste Tönung (hell/dunkel) in 8-px-Blöcken aus Welt-Rauschen – Fläche statt Pünktchen/Quadrate.
+   * @param stufe max. Deckkraft der Aufhellung/Abdunklung
+   */
+  #weicherTon(ctx, tx, ty, stufe) {
     const g = this.g;
-    let h = streuwert(tx, ty);
-    for (let i = 0; i < 7; i++) {
-      h = (h * 1103515245 + 12345) >>> 0;
-      ctx.fillStyle = h & 1 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.12)';
-      ctx.fillRect(tx * g + (h % g), ty * g + ((h >> 8) % g), 2 + ((h >> 16) % 3), 2);
+    const blk = g / 4;
+    for (let by = 0; by < 4; by++) {
+      for (let bx = 0; bx < 4; bx++) {
+        const wx = tx * g + bx * blk;
+        const wy = ty * g + by * blk;
+        const n = wertRauschen(wx * 0.011 + 5, wy * 0.011 + 9) * 0.75 + wertRauschen(wx * 0.04 + 31, wy * 0.04 + 2) * 0.25;
+        ctx.fillStyle = n > 0.5 ? `rgba(255, 255, 255, ${((n - 0.5) * 2 * stufe).toFixed(3)})` : `rgba(0, 0, 0, ${((0.5 - n) * 2 * stufe).toFixed(3)})`;
+        ctx.fillRect(wx, wy, blk + 0.25, blk + 0.25);
+      }
+    }
+  }
+
+  /**
+   * Runde 37: Innenböden (Holz, Fliesen, Beton) als durchgehende Fläche statt Atlas-Quadraten.
+   * Holz = Dielen in Weltkoordinaten (8 px hoch, versetzte Stöße alle 96 px), Fliesen/Beton = glatte Fläche mit sanfter Tönung.
+   */
+  #innenBoden(ctx, tx, ty, name) {
+    const g = this.g;
+    const x = tx * g;
+    const y = ty * g;
+    ctx.fillStyle = KACHEL_FARBEN[name];
+    ctx.fillRect(x, y, g + 0.25, g + 0.25);
+    if (name !== 'holz') {
+      this.#weicherTon(ctx, tx, ty, name === 'beton' ? 0.1 : 0.06);
+      return;
+    }
+    const hoch = g / 4;
+    const LAENGE = 96;
+    for (let r = 0; r < 4; r++) {
+      const zeile = ty * 4 + r;
+      const zy = y + r * hoch;
+      const versatz = streuwert(zeile, 77) % LAENGE;
+      // Dielenstücke dieser Zeile, die die Kachel berühren
+      for (let k = Math.floor((x - versatz) / LAENGE); versatz + k * LAENGE < x + g; k++) {
+        const von = Math.max(x, versatz + k * LAENGE);
+        const bis = Math.min(x + g, versatz + (k + 1) * LAENGE);
+        if (bis <= von) continue;
+        const t = streuwert(zeile * 131 + 7, k + 1000) % 100;
+        ctx.fillStyle = t < 50 ? `rgba(0, 0, 0, ${(t / 50 * 0.1).toFixed(3)})` : `rgba(255, 225, 180, ${((t - 50) / 50 * 0.1).toFixed(3)})`;
+        ctx.fillRect(von, zy, bis - von + 0.25, hoch);
+        // Stoß (senkrechte Fuge) am Stückanfang
+        if (versatz + k * LAENGE >= x) {
+          ctx.fillStyle = 'rgba(70, 40, 18, 0.35)';
+          ctx.fillRect(versatz + k * LAENGE, zy, 1, hoch);
+        }
+      }
+      ctx.fillStyle = 'rgba(70, 40, 18, 0.3)'; // Fuge zwischen den Dielenreihen
+      ctx.fillRect(x, zy, g + 0.25, 1);
     }
   }
   #strassenMarkierung(ctx, tx, ty) {

@@ -74,3 +74,4 @@
 | 0.29.0-dev | 2026-11-04 | Runde 32: Nutzer-Modellpakete (Sketchfab-Sammlung + ZIP-Rips) → neue Bäume/Büsche/Gras/Steine/Eisenerz/Essen/Fleisch/Waffen/Hund+Katze/Spielerfiguren (wählbar), Zelt (5 Äste); Werkzeug werkzeuge/assets/r32/ (siehe ki/runde32.md) |
 | 0.35.0-dev | 2026-11-05 | Runde 35: Fässer/Erz/Steine mit Original-Textur, größere Steine, Leiche erst nach Fall-Animation, Laternen-Balken am Bildrand weg, fehlerhafte Laubbäume entfernt (siehe `ki/runde35.md`). |
 | 0.34.0-dev | 2026-11-05 | Runde 34: Baumstümpfe aus Modellpaket (20 Varianten, Textur), lazy Instanz-Pools; alte prozedurale Stümpfe entfernt (siehe `ki/runde34.md`). |
+| 0.37.0-dev | 2026-11-06 | Runde 37: Bodennebel nicht mehr in Gebäuden, Asphalt ohne Pünktchen, Innenböden (Holz/Fliesen/Beton) als durchgehende Fläche (siehe `ki/runde37.md`) |
