@@ -44,6 +44,8 @@ export function vorschauWetter(art, windStufe = null) {
 const BLIZZARD_ZYKLUS = 100;
 /** Draußen-Geräusche drinnen (Grillen, Vögel, Wind) deutlich leiser */
 const DRINNEN_LEISE = 0.3;
+/** Runde 38: alle Regen-Schichten (Rauschen, Starkregen, Dach-Prasseln) im Gebäude (`imHaus`) um 15 % leiser */
+const HAUS_REGEN = 0.85;
 
 export function wetterSchichten({ w, hell = 1, drinnen = false, imHaus = false, wetter = 'klar', schneeZone = false, zeit = 0 }) {
   const daempfung = drinnen ? 0.4 : 1;
@@ -55,12 +57,12 @@ export function wetterSchichten({ w, hell = 1, drinnen = false, imHaus = false, 
   const wechsel = (Math.sin((zeit / BLIZZARD_ZYKLUS) * Math.PI * 2) + 1) * (Math.PI / 4); // 0..π/2, gleiche Leistung
   const windFrei = schneeZone ? 0 : leise;
   return {
-    regen: w.regen * (1 - stark) * (imHaus ? 0.112 : 1), // Runde 32: im Haus −30 % (vorher 0,16); im Auto unverändert (imHaus = false)
+    regen: w.regen * (1 - stark) * (imHaus ? 0.112 * HAUS_REGEN : 1), // Runde 32: im Haus −30 % (vorher 0,16), Runde 38: weitere −15 %; im Auto unverändert (imHaus = false)
     // Grillen: nur bei ruhigem Wetter, nicht in Schneezonen
     nacht: schneeZone || !ruhig ? 0 : (1 - hell) * leise,
     sturm: Math.max(0, w.sturm - schneesturm) * daempfung,
     schneesturm: schneesturm * daempfung,
-    regen_stark: w.regen * stark * daempfung,
+    regen_stark: w.regen * stark * daempfung * (imHaus ? HAUS_REGEN : 1),
     tag: schneeZone ? 0 : Math.max(0, (hell - 0.55) / 0.45) * (1 - Math.max(w.regen, w.sturm, w.nebel * 0.5)) * leise,
     // Runde 28: Nachtwind aus – lief nachts zusätzlich zu wind_leicht (zwei Windgeräusche gleichzeitig). Die Windaufnahmen bleiben.
     nacht_wind: 0,
@@ -71,6 +73,6 @@ export function wetterSchichten({ w, hell = 1, drinnen = false, imHaus = false, 
     blizzard_a: blizzard * Math.cos(wechsel),
     blizzard_b: blizzard * Math.sin(wechsel),
     // Runde 24: drinnen prasselt Regen aufs Dach
-    regen_dach: imHaus ? w.regen : 0,
+    regen_dach: imHaus ? w.regen * HAUS_REGEN : 0,
   };
 }

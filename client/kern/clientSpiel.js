@@ -1082,6 +1082,7 @@ export class ClientSpiel {
 
     this.wetter = n.wetter ?? 'klar';
     if (Number.isFinite(n.wind) && this.renderer?.wetterEffekt) this.renderer.wetterEffekt.grundWind = n.wind;
+    if (this.renderer) this.renderer.nasse = Number.isFinite(n.nass) ? n.nass : 0; // Runde 38: Straßennässe 0..1 (wetterSystem)
     this.nachtArt = n.nachtArt ?? 'normal'; // Runde 24: 'boss' | 'blutmond' (nur nachts)
     if (this.renderer) this.renderer.blutmondZiel = this.nachtArt === 'blutmond' ? 1 : 0;
     const entitaeten = new Map(n.entitaeten.map((e) => [e.id, e]));
@@ -1175,6 +1176,9 @@ export class ClientSpiel {
       angriff = true;
       if (this.angelBlick !== null && this.angelBlick !== undefined) autoBlick = this.angelBlick;
     }
+    // Runde 38: beim Fällen/Abbauen ist der Blick auf den Baum/Stein fixiert – Maus/Stick drehen ihn nicht weg
+    const abbauBlick = this.abbauBlick();
+    if (abbauBlick !== null) autoBlick = abbauBlick;
     const hand = this.#handZiel();
     if (hand?.art === 'hacke') {
       // Hacke: Linksklick (neue Flanke) legt ein Ackerfeld an – der Server schlägt damit nicht zu
@@ -1218,6 +1222,17 @@ export class ClientSpiel {
     this.offeneEingaben.push(eingabe);
     if (this.offeneEingaben.length > MAX_OFFENE_EINGABEN) this.offeneEingaben.shift();
     this.verbindung.senden({ typ: NACHRICHT.EINGABE, ...eingabe });
+  }
+
+  /**
+   * Runde 38: Winkel zum Baum/Busch/Stein, an dem der Spieler gerade arbeitet (Server: `arbeit.ziel` = Ressourcen-ID), sonst null.
+   * Solange gesetzt, ist der Blick gesperrt (#festerTakt überschreibt Maus/Stick, Ego-Modus ignoriert Mausbewegung).
+   */
+  abbauBlick() {
+    const a = this.spielerDaten?.arbeit;
+    if (!a || a.ziel === undefined || this.spielerDaten?.tot || !['holz', 'rinde', 'ast', 'stein', 'eisenerz'].includes(a.art)) return null;
+    const r = this.welt.ressourcen[a.ziel];
+    return r ? Math.atan2(r.y - this.lokal.y, r.x - this.lokal.x) : null;
   }
 
   /** Blickrichtung von Maus oder Touch-Stick; ohne Vorgabe bleibt die bisherige erhalten. */
@@ -1349,8 +1364,8 @@ export class ClientSpiel {
       case 'abgebaut':
         if (e.art !== 'rinde' && e.art !== 'ast') this.sound.spiele(e.art === 'holz' ? 'baum_faellt' : e.art === 'eisenerz' ? 'stein_bricht' : 'felsen_bricht', { x: e.x, y: e.y });
         if (e.von === this.eigeneId && e.menge) {
-          // Runde 23: „+2 🪵“ dort, wo abgebaut wurde (statt Textmeldung); Bonus-Apfel kurz danach
-          this.hud.weltPopups.plus(e.art, e.menge, e.x, e.y, e.art === 'holz' ? 60 : 36);
+          // Runde 23: „+2 🪵“ dort, wo abgebaut wurde (statt Textmeldung); Bonus-Apfel kurz danach. Runde 38: Holz/Stein/Erz liegen am Boden (e.boden) → kein „+N“
+          if (!e.boden) this.hud.weltPopups.plus(e.art, e.menge, e.x, e.y, e.art === 'holz' ? 60 : 36);
           if (e.bonus) this.hud.weltPopups.plus(e.bonus, 1, e.x, e.y, e.art === 'holz' ? 60 : 36, 450);
         }
         break;

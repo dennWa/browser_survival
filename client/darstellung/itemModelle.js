@@ -12,7 +12,7 @@ import { ladeGlbGeometrien, einpassen, R32_MATERIAL } from './glbGeometrien.js';
  * Waffen & Werkzeuge kommen automatisch aus waffenModelle.js (liegen flach auf der Seite).
  * Runde 31: Ast (6 Varianten, je nach Item-ID) und Papier kommen aus .glb (assets/eigene/aeste.glb, papier.glb – `ladeGlbItemModelle`);
  * bis sie geladen sind (oder falls sie fehlen) gelten die einfachen Baupläne `ast`/`papier` unten.
- * Runde 32: Essen/Trinken, Fleisch, Stein/Eisenerz aus Sammel-GLBs (`ladeR32ItemModelle`, `itemMaterialFuer` – texturiert).
+ * Runde 38: Holz aus r32_eichenstamm.glb (Balken). Runde 32: Essen/Trinken, Fleisch, Stein/Eisenerz aus Sammel-GLBs (`ladeR32ItemModelle`, `itemMaterialFuer` – texturiert).
  * Ohne Bauplan zeigt der Renderer weiter das flache Icon (Fallback).
  *
  * Maße: 1 Einheit = 1 Weltpixel, vor ITEM_SKALA. Der Boden ist y = 0, Modelle werden automatisch draufgestellt.
@@ -203,6 +203,8 @@ const ESSEN_GROESSE = {
 const R32_ITEMS = [
   { datei: 'r32_essen.glb', namen: Object.fromEntries(Object.entries(ESSEN_GROESSE).map(([id, g]) => [id, { teile: [id], groesse: g }])) },
   { datei: 'r32_rohstoffe.glb', namen: { stein: { teile: ['stein'], groesse: 16 }, eisenerz: { teile: ['eisenerz'], groesse: 16 } } },
+  // Runde 38: Holz = der große Holzbalken (Old oak log, Karten-Deko r32_eichenstamm) – liegt als Item am Boden, gleiches Modell wie das Inventar-Icon
+  { datei: 'r32_eichenstamm.glb', namen: { holz: { teile: ['stamm'], groesse: 27 } } },
   { datei: 'r32_steaks.glb', namen: { fleisch: { praefix: 'roh_', groesse: 18 }, fleisch_gebraten: { praefix: 'gebraten_', groesse: 18 } } },
 ];
 const r32Materialien = new Map(); // defId → [Material je Variante] (texturierte Items)

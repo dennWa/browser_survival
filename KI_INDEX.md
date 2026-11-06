@@ -50,10 +50,11 @@ Playwright-Skripte: nach Login auf `#laden` hidden warten (Aufwärmphase), sonst
 | `ki/runde34.md` | Runde 34 (Baumstümpfe aus Modellpaket, Pools je Form/Textur) |
 | `ki/runde35.md` | Runde 35 ( Fässer/Erz/Steine texturiert, Leichen-Timing, Masten-Balken, Baum-Fix) |
 | `ki/runde36.md` | Runde 36 (neueste: Qualitätswechsel-Schwarzbild-Fix (`mond.shadow.needsUpdate`), FPS-Limit, Boden-Rechtsklick, Studio-Modelle) |
-| `ki/runde37.md` | Runde 37 (neueste: Bodennebel nicht in Gebäuden, Asphalt ohne Pünktchen, Innenböden als Fläche/Dielen) |
+| `ki/runde37.md` | Runde 37 (Bodennebel nicht in Gebäuden, Asphalt ohne Pünktchen, Innenböden als Fläche/Dielen) |
+| `ki/runde38.md` | Runde 38 (neueste: Auto fährt Spieler an, Wetter in Spielzeit + nasse Straße/Dachtropfen, Bodenitems Holz/Stein/Erz, Felsen abbaubar, Stumpfdicke, Blick-Fixierung) |
 | `ki/runde32.md` | Runde 32 ( Nutzer-Modellpakete → Bäume/Gras/Steine/Items/Waffen/Tiere/Figuren, Zelt, Sound/Wetter/Licht, Gameplay) |
 
-**Faustregel:** Spiellogik/Netz → `ki/kern.md` + `ki/fallen.md`. Datei suchen → `ki/dateikarte.md`. Neueste Änderungen → `ki/runde37.md`. Editor → `ki/editor.md`.
+**Faustregel:** Spiellogik/Netz → `ki/kern.md` + `ki/fallen.md`. Datei suchen → `ki/dateikarte.md`. Neueste Änderungen → `ki/runde38.md`. Editor → `ki/editor.md`.
 Ausführliches Handbuch (für Menschen): `project_manifest.md` (ebenfalls aufgeteilt unter `ki/handbuch/`).
 
 ## Pflege (Pflicht am Auftragsende)

@@ -16,6 +16,7 @@ import { erzeugeTier } from '../server/spiel/entitaeten/tier.js';
 import { erzeugeZombie } from '../server/spiel/entitaeten/zombie.js';
 import { pruefeEintrag } from '../server/spiel/spielstand.js';
 import { neuesBauwerk } from '../server/spiel/systeme/bauSystem.js';
+import { hebeAlleAuf } from './hilfen/aufheben.js';
 
 /**
  * Feedback-Runde 13: Haltbarkeit, Admin-Schalter, Energydrink, Kofferraum, Hasen überfahren, Angel-Loot, klein/groß,
@@ -103,6 +104,7 @@ test('Klein/groß: kleine Steine geben 1, große 2 (Glück +1); beide Sorten kom
     const vorher = anzahl(spieler, 'stein');
     aktion(welt, spieler, { art: AKTIONEN.ABBAUEN });
     ticks(welt, 12);
+    hebeAlleAuf(welt, spieler); // Runde 38: Stein liegt am Boden
     assert.equal(anzahl(spieler, 'stein') - vorher, gesucht === 'gross' ? 2 : 1, gesucht);
   }
 });

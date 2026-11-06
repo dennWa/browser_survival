@@ -187,9 +187,9 @@
    },
    "holz": {
     "x": 144,
-    "y": 219,
+    "y": 227,
     "b": 72,
-    "h": 65,
+    "h": 49,
     "weltGroesse": 26
    },
    "stein": {
@@ -997,68 +997,68 @@
     "h": 19,
     "weltGroesse": 24
    },
-   "feuerbohrer": {
-    "x": 447,
-    "y": 1245,
-    "b": 41,
-    "h": 30,
-    "weltGroesse": 22
+   "doppelaxt": {
+    "x": 460,
+    "y": 1224,
+    "b": 16,
+    "h": 72,
+    "weltGroesse": 34
    },
-   "papier": {
-    "x": 512,
-    "y": 1237,
-    "b": 56,
-    "h": 45,
-    "weltGroesse": 20
-   },
-   "rinde": {
-    "x": 11,
-    "y": 1311,
-    "b": 49,
-    "h": 41,
+   "dynamit": {
+    "x": 523,
+    "y": 1224,
+    "b": 33,
+    "h": 72,
     "weltGroesse": 20
    },
    "fackel": {
-    "x": 86,
+    "x": 14,
     "y": 1307,
     "b": 43,
     "h": 49,
     "weltGroesse": 22
    },
    "fackel_brennend": {
-    "x": 154,
+    "x": 82,
     "y": 1300,
     "b": 51,
     "h": 63,
     "weltGroesse": 22
    },
-   "doppelaxt": {
-    "x": 244,
-    "y": 1296,
-    "b": 16,
-    "h": 72,
-    "weltGroesse": 34
+   "feuerbohrer": {
+    "x": 159,
+    "y": 1317,
+    "b": 41,
+    "h": 30,
+    "weltGroesse": 22
    },
-   "dynamit": {
-    "x": 307,
-    "y": 1296,
-    "b": 33,
-    "h": 72,
+   "papier": {
+    "x": 224,
+    "y": 1309,
+    "b": 56,
+    "h": 45,
     "weltGroesse": 20
    },
    "rakete": {
-    "x": 360,
+    "x": 288,
     "y": 1307,
     "b": 72,
     "h": 49,
     "weltGroesse": 20
    },
    "raketenwerfer": {
-    "x": 439,
+    "x": 367,
     "y": 1296,
     "b": 58,
     "h": 72,
     "weltGroesse": 38
+   },
+   "rinde": {
+    "x": 443,
+    "y": 1311,
+    "b": 49,
+    "h": 41,
+    "weltGroesse": 20
    }
   }
  },

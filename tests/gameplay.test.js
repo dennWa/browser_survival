@@ -17,6 +17,7 @@ import { erzeugeZombie, waehleZombieVariante } from '../server/spiel/entitaeten/
 import { findePfad } from '../gemeinsam/physik/pfadfindung.js';
 import { wendeEingabeAn } from '../gemeinsam/physik/bewegung.js';
 import { Zufall } from '../server/spiel/zufall.js';
+import { amBoden, hebeAlleAuf } from './hilfen/aufheben.js';
 
 // Kachel = 32 px. Wand in Spalte 5 (Zeilen 3–5) trennt links/rechts teilweise.
 const TESTKARTE = {
@@ -698,7 +699,10 @@ test('Baum fällen: 6 Sekunden mit Axt → 1 Holz (20 % Chance auf 2), Baum weg,
   ticks(welt, Math.ceil(5.5 / TICK_DAUER_S));
   assert.equal(anzahl(spieler, 'holz'), 0, 'noch nicht fertig');
   ticks(welt, Math.ceil(0.6 / TICK_DAUER_S));
-  assert.ok([1, 2].includes(anzahl(spieler, 'holz')));
+  assert.equal(anzahl(spieler, 'holz'), 0, 'Runde 38: das Holz liegt am Boden, nicht im Inventar');
+  assert.ok([1, 2].includes(amBoden(welt, spieler, 'holz')));
+  hebeAlleAuf(welt, spieler);
+  assert.ok([1, 2].includes(anzahl(spieler, 'holz')), 'nach dem Aufheben im Inventar');
   assert.equal(welt.welt.istRessourceDa(0), false);
   welt.ressourcenNachwuchs.set(0, 0.01);
   platziere(spieler, 2, 2);
@@ -732,6 +736,8 @@ test('Abbauen: ohne Werkzeug geht nichts, Bewegung bricht ab, Stein blockiert nu
   platziere(spieler, 5, 3);
   spieler.aktionsPuffer.push({ art: AKTIONEN.ABBAUEN, slot: null });
   ticks(welt, Math.ceil(8.2 / TICK_DAUER_S));
+  assert.ok([1, 2].includes(amBoden(welt, spieler, 'stein')), 'Stein liegt am Boden');
+  hebeAlleAuf(welt, spieler);
   assert.ok([1, 2].includes(anzahl(spieler, 'stein')));
   assert.equal(welt.welt.istBlockiert(5, 4), false, 'abgebauter Stein ist kein Hindernis mehr');
 });

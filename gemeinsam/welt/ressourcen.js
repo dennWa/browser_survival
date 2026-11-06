@@ -6,8 +6,20 @@
  *   werkzeug   → Item-ID, die man im Inventar haben muss
  *   radius     → Größe in Weltpixeln (Reichweite fürs Abbauen)
  *   blockiert  → steht im Weg, solange er nicht abgebaut ist
+ *   nachMass   → Runde 38: Radius und Größe (klein/groß) kommen aus der Grundfläche b × h des Objekts (Fels-Modelle r32_fels_*)
+ *   randBlock  → Runde 38: blockiert alle Kacheln, die die Grundfläche spürbar berühren (nicht nur die mit dem Mittelpunkt darin)
  */
+/** Runde 38: die Low-Poly-Felsen der Karten (Editor-Deko r32_fels_0 … 7) sind jetzt echte Steinvorkommen: abbaubar, Kollision über die ganze Grundfläche */
+const FELSEN = Object.fromEntries(
+  Array.from({ length: 8 }, (_, i) => [`r32_fels_${i}`, { art: 'stein', werkzeug: 'spitzhacke', radius: 22, blockiert: true, aktion: 'Fels abbauen', nachMass: true, randBlock: true }]),
+);
+/** Felsen ab dieser Grundfläche (Kacheln²) gelten als „groß“ (mengeGross wie bei großen Steinen) */
+export const FELS_GROSS_AB = 1.9;
+/** Anteil einer Kachel (0..1) in beiden Richtungen, ab dem ein Fels sie blockiert (randBlock) */
+export const RAND_BLOCK_ANTEIL = 0.3;
+
 export const RESSOURCEN_OBJEKTE = Object.freeze({
+  ...FELSEN,
   baum: { art: 'holz', werkzeug: 'axt', radius: 18, blockiert: false, aktion: 'Baum fällen' },
   baum_herbst: { art: 'holz', werkzeug: 'axt', radius: 18, blockiert: false, aktion: 'Baum fällen' },
   tanne: { art: 'holz', werkzeug: 'axt', radius: 17, blockiert: false, aktion: 'Baum fällen' },

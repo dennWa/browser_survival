@@ -48,6 +48,7 @@ export class EgoModus {
     });
     document.addEventListener('mousemove', (e) => {
       if (!this.#aktiv || document.pointerLockElement !== this.leinwand) return;
+      if (this.holeSpiel()?.abbauBlick?.() != null) return; // Runde 38: beim Fällen/Abbauen ist der Blick fixiert
       if (this.#fahrtWinkel !== null) this.#blickVersatz = Math.max(-2, Math.min(2, this.#blickVersatz + e.movementX * EMPFINDLICHKEIT));
       else this.#yaw += e.movementX * EMPFINDLICHKEIT;
       this.#pitch = Math.max(-PITCH_MAX, Math.min(PITCH_MAX, this.#pitch - e.movementY * EMPFINDLICHKEIT));
@@ -163,7 +164,12 @@ export class EgoModus {
     const dt = Math.min(0.1, (jetzt - this.#letzteZeit) / 1000);
     this.#letzteZeit = jetzt;
     // Handy: rechter Stick = Blick drehen/neigen (pro Bild, unabhängig vom Spieltakt)
-    const stick = this.#touch() ? this.eingabe.touch.zielVektor?.() : null;
+    const gesperrt = this.holeSpiel()?.abbauBlick?.() ?? null; // Runde 38: Blick auf Baum/Stein fixiert
+    if (gesperrt !== null) {
+      this.#yaw = gesperrt;
+      this.#pitch *= Math.max(0, 1 - 6 * dt);
+    }
+    const stick = gesperrt === null && this.#touch() ? this.eingabe.touch.zielVektor?.() : null;
     if (stick) {
       if (fokus.fahrzeugId) this.#blickVersatz = Math.max(-2, Math.min(2, this.#blickVersatz + stick.x * TOUCH_DREHEN * dt));
       else this.#yaw += stick.x * Math.abs(stick.x) * TOUCH_DREHEN * dt;

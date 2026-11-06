@@ -114,6 +114,8 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     insassenSchaden: 0.3, // Runde 32: Aufprall bei Vollgas gegen Baum/Wand/Auto → 30 % der Lebenspunkte der Insassen (darunter linear ab 17 km/h)
     bombeAuto: 0.5, // Runde 32: überfahrener Bombenzombie → 50 % der Auto-Haltbarkeit
     bombeInsassen: 0.5, // … und 50 % der Lebenspunkte von Fahrer/Beifahrer
+    spielerTodKmh: 110, // Runde 38: Fußgänger werden angefahren: Schaden = maxLeben × km/h ÷ 110 – ab 110 km/h sofort tot
+    spielerAnfahrMinKmh: 4, // … erst ab diesem Tempo (langsamer Schritt-Tempo-Schieben tut nichts)
   },
   /** Runde 23: Test-Bots (systeme/botSystem.js) – so viele laufen je Zone herum; Admin kann welche setzen/entfernen. */
   bots: {
@@ -235,6 +237,9 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     windMin: 45, // Runde 24: Sekunden, bis der Grundwind ein neues Ziel würfelt (ruhig/leicht/frisch/stark)
     windMax: 150,
     windTempo: 0.025, // Änderung des Grundwinds je Sekunde (0..1-Skala)
+    nassVerzoegerung: 15, // Runde 38: Sekunden Regen, bis der Asphalt zu glänzen beginnt …
+    nassAnstieg: 30, // … und Sekunden, bis er voll nass ist
+    trocknenDauer: 120, // Sekunden von „klatschnass“ bis „trocken“ nach Regenende (nach 60 s halb)
   },
   kampf: {
     pvp: false, // Spieler können sich gegenseitig verletzen
@@ -255,6 +260,7 @@ export const STANDARD_KONFIGURATION = Object.freeze({
    * nachwachsen in Sekunden. Welche Objekte abbaubar sind: gemeinsam/welt/ressourcen.js
    */
   ressourcen: {
+    bodenVerfall: 600, // Runde 38: Sekunden, die abgebautes Holz/Stein/Erz am Boden liegt, bis es verschwindet (null = nie)
     holz: { menge: 1, mengeGross: 2, chanceAufMehr: 0.2, dauer: 6, nachwachsen: 300, apfelChance: 0.1 },
     stein: { menge: 1, mengeGross: 2, chanceAufMehr: 0.2, dauer: 8, nachwachsen: 240 },
     eisenerz: { menge: 1, chanceAufMehr: 0.2, dauer: 10, nachwachsen: 420 },

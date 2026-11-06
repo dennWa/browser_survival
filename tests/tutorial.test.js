@@ -212,6 +212,7 @@ test('Tutorial: echte Mechanik in Hof und Garten (Abbau, Werkbank, Munition, Feu
       Object.assign(s, { x: r.x, y: r.y + r.radius + 14 });
       aktion('abbauen');
       warte(4);
+      for (let i = 0; i < 4; i++) aktion('aufheben'); // Runde 38: Holz/Stein liegen nach dem Abbau am Boden
     }
     assert.ok(anzahl(art) >= ziel, `${art}: ${anzahl(art)}`);
   }

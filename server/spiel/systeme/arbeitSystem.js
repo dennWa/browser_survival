@@ -6,6 +6,7 @@ import { gibXp } from './levelSystem.js';
 import { GEGENSTAENDE } from '../konfiguration/gegenstaende.js';
 import { sammelFaktor } from '../../../gemeinsam/spieler/skills.js';
 import { aktualisiereBauwerke } from './bauSystem.js';
+import { spuleWetterVor } from './wetterSystem.js';
 import { BAUWERKE } from '../../../gemeinsam/welt/bauwerke.js';
 import { bettBei } from '../../../gemeinsam/welt/einrichtung.js';
 
@@ -172,9 +173,12 @@ function schliesseAbbauAb(spielWelt, spieler, r, a) {
   // Große Bäume/Steine geben mehr (mengeGross), beide mit Glückschance auf +1
   const grundMenge = r.groesse === 'gross' ? k.mengeGross ?? k.menge : k.menge;
   const menge = grundMenge + (spielWelt.zufall.zahl() < (k.chanceAufMehr ?? 0) ? 1 : 0);
-  gebeItem(spielWelt, spieler, r.art, menge);
   spielWelt.welt.setzeRessource(r.id, false);
   spielWelt.ressourcenNachwuchs.set(r.id, k.nachwachsen);
+  // Runde 38: Holz/Stein/Erz liegen am Boden und werden von Hand aufgehoben; Äste (Busch) gehen weiter direkt ins Inventar
+  const amBoden = r.art !== 'ast';
+  if (amBoden) lasseRessourceFallen(spielWelt, spieler, r, menge);
+  else gebeItem(spielWelt, spieler, r.art, menge);
   gibXp(spielWelt, spieler, spielWelt.konfiguration.level.xpProAbbau ?? 0);
   // Bäume werfen manchmal einen Apfel ab (konfiguration.ressourcen.holz.apfelChance)
   const apfel = r.art === 'holz' && spielWelt.zufall.zahl() < (k.apfelChance ?? 0);
@@ -183,7 +187,30 @@ function schliesseAbbauAb(spielWelt, spieler, r, a) {
     if (apfelRest > 0) legeAufBoden(spielWelt, { defId: 'apfel', menge: apfelRest }, spieler.x, spieler.y);
   }
   // menge/bonus: Client zeigt „+N <Icon>“ an der Abbaustelle (ui/weltPopups.js) statt einer Textmeldung
-  spielWelt.ereignis({ typ: 'abgebaut', art: r.art, x: r.x, y: r.y, id: r.id, von: spieler.id, sx: spieler.x, sy: spieler.y, menge, bonus: apfel ? 'apfel' : undefined });
+  spielWelt.ereignis({ typ: 'abgebaut', art: r.art, x: r.x, y: r.y, id: r.id, von: spieler.id, sx: spieler.x, sy: spieler.y, menge, boden: amBoden || undefined, bonus: apfel ? 'apfel' : undefined });
+}
+
+/**
+ * Runde 38: gefällter Baum / abgebauter Stein / Erzbrocken → die Ausbeute fällt als Gegenstand neben den Fundort (kein direktes Inventar mehr).
+ * Ort: an der dem Spieler zugewandten Seite des Stumpfs/Felsens (in Aufheb-Reichweite, aber nicht in einer blockierten Kachel); bleibt
+ * `ressourcen.bodenVerfall` Sekunden liegen (nie dauerhaft: sonst vermüllt ein Holzfäller die Karte).
+ */
+function lasseRessourceFallen(spielWelt, spieler, r, menge) {
+  const welt = spielWelt.welt;
+  const g = welt.kachelGroesse;
+  const frei = (x, y) => !welt.istBlockiert(Math.floor(x / g), Math.floor(y / g));
+  const zumSpieler = Math.atan2(spieler.y - r.y, spieler.x - r.x);
+  const abstand = r.art === 'holz' ? r.radius * 0.7 : r.radius * 0.4;
+  let ort = { x: spieler.x, y: spieler.y };
+  for (const dreh of [0, 0.5, -0.5, 1, -1, 1.6, -1.6, Math.PI]) {
+    const wink = zumSpieler + dreh + (spielWelt.zufall.zahl() - 0.5) * 0.5;
+    const x = r.x + Math.cos(wink) * abstand;
+    const y = r.y + Math.sin(wink) * abstand;
+    if (!frei(x, y)) continue;
+    ort = { x, y };
+    break;
+  }
+  legeAufBoden(spielWelt, { defId: r.art, menge }, ort.x, ort.y, spielWelt.konfiguration.ressourcen.bodenVerfall ?? null);
 }
 
 /** Item ins Inventar, Überhang liegt am Boden */
@@ -259,6 +286,7 @@ function spuleSekundenVor(spielWelt, sekunden) {
   }
   aktualisiereNachwachsen(spielWelt, sekunden);
   aktualisiereBauwerke(spielWelt, 0, sekunden); // Pflanzen wachsen im Schlaf mit
+  spuleWetterVor(spielWelt, sekunden); // Runde 38: Regen hört im Schlaf evtl. auf, nächste Phase läuft weiter
 }
 
 /** Zonenübergreifend: woanders haben alle ausgeschlafen → hier dieselben Stunden vorspulen und die Schläfer wecken. */

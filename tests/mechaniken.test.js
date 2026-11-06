@@ -15,6 +15,7 @@ import { wurfZiel } from '../gemeinsam/welt/wasser.js';
 import { setzeWetter } from '../server/spiel/systeme/wetterSystem.js';
 import { spielerZuNetzwerk } from '../server/spiel/entitaeten/spieler.js';
 import { erstelleSpielstand, wendeSpielstandAn } from '../server/spiel/spielstand.js';
+import { hebeAlleAuf } from './hilfen/aufheben.js';
 
 /**
  * Neue Mechaniken (v0.10): Auto-Haltbarkeit & Wrack, Boss beim Tod, Abbau-XP, Stapelgrößen, Crafting-Level,
@@ -171,6 +172,7 @@ test('Abbau gibt 3 XP', () => {
   ticks(welt, 1);
   assert.ok(spieler.arbeit, 'Abbau läuft');
   ticks(welt, Math.ceil((spieler.arbeit.rest + 0.5) / TICK_DAUER_S));
+  hebeAlleAuf(welt, spieler); // Runde 38: Stein liegt am Boden
   assert.equal(anzahl(spieler, 'stein') >= 1, true);
   assert.equal(spieler.xp, 3);
 });

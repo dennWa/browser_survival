@@ -9,6 +9,9 @@
  * Runde 26: Stufe 0 = Flaute (Ton ganz aus). Runde 24: Grundwind `wetter.wind` 0..1 (ruhig ≈0,1 · leicht ≈0,35 · frisch ≈0,6 · stark ≈0,85) wechselt alle
  * windMin…windMax Sekunden sein Ziel und gleitet langsam dorthin; Sturmwetter zieht ihn hoch, Nebel runter.
  * Geht als ZUSTAND.wind mit – der Client legt Böen drüber (Ton + Bäume/Gras aus derselben Kurve).
+ * Runde 38: Nässe `wetter.nass` 0..1 (Asphalt, ZUSTAND.nass): nach `nassVerzoegerung` s Regen steigt sie in `nassAnstieg` s auf 1, nach Regenende
+ * fällt sie in `trocknenDauer` s auf 0 (≈ halb nach 1 min). `spuleWetterVor` (Schlafen/Zeitsprung/Zonen-Nachholen) rechnet Phasenwechsel + Nässe
+ * stückweise exakt nach – Wetter läuft in Spielzeit-Sekunden, dieselben wie die Uhr.
  */
 export const WACHSTUM_REGEN_FAKTOR = 2;
 
@@ -33,6 +36,7 @@ export function aktualisiereWetter(spielWelt, dt) {
   const k = spielWelt.konfiguration.wetter;
   const w = spielWelt.wetter;
   aktualisiereWind(spielWelt, w, dt);
+  aktualisiereNaesse(w, regnet(w.art), dt, k);
   if (!k.aktiv) {
     w.art = 'klar';
     return;
@@ -47,6 +51,35 @@ export function aktualisiereWetter(spielWelt, dt) {
   } else {
     w.art = 'klar';
     w.rest = k.pauseMin + spielWelt.zufall.zahl() * (k.pauseMax - k.pauseMin);
+  }
+}
+
+/** Nässe der Straße fortschreiben (Regen: Verzögerung, dann Anstieg; trocken: lineares Trocknen). */
+export function aktualisiereNaesse(w, regen, dt, k = {}) {
+  const verzoegerung = k.nassVerzoegerung ?? 15;
+  w.nass ??= 0;
+  if (regen) {
+    const vorher = w.regenSeit ?? 0;
+    w.regenSeit = vorher + dt;
+    const nutzbar = Math.max(0, w.regenSeit - Math.max(vorher, verzoegerung));
+    w.nass = Math.min(1, w.nass + nutzbar / (k.nassAnstieg ?? 30));
+  } else {
+    w.regenSeit = 0;
+    w.nass = Math.max(0, w.nass - dt / (k.trocknenDauer ?? 120));
+  }
+}
+
+/**
+ * Zeit ist vergangen, ohne dass getickt wurde (Schlafen, Admin-Zeit, pausierte Zone): Wetterphasen der Reihe nach durchrechnen –
+ * der Regen kann zwischendurch geendet haben, danach kam evtl. schon die nächste Phase. Nässe läuft dabei mit.
+ */
+export function spuleWetterVor(spielWelt, sekunden) {
+  const w = spielWelt.wetter;
+  let rest = sekunden;
+  for (let i = 0; i < 5000 && rest > 0; i++) {
+    const schritt = Math.min(rest, Math.max(w.rest ?? 0, 0.001));
+    aktualisiereWetter(spielWelt, schritt);
+    rest -= schritt;
   }
 }
 

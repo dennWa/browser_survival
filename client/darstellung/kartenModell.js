@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { WAND_ARTEN, KACHELN } from '../../gemeinsam/welt/kacheln.js';
 import { RESSOURCEN_OBJEKTE } from '../../gemeinsam/welt/ressourcen.js';
 import { ladeGlbGeometrien, einpassen } from './glbGeometrien.js';
-import { baueBaum, ladeStuempfe, stumpfMaterial, STUMPF_GRUPPEN, STUMPF_FORMEN, toonMaterial, ladeTanneAusGlb, BAUM_LAUB_TOENE, BAUM_VARIANTE_INFO, BAUM_GRUNDFLAECHE, baumVarianten, waehleBaumVariante, ladeBaumVariante, leereBaumGeometrie, laubMaterial, baumWindMaterial } from './baumModell.js';
+import { baueBaum, ladeStuempfe, stumpfMaterial, STUMPF_GRUPPEN, STUMPF_FORMEN, toonMaterial, ladeTanneAusGlb, BAUM_LAUB_TOENE, BAUM_VARIANTE_INFO, BAUM_GRUNDFLAECHE, baumVarianten, waehleBaumVariante, ladeBaumVariante, leereBaumGeometrie, laubMaterial, baumWindMaterial, stammBreite, STUMPF_BREITE, STUMPF_MIN_BREITE } from './baumModell.js';
 import { BodenTextur } from './bodenTextur.js';
 import { Daecher } from './dachModell.js';
 import { WandDurchsicht } from './wandDurchsicht.js';
@@ -10,6 +10,7 @@ import { wendeWandTexturAn, wandArtFarbe, ohneFarbe } from './wandTexturen.js';
 import { einfrieren, matrixAus, vereineGeometrien } from './geometrie.js';
 import { eigeneGroesse } from '../../gemeinsam/welt/drehung.js';
 import { eigenesModellUrl, ladeEigenesModell, eigenesModellInhalt, leerlaufMischer } from './eigeneModelle.js';
+import { StrassenNaesse } from './nasseStrassen.js';
 import { BLOCK_KACHELN, BlockInstanzen, boxZweiGruppen, kulEintrag, kulleNachWeite } from './bloecke.js';
 
 /**
@@ -120,6 +121,8 @@ export class KartenModell {
     yield* this.#baueBoden(this.bodenMassstab);
     yield;
     this.#baueWasser();
+    this.naesse = new StrassenNaesse({ welt: this.welt, g: this.g, hy: this.hy, wandHoehe: WANDHOEHE }); // Runde 38: nasse Straßen + Dachtropfen
+    this.statisch.add(this.naesse.gruppe);
     yield;
     this.#baueWaende();
     yield;
@@ -149,6 +152,11 @@ export class KartenModell {
     return kulleNachWeite(this.kulEintraege, kamera.x - v.x, kamera.y - v.y, kamera.z - v.z, weite);
   }
 
+  /** Runde 38: Server-Nässe 0..1 (Asphalt) + Regenstärke 0..1 (Dachtropfen) – Renderer ruft es vor `aktualisiere` jedes Bild auf */
+  setzeNaesse(nass, regen) {
+    this.naesse?.setze(nass, regen);
+  }
+
   /** Lampen der Karte: [{ x, y, z, farbe, radius, staerke, objekt }] – für den Licht-Pool im Renderer */
   get lampen() {
     return this.lampenListe;
@@ -165,6 +173,7 @@ export class KartenModell {
       if (Math.abs(t.winkel - soll) < 0.002) t.winkel = soll;
       t.fluegel.rotation.y = t.winkel;
     }
+    this.naesse?.aktualisiere(dt, fokus);
     if (this.abgebautStand !== this.welt.ressourcenVersion) this.#zeigeRessourcen();
     if (this.laternenStand !== this.welt.ressourcenVersion) this.#zeigeLaternen();
     if (this.wasser) {
@@ -457,6 +466,9 @@ export class KartenModell {
   /** Eigene Objekte mit 3D-Modell (Map-Editor): Gruppe sofort da, Modell kommt nach dem Laden. Ohne Modell → Ersatz-Quader wie gehabt. */
   #baueEigeneModelle() {
     const g = this.g;
+    // Runde 38: Felsen-Modelle (r32_fels_*) sind Steinvorkommen → ihre Gruppe verschwindet, wenn der Fels abgebaut ist (#zeigeRessourcen)
+    const ressourceVon = new Map(this.welt.ressourcen.map((r) => [r.objekt, r]));
+    this.ressourcenGruppen = new Map();
     for (const o of this.welt.objekte) {
       const typ = this.welt.typen[o.typ];
       const url = eigenesModellUrl(typ);
@@ -465,6 +477,8 @@ export class KartenModell {
       gruppe.position.set((o.x + o.b / 2) * g, this.hy((o.x + o.b / 2) * g, (o.y + o.h / 2) * g), (o.y + o.h / 2) * g);
       gruppe.rotation.y = (-(o.drehung ?? 0) * Math.PI) / 180;
       this.statisch.add(gruppe);
+      const ressource = ressourceVon.get(o);
+      if (ressource) this.ressourcenGruppen.set(ressource.id, gruppe);
       ladeEigenesModell(url)
         .then((szene) => {
           if (!gruppe.parent) return;
@@ -930,7 +944,11 @@ export class KartenModell {
           teil.laub.setColorAt(index, new THREE.Color().setRGB(ton[0] * hell, ton[1] * hell, ton[2] * hell, THREE.LinearSRGBColorSpace));
         }
         if (o.typ !== 'busch') {
-          eintrag.stumpf = { pool: stuempfe.get(`${block}#${stumpfArt(o)}`), slot: -1, matrix: matrixAus(x, this.hy(x, z), z, zufall * 5, groesse * 1.1) };
+          // Runde 38: Stumpfdicke = Stammdicke der Baum-Variante × Baumgröße (× 1,1 Wurzelanlauf), Höhe 1,4× – passt zum gefällten Baum
+          const breite = Math.max(STUMPF_MIN_BREITE, stammBreite(artVon.get(o)) * groesse * 1.1);
+          const s = breite / STUMPF_BREITE;
+          const stumpfMatrix = new THREE.Matrix4().compose(new THREE.Vector3(x, this.hy(x, z), z), new THREE.Quaternion().setFromAxisAngle(_achseY, zufall * 5), new THREE.Vector3(s, s * 1.4, s));
+          eintrag.stumpf = { pool: stuempfe.get(`${block}#${stumpfArt(o)}`), slot: -1, matrix: stumpfMatrix };
         }
       }
       for (const t of eintrag.teile) t.mesh.setMatrixAt(t.index, t.matrix);
@@ -984,6 +1002,7 @@ export class KartenModell {
 
   #zeigeRessourcen() {
     this.abgebautStand = this.welt.ressourcenVersion;
+    for (const [id, gruppe] of this.ressourcenGruppen ?? []) gruppe.visible = this.welt.istRessourceDa(id);
     const geaendert = new Set();
     for (const [id, eintrag] of this.ressourcenInstanzen) {
       const da = this.welt.istRessourceDa(id);

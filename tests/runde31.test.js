@@ -14,6 +14,7 @@ import { EREIGNISSE } from '../client/audio/eigeneSounds.js';
 import { fuegeZumInventarHinzu } from '../server/spiel/systeme/inventarSystem.js';
 import { erzeugeFahrzeug } from '../server/spiel/entitaeten/fahrzeug.js';
 import { aktualisiereFahrzeuge } from '../server/spiel/systeme/fahrzeugSystem.js';
+import { hebeAlleAuf } from './hilfen/aufheben.js';
 
 /** Runde 31: Äste (Busch), Rinde (Baum), Feuerbohrer/Feuerzeug-Nutzungen, Lagerfeuer-Brennstoff, Auto-Zusammenstoß, Schritte auf Asphalt, Lautstärken. */
 const KARTE = {
@@ -93,6 +94,7 @@ test('Rinde: Messer/Machete in der Hand schneiden Rinde (3×, Baum bleibt, Dauer
   assert.equal(spieler.arbeit?.art, 'holz', 'danach nur noch fällen');
   laufe(welt, dauer + 10);
   assert.ok(!w.istRessourceDa(baum.id));
+  hebeAlleAuf(welt, spieler); // Runde 38: Holz liegt am Boden
   assert.ok(anzahl(spieler, 'holz') >= 1);
   // Nachwachsen: neuer Baum hat wieder volle Rinde
   Object.assign(spieler, { x: m(16), y: m(9) });
@@ -182,7 +184,7 @@ test('Schritte: Asphalt/Straße/Gehweg/Pflaster → schritt_asphalt; Gras unver�
 
 test('Lautstärken: Regen drinnen noch leiser, schwacher Wind draußen leiser aber drinnen unverändert', () => {
   const haus = wetterSchichten({ w: vorschauWetter('regen'), hell: 1, drinnen: true, imHaus: true, wetter: 'regen' });
-  assert.ok(Math.abs(haus.regen - 0.112) < 1e-9); // Runde 32: −30 %
+  assert.ok(Math.abs(haus.regen - 0.112 * 0.85) < 1e-9); // Runde 38: −15 % zusätzlich
   const w = { ...vorschauWetter('klar'), windStufe: 1 };
   const draussen = wetterSchichten({ w, hell: 1, wetter: 'klar' }).wind_leicht;
   const drinnen = wetterSchichten({ w, hell: 1, drinnen: true, wetter: 'klar' }).wind_leicht;

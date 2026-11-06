@@ -276,6 +276,23 @@ export function baumWindMaterial(material, { laub = false } = {}) {
  * @returns {Promise<{ geometrie: THREE.BufferGeometry, textur: THREE.Texture, gruppe: number, form: number }[] | null>} null, wenn die Datei fehlt
  */
 export const STUMPF_BREITE = 26;
+/**
+ * Runde 38: Stammdicke am Fuß je Baum-Variante in Weltpixeln (Modell-Maßstab 1) – aus den .glb gemessen (Rinden-Eckpunkte ≤ 7 px über dem Boden).
+ * Der Stumpf wird auf diese Dicke × Baumgröße skaliert (kartenModell), damit er zum gefällten Baum passt. nadel_1/3: Wert geschätzt (tiefe Äste verfälschen die Messung).
+ */
+export const STAMM_BREITE = {
+  kiefer_herbst: 8.5, kiefer_n0: 13.2, kiefer_n1: 15.4, kiefer_n2: 16.7,
+  laubbaum_00: 5, laubbaum_01: 5, laubbaum_02: 5.4, laubbaum_03: 6, laubbaum_04: 5.3, laubbaum_05: 5.1, laubbaum_06: 5.6,
+  laubbaum_07: 6.2, laubbaum_08: 4.3, laubbaum_09: 5.1, laubbaum_10: 5.6, laubbaum_11: 6.1,
+  nadel_0: 12.2, nadel_1: 14, nadel_2: 15, nadel_3: 14, nadel_4: 7.6, nadel_5: 8.3, nadel_6: 7.2, nadel_7: 7.6,
+};
+/** Stammdicke (px, Maßstab 1) für einen Baum der Art `typ|variante` bzw. `tanne` (kartenModell: artVon) */
+export function stammBreite(schluesselArt) {
+  const [typ, variante] = String(schluesselArt).split('|');
+  return STAMM_BREITE[variante] ?? (typ === 'tanne' ? 12 : 10);
+}
+/** Dünne Stämme bekommen einen Stumpf mindestens so breit (px nach Skalierung), damit er am Boden erkennbar bleibt */
+export const STUMPF_MIN_BREITE = 8;
 export const STUMPF_GRUPPEN = 5;
 export const STUMPF_FORMEN = 4;
 let stumpfCache = null;

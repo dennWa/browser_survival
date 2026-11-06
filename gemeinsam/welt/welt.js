@@ -1,8 +1,8 @@
 import { KACHELN, istWandKachel } from './kacheln.js';
-import { RESSOURCEN_OBJEKTE } from './ressourcen.js';
+import { FELS_GROSS_AB, RAND_BLOCK_ANTEIL, RESSOURCEN_OBJEKTE } from './ressourcen.js';
 import { blockiertBauwerk, ebeneVon, sichtBlockiertBauwerk } from './bauwerke.js';
 import { hoeheAn } from './gelaende.js';
-import { bedeckteKacheln, huelle } from './drehung.js';
+import { bedeckteKacheln, beruehrteKacheln, huelle } from './drehung.js';
 
 /** Kollisionsradius (px) eines Baumstamms bzw. Lampenmasts für Fahrzeuge – nur der Stamm, nicht die Krone */
 const STAMM_RADIUS = 7;
@@ -56,7 +56,8 @@ export class Welt {
     this.ressourceAnKachel = new Map(); // Kachelindex → Ressourcen-ID (nur blockierende, z. B. Steine)
     for (const r of this.ressourcen) {
       if (!RESSOURCEN_OBJEKTE[r.typ].blockiert) continue;
-      for (const index of bedeckteKacheln(r.objekt, this.breite)) this.ressourceAnKachel.set(index, r.id);
+      const kacheln = RESSOURCEN_OBJEKTE[r.typ].randBlock ? beruehrteKacheln(r.objekt, this.breite, RAND_BLOCK_ANTEIL) : bedeckteKacheln(r.objekt, this.breite);
+      for (const index of kacheln) if (!this.ressourceAnKachel.has(index)) this.ressourceAnKachel.set(index, r.id);
     }
     this.abgebaut = new Set();
     /** Runde 31: Ressourcen-ID (Baum) → so oft wurde schon Rinde abgeschnitten (heller Stamm; bis zum Nachwachsen/Serverneustart) */
@@ -483,8 +484,11 @@ function findeRessourcen(welt) {
   for (const o of welt.objekte) {
     const def = RESSOURCEN_OBJEKTE[o.typ];
     if (!def) continue;
-    const gross = o.groesse === 'gross';
-    liste.push({ id: liste.length, typ: o.typ, art: def.art, werkzeug: def.werkzeug, werkzeuge: def.werkzeuge ?? [def.werkzeug], groesse: o.groesse ?? 'klein', x: (o.x + o.b / 2) * g, y: (o.y + o.h / 2) * g, radius: gross ? def.radius * 1.2 : def.radius, objekt: o });
+    // Runde 38: Fels-Modelle (nachMass) – Größe und Reichweite aus der Grundfläche statt aus Position/Zufall
+    const groesse = def.nachMass ? (o.b * o.h >= FELS_GROSS_AB ? 'gross' : 'klein') : o.groesse ?? 'klein';
+    const gross = groesse === 'gross';
+    const radius = def.nachMass ? (Math.max(o.b, o.h) * g) / 2 : gross ? def.radius * 1.2 : def.radius;
+    liste.push({ id: liste.length, typ: o.typ, art: def.art, werkzeug: def.werkzeug, werkzeuge: def.werkzeuge ?? [def.werkzeug], groesse, x: (o.x + o.b / 2) * g, y: (o.y + o.h / 2) * g, radius, objekt: o });
   }
   return liste;
 }

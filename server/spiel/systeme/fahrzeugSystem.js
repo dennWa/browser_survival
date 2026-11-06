@@ -9,6 +9,7 @@ import { erzeugeFahrzeug } from '../entitaeten/fahrzeug.js';
  * Gefahren wird über die normalen Eingaben (gemeinsam/physik/bewegung.js → fahre), damit die Vorhersage passt.
  * Pro Tick: belegte Kacheln aktualisieren (Kollision für alle), Zombies anfahren, verwaiste Autos anhalten,
  * Aufprall-Schaden (Wand/Fahrzeug ≥ AUFPRALL_MIN_KMH), Bäume (≥ AUFPRALL_MIN_KMH) & Straßenlaternen (≥ LATERNE_MIN_KMH) umfahren.
+ * Runde 38: Fußgänger werden angefahren (fahreSpielerAn: Schaden = km/h ÷ 110 der Maximal-Leben, ab 110 km/h sofort tot).
  * Zonenwechsel im Auto: loeseFahrzeugFuerWechsel / setzeFahrzeugEin / parkeZurueck (unten, aufgerufen vom SpielServer).
  */
 const ANFAHR_MIN_TEMPO = 55; // px/s – langsamer schiebt das Auto Zombies nur
@@ -204,6 +205,7 @@ export function aktualisiereFahrzeuge(spielWelt, dt) {
       fahreZombiesAn(spielWelt, fz);
       fahreTiereUeber(spielWelt, fz);
     }
+    if (tempoZuKmh(fz.tempo) >= (spielWelt.konfiguration.fahrzeug.spielerAnfahrMinKmh ?? 4)) fahreSpielerAn(spielWelt, fz);
   }
   laternenNachwachsen(spielWelt, dt);
 }
@@ -316,6 +318,34 @@ function fahreZombiesAn(spielWelt, fz) {
     fz.tempo *= 0.8;
     schlageFahrzeug(spielWelt, fz, spielWelt.konfiguration.fahrzeug.ueberfahrSchaden);
     if (fz.kaputt) return;
+  }
+}
+
+/**
+ * Runde 38: Spieler (auch Bots) zu Fuß, die vom Auto erfasst werden: Schaden = Anteil der Maximal-Lebenspunkte gleich
+ * Tempo ÷ spielerTodKmh (110 km/h; bei höchstens 120 km/h also ab 110 sofort tot, darunter z. B. 55 km/h = 50 %).
+ * Gilt unabhängig vom PvP-Schalter; Insassen (Fahrer/Beifahrer) und Gottmodus bleiben verschont. `fz.treffer` = kurze Sperre je Opfer.
+ */
+function fahreSpielerAn(spielWelt, fz) {
+  const k = spielWelt.konfiguration.fahrzeug;
+  const kmh = tempoZuKmh(fz.tempo);
+  const fahrer = fz.fahrerId !== null ? spielWelt.holen(fz.fahrerId) : null;
+  for (const s of [...spielWelt.alleVomTyp('spieler')]) {
+    if (s.tot || s.gottmodus || s.fliegen || s.fahrzeug || s.mitfahrt || s.id === fz.fahrerId) continue;
+    if (fz.treffer.has(s.id)) continue;
+    if (abstandZumFahrzeug(fz, s.x, s.y) > (s.radius ?? spielWelt.konfiguration.spieler.radius) + 2) continue;
+    fz.treffer.set(s.id, 0.8);
+    spielWelt.ereignis({ typ: 'aufprall', x: s.x, y: s.y, tempo: Math.abs(fz.tempo), ziel: 'spieler' });
+    const winkel = fz.winkel + (fz.tempo < 0 ? Math.PI : 0);
+    const todKmh = k.spielerTodKmh ?? 110;
+    if (kmh >= todKmh) {
+      spielWelt.melde(s.id, '💥 Du wurdest von einem Auto überfahren!');
+      toeten(spielWelt, s, fahrer, { endgueltig: true, ohneXp: true });
+    } else {
+      spielWelt.melde(s.id, '💥 Du wurdest angefahren!');
+      fuegeSchadenZu(spielWelt, s, (s.maxLeben ?? 100) * (kmh / todKmh), fahrer, winkel, { ohneXp: true });
+    }
+    fz.tempo *= 0.9;
   }
 }
 

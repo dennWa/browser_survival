@@ -7,6 +7,7 @@ import { AKTIONEN } from '../gemeinsam/protokoll.js';
 import { erstelleKonfiguration } from '../server/spiel/konfiguration/spielKonfiguration.js';
 import { GEGENSTAENDE } from '../server/spiel/konfiguration/gegenstaende.js';
 import { SpielWelt } from '../server/spiel/spielWelt.js';
+import { hebeAlleAuf } from './hilfen/aufheben.js';
 
 /** Runde 23: Obst mit Wasser, Apfel beim Baumfällen, Esc im Bett, Abbau-Ereignis mit Menge (Popup „+N“). */
 const KARTE = {
@@ -77,6 +78,7 @@ test('Baum fällen: Abbau-Ereignis trägt die Menge, mit apfelChance 1 gibt es e
     gesehen.push(...welt.ereignisse.filter((e) => e.typ === 'abgebaut'));
   }
   assert.equal(anzahl(spieler, 'apfel'), 1);
+  hebeAlleAuf(welt, spieler); // Runde 38: Holz liegt am Boden
   assert.ok(anzahl(spieler, 'holz') >= 1);
   assert.equal(gesehen.length, 1);
   assert.ok(gesehen[0].menge >= 1);

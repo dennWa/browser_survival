@@ -23,8 +23,8 @@ test('wetterSchichten: Gewitter = Starkregen, Schneezone = Schneesturm statt Stu
   const schnee = wetterSchichten({ w: vorschauWetter('schneesturm'), hell: 1, wetter: 'schneesturm', schneeZone: true });
   assert.ok(schnee.schneesturm > 0.9 && schnee.sturm === 0);
   const haus = wetterSchichten({ w: vorschauWetter('regen'), hell: 1, drinnen: true, imHaus: true, wetter: 'regen' });
-  assert.ok(Math.abs(haus.regen - 0.112) < 1e-9); // Runde 32: drinnen −30 % (Runde 31: 0,16)
-  assert.equal(haus.regen_dach, 1);
+  assert.ok(Math.abs(haus.regen - 0.112 * 0.85) < 1e-9); // Runde 38: drinnen −15 % zusätzlich (Runde 32: −30 %)
+  assert.ok(Math.abs(haus.regen_dach - 0.85) < 1e-9);
   assert.equal(haus.tag, 0);
   const nacht = wetterSchichten({ w: vorschauWetter('klar'), hell: 0.05, wetter: 'klar' });
   assert.ok(nacht.nacht > 0.9 && nacht.tag === 0);

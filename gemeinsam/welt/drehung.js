@@ -62,6 +62,22 @@ export function bedeckteKacheln(o, breite) {
   return ergebnis;
 }
 
+/**
+ * Runde 38: wie bedeckteKacheln, aber auch Kacheln, deren Fläche die (Hüllen-)Grundfläche in beiden Richtungen um mindestens `anteil`
+ * (0..1 einer Kachel) berührt – für große Felsen, damit man nicht durch ihre Ränder läuft.
+ */
+export function beruehrteKacheln(o, breite, anteil = 0.3) {
+  const ergebnis = new Set(bedeckteKacheln(o, breite));
+  const h = huelle(o);
+  for (let ty = Math.floor(h.y0); ty < Math.ceil(h.y1); ty++)
+    for (let tx = Math.floor(h.x0); tx < Math.ceil(h.x1); tx++) {
+      const ox = Math.min(tx + 1, h.x1) - Math.max(tx, h.x0);
+      const oy = Math.min(ty + 1, h.y1) - Math.max(ty, h.y0);
+      if (ox >= anteil && oy >= anteil) ergebnis.add(ty * breite + tx);
+    }
+  return [...ergebnis];
+}
+
 /** Trennachsen-Test für zwei Rechtecke (Berührung zählt nicht als Überlappung) */
 export function ueberlappen(a, b) {
   const ea = ecken(a);

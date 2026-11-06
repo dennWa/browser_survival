@@ -75,3 +75,4 @@
 | 0.35.0-dev | 2026-11-05 | Runde 35: Fässer/Erz/Steine mit Original-Textur, größere Steine, Leiche erst nach Fall-Animation, Laternen-Balken am Bildrand weg, fehlerhafte Laubbäume entfernt (siehe `ki/runde35.md`). |
 | 0.34.0-dev | 2026-11-05 | Runde 34: Baumstümpfe aus Modellpaket (20 Varianten, Textur), lazy Instanz-Pools; alte prozedurale Stümpfe entfernt (siehe `ki/runde34.md`). |
 | 0.37.0-dev | 2026-11-06 | Runde 37: Bodennebel nicht mehr in Gebäuden, Asphalt ohne Pünktchen, Innenböden (Holz/Fliesen/Beton) als durchgehende Fläche (siehe `ki/runde37.md`) |
+| 0.38.0-dev | 2026-11-06 | Runde 38: Spieler werden von Autos angefahren (≥110 km/h tot), Wetter läuft in Spielzeit (Schlafen) + Straßennässe/Dachtropfen, Holz/Stein/Erz als Bodenitems (Holz-Icon = Balken), Felsen abbaubar mit Kollision, Stumpfdicke je Baum, Blick fixiert beim Abbauen, Regen im Haus −15 % (siehe `ki/runde38.md`) |

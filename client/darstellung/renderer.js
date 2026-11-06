@@ -586,6 +586,7 @@ export class Renderer {
     const dunkel = this.#tageslicht(tageszeit, _ziel);
     this.dunkel = this.nachtsicht ? 1 - (tageszeit?.helligkeit ?? 1) : dunkel; // für Haltungen (Lampe nur nachts vorn)
 
+    this.karte.setzeNaesse(this.nasse ?? 0, this.wetterEffekt.regen); // Runde 38: Server-Nässe (clientSpiel: renderer.nasse) → nasser Asphalt, Dachtropfen
     this.karte.aktualisiere(dt, dunkel, fokus);
     // Runde 32: In der Ich-Ansicht bleiben alle Dächer zu → drinnen hat man eine Decke über sich (Dach doppelseitig, s. kartenModell)
     if (this.egoHaken) this.karte.aktualisiereDaecher(-1e6, -1e6);
