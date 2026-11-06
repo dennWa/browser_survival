@@ -7,7 +7,6 @@ import { FARBEN, KACHEL_FARBEN } from './farben.js';
  * Bodentexturen aus dem Atlas bzw. prozedural (Asphalt, Straße mit Markierungen, Gehwegplatten),
  * Bodendeko (Teppiche, Blut, Parkplatzmarkierungen) und Türschwellen.
  * Wände, Möbel und Bäume sind im 3D-Renderer echte Körper und fehlen hier bewusst.
-
  * Runde 37: Innenböden holz/fliesen/beton = durchgehende Fläche (#innenBoden), Asphalt ohne Körnung (#weicherTon).
  * Schneezonen (welt.schnee): Kachel 'schnee' prozedural (bläulich-weiße Verwehungen, Glitzer); Straßen/Gehwege/Asphalt sind
  * verschneit (Ränder zum Schnee dicht, in der Mitte lückenhaft – man sieht den Asphalt noch), Wasser ist Eis.
