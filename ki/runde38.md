@@ -13,3 +13,4 @@
 - ⚠ Fallen: Tests, die Abbau-Ausbeute prüfen, müssen aufheben (`hebeAlleAuf`). Neue abbaubare Deko-Typen = `RESSOURCEN_OBJEKTE`-Eintrag + Modellgruppe in `ressourcenGruppen` (läuft automatisch über `welt.ressourcen`).
 - Tests: `tests/runde38.test.js` (13). `studio.test.js` rot = fehlendes `@modelcontextprotocol/sdk` (wie vorher).
 - Nachtrag: Holz-Bodenitem 15 px (vorher 27); Icons stein/eisenerz neu aus r32_rohstoffe.glb (editor_grafiken/{stein,eisenerz}.grafik.json); r32_rohstoffe.glb 'eisenerz' = Fels + rostrote Erzbrocken (per Skript neu geschrieben, baue_r32.py erzeugt noch die alte Variante).
+- Kisten-Fenster: 2 Spalten (links Behälter, rechts Inventar, <680px untereinander), Zähler, 'Alles nehmen' (#kiste-alles → nehmen je Platz). Boden-Drops: menge N = N Einzel-Gegenstände (menge 1, gestreut), Aufheben stapelt.

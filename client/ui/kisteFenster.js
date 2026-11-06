@@ -1,7 +1,7 @@
 import { INVENTAR_MAX, KISTE_PLAETZE } from '../../gemeinsam/konstanten.js';
 
 /**
- * Lagerkisten-Fenster (E an einer Kiste): oben die 16 Kistenplätze, unten das eigene Inventar.
+ * Lagerkisten-Fenster (E an einer Kiste/Leiche): links der Behälter, rechts das eigene Inventar (Handy: untereinander).
  * Antippen/Klicken schiebt den ganzen Stapel: Kistenplatz → Inventar bzw. Inventarplatz → Kiste.
  * Der Server prüft alles (kistenSystem.js) und schickt den neuen Inhalt per KISTE-Nachricht zurück.
  */
@@ -23,6 +23,10 @@ export class KisteFenster {
     this.rasterInventar = dokument.getElementById('kiste-inventar');
     this.info = dokument.getElementById('kiste-info');
     this.titel = dokument.getElementById('kiste-titel');
+    this.zaehler = dokument.getElementById('kiste-zaehler');
+    this.zaehlerInv = dokument.getElementById('kiste-zaehler-inv');
+    this.alles = dokument.getElementById('kiste-alles');
+    this.alles.addEventListener('click', () => (this.#inhalt ?? []).forEach((e, i) => e && this.#aktionen.nehmen?.(i)));
     dokument.getElementById('kiste-schliessen').addEventListener('click', () => this.#aktionen.schliessen?.());
     // Runde 32: Leichen toter Spieler haben mehr Plätze (Inventar + Rucksack + Kleidung) – überzählige Plätze bleiben verborgen
     for (let i = 0; i < Math.max(KISTE_PLAETZE, 44); i++) this.#kisten.push(this.#baueSlot(this.rasterKiste, i, (slot) => this.#aktionen.nehmen?.(slot)));
@@ -66,13 +70,20 @@ export class KisteFenster {
 
   #zeigeInfo(eintrag) {
     const def = eintrag && this.#itemDefinitionen[eintrag.defId];
-    this.info.textContent = def ? `${def.name}${eintrag.menge > 1 ? ` ×${eintrag.menge}` : ''}${def.beschreibung ? ` – ${def.beschreibung}` : ''}` : '';
+    if (!def) return void (this.info.innerHTML = '<span class="kiste-hinweis">Antippen verschiebt den ganzen Stapel – links ins Inventar, rechts in den Behälter.</span>');
+    const name = Object.assign(this.dokument.createElement('b'), { textContent: `${def.name}${eintrag.menge > 1 ? ` ×${eintrag.menge}` : ''}` });
+    this.info.replaceChildren(name, def.beschreibung ?? '');
   }
 
   #zeichne() {
     this.#zeichneReihe(this.#kisten, this.#inhalt ?? [], this.#inhalt?.length ?? KISTE_PLAETZE);
     const inventar = this.#daten?.inventar ?? [];
     this.#zeichneReihe(this.#inventar, inventar, inventar.length);
+    const belegt = (liste) => liste.filter(Boolean).length;
+    const kiste = this.#inhalt ?? [];
+    this.zaehler.textContent = `${belegt(kiste)} / ${kiste.length}`;
+    this.zaehlerInv.textContent = `${belegt(inventar)} / ${inventar.length}`;
+    this.alles.disabled = belegt(kiste) === 0;
   }
 
   #zeichneReihe(slots, eintraege, anzahl = slots.length) {

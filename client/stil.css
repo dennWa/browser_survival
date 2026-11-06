@@ -1129,7 +1129,7 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
   top: 50%;
   transform: translate(-50%, -50%);
   z-index: 5;
-  width: min(520px, calc(100vw - 24px));
+  width: min(900px, calc(100vw - 24px));
   max-height: calc(100% - 24px); max-height: calc(100dvh - 24px);
   overflow-y: auto;
   padding: 14px 16px;
@@ -1158,8 +1158,31 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
 .klick-symbol { vertical-align: middle; margin-right: 6px; }
 #kiste .werkbank-kopf h2 { color: #e0b27a; }
 #kiste #kiste-schliessen { width: 38px; height: 38px; font-size: 1.1rem; color: var(--text); background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 50%; }
-#kiste-raster .slot { border-color: rgba(200, 150, 90, 0.4); }
-#kiste-info { min-height: 1.3em; margin: 10px 0 0; font-size: 0.85rem; color: #e8e2c8; }
+.kiste-spalten { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 10px; }
+.kiste-panel { min-width: 0; padding: 10px; background: rgba(0, 0, 0, 0.28); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; }
+.kiste-links { border-color: rgba(200, 150, 90, 0.35); }
+.kiste-rechts { border-color: rgba(140, 180, 230, 0.28); }
+.kiste-panel-kopf { min-height: 26px; display: flex; align-items: center; gap: 8px; margin: 0 0 8px; padding-bottom: 6px; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-gedimmt); border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+.kiste-links .kiste-panel-kopf { color: #e0b27a; }
+.kiste-rechts .kiste-panel-kopf { color: #9fc4ee; }
+.kiste-zaehler { margin-right: auto; font-weight: 500; font-size: 0.75rem; letter-spacing: 0; text-transform: none; opacity: 0.75; font-variant-numeric: tabular-nums; }
+#kiste-alles { padding: 3px 10px; font-size: 0.72rem; font-weight: 600; letter-spacing: 0; text-transform: none; color: #f3dcc0; background: rgba(200, 150, 90, 0.18); border: 1px solid rgba(200, 150, 90, 0.5); border-radius: 8px; cursor: pointer; }
+#kiste-alles:hover { background: rgba(200, 150, 90, 0.32); }
+#kiste-alles:disabled { opacity: 0.35; cursor: default; }
+.kiste-raster { grid-template-columns: repeat(6, 1fr); gap: 5px; }
+.kiste-links .slot { border-color: rgba(200, 150, 90, 0.4); }
+.kiste-rechts .slot { border-color: rgba(140, 180, 230, 0.3); }
+.kiste-raster .slot.leer { background: rgba(255, 255, 255, 0.03); }
+.kiste-raster .slot:not(.leer):hover { border-color: #f2d36b; background: rgba(242, 211, 107, 0.1); }
+#kiste-info { min-height: 2.4em; margin: 10px 0 0; padding: 8px 12px; font-size: 0.85rem; color: #e8e2c8; background: rgba(0, 0, 0, 0.3); border-radius: 10px; display: flex; align-items: center; }
+#kiste-info b { color: #ffe08a; margin-right: 6px; }
+.kiste-hinweis { opacity: 0.55; font-size: 0.78rem; }
+@media (max-width: 680px) {
+  .kiste-spalten { grid-template-columns: 1fr; gap: 8px; }
+  .kiste-raster { grid-template-columns: repeat(8, 1fr); gap: 3px; }
+  .kiste-panel { padding: 7px; }
+}
+@media (max-height: 500px) and (min-width: 681px) { #kiste { padding: 8px 12px; } .kiste-raster { gap: 3px; } }
 
 /* Spielerliste (Tab): Tabelle mit Statistik */
 #spielerliste { min-width: min(480px, calc(100vw - 24px)); }

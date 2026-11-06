@@ -293,17 +293,23 @@
       </div>
     </div>
 
-    <!-- Lagerkiste (E an der Kiste): 16 Plätze, Antippen schiebt Stapel hin und her -->
+    <!-- Lagerkiste / Leiche (E): links der Behälter, rechts das eigene Inventar; Antippen schiebt den Stapel hinüber -->
     <div id="kiste" hidden>
       <div class="werkbank-kopf">
         <h2 id="kiste-titel">📦 Lagerkiste</h2>
         <button id="kiste-schliessen" type="button" aria-label="Schließen">✕</button>
       </div>
-      <h3 class="inv-titel">Im Behälter <small>antippen = ins Inventar</small></h3>
-      <div id="kiste-raster" class="inv-raster"></div>
-      <h3 class="inv-titel">Dein Inventar <small>antippen = hineinlegen</small></h3>
-      <div id="kiste-inventar" class="inv-raster"></div>
-      <p id="kiste-info"></p>
+      <div class="kiste-spalten">
+        <section class="kiste-panel kiste-links">
+          <h3 class="kiste-panel-kopf"><span>Im Behälter</span><span id="kiste-zaehler" class="kiste-zaehler"></span><button id="kiste-alles" type="button">Alles nehmen</button></h3>
+          <div id="kiste-raster" class="inv-raster kiste-raster"></div>
+        </section>
+        <section class="kiste-panel kiste-rechts">
+          <h3 class="kiste-panel-kopf"><span>Dein Inventar</span><span id="kiste-zaehler-inv" class="kiste-zaehler"></span></h3>
+          <div id="kiste-inventar" class="inv-raster kiste-raster"></div>
+        </section>
+      </div>
+      <p id="kiste-info"><span class="kiste-hinweis">Antippen verschiebt den ganzen Stapel – links ins Inventar, rechts in den Behälter.</span></p>
     </div>
 
     <!-- Station (E am Lagerfeuer / Schmelzofen): Koch-/Schmelzplätze mit Fortschritt, Inventar zum Hineinlegen -->

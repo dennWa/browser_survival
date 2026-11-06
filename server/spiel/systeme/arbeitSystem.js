@@ -210,7 +210,21 @@ function lasseRessourceFallen(spielWelt, spieler, r, menge) {
     ort = { x, y };
     break;
   }
-  legeAufBoden(spielWelt, { defId: r.art, menge }, ort.x, ort.y, spielWelt.konfiguration.ressourcen.bodenVerfall ?? null);
+  // Jedes Stück liegt einzeln (3× Holz = 3 Stämme), leicht gestreut; Aufheben stapelt sie im Inventar wieder
+  const verfall = spielWelt.konfiguration.ressourcen.bodenVerfall ?? null;
+  for (let i = 0; i < menge; i++) {
+    let x = ort.x;
+    let y = ort.y;
+    if (menge > 1) {
+      const wink = (i / menge) * Math.PI * 2 + spielWelt.zufall.zahl();
+      const weite = 7 + spielWelt.zufall.zahl() * 3;
+      if (frei(ort.x + Math.cos(wink) * weite, ort.y + Math.sin(wink) * weite)) {
+        x = ort.x + Math.cos(wink) * weite;
+        y = ort.y + Math.sin(wink) * weite;
+      }
+    }
+    legeAufBoden(spielWelt, { defId: r.art, menge: 1 }, x, y, verfall);
+  }
 }
 
 /** Item ins Inventar, Überhang liegt am Boden */
