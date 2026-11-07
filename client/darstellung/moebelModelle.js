@@ -1,10 +1,11 @@
 import * as THREE from 'three';
-import { eigenesModellInhalt, ladeEigenesModell } from './eigeneModelle.js';
+import { eigenesModellInhalt, ladeEigenesModell, leerlaufMischer } from './eigeneModelle.js';
 
 /**
  * Runde 24 (Cozy): 3D-Modelle der Möbel/Deko/Lichter (Bauwerke mit `moebel: true`, gemeinsam/welt/bauwerke.js).
  * Die meisten kommen als GLB aus dem Spielordner (client/assets/eigene/<datei>.glb, eingepasst in b × h × hoehe Kacheln);
- * Platzhalter-Kasten bis das Modell geladen ist. Prozedural: Plattenspieler, Lichterkette, Vorhang, Generator, Kerzen-/Kaminflammen.
+ * Platzhalter-Kasten bis das Modell geladen ist. Prozedural: Plattenspieler, Lichterkette, Vorhang, Generator, Kerzenflammen.
+ * Runde 39: Kaminfeuer = animiertes GLB `feuer_lowpoly.glb`, blendet beim Anzünden/Ausgehen langsam ein/aus (`baueKaminFeuer`).
  * Runde 24 (P11–P13): Doppelbett, Schlafsack, Vorratsschrank, Regentonne (Wasserstand), Brunnen, Amboss, Webstuhl, Chemie-Tisch.
  * Licht selbst kommt aus dem Lampen-Pool des Renderers (gemeinsam/welt/einrichtung.js LICHTER) – hier nur leuchtende Flächen.
  * `baueMoebel(b, gruppe)` → aktualisiere(b, jetzt, strom) oder null (kein Möbel); `strom` = hatStrom (Renderer).
@@ -67,6 +68,94 @@ function zucke(gruppe, jetzt) {
   });
 }
 
+/**
+ * Runde 39: Kaminfeuer aus `assets/eigene/feuer_lowpoly.glb` („Low Poly Fire For Asteroid“, BananaXDXD, CC-BY 4.0) –
+ * 9 animierte Flammen-Kästen (Clip „Take 001“). Anzünden: `glanz` steigt in FEUER_AN s auf 1, die Flammen wachsen nacheinander
+ * (kleine zuerst); Ausgehen: in FEUER_AUS s zurück, große zuerst weg. `gruppe.userData.glanz` (0..1) liest der Renderer fürs
+ * Kaminlicht (Lampen-Pool). Bis das GLB geladen ist: alte Kegel-Flammen.
+ */
+const FEUER_AN = 7; // s bis volle Flammen
+const FEUER_AUS = 8; // s bis aus
+const FEUER_URL = new URL('../assets/eigene/feuer_lowpoly.glb', import.meta.url).href;
+const feuerMaterialien = new Map(); // Farbe → unbeleuchtetes Material (glüht auch nachts)
+function feuerMaterial(farbe) {
+  const schluessel = farbe.getHex();
+  if (!feuerMaterialien.has(schluessel)) {
+    const c = farbe.clone().multiplyScalar(1.25);
+    feuerMaterialien.set(schluessel, new THREE.MeshBasicMaterial({ color: c, side: THREE.DoubleSide }));
+  }
+  return feuerMaterialien.get(schluessel);
+}
+
+function baueKaminFeuer(gruppe) {
+  const ersatz = flammen(4, 14, 7);
+  ersatz.position.set(0, 4, 4);
+  const glutMaterial = new THREE.MeshBasicMaterial({ color: 0xc8501c });
+  const glutBoden = box(22, 1, 5, glutMaterial, 0, 2.6, 4);
+  glutBoden.castShadow = false;
+  gruppe.add(ersatz, glutBoden);
+  const glutVoll = new THREE.Color(0xd8561e);
+  const glutKalt = new THREE.Color(0x3a1a10);
+  let modell = null;
+  let mischer = null;
+  let teile = []; // { mesh, schwelle, basis } – Schwelle 0..0,6: ab diesem Glanz wächst die Flamme
+  ladeEigenesModell(FEUER_URL)
+    .then((szene) => {
+      modell = eigenesModellInhalt(szene, { b: 1.0, h: 0.7, hoehe: 0.66, einheit: KACHEL });
+      modell.position.z += 4;
+      modell.position.y += 2.5;
+      const liste = [];
+      modell.traverse((t) => {
+        if (!t.isMesh) return;
+        t.material = feuerMaterial(t.material.color ?? new THREE.Color(0xff8a2a));
+        t.castShadow = t.receiveShadow = false;
+        t.geometry.computeBoundingBox();
+        const g = t.geometry.boundingBox.getSize(new THREE.Vector3());
+        liste.push({ mesh: t, groesse: g.x * g.y * g.z, basis: t.scale.clone() });
+      });
+      // kleine Flammen zünden zuerst, die großen kommen später dazu (und gehen zuerst wieder)
+      liste.sort((a, b) => a.groesse - b.groesse);
+      teile = liste.map((e, i) => ({ ...e, schwelle: (i / Math.max(1, liste.length - 1)) * 0.6 }));
+      mischer = leerlaufMischer(modell, 'Take 001') ?? leerlaufMischer(modell, modell.animations?.[0]?.name);
+      gruppe.remove(ersatz);
+      gruppe.add(modell);
+    })
+    .catch(() => {}); // Ersatz-Kegel bleiben
+  let glanz = 0;
+  let zuletzt = 0;
+  gruppe.userData.glanz = 0;
+  return (z, jetzt) => {
+    const dt = zuletzt ? Math.min(0.1, (jetzt - zuletzt) / 1000) : 0;
+    zuletzt = jetzt;
+    const ziel = z?.brennt === true ? 1 : 0;
+    glanz = ziel > glanz ? Math.min(1, glanz + dt / FEUER_AN) : Math.max(0, glanz - dt / FEUER_AUS);
+    gruppe.userData.glanz = glanz * glanz * (3 - 2 * glanz); // weich (smoothstep)
+    const an = glanz > 0.001;
+    glutBoden.visible = an;
+    if (an) glutMaterial.color.copy(glutKalt).lerp(glutVoll, Math.min(1, glanz * 1.6));
+    if (!modell) {
+      ersatz.visible = an;
+      if (an) {
+        zucke(ersatz, jetzt);
+        ersatz.scale.setScalar(Math.max(0.05, gruppe.userData.glanz));
+      }
+      return;
+    }
+    modell.visible = an;
+    if (!an) return;
+    mischer?.update(dt);
+    const t = jetzt / 1000;
+    for (const [i, teil] of teile.entries()) {
+      const k = Math.max(0, Math.min(1, (glanz - teil.schwelle) / 0.4));
+      const weich = k * k * (3 - 2 * k);
+      teil.mesh.visible = weich > 0.01;
+      if (!teil.mesh.visible) continue;
+      const flacker = 1 + 0.08 * Math.sin(t * 11 + i * 1.7) + 0.05 * Math.sin(t * 23 + i);
+      teil.mesh.scale.set(teil.basis.x * (0.35 + 0.65 * weich), teil.basis.y * weich * flacker, teil.basis.z * (0.35 + 0.65 * weich));
+    }
+  };
+}
+
 /** Möbel aufbauen. @returns aktualisiere(b, jetzt) oder null */
 export function baueMoebel(b, gruppe) {
   // Runde 28: Kamin in einem Karten-Modell (karteObjekt) → nur Feuer/Glut, das Modell steht schon auf der Karte
@@ -90,14 +179,7 @@ export function baueMoebel(b, gruppe) {
   }
   switch (b.typ) {
     case 'kamin': {
-      const feuer = flammen(4, 14, 7);
-      feuer.position.set(0, 4, 4);
-      const glutBoden = box(26, 1.5, 6, glut(), 0, 3, 4);
-      gruppe.add(feuer, glutBoden);
-      zusatz = (z, jetzt) => {
-        feuer.visible = glutBoden.visible = z.brennt === true;
-        if (z.brennt) zucke(feuer, jetzt);
-      };
+      zusatz = baueKaminFeuer(gruppe);
       break;
     }
     case 'kerze':

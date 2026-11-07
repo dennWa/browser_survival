@@ -31,6 +31,7 @@ import { StimmChat } from '../audio/stimmChat.js';
 const MAX_OFFENE_EINGABEN = 120;
 const STOEHN_REICHWEITE = 650; // Zombies in diesem Umkreis stöhnen gelegentlich
 const STOEHN_PAUSE_MS = 900; // höchstens ein Stöhnen pro Pause (sonst Chor)
+const TUER_PEGEL = 0.85; // Runde 39: Türen 15 % leiser (Nutzer-Wunsch)
 /** Runde 24: Schussgeräusch je Waffe (eigene/…); Schalldämpfer → schuss_leise, sonst nach Ausrüstung */
 /** Runde 24: welches Futter zähmt welches Tier (gleich wie server/spiel/systeme/haustierSystem.js FUTTER) */
 const HAUSTIER_FUTTER = {
@@ -1351,7 +1352,7 @@ export class ClientSpiel {
         if (e.von === this.eigeneId) this.sound.spiele('aufheben', { x: e.x, y: e.y, lautstaerke: 0.8 });
         break;
       case 'tuer':
-        this.sound.spiele(e.aufgebrochen ? 'tuer_bricht' : e.offen ? 'tuer_auf' : 'tuer_zu', { x: e.x, y: e.y });
+        this.sound.spiele(e.aufgebrochen ? 'tuer_bricht' : e.offen ? 'tuer_auf' : 'tuer_zu', { x: e.x, y: e.y, lautstaerke: TUER_PEGEL });
         break;
       case 'hack':
         // Runde 23: Hack-Geräusche kommen aus der Animation (renderer.aufschlaege → #aufschlagSounds), damit Ton und Schlag
@@ -1379,14 +1380,13 @@ export class ClientSpiel {
         if (e.ein && e.von === this.eigeneId) this.hud.meldung(this.hud.istTouch ? '🚗 Linker Stick: Gas geben & lenken' : 'W/S = Gas/Bremse · A/D = lenken · E = aussteigen');
         break;
       case 'laterneUmgefahren':
-        this.sound.spiele('aufprall', { x: e.x, y: e.y, lautstaerke: 0.6 });
-        break;
+        break; // Runde 39: kein Crash-Geräusch mehr (Nutzer-Wunsch)
       case 'aufprall':
-        // Runde 23: Zombie/Tier erwischt → matschiges Überfahren (+ dumpfer Schlag); sonst Blech-Crash je nach Tempo
+        // Runde 23: Zombie/Tier erwischt → matschiges Überfahren (+ dumpfer Schlag). Runde 39: Wand-/Hindernis-Crash stumm (Nutzer-Wunsch)
         if (e.ziel === 'zombie' || e.ziel === 'tier') {
           this.sound.spiele('ueberfahren', { x: e.x, y: e.y, lautstaerke: Math.min(1, 0.5 + e.tempo / 300) });
           this.sound.spiele('treffer_zombie', { x: e.x, y: e.y, lautstaerke: 0.6 });
-        } else this.sound.spiele('aufprall', { x: e.x, y: e.y, lautstaerke: Math.min(1, 0.25 + e.tempo / 250) });
+        }
         break;
       case 'gebaut':
         this.sound.spiele(e.bauwerk === 'beet' ? 'graben' : 'gebaut', { x: e.x, y: e.y });
@@ -1395,7 +1395,7 @@ export class ClientSpiel {
         this.sound.spiele('werkeln', { x: e.x, y: e.y, tonhoehe: 0.8 });
         break;
       case 'tuerBau':
-        this.sound.spiele(e.offen ? 'tuer_auf' : 'tuer_zu', { x: e.x, y: e.y });
+        this.sound.spiele(e.offen ? 'tuer_auf' : 'tuer_zu', { x: e.x, y: e.y, lautstaerke: TUER_PEGEL });
         break;
       case 'spawnGesetzt':
         this.sound.spiele('aufheben', { x: e.x, y: e.y, tonhoehe: 0.8 });
@@ -1441,7 +1441,7 @@ export class ClientSpiel {
         this.sound.spiele('gefangen', { x: e.x, y: e.y });
         break;
       case 'fahrzeugSchaden':
-        this.sound.spiele('fahrzeug_schaden', { x: e.x, y: e.y });
+        if (!e.leise) this.sound.spiele('fahrzeug_schaden', { x: e.x, y: e.y }); // Runde 39: beim Selbst-Crash kein Klang
         break;
       case 'fahrzeugKaputt':
         this.sound.spiele('fahrzeug_kaputt', { x: e.x, y: e.y });
@@ -1825,8 +1825,11 @@ export class ClientSpiel {
     for (const [name, wert] of Object.entries(schichten)) {
       const r = Math.round(wert * 40) / 40;
       if (this.#schichtStand[name] === r) continue;
+      const vorher = this.#schichtStand[name];
       this.#schichtStand[name] = r;
-      this.sound.schicht(name, r, name.startsWith('wind_') || name.startsWith('blizzard_') ? 0.9 : 1.8);
+      // Runde 39: Kamin blendet beim Anzünden langsam ein (5 s) und beim Ausgehen langsam aus (6 s)
+      const kaminWechsel = name === 'kamin' && (r === 0 || !(vorher > 0));
+      this.sound.schicht(name, r, kaminWechsel ? (r === 0 ? 6 : 5) : name.startsWith('wind_') || name.startsWith('blizzard_') ? 0.9 : 1.8);
     }
   }
 

@@ -35,6 +35,8 @@ export function aktualisiereUeberleben(spielWelt, dt) {
     if (spieler.gottmodus) {
       spieler.kaelte = 0;
       spieler.naesse = 0;
+      spieler.hunger = 100; // Runde 39: Gottmodus hält satt
+      spieler.durst = 100;
       continue; // Götter essen nicht, frieren nicht und werden nicht nass
     }
     aktualisiereKaelte(spielWelt, spieler, dt);

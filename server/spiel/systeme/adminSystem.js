@@ -11,7 +11,7 @@ import { entferneFlagge } from './territoriumSystem.js';
 import { spuleZeitVor } from './arbeitSystem.js';
 
 /**
- * Admin-Befehle (Gottmodus & Co.). Läuft nur für Spieler mit `admin = true` –
+ * Admin-Befehle (Gottmodus & Co.; Runde 39: Gottmodus koppelt ∞ Munition/Ausdauer + Ausrüstungspaket). Läuft nur für Spieler mit `admin = true` –
  * das Recht vergibt allein die Authentifizierung (konten.json "admin": true, Lokal-Modus: immer).
  */
 const AUSRUESTUNG = [
@@ -19,6 +19,18 @@ const AUSRUESTUNG = [
   ['schrotflinte', 1],
   ['munition_9mm', 60],
   ['munition_12', 24],
+];
+/** Runde 39: Gottmodus-Paket – Waffen + alle Werkzeuge (nur was noch fehlt). */
+const GOTT_AUSRUESTUNG = [
+  ['pistole', 1],
+  ['sturmgewehr', 1],
+  ['axt', 1],
+  ['spitzhacke', 1],
+  ['hacke', 1],
+  ['hammer', 1],
+  ['machete', 1],
+  ['feuerzeug', 1],
+  ['angel', 1],
 ];
 const ZEIT_VORSTELLEN_STUNDEN = 12;
 const SPAWN_ABSTAND = 90; // px vor dem Admin
@@ -52,8 +64,20 @@ export function fuehreAdminBefehlAus(spielWelt, spieler, befehl, aktion = {}) {
   const k = spielWelt.konfiguration.spieler;
   switch (befehl) {
     case ADMIN_BEFEHLE.GOTTMODUS:
+      // Runde 39: Gottmodus = unverwundbar + ∞ Munition + ∞ Ausdauer + satt + Waffen/Werkzeuge
       spieler.gottmodus = !spieler.gottmodus;
-      spielWelt.melde(spieler.id, spieler.gottmodus ? 'Gottmodus AN' : 'Gottmodus aus');
+      spieler.unendlichMunition = spieler.gottmodus;
+      spieler.unendlichAusdauer = spieler.gottmodus;
+      if (spieler.gottmodus) {
+        Object.assign(spieler, { leben: spieler.maxLeben, hunger: 100, durst: 100, ausdauer: k.ausdauerMax, erschoepft: false });
+        let voll = false;
+        for (const [defId, menge] of GOTT_AUSRUESTUNG) {
+          const def = GEGENSTAENDE[defId];
+          if (!def || spieler.inventar.some((e) => e?.defId === defId)) continue;
+          if (fuegeZumInventarHinzu(spieler, defId, menge, def.magazin ?? 0) > 0) voll = true;
+        }
+        spielWelt.melde(spieler.id, voll ? 'Gottmodus AN – Inventar voll, nicht alle Werkzeuge erhalten' : 'Gottmodus AN – unverwundbar, ∞ Munition & Ausdauer, satt');
+      } else spielWelt.melde(spieler.id, 'Gottmodus aus');
       break;
     case ADMIN_BEFEHLE.FLIEGEN:
       if (spieler.fahrzeug) {

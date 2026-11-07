@@ -263,7 +263,7 @@
     "dateien": [
       "menue_klick.ogg"
     ],
-    "lautstaerke": 0.72
+    "lautstaerke": 0.684
   },
   "miau": {
     "dateien": [
@@ -314,7 +314,7 @@
     "dateien": [
       "nacht.ogg"
     ],
-    "lautstaerke": 0.6
+    "lautstaerke": 0.48
   },
   "pistole": {
     "dateien": [
@@ -326,7 +326,7 @@
     "dateien": [
       "regen_dach.ogg"
     ],
-    "lautstaerke": 0.8
+    "lautstaerke": 0.56
   },
   "regen_stark": {
     "dateien": [
@@ -402,7 +402,7 @@
       "schritt_asphalt_5.ogg",
       "schritt_asphalt_6.ogg"
     ],
-    "lautstaerke": 0.5,
+    "lautstaerke": 0.45,
     "streuung": 0.06
   },
   "schritt_gras": {
@@ -414,7 +414,7 @@
       "schritt_gras_4.wav",
       "schritt_gras_5.wav"
     ],
-    "lautstaerke": 0.425,
+    "lautstaerke": 0.3825,
     "streuung": 0.08
   },
   "schritt_innen": {
@@ -428,7 +428,7 @@
       "schritt_innen_6.ogg",
       "schritt_innen_7.ogg"
     ],
-    "lautstaerke": 0.3825,
+    "lautstaerke": 0.3443,
     "streuung": 0.06
   },
   "schuss_leise": {
@@ -533,7 +533,7 @@
       "ueberfahren_4.ogg",
       "ueberfahren_5.ogg"
     ],
-    "lautstaerke": 1,
+    "lautstaerke": 0.8,
     "streuung": 0.08
   },
   "verband": {
@@ -553,7 +553,7 @@
       "vogel_2.ogg",
       "vogel_3.ogg"
     ],
-    "lautstaerke": 0.5,
+    "lautstaerke": 0.45,
     "streuung": 0.05
   },
   "wind_leicht": {
@@ -585,7 +585,7 @@
       "zombie_angriff_4.ogg",
       "zombie_angriff_5.ogg"
     ],
-    "lautstaerke": 0.75,
+    "lautstaerke": 0.675,
     "streuung": 0.05
   },
   "zombie_ferne": {
@@ -595,7 +595,7 @@
       "zombie_ferne_2.ogg",
       "zombie_ferne_3.ogg"
     ],
-    "lautstaerke": 0.262
+    "lautstaerke": 0.2358
   },
   "zombie_schrei": {
     "dateien": [
@@ -604,7 +604,7 @@
       "zombie_schrei_2.ogg",
       "zombie_schrei_3.ogg"
     ],
-    "lautstaerke": 0.75,
+    "lautstaerke": 0.675,
     "streuung": 0.05
   },
   "zombie_stoehnen": {
@@ -629,7 +629,7 @@
       "zombie_stoehnen_17.ogg",
       "zombie_stoehnen_18.ogg"
     ],
-    "lautstaerke": 0.6,
+    "lautstaerke": 0.54,
     "streuung": 0.06
   },
   "zombie_tod": {
@@ -639,7 +639,7 @@
       "zombie_tod_2.ogg",
       "zombie_tod_3.ogg"
     ],
-    "lautstaerke": 0.675,
+    "lautstaerke": 0.6075,
     "streuung": 0.05
   },
   "zuendung": {
@@ -655,7 +655,7 @@
   },
   "schritt_schnee": {
     "dateien": [],
-    "lautstaerke": 0.3
+    "lautstaerke": 0.27
   },
   "anziehen": {
     "dateien": [],

@@ -19,10 +19,11 @@ const ANFAHR_SCHADEN = 0.42; // Schaden pro px/s Tempo (Vollgas ≈ 140)
  * Haltbarkeit: ein Zombie-Schlag = 1 (Boss mehr, siehe zombieSystem), ein überfahrener Zombie nur
  * konfiguration.fahrzeug.ueberfahrSchaden (0,5). Bei 0: der Fahrer fliegt raus, das Auto bleibt als Wrack stehen.
  */
-export function schlageFahrzeug(spielWelt, fz, schlaege) {
+export function schlageFahrzeug(spielWelt, fz, schlaege, { leise = false } = {}) {
   if (fz.kaputt || !(schlaege > 0)) return;
   fz.leben = Math.max(0, fz.leben - schlaege);
-  spielWelt.ereignis({ typ: 'fahrzeugSchaden', id: fz.id, x: fz.x, y: fz.y, leben: fz.leben });
+  // Runde 39: leise = Schaden durch eigenes Fahren (Wand, Laterne, Überfahren) → Client spielt keinen „Teller“-Klang
+  spielWelt.ereignis({ typ: 'fahrzeugSchaden', id: fz.id, x: fz.x, y: fz.y, leben: fz.leben, ...(leise ? { leise: 1 } : {}) });
   if (fz.leben > 0) return;
   fz.kaputt = true;
   const beifahrer = (fz.beifahrerId ?? null) !== null ? spielWelt.holen(fz.beifahrerId) : null;
@@ -225,7 +226,7 @@ function verarbeiteAufprall(spielWelt, fz) {
   fz.aufprallPause = k.pause;
   const vorn = fz.laenge / 2;
   spielWelt.ereignis({ typ: 'aufprall', x: fz.x + Math.cos(fz.winkel) * vorn * Math.sign(fz.tempo || 1), y: fz.y + Math.sin(fz.winkel) * vorn * Math.sign(fz.tempo || 1), tempo: Math.abs(fz.tempo) });
-  schlageFahrzeug(spielWelt, fz, schaden);
+  schlageFahrzeug(spielWelt, fz, schaden, { leise: true });
   stosseFahrzeugAn(spielWelt, fz, -Math.sign(fz.tempo || 1) * kmhZuTempo(kmh), fz.aufprall.mit); // fz.tempo ist schon umgekehrt
 }
 
@@ -259,7 +260,7 @@ function fahreHindernisseUm(spielWelt, fz) {
       spielWelt.laternenNachwuchs.set(h.id, spielWelt.konfiguration.fahrzeug.laterneNachwachsen);
       spielWelt.ereignis({ typ: 'laterneUmgefahren', id: h.id, x: h.x, y: h.y, sx: fz.x, sy: fz.y });
       fz.tempo *= spielWelt.konfiguration.fahrzeug.laterneBremse ?? 0.6; // Runde 18: Laterne bremst deutlich
-      schlageFahrzeug(spielWelt, fz, spielWelt.konfiguration.fahrzeug.laterneSchaden);
+      schlageFahrzeug(spielWelt, fz, spielWelt.konfiguration.fahrzeug.laterneSchaden, { leise: true });
       if (fz.kaputt) return;
     }
   }
@@ -316,7 +317,7 @@ function fahreZombiesAn(spielWelt, fz) {
     spielWelt.ereignis({ typ: 'aufprall', x: z.x, y: z.y, tempo: Math.abs(fz.tempo), ziel: 'zombie' }); // ziel → Client: Matsch-Sound
     fuegeSchadenZu(spielWelt, z, schaden, fahrer, fz.winkel + (fz.tempo < 0 ? Math.PI : 0), { ohneXp: true }); // Roadkill bringt 0 XP
     fz.tempo *= 0.8;
-    schlageFahrzeug(spielWelt, fz, spielWelt.konfiguration.fahrzeug.ueberfahrSchaden);
+    schlageFahrzeug(spielWelt, fz, spielWelt.konfiguration.fahrzeug.ueberfahrSchaden, { leise: true });
     if (fz.kaputt) return;
   }
 }

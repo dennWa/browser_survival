@@ -459,7 +459,9 @@ test('Admin-Befehle nur mit Admin-Recht; Gottmodus verhindert Schaden und Hunger
   ticks(welt, Math.ceil(3 / TICK_DAUER_S));
   assert.equal(spieler.gottmodus, true);
   assert.equal(spieler.leben, spieler.maxLeben);
-  assert.equal(spieler.hunger, hunger);
+  assert.equal(spieler.hunger, 100, 'Gottmodus hält satt');
+  assert.equal(spieler.unendlichMunition, true);
+  assert.ok(spieler.inventar.some((e) => e?.defId === 'sturmgewehr'));
 
   admin(ADMIN_BEFEHLE.ZOMBIES_TOETEN);
   admin(ADMIN_BEFEHLE.AUSRUESTEN);

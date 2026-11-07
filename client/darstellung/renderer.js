@@ -103,8 +103,10 @@ const _blick = new THREE.Vector3();
 const _wolkenFarbe = new THREE.Color();
 const NACHT_MOND = 0.1; // Mondlicht bei voller Dunkelheit (Runde 23: 0,13 → 0,1, düsterer)
 const NACHT_UMGEBUNG = 0.095; // Himmelslicht bei voller Dunkelheit (Runde 23: 0,12 → 0,095)
-/** Runde 32: Zombies sind in voller Dunkelheit minimal zu sehen (Eigenleuchten nach Textur) */
-const ZOMBIE_NACHT_LEUCHTEN = 0.09;
+/** Runde 32: Zombies sind in voller Dunkelheit minimal zu sehen (Eigenleuchten nach Textur).
+ *  Runde 39: Grundleuchten auch tagsüber (dunkle Häuser) + nachts stärker → in absoluter Dunkelheit ≥ ~5 % sichtbar. */
+const ZOMBIE_NACHT_LEUCHTEN = 0.16;
+const ZOMBIE_GRUND_LEUCHTEN = 0.06;
 const FACKEL_FARBE = new THREE.Color(0xff9a40);
 /** Runde 32: tote Zombies liegen so lange (s), höchstens so viele gleichzeitig */
 const ZOMBIE_LEICHE_S = 120;
@@ -222,7 +224,7 @@ const _schwarz = new THREE.Color(0, 0, 0);
 const _blutHimmel = new THREE.Color(0.2, 0.02, 0.02);
 const _wackelVersatz = new THREE.Vector3();
 
-const ITEM_NAMEN_RADIUS = 58; // px: Namen von Bodenitems erscheinen erst, wenn man (fast) davor steht
+const ITEM_NAMEN_RADIUS = 81; // Runde 39: 58 → 81 (+40 %); px: Namen von Bodenitems erscheinen erst, wenn man (fast) davor steht
 const PARTIKEL_FARBE = new THREE.Color();
 
 // Silhouette: Ist die eigene Figur hinter einer Wand verschwunden, bleibt ein grauer Umriss sichtbar.
@@ -921,11 +923,13 @@ export class Renderer {
       // Brennende Lagerfeuer leuchten (über den Lampen-Pool) – Runde 24: auch Kamin, Kerzen, Öllampen und Strom-Lampen (einrichtung.js)
       this.stromAn = new Set([...welt.bauwerke.values()].filter((b) => LICHTER[b.typ]?.strom && hatStrom(welt, b.tx, b.ty)).map((b) => b.id));
       this.feuerLampen = [...welt.bauwerke.values()]
-        .filter((b) => (b.typ === 'lagerfeuer' && b.brennt) || leuchtet(welt, b))
+        // Runde 39: Kamine immer – ihr Licht folgt dem Flammen-Glanz (moebelModelle `userData.glanz`, blendet ein/aus)
+        .filter((b) => (b.typ === 'lagerfeuer' && b.brennt) || b.typ === 'kamin' || leuchtet(welt, b))
         .map((b) => {
           const l = LICHTER[b.typ];
+          const daten = b.typ === 'kamin' ? this.bauwerke.get(b.id)?.gruppe.userData : null;
           return l
-            ? { x: (b.tx + 0.5) * g, y: l.hoehe, z: (b.ty + 0.5) * g, farbe: new THREE.Color(l.farbe), reichweite: l.reichweite, staerke: l.staerke, objekt: { feuer: !!l.flackern, x: b.tx, y: b.ty } }
+            ? { x: (b.tx + 0.5) * g, y: l.hoehe, z: (b.ty + 0.5) * g, farbe: new THREE.Color(l.farbe), reichweite: l.reichweite, staerke: l.staerke, objekt: { feuer: !!l.flackern, x: b.tx, y: b.ty }, ...(daten ? { daten } : {}) }
             : { x: (b.tx + 0.5) * g, y: 22, z: (b.ty + 0.5) * g, farbe: new THREE.Color(0xff9a40), reichweite: 300, staerke: 320, objekt: { feuer: true, x: b.tx, y: b.ty } };
         });
       this.naechsteLampen = null;
@@ -2174,7 +2178,7 @@ export class Renderer {
       this.lampenSortiert = jetzt;
       const lampen = this.feuerLampen.length > 0 ? [...this.karte.lampen, ...this.feuerLampen] : this.karte.lampen;
       const abstand = (a, b) => Math.hypot(a.x - fokus.x, a.z - fokus.y) - Math.hypot(b.x - fokus.x, b.z - fokus.y);
-      this.naechsteLampen = lampen.filter((l) => l.objekt.art !== 'kegel' && !l.aus).sort(abstand).slice(0, this.lampenPool.length);
+      this.naechsteLampen = lampen.filter((l) => l.objekt.art !== 'kegel' && !l.aus && !(l.daten && !(l.daten.glanz > 0.005))).sort(abstand).slice(0, this.lampenPool.length);
       this.naechsteKegel = lampen.filter((l) => l.objekt.art === 'kegel' && !l.aus).sort(abstand).slice(0, this.kegelPool.length);
     }
     this.kegelPool.forEach((licht, i) => {
@@ -2205,7 +2209,7 @@ export class Renderer {
       licht.position.set(lampe.x, lampe.y, lampe.z);
       licht.color.copy(lampe.farbe);
       licht.distance = lampe.lichtReichweite ?? lampe.reichweite;
-      licht.intensity = lampe.staerke * (lampe.objekt.feuer ? feuerFlackern(lampe.objekt, jetzt) : flackern(lampe.objekt, jetzt)) * dunkel;
+      licht.intensity = lampe.staerke * (lampe.objekt.feuer ? feuerFlackern(lampe.objekt, jetzt) : flackern(lampe.objekt, jetzt)) * dunkel * (lampe.daten ? (lampe.daten.glanz ?? 0) : 1);
     });
   }
 
@@ -2324,7 +2328,7 @@ export class Renderer {
     }
     const eigenLeuchten = NACHT_EIGENLEUCHTEN * dunkel;
     for (const m of this.spielerMaterialien) m.emissiveIntensity = eigenLeuchten;
-    if (this.zombieNachtMaterialien) for (const m of this.zombieNachtMaterialien) m.emissiveIntensity = ZOMBIE_NACHT_LEUCHTEN * dunkel;
+    if (this.zombieNachtMaterialien) for (const m of this.zombieNachtMaterialien) m.emissiveIntensity = ZOMBIE_GRUND_LEUCHTEN + ZOMBIE_NACHT_LEUCHTEN * dunkel;
     // Nebel wandert mit der Kamera (Zoom, Auto-Fahrt): sonst liegt beim Rauszoomen/Fahren alles hinter dem Nebel
     const abstand = this.istAbstand ?? (this.grundAbstand ?? 1) * this.zoom * this.fahrZoom;
     const istZoom = abstand / ((this.grundAbstand ?? 1) * this.fahrZoom);

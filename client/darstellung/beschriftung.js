@@ -40,7 +40,7 @@ function lebensbalken(ctx, e, y) {
 
 /** Kleiner Name über einem Item am Boden. */
 export function zeichneItemName(ctx, text, x, y) {
-  ctx.font = '500 9px system-ui, sans-serif';
+  ctx.font = '500 10px system-ui, sans-serif'; // Runde 39: 9 → 10 px
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.lineWidth = 2.5;
