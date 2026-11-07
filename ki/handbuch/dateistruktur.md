@@ -103,6 +103,7 @@ browser_survival/
 │   │   │   ├── lootZonen.js       (Editor 2.0, 6.2) Loot-Zonen: Prüfung, feste Punkte, Würfeln (Chance/Gewicht), erwartete Ausbeute
 │   │   │   ├── stadtrand.js       Startzone (110×86, GENERIERT von werkzeuge/karten/stadtrand.py)
 │   │   │   └── waldweg.js         Zone Waldweg (160×120: Ringstraße mit Autos, Wald, See, Angelhütte; GENERIERT von werkzeuge/karten/waldweg.py)
+│   │   │   └── waldsee.js         Zone Waldsee (150×130, Runde 40: Wald, Hütten, See mit Stegen „|“; GENERIERT von werkzeuge/karten/waldsee.py)
 │   │   ├── konfiguration/
 │   │   │   ├── spielKonfiguration.js  Balancing-Standardwerte + Überschreib-Logik
 │   │   │   ├── rezepte.js         ★ Crafting-Rezepte (einfach selbst anpassbar, Anleitung im Kopf der Datei)

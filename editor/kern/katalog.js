@@ -75,6 +75,7 @@ const KACHEL_KATEGORIE = {
   '_': ['Wege', 'Asphalt'],
   '=': ['Wege', 'Straße'],
   '-': ['Wege', 'Gehweg'],
+  '|': ['Wege', 'Holzsteg'],
   '#': ['Mauern', 'Ziegelwand'],
   H: ['Mauern', 'Holzwand'],
   P: ['Mauern', 'Putzwand'],
@@ -98,7 +99,7 @@ const KACHEL_KATEGORIE = {
   '%': ['Wege', 'Kies'],
   '^': ['Wege', 'Pflaster'],
 };
-const KACHEL_SYMBOL = { ',': '🌱', '*': '❄', _: '⬛', '=': '🛣', '-': '▦', '.': '⬜', ':': '◻', '+': '🟫', T: '🚪', '#': '🧱', H: '🪵', P: '⬜', B: '⬛', Q: '🪨', M: '🔩', F: '🪟', '~': '🌊', $: '🟩', 0: '🌾', ';': '🍂', '@': '🍄', '!': '🏖', '&': '🟤', '%': '▫', '^': '🧱' };
+const KACHEL_SYMBOL = { ',': '🌱', '*': '❄', _: '⬛', '=': '🛣', '-': '▦', '.': '⬜', ':': '◻', '+': '🟫', T: '🚪', '#': '🧱', H: '🪵', P: '⬜', B: '⬛', Q: '🪨', M: '🔩', F: '🪟', '~': '🌊', $: '🟩', 0: '🌾', ';': '🍂', '@': '🍄', '!': '🏖', '|': '🛶', '&': '🟤', '%': '▫', '^': '🧱' };
 
 const M = { blockiert: true };
 /** Kartenobjekte (Möbel, Deko, Natur) mit Standardwerten wie in stadtrand/waldweg. */

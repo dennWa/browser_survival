@@ -32,6 +32,7 @@ export const KACHELN = Object.freeze({
   '@': { name: 'wildwald', blockiert: false }, // Phase 4.13: wilder Waldboden (Laub, Moos, Pilze, Zweige)
   '!': { name: 'sand', blockiert: false },
   '~': { name: 'wasser', blockiert: true, sichtFrei: true, wasser: true }, // See: Autos/Bauen blockiert, zu Fuß watbar (welt.istWatbar, Runde 29); Sicht & Schüsse gehen drüber; hier wird geangelt
+  '|': { name: 'steg', blockiert: false }, // Runde 40: Holzsteg über dem Wasser (begehbar, nicht bebaubar; Textur = Planken über Wasser) – von hier wird geangelt
 });
 
 /**

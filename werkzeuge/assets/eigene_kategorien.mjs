@@ -96,6 +96,11 @@ export const HOEHEN = {
   'kenney-toilette': 0.8, 'kenney-waschbecken': 0.95, 'kenney-dusche': 2.1, 'kenney-spiegel': 0.7, 'kenney-muelleimer': 0.6,
   'kenney-garderobe': 1.8, 'kenney-buerostuhl': 1.0, 'kenney-nachttisch': 0.6, 'kenney-bildschirm': 0.45, 'kenney-laptop': 0.25,
   'kenney-badschrank': 0.9, 'kenney-waschmaschine': 0.9,
+  // Kenney Nature Kit (CC0, Runde 40 Waldsee)
+  'nk-lily-large': 0.3, 'nk-lily-small': 0.15, 'nk-canoe': 0.54, 'nk-canoe-paddle': 0.15, 'nk-campfire-stones': 0.24,
+  'nk-log-stack': 1, 'nk-log-stack-large': 1.05, 'nk-grass-large': 0.75, 'nk-grass-leafs-large': 0.42, 'nk-mushroom-red-group': 0.5,
+  'nk-mushroom-tan-group': 0.5, 'nk-stump-round-detailed': 0.63, 'nk-flower-purple-a': 0.72, 'nk-flower-red-a': 0.8,
+  'nk-flower-yellow-a': 0.6, 'nk-tent-detailed-open': 1.7, 'nk-fence-simple': 1.05, 'nk-fence-gate': 1.05, 'nk-plant-bush-detailed': 1.1,
 };
 
 /** stem → Kategorie-Schlüssel */
@@ -106,6 +111,10 @@ export const kategorieVon = (() => {
   const REGELN = [
     [/^r32_tier_|^hase$/, 'tiere'],
     [/^aeste$/, 'natur'],
+    [/^nk-(canoe|canoe-paddle)$/, 'fahrzeuge'],
+    [/^nk-(tent-.+|fence-.+)$/, 'bau'],
+    [/^nk-campfire-.+$/, 'deko'],
+    [/^nk-/, 'natur'],
     [/^r32_(eichenstamm|eisenerz|erzpack_object_\d+|fels_\d+|steine|stumpf_\d+|rohstoffe)$/, 'natur'],
     [/^r32_(essen|steaks|vorrat)$/, 'essen'],
     [/^r32_holzbau_\d+$|^r32_zelt$/, 'bau'],

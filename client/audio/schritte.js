@@ -23,6 +23,7 @@ export function untergrundFuer(welt, x, y) {
   if (welt.schnee && (k.name === 'strasse' || k.name === 'asphalt' || k.name === 'gehweg')) return { ereignis: 'schritt_schnee', pegel: 0.55 };
   if (k.name === 'strasse' || k.name === 'asphalt' || k.name === 'gehweg' || k.name === 'pflaster') return { ereignis: 'schritt_asphalt', pegel: 1 }; // Runde 31: harter Boden (7 Aufnahmen)
   if (k.name === 'gras' || k.name === 'rasen' || k.name === 'wiese' || k.name === 'waldboden' || k.name === 'wildwald') return { ereignis: 'schritt_gras', pegel: 1 };
+  if (k.name === 'steg') return { ereignis: 'schritt_innen', pegel: 1.1 }; // Runde 40: Holzsteg klingt wie Dielen
   if (k.name === 'kies') return { ereignis: 'schritt_schnee', pegel: 0.45 }; // Runde 26: Kies knirscht
   if (k.name === 'erde' || k.name === 'sand') return { ereignis: 'schritt_gras', pegel: 0.5 };
   return null;

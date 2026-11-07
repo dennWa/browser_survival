@@ -53,9 +53,10 @@ Playwright-Skripte: nach Login auf `#laden` hidden warten (Aufwärmphase), sonst
 | `ki/runde37.md` | Runde 37 (Bodennebel nicht in Gebäuden, Asphalt ohne Pünktchen, Innenböden als Fläche/Dielen) |
 | `ki/runde38.md` | Runde 38 (Auto fährt Spieler an, Wetter in Spielzeit + nasse Straße/Dachtropfen, Bodenitems Holz/Stein/Erz, Felsen abbaubar, Stumpfdicke, Blick-Fixierung) |
 | `ki/runde39.md` | Runde 39 (neueste: Gottmodus-Paket, Kaminfeuer GLB + Ein-/Ausblenden, Auto-Crash stumm, Lautstärken, Item-Namen-Radius) |
+| `ki/runde40.md` | Runde 40 (neueste: Zone Waldsee westlich Stadtrand, Steg-Kachel `|`, Kenney Nature Kit `nk-*`) |
 | `ki/runde32.md` | Runde 32 ( Nutzer-Modellpakete → Bäume/Gras/Steine/Items/Waffen/Tiere/Figuren, Zelt, Sound/Wetter/Licht, Gameplay) |
 
-**Faustregel:** Spiellogik/Netz → `ki/kern.md` + `ki/fallen.md`. Datei suchen → `ki/dateikarte.md`. Neueste Änderungen → `ki/runde39.md`. Editor → `ki/editor.md`.
+**Faustregel:** Spiellogik/Netz → `ki/kern.md` + `ki/fallen.md`. Datei suchen → `ki/dateikarte.md`. Neueste Änderungen → `ki/runde40.md`. Editor → `ki/editor.md`.
 Ausführliches Handbuch (für Menschen): `project_manifest.md` (ebenfalls aufgeteilt unter `ki/handbuch/`).
 
 ## Pflege (Pflicht am Auftragsende)

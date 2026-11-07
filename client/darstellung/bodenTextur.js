@@ -8,6 +8,7 @@ import { FARBEN, KACHEL_FARBEN } from './farben.js';
  * Bodendeko (Teppiche, Blut, Parkplatzmarkierungen) und Türschwellen.
  * Wände, Möbel und Bäume sind im 3D-Renderer echte Körper und fehlen hier bewusst.
  * Runde 37: Innenböden holz/fliesen/beton = durchgehende Fläche (#innenBoden), Asphalt ohne Körnung (#weicherTon).
+ * Runde 40: Holzsteg `|` (#steg: Planken über Wasser, quer zur Steg-Richtung).
  * Schneezonen (welt.schnee): Kachel 'schnee' prozedural (bläulich-weiße Verwehungen, Glitzer); Straßen/Gehwege/Asphalt sind
  * verschneit (Ränder zum Schnee dicht, in der Mitte lückenhaft – man sieht den Asphalt noch), Wasser ist Eis.
  */
@@ -114,6 +115,10 @@ export class BodenTextur {
     const foto = this.assets?.bodenTextur?.(name);
     if (foto) {
       this.#fotoStueck(ctx, foto, tx, ty, 0, 0, g, g);
+      return;
+    }
+    if (name === 'steg') {
+      this.#steg(ctx, tx, ty);
       return;
     }
     if (name === 'holz' || name === 'fliesen' || name === 'beton') {
@@ -420,6 +425,46 @@ export class BodenTextur {
         ctx.fillRect(wx, wy, blk + 0.25, blk + 0.25);
       }
     }
+  }
+
+  /**
+   * Runde 40: Holzsteg – Wasser darunter, quer liegende, verwitterte Planken mit schmalen Spalten (Wasser schimmert durch),
+   * an Kanten zum Wasser ein dunkler Randbalken. Planken laufen quer zur Steg-Richtung (Nachbarn links/rechts → senkrechte Planken).
+   */
+  #steg(ctx, tx, ty) {
+    const g = this.g;
+    const x = tx * g;
+    const y = ty * g;
+    ctx.fillStyle = KACHEL_FARBEN.wasser;
+    ctx.fillRect(x, y, g + 0.25, g + 0.25);
+    const istSteg = (dx, dy) => KACHELN[this.welt.kachelAn(tx + dx, ty + dy)]?.name === 'steg';
+    // Steg-Richtung = längere Ausdehnung (±4 Kacheln); Planken liegen quer dazu
+    const lauf = (dx, dy) => {
+      let n = 0;
+      for (let i = 1; i <= 4 && istSteg(dx * i, dy * i); i++) n++;
+      return n;
+    };
+    const quer = lauf(-1, 0) + lauf(1, 0) > lauf(0, -1) + lauf(0, 1); // Steg läuft West–Ost → Planken senkrecht
+    const PLANKEN = 5;
+    const breite = g / PLANKEN;
+    for (let i = 0; i < PLANKEN; i++) {
+      const t = streuwert(tx * 7 + (quer ? i : 0), ty * 13 + (quer ? 0 : i)) % 100;
+      const r = 128 + Math.round((t - 50) * 0.35);
+      ctx.fillStyle = `rgb(${r}, ${Math.round(r * 0.78)}, ${Math.round(r * 0.55)})`;
+      if (quer) ctx.fillRect(x + i * breite + 0.6, y, breite - 1.2, g + 0.25);
+      else ctx.fillRect(x, y + i * breite + 0.6, g + 0.25, breite - 1.2);
+      ctx.fillStyle = 'rgba(40, 30, 20, 0.55)'; // Nagelköpfe
+      for (const a of [0.12, 0.88]) {
+        if (quer) ctx.fillRect(x + i * breite + breite / 2 - 0.6, y + a * g - 0.6, 1.2, 1.2);
+        else ctx.fillRect(x + a * g - 0.6, y + i * breite + breite / 2 - 0.6, 1.2, 1.2);
+      }
+    }
+    // Randbalken an den Kanten zum Nicht-Steg
+    ctx.fillStyle = 'rgba(60, 40, 22, 0.8)';
+    if (!istSteg(0, -1)) ctx.fillRect(x, y, g + 0.25, 1.5);
+    if (!istSteg(0, 1)) ctx.fillRect(x, y + g - 1.5, g + 0.25, 1.5);
+    if (!istSteg(-1, 0)) ctx.fillRect(x, y, 1.5, g + 0.25);
+    if (!istSteg(1, 0)) ctx.fillRect(x + g - 1.5, y, 1.5, g + 0.25);
   }
 
   /**

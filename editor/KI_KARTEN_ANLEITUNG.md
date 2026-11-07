@@ -102,6 +102,7 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `@` | Wilder Waldboden (Pilze) | Böden | begehbar |
 | `!` | Sand | Böden | begehbar |
 | `~` | Wasser (See) | Umwelt | blockiert |
+| `/` | Holzsteg | Wege | begehbar |
 
 ### Objekttypen (Aktion `setze`, Feld `typ`)
 | typ | Name | Kategorie | b × h | Eigenschaft |
@@ -276,7 +277,7 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | werkzeug | `feuerzeug` Feuerzeug, `feuerbohrer` Feuerbohrer, `angel` Angel |
 | samen | `samen_tomate` Tomatensamen, `samen_gurke` Gurkensamen, `samen_kartoffel` Saatkartoffeln, `samen_paprika` Paprikasamen, `samen_weizen` Weizenkörner, `samen_karotte` Karottensamen, `samen_kuerbis` Kürbiskerne, `samen_erdbeere` Erdbeersamen |
 
-### Eigene 3D-Modelle (Aktion `modell`, Feld `modell` = Name ohne .glb; `hoehe` = Zielhöhe in m) – 540 Stück
+### Eigene 3D-Modelle (Aktion `modell`, Feld `modell` = Name ohne .glb; `hoehe` = Zielhöhe in m) – 560 Stück
 | modell | Name | Kategorie | Standardhöhe m | Fußabdruck m |
 |---|---|---|---|---|
 | `arrow-sign` | Arrow Sign | bau | 2.05 | 1.9 × 0.4 |
@@ -311,6 +312,9 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `metal-bars` | Metal Bars | bau | 0.3 | 0.4 × 1.6 |
 | `metal-fence` | Metal Fence | bau | 2.88 | 3.5 × 0.1 |
 | `metal-scaffold` | Metal Scaffold | bau | 1.47 | 0.4 × 0.4 |
+| `nk-fence-gate` | Nk Fence Gate | bau | 1.05 | 1 × 0.1 |
+| `nk-fence-simple` | Nk Fence Simple | bau | 1.05 | 1 × 0.1 |
+| `nk-tent-detailed-open` | Nk Tent Detailed Open | bau | 1.7 | 0.9 × 0.7 |
 | `pipes` | Pipes | bau | 0.96 | 1 × 4.3 |
 | `pipes4-b` | Pipes4 B | bau | 0.67 | 0.7 × 3.4 |
 | `plastic-barrier` | Plastic Barrier | bau | 0.6 | 1 × 0.3 |
@@ -408,6 +412,7 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `debris-papers` | Debris Papers | deko | 0.05 | 0.6 × 0.7 |
 | `debris-pile` | Debris Pile | deko | 0.16 | 2.1 × 2.6 |
 | `eight-vases` | Eight Vases | deko | 0.5 | 11.5 × 9 |
+| `feuer_lowpoly` | Feuer_lowpoly | deko | 24.29 | 14.3 × 12 |
 | `fire-pit-1-2` | Fire Pit 1 2 | deko | 0.29 | 0.9 × 1 |
 | `fire-pit-1` | Fire Pit 1 | deko | 0.38 | 1 × 1 |
 | `fire-pit-3` | Fire Pit 3 | deko | 1.02 | 1.5 × 1 |
@@ -418,6 +423,7 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `gem-blue` | Gem Blue | deko | 0.79 | 0.4 × 0.3 |
 | `gem-green` | Gem Green | deko | 0.57 | 0.6 × 0.6 |
 | `gem-pink` | Gem Pink | deko | 0.73 | 0.4 × 0.4 |
+| `nk-campfire-stones` | Nk Campfire Stones | deko | 0.24 | 0.5 × 0.5 |
 | `painting-canvas` | Painting Canvas | deko | 1.89 | 1 × 1.5 |
 | `papier` | Papier | deko | 0.11 | 1 × 1 |
 | `plant-2` | Plant 2 | deko | 0.25 | 1 × 1 |
@@ -472,6 +478,8 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `dump-truck` | Dump Truck | fahrzeuge | 3.5 | 6 × 10.5 |
 | `fire-truck` | Fire Truck | fahrzeuge | 3 | 1 × 0.4 |
 | `forklift` | Forklift | fahrzeuge | 1.42 | 0.8 × 2.3 |
+| `nk-canoe-paddle` | Nk Canoe Paddle | fahrzeuge | 0.15 | 0.1 × 0.6 |
+| `nk-canoe` | Nk Canoe | fahrzeuge | 0.54 | 0.3 × 1.2 |
 | `police-car` | Police Car | fahrzeuge | 1.24 | 1.8 × 3.7 |
 | `raft-paddle` | Raft Paddle | fahrzeuge | 0.3 | 1.7 × 14.9 |
 | `raft` | Raft | fahrzeuge | 0.5 | 12 × 23.6 |
@@ -705,6 +713,19 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `hedge` | Hedge | natur | 1.63 | 1.8 × 1.2 |
 | `mushroom-laetiporus` | Mushroom Laetiporus | natur | 0.77 | 1.4 × 1.1 |
 | `mushroom` | Mushroom | natur | 0.46 | 0.6 × 0.8 |
+| `nk-flower-purple-a` | Nk Flower Purple A | natur | 0.72 | 0.2 × 0.2 |
+| `nk-flower-red-a` | Nk Flower Red A | natur | 0.8 | 0.2 × 0.2 |
+| `nk-flower-yellow-a` | Nk Flower Yellow A | natur | 0.6 | 0.2 × 0.2 |
+| `nk-grass-large` | Nk Grass Large | natur | 0.75 | 0.4 × 0.4 |
+| `nk-grass-leafs-large` | Nk Grass Leafs Large | natur | 0.42 | 0.5 × 0.5 |
+| `nk-lily-large` | Nk Lily Large | natur | 0.3 | 0.3 × 0.3 |
+| `nk-lily-small` | Nk Lily Small | natur | 0.15 | 0.2 × 0.2 |
+| `nk-log-stack-large` | Nk Log Stack Large | natur | 1.05 | 0.6 × 0.7 |
+| `nk-log-stack` | Nk Log Stack | natur | 1 | 0.4 × 0.7 |
+| `nk-mushroom-red-group` | Nk Mushroom Red Group | natur | 0.5 | 0.3 × 0.3 |
+| `nk-mushroom-tan-group` | Nk Mushroom Tan Group | natur | 0.5 | 0.3 × 0.3 |
+| `nk-plant-bush-detailed` | Nk Plant Bush Detailed | natur | 1.1 | 0.6 × 0.6 |
+| `nk-stump-round-detailed` | Nk Stump Round Detailed | natur | 0.63 | 0.4 × 0.4 |
 | `pebble-round-2` | Pebble Round 2 | natur | 0.1 | 0.5 × 0.4 |
 | `pebble-round-3` | Pebble Round 3 | natur | 0.1 | 0.4 × 0.5 |
 | `pebble-round-4` | Pebble Round 4 | natur | 0.09 | 0.4 × 0.4 |
@@ -863,5 +884,5 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `loot.spawnChance` | Loot-Chance | 0–1 | liegt an einem Loot-Punkt etwas? |
 | `loot.respawnZeit` | Nachschub | 5–7200 s | bis geplünderte Punkte neu gewürfelt werden |
 
-_Kachel-Zeichen gesamt: `0` `,` `*` `_` `=` `-` `.` `:` `+` `T` `#` `H` `P` `B` `Q` `M` `F` `$` `&` `%` `^` `;` `@` `!` `~`_
+_Kachel-Zeichen gesamt: `0` `,` `*` `_` `=` `-` `.` `:` `+` `T` `#` `H` `P` `B` `Q` `M` `F` `$` `&` `%` `^` `;` `@` `!` `~` `|`_
 

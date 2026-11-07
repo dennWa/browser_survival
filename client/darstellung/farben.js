@@ -24,6 +24,7 @@ export const KACHEL_FARBEN = {
   waldboden: '#6e5232',
   wildwald: '#5f5530',
   sand: '#bba27a',
+  steg: '#8a6a45',
 };
 
 export const FARBEN = {

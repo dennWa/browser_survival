@@ -11,6 +11,7 @@ import { pruefeZonenEinstellungen } from './zonenEinstellungen.js';
 import { STADTRAND } from './stadtrand.js';
 import { WALDWEG } from './waldweg.js';
 import { SCHNEELAND } from './schneeland.js';
+import { WALDSEE } from './waldsee.js';
 
 /**
  * Registrierte Karten (= Zonen der offenen Welt). Neue Karte: Datei in diesem Ordner anlegen (von Hand, per
@@ -21,6 +22,7 @@ export const KARTEN = Object.freeze({
   stadtrand: STADTRAND,
   waldweg: WALDWEG,
   schneeland: SCHNEELAND,
+  waldsee: WALDSEE,
 });
 
 /**
