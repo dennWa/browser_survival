@@ -10,9 +10,28 @@ import { aktualisiereHaustier, begleite, spawneWildeTiere } from './haustierSyst
  * (kampfSystem.toeten). Erlegte Hasen kommen nach `tiere.hasenRespawn` Sekunden an anderer Stelle nach.
  * Anzahl: konfiguration.tiere.hasenProTausend je 1000 Rasen-Kacheln der Karte (höchstens hasenMax) – oder, wenn die Karte
  * Hasen-Bereiche hat (tierBereiche, Map-Editor), genau deren `anzahl` je Bereich (Respawn im selben Bereich).
+ * Runde 41: Wild (Reh, Hirsch, Fuchs) nur über tierBereiche mit `art` – gleiches Verhalten, Werte aus `tiere.wild[art]`
+ * (Tempo, Scheu-Radius, Fluchtstrecke, Haken-Stärke, Fleisch). Sehr schreckhaft: flieht ein Tier, rennen Artgenossen
+ * im Umkreis (HERDEN_RADIUS) mit.
  */
 const MIN_ABSTAND_SPIELER = 360; // nicht vor den Augen eines Spielers (nach-)spawnen
 const WANDER_TEMPO = 34;
+const HERDEN_RADIUS = 380; // Runde 41: so nah erschrecken fliehende Tiere ihre Nachbarn mit
+/** Arten mit Hasen-Verhalten (Wild); Hund/Katze/Huhn → haustierSystem. */
+export const WILD_ARTEN = ['hase', 'reh', 'hirsch', 'fuchs'];
+
+/** Werte einer Wild-Art (Hase = die alten hasen*-Felder). */
+export function wildWerte(k, art) {
+  const w = art === 'hase' ? null : k.wild?.[art];
+  return {
+    tempo: w?.tempo ?? k.hasenTempo,
+    wanderTempo: w?.wanderTempo ?? WANDER_TEMPO,
+    scheuRadius: w?.scheuRadius ?? k.hasenScheuRadius,
+    fluchtStrecke: w?.fluchtStrecke ?? k.fluchtStrecke ?? [600, 900],
+    haken: w?.haken ?? 0.9,
+    fleisch: w?.fleisch ?? 1,
+  };
+}
 
 /** Beim Erzeugen der Zone: Hasen auf zufällige Rasenkacheln setzen. */
 export function spawneStartTiere(spielWelt) {
@@ -55,7 +74,7 @@ export function spawneHase(spielWelt, abstand = MIN_ABSTAND_SPIELER, bereich = n
     const x = (tx + 0.5) * g;
     const y = (ty + 0.5) * g;
     if (spieler.some((s) => Math.hypot(s.x - x, s.y - y) < abstand)) continue;
-    const hase = erzeugeTier({ id: spielWelt.neueId(), x, y, konfiguration: spielWelt.konfiguration });
+    const hase = erzeugeTier({ id: spielWelt.neueId(), art: WILD_ARTEN.includes(r?.art) ? r.art : 'hase', x, y, konfiguration: spielWelt.konfiguration });
     if (r) hase.bereich = bereich;
     return spielWelt.hinzufuegen(hase);
   }
@@ -74,15 +93,23 @@ export function aktualisiereTiere(spielWelt, dt) {
     spielWelt.begleitTakt = 2;
     for (const s of lebende) begleite(spielWelt, s);
   }
-  for (const t of [...spielWelt.alleVomTyp('tier')]) {
-    if (t.art !== 'hase') {
+  const tiere = [...spielWelt.alleVomTyp('tier')];
+  for (const t of tiere) {
+    if (!WILD_ARTEN.includes(t.art)) {
       aktualisiereHaustier(spielWelt, t, dt);
       continue;
     }
-    const quelle = schreckQuelle(t, k, lebende, schuesse, autos);
-    if (quelle) erschrecke(spielWelt, t, quelle);
+    const w = wildWerte(k, t.art);
+    const quelle = schreckQuelle(t, k, w, lebende, schuesse, autos);
+    if (quelle) {
+      const neu = t.zustand !== 'flucht';
+      erschrecke(spielWelt, t, quelle, w);
+      // Runde 41: Herde – Artgenossen in der Nähe rennen mit (gleiche Gefahrenquelle)
+      if (neu && t.art !== 'hase')
+        for (const n of tiere) if (n !== t && n.art === t.art && n.zustand !== 'flucht' && Math.hypot(n.x - t.x, n.y - t.y) < HERDEN_RADIUS) erschrecke(spielWelt, n, quelle, wildWerte(k, n.art));
+    }
     if (t.zustand === 'flucht') {
-      fliehe(spielWelt, t, k, dt);
+      fliehe(spielWelt, t, k, w, dt);
       continue;
     }
     t.zustand = 'ruhend';
@@ -102,7 +129,7 @@ export function aktualisiereTiere(spielWelt, dt) {
     if (t.wanderZiel) {
       const abstand = Math.hypot(t.wanderZiel.x - t.x, t.wanderZiel.y - t.y);
       if (abstand < 4) t.wanderZiel = null;
-      else laufe(spielWelt, t, Math.atan2(t.wanderZiel.y - t.y, t.wanderZiel.x - t.x), WANDER_TEMPO * dt);
+      else laufe(spielWelt, t, Math.atan2(t.wanderZiel.y - t.y, t.wanderZiel.x - t.x), w.wanderTempo * dt);
     }
   }
   // Nachschub
@@ -116,10 +143,10 @@ export function aktualisiereTiere(spielWelt, dt) {
 }
 
 /** Was erschreckt den Hasen gerade? → { x, y } (Richtung, von der er wegrennt) oder null. Wachsam = größerer Radius. */
-function schreckQuelle(t, k, spieler, schuesse, autos) {
+function schreckQuelle(t, k, w, spieler, schuesse, autos) {
   const faktor = t.wachsam > 0 ? 1.3 : 1;
   for (const s of spieler) {
-    const radius = k.hasenScheuRadius * faktor * (s.sprintet || s.fahrzeug ? k.sprintScheu ?? 1 : 1);
+    const radius = w.scheuRadius * faktor * (s.sprintet || s.fahrzeug ? k.sprintScheu ?? 1 : 1);
     if (Math.hypot(s.x - t.x, s.y - t.y) < radius) return s;
   }
   for (const e of schuesse) if (Math.hypot(e.x - t.x, e.y - t.y) < (k.schussScheuRadius ?? 0)) return e;
@@ -128,8 +155,8 @@ function schreckQuelle(t, k, spieler, schuesse, autos) {
 }
 
 /** Flucht beginnen (bzw. Richtung erneuern, wenn die Gefahr wieder näher kommt). */
-function erschrecke(spielWelt, t, quelle) {
-  const [min, max] = spielWelt.konfiguration.tiere.fluchtStrecke ?? [600, 900];
+function erschrecke(spielWelt, t, quelle, w) {
+  const [min, max] = w.fluchtStrecke;
   if (t.zustand !== 'flucht') {
     t.fluchtRest = min + spielWelt.zufall.zahl() * (max - min);
     t.fluchtZeit = 0;
@@ -141,20 +168,27 @@ function erschrecke(spielWelt, t, quelle) {
 }
 
 /** Lange Flucht im Zickzack (Hakenschlagen) weg von der Schreckquelle; danach wachsam ausruhen. */
-function fliehe(spielWelt, t, k, dt) {
+function fliehe(spielWelt, t, k, w, dt) {
   t.fluchtZeit = (t.fluchtZeit ?? 0) + dt;
   t.hakenTimer = (t.hakenTimer ?? 0) - dt;
   if (t.hakenTimer <= 0) {
     // neuer Haken: 0,35–0,8 s in eine Richtung, ± bis 0,9 rad um „weg von der Gefahr“
     t.hakenTimer = 0.35 + spielWelt.zufall.zahl() * 0.45;
-    t.haken = (spielWelt.zufall.zahl() * 2 - 1) * 0.9;
+    t.haken = (spielWelt.zufall.zahl() * 2 - 1) * w.haken;
   }
   const weg = Math.atan2(t.y - t.fluchtVon.y, t.x - t.fluchtVon.x) + (t.haken ?? 0);
   const vorher = { x: t.x, y: t.y };
-  laufe(spielWelt, t, weg, k.hasenTempo * dt);
+  laufe(spielWelt, t, weg, w.tempo * dt);
   const geschafft = Math.hypot(t.x - vorher.x, t.y - vorher.y);
-  if (geschafft < k.hasenTempo * dt * 0.3) t.hakenTimer = 0; // Hindernis: sofort neuen Haken schlagen
-  t.fluchtRest -= Math.max(geschafft, k.hasenTempo * dt * 0.5);
+  if (geschafft < w.tempo * dt * 0.3) {
+    // Hindernis: sofort neuen Haken schlagen – Wild mit kleinem Haken-Winkel darf dann kräftiger ausweichen
+    t.hakenTimer = 0;
+    if (w.haken < 0.9) {
+      t.haken = (spielWelt.zufall.zahl() < 0.5 ? -1 : 1) * (0.9 + spielWelt.zufall.zahl() * 0.7);
+      t.hakenTimer = 0.5;
+    }
+  }
+  t.fluchtRest -= Math.max(geschafft, w.tempo * dt * 0.5);
   if (t.fluchtRest <= 0 || t.fluchtZeit > (k.fluchtZeitMax ?? 9)) {
     t.zustand = 'ruhend';
     t.wachsam = 6; // eine Weile besonders schreckhaft

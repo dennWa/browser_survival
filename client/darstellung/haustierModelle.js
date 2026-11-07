@@ -7,13 +7,19 @@ import { ladeKatzenTextur, texturiereKatze } from './katzeTextur.js';
  * Runde 24: Modelle für Haustiere & Hühner (Tier-Entitäten art 'hund' | 'katze' | 'huhn').
  *   Runde 32: Hund + Katze = PS1-Tierpaket (statisch, Textur). Vorher Husky/Shiba (Clips) bzw. cat.glb + katzeTextur.js.
  *   Katze, Huhn: statische Spielordner-Modelle (cat.glb, chicken.glb; Katze optional mit eigener Textur, katzeTextur.js) – Gehen/Picken prozedural (Wippen, Nicken).
+ *   Runde 41: Reh/Hirsch/Fuchs (deer/stag/fox.glb) mit Skelett-Clips: Galopp (Flucht), Gehen, Stehen, im Stand ab und zu Fressen.
  * Bis das GLB da ist: kleiner Platzhalter. Front = +z, Ursprung = Füße. Höhen in Weltpixeln (Figur 64 ≈ 1,8 m).
  */
+const WILD_CLIPS = { stehen: 'Idle', fressen: 'Eating', gehen: 'Walk', rennen: 'Gallop' };
 const MODELLE = {
   // Runde 32: Hund/Katze = „Retro PS1 Animal Pack“ (Goee; r32_tier_*.glb, statisch → Bewegung prozedural wie das Huhn)
   hund: { dateien: ['r32_tier_hund'], hoehe: 24 },
   katze: { dateien: ['r32_tier_katze'], hoehe: 18 }, // Runde 27: vorher 13 (kleiner als Huhn/Hase) → ≈ 50 cm mit Kopf
   huhn: { dateien: ['chicken'], hoehe: 13 },
+  // Runde 41: Wild (Quaternius „Animals“, CC0, schon im Spielordner) – echte Clips Idle/Walk/Gallop/Eating; Verhalten wie der Hase
+  reh: { dateien: ['deer'], hoehe: 50, clips: WILD_CLIPS },
+  hirsch: { dateien: ['stag'], hoehe: 57, clips: WILD_CLIPS },
+  fuchs: { dateien: ['fox'], hoehe: 18, clips: WILD_CLIPS },
 };
 const vorlagen = new Map(); // datei → Promise<{ szene, massstab, versatz, drehung }>
 
@@ -95,14 +101,17 @@ export function erzeugeHaustier(art, id = 0) {
         const dt = letzte === null ? 0 : Math.min(0.1, (jetzt - letzte) / 1000);
         letzte = jetzt;
         const tempo = e.geschwindigkeit ?? 0;
-        const name = e.aktion === 'angriff' ? 'angriff' : tempo > 130 ? 'rennen' : tempo > 10 ? 'gehen' : e.zustand === 'bleib' || e.zustand === 'schlaeft' ? 'sitzen' : 'stehen';
+        // Runde 41: Wild frisst im Stand (Phasen je Tier versetzt), schaut nach einer Flucht aber erst auf
+        const fressZeit = clips.fressen && e.zustand !== 'flucht' && Math.sin(jetzt / 4200 + id * 1.7) > 0.15;
+        const name = e.aktion === 'angriff' ? 'angriff' : tempo > 130 ? 'rennen' : tempo > 10 ? 'gehen' : e.zustand === 'bleib' || e.zustand === 'schlaeft' ? 'sitzen' : fressZeit ? 'fressen' : 'stehen';
         const ziel = clips[name] ? name : 'stehen';
         if (ziel !== aktuell && clips[ziel]) {
           clips[ziel].reset().fadeIn(0.15).play();
           if (aktuell) clips[aktuell].fadeOut(0.15);
           aktuell = ziel;
         }
-        if (aktuell === 'gehen') clips.gehen.timeScale = Math.max(0.6, Math.min(1.8, tempo / 100));
+        if (aktuell === 'gehen') clips.gehen.timeScale = Math.max(0.6, Math.min(1.8, tempo / (def.clips === WILD_CLIPS ? 30 : 100)));
+        if (aktuell === 'rennen' && def.clips === WILD_CLIPS) clips.rennen.timeScale = Math.max(0.8, Math.min(1.6, tempo / 230));
         mixer.update(dt);
       };
     } else {

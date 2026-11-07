@@ -43,12 +43,7 @@ const BAUM_MISCHUNG = {
     baum_herbst: { ...LAUB, kiefer_herbst: 4 },
     busch: BUESCHE,
   },
-  // Runde 40: Waldsee = Mischwald (Laubbäume + viele Kiefern/Nadelbäume)
-  waldsee: {
-    baum: { ...LAUB, kiefer_n0: 4, kiefer_n1: 4, kiefer_n2: 3, nadel_0: 2, nadel_2: 2, nadel_3: 1, nadel_5: 1 },
-    baum_herbst: { ...LAUB, kiefer_herbst: 2 },
-    busch: BUESCHE,
-  },
+  // Runde 41: Waldsee nutzt wieder `standard` (wie die Startkarte) – kiefer_n2/nadel_* sahen dort ohne Textur aus (Nutzer-Wunsch)
 };
 
 /** Je Variante: Größenfaktor und eigene Laub-Töne (statt BAUM_LAUB_TOENE des Typs; null = ungetönt). */

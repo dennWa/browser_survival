@@ -472,11 +472,7 @@ for ex, ey, dr in ((55, 74, 30), (56.5, 75, 60), (54.2, 75.6, 10), (70, 58, 200)
 # Baum auf der Insel
 o('baum', INSEL[0] - 1.5, INSEL[1] - 1.5, 3, 3, ebene='oben', groesse='gross')
 
-# Tiere auf der Blumenwiese (Deko-Modelle)
-deko('stag', 22, 23, drehung=120, blockiert=True)
-deko('deer', 25.5, 27, drehung=200, blockiert=True)
-deko('deer', 19, 29, drehung=60, blockiert=True)
-deko('fox', 128, 47, drehung=250)
+# Tiere: Hirsch/Reh/Fuchs sind seit Runde 41 echte, animierte Wild-Tiere (tierBereiche unten), keine Deko mehr
 deko('lowpoly-squirrel', 104.5, 40.5, drehung=90)
 deko('lis', 70, 36, drehung=30)
 deko('bird', 46, 52.5, drehung=180)
@@ -545,6 +541,7 @@ for typ, anzahl in (('stein', 22), ('eisenerz', 9)):
 WALD_DEKO = [('fern', 26, None, False), ('nk-mushroom-red-group', 18, None, False), ('nk-mushroom-tan-group', 14, None, False),
              ('mushroom-laetiporus', 6, 0.5, False), ('nk-stump-round-detailed', 10, None, True), ('nk-grass-leafs-large', 20, None, False),
              ('rock-medium', 6, 1.2, True), ('nk-plant-bush-detailed', 14, None, False)]
+BUSCH_STATT = {'nk-grass-leafs-large', 'nk-plant-bush-detailed'}  # Runde 41: Platz bleibt (gleiche Zufallsfolge), Modell wird Busch
 for stem, anzahl, hoehe, block in WALD_DEKO:
     n = 0
     v = 0
@@ -555,7 +552,12 @@ for stem, anzahl, hoehe, block in WALD_DEKO:
             continue
         if any(abs(e['x'] - x) < 1.2 and abs(e['y'] - y) < 1.2 for e in objekte[-40:]):
             continue
-        deko(stem, x + 0.5, y + 0.5, hoehe=hoehe, drehung=zufall.randrange(0, 360, 30) if not block else zufall.choice((0, 90, 180, 270)), blockiert=block)
+        drehung = zufall.randrange(0, 360, 30) if not block else zufall.choice((0, 90, 180, 270))
+        if stem in BUSCH_STATT:
+            # Runde 41: Kenney-Büsche (Flachfarbe, wirkten wie Bäume ohne Textur) → normaler Busch wie auf der Startkarte
+            setze('busch', x, y, 1.5, 1.5, 0, ebene='oben')  # nur auf freiem Platz (keine Überlappung mit Bäumen/Steinen)
+        else:
+            deko(stem, x + 0.5, y + 0.5, hoehe=hoehe, drehung=drehung, blockiert=block)
         if block:
             belegt.add((x, y))
         n += 1
@@ -602,14 +604,17 @@ def js_objekt(e):
     return '{ ' + ', '.join(teile) + ' }'
 
 
-def rechteck_tiere(kacheln, anzahl):
+def rechteck_tiere(kacheln, anzahl, art='hase'):
     xs = [p[0] for p in kacheln]
     ys = [p[1] for p in kacheln]
     x0, y0 = min(xs) + 2, min(ys) + 2
-    return {'x': x0, 'y': y0, 'b': max(xs) - x0 - 1, 'h': max(ys) - y0 - 1, 'art': 'hase', 'anzahl': anzahl}
+    return {'x': x0, 'y': y0, 'b': max(xs) - x0 - 1, 'h': max(ys) - y0 - 1, 'art': art, 'anzahl': anzahl}
 
 
-tiere = [rechteck_tiere(hasenwiese, 5), rechteck_tiere(blumenwiese, 4)]
+tiere = [rechteck_tiere(hasenwiese, 5), rechteck_tiere(blumenwiese, 4),
+         # Runde 41: Wild (sehr scheu, flieht im Galopp; tierSystem + konfiguration.tiere.wild)
+         rechteck_tiere(blumenwiese, 4, 'reh'), rechteck_tiere(blumenwiese, 1, 'hirsch'), rechteck_tiere(hasenwiese, 3, 'reh'),
+         {'x': 118, 'y': 40, 'b': 18, 'h': 14, 'art': 'fuchs', 'anzahl': 2}]
 
 js = ['''/**
  * Zone "Waldsee" – westlich vom Stadtrand (erzeugt von werkzeuge/karten/waldsee.py, dort ändern!).
@@ -639,7 +644,7 @@ js += ['  ],', '  raeume: {',
        '    tiere: { hasenProTausend: 1.2, hasenMax: 12 },',
        '  },',
        '  tierBereiche: [']
-js += [f"    {{ x: {t['x']}, y: {t['y']}, b: {t['b']}, h: {t['h']}, art: 'hase', anzahl: {t['anzahl']} }}," for t in tiere]
+js += [f"    {{ x: {t['x']}, y: {t['y']}, b: {t['b']}, h: {t['h']}, art: '{t['art']}', anzahl: {t['anzahl']} }}," for t in tiere]
 js += ['  ],', '  objekte: [']
 js += [f'    {js_objekt(e)},' for e in objekte]
 js += ['  ],', '  // Spielordner-Modelle (nur Anzeige; Kollision über blockiert am Objekt)', '  typen: {']

@@ -9,7 +9,7 @@ import { gibXp, setzeLevelZurueck } from './levelSystem.js';
 import { staerkeFaktor } from '../../../gemeinsam/spieler/skills.js';
 import { aussteigen, schlageFahrzeug } from './fahrzeugSystem.js';
 import { behandleAngelKlick, brecheAngelnAb } from './angelSystem.js';
-import { planeTierRespawn } from './tierSystem.js';
+import { planeTierRespawn, WILD_ARTEN, wildWerte } from './tierSystem.js';
 import { schuereFeuer, sitztAmFeuer } from './stationSystem.js';
 import { tutorialVorSchaden } from './tutorialSystem.js';
 import { lasseBossLootFallen, lasseZombieLootFallen } from './lootSystem.js';
@@ -252,7 +252,7 @@ export function toeten(spielWelt, ziel, quelle = null, optionen = {}) {
     if (waffenChance > 0 && spielWelt.zufall.zahl() < waffenChance) lasseBossLootFallen(spielWelt, ziel.x, ziel.y);
     return;
   }
-  if (ziel.typ === 'tier' && ziel.art !== 'hase') {
+  if (ziel.typ === 'tier' && !WILD_ARTEN.includes(ziel.art)) {
     // Runde 24: Haustier/Huhn
     spielWelt.entfernen(ziel.id);
     if (ziel.besitzer) haustierGestorben(spielWelt, ziel);
@@ -260,10 +260,11 @@ export function toeten(spielWelt, ziel, quelle = null, optionen = {}) {
     return;
   }
   if (ziel.typ === 'tier') {
-    // Hase: 1× Fleisch (klein, mehr ist nicht dran)
+    // Hase: 1× Fleisch (klein, mehr ist nicht dran) · Runde 41: Wild je Art (tiere.wild[art].fleisch, Reh 3, Hirsch 5)
     spielWelt.entfernen(ziel.id);
     planeTierRespawn(spielWelt, ziel);
-    legeAufBoden(spielWelt, { defId: 'fleisch', menge: 1 }, ziel.x, ziel.y);
+    const fleisch = wildWerte(spielWelt.konfiguration.tiere, ziel.art).fleisch;
+    for (let i = 0; i < fleisch; i++) legeAufBoden(spielWelt, { defId: 'fleisch', menge: 1 }, ziel.x + (i ? (spielWelt.zufall.zahl() - 0.5) * 24 : 0), ziel.y + (i ? (spielWelt.zufall.zahl() - 0.5) * 24 : 0));
     return;
   }
   if (!optionen.endgueltig && streckeNieder(spielWelt, ziel)) return; // Runde 24: Mitspieler können retten

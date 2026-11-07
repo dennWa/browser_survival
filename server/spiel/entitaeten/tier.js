@@ -1,11 +1,11 @@
 /**
- * Kleintier-Entität: Hase (Verhalten systeme/tierSystem.js) – Runde 24: Hund, Katze, Huhn (systeme/haustierSystem.js).
+ * Kleintier-Entität: Hase (Runde 41: auch Wild reh|hirsch|fuchs, konfiguration.tiere.wild) (Verhalten systeme/tierSystem.js) – Runde 24: Hund, Katze, Huhn (systeme/haustierSystem.js).
  * zustand: 'ruhend' (hoppelt gemütlich umher) | 'flucht' (ein Spieler ist zu nah) | Haustier: 'folgen' | 'bleib' | 'angriff' | 'schlaeft'
  * besitzer/name: gezähmtes Haustier
  */
 export function erzeugeTier({ id, art = 'hase', x, y, konfiguration }) {
   const k = konfiguration.tiere;
-  const h = konfiguration.haustiere?.arten?.[art]; // Runde 24: Hund, Katze, Huhn
+  const h = konfiguration.haustiere?.arten?.[art] ?? k.wild?.[art]; // Runde 24: Hund, Katze, Huhn · Runde 41: Reh, Hirsch, Fuchs
   return {
     id,
     typ: 'tier',
@@ -16,7 +16,7 @@ export function erzeugeTier({ id, art = 'hase', x, y, konfiguration }) {
     leben: h?.leben ?? k.hasenLeben,
     maxLeben: h?.leben ?? k.hasenLeben,
     radius: h?.radius ?? 8,
-    trefferRadius: 17, // Schüsse/Schläge treffen großzügiger als der Körper breit ist (Top-Down: Mausziel liegt wegen der Höhe knapp daneben)
+    trefferRadius: Math.max(17, (h?.radius ?? 8) + 9), // Schüsse/Schläge treffen großzügiger als der Körper breit ist (Top-Down: Mausziel liegt wegen der Höhe knapp daneben)
     zustand: 'ruhend',
     // [intern]
     wanderZiel: null,

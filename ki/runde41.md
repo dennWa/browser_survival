@@ -1,0 +1,11 @@
+# Runde 41 (2026-11-07) – Waldsee: Bäume wie Startkarte, Wild (Reh/Hirsch/Fuchs) animiert + scheu
+- **Bäume:** `C:baumModell.BAUM_MISCHUNG.waldsee` entfernt → Waldsee nutzt `standard` (Laub + `kiefer_n0/n1`, Herbst `kiefer_herbst`) wie Stadtrand. `kiefer_n2`/`nadel_*` nur noch Waldweg.
+- **Kenney-Büsche raus:** `waldsee.py WALD_DEKO` – `nk-grass-leafs-large`, `nk-plant-bush-detailed` (Flachfarbe türkis, wirkten wie Bäume ohne Textur) werden an gleicher Stelle zu `busch` (`BUSCH_STATT`; Zufallsfolge bleibt gleich). Schilf `nk-grass-large` am Ufer bleibt.
+- **Wild:** Arten `reh` (deer.glb), `hirsch` (stag.glb), `fuchs` (fox.glb) – Quaternius-GLBs hatten schon Clips (Idle, Walk, Gallop, Eating, Death) → kein Blender nötig. C `haustierModelle.MODELLE` + `WILD_CLIPS` {stehen Idle, fressen Eating (Phase je id, nicht in Flucht), gehen Walk (timeScale tempo/30), rennen Gallop (tempo/230)}. Höhen 50/57/18 px.
+- S `tierSystem`: `WILD_ARTEN` ['hase','reh','hirsch','fuchs'] (exportiert), `wildWerte(k, art)` → {tempo, wanderTempo, scheuRadius, fluchtStrecke, haken, fleisch} aus K `tiere.wild[art]`, Hase = alte `hasen*`-Felder. Herde: neue Flucht → gleiche Art in `HERDEN_RADIUS` 380 px flieht mit. Wild mit kleinem Haken weicht Hindernis mit großem Haken (0,5 s) aus.
+- Spawn nur über `tierBereiche` mit `art` (kartenLader lässt hase|reh|hirsch|fuchs durch, sonst 'hase'). `erzeugeTier` liest `tiere.wild[art]` (leben, radius; trefferRadius = max(17, radius+9)).
+- `kampfSystem.toeten`: Wild-Zweig über `WILD_ARTEN`, Fleisch = `wildWerte().fleisch` (Hase 1, Fuchs 1, Reh 3, Hirsch 5) einzeln am Boden.
+- Waldsee: Deko `stag/deer/fox` entfernt; tierBereiche Blumenwiese reh 4 + hirsch 1, Hasenwiese reh 3, Fuchs-Bereich (118|40 18×14) 2.
+- ⚠ Browser-Pane versteckt → rAF steht, Screenshots bleiben alt: vorher `show_pane preview`. Prüfen: `browserSurvival.ich().unsichtbar = true` (Tiere ignorieren unsichtbare Spieler) → nah ran → wieder sichtbar.
+- ⚠ `npm test` brauchte `npm install` (three fehlte in node_modules). `tests/studio.test.js` „Ins Spiel schreibt die Kartendatei“ war schon vorher rot (unabhängig).
+- Tests `tests/runde41.test.js`.

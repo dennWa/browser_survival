@@ -134,6 +134,15 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     fluchtStrecke: [700, 1100], // so weit rennt ein erschreckter Hase (px), auch wenn der Spieler nicht folgt
     fluchtZeitMax: 9, // spätestens nach so vielen Sekunden Flucht wird wieder geprüft
     hasenRespawn: 150,
+    /**
+     * Runde 41: Wild (nur über tierBereiche mit `art`, z. B. Waldsee) – Verhalten wie der Hase (tierSystem), aber eigene Werte.
+     * Sehr schreckhaft: großer Scheu-Radius, lange Flucht im Galopp, nur leichte Haken. Fehlende Felder → Hasen-Werte.
+     */
+    wild: {
+      reh: { leben: 45, radius: 11, tempo: 250, wanderTempo: 26, scheuRadius: 560, fluchtStrecke: [1100, 1600], haken: 0.35, fleisch: 3 },
+      hirsch: { leben: 80, radius: 13, tempo: 240, wanderTempo: 24, scheuRadius: 600, fluchtStrecke: [1100, 1700], haken: 0.3, fleisch: 5 },
+      fuchs: { leben: 25, radius: 8, tempo: 230, wanderTempo: 34, scheuRadius: 480, fluchtStrecke: [900, 1300], haken: 0.6, fleisch: 1 },
+    },
   },
   /** Angeln: Angel im Inventar, Linksklick Richtung Wasser. Pose wackelt (biss) → in der Zeitspanne nochmal klicken. */
   angeln: {

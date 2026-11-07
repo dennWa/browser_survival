@@ -43,7 +43,7 @@ export const KARTEN = Object.freeze({
  *   terrain.hoehen ["0 0 1.5 …"] → daten.hoehen (Meter je Kachel, Spiel zeigt sie in 3D); Fuß von Klippen (gemeinsam/welt/gelaende.js)
  *   → unsichtbare Hindernisse (Objekt typ 'hang', ebene 'unsichtbar'). Alte Exporte nur mit terrain.steil [[x, y]] gelten weiter.
  *   bauwerke [{ typ, tx, ty, drehung? }] → kartenfeste Bauwerke ohne Besitzer (SpielWelt setzt sie)
- *   tierBereiche [{ x, y, b, h, art, anzahl, respawnZeit? }] → Hasen nur dort (tierSystem)
+ *   tierBereiche [{ x, y, b, h, art, anzahl, respawnZeit? }] → Hasen nur dort (tierSystem); art hase|reh|hirsch|fuchs (Runde 41)
  *   einstellungen → Zonen-Werte (zonenEinstellungen.js), musik → daten.musik (Client: Musik-Ordner)
  *   klaenge → daten.klaenge (Klanglandschaft, gemeinsam/audio/klanglandschaft.js; nur mit Datei/eingebetteten Daten)
  *   lootZonen → zusätzliche lootPunkte mit `lootZone` (Regeln: lootZonen.js; nur Server, der Client sieht nur die Items)
@@ -161,9 +161,10 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE, { au
   const bauwerke = (Array.isArray(definition.bauwerke) ? definition.bauwerke : [])
     .filter((b) => BAUWERKE[b?.typ] && imFeld(b.tx, b.ty))
     .map((b) => ({ typ: b.typ, tx: b.tx, ty: b.ty, ...(b.drehung === 1 ? { drehung: 1 } : {}) }));
+  const WILD_ARTEN = ['hase', 'reh', 'hirsch', 'fuchs']; // Runde 41: Wild je Bereich
   const tierBereiche = (Array.isArray(definition.tierBereiche) ? definition.tierBereiche : [])
     .filter((t) => imFeld(t?.x, t?.y) && Number.isInteger(t.b) && Number.isInteger(t.h) && t.b > 0 && t.h > 0 && imFeld(t.x + t.b - 1, t.y + t.h - 1) && Number.isInteger(t.anzahl) && t.anzahl >= 0)
-    .map((t) => ({ x: t.x, y: t.y, b: t.b, h: t.h, art: 'hase', anzahl: Math.min(t.anzahl, 100), ...(t.respawnZeit > 0 ? { respawnZeit: t.respawnZeit } : {}) }));
+    .map((t) => ({ x: t.x, y: t.y, b: t.b, h: t.h, art: WILD_ARTEN.includes(t.art) ? t.art : 'hase', anzahl: Math.min(t.anzahl, 100), ...(t.respawnZeit > 0 ? { respawnZeit: t.respawnZeit } : {}) }));
   // Loot-Zonen (Map-Editor 6.2): Punkte fest verteilt auf freien Kacheln (keine Wand/Wasser, kein blockierendes Möbel,
   // kein Klippenfuß), je nach Zone nur innen/außen; der Punkt trägt die Zone (lootSystem würfelt daraus)
   (Array.isArray(definition.lootZonen) ? definition.lootZonen : []).forEach((roh, nr) => {
