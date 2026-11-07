@@ -36,10 +36,15 @@ const authentifizierung = gastModus
   ? new GastAuthentifizierung()
   : new KontenAuthentifizierung(KONTEN_DATEI, { kontenJson: process.env.KONTEN_JSON || null });
 
+/** Runde 42: neue Charaktere starten am Lagerplatz (eigene einstellungen.json kann welt.ankunftsKarte überschreiben, null = Startzone) */
+function mitLager(k) {
+  return { ...k, welt: { ankunftsKarte: 'lager', ...k.welt } };
+}
+
 const spielServer = new SpielServer({
   authentifizierung,
   speicher: new DateiSpeicher(process.env.SPIELSTAENDE || path.join(SCHREIBBAR, 'spielstaende')),
-  konfiguration: { bots: { proKarte: Number(process.env.BOTS ?? 2) }, ...mitUmgebung(ladeEinstellungen(path.join(SCHREIBBAR, 'einstellungen.json'))) }, // Runde 23: 2 Test-Bots je Zone (BOTS=0 = aus)
+  konfiguration: mitLager({ bots: { proKarte: Number(process.env.BOTS ?? 2) }, ...mitUmgebung(ladeEinstellungen(path.join(SCHREIBBAR, 'einstellungen.json'))) }), // Runde 23: 2 Test-Bots je Zone (BOTS=0 = aus)
   // Developer-Modus speichert Änderungen dorthin zurück
   einstellungsSpeicher: dateiEinstellungsSpeicher(path.join(SCHREIBBAR, 'einstellungen.json')),
 });

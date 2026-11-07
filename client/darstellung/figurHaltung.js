@@ -11,7 +11,7 @@ const haltungFuer = (name) => haltungMitHaenden(name) ?? modellHaltung(name);
  *
  * Spielerfiguren (client/assets/3d/figur_mann|frau.glb): Beim Holz-/Steinabbau, Zerlegen und Hacken macht ein Clip den Schlag
  * (hacken/spitzhacke/abbauen/hacke, figur.klips) – hier wird nur das Werkzeug zwischen die Hände gelegt (platziereHackwerkzeug).
- * Sitzen: Clip „sitzen“ (falls vorhanden), sonst prozedural.
+ * Sitzen: Clip „sitzen“ (falls vorhanden), sonst prozedural. Runde 42: auf Stuhl/Bank (e.arbeitOrt.sitz) Beine prozedural (stuhlBeine).
  *
  * Haltungen (Runde 19): ohne Waffe hängen die Arme locker (Clip); Taschenlampe nur nachts mit Licht an, schräg nach vorn-unten;
  * Schusswaffen (Pistole, Gewehr) und Nahkampfwaffen außer Arbeitswerkzeug hängen locker neben dem Körper und gehen erst beim
@@ -139,8 +139,22 @@ export function aktualisiereHaltung(figur, e, jetzt, dunkel = 1) {
   }
   setzeWaffe(figur, waffenName, e.waffeMods);
 
-  // Sitzen mit eigenem Clip: Arme/Beine kommen ganz aus dem Clip
-  if (haltungsName === 'sitzen' && klips.has('sitzen')) return loeseArme(figur);
+  // Sitzen mit eigenem Clip: Arme/Beine kommen aus dem Clip (Boden-Sitzpose). Runde 42: auf Stuhl/Bank (arbeitOrt.sitz)
+  // hängen die Unterschenkel nach unten, die Oberschenkel liegen waagerecht auf der Sitzfläche.
+  if (haltungsName === 'sitzen' && klips.has('sitzen')) {
+    if (!e.arbeitOrt?.sitz) return loeseArme(figur);
+    stuhlBeine(figur);
+    // Hände auf die Oberschenkel (der Clip legt sie auf die hochgezogenen Knie)
+    const gruppe = figur.gruppe;
+    for (const seite of ['rechts', 'links']) {
+      const [oberarm, unterarm, hand] = figur.knochen[seite];
+      const r = seite === 'rechts' ? -1 : 1;
+      richteKnochen(oberarm, unterarm, inWelt(v(0.06 * r, -0.92, 0.32), gruppe));
+      richteKnochen(unterarm, hand, inWelt(v(0.1 * r, -0.4, 1), gruppe));
+      figur.armGesetzt[seite] = true;
+    }
+    return;
+  }
   // Survivor: den Schlag macht ein Clip (hacken/spitzhacke/abbauen/hacke/nahkampf) – hier nur das Werkzeug in die Hände legen
   // (figur.schlagKlip setzt der Renderer, wenn er gerade einen Werkzeug-Clip abspielt)
   if ((haltungsName === 'hacken' || haltungsName === 'nahkampf') && figur.schlagKlip) {
@@ -242,6 +256,45 @@ export function aktualisiereHaltung(figur, e, jetzt, dunkel = 1) {
     figur.hatMuendung = !!muendung;
     if (muendung) figur.muendung.copy(muendung).applyMatrix4(figur.waffe.matrixWorld);
   }
+}
+
+/**
+ * Runde 42: Beine für Stuhl/Bank – Oberschenkel waagerecht nach vorn, Unterschenkel senkrecht runter (Füße am Boden).
+ * ⚠ Quaternius-Rig: Foot.* sind freie IK-Ziel-Knochen am Root (keine Kinder des Unterschenkels) → Fuß nach dem Drehen
+ * selbst an das Ende des Unterschenkels setzen und mitdrehen, sonst zieht sich das Netz wie Gummi zum alten Fußpunkt.
+ */
+function stuhlBeine(figur) {
+  const gruppe = figur.gruppe;
+  gruppe.updateMatrixWorld(true);
+  for (const seite of ['rechts', 'links']) {
+    const bein = figur.beine?.[seite];
+    if (!bein) continue;
+    const [oberschenkel, unterschenkel, fuss] = bein;
+    const knie0 = unterschenkel.getWorldPosition(new THREE.Vector3());
+    const schienbein = fuss.getWorldPosition(new THREE.Vector3()).sub(knie0); // Knie → Fuß (Clip-Pose, passt zusammen)
+    const laenge = schienbein.length();
+    const qs0 = unterschenkel.getWorldQuaternion(new THREE.Quaternion());
+    const qf0 = fuss.getWorldQuaternion(new THREE.Quaternion());
+    richteKnochen(oberschenkel, unterschenkel, inWelt(v(seite === 'rechts' ? -0.12 : 0.12, -0.04, 1), gruppe));
+    // Unterschenkel hat sich mit dem Oberschenkel mitgedreht → Fuß gedanklich mitnehmen, dann senkrecht stellen
+    const knie1 = unterschenkel.getWorldPosition(new THREE.Vector3());
+    const mit = unterschenkel.getWorldQuaternion(new THREE.Quaternion()).multiply(qs0.clone().invert());
+    setzeWeltPosition(fuss, knie1.clone().add(schienbein.clone().applyQuaternion(mit)));
+    const runter = inWelt(v(0, -1, 0.1), gruppe);
+    richteKnochen(unterschenkel, fuss, runter);
+    const gesamt = unterschenkel.getWorldQuaternion(new THREE.Quaternion()).multiply(qs0.invert());
+    setzeWeltPosition(fuss, knie1.add(runter.multiplyScalar(laenge)));
+    fuss.parent.getWorldQuaternion(_qp).invert();
+    fuss.quaternion.copy(_qp.multiply(gesamt.multiply(qf0)));
+    fuss.updateMatrixWorld(true);
+  }
+}
+
+/** Knochen an eine Weltposition setzen (über das Eltern-Koordinatensystem). */
+function setzeWeltPosition(knochen, welt) {
+  knochen.parent.updateMatrixWorld(true);
+  knochen.position.copy(knochen.parent.worldToLocal(welt));
+  knochen.updateMatrixWorld(true);
 }
 
 /** Runde 19: Arm einer Seite einmalig in die Ruhestellung zurück (danach übernimmt wieder der Clip, falls er ihn bewegt) */

@@ -13,6 +13,7 @@ import { STADTRAND } from './stadtrand.js';
 import { WALDWEG } from './waldweg.js';
 import { SCHNEELAND } from './schneeland.js';
 import { WALDSEE } from './waldsee.js';
+import { LAGER } from './lager.js';
 
 /**
  * Registrierte Karten (= Zonen der offenen Welt). Neue Karte: Datei in diesem Ordner anlegen (von Hand, per
@@ -24,6 +25,7 @@ export const KARTEN = Object.freeze({
   waldweg: WALDWEG,
   schneeland: SCHNEELAND,
   waldsee: WALDSEE,
+  lager: LAGER, // Runde 42: Startplatz neuer Charaktere (konfiguration.welt.ankunftsKarte)
 });
 
 /**
@@ -43,7 +45,7 @@ export const KARTEN = Object.freeze({
  *   objekte[].groesse 'klein'|'gross' → feste Größe statt Zufall nach Position
  *   terrain.hoehen ["0 0 1.5 …"] → daten.hoehen (Meter je Kachel, Spiel zeigt sie in 3D); Fuß von Klippen (gemeinsam/welt/gelaende.js)
  *   → unsichtbare Hindernisse (Objekt typ 'hang', ebene 'unsichtbar'). Alte Exporte nur mit terrain.steil [[x, y]] gelten weiter.
- *   bauwerke [{ typ, tx, ty, drehung? }] → kartenfeste Bauwerke ohne Besitzer (SpielWelt setzt sie)
+ *   bauwerke [{ typ, tx, ty, drehung?, ewig? }] → kartenfeste Bauwerke ohne Besitzer (SpielWelt setzt sie; ewig = Lagerfeuer brennt immer)
  *   tierBereiche [{ x, y, b, h, art, anzahl, respawnZeit? }] → Hasen nur dort (tierSystem); art hase|reh|hirsch|fuchs (Runde 41)
  *   einstellungen → Zonen-Werte (zonenEinstellungen.js), musik → daten.musik (Client: Musik-Ordner)
  *   klaenge → daten.klaenge (Klanglandschaft, gemeinsam/audio/klanglandschaft.js; nur mit Datei/eingebetteten Daten)
@@ -133,6 +135,7 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE, { au
     // Lampen: Radius (Kacheln), Farbe, Stärke 0..1, Flackern; Kegel-Licht (Map-Editor): Richtung ° (0 = Osten, 90 = Süden), Öffnung 10–170°
     if (o.typ === 'licht') {
       Object.assign(objekt, { ebene: 'licht', radius: o.radius ?? 4, farbe: o.farbe ?? '#ffd9a0', staerke: o.staerke ?? 0.85, flackern: !!o.flackern, mast: !!o.mast });
+      if (Number.isFinite(o.hoehe) && o.hoehe > 0 && o.hoehe <= 12) objekt.hoehe = o.hoehe; // Runde 42: Lichthöhe in m (z. B. Birne einer Lichterkette)
       if (o.art === 'kegel') Object.assign(objekt, { art: 'kegel', richtung: Number.isFinite(o.richtung) ? ((o.richtung % 360) + 360) % 360 : 90, oeffnung: Number.isFinite(o.oeffnung) ? Math.max(10, Math.min(170, o.oeffnung)) : 60 });
     }
     return objekt;
@@ -162,7 +165,7 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE, { au
 
   const bauwerke = (Array.isArray(definition.bauwerke) ? definition.bauwerke : [])
     .filter((b) => BAUWERKE[b?.typ] && imFeld(b.tx, b.ty))
-    .map((b) => ({ typ: b.typ, tx: b.tx, ty: b.ty, ...(b.drehung === 1 ? { drehung: 1 } : {}) }));
+    .map((b) => ({ typ: b.typ, tx: b.tx, ty: b.ty, ...(b.drehung === 1 ? { drehung: 1 } : {}), ...(b.ewig === true && b.typ === 'lagerfeuer' ? { ewig: true } : {}) })); // Runde 42: ewig = Lagerfeuer brennt immer (Startplatz)
   const WILD_ARTEN = ['hase', 'reh', 'hirsch', 'fuchs']; // Runde 41: Wild je Bereich
   const tierBereiche = (Array.isArray(definition.tierBereiche) ? definition.tierBereiche : [])
     .filter((t) => imFeld(t?.x, t?.y) && Number.isInteger(t.b) && Number.isInteger(t.h) && t.b > 0 && t.h > 0 && imFeld(t.x + t.b - 1, t.y + t.h - 1) && Number.isInteger(t.anzahl) && t.anzahl >= 0)
@@ -231,6 +234,8 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE, { au
   if (typeof definition.musik === 'string' && /^[a-z0-9_-]{1,40}$/i.test(definition.musik)) daten.musik = definition.musik;
   const klaenge = (Array.isArray(definition.klaenge) ? definition.klaenge : []).map((k) => pruefeKlang(k, { breite, hoehe })).filter((k) => k && (k.datei || k.daten));
   if (klaenge.length) daten.klaenge = klaenge;
+  const lichterketten = pruefeLichterketten(definition.lichterketten, breite, hoehe);
+  if (lichterketten) daten.lichterketten = lichterketten;
   const bemalung = pruefeBemalung(definition.bemalung, breite, hoehe);
   if (bemalung) daten.bemalung = bemalung;
   const bodenMalerei = pruefeBodenMalerei(definition.bodenMalerei, breite, hoehe); // Runde 41: weicher Pinsel (nur Optik)
@@ -267,9 +272,33 @@ function pruefeTypen(roh) {
     if (t.hoehe3d > 0 && t.hoehe3d <= 20) e.hoehe3d = t.hoehe3d;
     // Leerlauf-Animation (Map-Editor 5.3): Name eines Clips im Modell, spielt im Spiel als Schleife
     if (typeof t.animation === 'string' && /^[^<>"\\]{1,60}$/.test(t.animation)) e.animation = t.animation;
+    // Runde 42: Sitzhöhe in m (0 = ausdrücklich kein Sitz) – sonst rät gemeinsam/welt/sitze.js nach dem Modellnamen
+    if (Number.isFinite(t.sitz) && t.sitz >= 0 && t.sitz <= 1.5) e.sitz = t.sitz;
     ergebnis[id] = e;
   }
   return Object.keys(ergebnis).length ? ergebnis : null;
+}
+
+/**
+ * Runde 42: Lichterketten (nur Optik, Client kartenModell) – Leine zwischen zwei Punkten (Kacheln, Kommazahlen erlaubt):
+ * { von: [x, y], bis: [x, y], hoehe (m, Aufhängung, Standard 3), durchhang (m, Standard 0,5), birnen (Anzahl), farbe '#rrggbb' }.
+ * Echtes Licht kommt von normalen `licht`-Objekten (mit `hoehe`), die der Generator unter die Leinen setzt.
+ */
+function pruefeLichterketten(roh, breite, hoehe) {
+  if (!Array.isArray(roh)) return null;
+  const punkt = (p) => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite) && p[0] >= 0 && p[1] >= 0 && p[0] <= breite && p[1] <= hoehe;
+  const ok = roh
+    .filter((k) => k && punkt(k.von) && punkt(k.bis))
+    .slice(0, 200)
+    .map((k) => ({
+      von: [...k.von],
+      bis: [...k.bis],
+      hoehe: Number.isFinite(k.hoehe) ? Math.min(8, Math.max(1, k.hoehe)) : 3,
+      durchhang: Number.isFinite(k.durchhang) ? Math.min(3, Math.max(0, k.durchhang)) : 0.5,
+      birnen: Number.isInteger(k.birnen) ? Math.min(40, Math.max(1, k.birnen)) : Math.max(2, Math.round(Math.hypot(k.bis[0] - k.von[0], k.bis[1] - k.von[1]) / 1.2)),
+      farbe: typeof k.farbe === 'string' && /^#[0-9a-f]{6}$/i.test(k.farbe) ? k.farbe : '#ffd28a',
+    }));
+  return ok.length ? ok : null;
 }
 
 /** Bemalung prüfen: nur #rrggbb-Farben, ganzzahlige Rechtecke in der Karte. @returns Objekt oder null */

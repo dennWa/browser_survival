@@ -86,9 +86,11 @@ export async function oeffneLokalenKanal(slot = null) {
       ? new ArbeitsspeicherSpeicher()
       : new BrowserSpeicher(slot ? { praefix: slotPraefix(slot), beiSpielerGespeichert: (_name, stand) => slotGespielt(slot, stand) } : {});
     serverSlot = slot;
+    const lokal = ladeLokaleEinstellungen();
     server = new SpielServer({
       authentifizierung: new GastAuthentifizierung({ admin: true }), // lokal = eigenes Spiel → Admin-Menü frei
-      konfiguration: { bots: { proKarte: testKarten ? 0 : 2 }, ...ladeLokaleEinstellungen(), server: { name: testKarten ? 'Editor-Test' : 'Lokaler Server' } }, // Runde 23: 2 Test-Bots je Zone
+      // Runde 23: 2 Test-Bots je Zone; Runde 42: neue Charaktere starten am Lagerplatz
+      konfiguration: { bots: { proKarte: testKarten ? 0 : 2 }, ...lokal, welt: { ankunftsKarte: 'lager', ...lokal.welt }, server: { name: testKarten ? 'Editor-Test' : 'Lokaler Server' } },
       speicher: serverSpeicher,
       einstellungsSpeicher: lokalerEinstellungsSpeicher,
       ...(testKarten ? { kartenDefinition: testKarten.karten[testKarten.start], kartenDefinitionen: testKarten.karten } : {}),

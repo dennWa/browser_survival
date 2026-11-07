@@ -913,11 +913,13 @@ export const STADTRAND = {
     { x: 117, y: 0, b: 7, h: 1, ziel: 'waldweg', ankunft: 'sued', name: 'Waldweg (Norden)' },
     { x: 154, y: 86, b: 1, h: 9, ziel: 'schneeland', ankunft: 'west', name: 'Schneeland (Osten)' },
     { x: 0, y: 86, b: 1, h: 9, ziel: 'waldsee', ankunft: 'ost', name: 'Waldsee (Westen)' },
+    { x: 0, y: 46, b: 1, h: 3, ziel: 'lager', ankunft: 'ost', name: 'Lagerplatz (Westen)' },
   ],
   ankuenfte: {
     nord: { x: 120, y: 5 }, // wer vom Waldweg kommt (Straße, nicht im Übergang)
     ost: { x: 149, y: 90 }, // wer vom Schneeland kommt (Hauptstraße, nicht im Übergang)
     west: { x: 5, y: 90 }, // wer vom Waldsee kommt (Hauptstraße, nicht im Übergang)
+    lager: { x: 4, y: 47 }, // wer vom Lagerplatz kommt (Wiese zwischen den Starthäusern)
   },
   typen: {
   // ── Runde 32 Deko-Typen START

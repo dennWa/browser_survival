@@ -207,6 +207,10 @@ export function feuer(spielWelt, spieler) {
     if (spieler.inventar[spieler.ausgeruestet]?.defId === 'fackel') return zuendeFackel(spielWelt, spieler, spieler.ausgeruestet);
     return false;
   }
+  if (b.ewig) {
+    spielWelt.melde(spieler.id, '🔥 Dieses Feuer brennt immer – setz dich dazu (Ä)');
+    return true;
+  }
   if (b.brennt) {
     Object.assign(b, { brennt: false, brennRest: 0 });
     spielWelt.melde(spieler.id, 'Feuer gelöscht');
@@ -380,7 +384,8 @@ export function aktualisiereBauwerke(spielWelt, dt, spielSekunden = dt) {
   const zyklus = spielWelt.konfiguration.welt.tagSekunden + spielWelt.konfiguration.welt.nachtSekunden;
   for (const b of welt.bauwerke.values()) {
     if (b.typ === 'lagerfeuer' || b.typ === 'schmelzofen') {
-      if (b.typ === 'lagerfeuer' && b.brennt) {
+      if (b.typ === 'lagerfeuer' && b.ewig) b.brennRest = spielWelt.konfiguration.bauen.brennDauer; // Runde 42: brennt immer (auch bei Regen)
+      else if (b.typ === 'lagerfeuer' && b.brennt) {
         b.brennRest -= dt;
         const regen = regnet(spielWelt.wetter?.art);
         if (b.brennRest <= 0 || regen) {

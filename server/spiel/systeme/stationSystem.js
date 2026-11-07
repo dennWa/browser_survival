@@ -1,4 +1,5 @@
 import { BAUWERK_REICHWEITE, KOCHBAR } from '../../../gemeinsam/welt/bauwerke.js';
+import { findeSitz } from '../../../gemeinsam/welt/sitze.js';
 import { GEGENSTAENDE } from '../konfiguration/gegenstaende.js';
 import { entferneSlot, fuegeZumInventarHinzu, legeAufBoden } from './inventarSystem.js';
 
@@ -13,9 +14,12 @@ import { entferneSlot, fuegeZumInventarHinzu, legeAufBoden } from './inventarSys
  *
  * AKTION stationLegen { slot } (1 Stück; Holz im Ofen = Brennstoff) · stationNehmen { slot = Platz } · stationSchliessen · stationSitzen
  * Das Menü schließt sich beim Wegtreten (wie die Kiste).
+ * Runde 42: Sitzen (Ä / E an Stuhl/Bank / Feuer-Menü) nimmt den nächsten freien Sitzplatz (gemeinsam/welt/sitze.js) → arbeit.ort
+ * { x, y, blick, hoehe, sitz } (Renderer setzt die Figur drauf); Bank ≤ SITZ_ABSTAND_STUHL vom Feuer zählt als „am Feuer“.
  */
 const OEFFNEN_TOLERANZ = 24;
 const SITZ_ABSTAND = 70;
+const SITZ_ABSTAND_STUHL = 150; // Runde 42: Bank/Stuhl im Kreis ums Lagerfeuer zählt noch als „am Feuer“ (heilt, tarnt)
 
 /** Wie ein Rohstoff an dieser Station verarbeitet wird (null = kann nicht hinein). */
 function rezept(typ, defId, k) {
@@ -122,6 +126,8 @@ function verbrauchEins(spieler, slot) {
 
 /** AKTION stationSitzen: am offenen, brennenden Lagerfeuer hinsetzen (Zombies übersehen einen, es heilt langsam). */
 export function setzeAmFeuer(spielWelt, spieler) {
+  // Runde 42: Bank/Stuhl am Feuer in Reichweite → darauf setzen (setzeHin erkennt das Feuer selbst)
+  if (!spieler.arbeit && findeSitz(spielWelt.welt, spieler.x, spieler.y, (p) => sitzBelegt(spielWelt, spieler, p))) return setzeHin(spielWelt, spieler);
   const feuer = offeneStation(spielWelt, spieler);
   if (feuer?.typ !== 'lagerfeuer') return;
   if (!feuer.brennt) {
@@ -147,13 +153,25 @@ export function setzeHin(spielWelt, spieler) {
   }
   if (spieler.tot || spieler.fahrzeug || spieler.fliegen || spieler.arbeit) return;
   const g = spielWelt.welt.kachelGroesse;
-  const feuer = spielWelt.welt.naechstesBauwerk(spieler.x, spieler.y, SITZ_ABSTAND, (b) => b.typ === 'lagerfeuer' && b.brennt);
+  // Runde 42: Stuhl/Bank/Sofa in Reichweite → darauf sitzen (Figur wird im Renderer auf den Sitz gesetzt, Position bleibt)
+  const sitz = findeSitz(spielWelt.welt, spieler.x, spieler.y, (p) => sitzBelegt(spielWelt, spieler, p));
+  const mitte = sitz ?? spieler;
+  const feuer = spielWelt.welt.naechstesBauwerk(mitte.x, mitte.y, sitz ? SITZ_ABSTAND_STUHL : SITZ_ABSTAND, (b) => b.typ === 'lagerfeuer' && b.brennt);
   spieler.arbeit = { art: 'sitzen', dauer: 1e6, rest: 1e6, x: spieler.x, y: spieler.y, bauwerkId: feuer?.id ?? null };
+  if (sitz) spieler.arbeit.ort = { x: Math.round(sitz.x), y: Math.round(sitz.y), blick: Math.round(sitz.blick * 100) / 100, hoehe: Math.round(sitz.hoehe), sitz: true };
   spieler.nachladenRest = 0;
-  if (feuer) {
-    spieler.blick = Math.atan2((feuer.ty + 0.5) * g - spieler.y, (feuer.tx + 0.5) * g - spieler.x);
-    spielWelt.melde(spieler.id, '🔥 Du sitzt am Feuer – hier ist es ruhig');
+  if (sitz) spieler.blick = sitz.blick;
+  else if (feuer) spieler.blick = Math.atan2((feuer.ty + 0.5) * g - spieler.y, (feuer.tx + 0.5) * g - spieler.x);
+  if (feuer) spielWelt.melde(spieler.id, '🔥 Du sitzt am Feuer – hier ist es ruhig');
+}
+
+/** Sitzt dort (≤ 6 px) schon ein anderer Spieler? */
+function sitzBelegt(spielWelt, spieler, p) {
+  for (const s of spielWelt.alleVomTyp('spieler')) {
+    const ort = s !== spieler && s.arbeit?.art === 'sitzen' ? s.arbeit.ort : null;
+    if (ort && Math.abs(ort.x - p.x) < 6 && Math.abs(ort.y - p.y) < 6) return true;
   }
+  return false;
 }
 
 /** Sitzt der Spieler an einem (brennenden) Lagerfeuer? Nur dann übersehen ihn die Zombies. */

@@ -22,6 +22,7 @@ import { BLOCK_KACHELN, BlockInstanzen, boxZweiGruppen, kulEintrag, kulleNachWei
  *   Bäume/Steine InstancedMesh pro Teil – einzelne Instanzen werden beim Abbauen ausgeblendet (Stumpf erscheint)
  *   Türen        einzelne Flügel (bewegen sich)
  *   Lampen       nur ein kleines Glühen pro Lampe; echtes Licht kommt aus einem Pool im Renderer
+ *   Lichterketten (Runde 42, Kartenfeld `lichterketten`) Kabel + Birnen in 2 Meshes, Birnen glühen nachts (emissiveIntensity)
  *
  * Alles außer Türen und Ressourcen wird "eingefroren" (Matrizen nicht jeden Frame neu berechnen).
  * Bau: am Stück (Konstruktor) oder in kleinen Schritten (KartenModell.baueSchrittweise – Ladebildschirm mit Fortschritt).
@@ -135,6 +136,7 @@ export class KartenModell {
     this.#baueEigeneModelle();
     yield;
     this.#baueLampen();
+    this.#baueLichterketten();
     yield;
     this.#baueTueren();
     yield;
@@ -184,6 +186,7 @@ export class KartenModell {
     }
     this.lampenGluehen.visible = dunkel > 0.08;
     this.lampenGluehen.material.opacity = Math.min(1, dunkel * 1.4);
+    if (this.kettenBirnen) this.kettenBirnen.material.emissiveIntensity = 0.35 + dunkel * 2.6; // Runde 42: Lichterketten glühen nachts
     // Lichtschein am Boden: jede Lampe leuchtet nachts sichtbar, auch ohne echtes Licht aus dem Pool
     this.lampenSchein.visible = dunkel > 0.08;
     this.lampenSchein.material.opacity = Math.min(0.55, dunkel * 0.6);
@@ -592,6 +595,43 @@ export class KartenModell {
     }
   }
 
+  /**
+   * Runde 42: Lichterketten – je Leine ein dünnes Kabel mit Durchhang (Parabel) + Glühbirnen. Alles in zwei Meshes (Kabel, Birnen),
+   * die Birnen leuchten über emissiveIntensity (aktualisiere). Echtes Licht = normale `licht`-Objekte der Karte (Lampen-Pool).
+   */
+  #baueLichterketten() {
+    const ketten = this.welt.lichterketten ?? [];
+    if (!ketten.length) return;
+    const g = this.g;
+    const kabel = [];
+    const birnen = [];
+    const birneGeo = new THREE.SphereGeometry(2.3, 8, 6);
+    const fassungGeo = new THREE.CylinderGeometry(1.1, 1.1, 2.6, 6);
+    const kurve = (k, t) => {
+      const x = (k.von[0] + (k.bis[0] - k.von[0]) * t) * g;
+      const z = (k.von[1] + (k.bis[1] - k.von[1]) * t) * g;
+      const boden = this.hy(k.von[0] * g, k.von[1] * g) * (1 - t) + this.hy(k.bis[0] * g, k.bis[1] * g) * t;
+      return new THREE.Vector3(x, boden + (k.hoehe - k.durchhang * 4 * t * (1 - t)) * g, z);
+    };
+    for (const k of ketten) {
+      const punkte = [];
+      for (let i = 0; i <= 16; i++) punkte.push(kurve(k, i / 16));
+      kabel.push({ geometrie: new THREE.TubeGeometry(new THREE.CatmullRomCurve3(punkte), 24, 0.45, 4, false), matrix: new THREE.Matrix4() });
+      const farbe = new THREE.Color(k.farbe);
+      for (let i = 0; i < k.birnen; i++) {
+        const p = kurve(k, (i + 0.5) / k.birnen);
+        kabel.push({ geometrie: fassungGeo, matrix: new THREE.Matrix4().makeTranslation(p.x, p.y - 1.2, p.z) });
+        birnen.push({ geometrie: birneGeo, matrix: new THREE.Matrix4().makeTranslation(p.x, p.y - 4, p.z), farbe });
+      }
+    }
+    const kabelMesh = new THREE.Mesh(vereineGeometrien(kabel), new THREE.MeshStandardMaterial({ color: 0x1c1a16, roughness: 0.9 }));
+    this.kettenBirnen = new THREE.Mesh(
+      vereineGeometrien(birnen, { mitFarbe: true }),
+      new THREE.MeshStandardMaterial({ vertexColors: true, color: 0xffffff, emissive: 0xffc070, emissiveIntensity: 0.4, roughness: 0.4 }),
+    );
+    this.statisch.add(kabelMesh, this.kettenBirnen);
+  }
+
   /** Lampen: kleines Glühen pro Lampe (ein InstancedMesh); echtes Licht verteilt der Renderer aus einem Pool. */
   #baueLampen() {
     const g = this.g;
@@ -599,7 +639,7 @@ export class KartenModell {
       .filter((o) => o.typ === 'licht')
       .map((o) => ({
         x: (o.x + 0.5) * g,
-        y: (o.mast ? LATERNEN_LICHTHOEHE : 60) + this.hy((o.x + 0.5) * g, (o.y + 0.5) * g),
+        y: (o.mast ? LATERNEN_LICHTHOEHE : o.hoehe ? o.hoehe * g : 60) + this.hy((o.x + 0.5) * g, (o.y + 0.5) * g), // Runde 42: hoehe (m)
         z: (o.y + 0.5) * g,
         farbe: new THREE.Color(o.farbe),
         reichweite: o.radius * g * 1.8,

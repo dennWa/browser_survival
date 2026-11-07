@@ -84,6 +84,8 @@ export class SpielServer {
     /** kartenId → Zone; die Startzone gibt es immer, andere entstehen beim ersten Betreten */
     this.zonen = new Map();
     this.startZone = this.#erstelleZone(kartenDefinition);
+    /** Runde 42: Zone für neue Charaktere (Lagerplatz) – mit eigener Testkarte aus (Tests behalten ihre Startkarte) */
+    this.ankunftsKarte = kartenDefinition ? null : (this.konfiguration.welt.ankunftsKarte ?? null);
     this.sitzungen = new Set();
     this.weltGeladen = this.startZone.geladen;
     this.taktgeber = new Taktgeber(TICK_DAUER_MS, () => this.tickAusfuehren());
@@ -440,8 +442,10 @@ export class SpielServer {
         this.log.error?.(`[Server] Spielstand von ${name} nicht ladbar:`, fehler);
       }
     }
-    // Weiter in der Zone vom letzten Mal (nur lebend und wenn es die Karte noch gibt), sonst Startzone
-    const zone = (spielstand?.leben > 0 && typeof spielstand.karte === 'string' && this.zone(spielstand.karte)) || this.startZone;
+    // Weiter in der Zone vom letzten Mal (nur lebend und wenn es die Karte noch gibt), sonst Startzone.
+    // Runde 42: neuer Charakter (kein Spielstand) → Lagerplatz (welt.ankunftsKarte); nur ohne eigene Testkarte (kartenDefinition)
+    const neuling = !spielstand && this.ankunftsKarte ? this.zone(this.ankunftsKarte) : null;
+    const zone = (spielstand?.leben > 0 && typeof spielstand.karte === 'string' && this.zone(spielstand.karte)) || neuling || this.startZone;
     await zone.geladen;
     if (!this.sitzungen.has(sitzung) || this.gestoppt) {
       if (auto) parkeZurueck(alt.spielWelt, auto);
@@ -461,6 +465,7 @@ export class SpielServer {
     sitzung.zone = zone;
     sitzung.spielerId = spieler.id;
     if (geladen) zone.spielWelt.melde(spieler.id, zone === this.startZone ? 'Spielstand geladen' : `Spielstand geladen – du bist in: ${zone.name}`);
+    else if (zone === neuling) zone.spielWelt.melde(spieler.id, '🔥 Willkommen am Lagerplatz! Setz dich ans Feuer (E an der Bank / Ä) – der Weg nach Osten führt in die Stadt');
     else zone.spielWelt.melde(spieler.id, 'Tipp: Auf der Karte (K / 🗺) sind Werkbänke 🔨 markiert');
 
     this.#senden(sitzung, { typ: NACHRICHT.ANMELDUNG_OK, ...this.#startDaten(zone, spieler), charakter: { name: spieler.anzeigeName ?? spieler.name, aussehen: spieler.aussehen, neu: !geladen } });

@@ -136,6 +136,8 @@ const TASCHENLAMPE = { winkel: 0.56, rand: 0.95, reichweite: 330, decay: 1.5, st
 // Je Scheinwerfer (zwei pro Auto, Runde 20): etwas mehr als die Hälfte des früheren Einzel-Lichts, Ziel = px vor der Front
 const SCHEINWERFER = { decay: 1, winkel: 0.4, rand: 0.55, reichweite: 620, staerke: 280, staerkeNacht: 1500, ziel: 360 };
 const SITZ_TIEFE = 24; // so weit sinkt die Figur beim Sitzen am Feuer
+const STUHL_KORREKTUR = 0; // Runde 42: Clip „sitzen“ – Hüfte über dem Figur-Ursprung (px), abgezogen von der Sitzhöhe
+const STUHL_ZURUECK = 0; // Runde 42: Figur so weit nach hinten (gegen die Blickrichtung), damit die Hüfte auf der Fläche sitzt
 const SICHTWEITE = 1300; // weiter entfernte Figuren werden nicht animiert/gezeichnet
 const ANIM_HALB_AB = 650; // Zombies weiter weg werden nur jedes 2. Bild animiert (mit doppeltem dt)
 const NEUE_FIGUREN_JE_BILD = 2; // höchstens so viele Zombie-Figuren pro Bild neu aufbauen (Horden-Spawn ruckelte)
@@ -1551,6 +1553,14 @@ export class Renderer {
         const laengs = e.arbeitOrt.laengs;
         f.gruppe.position.set(e.arbeitOrt.x - (laengs ? 0 : 30), 20 + this.#hy(e.arbeitOrt.x, e.arbeitOrt.y), e.arbeitOrt.y + (laengs ? 30 : 0));
         f.gruppe.rotation.set(-Math.PI / 2, laengs ? 0 : -Math.PI / 2, 0, 'YXZ');
+      } else if (e.arbeit === 'sitzen' && e.arbeitOrt?.sitz) {
+        // Runde 42: auf Stuhl/Bank – Figur auf die Sitzfläche (Clip „sitzen“ = Hüfte am Boden → um die Sitzhöhe anheben)
+        const ort = e.arbeitOrt;
+        const hoch = f.aktionen?.sitzen ? ort.hoehe - STUHL_KORREKTUR : ort.hoehe - SITZ_TIEFE + 4;
+        const zurueck = f.aktionen?.sitzen ? STUHL_ZURUECK : 0;
+        f.gruppe.position.set(ort.x - Math.cos(ort.blick) * zurueck, this.#hy(ort.x, ort.y) + hoch, ort.y - Math.sin(ort.blick) * zurueck);
+        f.gruppe.rotation.set(0, Math.PI / 2 - ort.blick, 0, 'YXZ');
+        f.wasserTiefe = 0;
       } else {
         // Sitzen: mit eigenem Clip senkt der Clip die Hüfte selbst, sonst wird die Figur abgesenkt (prozedurale Beine)
         const sitzTiefe = e.arbeit === 'sitzen' && !f.aktionen?.sitzen ? SITZ_TIEFE : 0;

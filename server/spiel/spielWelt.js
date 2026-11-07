@@ -118,7 +118,13 @@ export class SpielWelt {
 
     // Kartenfeste Bauwerke (Map-Editor): ohne Besitzer → alle dürfen sie benutzen, niemand abreißen
     // Runde 28: karteObjekt = Kamin im Karten-Modell (Platz ist vom Modell schon belegt → ohne Platzprüfung)
-    for (const b of karte.bauwerke ?? []) if (b.karteObjekt || pruefePlatz(this.welt, b.typ, b.tx, b.ty, false).ok) this.welt.setzeBauwerk(neuesBauwerk(this, b.typ, b.tx, b.ty, null, { ...(b.drehung ? { drehung: 1 } : {}), ...(b.karteObjekt ? { karteObjekt: true } : {}) }));
+    // Runde 42: ewig = Lagerfeuer brennt von Anfang an und geht nie aus (Startplatz „Lagerplatz“)
+    for (const b of karte.bauwerke ?? []) {
+      if (!b.karteObjekt && !pruefePlatz(this.welt, b.typ, b.tx, b.ty, false).ok) continue;
+      const neu = neuesBauwerk(this, b.typ, b.tx, b.ty, null, { ...(b.drehung ? { drehung: 1 } : {}), ...(b.karteObjekt ? { karteObjekt: true } : {}) });
+      if (b.ewig) Object.assign(neu, { ewig: true, brennt: true, brennRest: konfiguration.bauen.brennDauer });
+      this.welt.setzeBauwerk(neu);
+    }
     this.bauwerkAenderungen.clear();
     for (const o of autos) this.hinzufuegen(erzeugeFahrzeug({ id: this.neueId(), ...fahrzeugAusObjekt(o, this.welt.kachelGroesse), haltbarkeit: konfiguration.fahrzeug.haltbarkeit }));
     this.karte.zombieSpawns.forEach((spawn, spawnIndex) => this.spawneZombie(spawnIndex));
@@ -158,6 +164,7 @@ export class SpielWelt {
       // Kartenfestes Bauwerk (ohne Besitzer) gibt es schon frisch von der Karte → gespeicherten Zustand übernehmen (z. B. Kisteninhalt)
       const fest = b.besitzer ? null : this.welt.bauwerkeAn(b.tx, b.ty).find((x) => x.typ === b.typ && !x.besitzer);
       if (fest) this.welt.entferneBauwerk(fest.id);
+      if (fest?.ewig) Object.assign(b, { ewig: true, brennt: true, brennRest: fest.brennRest }); // Runde 42: ewiges Feuer bleibt an
       if (fest?.karteObjekt) b.karteObjekt = true; // Kamin im Karten-Modell: Platz gehört dem Modell
       else if (!pruefePlatz(this.welt, b.typ, b.tx, b.ty, false).ok) continue;
       b.id = this.neueBauwerkId();

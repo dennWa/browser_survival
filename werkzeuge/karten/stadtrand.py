@@ -866,11 +866,14 @@ js.append(f"    {{ x: {mx(94)}, y: 0, b: {mx(98) - mx(94) + 1}, h: 1, ziel: 'wal
 js.append("    { x: 154, y: 86, b: 1, h: 9, ziel: 'schneeland', ankunft: 'west', name: 'Schneeland (Osten)' },")
 # Westrand: Hauptstraße → Waldsee (werkzeuge/karten/waldsee.py, Ostrand) – Runde 40
 js.append("    { x: 0, y: 86, b: 1, h: 9, ziel: 'waldsee', ankunft: 'ost', name: 'Waldsee (Westen)' },")
+# Westrand zwischen den Starthäusern → Lagerplatz (werkzeuge/karten/lager.py, Ostrand) – Runde 42
+js.append("    { x: 0, y: 46, b: 1, h: 3, ziel: 'lager', ankunft: 'ost', name: 'Lagerplatz (Westen)' },")
 js.append('  ],')
 js.append('  ankuenfte: {')
 js.append(f'    nord: {{ x: {ANKUNFT_X}, y: 5 }}, // wer vom Waldweg kommt (Straße, nicht im Übergang)')
 js.append('    ost: { x: 149, y: 90 }, // wer vom Schneeland kommt (Hauptstraße, nicht im Übergang)')
 js.append('    west: { x: 5, y: 90 }, // wer vom Waldsee kommt (Hauptstraße, nicht im Übergang)')
+js.append('    lager: { x: 4, y: 47 }, // wer vom Lagerplatz kommt (Wiese zwischen den Starthäusern)')
 js.append('  },')
 js.append('};')
 ZIEL.write_text('\n'.join(js).replace('@BREITE@', str(B)).replace('@HOEHE@', str(H)) + '\n')

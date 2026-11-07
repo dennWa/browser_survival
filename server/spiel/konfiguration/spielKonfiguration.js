@@ -17,6 +17,7 @@ export const STANDARD_KONFIGURATION = Object.freeze({
   },
   welt: {
     karte: 'stadtrand',
+    ankunftsKarte: null, // Runde 42: hier starten neue Charaktere (ohne Spielstand); null = Startzone. Standard aus (Tests) – start.js und der Lokal-Modus setzen 'lager'
     tuerenGeschlossen: true, // Start: alle Türen zu (man öffnet sie selbst)
     tuerLeben: 120, // so viel Schaden hält eine geschlossene Tür aus, bevor Zombies sie aufbrechen
     tuerVerstaerkung: 150, // + Lebenspunkte pro Bretter-Verstärkung (höchstens 4× tuerLeben)

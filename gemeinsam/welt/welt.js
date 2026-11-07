@@ -41,6 +41,8 @@ export class Welt {
     /** Bemalung des Bodens aus dem Map-Editor (nur Optik): { '#rrggbb': [[x, y, b, h], …] } oder null */
     this.bemalung = kartenDaten.bemalung ?? null;
     this.bodenMalerei = kartenDaten.bodenMalerei ?? null; // Runde 41: weich gemalte Böden (nur Optik, bodenTextur.js)
+    /** Runde 42: Lichterketten [{ von:[x,y], bis:[x,y], hoehe, durchhang, birnen, farbe }] (Kacheln/m, nur Optik) */
+    this.lichterketten = kartenDaten.lichterketten ?? [];
     /** Schneezone (Kartenfeld `schnee`): Niederschlag fällt als Schnee, Straßen sind verschneit, Schritte knirschen */
     this.schnee = kartenDaten.schnee === true;
     /** Gelände-Höhen (Meter je Kachel) aus dem Map-Editor oder null (flach) – Darstellung + Ego-Zielen; Klippen sind 'hang'-Objekte */

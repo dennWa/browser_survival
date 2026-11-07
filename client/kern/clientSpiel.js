@@ -9,6 +9,7 @@ import { tageszeit } from '../../gemeinsam/tageszeit.js';
 import { ADMIN_BEFEHLE, AKTIONEN, NACHRICHT } from '../../gemeinsam/protokoll.js';
 import { BEHAELTER, abstandZumBehaelter, findeBehaelter, naechsterBehaelter } from '../../gemeinsam/welt/behaelter.js';
 import { Welt } from '../../gemeinsam/welt/welt.js';
+import { findeSitz } from '../../gemeinsam/welt/sitze.js';
 import { wendeEingabeAn } from '../../gemeinsam/physik/bewegung.js';
 import { sichtlinieFrei } from '../../gemeinsam/physik/strahl.js';
 import { EINSTIEG_ABSTAND, FAHRZEUG_MODELLE, abstandZumFahrzeug, fahrzeugKacheln, hinterFahrzeug, tempoZuKmh } from '../../gemeinsam/physik/fahrzeug.js';
@@ -271,7 +272,7 @@ export class ClientSpiel {
 
   /**
    * Taste E / Aktions-Knopf: macht das Naheliegendste – Gegenstand aufheben, sonst Baum/Stein abbauen,
-   * sonst Werkbank öffnen, sonst ins Bett legen.
+   * sonst Werkbank öffnen, sonst ins Bett legen, sonst auf Stuhl/Bank setzen (Runde 42).
    */
   interagieren() {
     if (this.platzierung) return this.platzierungBestaetigen();
@@ -290,6 +291,7 @@ export class ClientSpiel {
     else if (was.art === 'bauwerk' && was.bauwerkArt === 'handwerk') this.werkbankUmschalten(true, was.station); // Runde 24: Amboss, Webstuhl, Chemie, Kochstelle
     else if (was.art === 'bauwerk') this.#aktion(AKTIONEN.BAUWERK);
     else if (was.art === 'schlafen') this.#aktion(AKTIONEN.SCHLAFEN);
+    else if (was.art === 'sitzen') this.sitzen(); // Runde 42: E / Aktions-Knopf an Stuhl/Bank
     else if (was.art === 'werkbank') this.werkbankUmschalten(true);
   }
 
@@ -683,7 +685,17 @@ export class ClientSpiel {
     }
     if (naheHandwerk(this.welt, x, y, 'werkbank')) return { art: 'werkbank', text: 'Werkbank benutzen', symbol: '🔨' };
     if (this.welt.naechstesObjekt(x, y, BETT_REICHWEITE, (o) => o.typ.startsWith('bett'))) return { art: 'schlafen', text: 'Schlafen', symbol: '🛏' };
+    if (this.#sitzInReichweite(x, y)) return { art: 'sitzen', text: 'Hinsetzen', symbol: '🪑' }; // Runde 42: Stuhl/Bank/Sofa
     return null;
+  }
+
+  /** Runde 42: Stuhl/Bank in Reichweite? (gemeinsam/welt/sitze.js – nur alle 8 px Bewegung neu gesucht, die Karte hat viele Objekte) */
+  #sitzInReichweite(x, y) {
+    const c = this.sitzCache;
+    if (c && c.welt === this.welt && Math.abs(c.x - x) < 8 && Math.abs(c.y - y) < 8) return c.sitz;
+    const sitz = findeSitz(this.welt, x, y);
+    this.sitzCache = { welt: this.welt, x, y, sitz };
+    return sitz;
   }
 
   /** Runde 24: Haustier/Huhn in Reichweite → Interaktion (zähmen mit Futter, eigenes: Bleib/Bei Fuß) */
