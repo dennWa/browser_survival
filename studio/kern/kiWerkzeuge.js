@@ -163,6 +163,11 @@ export const KI_WERKZEUGE = Object.freeze([
     schema: objekt({ zeichen: text('Kachelzeichen aus dem Katalog'), ...rechteck, waende_ueberschreiben: { type: 'boolean', description: 'Wände/Fenster/Türen im Rechteck mit überschreiben' } }, ['zeichen', 'x', 'y', 'b', 'h']),
   },
   {
+    name: 'boden_weich_malen',
+    beschreibung: 'Weicher Pinsel (nur Optik): Boden rund mit weichem Rand aufmalen – Strich durch punkte [{x,y}] (Kacheln, Bruch erlaubt). radius in Kacheln, haerte 0–1 (0 = ganz weich auslaufend, 1 = harte Kante), deckkraft 0–1, radieren = Boden wieder wegnehmen. Kacheln (Begehbarkeit, echtes Wasser) ändert das NICHT – dafür boden_malen.',
+    schema: objekt({ boden: text('Boden', ['rasen', 'wiese', 'gras', 'waldboden', 'wildwald', 'erde', 'kies', 'sand', 'pflaster', 'asphalt', 'wasser', 'schnee']), punkte: { type: 'array', items: objekt({ x: zahl('x'), y: zahl('y') }, ['x', 'y']), description: 'Punkte des Strichs' }, radius: zahl('Radius in Kacheln'), haerte: zahl('Härte 0–1'), deckkraft: zahl('Deckkraft 0–1'), radieren: { type: 'boolean', description: 'wegnehmen statt malen' } }, ['boden', 'punkte']),
+  },
+  {
     name: 'wand_ziehen',
     beschreibung: 'Gerade Wand von (x0,y0) nach (x1,y1) (waagerecht oder senkrecht). art: wand (Ziegel), eine Wandart (holz, putz, beton, quader, blech), fenster oder tuer.',
     schema: objekt({ x0: zahl('Start x'), y0: zahl('Start y'), x1: zahl('Ende x'), y1: zahl('Ende y'), art: text('Art', ['wand', 'ziegel', 'holz', 'putz', 'beton', 'quader', 'blech', 'fenster', 'tuer']) }, ['x0', 'y0', 'x1', 'y1']),
@@ -201,8 +206,8 @@ export const KI_WERKZEUGE = Object.freeze([
   },
   {
     name: 'flaeche_anlegen',
-    beschreibung: 'Bereich markieren (für Zombies: zombie_bereich). art: loot (Loot-Zone: tabelle oder items), tiere (Hasen: anzahl), uebergang (ziel = Zielzone, ankunft = Ankunftspunkt dort), klang (datei = Pfad unter client/audio/…, lautstaerke 0–1).',
-    schema: objekt({ art: text('Art', ['loot', 'tiere', 'uebergang', 'klang']), ...rechteck, name: text('Name'), tabelle: text('Loot: Loot-Tabelle'), punkte: zahl('Loot: Anzahl Punkte'), anzahl: zahl('Tiere: Anzahl'), ziel: text('Übergang: Zielzone'), ankunft: text('Übergang: Ankunftsname in der Zielzone'), datei: text('Klang: Datei'), lautstaerke: zahl('Klang: 0–1') }, ['art', 'x', 'y', 'b', 'h']),
+    beschreibung: 'Bereich markieren (für Zombies: zombie_bereich). art: loot (Loot-Zone: tabelle oder items), tiere (anzahl; tier_art hase|reh|hirsch|fuchs – Wild ist sehr scheu und flieht), uebergang (ziel = Zielzone, ankunft = Ankunftspunkt dort), klang (datei = Pfad unter client/audio/…, lautstaerke 0–1).',
+    schema: objekt({ art: text('Art', ['loot', 'tiere', 'uebergang', 'klang']), ...rechteck, name: text('Name'), tabelle: text('Loot: Loot-Tabelle'), punkte: zahl('Loot: Anzahl Punkte'), anzahl: zahl('Tiere: Anzahl'), tier_art: text('Tiere: Art', ['hase', 'reh', 'hirsch', 'fuchs']), ziel: text('Übergang: Zielzone'), ankunft: text('Übergang: Ankunftsname in der Zielzone'), datei: text('Klang: Datei'), lautstaerke: zahl('Klang: 0–1') }, ['art', 'x', 'y', 'b', 'h']),
   },
   {
     name: 'marker_setzen',

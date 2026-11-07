@@ -65,6 +65,7 @@ export function alsJsModul(definition, { quelle = 'Map-Editor (editor/)' } = {})
   if (definition.musik) z.push(`  musik: ${jsWert(definition.musik)},`);
   if (definition.schnee === true) z.push('  schnee: true,');
   if (definition.terrain) z.push('  terrain: {', '    hoehen: [', ...definition.terrain.hoehen.map((h) => `      ${jsWert(h)},`), '    ],', `    steil: ${jsWert(definition.terrain.steil)},`, '  },');
+  if (definition.bodenMalerei) z.push('  bodenMalerei: {', `    aufloesung: ${jsWert(definition.bodenMalerei.aufloesung)},`, '    schichten: {', ...Object.entries(definition.bodenMalerei.schichten).map(([k, t]) => `      ${k}: ${jsWert(t)},`), '    },', '  },'); // Runde 41
   if (definition.bemalung) z.push('  bemalung: {', ...Object.entries(definition.bemalung).map(([f, r]) => `    ${jsWert(f)}: ${jsWert(r)},`), '  },');
   for (const name of ['typen', 'texturen']) if (definition[name]) z.push(`  ${name}: {`, ...Object.entries(definition[name]).map(([k, t]) => `    ${IDENT.test(k) ? k : jsWert(k)}: ${jsWert(t)},`), '  },');
   z.push('};', '');

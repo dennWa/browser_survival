@@ -59,13 +59,14 @@ Voraussetzung: Node.js ≥ 20 und einmal `npm install`. Das Studio braucht **kei
 | E | Drehen | Ring ziehen, rastet in 15°-Schritten |
 | R | Größe | Größer/kleiner – **die Grundfläche (Kollision) wächst mit** (0,25× – 4×) |
 | B | Boden malen | Kachel unten in *Böden* wählen; Pinsel / Rechteck / Füllen; `[` `]` = Pinselgröße |
+| J | Weicher Pinsel | Rasen, Wiese, Erde/Weg, Kies, Sand, Wasser … **rund mit weichem Rand** aufmalen (statt eckiger Kacheln). Radius, **Härte** (0 = Rand läuft blass aus, 1 = scharfe Kante), Deckkraft; Umschalt = radieren, `[` `]` = Radius. Nur Optik – Begehbarkeit/echtes Wasser bestimmt weiter die Kachel (darunter ggf. mit *B* Kacheln malen) |
 | N | Wand ziehen | Wand, Fenster oder Tür als gerade Linie |
 | H | Raum bauen | Rechteck ziehen → Wände, Innenboden, Tür und (optional) Loot-Raum in einem Schritt |
 | T | Gelände | Heben, senken, glätten, ebnen (Radius/Stärke in der Optionsleiste) |
 | L | Straße | Linie ziehen → Fahrbahn, Gehwege, Mittelmarkierung, Laternen; Objekte auf der Fahrbahn verschwinden |
 | S | Streuen | Wald, Nadelwald, Gebüsch, Felsen oder das gewählte Asset „aufsprühen“ (nur Naturboden, kein Überlappen). Umschalt = radieren, `[` `]` = Radius |
 | O | Objekt platzieren | Asset wählen (Natur, Möbel, Modelle, Vorlagen …), Klick setzt. `Strg+Rad` dreht, Umschalt = weiter setzen, „Variieren“ = zufällige Größe/Drehung (natürlicher Wald) |
-| G | Bereich markieren | Rechteck: Loot-Zone, Hasen-Bereich, Übergang (Zielzone + Ankunft) oder Klangzone |
+| G | Bereich markieren | Rechteck: Loot-Zone, Tier-Bereich (Hasen, Rehe, Hirsche, Füchse – Wild ist sehr scheu, flieht im Galopp), Übergang (Zielzone + Ankunft) oder Klangzone |
 | K | Klang setzen | Punktklang mit Hörweite – **Klick auf ein Objekt hängt den Klang ans Objekt** (wandert und kopiert sich mit) |
 | I | Item-Spawnpunkt | Item oder Loot-Tabelle mit Chance und Intervall; **über einem Möbel wird es automatisch draufgelegt** |
 | P | Punkt setzen | Spieler-Start, Zombie, Horde (nachts) oder Ankunftspunkt (Name für Übergänge) |
@@ -192,6 +193,14 @@ Bilder der Bühne ansehen und speichern (`modelle_liste`, `werkstatt_oeffnen`, `
 Klänge analysieren (Dauer, Pegel, Stille), schneiden, Ereignissen zuordnen, Pegel/Zonen-Faktoren und Musik-Überblendung
 einstellen und das Mischpult abfragen (`audio_*`, `musik_*`, `mischpult`). Jede
 KI-Aktion ist ein eigener Undo-Schritt („KI: …“). Der Server ist nur auf diesem Rechner erreichbar und braucht das Token.
+
+## Neu in Runde 41
+
+| Was | Wo |
+|---|---|
+| **Weicher Pinsel**: Böden rund und weich aufmalen (Härte einstellbar), auch per KI (`boden_weich_malen`) | Werkzeug J |
+| **Wild**: Tier-Bereiche mit Art Hase, Reh, Hirsch oder Fuchs (animiert, sehr scheu, Herde flieht gemeinsam) | Werkzeug G → Tiere, Inspektor „Art“, KI `flaeche_anlegen` mit `tier_art` |
+| „Ins Spiel“ trägt neue Zonen jetzt auch unter Windows (CRLF-Zeilenenden) in KARTEN ein | Datei → Ins Spiel |
 
 ## Neu in Phase 4
 

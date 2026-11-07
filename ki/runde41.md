@@ -9,3 +9,11 @@
 - ⚠ Browser-Pane versteckt → rAF steht, Screenshots bleiben alt: vorher `show_pane preview`. Prüfen: `browserSurvival.ich().unsichtbar = true` (Tiere ignorieren unsichtbare Spieler) → nah ran → wieder sichtbar.
 - ⚠ `npm test` brauchte `npm install` (three fehlte in node_modules). `tests/studio.test.js` „Ins Spiel schreibt die Kartendatei“ war schon vorher rot (unabhängig).
 - Tests `tests/runde41.test.js`.
+
+## Runde 41 (2): Studio – Wild + weicher Pinsel
+- **Malschicht** `G:welt/bodenMalerei.js` (rein): Kartenfeld `bodenMalerei {aufloesung 4, schichten {boden: RLE-Base64}}` – Maske 0–255 je Zelle (4×4 je Kachel), Paare [anzahl, wert], 16 Stufen. `tupfer`/`strich` (rund, `haerte` = voller Anteil des Radius, smoothstep, malen = max, radieren = min), `kodiere/dekodiere/entpacke/pruefeBodenMalerei`, `MAL_BOEDEN`. NUR Optik (Kachel bestimmt Kollision/Wasser).
+- Fluss: Editor-Karte `werte.bodenMalerei` (format.js aus/nach Definition, `alsJsModul` schreibt Block) → `kartenLader` `daten.bodenMalerei` → `Welt.bodenMalerei` → `C:bodenTextur` nach #weicheRaender: `C:darstellung/malSchicht.maleSchichten(ctx, masken, …, fuelle)` (Hilfs-Leinwand mit Boden, `destination-in` mit bilinear vergrößerter Maske, 1 Kachel Rand). Gemaltes Wasser = `#wasserFlaeche` (ohne Uferlinien); 3D-Wasser-Overlay bleibt nur auf `~`-Kacheln.
+- Studio: Werkzeug `weich` (J, Icon `pinselWeich`): Strich in Kopie (`A.malMaske`), Vorschau `ansicht.malVorschau` + `ansicht.bodenNeu(bbox)`, beim Loslassen 1 Op (`A.malereiOps` → 'wert' `bodenMalerei.schichten.<boden>`, leer = entfernen) → Undo = ganzer Strich. Viewport `#maleMalschicht` je Sektor, `malCache` bei 'wert'-Op `bodenMalerei*`. KI `boden_weich_malen` (`A.weichMalenOps`). ⚠ Rastergröße ändern macht Masken ungültig (Lader verwirft falsche Länge).
+- Studio Tiere: `A.TIER_ARTEN`, Bereich-Werkzeug Segment `tierArt`, Inspektor Auswahl `art`, Panel-Text je Art, KI `flaeche_anlegen.tier_art`.
+- Fix `werkzeuge/karten/registrieren.mjs`: CRLF-tolerant (Windows) – vorher trug „Ins Spiel“ neue Zonen nicht in KARTEN ein (Test „Ins Spiel schreibt die Kartendatei“ war deshalb rot).
+- Prüfung Studio per Playwright-Electron (Muster `werkzeuge/test/studioRauchtest.mjs`, dort jetzt auch `boden_weich_malen`). Editor `editor/` (Web) kann weder weichen Pinsel noch Wild-Arten (Hasen fest).

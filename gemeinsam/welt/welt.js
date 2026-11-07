@@ -40,6 +40,7 @@ export class Welt {
     this.uebergaenge = kartenDaten.uebergaenge ?? [];
     /** Bemalung des Bodens aus dem Map-Editor (nur Optik): { '#rrggbb': [[x, y, b, h], …] } oder null */
     this.bemalung = kartenDaten.bemalung ?? null;
+    this.bodenMalerei = kartenDaten.bodenMalerei ?? null; // Runde 41: weich gemalte Böden (nur Optik, bodenTextur.js)
     /** Schneezone (Kartenfeld `schnee`): Niederschlag fällt als Schnee, Straßen sind verschneit, Schritte knirschen */
     this.schnee = kartenDaten.schnee === true;
     /** Gelände-Höhen (Meter je Kachel) aus dem Map-Editor oder null (flach) – Darstellung + Ego-Zielen; Klippen sind 'hang'-Objekte */

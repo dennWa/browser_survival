@@ -1,6 +1,8 @@
 import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
 import { eigeneGroesse } from '../../gemeinsam/welt/drehung.js';
 import { FARBEN, KACHEL_FARBEN } from './farben.js';
+import { entpacke, MAL_AUFLOESUNG } from '../../gemeinsam/welt/bodenMalerei.js';
+import { maleSchichten } from './malSchicht.js';
 
 /**
  * Malt den Boden der ganzen Karte in ein Canvas (wird im 3D-Renderer zur Bodentextur):
@@ -9,6 +11,8 @@ import { FARBEN, KACHEL_FARBEN } from './farben.js';
  * Wände, Möbel und Bäume sind im 3D-Renderer echte Körper und fehlen hier bewusst.
  * Runde 37: Innenböden holz/fliesen/beton = durchgehende Fläche (#innenBoden), Asphalt ohne Körnung (#weicherTon).
  * Runde 40: Holzsteg `|` (#steg: Planken über Wasser, quer zur Steg-Richtung).
+ * Runde 41: Boden-Malschicht (welt.bodenMalerei, Studio „Weicher Pinsel“) nach den weichen Rändern über den Boden
+ *   (malSchicht.maleSchichten; gemaltes Wasser = #wasserFlaeche ohne Uferlinien).
  * Schneezonen (welt.schnee): Kachel 'schnee' prozedural (bläulich-weiße Verwehungen, Glitzer); Straßen/Gehwege/Asphalt sind
  * verschneit (Ränder zum Schnee dicht, in der Mitte lückenhaft – man sieht den Asphalt noch), Wasser ist Eis.
  */
@@ -32,6 +36,9 @@ export class BodenTextur {
     this.bodenObjekte = welt.objekte.filter((o) => o.ebene === 'boden');
     /** Bemalung aus dem Map-Editor: { '#rrggbb': [[x, y, b, h], …] } (Kacheln) – als halbtransparente Farbe über dem Boden */
     this.bemalung = welt.bemalung ?? null;
+    /** Runde 41: weiche Boden-Malschicht → Map name → Maske (erst beim ersten Rendern entpackt) */
+    this.malerei = welt.bodenMalerei ?? null;
+    this.malMasken = null;
   }
 
   /** @param massstab Pixel pro Weltpixel */
@@ -70,6 +77,17 @@ export class BodenTextur {
         this.#grasRand(ctx, tx, ty);
       }
       if (ty % 8 === 7) yield;
+    }
+    // Runde 41: weich gemalte Böden (Studio-Pinsel) über die Kacheln legen – vor dem Wandboden, damit Wände sauber bleiben
+    if (this.malerei) {
+      this.malMasken ??= entpacke(this.malerei, w.breite, w.hoehe);
+      const px = this.g * massstab;
+      maleSchichten(ctx, this.malMasken, { breite: w.breite, hoehe: w.hoehe, aufloesung: this.malerei.aufloesung ?? MAL_AUFLOESUNG }, r, px, (hctx, name) => {
+        hctx.setTransform(massstab, 0, 0, massstab, -r.x0 * this.g * massstab, -r.y0 * this.g * massstab);
+        for (let ty = ya; ty < ye; ty++) for (let tx = xa; tx < xe; tx++) this.#zeichneBoden(hctx, tx, ty, name);
+      });
+      ctx.setTransform(massstab, 0, 0, massstab, -r.x0 * this.g * massstab, -r.y0 * this.g * massstab);
+      yield;
     }
     // Runde 23: Boden unter Wänden/Fenstern einfarbig zuletzt – sonst lagen Schnee-/Rasen-Ränder der Nachbarn darin und
     // tauchten als Flecken auf, sobald die Wand beim Betreten des Hauses durchsichtig wird
@@ -150,7 +168,10 @@ export class BodenTextur {
     if (name === 'asphalt' || name === 'strasse') this.#weicherTon(ctx, tx, ty, 0.07); // Runde 37: keine Körnchen mehr, nur sanfte Tönung
     if (name === 'strasse') this.#strassenMarkierung(ctx, tx, ty);
     if (name === 'gehweg') this.#gehwegPlatten(ctx, tx, ty);
-    if (name === 'wasser') this.#wasser(ctx, tx, ty);
+    if (name === 'wasser') {
+      if (art) this.#wasserFlaeche(ctx, tx, ty); // Runde 41: gemaltes Wasser – ohne Uferlinien der Kacheln
+      else this.#wasser(ctx, tx, ty);
+    }
     if (this.welt.schnee) {
       if (name === 'asphalt' || name === 'strasse' || name === 'gehweg') this.#strassenSchnee(ctx, tx, ty);
       if (name === 'wasser') this.#eis(ctx, tx, ty);
@@ -409,6 +430,23 @@ export class BodenTextur {
       ctx.stroke();
     }
   }
+  /** Runde 41: Wasserfläche für die Malschicht – etwas tiefer getönt, ein paar Wellen, keine Kachelkanten */
+  #wasserFlaeche(ctx, tx, ty) {
+    const g = this.g;
+    ctx.fillStyle = 'rgba(10, 40, 90, 0.3)';
+    ctx.fillRect(tx * g, ty * g, g + 0.25, g + 0.25);
+    let h = streuwert(tx, ty);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+    ctx.lineWidth = 1.5;
+    h = (h * 1103515245 + 12345) >>> 0;
+    const x = tx * g + 4 + (h % (g - 14));
+    const y = ty * g + 6 + ((h >> 8) % (g - 12));
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.quadraticCurveTo(x + 5, y - 3, x + 10, y);
+    ctx.stroke();
+  }
+
   /**
    * Runde 37: sanfte, weltfeste Tönung (hell/dunkel) in 8-px-Blöcken aus Welt-Rauschen – Fläche statt Pünktchen/Quadrate.
    * @param stufe max. Deckkraft der Aufhellung/Abdunklung

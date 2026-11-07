@@ -8,6 +8,7 @@ const P = {
   drehen: '<path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/>',
   skalieren: '<rect x="3" y="11" width="10" height="10" rx="1"/><path d="M14 3h7v7M21 3l-8 8"/>',
   boden: '<path d="M4 20h16"/><path d="M14.5 4.5l5 5-8 8H6.5v-5z"/><path d="M12 7l5 5"/>',
+  pinselWeich: '<circle cx="12" cy="12" r="9" stroke-dasharray="2 2.2"/><circle cx="12" cy="12" r="5" opacity=".55"/><circle cx="12" cy="12" r="1.6"/>',
   wand: '<rect x="3" y="5" width="18" height="14" rx="1"/><path d="M3 10h18M3 15h18M9 5v5M15 10v5M9 15v4"/>',
   raum: '<path d="M3 21V8l9-5 9 5v13z"/><path d="M10 21v-6h4v6"/>',
   gelaende: '<path d="M2 20l6-9 4 5 3-4 7 8z"/><circle cx="17" cy="6" r="2"/>',

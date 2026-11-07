@@ -9,6 +9,7 @@ import { eingebauteVorlagen } from '../../editor/kern/lootVorlagen.js';
 import { neuerKlang } from '../../gemeinsam/audio/klanglandschaft.js';
 import { pruefeSpawnpunkt } from '../../server/spiel/karten/spawnpunkte.js';
 import { kopiere, einfuegeOps, loescheOps as loescheBereichOps } from '../../editor/kern/auswahl.js';
+import { MAL_AUFLOESUNG, MAL_BOEDEN, leereMaske, kodiere, dekodiere, strich } from '../../gemeinsam/welt/bodenMalerei.js';
 
 /**
  * Bau-Aktionen des Studios – reine Funktionen (umgebungsfrei, Tests: tests/studio.test.js): Karte + Parameter → Liste von
@@ -58,6 +59,45 @@ export function pinselOps(karte, x, y, groesse, zeichen, { rund = false, waendeS
   pruefeZeichen(zeichen);
   const ops = kachelOps(karte, nurImFeld(karte, pinsel(ganz(x), ganz(y), groesse, rund)), zeichen);
   return waendeSchuetzen ? ohneWaende(karte, ops, zeichen) : ops;
+}
+
+/** Runde 41: Tierarten für Tier-Bereiche (Spiel: tierSystem.WILD_ARTEN) – [id, Anzeige] */
+export const TIER_ARTEN = [['hase', 'Hasen'], ['reh', 'Rehe'], ['hirsch', 'Hirsche'], ['fuchs', 'Füchse']];
+
+/** Runde 41: Anzeigenamen der weich malbaren Böden (gemeinsam/welt/bodenMalerei.MAL_BOEDEN) */
+export const MAL_NAMEN = { rasen: 'Rasen', wiese: 'Wiese', gras: 'Gras (alt)', waldboden: 'Waldboden', wildwald: 'Wildwald', erde: 'Erde/Weg', kies: 'Kies', sand: 'Sand', pflaster: 'Pflaster', asphalt: 'Asphalt', wasser: 'Wasser', schnee: 'Schnee' };
+
+/** Runde 41: aktuelle Maske einer weichen Malschicht (Kopie; leer, wenn es sie noch nicht gibt) */
+export function malMaske(karte, boden) {
+  const m = karte.werte.bodenMalerei;
+  const a = m?.aufloesung ?? MAL_AUFLOESUNG;
+  const laenge = karte.breite * a * karte.hoehe * a;
+  return (m?.schichten?.[boden] && dekodiere(m.schichten[boden], laenge)) || leereMaske(karte.breite, karte.hoehe, a);
+}
+
+/** Runde 41: fertige Maske einer Schicht speichern → 'wert'-Ops (leere Maske entfernt die Schicht) */
+export function malereiOps(karte, boden, maske) {
+  if (!MAL_BOEDEN.includes(boden)) throw new Error(`Boden „${boden}“ kann man nicht weich malen (${MAL_BOEDEN.join(', ')})`);
+  const text = kodiere(maske);
+  const ops = [];
+  if (!karte.werte.bodenMalerei?.aufloesung) ops.push({ s: 'wert', pfad: 'bodenMalerei.aufloesung', neu: MAL_AUFLOESUNG });
+  ops.push({ s: 'wert', pfad: `bodenMalerei.schichten.${boden}`, neu: text || undefined });
+  return ops;
+}
+
+/**
+ * Runde 41: weicher Pinsel (auch für die KI) – runder Strich durch `punkte` [{x, y}] (Kacheln, Bruch erlaubt).
+ * radius in Kacheln, haerte 0–1 (1 = harte Kante), staerke 0–1, radieren = Boden wieder wegnehmen. Nur Optik.
+ */
+export function weichMalenOps(karte, boden, punkte, { radius = 2, haerte = 0.4, staerke = 1, radieren = false } = {}) {
+  if (!MAL_BOEDEN.includes(boden)) throw new Error(`Boden „${boden}“ kann man nicht weich malen (${MAL_BOEDEN.join(', ')})`);
+  if (!punkte?.length) throw new Error('Mindestens ein Punkt nötig');
+  const a = karte.werte.bodenMalerei?.aufloesung ?? MAL_AUFLOESUNG;
+  const maske = malMaske(karte, boden);
+  const r = Math.min(30, Math.max(0.25, Number(radius) || 2));
+  const opt = { haerte: Number(haerte), staerke: Number(staerke), radieren: !!radieren };
+  for (let i = 0; i < punkte.length; i++) strich(maske, karte.breite, karte.hoehe, a, punkte[Math.max(0, i - 1)], punkte[i], r, opt);
+  return malereiOps(karte, boden, maske);
 }
 
 /** Linke obere Ecke des (quadratischen) Pinsels an Kachel (x, y) – gleiche Rechnung wie editor/kern/raster.pinsel */
@@ -305,7 +345,7 @@ export function flaecheOps(karte, art, r, o = {}) {
     return mit('lootZonen', { name: o.name ?? `Loot ${o.tabelle ?? ''}`.trim(), ...rr, modus: o.modus ?? 'gewicht', eintraege: o.eintraege ?? kopie(vorlage.eintraege), punkte: Math.max(1, Math.min(200, ganz(o.punkte ?? Math.ceil((rr.b * rr.h) / 25)))), ort: o.ort ?? 'alle' });
   }
   if (art === 'zombies') return mit('zombieBereiche', { ...rr, anzahl: Math.max(1, Math.min(60, ganz(o.anzahl ?? 5))), tageszeit: ['immer', 'tag', 'nacht'].includes(o.tageszeit) ? o.tageszeit : 'immer', ...(o.varianten ? { varianten: o.varianten } : {}), ...(o.route?.length >= 2 ? { route: o.route } : {}) });
-  if (art === 'tiere') return mit('tierBereiche', { ...rr, art: 'hase', anzahl: Math.max(0, Math.min(100, ganz(o.anzahl ?? 4))) });
+  if (art === 'tiere') return mit('tierBereiche', { ...rr, art: TIER_ARTEN.some(([a]) => a === o.tierArt) ? o.tierArt : 'hase', anzahl: Math.max(0, Math.min(100, ganz(o.anzahl ?? 4))) });
   if (art === 'uebergang') {
     if (!o.ziel) throw new Error('Übergang braucht eine Zielzone');
     return mit('uebergaenge', { ...rr, ziel: String(o.ziel), ankunft: String(o.ankunft || karte.id), name: String(o.name || o.ziel) });

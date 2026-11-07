@@ -6,11 +6,15 @@ import { streckenInfo, fangKandidaten, fange } from '../../editor/kern/messen.js
 import * as A from '../kern/aktionen.js';
 import * as B from '../kern/bauhilfen.js';
 import { objektHoehe } from './viewport.js';
+import { MAL_AUFLOESUNG, strich } from '../../gemeinsam/welt/bodenMalerei.js';
 
 /**
  * Werkzeuge der Kartenbearbeitung – bekommen die Zeiger-Ereignisse der Ansicht (linke Maustaste) und ändern die Karte
  * NUR über Dokument.aendere/gruppe mit den Aktionen aus kern/aktionen.js. Optionen je Werkzeug → Optionsleiste
  * (`optionen(id)` liefert Felder, app.js zeichnet sie). Tastenkürzel stehen in WERKZEUGE (Q W E R B N H T O F K I P).
+ * Runde 41: „Weicher Pinsel“ (J) malt Böden rund mit weichem Rand in die Malschicht (gemeinsam/welt/bodenMalerei.js) –
+ *   während des Strichs nur Vorschau (ansicht.malVorschau), beim Loslassen 1 Op (Undo = ganzer Strich).
+ *   Bereich-Werkzeug: Tiere jetzt mit Art (Hasen, Rehe, Hirsche, Füchse).
  */
 export const WERKZEUGE = [
   { id: 'auswahl', titel: 'Auswählen', icon: 'auswahl', kuerzel: 'Q', text: 'Klicken wählt, Ziehen auf freier Fläche = Rahmen, Ziehen auf Gewähltem = verschieben. Umschalt = hinzufügen.' },
@@ -19,6 +23,7 @@ export const WERKZEUGE = [
   { id: 'skalieren', titel: 'Größe', icon: 'skalieren', kuerzel: 'R', text: 'Größer/kleiner – die Grundfläche (Kollision) wächst mit.' },
   { trenner: true },
   { id: 'boden', titel: 'Boden malen', icon: 'boden', kuerzel: 'B', text: 'Bodenkachel aus den Assets wählen und malen. Pinselgröße: 1×1 · 2×2 · 4×4 · 8×8 · 16×16 oder frei (1–25); Tasten [ ] ändern sie um 1.' },
+  { id: 'weich', titel: 'Weicher Pinsel', icon: 'pinselWeich', kuerzel: 'J', text: 'Rasen, Wege, Wasser … rund und mit weichem Rand aufmalen (nur Optik – Begehbarkeit/Wasser bestimmt die Kachel). Härte = wie scharf der Rand ist. Umschalt = radieren, [ ] = Größe.' },
   { id: 'wand', titel: 'Wand ziehen', icon: 'wand', kuerzel: 'N', text: 'Gerade Wand, Fenster oder Tür ziehen.' },
   { id: 'raum', titel: 'Raum bauen', icon: 'raum', kuerzel: 'H', text: 'Rechteck ziehen: Wände, Boden, Tür und Loot in einem Schritt.' },
   { id: 'gelaende', titel: 'Gelände', icon: 'gelaende', kuerzel: 'T', text: 'Heben, senken, glätten, ebnen – Maus gedrückt halten formt weiter.' },
@@ -26,7 +31,7 @@ export const WERKZEUGE = [
   { id: 'streuen', titel: 'Streuen', icon: 'streuen', kuerzel: 'S', text: 'Bäume, Büsche, Steine „aufsprühen“ – Umschalt = radieren.' },
   { trenner: true },
   { id: 'objekt', titel: 'Objekt platzieren', icon: 'objekt', kuerzel: 'O', text: 'Asset wählen, klicken zum Setzen. Strg+Rad = drehen, Umschalt = weiter setzen.' },
-  { id: 'flaeche', titel: 'Bereich markieren', icon: 'flaeche', kuerzel: 'G', text: 'Rechteck ziehen: Loot-Zone, Hasen, Übergang oder Klangzone.' },
+  { id: 'flaeche', titel: 'Bereich markieren', icon: 'flaeche', kuerzel: 'G', text: 'Rechteck ziehen: Loot-Zone, Tiere (Hasen, Rehe, Hirsche, Füchse), Übergang oder Klangzone.' },
   { id: 'klang', titel: 'Klang setzen', icon: 'klang', kuerzel: 'K', text: 'Punktklang mit Hörweite setzen (oder an ein Objekt hängen).' },
   { id: 'spawn', titel: 'Item-Spawnpunkt', icon: 'spawn', kuerzel: 'I', text: 'Ein Item mit Chance & Intervall. Über Möbeln wird es automatisch draufgelegt.' },
   { id: 'marker', titel: 'Punkt setzen', icon: 'marker', kuerzel: 'P', text: 'Spieler-Start, Zombie, Horde oder Ankunftspunkt.' },
@@ -48,13 +53,14 @@ export class Werkzeuge {
     this.aktiv = 'auswahl';
     this.opt = {
       boden: { modus: 'pinsel', groesse: 1, waendeSchuetzen: true },
+      weich: { boden: 'rasen', radius: 2, haerte: 0.35, staerke: 1, modus: 'malen' },
       wand: { art: 'wand' },
       raum: { boden: '.', tuer: 's', name: '', lootTabelle: 'wohnung', wand: 'ziegel' },
       gelaende: { modus: 'heben', radius: 3, staerke: 0.4 },
       strasse: { fahrbahn: 4, gehweg: 1, markierung: true, laternen: 10 },
       streuen: { set: 'wald', radius: 5, dichte: 5, modus: 'streuen' },
       objekt: { drehung: 0, skalierung: 1, raster: 'halb', variieren: false, einrasten: true },
-      flaeche: { art: 'loot', tabelle: 'wohnung', ziel: '', ankunft: '', datei: '', anzahl: 4, tageszeit: 'immer' },
+      flaeche: { art: 'loot', tierArt: 'hase', tabelle: 'wohnung', ziel: '', ankunft: '', datei: '', anzahl: 4, tageszeit: 'immer' },
       klang: { datei: '', innen: 2, aussen: 10, lautstaerke: 1 },
       spawn: { inhalt: 'konservendose', chance: 50, intervall: 10, mengeMin: 1, mengeMax: 1 },
       marker: { art: 'start', name: 'ankunft' },
@@ -98,6 +104,15 @@ export class Werkzeuge {
           { art: 'segment', feld: 'groesse', werte: [['1', '1×1'], ['2', '2×2'], ['4', '4×4'], ['8', '8×8'], ['16', '16×16']] },
           { art: 'zahl', feld: 'groesse', titel: 'Größe', min: 1, max: 25, schritt: 1 },
           { art: 'schalter', feld: 'waendeSchuetzen', titel: 'Wände, Fenster & Türen schützen' },
+        ];
+      case 'weich':
+        return [
+          { art: 'auswahl', feld: 'boden', titel: 'Boden', werte: Object.entries(A.MAL_NAMEN) },
+          { art: 'segment', feld: 'modus', werte: [['malen', 'Malen'], ['radieren', 'Radieren']] },
+          { art: 'zahl', feld: 'radius', titel: 'Radius', min: 0.5, max: 15, schritt: 0.5 },
+          { art: 'zahl', feld: 'haerte', titel: 'Härte', min: 0, max: 1, schritt: 0.05 },
+          { art: 'zahl', feld: 'staerke', titel: 'Deckkraft', min: 0.05, max: 1, schritt: 0.05 },
+          { art: 'hinweis', text: 'Nur Optik – für echtes Wasser/Wege zusätzlich Kacheln malen' },
         ];
       case 'wand':
         return [
@@ -144,7 +159,8 @@ export class Werkzeuge {
         ];
       case 'flaeche': {
         const o = this.opt.flaeche;
-        const felder = [{ art: 'segment', feld: 'art', werte: [['loot', 'Loot-Zone'], ['zombies', 'Zombies'], ['tiere', 'Hasen'], ['uebergang', 'Übergang'], ['klang', 'Klangzone']] }];
+        const felder = [{ art: 'segment', feld: 'art', werte: [['loot', 'Loot-Zone'], ['zombies', 'Zombies'], ['tiere', 'Tiere'], ['uebergang', 'Übergang'], ['klang', 'Klangzone']] }];
+        if (o.art === 'tiere') felder.push({ art: 'segment', feld: 'tierArt', werte: A.TIER_ARTEN });
         if (o.art === 'loot') felder.push({ art: 'auswahl', feld: 'tabelle', titel: 'Tabelle', werte: LOOT_LISTE.map((t) => [t, t]) });
         if (o.art === 'tiere' || o.art === 'zombies') felder.push({ art: 'zahl', feld: 'anzahl', titel: 'Anzahl', min: 1, max: o.art === 'zombies' ? 60 : 100, schritt: 1 });
         if (o.art === 'zombies') felder.push({ art: 'segment', feld: 'tageszeit', werte: [['immer', 'immer'], ['tag', 'tagsüber'], ['nacht', 'nachts']] });
@@ -181,7 +197,7 @@ export class Werkzeuge {
   setzeOption(feld, wert) {
     const o = this.opt[this.aktiv];
     if (!o) return;
-    o[feld] = feld === 'groesse' || feld === 'radius' ? Number(wert) : wert;
+    o[feld] = ['groesse', 'radius', 'haerte', 'staerke'].includes(feld) ? Number(wert) : wert;
     if (this.aktiv === 'objekt' || this.aktiv === 'spawn') this.ansicht.setzeGeist(null);
     if ((this.aktiv === 'flaeche' && feld === 'art') || (this.aktiv === 'marker' && feld === 'art') || (this.aktiv === 'wand' && feld === 'art')) this.studio.meldeOptionen();
   }
@@ -206,7 +222,10 @@ export class Werkzeuge {
       const e = A.pinselEcke(p.tx, p.ty, g); // gleiche Fläche wie der Pinsel malt
       this.ansicht.setzeSchwebe(e.x, e.y, e.n, e.n);
     }
-    else if (this.aktiv === 'streuen') this.ansicht.setzeSchwebe(p.tx - this.opt.streuen.radius, p.ty - this.opt.streuen.radius, this.opt.streuen.radius * 2 + 1, this.opt.streuen.radius * 2 + 1);
+    else if (this.aktiv === 'weich') {
+      const r = this.opt.weich.radius;
+      this.ansicht.setzeSchwebe(p.x - r, p.y - r, r * 2, r * 2);
+    } else if (this.aktiv === 'streuen') this.ansicht.setzeSchwebe(p.tx - this.opt.streuen.radius, p.ty - this.opt.streuen.radius, this.opt.streuen.radius * 2 + 1, this.opt.streuen.radius * 2 + 1);
     else if (this.aktiv === 'gelaende') this.ansicht.setzeSchwebe(p.tx - this.opt.gelaende.radius, p.ty - this.opt.gelaende.radius, this.opt.gelaende.radius * 2 + 1, this.opt.gelaende.radius * 2 + 1);
     else if (['boden', 'wand', 'raum', 'flaeche', 'marker', 'strasse'].includes(this.aktiv)) this.ansicht.setzeSchwebe(p.tx, p.ty);
     else this.ansicht.setzeSchwebe(null);
@@ -313,6 +332,13 @@ export class Werkzeuge {
         this.#pinsel(p, p);
         return;
       }
+      case 'weich': {
+        const o = this.opt.weich;
+        this.zug = { art: 'weich', boden: o.boden, maske: A.malMaske(k, o.boden), letzter: { x: p.x, y: p.y }, radieren: umschalt || o.modus === 'radieren' };
+        this.ansicht.malVorschau = { name: o.boden, maske: this.zug.maske };
+        this.#weich({ x: p.x, y: p.y });
+        return;
+      }
       case 'wand':
         if (this.opt.wand.art === 'umfaerben') {
           const ops = A.wandFuellOps(k, p.tx, p.ty, this.opt.wand.wandArt ?? 'ziegel');
@@ -396,6 +422,10 @@ export class Werkzeuge {
       z.letzter = p;
       const e = A.pinselEcke(p.tx, p.ty, this.opt.boden.groesse);
       this.ansicht.setzeSchwebe(e.x, e.y, e.n, e.n);
+    } else if (z.art === 'weich') {
+      this.#weich({ x: p.x, y: p.y });
+      const r = this.opt.weich.radius;
+      this.ansicht.setzeSchwebe(p.x - r, p.y - r, r * 2, r * 2);
     } else if (z.art === 'gelaende') {
       z.punkt = p;
       this.#gelaende(p);
@@ -438,6 +468,12 @@ export class Werkzeuge {
     this.ansicht.setzeGeist(null);
     try {
       if (z.art === 'gelaende') clearInterval(this.gelaendeTakt);
+      if (z.art === 'weich') {
+        this.ansicht.malVorschau = null;
+        if (z.geaendert) this.dok.aendere(z.radieren ? 'Weich radiert' : `Weich gemalt (${A.MAL_NAMEN[z.boden] ?? z.boden})`, A.malereiOps(k, z.boden, z.maske));
+        else this.ansicht.bodenNeu(0, 0, k.breite, k.hoehe);
+        return;
+      }
       if (z.art === 'pinsel' || z.art === 'gelaende' || z.art === 'streuen') this.dok.aktiv.verlauf.beende();
       else if (z.art === 'strasse') this.dok.aendere('Straße', B.strassenOps(k, z.start, p, this.#strassenOpt()).ops);
       else if (z.art === 'verschieben' && (z.dx || z.dy)) this.dok.aendere('Verschieben', A.verschiebeOps(k, this.dok.auswahl, z.dx, z.dy));
@@ -470,6 +506,20 @@ export class Werkzeuge {
       if (drin(x + 0.5, y + 0.5)) liste.push({ s: 'marker', k: id });
     }
     return liste;
+  }
+
+  /** Runde 41: weicher Pinselstrich vom letzten Punkt bis b in die Vorschau-Maske */
+  #weich(b) {
+    const z = this.zug;
+    const k = this.dok.karte;
+    const o = this.opt.weich;
+    const a = k.werte.bodenMalerei?.aufloesung ?? MAL_AUFLOESUNG;
+    const r = strich(z.maske, k.breite, k.hoehe, a, z.letzter, b, Math.max(0.25, Number(o.radius) || 2), { haerte: Number(o.haerte), staerke: Number(o.staerke), radieren: z.radieren });
+    z.letzter = b;
+    if (r) {
+      z.geaendert = true;
+      this.ansicht.bodenNeu(r.x0, r.y0, r.x1, r.y1);
+    }
   }
 
   #pinsel(a, b) {
@@ -604,8 +654,8 @@ export class Werkzeuge {
         datei = await this.studio.klangFuerZone(o.datei);
       }
       if (o.art === 'uebergang' && !o.ziel) throw new Error('Erst die Zielzone wählen');
-      const { ops, id, sammlung } = A.flaecheOps(k, o.art, r, { tageszeit: o.tageszeit, tabelle: o.tabelle, anzahl: Number(o.anzahl), ziel: o.ziel, ankunft: o.ankunft || k.id, datei, name: datei?.split('/').pop() });
-      this.dok.aendere({ loot: 'Loot-Zone', zombies: 'Zombie-Bereich', tiere: 'Hasen-Bereich', uebergang: 'Übergang', klang: 'Klangzone' }[o.art], ops);
+      const { ops, id, sammlung } = A.flaecheOps(k, o.art, r, { tageszeit: o.tageszeit, tabelle: o.tabelle, anzahl: Number(o.anzahl), tierArt: o.tierArt, ziel: o.ziel, ankunft: o.ankunft || k.id, datei, name: datei?.split('/').pop() });
+      this.dok.aendere({ loot: 'Loot-Zone', zombies: 'Zombie-Bereich', tiere: 'Tier-Bereich', uebergang: 'Übergang', klang: 'Klangzone' }[o.art], ops);
       this.dok.waehle([{ s: sammlung, k: id }]);
     } catch (f) {
       this.studio.hinweis(f.message, 'fehler');
@@ -626,6 +676,7 @@ export class Werkzeuge {
     if (this.aktiv === 'boden') this.opt.boden.groesse = Math.max(1, Math.min(25, Number(this.opt.boden.groesse) + d));
     else if (this.aktiv === 'gelaende') this.opt.gelaende.radius = Math.max(1, Math.min(20, this.opt.gelaende.radius + d));
     else if (this.aktiv === 'streuen') this.opt.streuen.radius = Math.max(1, Math.min(30, this.opt.streuen.radius + d));
+    else if (this.aktiv === 'weich') this.opt.weich.radius = Math.max(0.5, Math.min(15, Number(this.opt.weich.radius) + d * 0.5));
     else return;
     this.studio.meldeOptionen();
   }

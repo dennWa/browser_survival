@@ -73,3 +73,67 @@ test('Waldsee: Hirsche/Rehe/Füchse sind Wild-Bereiche statt Deko-Modelle', () =
   for (const a of ['reh', 'hirsch', 'fuchs']) assert.ok(arten.has(a), a);
   assert.ok(!WALDSEE.objekte.some((o) => /^sf_(deer|stag|fox)_/.test(o.typ)));
 });
+
+// ---------- Runde 41 (2): weicher Pinsel (Boden-Malschicht) + Studio ----------
+import { MAL_AUFLOESUNG, leereMaske, kodiere, dekodiere, tupfer, pruefeBodenMalerei, entpacke } from '../gemeinsam/welt/bodenMalerei.js';
+import { EditorKarte } from '../editor/kern/karte.js';
+import { nachDefinition, ausDefinition } from '../editor/kern/format.js';
+import { alsJsModul } from '../editor/kern/veroeffentlichen.js';
+import { verarbeiteKarte } from '../server/spiel/karten/kartenLader.js';
+import * as A from '../studio/kern/aktionen.js';
+import { KI_WERKZEUGE } from '../studio/kern/kiWerkzeuge.js';
+
+test('Malschicht: Kodierung hin und zurück, leer = leerer Text, kaputt = null', () => {
+  const m = leereMaske(10, 8);
+  assert.equal(kodiere(m), '');
+  m.fill(255, 100, 140);
+  const t = kodiere(m);
+  assert.deepEqual([...dekodiere(t, m.length)], [...m]);
+  assert.equal(dekodiere(t, m.length + 1), null);
+  assert.equal(dekodiere('%%%', m.length), null);
+});
+
+test('Malschicht: Tupfer ist rund, Härte macht den Rand weich, Radieren nimmt weg', () => {
+  const a = MAL_AUFLOESUNG;
+  const B = 20;
+  const wert = (m, x, y) => m[Math.floor(y * a) * B * a + Math.floor(x * a)];
+  const hart = leereMaske(B, B);
+  tupfer(hart, B, B, a, 10, 10, 4, { haerte: 1 });
+  const weich = leereMaske(B, B);
+  tupfer(weich, B, B, a, 10, 10, 4, { haerte: 0 });
+  assert.equal(wert(hart, 10, 10), 255);
+  assert.equal(wert(hart, 13.4, 10), 255, 'harte Kante: fast bis zum Rand voll');
+  assert.ok(wert(weich, 13.4, 10) < 80, 'weich: am Rand blass');
+  assert.equal(wert(hart, 13, 13), 0, 'rund: Ecke des Quadrats bleibt leer');
+  tupfer(hart, B, B, a, 10, 10, 2, { haerte: 1, radieren: true });
+  assert.equal(wert(hart, 10, 10), 0);
+});
+
+test('Malschicht: Studio-Ops → Editor-Format → JS-Modul → Lader → Welt', () => {
+  const k = new EditorKarte({ id: 'mal', name: 'Mal', breite: 16, hoehe: 12 });
+  k.anwenden(A.markerOps(k, 'start', 1, 1));
+  k.anwenden(A.weichMalenOps(k, 'rasen', [{ x: 4, y: 4 }, { x: 10, y: 6 }], { radius: 2, haerte: 0.3 }));
+  k.anwenden(A.weichMalenOps(k, 'wasser', [{ x: 12, y: 8 }], { radius: 1.5 }));
+  const def = nachDefinition(k);
+  assert.deepEqual(Object.keys(def.bodenMalerei.schichten), ['rasen', 'wasser']);
+  assert.ok(alsJsModul(def).includes('bodenMalerei: {'));
+  const zurueck = ausDefinition(def).karte ?? ausDefinition(def);
+  assert.equal(nachDefinition(zurueck).bodenMalerei.schichten.rasen, def.bodenMalerei.schichten.rasen);
+  const geladen = verarbeiteKarte(def);
+  const masken = entpacke(geladen.daten.bodenMalerei, 16, 12);
+  assert.ok(masken.get('rasen').some((v) => v > 0));
+  // Radieren bis leer entfernt die Schicht
+  k.anwenden(A.weichMalenOps(k, 'wasser', [{ x: 12, y: 8 }], { radius: 4, haerte: 1, radieren: true }));
+  assert.deepEqual(Object.keys(nachDefinition(k).bodenMalerei.schichten), ['rasen']);
+  assert.throws(() => A.weichMalenOps(k, 'lava', [{ x: 1, y: 1 }]));
+  assert.equal(pruefeBodenMalerei({ schichten: { lava: 'AQA=' } }, 16, 12), null);
+});
+
+test('Studio: Tier-Bereich mit Art, KI-Werkzeuge kennen Wild + weichen Pinsel', () => {
+  const k = new EditorKarte({ id: 't', name: 't', breite: 20, hoehe: 20 });
+  const { ops } = A.flaecheOps(k, 'tiere', { x: 2, y: 2, b: 5, h: 5 }, { anzahl: 3, tierArt: 'hirsch' });
+  assert.equal(ops[0].neu.art, 'hirsch');
+  assert.equal(A.flaecheOps(k, 'tiere', { x: 2, y: 2, b: 5, h: 5 }, { tierArt: 'drache' }).ops[0].neu.art, 'hase');
+  assert.ok(KI_WERKZEUGE.some((w) => w.name === 'boden_weich_malen'));
+  assert.ok(JSON.stringify(KI_WERKZEUGE.find((w) => w.name === 'flaeche_anlegen').schema).includes('hirsch'));
+});

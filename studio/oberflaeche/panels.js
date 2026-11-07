@@ -89,7 +89,7 @@ export function eintragName(karte, s, k, w) {
   if (s === 'uebergaenge') return `→ ${w.ziel} (${w.ankunft})`;
   if (s === 'ankuenfte') return `${k} · ${w.x}|${w.y}`;
   if (s === 'klaenge') return `${w.name ?? 'Klang'} (${w.art})`;
-  if (s === 'tierBereiche') return `${w.anzahl} Hasen`;
+  if (s === 'tierBereiche') return `${w.anzahl} ${{ reh: 'Rehe', hirsch: 'Hirsche', fuchs: 'Füchse' }[w.art] ?? 'Hasen'}`;
   if (s === 'bauwerke') return w.typ;
   if (s === 'zombieBereiche') return `${w.name ?? 'Zombies'} ×${w.anzahl}${w.tageszeit !== 'immer' ? ` (${w.tageszeit})` : ''}`;
   if (s === 'notizen') return `${w.erledigt ? '✓ ' : ''}${w.text}`;

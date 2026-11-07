@@ -73,6 +73,8 @@ try {
   pruefe(r.ok, `KI objekt_platzieren mit Skalierung: ${r.text}`);
   r = await ki('spawnpunkt_setzen', { x: 12.7, y: 12.7, inhalt: 'apfel', chance: 40, intervall: 10, hoehe: 0.75 });
   pruefe(r.ok, `KI spawnpunkt_setzen: ${r.text}`);
+  r = await ki('boden_weich_malen', { boden: 'wasser', punkte: [{ x: 40, y: 20 }, { x: 46, y: 22 }], radius: 2.5, haerte: 0.3 });
+  pruefe(r.ok && (await fenster.evaluate(() => !!window.studio.dok.definition().bodenMalerei?.schichten?.wasser)), `KI boden_weich_malen (Runde 41): ${r.text}`);
   r = await ki('katalog', { suche: 'baum' });
   pruefe(r.ok && r.daten.anzahl > 0, `KI katalog findet Bäume (${r.daten?.anzahl})`);
   r = await ki('zone_ausschnitt', { x: 8, y: 8, b: 14, h: 11 });

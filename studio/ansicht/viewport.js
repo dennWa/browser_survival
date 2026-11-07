@@ -12,6 +12,8 @@ import { itemGeometrie, ITEM_MATERIAL } from '../../client/darstellung/itemModel
 import { erzeugeBauwerk, bauwerkDrehungY } from '../../client/darstellung/bauwerkModelle.js';
 import { BASIS_MATERIAL, bauteilGeometrie, wirdInstanziert } from '../../client/darstellung/basisbauModelle.js';
 import { festesItem } from '../kern/lootVorschau.js';
+import { entpacke, MAL_AUFLOESUNG } from '../../gemeinsam/welt/bodenMalerei.js';
+import { maleSchichten } from '../../client/darstellung/malSchicht.js';
 
 /**
  * Ansicht des Studios (Three.js): dieselbe Szene als 3D (Perspektive, Orbit wie Unity) oder 2D (Draufsicht, orthografisch).
@@ -69,6 +71,9 @@ const KACHEL_FARBE = (() => {
   for (const e of katalog()) if (e.art === 'kachel') f[e.zeichen] = e.farbe;
   return f;
 })();
+
+/** Runde 41: Kachelname → Zeichen (Farbe für gemalte Böden ohne Foto) */
+const ZEICHEN_VON = Object.fromEntries(Object.entries(KACHELN).map(([z, k]) => [k.name, z]).reverse());
 
 function streu(x, y) {
   const n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
@@ -143,6 +148,7 @@ export class Viewport {
   // ---------- Karte ----------
   setzeKarte(karte, { kameraZuruecksetzen = true } = {}) {
     this.karte = karte;
+    this.malCache = null; // Runde 41: Malschicht neu entpacken
     for (const s of this.sektoren.values()) this.#entsorgeSektor(s);
     this.sektoren.clear();
     for (const m of this.modelle.values()) this.gruppen.modelle.remove(m.gruppe);
@@ -176,6 +182,10 @@ export class Viewport {
           this.objekteSchmutzig = true;
           this.overlaysSchmutzig = true;
         }
+      } else if (op.s === 'wert' && op.pfad?.startsWith('bodenMalerei')) {
+        // Runde 41: weicher Pinsel – Masken neu entpacken, alle Sektoren neu zeichnen
+        this.malCache = null;
+        for (const sk of this.sektoren.keys()) this.schmutzig.add(sk);
       } else if (op.s === 'bemalung') {
         const [x, y] = ausSchluessel(op.k);
         this.schmutzig.add(sektorVon(x, y));
@@ -364,6 +374,7 @@ export class Viewport {
           ctx.globalAlpha = 1;
         }
       }
+    this.#maleMalschicht(ctx, x0, y0, b, h);
     const tex = new THREE.CanvasTexture(leinwand);
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.anisotropy = 4;
@@ -374,6 +385,48 @@ export class Viewport {
     this.gruppen.boden.add(boden);
     const waende = this.#baueWaende(x0, y0, b, h);
     this.sektoren.set(schluessel, { boden, waende });
+  }
+
+  /** Runde 41: Masken der weichen Boden-Malschicht (Cache; während eines Pinselstrichs ersetzt `malVorschau` eine Schicht) */
+  malMasken() {
+    const k = this.karte;
+    const m = k?.werte?.bodenMalerei;
+    if (!m?.schichten) return this.malVorschau ? new Map([[this.malVorschau.name, this.malVorschau.maske]]) : new Map();
+    this.malCache ??= entpacke(m, k.breite, k.hoehe);
+    if (!this.malVorschau) return this.malCache;
+    const mit = new Map(this.malCache);
+    mit.set(this.malVorschau.name, this.malVorschau.maske);
+    return mit;
+  }
+
+  /** Runde 41: Kacheln x0..x0+b neu zeichnen lassen (Pinsel-Vorschau) */
+  bodenNeu(x0, y0, x1, y1) {
+    if (!this.karte) return;
+    for (let sy = Math.floor(Math.max(0, y0 - 1) / SEKTOR); sy <= Math.floor(Math.min(this.karte.hoehe - 1, y1) / SEKTOR); sy++)
+      for (let sx = Math.floor(Math.max(0, x0 - 1) / SEKTOR); sx <= Math.floor(Math.min(this.karte.breite - 1, x1) / SEKTOR); sx++) this.schmutzig.add(`${sx},${sy}`);
+    this.anfordern();
+  }
+
+  #maleMalschicht(ctx, x0, y0, b, h) {
+    const k = this.karte;
+    const masken = this.malMasken();
+    if (!masken.size) return;
+    const aufloesung = k.werte?.bodenMalerei?.aufloesung ?? MAL_AUFLOESUNG;
+    maleSchichten(ctx, masken, { breite: k.breite, hoehe: k.hoehe, aufloesung }, { x0, y0, x1: x0 + b, y1: y0 + h }, PX, (hctx, name) => {
+      const foto = this.fotos.get(FOTO_BODEN[name]);
+      for (let y = 0; y < h; y++)
+        for (let x = 0; x < b; x++) {
+          if (foto) {
+            const t = foto.width / 4;
+            hctx.drawImage(foto, ((x0 + x) % 4) * t, ((y0 + y) % 4) * t, t, t, x * PX, y * PX, PX, PX);
+          } else {
+            const c = new THREE.Color(KACHEL_FARBE[ZEICHEN_VON[name]] ?? '#777');
+            c.offsetHSL(0, 0, (streu(x0 + x, y0 + y) - 0.5) * 0.022);
+            hctx.fillStyle = `#${c.getHexString()}`;
+            hctx.fillRect(x * PX, y * PX, PX, PX);
+          }
+        }
+    });
   }
 
   #baueWaende(x0, y0, b, h) {

@@ -93,6 +93,10 @@ export function erstelleKiAusfuehrer(studio) {
       return ok(null, { anzahl: treffer.length, treffer: treffer.slice(0, 80) });
     },
     boden_malen: ({ zeichen, x, y, b, h, waende_ueberschreiben }) => ok(`${aendere('Boden', A.rechteckOps(karte(), { x, y, b, h }, zeichen, { waendeSchuetzen: !waende_ueberschreiben }))} Kacheln gesetzt.`),
+    boden_weich_malen: ({ boden, punkte, radius, haerte, deckkraft, radieren }) => {
+      aendere(radieren ? 'Weich radiert' : `Weich gemalt (${boden})`, A.weichMalenOps(karte(), boden, punkte, { radius, haerte, staerke: deckkraft ?? 1, radieren }));
+      return ok(`${radieren ? 'Radiert' : 'Gemalt'}: ${boden}, ${punkte.length} Punkte.`);
+    },
     wand_ziehen: ({ x0, y0, x1, y1, art = 'wand' }) => ok(`${aendere(art === 'tuer' ? 'Tür' : 'Wand', A.wandOps(karte(), { x: x0, y: y0 }, { x: x1, y: y1 }, art))} Kacheln gesetzt.`),
     raum_bauen: (a) => {
       const { ops, raum } = A.raumOps(karte(), { x: a.x, y: a.y, b: a.b, h: a.h, boden: a.boden ?? '.', wand: a.wand ?? 'ziegel', tuer: a.tuer ?? 's', name: a.name, lootTabelle: a.lootTabelle });
@@ -143,7 +147,7 @@ export function erstelleKiAusfuehrer(studio) {
     flaeche_anlegen: async (a) => {
       const k = karte();
       const datei = a.art === 'klang' && a.datei ? await studio.klangFuerZone(a.datei) : null;
-      const { ops, id } = A.flaecheOps(k, a.art, a, { name: a.name, tabelle: a.tabelle, punkte: a.punkte, anzahl: a.anzahl, ziel: a.ziel, ankunft: a.ankunft, datei, lautstaerke: a.lautstaerke });
+      const { ops, id } = A.flaecheOps(k, a.art, a, { name: a.name, tabelle: a.tabelle, punkte: a.punkte, anzahl: a.anzahl, tierArt: a.tier_art, ziel: a.ziel, ankunft: a.ankunft, datei, lautstaerke: a.lautstaerke });
       aendere(`Bereich ${a.art}`, ops);
       return ok(`Bereich angelegt (ID ${id}).`);
     },

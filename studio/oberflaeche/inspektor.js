@@ -15,7 +15,7 @@ import { esc } from './dialoge.js';
  * Dokument.aendere – jede bestätigte Eingabe (change) = ein Undo-Schritt.
  */
 const LOOT_LISTE = Object.keys(LOOT_TABELLEN).filter((t) => t !== 'zombie' && t !== 'boss').sort();
-const TITEL = { objekte: ['Objekt', 'objekt'], spawnpunkte: ['Item-Spawnpunkt', 'spawn'], marker: ['Punkt', 'marker'], lootZonen: ['Loot-Zone', 'flaeche'], raumFlaechen: ['Raum', 'raum'], uebergaenge: ['Übergang', 'tuer'], ankuenfte: ['Ankunftspunkt', 'marker'], klaenge: ['Klang', 'klang'], tierBereiche: ['Hasen-Bereich', 'hase'], bauwerke: ['Bauwerk', 'wand'], notizen: ['Notiz', 'notiz'], zombieBereiche: ['Zombie-Bereich', 'zombie'] };
+const TITEL = { objekte: ['Objekt', 'objekt'], spawnpunkte: ['Item-Spawnpunkt', 'spawn'], marker: ['Punkt', 'marker'], lootZonen: ['Loot-Zone', 'flaeche'], raumFlaechen: ['Raum', 'raum'], uebergaenge: ['Übergang', 'tuer'], ankuenfte: ['Ankunftspunkt', 'marker'], klaenge: ['Klang', 'klang'], tierBereiche: ['Tier-Bereich', 'hase'], bauwerke: ['Bauwerk', 'wand'], notizen: ['Notiz', 'notiz'], zombieBereiche: ['Zombie-Bereich', 'zombie'] };
 
 export class Inspektor {
   constructor(studio) {
@@ -121,7 +121,7 @@ export class Inspektor {
         return this.#abschnitt('Klang', this.#text('name', w.name, 'Name') + this.#auswahl('datei', w.datei ?? '', klaenge, 'Datei') + this.#zahl('lautstaerke', w.lautstaerke ?? 1, { min: 0, max: 2, schritt: 0.05, titel: 'Lautstärke', regler: true }) + this.#auswahl('wiedergabe', w.wiedergabe, WIEDERGABEN.map((x) => [x, x]), 'Wiedergabe') + this.#auswahl('bus', w.bus, BUSSE.map((x) => [x, x]), 'Kanal'))
           + this.#abschnitt('Bereich', w.art === 'punkt' ? this.#lage(w) + this.#zahl('innen', w.innen, { min: 0, max: 50, schritt: 0.5, titel: 'Voll bis' }) + this.#zahl('aussen', w.aussen, { min: 1, max: 120, schritt: 1, titel: 'Hörweite' }) : w.art === 'bereich' ? this.#rechteck(w) + this.#zahl('rand', w.rand ?? 2, { min: 0, max: 20, schritt: 0.5, titel: 'Übergang' }) : '<div class="hinweis-kasten">Gilt für die ganze Zone.</div>');
       case 'tierBereiche':
-        return this.#abschnitt('Hasen', this.#zahl('anzahl', w.anzahl, { min: 0, max: 100, schritt: 1, titel: 'Anzahl' }) + this.#zahl('respawnZeit', w.respawnZeit ?? '', { min: 0, max: 7200, schritt: 30, titel: 'Respawn s' })) + this.#abschnitt('Bereich', this.#rechteck(w));
+        return this.#abschnitt('Tiere', this.#auswahl('art', w.art ?? 'hase', A.TIER_ARTEN, 'Art') + this.#zahl('anzahl', w.anzahl, { min: 0, max: 100, schritt: 1, titel: 'Anzahl' }) + this.#zahl('respawnZeit', w.respawnZeit ?? '', { min: 0, max: 7200, schritt: 30, titel: 'Respawn s' })) + this.#abschnitt('Bereich', this.#rechteck(w));
       case 'zombieBereiche':
         return this.#abschnitt('Zombies', this.#text('name', w.name, 'Name', 'z. B. Friedhof') + this.#zahl('anzahl', w.anzahl, { min: 1, max: 60, schritt: 1, titel: 'Anzahl' }) + this.#auswahl('tageszeit', w.tageszeit ?? 'immer', [['immer', 'immer'], ['tag', 'nur tagsüber'], ['nacht', 'nur nachts']], 'Tageszeit') + this.#zahl('respawnZeit', w.respawnZeit ?? '', { min: 0, max: 7200, schritt: 10, titel: 'Respawn s' }))
           + this.#abschnitt('Mischung (Gewichte)', ZOMBIE_VARIANTEN_NAMEN.map((v) => this.#zahl(`variante.${v}`, w.varianten?.[v] ?? '', { min: 0, max: 100, schritt: 1, titel: v })).join('') + '<div class="hinweis-kasten">Leer = Standard-Mischung des Spiels. Beispiel: normal 6, laeufer 2, brocken 1.</div>')

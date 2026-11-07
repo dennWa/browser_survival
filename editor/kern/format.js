@@ -39,6 +39,7 @@ export const FARBE = /^#[0-9a-fA-F]{6}$/;
  *   klaenge       [{ id, name, audio|daten|datei, art, … }]   Klanglandschaft (Phase 4, gemeinsam/audio/klanglandschaft.js)
  *   texturen      { typId: { farbe?, muster? } }              Bemalung pro Typ
  *   bemalung      { '#rrggbb': [[x, y, b, h], …] }           Farbe auf dem Boden (Rechtecke je Farbe)
+ *   bodenMalerei  { aufloesung, schichten: { boden: RLE } }   Runde 41: weich gemalte Böden (gemeinsam/welt/bodenMalerei.js)
  */
 export const FORMAT_KARTE = 'browser-survival-karte';
 export const FORMAT_ENTWURF = 'browser-survival-entwurf';
@@ -51,7 +52,7 @@ export const LIESMICH_TEXT = [
   'raeume: { buchstabe: { name, lootTabelle, spawnChance?, respawnZeit? } } – lootTabelle aus server/spiel/konfiguration/lootTabellen.js.',
   'objekte: [{ typ, x, y, b, h, blockiert?, ebene?, drehung?, … }] – Rechteck in Kacheln (Brüche erlaubt). ebene: moebel (Standard) | boden (flach, Teppich) | oben (Baumkrone) | licht. drehung in Grad (0/90/180/270).',
   'uebergaenge: [{ x, y, b, h, ziel, ankunft, name }] – Rechteck am Rand; wer es betritt, wechselt in Zone ziel zum Ankunftspunkt ankunft. ankuenfte: { name: { x, y } } (nicht in einem Übergang, nicht in einer Wand).',
-  'Erweiterungen (optional): zombieSpawns [{x,y,anzahl,respawnZeit,horde}], bauwerke [{typ,tx,ty,drehung}], tierBereiche [{x,y,b,h,art,anzahl,respawnZeit}], raumFlaechen [{raum,x,y,b,h}], einstellungen {wetter,zombie,tiere,loot}, musik, terrain {hoehen,steil}, typen, texturen, bemalung {"#farbe":[[x,y,b,h]]}.',
+  'Erweiterungen (optional): zombieSpawns [{x,y,anzahl,respawnZeit,horde}], bauwerke [{typ,tx,ty,drehung}], tierBereiche [{x,y,b,h,art,anzahl,respawnZeit}], raumFlaechen [{raum,x,y,b,h}], einstellungen {wetter,zombie,tiere,loot}, musik, terrain {hoehen,steil}, typen, texturen, bemalung {"#farbe":[[x,y,b,h]]}, bodenMalerei {aufloesung,schichten} (weich gemalte Böden, nur Studio-Pinsel; tierBereiche.art: hase|reh|hirsch|fuchs).',
   'Änderungen zurückgeben: am besten als Aktionsliste (siehe editor/LIESMICH.md, Abschnitt "KI-Änderungen"), z. B. [{"aktion":"setze","typ":"baum","x":23,"y":14}].',
 ];
 
@@ -115,6 +116,7 @@ export function ausDefinition(def) {
   for (const n of Array.isArray(def.notizen) ? def.notizen : []) if (n && typeof n === 'object') karte.s('notizen').set(karte.neueId(), kopie(n));
   for (const z of Array.isArray(def.zombieBereiche) ? def.zombieBereiche : []) if (z && typeof z === 'object') karte.s('zombieBereiche').set(karte.neueId(), kopie(z));
   if (Array.isArray(def.vorlagenInstanzen)) karte.werte.vorlagenInstanzen = kopie(def.vorlagenInstanzen);
+  if (def.bodenMalerei && typeof def.bodenMalerei === 'object') karte.werte.bodenMalerei = kopie(def.bodenMalerei); // Runde 41: weicher Pinsel (Studio)
   for (const roh of Array.isArray(def.klaenge) ? def.klaenge : []) {
     const k = pruefeKlang(roh, { breite: karte.breite, hoehe: karte.hoehe });
     if (!k) {
@@ -211,6 +213,10 @@ export function nachDefinition(karte) {
       jeFarbe.get(f).push({ x, y });
     }
     def.bemalung = Object.fromEntries([...jeFarbe].sort(([a], [b]) => (a < b ? -1 : 1)).map(([f, punkte]) => [f, alsRechtecke(punkte).map((r) => [r.x, r.y, r.b, r.h])]));
+  }
+  const malerei = karte.werte.bodenMalerei;
+  if (malerei?.schichten && Object.values(malerei.schichten).some((t) => typeof t === 'string' && t)) {
+    def.bodenMalerei = { aufloesung: malerei.aufloesung ?? 4, schichten: Object.fromEntries(Object.entries(malerei.schichten).filter(([, t]) => typeof t === 'string' && t)) };
   }
   if (karte.s('texturen').size) def.texturen = Object.fromEntries(sortiert(karte.s('texturen')).map(([k, t]) => [k, kopie(t)]));
   return def;

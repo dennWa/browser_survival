@@ -85,7 +85,7 @@ export function elemente(eintrag) {
     const letzt = ops.at(-1);
     const art = erst.alt == null ? 'neu' : letzt.neu == null ? 'weg' : 'geaendert';
     const w = letzt.neu ?? erst.alt ?? {};
-    const was = erst.s === 'wert' ? `Einstellung ${erst.pfad}` : `${{ objekte: 'Objekt', marker: 'Punkt', spawnpunkte: 'Spawnpunkt', lootZonen: 'Loot-Zone', raeume: 'Raum', raumFlaechen: 'Raumfläche', klaenge: 'Klang', uebergaenge: 'Übergang', zombieBereiche: 'Zombie-Bereich', typen: 'Objekttyp', notizen: 'Notiz', bauwerke: 'Bauwerk', tierBereiche: 'Hasen-Bereich', ankuenfte: 'Ankunft' }[erst.s] ?? erst.s} ${w.typ ?? w.inhalt ?? w.name ?? w.art ?? ''}`.trim();
+    const was = erst.s === 'wert' ? `Einstellung ${erst.pfad}` : `${{ objekte: 'Objekt', marker: 'Punkt', spawnpunkte: 'Spawnpunkt', lootZonen: 'Loot-Zone', raeume: 'Raum', raumFlaechen: 'Raumfläche', klaenge: 'Klang', uebergaenge: 'Übergang', zombieBereiche: 'Zombie-Bereich', typen: 'Objekttyp', notizen: 'Notiz', bauwerke: 'Bauwerk', tierBereiche: 'Tier-Bereich', ankuenfte: 'Ankunft' }[erst.s] ?? erst.s} ${w.typ ?? w.inhalt ?? w.name ?? w.art ?? ''}`.trim();
     aus.push({ id: k, text: `${{ neu: 'neu', weg: 'gelöscht', geaendert: 'geändert' }[art]}: ${was}`, art, ops, s: erst.s, k: erst.k });
   }
   for (const el of aus) el.orte = orte(el);

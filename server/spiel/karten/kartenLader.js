@@ -1,4 +1,5 @@
 import { KACHEL_GROESSE, ZONE_MAX_KACHELN } from '../../../gemeinsam/konstanten.js';
+import { pruefeBodenMalerei } from '../../../gemeinsam/welt/bodenMalerei.js';
 import { KACHELN, MARKER, istKachel, istLootMarker } from '../../../gemeinsam/welt/kacheln.js';
 import { BAUWERKE } from '../../../gemeinsam/welt/bauwerke.js';
 import { BEHAELTER_TYPEN } from '../../../gemeinsam/welt/behaelter.js';
@@ -49,6 +50,7 @@ export const KARTEN = Object.freeze({
  *   lootZonen → zusätzliche lootPunkte mit `lootZone` (Regeln: lootZonen.js; nur Server, der Client sieht nur die Items)
  *   schnee true → Schneezone (daten.schnee): Schneefall statt Regen, verschneite Straßen, knirschende Schritte (Kachel '*' = Schnee)
  *   bemalung { '#rrggbb': [[x, y, b, h]] } → daten.bemalung (nur Optik: Client malt es in die Bodentextur)
+ *   bodenMalerei { aufloesung, schichten { boden: RLE } } → daten.bodenMalerei (Runde 41, weich gemalte Böden, nur Optik)
  *   objekte[].skalierung 0,25–4 (Studio) → nur Optik-Höhe (Fußabdruck b/h ist schon skaliert, Kollision folgt b/h)
  *   spawnpunkte [{ x, y, inhalt, chance, intervall, menge?, hoehe? }] (Studio) → lootPunkte mit `spawnPunkt` (Regeln: spawnpunkte.js)
  *   zombieBereiche [{ x, y, b, h, anzahl, varianten?, tageszeit?, respawnZeit?, route? }] (Studio) → zombieSpawns mit
@@ -231,6 +233,8 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE, { au
   if (klaenge.length) daten.klaenge = klaenge;
   const bemalung = pruefeBemalung(definition.bemalung, breite, hoehe);
   if (bemalung) daten.bemalung = bemalung;
+  const bodenMalerei = pruefeBodenMalerei(definition.bodenMalerei, breite, hoehe); // Runde 41: weicher Pinsel (nur Optik)
+  if (bodenMalerei) daten.bodenMalerei = bodenMalerei;
 
   return {
     daten,
