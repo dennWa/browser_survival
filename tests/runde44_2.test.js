@@ -62,6 +62,8 @@ test('Lagerplatz: keine Hasen, aber eine Lager-Katze (Start-Tier ohne Besitzer, 
   assert.ok(!katze.besitzer);
   const f = feuerPx(welt);
   assert.ok(Math.hypot(katze.x - f.x, katze.y - f.y) < 5 * g, 'startet am Feuer');
+  assert.equal(tiere.filter((t) => t.art !== 'katze').length, 0, 'keine zufälligen Streuner (Hund/Hühner) – die Karte bestimmt ihre Tiere');
+  assert.equal(tiere.filter((t) => t.art === 'katze').length, 1, 'genau eine Katze');
   assert.deepEqual(ladeKarte('stadtrand').startTiere, [], 'andere Karten ohne Start-Tiere');
 });
 

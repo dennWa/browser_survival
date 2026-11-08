@@ -37,8 +37,10 @@ export function wildWerte(k, art) {
 export function spawneStartTiere(spielWelt) {
   const k = spielWelt.konfiguration.tiere;
   const welt = spielWelt.welt;
-  // Runde 44: feste Start-Tiere der Karte (z. B. die Lager-Katze am Feuer) – streunen ohne Besitzer (haustierSystem)
-  for (const t of spielWelt.karte.startTiere ?? []) {
+  // Runde 44: feste Start-Tiere der Karte (z. B. die Lager-Katze am Feuer) – streunen ohne Besitzer (haustierSystem).
+  // Hat die Karte eigene Start-Tiere, kommen keine zufälligen Streuner (Hund/Katze/Hühner) dazu.
+  const startTiere = spielWelt.karte.startTiere ?? [];
+  for (const t of startTiere) {
     spielWelt.hinzufuegen(erzeugeTier({ id: spielWelt.neueId(), art: t.art, x: (t.x + 0.5) * welt.kachelGroesse, y: (t.y + 0.5) * welt.kachelGroesse, konfiguration: spielWelt.konfiguration }));
   }
   // Hasen-Bereiche aus der Karte (Map-Editor): dann nur dort, je Bereich `anzahl`
@@ -49,7 +51,7 @@ export function spawneStartTiere(spielWelt) {
     });
     return;
   }
-  spawneWildeTiere(spielWelt); // Runde 24: streunende Hunde/Katzen, Hühner
+  if (!startTiere.length) spawneWildeTiere(spielWelt); // Runde 24: streunende Hunde/Katzen, Hühner
   let gras = 0;
   for (let ty = 0; ty < welt.hoehe; ty++) for (let tx = 0; tx < welt.breite; tx++) if (istTierBoden(welt, tx, ty)) gras++;
   const anzahl = Math.min(k.hasenMax, Math.round((gras / 1000) * k.hasenProTausend));
