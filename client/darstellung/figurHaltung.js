@@ -12,7 +12,8 @@ const haltungFuer = (name) => haltungMitHaenden(name) ?? modellHaltung(name);
  * Spielerfiguren (client/assets/3d/figur_mann|frau.glb): Beim Holz-/Steinabbau, Zerlegen und Hacken macht ein Clip den Schlag
  * (hacken/spitzhacke/abbauen/hacke, figur.klips) – hier wird nur das Werkzeug zwischen die Hände gelegt (platziereHackwerkzeug).
  * Sitzen: Clip „sitzen“ (falls vorhanden), sonst prozedural. Runde 44: auf Stuhl/Bank (e.arbeitOrt.sitz) Steh-Clip + stuhlSitz
- * (Becken auf die Sitzfläche, Beine/Arme prozedural).
+ * (Becken auf die Sitzfläche, Beine/Arme prozedural). Runde 45: Arme je Bild ab armRuhe (setzeArmAufRuhe), Hände per IK flach
+ * auf die Oberschenkel (handAufOberschenkel/legeHandFlach) – nie relativ weiterdrehen (konstante Clip-Spuren, s. fallen.md).
  *
  * Haltungen (Runde 19): ohne Waffe hängen die Arme locker (Clip); Taschenlampe nur nachts mit Licht an, schräg nach vorn-unten;
  * Schusswaffen (Pistole, Gewehr) und Nahkampfwaffen außer Arbeitswerkzeug hängen locker neben dem Körper und gehen erst beim
@@ -32,6 +33,8 @@ const BEIN_KNOCHEN = [
   { rechts: ['RightUpLeg', 'RightLeg', 'RightFoot'], links: ['LeftUpLeg', 'LeftLeg', 'LeftFoot'] },
   { rechts: ['UpperLegR', 'LowerLegR', 'FootR'], links: ['UpperLegL', 'LowerLegL', 'FootL'] },
 ];
+/** Runde 45: Fingerwurzeln [Zeige-, Mittel-, kleiner Finger] – daraus Handflächen-Normale (handflaeche); nur Quaternius-Rig */
+const FINGER_KNOCHEN = [{ rechts: ['Index1R', 'Middle1R', 'Pinky1R'], links: ['Index1L', 'Middle1L', 'Pinky1L'] }];
 const v = (x, y, z) => new THREE.Vector3(x, y, z).normalize();
 const VORNE = new THREE.Vector3(0, 0, 1);
 
@@ -87,6 +90,7 @@ export function richteFigurEin(figur, modell) {
   };
   figur.knochen = waehle(ARM_KNOCHEN);
   figur.beine = waehle(BEIN_KNOCHEN);
+  figur.finger = waehle(FINGER_KNOCHEN);
   // Runde 19: Ruhestellung der Arm-Knochen merken – Clips bewegen nicht jeden Knochen; ein einmal prozedural gedrehter Arm blieb
   // sonst stehen („nach dem Schießen bleibt eine Hand oben“). Beim Loslassen (Seite ohne Pose) geht er hierhin zurück.
   figur.armRuhe = Object.fromEntries(Object.entries(figur.knochen).map(([seite, k]) => [seite, k.map((x) => x.quaternion.clone())]));
@@ -252,11 +256,6 @@ export function aktualisiereHaltung(figur, e, jetzt, dunkel = 1) {
   }
 }
 
-/**
- * Runde 42: Beine für Stuhl/Bank – Oberschenkel waagerecht nach vorn, Unterschenkel senkrecht runter (Füße am Boden).
- * ⚠ Quaternius-Rig: Foot.* sind freie IK-Ziel-Knochen am Root (keine Kinder des Unterschenkels) → Fuß nach dem Drehen
- * selbst an das Ende des Unterschenkels setzen und mitdrehen, sonst zieht sich das Netz wie Gummi zum alten Fußpunkt.
- */
 /** Runde 44: Maße der Stuhl-Sitzpose in Figur-Pixeln (Figur ≈ 64 px hoch) */
 export const STUHL_SITZ = { ueberSitz: 2.6, zurueck: 4.5 };
 
@@ -269,6 +268,9 @@ function stuhlSitz(figur) {
   const { gruppe, modell } = figur;
   figur.modellBasis ??= modell.position.clone();
   modell.position.copy(figur.modellBasis);
+  // Runde 45: Arme JEDES Bild von der Clip-Pose aus neu setzen. Der Steh-Clip hat konstante Arm-/Handgelenk-Spuren, die der Mixer
+  // nur einmal schreibt – relative Drehungen stapelten sich sonst (Hand drehte ≈80°/Bild weiter = „Hände zittern wie verrückt“).
+  for (const seite of ['rechts', 'links']) setzeArmAufRuhe(figur, seite);
   gruppe.updateMatrixWorld(true);
   // ⚠ Three.js schreibt konstante Clip-Spuren nur einmal (PropertyMixer: nur bei Wertänderung) – die Fuß-IK-Ziele (Foot*, Kinder von
   // Root) behalten also, was wir setzen. Darum beim Hinsetzen Fuß-Lage + Schienbeinlänge merken und beim Aufstehen zurückschreiben.
@@ -280,28 +282,116 @@ function stuhlSitz(figur) {
   figur.stuhlVersatz = true;
   gruppe.updateMatrixWorld(true);
   stuhlBeine(figur);
-  // Hände ruhen auf den Oberschenkeln: Oberarm hängt leicht nach vorn, Unterarm liegt nach vorn-unten auf dem Bein, Handfläche nach unten
+  // Runde 45: Hände liegen flach auf den Oberschenkeln (Zwei-Knochen-IK aufs Bein, Handfläche nach unten)
   for (const seite of ['rechts', 'links']) {
-    const [oberarm, unterarm, hand] = figur.knochen[seite];
-    const r = seite === 'rechts' ? -1 : 1;
-    richteKnochen(oberarm, unterarm, inWelt(v(STUHL_ARME.oberarm[0] * r, STUHL_ARME.oberarm[1], STUHL_ARME.oberarm[2]), gruppe));
-    const unterRichtung = inWelt(v(STUHL_ARME.unterarm[0] * r, STUHL_ARME.unterarm[1], STUHL_ARME.unterarm[2]), gruppe);
-    richteKnochen(unterarm, hand, unterRichtung);
-    drehUmAchse(hand, unterRichtung, STUHL_ARME.handDrehung); // gespiegelte Knochen: gleicher Winkel dreht beide Handflächen nach unten
+    handAufOberschenkel(figur, seite);
     figur.armGesetzt[seite] = true;
   }
 }
 
-/** Runde 44: Arm-Richtungen im Sitzen (Figur-Raum, rechte Seite; links gespiegelt) + Drehung der Hand um den Unterarm (rad) */
-const STUHL_ARME = { oberarm: [0.08, -0.94, 0.22], unterarm: [0.04, -0.62, 1], handDrehung: -1.4 };
+/**
+ * Runde 45: Hand-auf-Oberschenkel-Pose (Maße relativ zur Oberschenkellänge, also für jede Figurgröße gleich):
+ * entlang = Handgelenk bei diesem Anteil Hüfte→Knie, oben/aussen = Versatz über/neben der Beinachse, pol = Ellbogen zeigt nach
+ * hinten-außen (Figur-Raum, rechte Seite), unterarmAnteil = so viel der Handdrehung übernimmt der Unterarm (sonst verdrillt das
+ * Handgelenk), fingerNeigung = Finger folgen dem Oberschenkel leicht nach unten.
+ */
+export const STUHL_HAND = { entlang: 0.4, oben: 0.17, aussen: 0.02, pol: [-0.7, -0.35, -1], unterarmAnteil: 0.65, fingerNeigung: 0.25 };
+
+/**
+ * Runde 45: Arm-Kette einer Seite (Ober-/Unterarm, Hand) auf die gemerkte Ruhestellung = Pose des Steh-Clips (armRuhe wird nach
+ * mixer.setTime gemerkt) – absolute Basis je Bild, weil der Mixer die konstanten Arm-Spuren dieses Clips nicht neu schreibt.
+ */
+function setzeArmAufRuhe(figur, seite) {
+  for (let i = 0; i < 3; i++) figur.knochen[seite][i].quaternion.copy(figur.armRuhe[seite][i]);
+}
+
+/** Runde 45: Hand einer Seite per Zwei-Knochen-IK auf den Oberschenkel legen (Ellbogen nach hinten-außen), dann flach ausrichten. */
+function handAufOberschenkel(figur, seite) {
+  const { gruppe } = figur;
+  const [oberarm, unterarm, hand] = figur.knochen[seite];
+  const [oberschenkel, unterschenkel] = figur.beine[seite];
+  const r = seite === 'rechts' ? -1 : 1; // -x = rechte Körperseite
+  const huefte = oberschenkel.getWorldPosition(new THREE.Vector3());
+  const knie = unterschenkel.getWorldPosition(new THREE.Vector3());
+  const laenge = huefte.distanceTo(knie);
+  const vor = knie.clone().sub(huefte).normalize();
+  const ziel = huefte.addScaledVector(vor, laenge * STUHL_HAND.entlang).add(inWelt(_a.set(r * STUHL_HAND.aussen, STUHL_HAND.oben, 0), gruppe).multiplyScalar(laenge));
+  // Zwei-Knochen-IK: Ellbogen auf dem Kreis um die Schulter-Ziel-Linie, Richtung Pol
+  const schulter = oberarm.getWorldPosition(new THREE.Vector3());
+  const ellbogenAlt = unterarm.getWorldPosition(_b);
+  const l1 = schulter.distanceTo(ellbogenAlt);
+  const l2 = ellbogenAlt.distanceTo(hand.getWorldPosition(_c));
+  const richtung = ziel.sub(schulter);
+  const d = Math.min(l1 + l2 - 1e-3, Math.max(Math.abs(l1 - l2) + 1e-3, richtung.length()));
+  richtung.normalize();
+  const a = (l1 * l1 - l2 * l2 + d * d) / (2 * d);
+  const h = Math.sqrt(Math.max(0, l1 * l1 - a * a));
+  const [px, py, pz] = STUHL_HAND.pol; // rechte Seite, links gespiegelt
+  const pol = inWelt(_d.set(seite === 'rechts' ? px : -px, py, pz), gruppe);
+  pol.addScaledVector(richtung, -pol.dot(richtung)).normalize();
+  const ellbogen = schulter.clone().addScaledVector(richtung, a).addScaledVector(pol, h);
+  const handgelenk = schulter.addScaledVector(richtung, d);
+  richteKnochen(oberarm, unterarm, _e.copy(ellbogen).sub(oberarm.getWorldPosition(_f)).normalize());
+  richteKnochen(unterarm, hand, _e.copy(handgelenk).sub(ellbogen).normalize());
+  legeHandFlach(figur, seite, vor);
+}
+
+/**
+ * Runde 45: Hand flach auflegen – Finger in Richtung `vor` (leicht nach unten), Handfläche nach unten. Absolut berechnet (aus den
+ * Fingerwurzeln), also ohne Aufschaukeln. Einen Teil der Drehung um die Unterarm-Achse übernimmt der Unterarm (kein verdrilltes Gelenk).
+ */
+function legeHandFlach(figur, seite, vor) {
+  const finger = figur.finger?.[seite];
+  if (!finger) return;
+  const [, unterarm, hand] = figur.knochen[seite];
+  const unten = _g.set(0, -1, 0);
+  const achse = hand.getWorldPosition(new THREE.Vector3()).sub(unterarm.getWorldPosition(_a)).normalize();
+  drehUmAchse(unterarm, achse, drehWinkel(achse, handflaeche(figur, seite, new THREE.Vector3()), unten) * STUHL_HAND.unterarmAnteil);
+  const fingerIst = finger[1].getWorldPosition(new THREE.Vector3()).sub(hand.getWorldPosition(_a));
+  const flaecheIst = handflaeche(figur, seite, new THREE.Vector3());
+  const fingerSoll = vor.clone().addScaledVector(unten, STUHL_HAND.fingerNeigung);
+  dreheInWelt(hand, basisDrehung(fingerIst, flaecheIst, fingerSoll, unten, _q2));
+}
+
+/** Runde 45: Normale der Handfläche (zeigt aus der Innenfläche heraus) aus Zeige-/Mittel-/kleinem Finger; gespiegelt für links. */
+function handflaeche(figur, seite, ziel) {
+  const [zeige, mittel, klein] = figur.finger[seite];
+  const quer = zeige.getWorldPosition(_b).sub(klein.getWorldPosition(_c));
+  const lang = mittel.getWorldPosition(_d).sub(figur.knochen[seite][2].getWorldPosition(_e));
+  return ziel.crossVectors(quer, lang).normalize().multiplyScalar(seite === 'rechts' ? 1 : -1);
+}
+
+/** Vorzeichenbehafteter Winkel um `achse`, der `von` (senkrecht zur Achse projiziert) auf `nach` dreht. */
+function drehWinkel(achse, von, nach) {
+  const a = _b.copy(von).addScaledVector(achse, -von.dot(achse));
+  const b = _c.copy(nach).addScaledVector(achse, -nach.dot(achse));
+  if (a.lengthSq() < 1e-8 || b.lengthSq() < 1e-8) return 0;
+  return Math.atan2(_d.crossVectors(a, b).dot(achse), a.dot(b));
+}
+
+/** Drehung (Quaternion → `ziel`), die das Paar (von1, von2) auf (nach1, nach2) bringt (1. Vektor exakt, 2. so nah wie möglich). */
+function basisDrehung(von1, von2, nach1, nach2, ziel) {
+  const basis = (x, y, m) => {
+    const bx = _b.copy(x).normalize();
+    const by = _c.copy(y).addScaledVector(bx, -y.dot(bx)).normalize();
+    return m.makeBasis(bx, by, _d.crossVectors(bx, by));
+  };
+  const von = basis(von1, von2, _m1);
+  const nach = basis(nach1, nach2, _m2);
+  return ziel.setFromRotationMatrix(nach.multiply(von.transpose()));
+}
+
+/** Dreht `knochen` in Weltkoordinaten um die Welt-Drehung `q`. */
+function dreheInWelt(knochen, q) {
+  knochen.getWorldQuaternion(_qw);
+  knochen.parent.getWorldQuaternion(_qp).invert();
+  knochen.quaternion.copy(_qp.multiply(_qw.premultiply(q)));
+  knochen.updateMatrixWorld(true);
+}
 
 /** Dreht `knochen` in Weltkoordinaten um `achse` (normiert) um `winkel`. */
 function drehUmAchse(knochen, achse, winkel) {
-  knochen.getWorldQuaternion(_qw);
-  _q.setFromAxisAngle(achse, winkel);
-  knochen.parent.getWorldQuaternion(_qp).invert();
-  knochen.quaternion.copy(_qp.multiply(_q.multiply(_qw)));
-  knochen.updateMatrixWorld(true);
+  dreheInWelt(knochen, _q.setFromAxisAngle(achse, winkel));
 }
 
 /** Fuß-Lage (lokal), Schienbeinlänge und Fuß-Drehung relativ zur Gruppe im Moment des Hinsetzens (= aufrechte Clip-Pose). */
@@ -330,6 +420,7 @@ export function setzeStuhlZurueck(figur) {
     fuss.position.copy(f.position);
     fuss.quaternion.copy(f.quaternion);
   }
+  loeseArme(figur); // Runde 45: Arme zurück in die Ruhestellung (sonst bliebe z. B. die Unterarm-Drehung des Sitzens in der Pistolen-Haltung)
   figur.stuhlVersatz = false;
 }
 
@@ -535,8 +626,11 @@ const _basis = new THREE.Matrix4();
 const _p0 = new THREE.Vector3();
 const _p1 = new THREE.Vector3();
 const _q = new THREE.Quaternion();
+const _q2 = new THREE.Quaternion();
 const _qw = new THREE.Quaternion();
 const _qp = new THREE.Quaternion();
+const _m1 = new THREE.Matrix4();
+const _m2 = new THREE.Matrix4();
 
 /** Dreht `knochen` so, dass die Linie zu `kind` in Welt-Richtung `ziel` zeigt. */
 function richteKnochen(knochen, kind, ziel) {

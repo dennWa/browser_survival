@@ -59,6 +59,7 @@ Playwright-Skripte: nach Login auf `#laden` hidden warten (Aufwärmphase), sonst
 | `ki/runde43.md` | Runde 43 (Lagerplatz: Lagerplatz Zaun + Wald-/Rasenring, `friedlich`, `festeZeit` Sonnenuntergang, Gartenbank-`sitzFront`; Konzept `docs/konzepte/PERFORMANCE_UND_KI_WORKFLOW.md`) |
 | `ki/runde44_2.md` | Runde 44 (2) (neueste: Lager Nacht/windstill/Katze/Kerzen, Bots `botLager.js` + Chat „setzt euch“, Stuhl-Sitzpose, Rucksack am `Chest`, Ego im Sitzen, Feuer-Licht-Vorrang, fremde Taschenlampen, Zweig sammeln) |
 | `ki/runde42.md` | Runde 42 (Startzone Lagerplatz `lager`, ewiges Lagerfeuer, Lichterketten, Sitzen auf Stühlen/Bänken) |
+| `ki/runde45.md` | Runde 45 (neueste: Fix zitternde Hände beim Sitzen – Arme je Bild ab `armRuhe`, Hand-IK auf Oberschenkel) |
 | `ki/runde32.md` | Runde 32 ( Nutzer-Modellpakete → Bäume/Gras/Steine/Items/Waffen/Tiere/Figuren, Zelt, Sound/Wetter/Licht, Gameplay) |
 
 **Faustregel:** Spiellogik/Netz → `ki/kern.md` + `ki/fallen.md`. Datei suchen → `ki/dateikarte.md`. Neueste Änderungen → `ki/runde44_2.md` (+ `ki/runde44.md`). Editor → `ki/editor.md`.
