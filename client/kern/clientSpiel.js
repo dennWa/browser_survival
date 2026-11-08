@@ -17,6 +17,7 @@ import { lerp, lerpWinkel } from '../../gemeinsam/mathe.js';
 import { INTERPOLATIONS_VERZOEGERUNG_MS, PING_INTERVALL_MS } from '../konfiguration.js';
 import { Effekte } from '../darstellung/effekte.js';
 import { SpielSchleife } from './spielSchleife.js';
+import { beobachteAkku, bildrateGrenze } from '../darstellung/grafikEinstellungen.js';
 import { Karte } from '../ui/karte.js';
 import { BauModus } from './bauModus.js';
 import { Klanglandschaft } from '../audio/klaenge.js';
@@ -187,10 +188,13 @@ export class ClientSpiel {
     pingSenden();
     this.pingTimer = setInterval(pingSenden, PING_INTERVALL_MS);
 
+    // Runde 46: Bildrate je Bild aus Einstellung (⚙ Grafik-Details), Akku sparen, offenen Fenstern und Fenster-Fokus
+    this.akku = beobachteAkku();
     this.schleife = new SpielSchleife({
       tickDauerMs: TICK_DAUER_MS,
       festerTakt: () => this.#festerTakt(),
       zeichne: (alpha, jetzt) => this.#zeichne(alpha, jetzt),
+      grenze: () => bildrateGrenze(this.renderer?.details, { amAkku: this.akku.amAkku, fensterOffen: this.#spielVerdeckt(), imHintergrund: !document.hasFocus() }),
     });
     this.schleife.starten();
     // Runde 24: Radio/Plattenspieler im Haus + Auswahlfenster
@@ -477,6 +481,15 @@ export class ClientSpiel {
   etwasOffen() {
     const h = this.hud;
     return !!(this.karte.offen || h.inventar.offen || h.skills.offen || h.einstellungen.offen || h.kiste.offen || h.station.offen || this.werkbankOffen || this.musikFenster?.offen || this.mehrspieler?.offen || this.bau.aktiv || this.platzierung || this.autoLauf);
+  }
+
+  /**
+   * Runde 46: Spielfenster offen (Inventar, Karte, Werkbank, Kiste …) → die Spielschleife zeichnet sparsamer (RUHE_FPS). Die Einstellungen
+   * zählen nicht – dort will man die Wirkung der Grafik-Regler sofort flüssig sehen.
+   */
+  #spielVerdeckt() {
+    const h = this.hud;
+    return !!(this.karte.offen || h.inventar.offen || h.skills.offen || h.kiste.offen || h.station.offen || this.werkbankOffen || this.musikFenster?.offen || this.mehrspieler?.offen);
   }
 
   /** Fenster offen, durch das ein Klick ins Spiel NICHT schießen soll (Bau-/Platzier-Modus brauchen den Klick). */

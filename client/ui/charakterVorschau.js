@@ -58,6 +58,8 @@ export function fotografiere(spielRenderer, aussehen, breite = 240, hoehe = 320)
   }
 }
 
+const VORSCHAU_BILD_MS = 1000 / 30 - 2; // Runde 46: Bildrate der Vorschau (−2 ms Toleranz für 60-Hz-Takt)
+
 export class CharakterVorschau {
   #renderer = null;
   #szene = null;
@@ -125,10 +127,12 @@ export class CharakterVorschau {
     this.#letzte = performance.now();
     const schleife = (jetzt) => {
       if (!this.#laeuft) return;
+      requestAnimationFrame(schleife);
+      // Runde 46: höchstens ~30 Bilder/s – die Vorschau dreht sich langsam; ohne Grenze lief sie auf 144-Hz-Bildschirmen mit 144 (Strom)
+      if (jetzt - this.#letzte < VORSCHAU_BILD_MS) return;
       const dt = Math.min(0.1, (jetzt - this.#letzte) / 1000);
       this.#letzte = jetzt;
       this.#zeichne(dt);
-      requestAnimationFrame(schleife);
     };
     requestAnimationFrame(schleife);
   }

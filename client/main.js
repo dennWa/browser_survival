@@ -91,7 +91,7 @@ const hauptmenueMusik = () => {
 // sonst startet sie beim allerersten Klick/Tastendruck/Antippen ohne Verzögerung.
 for (const art of ['pointerdown', 'mousedown', 'touchstart', 'keydown']) window.addEventListener(art, hauptmenueMusik, { once: true, passive: true });
 hud.zeigeTon(sound.stumm);
-hud.einstellungen.verbinde({ sound, renderer: () => renderer });
+hud.einstellungen.verbinde({ sound, renderer: () => renderer, spiel: () => aktuellesSpiel });
 hud.einstellungen.verbindeHandy({ hud, touch: eingabe.touch });
 hud.einstellungen.verbindeHaustiere({ liste: () => aktuellesSpiel?.haustiere() ?? [], freilassen: (h) => aktuellesSpiel?.haustierFreilassen(h) });
 

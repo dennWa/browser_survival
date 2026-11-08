@@ -991,7 +991,7 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
 
 /* Einstellungen (⚙) */
 #einstellungen {
-  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 5; pointer-events: auto;
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 21; pointer-events: auto; /* Runde 46: über dem Tagebuch (20) */
   width: min(420px, calc(100vw - 24px)); max-height: calc(100% - 24px); max-height: calc(100dvh - 24px); overflow-y: auto; padding: 14px 16px;
   color: var(--text); background: rgba(16, 18, 22, 0.97);
   border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 14px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
@@ -1005,6 +1005,24 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
 .einst-regler { flex-direction: row; align-items: center; gap: 10px; margin-top: 8px; font-size: 0.9rem; }
 .einst-regler span { flex: 0 0 8.5em; color: var(--text-gedimmt); }
 .einst-regler input[type="range"] { flex: 1; min-width: 0; height: 28px; padding: 0; background: transparent; border: 0; accent-color: var(--akzent-hell); }
+/* Runde 46: Grafik-Details – je Regler eine Knopfreihe (Touch: ≥ 36 px hoch), bei „Auto“ ist der gerade gültige Wert gestrichelt */
+.einst-details-knopf { width: 100%; flex: none; min-height: 36px; margin-top: 2px; }
+#einst-details { margin-top: 4px; }
+.einst-detail { display: grid; grid-template-columns: 7.4em 1fr; align-items: center; gap: 3px 8px; margin-top: 6px; font-size: 0.85rem; }
+.einst-detail-name { color: var(--text-gedimmt); }
+.einst-wahl { display: flex; gap: 3px; min-width: 0; }
+.einst-wahl-knopf { flex: 1 1 0; min-width: 0; min-height: 36px; padding: 4px 2px; font-size: 0.78rem; font-weight: 600; color: var(--text); background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.einst-wahl-knopf.aktiv { background: var(--akzent); border-color: var(--akzent); color: #fff; }
+.einst-wahl-knopf.auto-wert { border: 1px dashed var(--akzent-hell); }
+#einst-details-hilfe { margin-top: 8px; }
+@media (max-width: 420px) {
+  .einst-detail { grid-template-columns: 1fr; }
+}
+/* Runde 46: breite Bildschirme – zwei Spalten (links Ton, rechts Grafik mit Details), damit kaum gescrollt werden muss */
+@media (min-width: 900px) and (min-height: 501px) {
+  #einstellungen { width: min(860px, calc(100vw - 24px)); }
+  .einst-spalten { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; }
+}
 #hud-oben { align-items: flex-start; }
 .hud-knoepfe { flex-wrap: wrap; justify-content: flex-end; }
 @media (max-width: 700px), (max-height: 500px) {
@@ -1018,6 +1036,8 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
   .einst-spalten .inv-titel { margin: 6px 0 4px; }
   .einst-regler { margin-top: 2px; }
   .einst-knopf { min-height: 36px; }
+  .einst-detail { margin-top: 3px; }
+  .einst-wahl-knopf { min-height: 32px; }
 }
 
 /* ---------- v0.10: FPS, Minikarte, Angeln, Auto-Haltbarkeit, Kiste, Statistik ---------- */

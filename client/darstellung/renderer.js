@@ -33,6 +33,7 @@ const WASSER_TIEFE = 15;
 import { SonderEffekte } from './sonderEffekte.js';
 import { LICHTER, hatStrom, leuchtet } from '../../gemeinsam/welt/einrichtung.js';
 import { erkenneGeraet, merkeAutoProfil } from './geraet.js';
+import { GRAFIK_DETAILS, LICHTER_WAHL, SCHATTEN_WAHL, TEXTUR_WAHL, angepassteDetails, detailsFuerProfil, ladeGrafikDetails, pruefeDetail, speichereGrafikDetails } from './grafikEinstellungen.js';
 import { texturiereZombie, zombieMaterial } from './zombieTextur.js';
 import { BodenNebel } from './bodenNebel.js';
 
@@ -69,6 +70,15 @@ import { BodenNebel } from './bodenNebel.js';
  *     Schattenauflösung, Baum-Umrisse/-Schatten) und erst ganz zum Schluss die Auflösung unter 1 – nie unter 0,8
  *   - Figuren außerhalb der Sichtweite werden nicht animiert
  *   - kein `discard` in Welt-Shadern (Schnitt aus, #mitSchnitt) → früher Tiefentest bleibt aktiv; Dächer zuerst gezeichnet
+ * Runde 46 (Energie/Leistung, gemessen: Tag ≈ +70 % Bildrate):
+ *   - Licht-Sätze (LICHT_SAETZE, #waehleLichtSatz): ausgeschaltete Lichter kosten im Shader genauso viel wie leuchtende → tagsüber
+ *     ('aus') bzw. ohne Lampen in Reichweite ('nah') sind die ungenutzten Lichter unsichtbar (= nicht im Shader). Alle drei Sätze
+ *     werden beim Laden vorkompiliert (die kleinen im Hintergrund) → Wechsel ohne Ruckler. Lampen, deren Lichtkreis nicht ins Bild reicht (Sichtfeld-Test, LAMPEN_RAND), leuchten nicht echt.
+ *   - Lichter liegen auf allen Ebenen: sonst sahen Silhouette/Tür-Durchgang 0 Lichter, der Licht-Zustand kippte 2× je Bild und three.js
+ *     suchte für jedes Material jedes Bild das Shader-Programm neu (≈ 1–4 ms CPU je Bild).
+ *   - Zusatz-Durchgänge ohne Matrix-Neuberechnung und ohne die Karten-Gruppen (#zusatzDurchgang)
+ *   - Grafik-Details (grafikEinstellungen.js, setzeDetail): Auflösung, Schatten, Lichtquellen, Kantenglättung, Bodentexturen, Gras einzeln;
+ *     Bildrate/Akku sparen regelt die Spielschleife (clientSpiel)
  */
 const ASSETS = new URL('../assets/', import.meta.url);
 const FIGUR_HOEHE = 64;
@@ -143,6 +153,19 @@ const RUCKSACK_SITZ = { hoch: -4.5, hinten: 5.6, breite: 0.84, hoehe: 0.9, tiefe
 const _rucksackPos = new THREE.Vector3();
 const FREMDE_LAMPEN = 6; // Runde 44: so viele weitere Taschenlampen (nur Strahl + Bodenfleck) über das Licht-Budget hinaus
 const SICHTWEITE = 1300; // weiter entfernte Figuren werden nicht animiert/gezeichnet
+/**
+ * Runde 46: Licht-Sätze (Index = Stufe). Ein Licht mit Stärke 0 kostet im Shader genauso viel wie ein leuchtendes – darum sind nur die
+ * Lichter des Satzes sichtbar (= im Shader), den das Bild gerade braucht: 'aus' = nur Sonne/Mond + Himmel (Tag), 'nah' = + Taschenlampen,
+ * Scheinwerfer, Mündungsfeuer, Streulicht, 'halb' = + erste Hälfte des Lampen-Pools + Kegel, 'voll' = ganzer Lampen-Pool (Laternen, Feuer).
+ * Größer wird sofort, kleiner erst nach LICHT_RUHE_S. Jeder Satz = eigene Shader-Varianten (#vorkompilieren übersetzt alle).
+ */
+const LICHT_SAETZE = ['aus', 'nah', 'halb', 'voll'];
+const VOLLER_SATZ = LICHT_SAETZE.length - 1;
+const HALBER_SATZ = LICHT_SAETZE.indexOf('halb');
+const LICHT_RUHE_S = 1.5;
+/** Runde 46: Kartenlampen bekommen nur ein echtes Licht, wenn ihr Lichtkreis das Bild erreicht (Kugel gegen Kamera-Sichtfeld) – mit
+ *  diesem Rand (px), weil der Pool nur alle 250 ms neu sortiert wird (Auto ≈ 600 px/s) */
+const LAMPEN_RAND = 300;
 const ANIM_HALB_AB = 650; // Zombies weiter weg werden nur jedes 2. Bild animiert (mit doppeltem dt)
 const NEUE_FIGUREN_JE_BILD = 2; // höchstens so viele Zombie-Figuren pro Bild neu aufbauen (Horden-Spawn ruckelte)
 /**
@@ -236,6 +259,9 @@ const WIND_WOLKEN = new THREE.Color(0x8a8f98); // Runde 27: hellere graue Wolken
 
 const _ziel = new THREE.Vector3();
 const _kameraZiel = new THREE.Vector3();
+const _sichtFrustum = new THREE.Frustum();
+const _sichtMatrix = new THREE.Matrix4();
+const _lampenKugel = new THREE.Sphere();
 const _blutRot = new THREE.Color(1, 0.16, 0.1);
 const _schwarz = new THREE.Color(0, 0, 0);
 const _blutHimmel = new THREE.Color(0.2, 0.02, 0.02);
@@ -282,10 +308,14 @@ export class Renderer {
     this.istHandy = matchMedia('(pointer: coarse)').matches;
     // Grafik-Profil vor dem WebGL-Kontext bestimmen: Kantenglättung (MSAA) lässt sich nur beim Anlegen wählen
     this.grafik = ladeGrafik();
+    this.details = ladeGrafikDetails(); // Runde 46: einzelne Grafik-Details (grafikEinstellungen.js, setzeDetail)
     this.geraet = erkenneGeraet(this.istHandy);
     this.autoProfil = this.geraet.profil;
+    this.aufloesungMax = Math.min(window.devicePixelRatio || 1, this.istHandy ? 1.5 : 2);
+    this.kantenAn = this.#kantenglaettung(); // gilt bis zum nächsten Laden (MSAA nur beim Anlegen wählbar)
 
-    this.gl = new THREE.WebGLRenderer({ canvas: this.leinwand, antialias: !this.istHandy && this.#basisProfil() !== 'niedrig', stencil: true, powerPreference: 'high-performance' });
+    this.gl = new THREE.WebGLRenderer({ canvas: this.leinwand, antialias: this.kantenAn, stencil: true, powerPreference: this.details.akku === 'immer' ? 'low-power' : 'high-performance' });
+    this.gl.info.autoReset = false; // Runde 46: Draw-Calls/Dreiecke über alle Durchgänge eines Bildes zählen (zurückgesetzt in zeichne)
     // Grafiktreiber-Absturz (WebGL-Kontext verloren, oft nach einem Ruckler): Ohne Behandlung bleibt das Bild dauerhaft grau –
     // „alles neblig, man sieht nix“. Three.js baut beim Wiederherstellen alles neu hoch; wir melden es dem HUD (beiKontext).
     this.kontextVerloren = false;
@@ -300,6 +330,9 @@ export class Renderer {
     this.leinwand.addEventListener('webglcontextrestored', () => {
       this.kontextVerloren = false;
       console.warn('[3D] WebGL-Kontext wiederhergestellt');
+      // Runde 46: three.js baut alle Programme neu – die gemerkten der kleinen Licht-Sätze sind tot → bis zum nächsten #vorkompilieren 'voll'
+      this.lichtSatzProgramme = LICHT_SAETZE.map((_, satz) => (satz === VOLLER_SATZ ? [] : null));
+      this.#setzeLichtSatz(VOLLER_SATZ);
       this.#groesseAnpassen();
       this.messung = { frames: 0, zeit: 0, seit: 0 }; // der Hänger zählt nicht als „Gerät zu langsam“
       this.messenAb = performance.now() + 3000;
@@ -333,6 +366,8 @@ export class Renderer {
     this.mond.shadow.mapSize.set(this.istHandy ? 1024 : 2048, this.istHandy ? 1024 : 2048);
     Object.assign(this.mond.shadow.camera, { left: -650, right: 650, top: 650, bottom: -650, near: 10, far: 2500 });
     this.mond.shadow.bias = -0.0006;
+    this.umgebung.layers.enableAll(); // Runde 46: Lichter auf allen Ebenen (siehe #baueLichter)
+    this.mond.layers.enableAll();
     this.szene.add(this.umgebung, this.mond, this.mond.target);
 
     /** Wand-Schnitt: Wände zwischen Kamera und eigener Figur werden nahe der Figur weggeschnitten (#mitSchnitt) */
@@ -393,11 +428,10 @@ export class Renderer {
     this.fahrZoom = 1; // Kamera geht beim Fahren etwas weiter weg
 
     // Adaptive Qualität (siehe QUALITAETS_STUFEN)
-    this.aufloesungMax = Math.min(window.devicePixelRatio || 1, this.istHandy ? 1.5 : 2);
     this.stufe = 0;
     this.aufloesung = this.#stufenAufloesung();
     this.#setzeStufe(this.#startStufe());
-    this.mond.castShadow = this.#profil().sonnenschatten;
+    this.mond.castShadow = this.#schattenArt().sonne;
     this.messung = { frames: 0, zeit: 0, seit: 0 };
     this.messenAb = 0;
     // Zoom (Mausrad / zwei Finger), gemerkt im Browser
@@ -541,10 +575,10 @@ export class Renderer {
     this.szene.add(this.karte.statisch, this.karte.beweglich);
     this.natur = this.naturModelle ? NaturSchicht.erzeuge(welt, this.naturModelle, (x, z) => this.#hy(x, z), this.istHandy) : null;
     if (this.natur) {
-      this.natur.gruppe.visible = this.#profil().natur !== false;
+      this.natur.gruppe.visible = this.#naturAn();
       this.szene.add(this.natur.gruppe);
     }
-    this.karte.setzeBaumDetail(QUALITAETS_STUFEN[this.stufe].baumDetail);
+    this.karte.setzeBaumDetail(this.baumDetail);
     this.#vorkompilieren();
     this.aufwaermen();
   }
@@ -553,9 +587,11 @@ export class Renderer {
   statistik() {
     const info = this.gl.info.render;
     const profil = this.grafik === 'auto' ? `Auto→${this.autoProfil}` : this.grafik;
-    const lichter = this.taschenlampen.length + this.lampenPool.length + this.kegelPool.length + this.muendungslichter.length + this.scheinwerfer.length + 1;
+    const pool = [...this.taschenlampen, ...this.lampenPool, ...this.kegelPool, ...this.muendungslichter, ...this.scheinwerfer, this.streuLicht];
+    const imShader = pool.filter((l) => l.visible).length + 2; // + Sonne/Mond + Himmel
     const abstuerze = this.kontextVerluste ? ` · Grafik-Abstürze ${this.kontextVerluste}` : '';
-    return `Draw-Calls ${info.calls} · Dreiecke ${Math.round(info.triangles / 1000)}k · ${profil} · Qualität ${this.stufe} · Auflösung ${this.aufloesung.toFixed(2)} · Lichter ${lichter} · Zoom ${this.zoom.toFixed(2)}${abstuerze}\nGPU ${this.geraet.gpu || '?'}`;
+    const angepasst = angepassteDetails(this.details);
+    return `Draw-Calls ${info.calls} · Dreiecke ${Math.round(info.triangles / 1000)}k · ${profil}${angepasst ? `+${angepasst}` : ''} · Qualität ${this.stufe} · Auflösung ${this.aufloesung.toFixed(2)}${this.kantenAn ? ' · MSAA' : ''} · Lichter ${imShader}/${pool.length + 2} (${LICHT_SAETZE[this.lichtSatz]}) · Zoom ${this.zoom.toFixed(2)}${abstuerze}\nGPU ${this.geraet.gpu || '?'}`;
   }
 
   /**
@@ -563,6 +599,7 @@ export class Renderer {
    */
   zeichne({ fokus, entitaeten, gegenstaende, itemDefinitionen = {}, jetzt, effekte = null, markiertId = null, zielId = null, tageszeit = null, wetter = 'klar' }) {
     if (this.kontextVerloren) return; // ohne Kontext zeichnet Three.js nichts – auch keine Zustände weiterschieben
+    this.gl.info.reset();
     const roh = this.letzteZeit ? (jetzt - this.letzteZeit) / 1000 : 0;
     const dt = Number.isFinite(roh) ? Math.max(0, Math.min(0.1, roh)) : 0; // Runde 26: nie negativ/NaN (sonst kippen Wetter/Nebel dauerhaft)
     this.letzteZeit = jetzt;
@@ -645,6 +682,7 @@ export class Renderer {
       effekte.aktualisiere(dt, jetzt);
       this.#aktualisiereEffekte(effekte.zustand);
     }
+    this.#waehleLichtSatz(jetzt); // Runde 46: erst nach allen Licht-Stärken dieses Bildes
 
     // Runde 18 (4.1): Sichtweiten-Culling – Blöcke jenseits von Nebelweite + Puffer gar nicht erst zeichnen (auch nicht im Schattendurchgang)
     let weite = (this.szene.fog?.far ?? Infinity) + SICHT_PUFFER;
@@ -674,23 +712,37 @@ export class Renderer {
     const figur = this.figuren.get(fokus.id);
     if (!figur || !figur.gruppe.visible || fokus.fahrzeugId) return;
     figur.gruppe.traverse((o) => o.layers.enable(SILHOUETTE_EBENE)); // Waffe/Haare wechseln → jedes Mal (≈50 Objekte)
+    this.#zusatzDurchgang(SILHOUETTE_EBENE, [SILHOUETTE_MARKE, SILHOUETTE_GRAU], [this.karte?.statisch, this.karte?.beweglich, this.natur?.gruppe]);
+  }
+
+  /**
+   * Runde 46: zusätzlicher Durchgang auf einer Ebene (Silhouette, Tür-Schimmer) über das fertige Bild: ohne Schattenkarten, Hintergrund
+   * (würde den Bildpuffer löschen) und Matrix-Neuberechnung (vom Hauptbild noch aktuell); `ohne` = große Gruppen, die nichts auf der
+   * Ebene enthalten – ausgeblendet muss three.js ihre tausenden Objekte nicht durchlaufen.
+   */
+  #zusatzDurchgang(ebene, materialien, ohne) {
     const { gl, szene, kamera3d } = this;
     const schatten = gl.shadowMap.autoUpdate;
     const ebenen = kamera3d.layers.mask;
+    const hintergrund = szene.background;
+    const gruppen = ohne.filter((g) => g?.visible);
+    for (const g of gruppen) g.visible = false;
     gl.shadowMap.autoUpdate = false;
     gl.autoClear = false;
-    const hintergrund = szene.background;
-    szene.background = null; // eine Farb-Hintergrund würde den Bildpuffer sonst bei jedem render() löschen
-    kamera3d.layers.set(SILHOUETTE_EBENE);
-    szene.overrideMaterial = SILHOUETTE_MARKE;
-    gl.render(szene, kamera3d);
-    szene.overrideMaterial = SILHOUETTE_GRAU;
-    gl.render(szene, kamera3d);
+    szene.background = null;
+    szene.matrixWorldAutoUpdate = false;
+    kamera3d.layers.set(ebene);
+    for (const m of materialien) {
+      szene.overrideMaterial = m;
+      gl.render(szene, kamera3d);
+    }
     szene.overrideMaterial = null;
+    szene.matrixWorldAutoUpdate = true;
     szene.background = hintergrund;
     kamera3d.layers.mask = ebenen;
     gl.autoClear = true;
     gl.shadowMap.autoUpdate = schatten;
+    for (const g of gruppen) g.visible = true;
   }
 
   /** Zusätzlicher Durchgang: Türen (Ebene TUER_EBENE), die von Wänden verdeckt sind, als goldener Schimmer. */
@@ -698,21 +750,8 @@ export class Renderer {
     if (!(abstand < TUER_SCHIMMER_WEITE)) return; // keine Tür in der Nähe
     // je näher an der Tür, desto deutlicher (schwach am Rand der Reichweite)
     TUER_UMRISS.opacity = 0.12 + 0.3 * Math.min(1, (TUER_SCHIMMER_WEITE - abstand) / (TUER_SCHIMMER_WEITE * 0.6));
-    const { gl, szene, kamera3d } = this;
-    const schatten = gl.shadowMap.autoUpdate;
-    const ebenen = kamera3d.layers.mask;
-    gl.shadowMap.autoUpdate = false;
-    gl.autoClear = false;
-    const hintergrund = szene.background;
-    szene.background = null;
-    kamera3d.layers.set(TUER_EBENE);
-    szene.overrideMaterial = TUER_UMRISS;
-    gl.render(szene, kamera3d);
-    szene.overrideMaterial = null;
-    szene.background = hintergrund;
-    kamera3d.layers.mask = ebenen;
-    gl.autoClear = true;
-    gl.shadowMap.autoUpdate = schatten;
+    // Kartentüren hängen in karte.beweglich, gebaute Türen (bauwerkModelle) direkt in der Szene → nur statisch + Gras ausblenden
+    this.#zusatzDurchgang(TUER_EBENE, [TUER_UMRISS], [this.karte?.statisch, this.natur?.gruppe]);
   }
 
   /**
@@ -1171,6 +1210,7 @@ export class Renderer {
     const icon = new THREE.Mesh(this.#itemMaterial('apfel').geometrie, this.#itemMaterial('apfel').markiert);
     probe.add(icon, this.#itemMesh({ id: -2, defId: 'apfel', x: 0, y: 0 }), this.#blutMesh({ sprite: 'blutlache', groesse: 10, winkel: 0, x: 0, y: 0 }));
     this.szene.add(probe);
+    this.#setzeLichtSatz(VOLLER_SATZ);
     this.lampenPool.forEach((l) => (l.intensity = 1));
     this.kegelPool.forEach((l) => (l.intensity = 1));
     for (const ring of [this.gebietRing, this.gebietVorschau]) {
@@ -1182,7 +1222,69 @@ export class Renderer {
     this.gl.compile(this.szene, this.kamera3d);
     for (const t of Object.values(this.skins)) this.gl.initTexture(t);
     this.gl.render(this.szene, this.kamera3d); // auch Schatten-Shader & Uploads einmal anstoßen
+    // Runde 46: die kleineren Licht-Sätze ('halb', 'nah', 'aus') mitkompilieren – ohne sie zu benutzen: Mit KHR_parallel_shader_compile
+    // übersetzt der Treiber sie im Hintergrund (kein Hänger, Ladezeit bleibt), #waehleLichtSatz wechselt erst, wenn sie fertig sind (isReady).
+    // (Gemessen Runde 46: erster Wechsel ohne Vorkompilieren ≈ 2,3 s Standbild in Software-GL.)
+    for (let satz = VOLLER_SATZ - 1; satz >= 0; satz--) {
+      this.#setzeLichtSatz(satz);
+      const materialien = this.gl.compile(this.szene, this.kamera3d);
+      this.lichtSatzProgramme[satz] = [...materialien].map((m) => this.gl.properties.get(m)?.currentProgram).filter((programm) => programm?.isReady);
+    }
+    this.#setzeLichtSatz(VOLLER_SATZ);
+    this.lichtRuhe = 0;
     this.szene.remove(probe);
+  }
+
+  /**
+   * Runde 46: Licht-Satz (LICHT_SAETZE) für dieses Bild – erst NACH allen Licht-Stärken aufrufen. Größerer Satz sofort (kein Licht geht
+   * verloren), kleinerer erst nach LICHT_RUHE_S ohne Bedarf (kein Flackern zwischen Sätzen) und nur, wenn er fertig kompiliert ist.
+   */
+  #waehleLichtSatz(jetzt) {
+    const an = (l) => l.intensity > 0;
+    // Pool-Lichter sind von vorn belegt (nächste Lampen zuerst) → höchster leuchtender Platz = nötige Anzahl
+    let lampen = 0;
+    this.lampenPool.forEach((l, i) => an(l) && (lampen = i + 1));
+    const soll = lampen > this.#halberPool() ? VOLLER_SATZ
+      : lampen > 0 || this.kegelPool.some(an) ? HALBER_SATZ
+        : this.taschenlampen.some(an) || this.scheinwerfer.some(an) || this.muendungslichter.some(an) || an(this.streuLicht) ? 1 : 0;
+    if (soll >= this.lichtSatz || !(this.lichtRuhe > 0)) {
+      this.lichtRuhe = soll >= this.lichtSatz ? 0 : jetzt; // seit wann braucht es weniger? (echte Zeit – dt ist je Bild gedeckelt)
+      if (soll > this.lichtSatz) this.#setzeLichtSatz(this.#bereiterLichtSatz(soll));
+      return;
+    }
+    if (jetzt - this.lichtRuhe < LICHT_RUHE_S * 1000) return;
+    const ziel = this.#bereiterLichtSatz(soll);
+    if (ziel < this.lichtSatz) this.#setzeLichtSatz(ziel);
+  }
+
+  /** Lampen-Pool-Plätze im Satz 'halb' */
+  #halberPool() {
+    return Math.ceil(this.lampenPool.length / 2);
+  }
+
+  /** Kleinster fertig kompilierte Licht-Satz ≥ soll ('voll' ist immer fertig – er wird beim Laden blockierend kompiliert). */
+  #bereiterLichtSatz(soll) {
+    for (let satz = soll; satz < VOLLER_SATZ; satz++) {
+      const programme = this.lichtSatzProgramme?.[satz];
+      if (!programme) continue; // noch nicht kompiliert (vor dem ersten #vorkompilieren / nach neuen Lichtern)
+      if (programme.length && !programme.every((programm) => programm.isReady())) continue;
+      this.lichtSatzProgramme[satz] = [];
+      return satz;
+    }
+    return VOLLER_SATZ;
+  }
+
+  /** Lichter des Satzes sichtbar (= im Shader), alle anderen unsichtbar. Unsichtbare Lichter werfen auch keine Schattenkarte. */
+  #setzeLichtSatz(satz) {
+    const vorher = this.lichtSatz;
+    const nah = satz >= 1;
+    const halb = this.#halberPool();
+    this.lampenPool.forEach((l, i) => (l.visible = satz === VOLLER_SATZ || (satz === HALBER_SATZ && i < halb)));
+    for (const l of this.kegelPool) l.visible = satz >= HALBER_SATZ;
+    for (const l of [...this.taschenlampen, ...this.scheinwerfer, ...this.muendungslichter, this.streuLicht]) l.visible = nah;
+    // Taschenlampe wieder da: Schattenkarte sofort neu zeichnen (sonst leer = schwarz bzw. alte Schatten an alter Stelle)
+    if (nah && !(vorher >= 1)) for (const l of this.taschenlampen) if (l.castShadow) l.shadow.needsUpdate = true;
+    this.lichtSatz = satz;
   }
 
   /**
@@ -1282,9 +1384,11 @@ export class Renderer {
 
   /** Lichter nach dem Lichtbudget des Profils (neu) anlegen. @returns true, wenn sich etwas geändert hat (→ Shader neu kompilieren) */
   #baueLichter() {
-    const name = this.#basisProfil();
-    if (this.lichtProfil === name) return false;
-    this.lichtProfil = name;
+    const name = this.#lichtBudget();
+    const lampenSchatten = this.#schattenArt().lampe;
+    const schluessel = `${name}|${lampenSchatten}`;
+    if (this.lichtProfil === schluessel) return false;
+    this.lichtProfil = schluessel;
     const budget = LICHT_BUDGET[name];
     const art = this.istHandy ? 'handy' : 'desktop';
     for (const l of [...(this.taschenlampen ?? []), ...(this.lampenPool ?? []), ...(this.kegelPool ?? []), ...(this.muendungslichter ?? []), ...(this.scheinwerfer ?? []), ...(this.streuLicht ? [this.streuLicht] : [])]) {
@@ -1297,7 +1401,7 @@ export class Renderer {
       k.geometry.dispose();
       k.material.dispose();
     }
-    this.taschenlampen = Array.from({ length: budget.taschen }, (_, i) => this.#neueTaschenlampe(i === 0));
+    this.taschenlampen = Array.from({ length: budget.taschen }, (_, i) => this.#neueTaschenlampe(i === 0 && lampenSchatten));
     this.taschenKegel = Array.from({ length: budget.taschen }, () => this.#neuerLichtKegel()); // sichtbarer Strahl
     // Runde 44: Taschenlampen weiterer Spieler (über das Licht-Budget hinaus) – nur sichtbarer Strahl + Lichtfleck am Boden, kein echtes Licht
     this.fremdeLampen = Array.from({ length: FREMDE_LAMPEN }, () => ({ kegel: this.#neuerLichtKegel(), fleck: this.#neuerLichtFleck() }));
@@ -1307,6 +1411,14 @@ export class Renderer {
     this.scheinwerfer = [0, 1].map(() => this.#neuerScheinwerfer());
     this.streuLicht = this.#neuesPunktlicht(0xffe2b0, STREULICHT.reichweite); // immer da (feste Lichtanzahl → keine Shader-Neubauten)
     this.naechsteLampen = null;
+    // Runde 46: Lichter auf allen Ebenen – sonst zählen Silhouette/Tür-Durchgang 0 Lichter, der Licht-Zustand kippt zweimal je Bild und
+    // three.js sucht für jedes beleuchtete Material jedes Bild das Programm neu. Neue Lichter = Satz 'voll', die kleineren kompiliert
+    // erst #vorkompilieren (vorher bleibt es bei 'voll').
+    for (const l of [...this.taschenlampen, ...this.lampenPool, ...this.kegelPool, ...this.muendungslichter, ...this.scheinwerfer, this.streuLicht]) l.layers.enableAll();
+    for (const l of this.taschenlampen) if (l.castShadow) l.shadow.needsUpdate = true; // neue Karte sofort füllen (leer = Schwarzbild)
+    this.lichtSatz = VOLLER_SATZ;
+    this.lichtRuhe = 0;
+    this.lichtSatzProgramme = LICHT_SAETZE.map((_, satz) => (satz === VOLLER_SATZ ? [] : null));
     return true;
   }
 
@@ -1325,9 +1437,39 @@ export class Renderer {
     return GRAFIK_PROFILE[this.#basisProfil()];
   }
 
-  /** Werden die Schattenkarten in diesem Bild neu gezeichnet? (schattenTakt aus Profil bzw. Qualitätsstufe) */
+  /** Runde 46: Licht-Budget ('hoch'|'mittel'|'niedrig') – Detail „Lichtquellen“ oder das Profil */
+  #lichtBudget() {
+    return LICHTER_WAHL[this.details.lichter] ?? this.#basisProfil();
+  }
+
+  /** Runde 46: fest gewählte Schatten (Detail „Schatten“, SCHATTEN_WAHL) oder null = Profil + automatische Qualitätsstufe */
+  #schattenWahl() {
+    return SCHATTEN_WAHL[this.details.schatten] ?? null;
+  }
+
+  /** Sonnen- und Taschenlampenschatten an? (Detail oder Profil) */
+  #schattenArt() {
+    return this.#schattenWahl() ?? { sonne: this.#profil().sonnenschatten, lampe: true };
+  }
+
+  /** Runde 46: 3D-Gras/Blumen sichtbar? (Detail „Gras & Blumen“ oder Profil: niedrig = aus) */
+  #naturAn() {
+    const wahl = this.details.natur;
+    return wahl === 'auto' ? this.#profil().natur !== false : wahl === 'an';
+  }
+
+  /** Runde 46: Kantenglättung (MSAA, nur beim Anlegen des Kontexts wählbar). Auto: nicht auf Handys, im Profil niedrig und ab
+   *  ≥ 1,75-facher Render-Pixeldichte (Retina: Kanten sind dort schon fein, MSAA kostet bei 4-facher Pixelzahl viel Speicher & Bandbreite). */
+  #kantenglaettung() {
+    if (this.details.kanten === 'an') return true;
+    if (this.details.kanten === 'aus') return false;
+    return !this.istHandy && this.#basisProfil() !== 'niedrig' && this.#stufenAufloesung() < 1.75;
+  }
+
+  /** Werden die Schattenkarten in diesem Bild neu gezeichnet? (Detail „Schatten“, sonst schattenTakt aus Profil bzw. Qualitätsstufe) */
   #schattenDran() {
-    const takt = Math.max(this.#profil().schattenTakt ?? 1, QUALITAETS_STUFEN[this.stufe]?.schattenTakt ?? 1);
+    const wahl = this.#schattenWahl();
+    const takt = wahl ? wahl.takt : Math.max(this.#profil().schattenTakt ?? 1, QUALITAETS_STUFEN[this.stufe]?.schattenTakt ?? 1);
     return this.bildNr % takt === 0;
   }
 
@@ -1491,14 +1633,17 @@ export class Renderer {
     return this.#profil().stufe ?? (this.istHandy ? 2 : 0);
   }
 
-  /** Pixelverhältnis: im Profil "hoch" immer volle Geräteauflösung (nie automatisch unscharf), sonst die Profil-Grenze. */
+  /** Pixelverhältnis: Detail „Auflösung“ (Anteil der Geräteauflösung), sonst im Profil "hoch" volle Geräteauflösung (nie automatisch
+   *  unscharf), sonst die Profil-Grenze. */
   #stufenAufloesung() {
+    const wahl = this.details.aufloesung; // Runde 46: fester Anteil der Geräteauflösung (Detail „Auflösung“)
+    if (typeof wahl === 'number') return Math.max(0.35, Math.round(this.aufloesungMax * wahl * 100) / 100);
     const grenze = this.#profil().aufloesung;
     return Math.min(this.aufloesungMax, grenze ?? (this.istHandy ? 1.25 : 2));
   }
 
   #bodenMassstab(welt = this.welt) {
-    const massstab = this.#profil().texturen;
+    const massstab = TEXTUR_WAHL[this.details.texturen] ?? this.#profil().texturen;
     // Speicherbudget: Bodentextur (RGBA + Mipmaps ≈ ×1,33) der ganzen Zone passt in BODEN_SPEICHER_MB – große Zonen werden gröber
     const budget = (this.istHandy ? BODEN_SPEICHER_MB.handy : BODEN_SPEICHER_MB.pc) * 1024 * 1024;
     const g = welt?.kachelGroesse ?? 32;
@@ -1516,22 +1661,68 @@ export class Renderer {
     } catch {
       // egal
     }
+    // Runde 46: Profil = Voreinstellung → alle Bild-Details wieder „Auto“ (Bildrate & Akku sparen bleiben)
+    this.details = detailsFuerProfil(this.details);
+    speichereGrafikDetails(this.details);
     this.#wendeProfilAn();
   }
 
-  /** Text für die Einstellungen (bei Auto mit der gerade gewählten Basis) */
+  /**
+   * Runde 46: einzelnes Grafik-Detail (grafikEinstellungen.js GRAFIK_DETAILS) – wirkt sofort (Kantenglättung ab dem nächsten Laden,
+   * Bildrate/Akku liest die Spielschleife je Bild), wird im Browser gemerkt.
+   */
+  setzeDetail(name, wert) {
+    const d = GRAFIK_DETAILS[name];
+    if (!d) return;
+    const neu = pruefeDetail(name, wert);
+    if (this.details[name] === neu) return;
+    this.details = { ...this.details, [name]: neu };
+    speichereGrafikDetails(this.details);
+    if (d.bild && !d.neustart) this.#wendeProfilAn();
+  }
+
+  /** Runde 46: Was „Auto“ bei einem Bild-Detail gerade bedeutet (ein Optionswert aus GRAFIK_DETAILS) – Markierung in den Einstellungen. */
+  detailAuto(name) {
+    const profil = this.#profil();
+    const basis = this.#basisProfil();
+    switch (name) {
+      case 'aufloesung': {
+        const anteil = Math.min(1, (profil.aufloesung ?? (this.istHandy ? 1.25 : 2)) / this.aufloesungMax);
+        return [1, 0.85, 0.7, 0.5].reduce((a, b) => (Math.abs(b - anteil) < Math.abs(a - anteil) ? b : a));
+      }
+      case 'schatten':
+        if (!profil.sonnenschatten) return 'niedrig';
+        return Math.max(profil.schattenTakt ?? 1, QUALITAETS_STUFEN[this.stufe]?.schattenTakt ?? 1) > 1 || QUALITAETS_STUFEN[this.stufe]?.schatten < 2048 || this.istHandy ? 'mittel' : 'hoch';
+      case 'lichter':
+        return { hoch: 'viele', mittel: 'normal', niedrig: 'wenige' }[basis];
+      case 'kanten':
+        return this.kantenAn ? 'an' : 'aus';
+      case 'texturen':
+        return { 1: 'hoch', 0.6: 'mittel', 0.4: 'niedrig' }[profil.texturen] ?? 'mittel';
+      case 'natur':
+        return profil.natur !== false ? 'an' : 'aus';
+      default:
+        return null;
+    }
+  }
+
+  /** Text für die Einstellungen (bei Auto mit der gerade gewählten Basis, dazu die Zahl der fest eingestellten Details) */
   grafikBeschreibung() {
     const p = GRAFIK_PROFILE[this.grafik];
-    return this.grafik === 'auto' ? `${p.name}: ${p.beschreibung} – gerade ${GRAFIK_PROFILE[this.autoProfil].name}` : `${p.name}: ${p.beschreibung}`;
+    const text = this.grafik === 'auto' ? `${p.name}: ${p.beschreibung} – gerade ${GRAFIK_PROFILE[this.autoProfil].name}` : `${p.name}: ${p.beschreibung}`;
+    const n = angepassteDetails(this.details);
+    return n ? `${text} · ${n} ${n === 1 ? 'Detail' : 'Details'} angepasst` : text;
   }
 
   #wendeProfilAn() {
-    const profil = this.#profil();
     this.#setzeStufe(this.#startStufe());
-    this.mond.castShadow = profil.sonnenschatten;
-    if (this.natur) this.natur.gruppe.visible = profil.natur !== false; // Gras nur in den Profilen hoch/mittel
+    const sonne = this.#schattenArt().sonne;
+    const sonneNeu = this.mond.castShadow !== sonne;
+    this.mond.castShadow = sonne;
+    if (this.natur) this.natur.gruppe.visible = this.#naturAn(); // Gras nur in den Profilen hoch/mittel (bzw. Detail)
     this.karte?.setzeBodenMassstab(this.#bodenMassstab());
-    if (this.#baueLichter() && this.welt) this.#vorkompilieren(); // andere Lichteranzahl → alle Shader einmal neu (kurzer Hänger)
+    // andere Lichteranzahl/Schattenlampe oder Sonnenschatten an/aus → alle Shader einmal neu (kurzer Hänger, nur beim Umstellen)
+    if ((this.#baueLichter() || sonneNeu) && this.welt) this.#vorkompilieren();
     // ⚠ „Nebel-/Schwarz-Bug“ beim Qualitätswechsel: Wird der Sonnenschatten neu eingeschaltet, ist die Schattenkarte leer – nachts/in der
     // Dämmerung zeichnet #tageslicht sie nicht (autoUpdate aus) → leere Karte = „alles liegt im Schatten“ = schwarzes Bild. Einmal erzwingen.
     this.mond.shadow.needsUpdate = true;
@@ -1542,22 +1733,27 @@ export class Renderer {
   }
 
   #setzeStufe(stufe) {
-    const vorher = QUALITAETS_STUFEN[this.stufe];
     this.stufe = stufe;
     const neu = QUALITAETS_STUFEN[stufe];
+    const wahl = this.#schattenWahl(); // Runde 46: feste Schatten-Wahl schlägt die automatische Stufe
     const aufloesung = this.#stufenAufloesung();
     if (aufloesung !== this.aufloesung) {
       this.aufloesung = aufloesung;
       this.gl.setPixelRatio(aufloesung);
     }
-    const schatten = this.istHandy ? Math.min(1024, neu.schatten) : neu.schatten;
+    const groesse = wahl?.groesse ?? neu.schatten;
+    const schatten = this.istHandy ? Math.min(1024, groesse) : groesse;
     if (schatten !== this.mond.shadow.mapSize.x) {
       this.mond.shadow.mapSize.set(schatten, schatten);
       this.mond.shadow.map?.dispose();
       this.mond.shadow.map = null;
       this.mond.shadow.needsUpdate = true; // neue Karte sofort füllen (sonst nachts leer = schwarz, s. #wendeProfilAn)
     }
-    if (neu.baumDetail !== vorher.baumDetail) this.karte?.setzeBaumDetail(neu.baumDetail);
+    const baeume = wahl ? wahl.baeume : neu.baumDetail;
+    if (baeume !== this.baumDetail) {
+      this.baumDetail = baeume;
+      this.karte?.setzeBaumDetail(baeume);
+    }
   }
 
   #aktualisiereFiguren(entitaeten, fokus, dt, jetzt) {
@@ -2287,8 +2483,17 @@ export class Renderer {
       const abstand = (a, b) => Math.hypot(a.x - fokus.x, a.z - fokus.y) - Math.hypot(b.x - fokus.x, b.z - fokus.y);
       // Runde 44: Lagerfeuer in Sichtweite zuerst – sein Licht soll nicht verschwinden, nur weil Lampen/Lichterketten näher sind
       const rang = (l) => (l.vorrang && Math.hypot(l.x - fokus.x, l.z - fokus.y) < FEUER_VORRANG_WEITE ? -1e6 : 0) + Math.hypot(l.x - fokus.x, l.z - fokus.y);
-      this.naechsteLampen = lampen.filter((l) => l.objekt.art !== 'kegel' && !l.aus && !(l.daten && !(l.daten.glanz > 0.005))).sort((a, b) => rang(a) - rang(b)).slice(0, this.lampenPool.length);
-      this.naechsteKegel = lampen.filter((l) => l.objekt.art === 'kegel' && !l.aus).sort(abstand).slice(0, this.kegelPool.length);
+      // Runde 46: nur Lampen, deren Lichtkreis das Bild erreichen kann (Kugel mit Lichtweite + LAMPEN_RAND gegen das Kamera-Sichtfeld) –
+      // sonst belegen Lampen außerhalb des Bildes den Pool und der kleinere Licht-Satz ('nah', ohne Pool) greift nachts nie
+      this.kamera3d.updateMatrixWorld();
+      _sichtFrustum.setFromProjectionMatrix(_sichtMatrix.multiplyMatrices(this.kamera3d.projectionMatrix, this.kamera3d.matrixWorldInverse));
+      const inReichweite = (l) => {
+        _lampenKugel.center.set(l.x, l.y, l.z);
+        _lampenKugel.radius = (l.lichtReichweite ?? l.reichweite ?? 0) * 1.4 + LAMPEN_RAND;
+        return _sichtFrustum.intersectsSphere(_lampenKugel);
+      };
+      this.naechsteLampen = lampen.filter((l) => l.objekt.art !== 'kegel' && !l.aus && !(l.daten && !(l.daten.glanz > 0.005)) && inReichweite(l)).sort((a, b) => rang(a) - rang(b)).slice(0, this.lampenPool.length);
+      this.naechsteKegel = lampen.filter((l) => l.objekt.art === 'kegel' && !l.aus && inReichweite(l)).sort(abstand).slice(0, this.kegelPool.length);
     }
     this.kegelPool.forEach((licht, i) => {
       const lampe = this.naechsteKegel[i];

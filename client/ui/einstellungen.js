@@ -1,10 +1,13 @@
 import { LAUTSTAERKE_KANAELE } from '../audio/sound.js';
 import { GRAFIK_PROFILE } from '../darstellung/renderer.js';
+import { AKKU_FPS, GRAFIK_DETAILS } from '../darstellung/grafikEinstellungen.js';
 
 /**
  * Einstellungen-Fenster (⚙ in der oberen Leiste): Ton an/aus, drei Lautstärkeregler (Gesamt, Effekte, Wind &
  * Umgebung), Grafikstufe (hoch / mittel / niedrig) sowie – für Handys wichtig – Vollbild und Abmelden.
  * Runde 27: Abschnitt „Haustiere“ (nur mit eigenem Hund/Katze) – Freilassen per Doppel-Tipp (1. Tipp fragt nach).
+ * Runde 46: „Details anpassen“ unter dem Grafikprofil – je Regler (grafikEinstellungen.js GRAFIK_DETAILS) eine Knopfreihe; bei „Auto“
+ *   zeigt ein gestrichelter Rahmen, was Auto gerade bedeutet (renderer.detailAuto). Darunter die Hilfe zum zuletzt angefassten Regler.
  * Die Werte merken sich Sound (localStorage `browserSurvival.ton`) und Renderer (`browserSurvival.grafik`) selbst;
  * dieses Fenster zeigt sie nur an. Sound/Renderer kommen per verbinde(), weil der Renderer erst nach dem Laden existiert.
  */
@@ -15,6 +18,8 @@ export class EinstellungenFenster {
   #handy = null;
   #haustiere = null;
   #freilassenFrage = null; // 'art:name' nach dem ersten Tipp
+  #spiel = () => null;
+  #hilfeDetail = null; // zuletzt angefasster Grafik-Regler (Hilfetext)
 
   constructor(dokument) {
     this.dokument = dokument;
@@ -22,6 +27,13 @@ export class EinstellungenFenster {
     this.reglerEl = dokument.getElementById('einstellungen-regler');
     this.grafikEl = dokument.getElementById('einstellungen-grafik');
     this.grafikInfo = dokument.getElementById('einstellungen-grafik-info');
+    this.detailsEl = dokument.getElementById('einst-details');
+    this.detailsHilfe = dokument.getElementById('einst-details-hilfe');
+    this.detailsKnopf = dokument.getElementById('einst-details-knopf');
+    this.detailsKnopf.addEventListener('click', () => {
+      this.detailsEl.hidden = !this.detailsEl.hidden;
+      this.#aktualisiere();
+    });
     dokument.getElementById('einstellungen-schliessen').addEventListener('click', () => this.zeige(false));
     dokument.getElementById('hud-einstellungen').addEventListener('click', () => this.zeige());
     this.minikarteKnopf = dokument.getElementById('einst-minikarte');
@@ -89,12 +101,14 @@ export class EinstellungenFenster {
     );
   }
 
-  /** @param sound Sound-Objekt · @param renderer Funktion, die den Renderer (oder null) liefert */
-  verbinde({ sound, renderer }) {
+  /** @param sound Sound-Objekt · @param renderer Funktion, die den Renderer (oder null) liefert · @param spiel Funktion → laufendes ClientSpiel (Akku, Bildrate) */
+  verbinde({ sound, renderer, spiel = () => null }) {
     this.#sound = sound;
     this.#renderer = renderer;
+    this.#spiel = spiel;
     this.#baueRegler();
     this.#baueGrafik();
+    this.#baueDetails();
   }
 
   /** Minikarte ein-/ausblenden: wechsle() schaltet um (Hud), zeigeMinikarte() aktualisiert die Beschriftung. */
@@ -147,11 +161,71 @@ export class EinstellungenFenster {
     );
   }
 
+  /** Runde 46: je Grafik-Detail eine Zeile „Name  [Option][Option]…“ (Knöpfe – auch am Handy gut zu treffen) */
+  #baueDetails() {
+    this.detailsEl.replaceChildren(
+      ...Object.entries(GRAFIK_DETAILS).map(([name, d]) => {
+        const zeile = Object.assign(this.dokument.createElement('div'), { className: 'einst-detail' });
+        const wahl = Object.assign(this.dokument.createElement('div'), { className: 'einst-wahl' });
+        wahl.setAttribute('role', 'group');
+        wahl.setAttribute('aria-label', d.name);
+        for (const [wert, text] of d.optionen) {
+          const knopf = Object.assign(this.dokument.createElement('button'), { type: 'button', className: 'einst-wahl-knopf', textContent: text });
+          knopf.dataset.detail = name;
+          knopf.dataset.wert = String(wert);
+          knopf.addEventListener('click', () => {
+            this.#hilfeDetail = name;
+            this.#renderer()?.setzeDetail?.(name, wert);
+            this.#aktualisiere();
+          });
+          wahl.append(knopf);
+        }
+        zeile.append(Object.assign(this.dokument.createElement('span'), { className: 'einst-detail-name', textContent: d.name }), wahl);
+        return zeile;
+      }),
+    );
+  }
+
+  /** Hilfe unter den Reglern: Text des zuletzt angefassten Reglers + was gerade gilt (Akku, Kantenglättung ab Neustart) */
+  #detailHilfe(r) {
+    const name = this.#hilfeDetail;
+    if (!name || !r?.details) return '';
+    const d = GRAFIK_DETAILS[name];
+    let text = `${d.name}: ${d.hilfe}`;
+    if (name === 'akku') {
+      const spiel = this.#spiel();
+      const amAkku = spiel?.akku?.amAkku;
+      if (r.details.akku === 'akku') text += amAkku ? ` – Gerade im Akkubetrieb: höchstens ${AKKU_FPS} Bilder/s.` : ' – Gerade am Strom (oder der Browser verrät es nicht): volle Bildrate.';
+      if (r.details.akku === 'immer' || r.details.akku === 'aus') text += ' Sparsamer Grafikchip wechselt erst beim nächsten Start.';
+    }
+    if (name === 'kanten') text += ` Gerade ${r.kantenAn ? 'an' : 'aus'}.`;
+    return text;
+  }
+
   #aktualisiere() {
     this.#baueHaustiere();
     const aktuell = this.#renderer()?.grafik;
     for (const knopf of this.grafikEl.children) knopf.classList.toggle('aktiv', knopf.dataset.grafik === aktuell);
     this.grafikInfo.textContent = aktuell ? (this.#renderer()?.grafikBeschreibung?.() ?? `${GRAFIK_PROFILE[aktuell].name}: ${GRAFIK_PROFILE[aktuell].beschreibung}`) : '';
+    // Runde 46: Grafik-Details
+    const r = this.#renderer();
+    const offen = !this.detailsEl.hidden;
+    this.detailsKnopf.textContent = offen ? 'Details ausblenden ▴' : '⚙ Details anpassen ▾';
+    this.detailsKnopf.setAttribute('aria-expanded', String(offen));
+    this.detailsKnopf.hidden = !r?.details;
+    if (offen && r?.details) {
+      for (const knopf of this.detailsEl.querySelectorAll('.einst-wahl-knopf')) {
+        const name = knopf.dataset.detail;
+        const wert = r.details[name];
+        const istAktiv = String(wert) === knopf.dataset.wert;
+        knopf.classList.toggle('aktiv', istAktiv);
+        // bei „Auto“: gestrichelt, was Auto gerade bedeutet
+        knopf.classList.toggle('auto-wert', wert === 'auto' && String(r.detailAuto?.(name)) === knopf.dataset.wert);
+      }
+    }
+    const hilfe = offen ? this.#detailHilfe(r) : '';
+    this.detailsHilfe.hidden = !hilfe;
+    this.detailsHilfe.textContent = hilfe;
     if (this.#handy) {
       const { hud, touch } = this.#handy;
       const el = this.dokument.getElementById('einst-handy');
