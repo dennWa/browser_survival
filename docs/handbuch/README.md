@@ -2,8 +2,8 @@
 
 > **Zweck dieser Datei:** Zentrale Landkarte des Projekts. Hier steht, *wo* welches System liegt,
 > *wie* die Teile zusammenhängen und *was* der aktuelle Stand ist.
-> **Pflegeregel:** Jede Änderung an Struktur, Protokoll oder Entwicklungsstand wird hier nachgetragen.
-> **Für KI-Sitzungen:** Schnellüberblick in **`KI_INDEX.md`** (kompakt, mit Fallen & Invarianten) – danach hier vertiefen.
+> **Für KI-Sitzungen:** NICHT hier lesen – Einstieg ist `CLAUDE.md` → `ki/<thema>.md` (kompakt, aktuell).
+> **Stand:** Handbuch für Menschen, eingefroren auf Runde 44 (wird nicht mehr bei jeder Runde nachgezogen). Laufend gepflegt wird nur `docs/handbuch/aenderungsprotokoll.md`.
 
 ---
 
@@ -67,13 +67,13 @@ Port ändern: `PORT=3000 npm start`. Andere Spieler im LAN verbinden sich über 
 ---
 
 ## Handbuch-Teile (aufgeteilt, um Tokens zu sparen)
-> Nicht alles lesen – nur den passenden Teil. Für KIs ist `KI_INDEX.md` der Einstieg.
+> Nicht alles lesen – nur den passenden Teil. Für KIs ist `CLAUDE.md` der Einstieg.
 
 | Datei | Inhalt |
 |---|---|
-| `ki/handbuch/architektur.md` | Architektur, Gameplay-Regeln, Spielstände, Darstellung, Sound, Login |
-| `ki/handbuch/dateistruktur.md` | Dateistruktur |
-| `ki/handbuch/wo_aendere_ich.md` | „Wo ändere ich …?“ Schnellnachschlag |
-| `ki/handbuch/entwicklungsstand.md` | Phasen, Ideen-Sammlung, bekannte Grenzen |
-| `ki/handbuch/map_editor.md` | Map-Editor (Handbuch) |
-| `ki/handbuch/aenderungsprotokoll.md` | Änderungsprotokoll (groß – nur gezielt greppen/lesen) |
+| `docs/handbuch/architektur.md` | Architektur, Gameplay-Regeln, Spielstände, Darstellung, Sound, Login |
+| `docs/handbuch/dateistruktur.md` | Dateistruktur |
+| `docs/handbuch/wo_aendere_ich.md` | „Wo ändere ich …?“ Schnellnachschlag |
+| `docs/handbuch/entwicklungsstand.md` | Phasen, Ideen-Sammlung, bekannte Grenzen |
+| `docs/handbuch/map_editor.md` | Map-Editor (Handbuch) |
+| `docs/handbuch/aenderungsprotokoll.md` | Änderungsprotokoll (groß – nur gezielt greppen/lesen) |

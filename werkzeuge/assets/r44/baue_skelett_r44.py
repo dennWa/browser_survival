@@ -27,7 +27,7 @@ ZIEL = os.path.join(WURZEL, 'client', 'assets', '3d', 'zombies', 'skelett.glb')
 ZWISCHEN = os.path.join(tempfile.gettempdir(), 'bs_skelett_r44')
 TEX = 1024
 
-# Landmarken im OBJ-Raum (cm, y oben, Blick +z, +x = linke Körperseite) – aus Querschnitten gemessen (siehe ki/runde44.md)
+# Landmarken im OBJ-Raum (cm, y oben, Blick +z, +x = linke Körperseite) – aus Querschnitten gemessen (siehe archiv/ki_runden/runde44.md)
 LANDMARKEN = {
     'Hips': (-3, 86, -6),
     'Abdomen': (-3.5, 95, -8), 'Torso': (-3.5, 111, -5), 'Chest': (0, 128, -7), 'Neck': (-3, 142, -5), 'Head': (-3.5, 149, -2),

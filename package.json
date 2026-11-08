@@ -21,6 +21,7 @@
     "karte:import": "node werkzeuge/karten/tiled.mjs import",
     "rauchtest": "node werkzeuge/test/rauchtest.mjs",
     "test": "node --test \"tests/**/*.test.js\"",
+    "t": "node werkzeuge/ki/t.mjs",
     "karte:editor": "node werkzeuge/karten/editorImport.mjs",
     "rauchtest:r23": "node werkzeuge/test/rauchtestRunde23.mjs",
     "rauchtest:r24": "node werkzeuge/test/rauchtestRunde24.mjs",
@@ -29,7 +30,9 @@
     "ki:anleitung": "node werkzeuge/ki/kiAnleitung.mjs",
     "studio": "electron studio/main/start.mjs",
     "studio:mcp": "node studio/mcp-bruecke.mjs",
-    "rauchtest:studio": "node werkzeuge/test/studioRauchtest.mjs"
+    "rauchtest:studio": "node werkzeuge/test/studioRauchtest.mjs",
+    "ki:gliederung": "node werkzeuge/ki/gliederung.mjs",
+    "ansicht": "node werkzeuge/test/ansicht.mjs"
   },
   "dependencies": {
     "ws": "^8.22.0"

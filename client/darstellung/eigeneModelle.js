@@ -9,7 +9,7 @@ import { GLTFLoader, SkeletonUtils } from '../vendor/three/addons.js';
  * Größe in den Kasten b × h × hoehe (Kacheln bzw. Einheiten × `einheit`).
  * Animationen (Map-Editor 5.3): die Clips hängen an `szene.animations` (Kopien behalten sie); `leerlaufMischer` spielt den
  * Leerlauf-Clip eines Typs (`typ.animation`) als Schleife. Modelle mit Skelett werden per SkeletonUtils.clone kopiert.
- * (Änderung durch die Editor-Linie mit Nutzer-Freigabe, vermerkt in KI_INDEX.md §10.)
+ * (Änderung durch die Editor-Linie mit Nutzer-Freigabe, Historie: archiv/ki_runden/editor_alt.md.)
  */
 const lader = new GLTFLoader();
 const cache = new Map(); // URL → Promise<Szene>; jede Ansicht klont daraus

@@ -33,7 +33,7 @@ Regeln für deine Antworten:
 | Texte, Tutorial, Credits | `README.md` |
 | Kleine reine Funktion | nur die Spezifikation: Eingabe, Ausgabe, 3 Beispiele |
 
-**Nicht schicken:** `KI_INDEX.md` (63 KB) und `project_manifest.md` (103 KB) – viel zu groß fürs Free-Limit.
+**Nicht schicken:** `docs/handbuch/` (≈150 KB) – viel zu groß fürs Free-Limit. Für Hintergrund reicht die passende kompakte Themen-Datei unter `ki/` (2–7 KB, z. B. `ki/spieler.md` bei Items).
 
 ## Zurück ins Projekt
 Ergebnis dem Haupt-Claude geben („Free-KI hat das geliefert, bitte einbauen, testen, dokumentieren“). `npm test` prüft u. a., ob alle Item-Namen in Rezepten/Loot existieren und ob Icons vorhanden sind – Fehler sind also schnell sichtbar.

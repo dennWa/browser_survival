@@ -4,7 +4,7 @@ Aufruf (aus dem Projektordner):  python -I werkzeuge/assets/r32/baue_r32.py [abs
 Abschnitte: baeume steine gras essen steak waffen tiere deko stuempfe fass_erz  (ohne Angabe: alle)
 
 Quellen liegen NICHT im Repo (gitignored `verteilen bitte/`): ZIPs entpacken nach `_entpackt/<Paket>/`, Sketchfab-Sammlung per
-API nach `_sketchfab/<uid>.glb` laden (siehe ki/runde32.md). Ausgaben:
+API nach `_sketchfab/<uid>.glb` laden (siehe ki/assets.md; Historie archiv/ki_runden/runde32.md). Ausgaben:
   client/assets/3d/baeume/<name>.glb  (+ baeume.json)   Bäume/Büsche im Spielformat: Mesh „rinde“ (Vertexfarben) + „laub“ (Alpha-Textur)
   client/assets/3d/natur/*.glb (+ natur.json)            Gras/Blumen (Karten-Büschel mit gemeinsamer Atlas-Textur)
   client/assets/eigene/r32_*.glb                         Items, Steine/Erz, Tiere, Waffen, Deko (Vertexfarben bzw. Textur)

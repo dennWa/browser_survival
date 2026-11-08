@@ -1,6 +1,6 @@
 /**
  * Credits-Dialog: listet alle Grafikpakete mit Urheber und Lizenz (aus atlas.json) und die eigenen Modelle
- * (client/assets/eigene/credits.json – Einträge aus dem Ordner „!verteilen“, siehe KI_INDEX.md).
+ * (client/assets/eigene/credits.json – Einträge aus dem Ordner „!verteilen“, siehe ki/assets.md).
  * Bei CC-BY-Grafiken ist diese Namensnennung rechtlich Pflicht – bitte nicht entfernen.
  */
 async function ladeEigeneCredits() {

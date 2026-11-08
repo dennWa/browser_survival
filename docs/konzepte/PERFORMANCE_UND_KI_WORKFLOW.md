@@ -1,4 +1,6 @@
-# Konzept: Performance & einfachere KI-Arbeit (Runde 43, Vorschlag – noch nichts umgesetzt)
+# Konzept: Performance & einfachere KI-Arbeit (Runde 43; Teil B in Runde 45 umgesetzt, Teil A offen)
+
+> **Runde 45 umgesetzt:** B1 (Wissen nach Themen `ki/*.md`, Runden → `archiv/ki_runden/`), B2 (Router = `CLAUDE.md`, KI_INDEX entfällt, Handbuch → `docs/handbuch/` eingefroren), B3 teilweise (`npm run ki:gliederung` erzeugt Datei-/Ordnerkarten live aus den Kopfkommentaren statt einer gepflegten Dateikarte), B6 (`ki/rezepte.md`), B7 (`npm run ansicht`), B8 (`npm run t` knapp). Offen: B4 (Riesendateien teilen – vorerst durch Gliederung ersetzt), B5 (Übergänge in einer Datei).
 
 Stand: 2026-11-07. Grundlage: Code-Stand nach Runde 43 (Three.js, Vanilla ESM, kein Build). Reihenfolge = Nutzen/Aufwand.
 

@@ -1088,7 +1088,7 @@ export class Renderer {
             modell.traverse((o) => {
               if (o.material?.map) o.material.map.colorSpace = THREE.SRGBColorSpace;
             });
-          // ⚠ Skelett-Modelle erst nach Matrix-/Skelett-Update messen (sonst ~100× falsch, siehe KI_INDEX §18)
+          // ⚠ Skelett-Modelle erst nach Matrix-/Skelett-Update messen (sonst ~100× falsch, siehe ki/darstellung.md → Fallen)
           modell.updateMatrixWorld(true);
           modell.traverse((o) => {
             if (!o.isMesh) return;

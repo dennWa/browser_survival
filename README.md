@@ -46,8 +46,8 @@ Grafiken neu erzeugen (nur bei Grafik-Änderungen, braucht Python 3):
 `python3 -m venv .venv && .venv/bin/pip install -r werkzeuge/assets/anforderungen.txt && .venv/bin/python werkzeuge/assets/baue_assets.py && npm run assets:3d`
 Lizenzen der Grafiken: [`client/assets/LIZENZEN.md`](client/assets/LIZENZEN.md).
 
-**Architektur, Dateistruktur und Entwicklungsstand:** siehe [`project_manifest.md`](project_manifest.md).
+**Architektur, Dateistruktur und Entwicklungsstand:** siehe [`docs/handbuch/README.md`](docs/handbuch/README.md) (Handbuch, Stand Runde 44) und das [Änderungsprotokoll](docs/handbuch/aenderungsprotokoll.md).
 
 ## Für Entwickler & KIs
-- `KI_INDEX.md` – kompakte Übersicht (Architektur, Dateien, Protokoll, Fallen) · `project_manifest.md` – ausführlich
-- `npm test` · `npm run rauchtest` (Browser-Test) · `werkzeuge/karten/README.md` (neue Zonen mit Tiled)
+- KIs starten mit `CLAUDE.md` (Regeln + Themenkarte) → je Thema eine kompakte Datei unter `ki/` · Handbuch für Menschen: `docs/handbuch/`
+- `npm test` bzw. knapp `npm run t` · `npm run ansicht` (Screenshots im Browser) · `npm run ki:gliederung -- <datei>` (Gliederung großer Dateien) · `npm run rauchtest` · `werkzeuge/karten/README.md` (neue Zonen mit Tiled)

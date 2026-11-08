@@ -3,12 +3,12 @@
 > Arbeitsplan für das große Editor-Update. Wird nach jedem Schritt abgehakt (☐ offen · ◐ in Arbeit · ☑ fertig).
 > Reihenfolge = Abarbeitungsreihenfolge. Größen: S klein · M mittel · L groß · XL sehr groß.
 > Jeder Schritt endet mit: `npm test` grün · Editor-Rauchtest (`npm run rauchtest:editor`) grün und erweitert ·
-> LIESMICH/KI_INDEX/Manifest + Datei-Kopfkommentare nachgezogen · Commit + Push · kurze Rückmeldung mit Spiel-Link.
+> LIESMICH + `ki/editor.md` (Stand ersetzen, Runde 45) + Datei-Kopfkommentare nachgezogen · Commit + Push · kurze Rückmeldung mit Spiel-Link.
 > 🎮 = Schritt ändert auch das Spiel (Server/Client), nicht nur den Editor.
 
 ## 🔁 Übergabe – aktueller Stand (wird nach jeder Phase/jedem Schritt aktualisiert)
 > Falls die Arbeit abbricht: hier weitermachen. Regeln: `CLAUDE.md` (direkt auf `main`, `npm test` vor jedem Commit,
-> KI_INDEX/Manifest/LIESMICH nachziehen). Prüfen: `npm test`, `npm run rauchtest:editor`, `npm run rauchtest`.
+> `ki/editor.md`/LIESMICH nachziehen, 1 Zeile `docs/handbuch/aenderungsprotokoll.md`). Prüfen: `npm run t`, `npm run rauchtest:editor`, `npm run rauchtest`.
 
 **Erledigt (auf `main`):**
 - Phase 1 komplett (1.1–1.6): Bugs B1–B12, Befehlsregister/Menüs/Kontextmenü/Hilfe, neues Layout, Ebenen, Backup.
