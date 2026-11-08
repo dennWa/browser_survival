@@ -71,3 +71,9 @@ export function sekundenFuerStunden(zeit, stunden, dauer) {
   const seitSechs = t < dauer.tagSekunden ? (t / dauer.tagSekunden) * TAG_STUNDEN : TAG_STUNDEN + ((t - dauer.tagSekunden) / dauer.nachtSekunden) * NACHT_STUNDEN;
   return sekundenAusStunden(seitSechs + stunden, dauer) - sekundenAusStunden(seitSechs, dauer);
 }
+
+/** Runde 43: Tageszeit-Objekt für eine feste Uhrzeit (Stunde 0–24, z. B. 20.55) – Zonen mit `festeZeit` (nur Licht/Himmel). */
+export function tageszeitUm(stunde, dauer) {
+  const seitSechs = (((stunde - TAG_BEGINN_STUNDE) % 24) + 24) % 24;
+  return tageszeit(sekundenAusStunden(seitSechs, dauer), dauer);
+}

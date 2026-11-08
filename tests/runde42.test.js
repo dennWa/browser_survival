@@ -54,7 +54,7 @@ test('Sitze: Höhe aus Typ/Modellname, lange Bänke haben mehrere Plätze, Blick
 
 test('Lagerplatz: kleine Karte, ewiges Lagerfeuer, Lichterketten, Sitz-Typen, Übergang zum Stadtrand', () => {
   const karte = ladeKarte('lager');
-  assert.ok(karte.daten.breite <= 50 && karte.daten.hoehe <= 50, 'klein');
+  assert.ok(karte.daten.breite <= 60 && karte.daten.hoehe <= 60, 'klein (Runde 43: mit Rasen-/Waldring)');
   assert.equal(karte.zombieSpawns.length, 0, 'keine Zombies');
   assert.equal(karte.lootPunkte.length, 0, 'kein Loot');
   assert.ok(karte.spielerStarts.length >= 4);

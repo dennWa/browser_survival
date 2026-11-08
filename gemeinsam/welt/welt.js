@@ -43,6 +43,10 @@ export class Welt {
     this.bodenMalerei = kartenDaten.bodenMalerei ?? null; // Runde 41: weich gemalte Böden (nur Optik, bodenTextur.js)
     /** Runde 42: Lichterketten [{ von:[x,y], bis:[x,y], hoehe, durchhang, birnen, farbe }] (Kacheln/m, nur Optik) */
     this.lichterketten = kartenDaten.lichterketten ?? [];
+    /** Runde 43: friedliche Zone (Server: kein Schaden an Spielern, Hunger/Durst/Kälte pausieren) */
+    this.friedlich = kartenDaten.friedlich === true;
+    /** Runde 43: feste Uhrzeit (Stunde) nur fürs Licht/den Himmel (Client) – z. B. 20.55 = Sonnenuntergang; null = echte Zeit */
+    this.festeZeit = Number.isFinite(kartenDaten.festeZeit) ? kartenDaten.festeZeit : null;
     /** Schneezone (Kartenfeld `schnee`): Niederschlag fällt als Schnee, Straßen sind verschneit, Schritte knirschen */
     this.schnee = kartenDaten.schnee === true;
     /** Gelände-Höhen (Meter je Kachel) aus dem Map-Editor oder null (flach) – Darstellung + Ego-Zielen; Klippen sind 'hang'-Objekte */

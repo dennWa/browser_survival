@@ -5,7 +5,7 @@ import { ABBAU_REICHWEITE, abbauArtFuer, abbauText } from '../../gemeinsam/welt/
 import { BAUWERKE, BAUWERK_REICHWEITE, bauwerkAktion, feuerText, kachelInReichweite, pruefePlatz, samenZiel, zielKachel } from '../../gemeinsam/welt/bauwerke.js';
 import { wurfZiel } from '../../gemeinsam/welt/wasser.js';
 import { findePfad } from '../../gemeinsam/physik/pfadfindung.js';
-import { tageszeit } from '../../gemeinsam/tageszeit.js';
+import { tageszeit, tageszeitUm } from '../../gemeinsam/tageszeit.js';
 import { ADMIN_BEFEHLE, AKTIONEN, NACHRICHT } from '../../gemeinsam/protokoll.js';
 import { BEHAELTER, abstandZumBehaelter, findeBehaelter, naechsterBehaelter } from '../../gemeinsam/welt/behaelter.js';
 import { Welt } from '../../gemeinsam/welt/welt.js';
@@ -1693,8 +1693,10 @@ export class ClientSpiel {
     const aufhebbar = interaktion?.gegenstand ?? null;
     if (this.werkbankOffen && !naheHandwerk(this.welt, this.lokal.x, this.lokal.y, this.werkbankOrt)) this.werkbankUmschalten(false); // weggegangen/Feuer aus → zu // weggegangen → zu
     const uhr = tageszeit(this.serverZeit + (jetzt - this.zeitEmpfangen) / 1000, this.tageszeitDauer);
+    // Runde 43: Zone mit fester Uhrzeit (Lagerplatz = immer Sonnenuntergang) – nur Licht/Himmel/Grillen, die HUD-Uhr bleibt echt
+    const licht = this.welt.festeZeit != null ? tageszeitUm(this.welt.festeZeit, this.tageszeitDauer) : uhr;
     // Nachtgeräusche (Grillen) nach Dunkelheit, in 10-%-Stufen (Ereignis nacht); Regel: gemeinsam/audio/umgebung.js
-    const nacht = Math.round(wetterSchichten({ w: this.renderer.wetterEffekt, hell: uhr.helligkeit ?? 1, wetter: this.wetter, schneeZone: !!this.welt.schnee, drinnen: !!this.lokal.fahrzeug || this.welt.istUnterDach(this.lokal.x, this.lokal.y) }).nacht * 10) / 10;
+    const nacht = Math.round(wetterSchichten({ w: this.renderer.wetterEffekt, hell: licht.helligkeit ?? 1, wetter: this.wetter, schneeZone: !!this.welt.schnee, drinnen: !!this.lokal.fahrzeug || this.welt.istUnterDach(this.lokal.x, this.lokal.y) }).nacht * 10) / 10;
     if (nacht !== this.letzteNachtStufe) {
       this.letzteNachtStufe = nacht;
       this.sound?.nacht(nacht);
@@ -1728,7 +1730,7 @@ export class ClientSpiel {
       effekte: this.effekte,
       markiertId: aufhebbar?.id ?? null,
       zielId: this.zielZombieId,
-      tageszeit: uhr,
+      tageszeit: licht,
       wetter: this.wetter,
     });
     this.schritte.aktualisiere([...andere, eigen], this.welt, this.sound, this.eigeneId, eigen);
@@ -1808,7 +1810,7 @@ export class ClientSpiel {
     if (!this.sound || jetzt - (this.letzteSchichten ?? 0) < 250) return;
     this.letzteSchichten = jetzt;
     const w = this.renderer.wetterEffekt;
-    const uhr = tageszeit(this.serverZeit + (jetzt - this.zeitEmpfangen) / 1000, this.tageszeitDauer);
+    const uhr = this.welt.festeZeit != null ? tageszeitUm(this.welt.festeZeit, this.tageszeitDauer) : tageszeit(this.serverZeit + (jetzt - this.zeitEmpfangen) / 1000, this.tageszeitDauer); // Runde 43: feste Zeit
     const hell = uhr.helligkeit ?? 1;
     // Runde 29: Türrahmen zählt als drinnen (sonst klang es dort kurz nach draußen)
     const imHaus = !this.lokal.fahrzeug && this.welt.istUnterDach(this.lokal.x, this.lokal.y);

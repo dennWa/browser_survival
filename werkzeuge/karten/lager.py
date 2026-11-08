@@ -1,9 +1,14 @@
 """
-Generator für server/spiel/karten/lager.js – Zone "Lagerplatz" (Runde 42): kleiner, gemütlicher Startplatz für neue Charaktere.
+Generator für server/spiel/karten/lager.js – Zone "Lagerplatz" (Runde 42/43): kleiner, gemütlicher Startplatz für neue Charaktere.
 
     python3 werkzeuge/karten/lager.py
 
-40 × 34 Kacheln: eine Waldlichtung mit einem Lagerfeuer in der Mitte (kartenfestes Bauwerk, `ewig` = brennt immer, auch bei
+Runde 43: ein Holzzaun (wooden-fence) umschließt den Platz, draußen nur Rasen + Bäume (8 Kacheln Ring); Tor im Osten mit
+Fackeln. Zonen-Felder `friedlich` (niemand nimmt Schaden, Hunger/Durst/Kälte pausieren) und `festeZeit` (Licht/Himmel immer
+Sonnenuntergang; Server-Uhr läuft normal weiter). Gartenbänke: Modell-Front ist hinten → drehung +180 (sitze.js MODELL_FRONT).
+Gebaut wird im „Innen-Raum“ (alte 40×34-Koordinaten), am Ende um (SX, SY) verschoben und mit dem Rasenring umgeben.
+
+Innen: ein Lagerfeuer in der Mitte (kartenfestes Bauwerk, `ewig` = brennt immer, auch bei
 Regen), Bänken im Kreis ums Feuer, Lichterketten zwischen Holzpfosten (Kartenfeld `lichterketten` + `licht`-Objekte mit
 `hoehe` für das echte Licht), einem langen Holztisch mit Bänken, zwei kleinen Tischen mit Stühlen, Zelten und Brennholz.
 Auf allen Bänken/Stühlen kann man sitzen (Ä / ☰ Sitzen, gemeinsam/welt/sitze.js; Typ-Feld `sitz` = Sitzhöhe in m).
@@ -23,7 +28,7 @@ B, H = 40, 34
 FX, FY = 20, 17                     # Lagerfeuer (Kachel); Mitte = (20.5, 17.5)
 MX, MY = FX + 0.5, FY + 0.5
 zufall = random.Random(20261108)
-g = [[';' for _ in range(B)] for _ in range(H)]
+g = [[',' for _ in range(B)] for _ in range(H)]   # Innen-Raum (wird am Ende verschoben)
 objekte = []
 belegt = set()     # Kacheln ohne Bäume/Büsche/Bodendeko
 
@@ -82,28 +87,19 @@ def licht(cx, cy, hoehe, radius=4.0, farbe='#ffcf8a', staerke=0.7, flackern=Fals
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-# Boden: Lichtung (Gras) im Wald, festgetretene Erde ums Feuer, Erdwege
-LX, LY = 12.5, 10.5   # Halbachsen der Lichtung
-for y in range(H):
-    for x in range(B):
-        dx, dy = (x + 0.5 - MX) / LX, (y + 0.5 - MY) / LY
-        w = math.atan2(dy, dx)
-        rand = 1 + 0.07 * math.sin(w * 3 + 1.1) + 0.05 * math.sin(w * 5 + 0.3)
-        d = dx * dx + dy * dy
-        if d < rand * rand:
-            g[y][x] = ','
-        elif d < (rand + 0.25) ** 2 and zufall.random() < 0.5:
-            g[y][x] = ','
-# Wildwald-Flecken am Rand
-for _ in range(8):
-    cx, cy = zufall.choice([(zufall.randint(1, 8), zufall.randint(1, H - 2)), (zufall.randint(B - 8, B - 2), zufall.randint(1, H - 2)),
-                            (zufall.randint(1, B - 2), zufall.randint(0, 4)), (zufall.randint(1, B - 2), zufall.randint(H - 5, H - 1))])
-    r = zufall.uniform(2, 4)
-    for y in range(int(cy - r), int(cy + r) + 1):
-        for x in range(int(cx - r), int(cx + r) + 1):
-            if drin(x, y) and g[y][x] == ';' and (x - cx) ** 2 + (y - cy) ** 2 < r * r:
-                g[y][x] = '@'
-# Erde ums Feuer (Radius ~3,6) – unregelmäßig
+# Zaun (Innen-Raum-Koordinaten): Rechteck ZX0..ZX1 × ZY0..ZY1 (Kachelreihen), Tor im Osten (Reihen TOR)
+ZX0, ZX1, ZY0, ZY1 = 5, 37, 3, 31
+TOR = (16, 17, 18)
+RING = 11                                  # Rasen + Bäume außerhalb des Zauns (2 Kacheln Rasen, dahinter Wald)
+SX, SY = RING - ZX0, RING - ZY0            # Verschiebung Innen-Raum → Karte
+B2, H2 = ZX1 + SX + 1 + RING, ZY1 + SY + 1 + RING
+
+
+def im_zaun(x, y):
+    return ZX0 < x < ZX1 and ZY0 < y < ZY1
+
+
+# Boden innen: Gras, festgetretene Erde ums Feuer (Radius ~3,6, unregelmäßig), Trampelpfade
 for y in range(FY - 5, FY + 6):
     for x in range(FX - 5, FX + 6):
         d = math.hypot(x + 0.5 - MX, y + 0.5 - MY)
@@ -121,13 +117,13 @@ def weg(punkte, breite=2):
             for dx in range(breite):
                 for dy in range(breite):
                     xx, yy = int(round(x)) + dx - breite // 2, int(round(y)) + dy - breite // 2
-                    if drin(xx, yy):
+                    if drin(xx, yy) and im_zaun(xx, yy):
                         g[yy][xx] = '&'
                         belegt.add((xx, yy))
 
 
-# Ausgang nach Osten (Stadtrand) + Trampelpfade zu Tisch, Zelten und Brennholz
-weg([(23, 17.5), (30, 17.2), (35, 17.6), (B - 1, 17.5)], breite=3)
+# Weg zum Tor (Osten) + Trampelpfade zu Zelten und Tischen
+weg([(23, 17.5), (30, 17.2), (ZX1 - 1, 17.5)], breite=3)
 weg([(21, 15), (20, 11), (19.5, 8.5)])
 weg([(17, 19), (13, 21)])
 weg([(23, 19.5), (27, 21.5)])
@@ -137,12 +133,13 @@ weg([(23, 19.5), (27, 21.5)])
 bauwerke = [{'typ': 'lagerfeuer', 'tx': FX, 'ty': FY, 'ewig': True}]
 sperre_rund(MX, MY, 2.2)
 
-# Bänke im Kreis ums Feuer (Blick zum Feuer): Norden/Süden lange Bank, Osten/Westen Gartenbank mit Lehne, dazwischen Hocker
+# Bänke im Kreis ums Feuer – ALLE mit Blick zum Feuer: Norden/Süden lange Bank (ohne Lehne), Osten/Westen Gartenbank mit Lehne
+# (⚠ Gartenbank-Modell: Front zeigt nach hinten → drehung +180, die Sitzrichtung korrigiert sitze.js MODELL_FRONT), dazwischen Stümpfe
 R = 3.0
 deko('bench', MX, MY - R, hoehe=0.5, drehung=0, blockiert=True, sitz=0.42)            # Norden, Blick nach Süden
 deko('bench', MX, MY + R, hoehe=0.5, drehung=180, blockiert=True, sitz=0.42)          # Süden, Blick nach Norden
-deko('garden-bench', MX - R - 0.1, MY, hoehe=0.78, drehung=270, blockiert=True, sitz=0.44)  # Westen, Blick nach Osten
-deko('garden-bench', MX + R + 0.1, MY, hoehe=0.78, drehung=90, blockiert=True, sitz=0.44)   # Osten, Blick nach Westen
+deko('garden-bench', MX - R - 0.1, MY, hoehe=0.78, drehung=90, blockiert=True, sitz=0.44)   # Westen, Lehne im Westen, Blick nach Osten
+deko('garden-bench', MX + R + 0.1, MY, hoehe=0.78, drehung=270, blockiert=True, sitz=0.44)  # Osten, Lehne im Osten, Blick nach Westen
 for winkel in (45, 135, 225, 315):
     w = math.radians(winkel)
     hx, hy = MX + math.cos(w) * (R - 0.1), MY + math.sin(w) * (R - 0.1)
@@ -171,7 +168,7 @@ for a, b in zip(PFOSTEN, PFOSTEN[1:] + PFOSTEN[:1]):
     licht((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, hoehe=AUF - 0.55 - 0.15, radius=4.2, staerke=0.62)
 
 # ---------------------------------------------------------------------------------------------------------------------
-# Langer Holztisch im Südosten (wie die Kabeltrommel-Tische auf dem Foto) mit Bänken und Stühlen an den Enden
+# Langer Holztisch im Südosten mit Bänken und Stühlen an den Enden (Stühle mit Blick zum Tisch)
 TX, TY = 29.0, 23.2
 deko('table-big', TX, TY, hoehe=0.8, blockiert=True)
 deko('bench', TX - 1.25, TY, hoehe=0.5, drehung=270, blockiert=True, sitz=0.42)   # Westseite, Blick nach Osten
@@ -192,83 +189,135 @@ deko('candle-melted', 11.4, 21.0, hoehe=0.25)
 licht(11.4, 21.0, hoehe=1.1, radius=2.6, farbe='#ffb060', staerke=0.45, flackern=True)
 
 # ---------------------------------------------------------------------------------------------------------------------
-# Zelte im Norden, Holzgestell, Brennholz im Nordosten
+# Zelte im Norden, Holzgestell, Brennholz
 deko('tent', 12.0, 9.0, hoehe=2.2, drehung=20, blockiert=True)
 deko('nk-tent-detailed-open', 19.6, 6.6, hoehe=1.8, drehung=0, blockiert=True)
 deko('nk-tent-detailed-open', 27.6, 8.6, hoehe=1.7, drehung=335, blockiert=True)
 deko('wood-tent-1', 31.6, 12.4, hoehe=1.3, drehung=90, blockiert=True)            # Holzgestell (Trockengestell)
-deko('nk-log-stack-large', 33.2, 15.0, drehung=90, blockiert=True)
+deko('nk-log-stack-large', 33.2, 14.0, drehung=90, blockiert=True)
 deko('nk-log-stack-large', 31.4, 27.4, drehung=0, blockiert=True)
 deko('nk-log-stack', 33.0, 26.6, drehung=90, blockiert=True)
 deko('nk-campfire-stones', MX, MY, hoehe=0.24)
 deko('crate', 8.0, 14.6, hoehe=0.7, drehung=15, blockiert=True)
 deko('barrel', 9.0, 13.7, hoehe=1.0, blockiert=True)
 
-# Fackeln am Eingang (Osten) + Wegweiser
-for fy in (15.8, 19.4):
-    deko('wooden-torch', 33.6, fy, hoehe=2.3, blockiert=True)
-    licht(33.6, fy, hoehe=2.2, radius=3.2, farbe='#ff9a40', staerke=0.6, flackern=True)
-deko('wooden-sign', 35.4, 15.4, blockiert=True)
+# Tor im Osten: Fackeln links/rechts innen am Zaun, Wegweiser
+for fy in (TOR[0] - 0.5, TOR[-1] + 1.5):
+    deko('wooden-torch', ZX1 - 0.6, fy, hoehe=2.3, blockiert=True)
+    licht(ZX1 - 0.6, fy, hoehe=2.2, radius=3.2, farbe='#ff9a40', staerke=0.6, flackern=True)
+deko('wooden-sign', ZX1 - 1.6, TOR[0] - 1.6, blockiert=True)
 
 # Spieler-Starts (neue Charaktere) im Kreis um die Feuerstelle, außerhalb der Bänke
 STARTS = [(15, 17), (25, 17), (20, 23), (20, 12), (16, 13), (24, 13)]
 for sx, sy in STARTS:
     belegt.add((sx, sy))
 
-# ---------------------------------------------------------------------------------------------------------------------
-# Wald drumherum: Bäume (fällbar), Büsche am Lichtungsrand, Bodendeko
+# Büsche innen am Zaun entlang, Blumen im Gras
 def frei(x, y, b, h):
     for yy in range(y, y + h):
         for xx in range(x, x + b):
-            if not drin(xx, yy) or (xx, yy) in belegt or g[yy][xx] not in ';@,':
+            if not drin(xx, yy) or (xx, yy) in belegt or g[yy][xx] != ',' or not im_zaun(xx, yy):
                 return False
     return True
 
 
-def lichtung(x, y):
-    return ((x + 0.5 - MX) / (LX - 0.5)) ** 2 + ((y + 0.5 - MY) / (LY - 0.5)) ** 2 < 1
-
-
-baeume = 0
-versuche = 0
-while baeume < 120 and versuche < 20000:
-    versuche += 1
-    x, y = zufall.randint(0, B - 3), zufall.randint(0, H - 3)
-    if any(lichtung(xx, yy) for xx in (x, x + 2) for yy in (y, y + 2)) or not frei(x, y, min(4, B - x), min(4, H - y)):
-        continue
-    o('baum_herbst' if zufall.random() < 0.1 else 'baum', x, y, 3.5, 3.5, ebene='oben')
-    for yy in range(y, y + 4):
-        for xx in range(x, x + 4):
-            belegt.add((xx, yy))
-    baeume += 1
 buesche = 0
 versuche = 0
-while buesche < 26 and versuche < 6000:
+while buesche < 14 and versuche < 6000:
     versuche += 1
-    x, y = zufall.randint(1, B - 3), zufall.randint(1, H - 3)
-    rand_d = ((x + 0.5 - MX) / LX) ** 2 + ((y + 0.5 - MY) / LY) ** 2
-    if not 0.8 < rand_d < 1.35 or not frei(x, y, 2, 2):
+    x, y = zufall.randint(ZX0 + 1, ZX1 - 2), zufall.randint(ZY0 + 1, ZY1 - 2)
+    am_zaun = x <= ZX0 + 1 or x >= ZX1 - 2 or y <= ZY0 + 1 or y >= ZY1 - 2
+    if not am_zaun or abs(y - 17) < 4 and x > ZX1 - 4 or not frei(x, y, 2, 2):
         continue
     o('busch', x, y, 1.5, 1.5, ebene='oben')
-    for yy in range(y, y + 2):
-        for xx in range(x, x + 2):
+    for yy in range(y - 1, y + 3):
+        for xx in range(x - 1, x + 3):
             belegt.add((xx, yy))
     buesche += 1
-# Blumen, Grasbüschel, Pilze
-for stem, anzahl, wo in (('nk-flower-yellow-a', 10, ','), ('nk-flower-purple-a', 7, ','), ('nk-flower-red-a', 5, ','),
-                         ('nk-mushroom-red-group', 6, ';@'), ('nk-mushroom-tan-group', 6, ';@'), ('fern', 12, ';@')):
+for stem, anzahl in (('nk-flower-yellow-a', 12), ('nk-flower-purple-a', 8), ('nk-flower-red-a', 6)):
     n = v = 0
     while n < anzahl and v < 3000:
         v += 1
-        x, y = zufall.randint(2, B - 3), zufall.randint(2, H - 3)
-        if (x, y) in belegt or g[y][x] not in wo:
+        x, y = zufall.randint(ZX0 + 1, ZX1 - 1), zufall.randint(ZY0 + 1, ZY1 - 1)
+        if (x, y) in belegt or g[y][x] != ',':
             continue
         deko(stem, x + zufall.uniform(0.2, 0.8), y + zufall.uniform(0.2, 0.8), drehung=zufall.randrange(0, 360, 30))
         n += 1
 
 for sx, sy in STARTS:
-    assert g[sy][sx] in ',&;@', (sx, sy, g[sy][sx])
+    assert g[sy][sx] in ',&', (sx, sy, g[sy][sx])
     g[sy][sx] = 'S'
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Verschieben: Innen-Raum → Karte (B2 × H2) mit Rasenring
+def schiebe(x, y):
+    return round(x + SX, 2), round(y + SY, 2)
+
+
+for e in objekte:
+    e['x'], e['y'] = schiebe(e['x'], e['y'])
+for b in bauwerke:
+    b['tx'], b['ty'] = b['tx'] + SX, b['ty'] + SY
+for k in lichterketten:
+    k['von'], k['bis'] = list(schiebe(*k['von'])), list(schiebe(*k['bis']))
+innen_g = g
+B, H = B2, H2
+g = [[',' for _ in range(B)] for _ in range(H)]
+for y in range(len(innen_g)):
+    for x in range(len(innen_g[0])):
+        if im_zaun(x, y):
+            g[y + SY][x + SX] = innen_g[y][x]
+
+# Holzzaun (blockiert, je Segment 1,8 m, mittig auf der Zaun-Kachelreihe → genau eine Reihe gesperrt)
+zx0, zx1, zy0, zy1 = ZX0 + SX, ZX1 + SX, ZY0 + SY, ZY1 + SY
+tor = {t + SY for t in TOR}
+zaun = 0
+
+
+def zaun_strecke(a, b, fest, waagerecht):
+    """Segmente von Kachel a bis b (inkl.) entlang der Reihe/Spalte `fest`."""
+    global zaun
+    laenge = b - a + 1
+    n = max(1, math.ceil(laenge / 1.8))
+    schritt = laenge / n
+    for i in range(n):
+        m = a + schritt * (i + 0.5)
+        if waagerecht:
+            deko('wooden-fence', m, fest + 0.5, drehung=0, blockiert=True)
+        else:
+            deko('wooden-fence', fest + 0.5, m, drehung=90, blockiert=True)
+        zaun += 1
+
+
+zaun_strecke(zx0, zx1, zy0, True)
+zaun_strecke(zx0, zx1, zy1, True)
+zaun_strecke(zy0 + 1, zy1 - 1, zx0, False)
+zaun_strecke(zy0 + 1, min(tor) - 1, zx1, False)
+zaun_strecke(max(tor) + 1, zy1 - 1, zx1, False)
+
+# Draußen: nur Rasen und Bäume (Gang vom Tor zum Ostrand bleibt frei)
+belegt = set()
+for y in range(zy0 - 2, zy1 + 3):   # Rasenstreifen direkt am Zaun bleibt frei
+    for x in range(zx0 - 2, zx1 + 3):
+        belegt.add((x, y))
+for y in range(min(tor) - 2, max(tor) + 3):
+    for x in range(zx1, B):
+        belegt.add((x, y))
+baeume = 0
+versuche = 0
+gesetzt = []
+RASTER = [(gx + zufall.uniform(-0.15, 0.15), gy + zufall.uniform(-0.15, 0.15)) for gy in [i * 3.55 for i in range(int(H / 3.55) + 1)] for gx in [i * 3.55 for i in range(int(B / 3.55) + 1)]]
+for x, y in RASTER:   # dichter Waldrand auf einem leicht verwackelten Raster (Lücken lässt der Zufall)
+    x, y = round(min(max(0, x), B - 3.5), 2), round(min(max(0, y), H - 3.5), 2)
+    if zufall.random() < 0.06:
+        continue
+    if any((xx, yy) in belegt for xx in range(int(x), math.ceil(x + 3.5)) for yy in range(int(y), math.ceil(y + 3.5))):
+        continue
+    if any(x < a + 3.5 and a < x + 3.5 and y < b + 3.5 and b < y + 3.5 for a, b in gesetzt):
+        continue
+    gesetzt.append((x, y))
+    o('baum_herbst' if zufall.random() < 0.12 else 'baum', x, y, 3.5, 3.5, ebene='oben')
+    baeume += 1
 zeilen = [''.join(z) for z in g]
 
 
@@ -304,7 +353,8 @@ def js_flach(d):
 
 js = ['''/**
  * Zone "Lagerplatz" – gemütlicher Startplatz für neue Charaktere (erzeugt von werkzeuge/karten/lager.py, dort ändern!).
- * 40 × 34: Waldlichtung, Lagerfeuer in der Mitte (Bauwerk `ewig` = brennt immer), Bänke im Kreis, Lichterketten zwischen
+ * Runde 43: Holzzaun rundherum, draußen nur Rasen + Bäume; `friedlich` (kein Schaden) + `festeZeit` (immer Sonnenuntergang).
+ * Lagerfeuer in der Mitte (Bauwerk `ewig` = brennt immer), Bänke im Kreis, Lichterketten zwischen
  * Holzpfosten (`lichterketten` + `licht` mit `hoehe`), langer Holztisch, zwei Tische mit Stühlen, Zelte, Brennholz.
  * Sitzen auf Bänken/Stühlen: Ä bzw. ☰ Sitzen (gemeinsam/welt/sitze.js, Typ-Feld `sitz`). Keine Zombies, kein Loot.
  * Übergang: Ostrand (Erdweg) ↔ Stadtrand Westrand (Ankunft `lager`). Neue Charaktere starten hier
@@ -317,8 +367,11 @@ export const LAGER = {
   name: 'Lagerplatz',
   kacheln: [''']
 js += [f"    '{z}'," for z in zeilen]
-js += ['  ],', '  raeume: {},', '  einstellungen: {',
-       '    wetter: { regenAnteil: 0.15, dauerMin: 40, dauerMax: 120, pauseMin: 400, pauseMax: 900 },',
+js += ['  ],', '  raeume: {},',
+       '  friedlich: true, // Runde 43: niemand nimmt Schaden, Hunger/Durst/Kälte pausieren',
+       '  festeZeit: 20.45, // Runde 43: Licht/Himmel immer Sonnenuntergang (Stunde; Server-Uhr läuft normal)',
+       '  einstellungen: {',
+       '    wetter: { regenAnteil: 0, dauerMin: 40, dauerMax: 120, pauseMin: 400, pauseMax: 900 },',
        '  },',
        '  bauwerke: [']
 js += [f'    {js_flach(b)},' for b in bauwerke]
@@ -331,8 +384,8 @@ for k, v in typen.items():
     sitz = f", sitz: {zahl(v['sitz'])}" if 'sitz' in v else ''
     js.append(f"    {k}: {{ name: '{v['name']}', kategorie: '{v['kategorie']}', b: {zahl(v['b'])}, h: {zahl(v['h'])}, hoehe3d: {zahl(v['hoehe3d'])}, blockiert: {'true' if v['blockiert'] else 'false'}, farbe: '{v['farbe']}', glbDatei: '{v['glbDatei']}'{sitz} }},")
 js += ['  },', '  uebergaenge: [',
-       f"    {{ x: {B - 1}, y: 15, b: 1, h: 5, ziel: 'stadtrand', ankunft: 'lager', name: 'Stadtrand (Osten)' }},",
-       '  ],', '  ankuenfte: {', f'    ost: {{ x: {B - 5}, y: 17 }}, // wer vom Stadtrand kommt (Erdweg, nicht im Übergang)', '  },', '};']
+       f"    {{ x: {B - 1}, y: {min(tor) - 1}, b: 1, h: {len(tor) + 2}, ziel: 'stadtrand', ankunft: 'lager', name: 'Stadtrand (Osten)' }},",
+       '  ],', '  ankuenfte: {', f'    ost: {{ x: {zx1 - 3}, y: {min(tor) + 1} }}, // wer vom Stadtrand kommt (innen am Tor)', '  },', '};']
 ZIEL.write_text('\n'.join(js) + '\n', encoding='utf-8')
-print(f'{ZIEL} geschrieben ({B} × {H}, {len(objekte)} Objekte, {baeume} Bäume, {buesche} Büsche, {len(typen)} Modell-Typen, '
+print(f'{ZIEL} geschrieben ({B} × {H}, {len(objekte)} Objekte, {baeume} Bäume, {buesche} Büsche, {zaun} Zaunteile, {len(typen)} Modell-Typen, '
       f'{len(lichterketten)} Lichterketten, {sum(1 for e in objekte if e["typ"] == "licht")} Lichter)')

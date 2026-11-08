@@ -39,6 +39,13 @@ export function aktualisiereUeberleben(spielWelt, dt) {
       spieler.durst = 100;
       continue; // Götter essen nicht, frieren nicht und werden nicht nass
     }
+    if (spielWelt.welt.friedlich) {
+      // Runde 43: friedliche Zone – Hunger/Durst/Kälte/Krankheit pausieren (niemand kann hier sterben), man erholt sich langsam
+      spieler.kaelte = 0;
+      spieler.naesse = 0;
+      spieler.leben = Math.min(spieler.maxLeben, spieler.leben + k.regenerationProSekunde * dt);
+      continue;
+    }
     aktualisiereKaelte(spielWelt, spieler, dt);
     const g = spielWelt.konfiguration.gesundheit;
     if (g) aktualisiereGesundheit(spielWelt, spieler, dt);

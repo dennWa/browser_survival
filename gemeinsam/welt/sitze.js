@@ -4,6 +4,8 @@
  *   glbDatei) nach Stuhl/Bank/Sofa/Stamm klingt – oder der Typ ausdrücklich `sitz` (Sitzhöhe in m) trägt.
  *   Lange Sitze (Bank, Sofa) haben mehrere Plätze nebeneinander (je ~0,65 m).
  *   Blickrichtung aus `drehung` (0 = Front Süd, 90 West, 180 Nord, 270 Ost – wie die Karten-Generatoren).
+ *   Runde 43: manche Modelle haben die Sitz-Front „hinten“ (Lehne zeigt bei drehung 0 nach Süden) → `sitzFront` (Grad)
+ *   im Typ oder MODELL_FRONT nach Dateiname (garden-bench). Generatoren drehen solche Modelle um +180.
  * Der Server setzt beim Hinsetzen `spieler.arbeit.ort = { x, y, blick, hoehe }` (px); der Renderer zeichnet die Figur dort
  * (die Spielerposition selbst bleibt neben dem Möbel → keine Kollisions-/Vorhersage-Probleme).
  */
@@ -24,6 +26,17 @@ const MODELL_REGELN = [
   [/arm-chair|armchair|sessel/i, 0.42],
   [/chair|stuhl/i, 0.46],
 ];
+
+/** Runde 43: Modelle, deren Sitz-Front gegenüber der Konvention gedreht ist (Grad, im Spiel geprüft). */
+const MODELL_FRONT = [[/garden-bench|garden_bench/i, 180]];
+
+/** Korrektur der Sitzrichtung (Grad) für einen Typ: Typ-Feld `sitzFront`, sonst MODELL_FRONT, sonst 0. */
+export function sitzFrontFuer(typ, typDef) {
+  if (typDef && Number.isFinite(typDef.sitzFront)) return typDef.sitzFront;
+  const name = typDef?.glbDatei ?? (typ?.startsWith('sf_') ? typ : '');
+  for (const [muster, grad] of MODELL_FRONT) if (muster.test(name)) return grad;
+  return 0;
+}
 
 /** Sitzhöhe (m) eines Karten-Objekttyps oder 0 (kein Sitz). @param typDef Eintrag aus welt.typen (optional) */
 export function sitzHoeheFuer(typ, typDef) {
@@ -47,7 +60,7 @@ export function sitzBlick(drehung = 0) {
 export function sitzPlaetze(o, typDef, g) {
   const hoeheM = sitzHoeheFuer(o.typ, typDef);
   if (!hoeheM) return [];
-  const blick = sitzBlick(o.drehung);
+  const blick = sitzBlick((o.drehung ?? 0) + sitzFrontFuer(o.typ, typDef));
   const mx = (o.x + o.b / 2) * g;
   const my = (o.y + o.h / 2) * g;
   // lange Achse quer zur Blickrichtung → Plätze nebeneinander

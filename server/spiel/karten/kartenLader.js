@@ -234,6 +234,9 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE, { au
   if (typeof definition.musik === 'string' && /^[a-z0-9_-]{1,40}$/i.test(definition.musik)) daten.musik = definition.musik;
   const klaenge = (Array.isArray(definition.klaenge) ? definition.klaenge : []).map((k) => pruefeKlang(k, { breite, hoehe })).filter((k) => k && (k.datei || k.daten));
   if (klaenge.length) daten.klaenge = klaenge;
+  // Runde 43: friedliche Zone (niemand nimmt Schaden, Bedürfnisse pausieren) + feste Tageszeit fürs Licht (Stunde 0–24)
+  if (definition.friedlich === true) daten.friedlich = true;
+  if (Number.isFinite(definition.festeZeit) && definition.festeZeit >= 0 && definition.festeZeit < 24) daten.festeZeit = definition.festeZeit;
   const lichterketten = pruefeLichterketten(definition.lichterketten, breite, hoehe);
   if (lichterketten) daten.lichterketten = lichterketten;
   const bemalung = pruefeBemalung(definition.bemalung, breite, hoehe);
@@ -274,6 +277,7 @@ function pruefeTypen(roh) {
     if (typeof t.animation === 'string' && /^[^<>"\\]{1,60}$/.test(t.animation)) e.animation = t.animation;
     // Runde 42: Sitzhöhe in m (0 = ausdrücklich kein Sitz) – sonst rät gemeinsam/welt/sitze.js nach dem Modellnamen
     if (Number.isFinite(t.sitz) && t.sitz >= 0 && t.sitz <= 1.5) e.sitz = t.sitz;
+    if (Number.isFinite(t.sitzFront)) e.sitzFront = ((t.sitzFront % 360) + 360) % 360; // Runde 43: Sitz-Front des Modells gedreht
     ergebnis[id] = e;
   }
   return Object.keys(ergebnis).length ? ergebnis : null;

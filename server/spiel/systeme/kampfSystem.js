@@ -200,6 +200,7 @@ function radiusVon(spielWelt, entitaet) {
  */
 export function fuegeSchadenZu(spielWelt, ziel, menge, quelle, winkel = 0, optionen = {}) {
   if (ziel.tot || ziel.leben <= 0 || ziel.gottmodus) return;
+  if (ziel.typ === 'spieler' && spielWelt.welt.friedlich) return; // Runde 43: friedliche Zone (Lagerplatz) – hier stirbt niemand
   if (ziel.typ === 'tier' && (ziel.art === 'hund' || ziel.art === 'katze')) return; // Runde 27: Hund & Katze sind unsterblich
   if ((ziel.fahrzeug || ziel.mitfahrt) && quelle?.typ === 'zombie') {
     // Im Auto (auch als Beifahrer) ist man vor Bissen sicher – dafür leidet das Auto (Boss-Schläge zählen mehr)

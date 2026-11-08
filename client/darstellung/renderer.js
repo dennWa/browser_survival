@@ -211,6 +211,8 @@ const EGO_SICHT_FAKTOR = 1;
 const TAG = { sonne: new THREE.Color(0xfff1dc), himmel: new THREE.Color(0xbfd8ff), boden: new THREE.Color(0x4a4636), hintergrund: new THREE.Color(0x9cc3e4), zenit: new THREE.Color(0x2f78e0), wolken: new THREE.Color(0xffffff) };
 const NACHT = { sonne: new THREE.Color(0x7489c8), himmel: new THREE.Color(0x1f2842), boden: new THREE.Color(0x0a0b0e), hintergrund: new THREE.Color(0x02030a), zenit: new THREE.Color(0x000105), wolken: new THREE.Color(0x0b0e18) };
 const DAEMMERUNG = { sonne: new THREE.Color(0xff9a4d), hintergrund: new THREE.Color(0xe08a5a), zenit: new THREE.Color(0x5a5aa8), wolken: new THREE.Color(0xffb48a) };
+/** Runde 43: Zonen mit `festeZeit` (Lagerplatz) – kräftiger, warmer Sonnenuntergang (goldenes Licht, orange-rosa Himmel) */
+const SONNENUNTERGANG = { sonne: new THREE.Color(0xff8a3a), himmel: new THREE.Color(0xffb27a), boden: new THREE.Color(0x3a2418), hintergrund: new THREE.Color(0xf0905c) };
 /** Himmel (himmel.js): Die Welt endet per Kamera-Ferne (Vielfaches des Kameraabstands) – darüber, am oberen Bildrand, beginnt der Himmel. */
 const BODEN_SPEICHER_MB = { pc: 512, handy: 192 }; // Grafikspeicher für die Bodentextur einer Zone (wird hinter dem Ladebild komplett hochgeladen)
 const HIMMEL_FERNE = 1.36; // Welt endet erst knapp über dem oberen Bildrand – der Himmel verdeckt das Spielfeld nicht
@@ -2328,6 +2330,15 @@ export class Renderer {
     this.umgebung.groundColor.copy(NACHT.boden).lerp(TAG.boden, hell);
     this.umgebung.intensity = NACHT_UMGEBUNG + hell * (1.3 - NACHT_UMGEBUNG);
     this.szene.background.copy(NACHT.hintergrund).lerp(TAG.hintergrund, hell).lerp(DAEMMERUNG.hintergrund, daemmerung * 0.5);
+    if (this.welt?.festeZeit != null && !this.nachtsicht) {
+      // Runde 43: feste Abendstimmung – Sonne tief und golden, Himmel/Umgebung warm, etwas heller als eine echte Dämmerung
+      this.mond.color.lerp(SONNENUNTERGANG.sonne, 0.7);
+      this.mond.intensity = Math.max(this.mond.intensity, 2.1);
+      this.umgebung.color.lerp(SONNENUNTERGANG.himmel, 0.55);
+      this.umgebung.groundColor.lerp(SONNENUNTERGANG.boden, 0.6);
+      this.umgebung.intensity = Math.max(this.umgebung.intensity, 1.0);
+      this.szene.background.lerp(SONNENUNTERGANG.hintergrund, 0.75);
+    }
     this.szene.fog.color.copy(this.szene.background);
     // Sonnenschatten: nachts (Mond ≈ 0) keinen Szenen-Durchgang; Schattenkamera nur so groß wie der sichtbare Bereich (zoomabhängig)
     this.mond.shadow.autoUpdate = this.mond.intensity > 0.25 && this.#schattenDran();
