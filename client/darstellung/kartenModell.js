@@ -44,6 +44,7 @@ const _vektor = new THREE.Vector3();
 const _quat = new THREE.Quaternion();
 const _skala = new THREE.Vector3();
 const _achseY = new THREE.Vector3(0, 1, 0);
+const INSTANZ_AB = 3; // Runde 44: ab so vielen gleichen eigenen Modellen (gleiche Maße) instanziert zeichnen
 
 /** Weicher, runder Lichtschein (radialer Verlauf) für den Boden unter Lampen – einmal erzeugt, geteilt */
 let lichtscheinCache = null;
@@ -466,35 +467,99 @@ export class KartenModell {
     this.statisch.add(this.durchsicht.gruppe);
   }
 
-  /** Eigene Objekte mit 3D-Modell (Map-Editor): Gruppe sofort da, Modell kommt nach dem Laden. Ohne Modell → Ersatz-Quader wie gehabt. */
+  /**
+   * Eigene Objekte mit 3D-Modell (Map-Editor): Gruppe sofort da, Modell kommt nach dem Laden. Ohne Modell → Ersatz-Quader wie gehabt.
+   * Runde 44: Typen, die oft vorkommen (≥ INSTANZ_AB, ohne Animation, kein abbaubarer Fels), werden INSTANZIERT gezeichnet –
+   * ein InstancedMesh je Teil-Mesh statt eines Klons je Objekt (Palisade, Blumen, Grasbüschel … → viel weniger Draw-Calls).
+   */
   #baueEigeneModelle() {
     const g = this.g;
     // Runde 38: Felsen-Modelle (r32_fels_*) sind Steinvorkommen → ihre Gruppe verschwindet, wenn der Fels abgebaut ist (#zeigeRessourcen)
     const ressourceVon = new Map(this.welt.ressourcen.map((r) => [r.objekt, r]));
     this.ressourcenGruppen = new Map();
+    const sammlung = new Map(); // `${typ}|${b}|${h}|${skalierung}` → [o …] (nur instanzierbare Objekte)
     for (const o of this.welt.objekte) {
       const typ = this.welt.typen[o.typ];
       const url = eigenesModellUrl(typ);
       if (!url) continue;
-      const gruppe = new THREE.Group();
-      gruppe.position.set((o.x + o.b / 2) * g, this.hy((o.x + o.b / 2) * g, (o.y + o.h / 2) * g), (o.y + o.h / 2) * g);
-      gruppe.rotation.y = (-(o.drehung ?? 0) * Math.PI) / 180;
-      this.statisch.add(gruppe);
-      const ressource = ressourceVon.get(o);
-      if (ressource) this.ressourcenGruppen.set(ressource.id, gruppe);
-      ladeEigenesModell(url)
-        .then((szene) => {
-          if (!gruppe.parent) return;
-          // eigene Maße vor dem Drehen, dann um den vollen Winkel (gruppe.rotation) – sonst sind bei 90° Breite/Tiefe vertauscht
-          const eigen = eigeneGroesse(o);
-          const inhalt = eigenesModellInhalt(szene, { b: eigen.b, h: eigen.h, hoehe: (typ.hoehe3d ?? 1) * (o.skalierung ?? 1), einheit: g });
-          gruppe.add(inhalt);
-          // Leerlauf-Animation (Map-Editor 5.3): Kinder der eingefrorenen Gruppe aktualisieren ihre Matrizen weiter selbst
-          const mischer = leerlaufMischer(inhalt, typ.animation);
-          if (mischer) this.mischer.push({ mischer, x: gruppe.position.x, z: gruppe.position.z });
-        })
-        .catch((fehler) => console.warn(`3D-Modell „${o.typ}“ nicht geladen:`, fehler));
+      if (!typ.animation && !ressourceVon.has(o)) {
+        const eigen = eigeneGroesse(o);
+        const schluessel = `${o.typ}|${eigen.b}|${eigen.h}|${o.skalierung ?? 1}`;
+        if (!sammlung.has(schluessel)) sammlung.set(schluessel, []);
+        sammlung.get(schluessel).push(o);
+        continue;
+      }
+      this.#eigenesEinzeln(o, typ, url, ressourceVon.get(o));
     }
+    for (const liste of sammlung.values()) {
+      const typ = this.welt.typen[liste[0].typ];
+      const url = eigenesModellUrl(typ);
+      if (liste.length < INSTANZ_AB) for (const o of liste) this.#eigenesEinzeln(o, typ, url, null);
+      else this.#eigeneInstanziert(liste, typ, url);
+    }
+  }
+
+  /** Lage eines eigenen Objekts (Mitte, Boden + Aufstellhöhe z, Drehung) */
+  #eigeneLage(o) {
+    const g = this.g;
+    const x = (o.x + o.b / 2) * g;
+    const z = (o.y + o.h / 2) * g;
+    // Runde 44: o.z = Aufstellhöhe in m (Teller auf dem Tisch …)
+    return { x, y: this.hy(x, z) + (o.z ?? 0) * g, z, dreh: (-(o.drehung ?? 0) * Math.PI) / 180 };
+  }
+
+  #eigenesEinzeln(o, typ, url, ressource) {
+    const g = this.g;
+    const lage = this.#eigeneLage(o);
+    const gruppe = new THREE.Group();
+    gruppe.position.set(lage.x, lage.y, lage.z);
+    gruppe.rotation.y = lage.dreh;
+    this.statisch.add(gruppe);
+    if (ressource) this.ressourcenGruppen.set(ressource.id, gruppe);
+    ladeEigenesModell(url)
+      .then((szene) => {
+        if (!gruppe.parent) return;
+        // eigene Maße vor dem Drehen, dann um den vollen Winkel (gruppe.rotation) – sonst sind bei 90° Breite/Tiefe vertauscht
+        const eigen = eigeneGroesse(o);
+        const inhalt = eigenesModellInhalt(szene, { b: eigen.b, h: eigen.h, hoehe: (typ.hoehe3d ?? 1) * (o.skalierung ?? 1), einheit: g });
+        gruppe.add(inhalt);
+        // Leerlauf-Animation (Map-Editor 5.3): Kinder der eingefrorenen Gruppe aktualisieren ihre Matrizen weiter selbst
+        const mischer = leerlaufMischer(inhalt, typ.animation);
+        if (mischer) this.mischer.push({ mischer, x: gruppe.position.x, z: gruppe.position.z });
+      })
+      .catch((fehler) => console.warn(`3D-Modell „${o.typ}“ nicht geladen:`, fehler));
+  }
+
+  /** Runde 44: alle Objekte eines Typs (gleiche Maße) als InstancedMesh je Teil-Mesh des Modells */
+  #eigeneInstanziert(liste, typ, url) {
+    const g = this.g;
+    const halter = new THREE.Group();
+    this.statisch.add(halter);
+    ladeEigenesModell(url)
+      .then((szene) => {
+        if (!halter.parent) return;
+        const o0 = liste[0];
+        const eigen = eigeneGroesse(o0);
+        const inhalt = eigenesModellInhalt(szene, { b: eigen.b, h: eigen.h, hoehe: (typ.hoehe3d ?? 1) * (o0.skalierung ?? 1), einheit: g });
+        inhalt.updateMatrixWorld(true);
+        const lagen = liste.map((o) => {
+          const l = this.#eigeneLage(o);
+          return new THREE.Matrix4().compose(_vektor.set(l.x, l.y, l.z), _quat.setFromAxisAngle(_achseY, l.dreh), _skala.set(1, 1, 1));
+        });
+        inhalt.traverse((t) => {
+          if (!t.isMesh || t.isSkinnedMesh) return;
+          const mesh = new THREE.InstancedMesh(t.geometry, t.material, lagen.length);
+          lagen.forEach((m, i) => mesh.setMatrixAt(i, _matrix.multiplyMatrices(m, t.matrixWorld)));
+          mesh.castShadow = t.castShadow;
+          mesh.receiveShadow = t.receiveShadow;
+          mesh.computeBoundingSphere();
+          mesh.matrixAutoUpdate = false;
+          mesh.updateMatrix();
+          halter.add(mesh);
+        });
+        halter.updateMatrixWorld(true);
+      })
+      .catch((fehler) => console.warn(`3D-Modell „${typ.name ?? url}“ nicht geladen:`, fehler));
   }
 
   /** Alle Möbel: Seiten in EIN Mesh (Farbe je Möbel), Deckel (Sprite von oben) je Typ in ein Mesh. */
@@ -849,7 +914,7 @@ export class KartenModell {
             laubMat.map = modell.laubTextur; // gleiche Shader-Variante (map war schon gesetzt)
           }
           for (const t of teile.values()) {
-            t.meshes[0].geometry = modell.rinde;
+            t.meshes[0].geometry = modell.rinde ?? leer;
             t.meshes[1].geometry = modell.laub ?? leer;
           }
         });

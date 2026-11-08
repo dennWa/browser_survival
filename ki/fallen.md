@@ -68,3 +68,4 @@
   - **Axt:** `figurHaltung`: beidhändig (`greifeMitLinkerHand`), Schneide (Modell +y) zeigt in Schwungrichtung (`makeBasis`).
   - **Admin:** `unendlichMunition` (spieler.unendlichMunition), `zeitVor12` (`spuleZeitVor` + `zeitSprung`). Buttons in `index.html`.
   - Rauchtest nutzt jetzt Tab fürs Inventar. Tests: `tests/runde13.test.js` (Haltbarkeit, klein/groß, Hacke, Samen-Ziel, Essen/Boost, Q einzeln, Admin, Kofferraum, Hasen, Angel-Beute), Station/Feuer in `bauen.test.js`.
+- **Runde 44:** `ladeBaumVariante` darf Modelle ohne `rinde` nicht verwerfen (Büsche = nur Laub). Figuren-Rig: Fingerspitze = seitlich äußerster Punkt, nicht der weiteste (Mantelsaum). Textur-Figuren: Eigenleuchten über `emissiveMap`, sonst weiß. Generator-Spawnpunkte mit dem Innen-Raum mitverschieben. Spielordner-`index.json` braucht `masse` (Generatoren). Siehe `ki/runde44.md`.

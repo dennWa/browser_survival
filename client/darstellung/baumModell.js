@@ -93,7 +93,8 @@ export function ladeBaumVariante(name) {
               ergebnis.laubTextur = t.material.map;
             } else ergebnis.rinde = geometrie;
           });
-          return ergebnis.rinde ? ergebnis : null;
+          // Runde 44: Büsche (busch_*) sind reine Laubkronen ohne Rinde – vorher kam hier null zurück → Büsche unsichtbar
+          return ergebnis.rinde || ergebnis.laub ? ergebnis : null;
         },
         () => null,
       ),

@@ -277,7 +277,7 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | werkzeug | `feuerzeug` Feuerzeug, `feuerbohrer` Feuerbohrer, `angel` Angel |
 | samen | `samen_tomate` Tomatensamen, `samen_gurke` Gurkensamen, `samen_kartoffel` Saatkartoffeln, `samen_paprika` Paprikasamen, `samen_weizen` Weizenkörner, `samen_karotte` Karottensamen, `samen_kuerbis` Kürbiskerne, `samen_erdbeere` Erdbeersamen |
 
-### Eigene 3D-Modelle (Aktion `modell`, Feld `modell` = Name ohne .glb; `hoehe` = Zielhöhe in m) – 560 Stück
+### Eigene 3D-Modelle (Aktion `modell`, Feld `modell` = Name ohne .glb; `hoehe` = Zielhöhe in m) – 614 Stück
 | modell | Name | Kategorie | Standardhöhe m | Fußabdruck m |
 |---|---|---|---|---|
 | `arrow-sign` | Arrow Sign | bau | 2.05 | 1.9 × 0.4 |
@@ -307,6 +307,10 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `gas-station` | Gas Station | bau | 5 | 8.7 × 8.3 |
 | `house` | House | bau | 9.93 | 10.6 × 7.5 |
 | `ladder` | Ladder | bau | 2.25 | 1.2 × 0.7 |
+| `lg-palisade` | Lg Palisade | bau | 2.8 | 3.6 × 0.4 |
+| `lg-palisadentor` | Lg Palisadentor | bau | 3.3 | 3.6 × 0.4 |
+| `lg-zelt-gruen` | Lg Zelt Gruen | bau | 2.08 | 4 × 5 |
+| `lg-zelt` | Lg Zelt | bau | 2.08 | 4 × 5 |
 | `mailbox` | Mailbox | bau | 0.46 | 0.2 × 0.2 |
 | `market-stalls-compact` | Market Stalls Compact | bau | 0.66 | 1.9 × 2 |
 | `metal-bars` | Metal Bars | bau | 0.3 | 0.4 × 1.6 |
@@ -657,6 +661,20 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `oven-solo` | Oven Solo | moebel | 0.41 | 0.8 × 0.5 |
 | `park-bench` | Park Bench | moebel | 0.68 | 1.3 × 1 |
 | `rounded-coffee-table` | Rounded Coffee Table | moebel | 0.58 | 1.6 × 1.6 |
+| `si-frisiertisch` | Si Frisiertisch | moebel | 1.4 | 1.1 × 0.5 |
+| `si-getraenkeautomat` | Si Getraenkeautomat | moebel | 1.85 | 1 × 0.8 |
+| `si-heizkoerper` | Si Heizkoerper | moebel | 0.7 | 1 × 0.2 |
+| `si-kommode-2` | Si Kommode 2 | moebel | 1.5 | 0.8 × 0.4 |
+| `si-kommode` | Si Kommode | moebel | 1.1 | 1.1 × 0.4 |
+| `si-kuehlschrank` | Si Kuehlschrank | moebel | 1.7 | 0.6 × 0.7 |
+| `si-regal` | Si Regal | moebel | 1.9 | 0.9 × 0.3 |
+| `si-schreibtisch` | Si Schreibtisch | moebel | 0.76 | 1.3 × 0.7 |
+| `si-sofa-2` | Si Sofa 2 | moebel | 0.85 | 0.9 × 0.7 |
+| `si-sofa` | Si Sofa | moebel | 0.85 | 1.5 × 0.7 |
+| `si-spuele` | Si Spuele | moebel | 0.9 | 0.5 × 0.4 |
+| `si-stehlampe` | Si Stehlampe | moebel | 1.6 | 0.3 × 0.4 |
+| `si-stuhl-2` | Si Stuhl 2 | moebel | 0.85 | 0.4 × 0.4 |
+| `si-stuhl` | Si Stuhl | moebel | 0.9 | 0.4 × 0.4 |
 | `single-bed` | Single Bed | moebel | 1 | 1.4 × 2.7 |
 | `single-door-base-cabinet-2` | Single Door Base Cabinet 2 | moebel | 0.91 | 0.5 × 0.7 |
 | `single-door-base-cabinet` | Single Door Base Cabinet | moebel | 0.91 | 0.5 × 0.6 |
@@ -707,6 +725,9 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `flower-petal` | Flower Petal | natur | 0.24 | 0.7 × 0.6 |
 | `flower-single-2` | Flower Single 2 | natur | 0.5 | 1.1 × 0.8 |
 | `flower-single` | Flower Single | natur | 0.5 | 0.9 × 0.9 |
+| `gp-gras-1` | Gp Gras 1 | natur | 0.45 | 2.4 × 2.4 |
+| `gp-gras-2` | Gp Gras 2 | natur | 0.4 | 1.6 × 1.7 |
+| `gp-gras-3` | Gp Gras 3 | natur | 0.5 | 2.9 × 3.3 |
 | `grass-wispy-2` | Grass Wispy 2 | natur | 1.07 | 1.3 × 1.2 |
 | `grass-wispy` | Grass Wispy | natur | 1.67 | 1.5 × 1.6 |
 | `grass` | Grass | natur | 0.5 | 0.6 × 0.7 |
@@ -737,6 +758,14 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `pebble-square-5` | Pebble Square 5 | natur | 0.14 | 0.4 × 0.3 |
 | `pebble-square-6` | Pebble Square 6 | natur | 0.15 | 0.4 × 0.5 |
 | `pebble-square` | Pebble Square | natur | 0.17 | 0.3 × 0.3 |
+| `ph-blume-empodium-a` | Ph Blume Empodium A | natur | 0.5 | 0.2 × 0.3 |
+| `ph-blume-empodium-b` | Ph Blume Empodium B | natur | 0.42 | 0.2 × 0.2 |
+| `ph-blume-empodium-c` | Ph Blume Empodium C | natur | 0.34 | 0.2 × 0.2 |
+| `ph-blume-gazania-d` | Ph Blume Gazania D | natur | 0.22 | 0.3 × 0.3 |
+| `ph-blume-gazania-e` | Ph Blume Gazania E | natur | 0.25 | 0.3 × 0.3 |
+| `ph-blume-gazania-f` | Ph Blume Gazania F | natur | 0.42 | 0.4 × 0.4 |
+| `ph-blume-gazania-g` | Ph Blume Gazania G | natur | 0.42 | 0.4 × 0.4 |
+| `ph-blume-gazania-h` | Ph Blume Gazania H | natur | 0.42 | 0.4 × 0.5 |
 | `pine-2` | Pine 2 | natur | 7.39 | 3.6 × 4 |
 | `pine-3` | Pine 3 | natur | 10.24 | 5.8 × 5.4 |
 | `pine-4` | Pine 4 | natur | 7.32 | 4.9 × 4.5 |
@@ -782,6 +811,31 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `rock-medium-2` | Rock Medium 2 | natur | 2.32 | 3.4 × 3.5 |
 | `rock-medium-3` | Rock Medium 3 | natur | 2.26 | 3.2 × 3 |
 | `rock-medium` | Rock Medium | natur | 1.9 | 3 × 2.5 |
+| `sp-fels-1` | Sp Fels 1 | natur | 1.6 | 4.3 × 4 |
+| `sp-fels-2` | Sp Fels 2 | natur | 1.3 | 3.8 × 4.2 |
+| `sp-fels-3` | Sp Fels 3 | natur | 1.3 | 4.1 × 3.6 |
+| `sp-fels-4` | Sp Fels 4 | natur | 1.2 | 3.5 × 3.4 |
+| `sp-fels-5` | Sp Fels 5 | natur | 1.4 | 3.8 × 3.1 |
+| `sp-fels-gross-1` | Sp Fels Gross 1 | natur | 3.2 | 4.9 × 5 |
+| `sp-fels-gross-2` | Sp Fels Gross 2 | natur | 2.4 | 7.4 × 5.3 |
+| `sp-fels-gross-3` | Sp Fels Gross 3 | natur | 3 | 4.2 × 4.8 |
+| `sp-fels-gross-4` | Sp Fels Gross 4 | natur | 2.8 | 3.3 × 2.8 |
+| `sp-fels-gross-5` | Sp Fels Gross 5 | natur | 2 | 5 × 6.7 |
+| `sp-runenstein-1` | Sp Runenstein 1 | natur | 0.6 | 0.7 × 0.7 |
+| `sp-runenstein-2` | Sp Runenstein 2 | natur | 0.9 | 0.8 × 0.5 |
+| `sp-runenstein-3` | Sp Runenstein 3 | natur | 0.85 | 0.7 × 0.5 |
+| `sp-runenstein-4` | Sp Runenstein 4 | natur | 0.7 | 0.8 × 0.6 |
+| `sp-runenstein-5` | Sp Runenstein 5 | natur | 1.4 | 0.8 × 0.7 |
+| `sp-runenstein-6` | Sp Runenstein 6 | natur | 1.4 | 0.7 × 0.7 |
+| `sp-runenstein-7` | Sp Runenstein 7 | natur | 1.4 | 0.7 × 0.7 |
+| `sp-stein-1` | Sp Stein 1 | natur | 0.5 | 1.8 × 1.5 |
+| `sp-stein-2` | Sp Stein 2 | natur | 0.5 | 1.8 × 1.2 |
+| `sp-stein-3` | Sp Stein 3 | natur | 0.55 | 2 × 1.4 |
+| `sp-stein-4` | Sp Stein 4 | natur | 0.55 | 1.9 × 1.3 |
+| `sp-stein-5` | Sp Stein 5 | natur | 0.5 | 1.9 × 1.3 |
+| `sp-stein-6` | Sp Stein 6 | natur | 0.9 | 0.9 × 1 |
+| `sp-stein-7` | Sp Stein 7 | natur | 0.75 | 0.8 × 0.9 |
+| `sp-stein-8` | Sp Stein 8 | natur | 0.7 | 0.9 × 0.9 |
 | `tall-grass` | Tall Grass | natur | 1.87 | 0.9 × 1 |
 | `tanne_schnee` | Tanne_schnee | natur | 0.75 | 0.4 × 0.4 |
 | `tree-2` | Tree 2 | natur | 7.64 | 4.5 × 4.3 |

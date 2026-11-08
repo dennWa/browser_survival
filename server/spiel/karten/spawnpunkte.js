@@ -12,11 +12,14 @@ import { LOOT_TABELLEN } from '../konfiguration/lootTabellen.js';
  *     intervall: 0,5–1440,          alle wie viele Minuten (Echtzeit) ein neuer Versuch, solange der Punkt leer ist
  *     menge?: [min, max],           nur bei einem Item (fehlt = Standard des Items)
  *     hoehe?: 0–5,                  Ablagehöhe in Kacheln (Item liegt sichtbar auf einem Möbel; Spiel-Logik bleibt 2D)
- *     name? }
+ *     name?,
+ *     buffet?: true }               Runde 44 (Lagerplatz-Tische): Intervall ab 10 s (BUFFET_INTERVALL_MIN) und Nachlegen auch,
+ *                                   wenn Spieler daneben stehen (lootSystem) – Essen/Trinken „wie auf einer Party“
  * Ablauf: Beim Start ein Versuch; wird das Item aufgehoben (oder misslingt der Wurf), startet der Timer `intervall` neu.
  * Ein Punkt hält höchstens ein Item.
  */
 export const SPAWN_INTERVALL_MIN = 0.5;
+export const BUFFET_INTERVALL_MIN = 1 / 6; // Runde 44: 10 s
 export const SPAWN_INTERVALL_MAX = 1440;
 export const SPAWN_HOEHE_MAX = 5;
 export const TABELLEN_PRAEFIX = 'tabelle:';
@@ -46,8 +49,9 @@ export function pruefeSpawnpunkt(roh, { breite = Infinity, hoehe = Infinity } = 
     y: Math.round(y * 100) / 100,
     inhalt: roh.inhalt,
     chance: begrenzt(roh.chance, 0, 100, 50),
-    intervall: begrenzt(roh.intervall, SPAWN_INTERVALL_MIN, SPAWN_INTERVALL_MAX, 10),
+    intervall: begrenzt(roh.intervall, roh.buffet === true ? BUFFET_INTERVALL_MIN : SPAWN_INTERVALL_MIN, SPAWN_INTERVALL_MAX, 10),
   };
+  if (roh.buffet === true) punkt.buffet = true;
   if (!roh.inhalt.startsWith(TABELLEN_PRAEFIX) && Array.isArray(roh.menge) && roh.menge.length === 2) {
     const a = Math.max(1, Math.round(begrenzt(roh.menge[0], 1, 999, 1)));
     const b = Math.max(a, Math.round(begrenzt(roh.menge[1], 1, 999, a)));

@@ -54,9 +54,9 @@ test('Sitze: Höhe aus Typ/Modellname, lange Bänke haben mehrere Plätze, Blick
 
 test('Lagerplatz: kleine Karte, ewiges Lagerfeuer, Lichterketten, Sitz-Typen, Übergang zum Stadtrand', () => {
   const karte = ladeKarte('lager');
-  assert.ok(karte.daten.breite <= 60 && karte.daten.hoehe <= 60, 'klein (Runde 43: mit Rasen-/Waldring)');
+  assert.ok(karte.daten.breite <= 100 && karte.daten.hoehe <= 100, 'klein (Runde 44: mit breitem Waldring)');
   assert.equal(karte.zombieSpawns.length, 0, 'keine Zombies');
-  assert.equal(karte.lootPunkte.length, 0, 'kein Loot');
+  assert.ok(karte.lootPunkte.every((p) => p.spawnPunkt?.buffet), 'kein Loot – nur das Buffet (Runde 44)');
   assert.ok(karte.spielerStarts.length >= 4);
   const feuer = karte.bauwerke.find((b) => b.typ === 'lagerfeuer');
   assert.equal(feuer?.ewig, true);
@@ -104,7 +104,7 @@ test('Sitzen auf der Bank am Feuer: Sitzplatz + Blick zum Feuer + Feuer-Bonus; z
   assert.equal(a.arbeit?.art, 'sitzen');
   assert.equal(a.arbeit.ort?.sitz, true, 'auf einem Sitz');
   assert.ok(a.arbeit.ort.hoehe > 10, 'Sitzhöhe in px');
-  assert.ok(Math.abs(a.arbeit.ort.blick - Math.PI / 2) < 0.05, 'Nordbank: Blick nach Süden zum Feuer');
+  assert.ok(Math.cos(a.arbeit.ort.blick - Math.PI / 2) > 0.999, 'Nordbank: Blick nach Süden zum Feuer');
   assert.equal(a.arbeit.bauwerkId, feuer.id, 'zählt als „am Feuer“');
   assert.equal(b.arbeit?.ort?.sitz, true);
   assert.ok(a.arbeit.ort.x !== b.arbeit.ort.x || a.arbeit.ort.y !== b.arbeit.ort.y, 'nicht derselbe Platz');

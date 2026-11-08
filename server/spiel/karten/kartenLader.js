@@ -130,6 +130,8 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE, { au
     const objekt = { typ: o.typ, x: o.x, y: o.y, b: o.b, h: o.h, blockiert: !!o.blockiert, ebene: o.ebene ?? 'moebel', drehung: o.drehung ?? 0 };
     // Studio: Größe (nur Optik-Höhe – b/h sind bereits mitskaliert, damit die Kollision passt)
     if (Number.isFinite(o.skalierung) && o.skalierung > 0 && o.skalierung !== 1) objekt.skalierung = Math.min(4, Math.max(0.25, o.skalierung));
+    // Runde 44: Aufstellhöhe in m (nur Optik, z. B. Teller/Krug auf einem Tisch) – Kollision bleibt 2D
+    if (Number.isFinite(o.z) && o.z > 0) objekt.z = Math.min(10, o.z);
     // Bäume & Steine: klein (1 Holz/Stein) oder groß (2) – feste Zufallsverteilung nach Position (oder fest aus der Karte)
     if (GROESSEN_TYPEN.includes(o.typ)) objekt.groesse = o.groesse === 'klein' || o.groesse === 'gross' ? o.groesse : streuwert(o.x, o.y, 2) < ANTEIL_GROSS ? 'gross' : 'klein';
     // Lampen: Radius (Kacheln), Farbe, Stärke 0..1, Flackern; Kegel-Licht (Map-Editor): Richtung ° (0 = Osten, 90 = Süden), Öffnung 10–170°

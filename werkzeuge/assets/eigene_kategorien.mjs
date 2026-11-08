@@ -101,6 +101,20 @@ export const HOEHEN = {
   'nk-log-stack': 1, 'nk-log-stack-large': 1.05, 'nk-grass-large': 0.75, 'nk-grass-leafs-large': 0.42, 'nk-mushroom-red-group': 0.5,
   'nk-mushroom-tan-group': 0.5, 'nk-stump-round-detailed': 0.63, 'nk-flower-purple-a': 0.72, 'nk-flower-red-a': 0.8,
   'nk-flower-yellow-a': 0.6, 'nk-tent-detailed-open': 1.7, 'nk-fence-simple': 1.05, 'nk-fence-gate': 1.05, 'nk-plant-bush-detailed': 1.1,
+  // Runde 44: „Some interior pack“ (photon, CC-BY) – Höhen realistisch
+  'si-kommode': 1.1, 'si-kommode-2': 1.5, 'si-stuhl': 0.9, 'si-stuhl-2': 0.85, 'si-sofa': 0.85, 'si-sofa-2': 0.85, 'si-schreibtisch': 0.76,
+  'si-stehlampe': 1.6, 'si-regal': 1.9, 'si-frisiertisch': 1.4, 'si-heizkoerper': 0.7, 'si-kuehlschrank': 1.7, 'si-spuele': 0.9,
+  'si-getraenkeautomat': 1.85,
+  // Runde 44: „Stone Pack“ (ashkan.fancy, CC-BY) – Deko-Felsen; „Grass patches“ (DJMaesen, CC-BY)
+  'sp-fels-gross-1': 3.2, 'sp-fels-gross-2': 2.4, 'sp-fels-gross-3': 3, 'sp-fels-gross-4': 2.8, 'sp-fels-gross-5': 2,
+  'sp-fels-1': 1.6, 'sp-fels-2': 1.3, 'sp-fels-3': 1.3, 'sp-fels-4': 1.2, 'sp-fels-5': 1.4,
+  'sp-stein-1': 0.5, 'sp-stein-2': 0.5, 'sp-stein-3': 0.55, 'sp-stein-4': 0.55, 'sp-stein-5': 0.5, 'sp-stein-6': 0.9, 'sp-stein-7': 0.75, 'sp-stein-8': 0.7,
+  'sp-runenstein-1': 0.6, 'sp-runenstein-2': 0.9, 'sp-runenstein-3': 0.85, 'sp-runenstein-4': 0.7, 'sp-runenstein-5': 1.4,
+  'sp-runenstein-6': 1.4, 'sp-runenstein-7': 1.4,
+  'gp-gras-1': 0.45, 'gp-gras-2': 0.4, 'gp-gras-3': 0.5,
+  // Runde 44: Poly-Haven-Blumen (CC0), etwa doppelt so groß wie echt (sonst von oben kaum zu sehen)
+  'ph-blume-empodium-a': 0.5, 'ph-blume-empodium-b': 0.42, 'ph-blume-empodium-c': 0.34, 'ph-blume-gazania-d': 0.22,
+  'ph-blume-gazania-e': 0.25, 'ph-blume-gazania-f': 0.42, 'ph-blume-gazania-g': 0.42, 'ph-blume-gazania-h': 0.42,
 };
 
 /** stem → Kategorie-Schlüssel */
@@ -114,6 +128,9 @@ export const kategorieVon = (() => {
     [/^nk-(canoe|canoe-paddle)$/, 'fahrzeuge'],
     [/^nk-(tent-.+|fence-.+)$/, 'bau'],
     [/^nk-campfire-.+$/, 'deko'],
+    [/^si-/, 'moebel'],
+    [/^lg-/, 'bau'],
+    [/^sp-|^gp-|^ph-blume-/, 'natur'],
     [/^nk-/, 'natur'],
     [/^r32_(eichenstamm|eisenerz|erzpack_object_\d+|fels_\d+|steine|stumpf_\d+|rohstoffe)$/, 'natur'],
     [/^r32_(essen|steaks|vorrat)$/, 'essen'],

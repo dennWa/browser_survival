@@ -10,7 +10,8 @@ for (const id of Object.keys(KARTEN)) {
     const karte = ladeKarte(id);
     const welt = new Welt(karte.daten);
     assert.ok(karte.spielerStarts.length > 0, 'braucht Spieler-Starts');
-    for (const p of [...karte.spielerStarts, ...karte.zombieSpawns, ...karte.lootPunkte]) {
+    // Runde 44: Items auf Möbeln (Spawnpunkt mit `hoehe`, z. B. Buffet auf dem Tisch) dürfen auf blockierten Möbel-Kacheln liegen
+    for (const p of [...karte.spielerStarts, ...karte.zombieSpawns, ...karte.lootPunkte.filter((l) => !(l.hoehe > 0))]) {
       const tx = Math.floor(p.x / welt.kachelGroesse);
       const ty = Math.floor(p.y / welt.kachelGroesse);
       assert.equal(welt.istBlockiert(tx, ty), false, `Spawn ${tx}|${ty} liegt in einer Wand`);

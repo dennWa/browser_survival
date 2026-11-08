@@ -28,7 +28,9 @@ for (const id of Object.keys(KARTEN)) {
     for (const p of [...karte.lootPunkte, ...karte.zombieSpawns, ...karte.spielerStarts]) {
       const tx = Math.floor(p.x / g);
       const ty = Math.floor(p.y / g);
-      assert.ok(besucht.has(ty * welt.breite + tx), `Punkt ${tx}|${ty}${p.raum ? ` (Raum ${p.raum})` : ''} ist nicht erreichbar`);
+      // Runde 44: Items auf Möbeln (Spawnpunkt mit `hoehe`, z. B. Buffet auf dem Tisch) – erreichbar, wenn eine freie Kachel in Greifweite liegt
+      const greifbar = p.hoehe > 0 && [...besucht].some((i) => Math.hypot(((i % welt.breite) + 0.5) * g - p.x, (Math.floor(i / welt.breite) + 0.5) * g - p.y) <= 58);
+      assert.ok(greifbar || besucht.has(ty * welt.breite + tx), `Punkt ${tx}|${ty}${p.raum ? ` (Raum ${p.raum})` : ''} ist nicht erreichbar`);
     }
   });
 

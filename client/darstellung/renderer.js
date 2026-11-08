@@ -138,6 +138,7 @@ const SCHEINWERFER = { decay: 1, winkel: 0.4, rand: 0.55, reichweite: 620, staer
 const SITZ_TIEFE = 24; // so weit sinkt die Figur beim Sitzen am Feuer
 const STUHL_KORREKTUR = 0; // Runde 42: Clip „sitzen“ – Hüfte über dem Figur-Ursprung (px), abgezogen von der Sitzhöhe
 const STUHL_ZURUECK = 0; // Runde 42: Figur so weit nach hinten (gegen die Blickrichtung), damit die Hüfte auf der Fläche sitzt
+const ITEM_AUF_MOEBEL = 0.5; // Runde 44: Größe von Items mit hoehe (auf Tisch/Möbel) gegenüber Boden-Items
 const SICHTWEITE = 1300; // weiter entfernte Figuren werden nicht animiert/gezeichnet
 const ANIM_HALB_AB = 650; // Zombies weiter weg werden nur jedes 2. Bild animiert (mit doppeltem dt)
 const NEUE_FIGUREN_JE_BILD = 2; // höchstens so viele Zombie-Figuren pro Bild neu aufbauen (Horden-Spawn ruckelte)
@@ -149,6 +150,9 @@ const ZOMBIE_MODELLE = {
   gruen: { datei: 'eigene/zombie-2.glb', hoehe: 0.86, klips: { stehen: 'Idle', gehen: 'Walk', rennen: 'Run', angriff: 'Punch' }, tempo: { gehen: 55, rennen: 125 } },
   koloss: { datei: 'eigene/zombie.glb', hoehe: 1.05, klips: { stehen: 'Idle', gehen: 'Walk', rennen: 'Run', angriff: 'Punch' }, tempo: { gehen: 50, rennen: 115 } },
   halb: { datei: 'eigene/zombie-half.glb', hoehe: 0.62, klips: { stehen: 'Idle', gehen: 'Walk', rennen: 'Run', angriff: 'HitReact' }, tempo: { gehen: 40, rennen: 95 } },
+  // Runde 44: Skelett-Zombie (ZombieBB, ssaraksh, CC-BY) – eigene Textur (kein Atlas), Clips zombieartig aus der Spielfigur gebaut
+  // (werkzeuge/assets/r44/baue_skelett_r44.py), mit Sterbe-Clip (Leiche bleibt liegen)
+  skelett: { datei: '3d/zombies/skelett.glb', hoehe: 1.0, eigeneTextur: true, klips: { stehen: 'stehen', gehen: 'gehen', rennen: 'rennen', angriff: 'angriff', sterben: 'sterben' }, tempo: { gehen: 42, rennen: 125 } },
 };
 /** Runde 24: Hautfarbe (+ Glühen) der Sonder-Zombies auf der Kenney-Figur */
 const SONDER_TOENE = {
@@ -165,6 +169,8 @@ const SONDER_MATERIAL = {};
 function zombieModellFuer(e) {
   if (e.variante === 'brocken') return 'koloss';
   if (e.variante === 'halb') return 'halb';
+  // Runde 44: einfache Zombies (normal, Läufer) = Skelett; Sonder-Zombies bleiben „gruen“ (Tönung + Anbauteile)
+  if (!e.variante || e.variante === 'normal' || e.variante === 'laeufer') return 'skelett';
   return 'gruen';
 }
 const SPRECHBLASE_MS = 4000; // Chat-Sprechblase: Grunddauer + 60 ms je Zeichen …
@@ -212,7 +218,7 @@ const TAG = { sonne: new THREE.Color(0xfff1dc), himmel: new THREE.Color(0xbfd8ff
 const NACHT = { sonne: new THREE.Color(0x7489c8), himmel: new THREE.Color(0x1f2842), boden: new THREE.Color(0x0a0b0e), hintergrund: new THREE.Color(0x02030a), zenit: new THREE.Color(0x000105), wolken: new THREE.Color(0x0b0e18) };
 const DAEMMERUNG = { sonne: new THREE.Color(0xff9a4d), hintergrund: new THREE.Color(0xe08a5a), zenit: new THREE.Color(0x5a5aa8), wolken: new THREE.Color(0xffb48a) };
 /** Runde 43: Zonen mit `festeZeit` (Lagerplatz) – kräftiger, warmer Sonnenuntergang (goldenes Licht, orange-rosa Himmel) */
-const SONNENUNTERGANG = { sonne: new THREE.Color(0xff8a3a), himmel: new THREE.Color(0xffb27a), boden: new THREE.Color(0x3a2418), hintergrund: new THREE.Color(0xf0905c) };
+const SONNENUNTERGANG = { sonne: new THREE.Color(0xff7a32), himmel: new THREE.Color(0xe08a68), boden: new THREE.Color(0x2a1a14), hintergrund: new THREE.Color(0x8a4a3c), sonnenStaerke: 1.25, umgebungStaerke: 0.62 }; // Runde 44: dunkler (Hintergrund 0xf0905c → 0x8a4a3c)
 /** Himmel (himmel.js): Die Welt endet per Kamera-Ferne (Vielfaches des Kameraabstands) – darüber, am oberen Bildrand, beginnt der Himmel. */
 const BODEN_SPEICHER_MB = { pc: 512, handy: 192 }; // Grafikspeicher für die Bodentextur einer Zone (wird hinter dem Ladebild komplett hochgeladen)
 const HIMMEL_FERNE = 1.36; // Welt endet erst knapp über dem oberen Bildrand – der Himmel verdeckt das Spielfeld nicht
@@ -1067,7 +1073,11 @@ export class Renderer {
           const gltf = await new GLTFLoader().loadAsync(new URL(def.datei, ASSETS).href);
           const modell = gltf.scene;
           modell.updateMatrixWorld(true);
-          if (this.zombieAtlas) texturiereZombie(modell, this.zombieAtlas);
+          if (this.zombieAtlas && !def.eigeneTextur) texturiereZombie(modell, this.zombieAtlas);
+          if (def.eigeneTextur)
+            modell.traverse((o) => {
+              if (o.material?.map) o.material.map.colorSpace = THREE.SRGBColorSpace;
+            });
           // ⚠ Skelett-Modelle erst nach Matrix-/Skelett-Update messen (sonst ~100× falsch, siehe KI_INDEX §18)
           modell.updateMatrixWorld(true);
           modell.traverse((o) => {
@@ -1767,6 +1777,8 @@ export class Renderer {
     if (!sv.materialien.has(original)) {
       const material = original.clone();
       material.emissive.copy(material.color);
+      // Runde 44: Textur-Figuren (r32, Farbe weiß) leuchteten abends komplett weiß → Eigenleuchten nach der Textur
+      if (material.map) material.emissiveMap = material.map;
       material.emissiveIntensity = 0;
       this.spielerMaterialien.push(material);
       sv.materialien.set(original, material);
@@ -2009,9 +2021,10 @@ export class Renderer {
     const mixer = new THREE.AnimationMixer(modell);
     const aktionen = {};
     for (const [name, clip] of Object.entries(z.clips)) aktionen[name] = mixer.clipAction(clip);
-    if (aktionen.angriff) {
-      aktionen.angriff.setLoop(THREE.LoopOnce, 1);
-      aktionen.angriff.clampWhenFinished = true;
+    for (const einmal of [aktionen.angriff, aktionen.sterben]) {
+      if (!einmal) continue;
+      einmal.setLoop(THREE.LoopOnce, 1);
+      einmal.clampWhenFinished = true;
     }
     aktionen.stehen.play();
     mixer.setTime(Math.random() * 2);
@@ -2263,6 +2276,8 @@ export class Renderer {
       mesh.position.set(g.x, 1.5 + this.#hy(g.x, g.y), g.y);
     }
     mesh.userData.defId = g.defId;
+    // Runde 44: Items auf Möbeln (Buffet auf dem Tisch, Studio-Spawnpunkt mit hoehe) kleiner – Boden-Items sind absichtlich groß
+    if (g.hoehe > 0) mesh.scale.setScalar(ITEM_AUF_MOEBEL);
     return mesh;
   }
 
@@ -2331,13 +2346,14 @@ export class Renderer {
     this.umgebung.intensity = NACHT_UMGEBUNG + hell * (1.3 - NACHT_UMGEBUNG);
     this.szene.background.copy(NACHT.hintergrund).lerp(TAG.hintergrund, hell).lerp(DAEMMERUNG.hintergrund, daemmerung * 0.5);
     if (this.welt?.festeZeit != null && !this.nachtsicht) {
-      // Runde 43: feste Abendstimmung – Sonne tief und golden, Himmel/Umgebung warm, etwas heller als eine echte Dämmerung
-      this.mond.color.lerp(SONNENUNTERGANG.sonne, 0.7);
-      this.mond.intensity = Math.max(this.mond.intensity, 2.1);
+      // Runde 43: feste Abendstimmung – Sonne tief und golden, Himmel/Umgebung warm
+      // Runde 44: dunkler und gemütlicher (Nutzerwunsch) – Lichterketten/Feuer/Fackeln tragen das Bild (vorher Sonne ≥ 2,1, Umgebung ≥ 1,0)
+      this.mond.color.lerp(SONNENUNTERGANG.sonne, 0.75);
+      this.mond.intensity = SONNENUNTERGANG.sonnenStaerke;
       this.umgebung.color.lerp(SONNENUNTERGANG.himmel, 0.55);
       this.umgebung.groundColor.lerp(SONNENUNTERGANG.boden, 0.6);
-      this.umgebung.intensity = Math.max(this.umgebung.intensity, 1.0);
-      this.szene.background.lerp(SONNENUNTERGANG.hintergrund, 0.75);
+      this.umgebung.intensity = SONNENUNTERGANG.umgebungStaerke;
+      this.szene.background.lerp(SONNENUNTERGANG.hintergrund, 0.8);
     }
     this.szene.fog.color.copy(this.szene.background);
     // Sonnenschatten: nachts (Mond ≈ 0) keinen Szenen-Durchgang; Schattenkamera nur so groß wie der sichtbare Bereich (zoomabhängig)

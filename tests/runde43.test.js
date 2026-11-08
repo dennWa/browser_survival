@@ -54,11 +54,12 @@ test('Lagerplatz: feste Abendstimmung (festeZeit) – Dämmerung, nicht Nacht; t
   assert.equal(ladeKarte('stadtrand').daten.festeZeit, undefined, 'nur der Lagerplatz');
 });
 
-test('Lagerplatz: Holzzaun rundherum (nur das Tor ist offen), draußen nur Rasen + Bäume', () => {
+test('Lagerplatz: Palisade rundherum, Tor geschlossen (Übergang innen davor), draußen nur Rasen + Bäume', () => {
+  // Runde 44: hohe Palisade (lg-palisade) statt Holzzaun, Tor zu – man kommt nur über den 5-s-Übergang vor dem Tor raus
   const karte = ladeKarte('lager');
   const welt = new Welt(karte.daten);
-  const zaun = karte.daten.objekte.filter((o) => o.typ.startsWith('sf_wooden_fence'));
-  assert.ok(zaun.length > 40);
+  const zaun = karte.daten.objekte.filter((o) => o.typ.startsWith('sf_lg_palisade'));
+  assert.ok(zaun.length > 25);
   const x0 = Math.min(...zaun.map((o) => Math.floor(o.x + o.b / 2)));
   const x1 = Math.max(...zaun.map((o) => Math.floor(o.x + o.b / 2)));
   const y0 = Math.min(...zaun.map((o) => Math.floor(o.y + o.h / 2)));
@@ -66,13 +67,16 @@ test('Lagerplatz: Holzzaun rundherum (nur das Tor ist offen), draußen nur Rasen
   const offen = [];
   for (let x = x0; x <= x1; x++) for (const y of [y0, y1]) if (!welt.istBlockiert(x, y)) offen.push([x, y]);
   for (let y = y0; y <= y1; y++) for (const x of [x0, x1]) if (!welt.istBlockiert(x, y)) offen.push([x, y]);
-  assert.ok(offen.length >= 2 && offen.length <= 4, `nur das Tor ist offen: ${JSON.stringify(offen)}`);
-  assert.ok(offen.every(([x]) => x === x1), 'Tor im Osten');
-  // draußen: nur Gras, Bäume und Zaun – keine Deko/Möbel
+  assert.deepEqual(offen, [], 'rundherum zu (auch das Tor)');
+  assert.ok(karte.daten.objekte.some((o) => o.typ.startsWith('sf_lg_palisadentor') && Math.floor(o.x + o.b / 2) === x1), 'Tor im Osten');
+  const [u] = karte.daten.uebergaenge;
+  assert.ok(u.x + u.b === x1 && u.x >= x1 - 3, 'Übergang innen direkt vor dem Tor');
+  // draußen: nur Gras und Bäume – keine Deko/Möbel
   const draussen = (o) => o.x + o.b <= x0 || o.x >= x1 + 1 || o.y + o.h <= y0 || o.y >= y1 + 1;
   const fremd = karte.daten.objekte.filter((o) => draussen(o) && !['baum', 'baum_herbst'].includes(o.typ));
   assert.deepEqual(fremd.map((o) => o.typ), []);
-  assert.ok(karte.daten.objekte.filter((o) => draussen(o) && o.typ.startsWith('baum')).length >= 30, 'Wald drumherum');
+  assert.ok(karte.daten.objekte.filter((o) => draussen(o) && o.typ.startsWith('baum')).length >= 150, 'Wald drumherum');
+  assert.ok(x0 >= 25 && welt.breite - x1 >= 25 && y0 >= 25 && welt.hoehe - y1 >= 25, 'breiter Waldring (kein sichtbares Kartenende)');
   for (let y = 0; y < welt.hoehe; y++) for (let x = 0; x < welt.breite; x++) if (x < x0 || x > x1 || y < y0 || y > y1) assert.equal(welt.kachelAn(x, y), ',', `Rasen bei ${x}|${y}`);
 });
 

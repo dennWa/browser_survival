@@ -16,6 +16,7 @@ __pycache__/
 # Browser Survival Studio: Entwürfe, MCP-Verbindung (lokal)
 .studio/
 verteilen bitte/
+\!!!verteilen/
 
 # Runde-32-Roadmap (enthält API-Schlüssel)
 ROADMAP_RUNDE32.md

@@ -8,7 +8,7 @@ import { wuerfleSpawnpunkt } from '../karten/spawnpunkte.js';
  * Loot: Startverteilung auf die Loot-Punkte der Karte, Nachschub an geplünderten Punkten,
  * Beute von getöteten Zombies.
  */
-const RESPAWN_SPERRABSTAND = 260; // nicht vor den Augen eines Spielers nachlegen
+const RESPAWN_SPERRABSTAND = 260; // nicht vor den Augen eines Spielers nachlegen (außer Buffet-Spawnpunkte, Runde 44)
 
 export function verteileStartLoot(spielWelt) {
   spielWelt.lootZustand = spielWelt.karte.lootPunkte.map(() => ({ gegenstandId: null, rest: 0 }));
@@ -37,7 +37,7 @@ export function aktualisiereLoot(spielWelt, dt) {
     const spielerNah = [...spielWelt.alleVomTyp('spieler')].some(
       (s) => Math.hypot(s.x - punkt.x, s.y - punkt.y) < RESPAWN_SPERRABSTAND,
     );
-    if (spielerNah) {
+    if (spielerNah && !punkt.spawnPunkt?.buffet) {
       zustand.rest = 10;
       return;
     }

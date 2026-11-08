@@ -1,4 +1,6 @@
-"""Runde 32: Spielerfiguren aus „Characters_ Extras“ (Elbolilloduro, Sketchfab, CC-BY) auf das Skelett der Spielfigur riggen.
+"""⚠ ERSETZT durch werkzeuge/assets/r44/baue_figuren_r44.py (Runde 44: volle Textur, Normalen, Bone-Heat-Gewichte, A-Pose-Fix).
+
+Runde 32: Spielerfiguren aus „Characters_ Extras“ (Elbolilloduro, Sketchfab, CC-BY) auf das Skelett der Spielfigur riggen.
 
 Die Quellfiguren sind statisch (A-Pose, Textur). Sie bekommen das Skelett von client/assets/3d/figur_mann.glb (Quaternius
 „Adventurer“, 62 Knochen) – die Animationen (stehen/laufen/hacken/sterben …) kommen zur Laufzeit aus figur_mann.glb (gleiche

@@ -32,6 +32,15 @@ export const STREUUNG = { gras: RASEN, wiese: RASEN, rasen: RASEN };
 export const ZONEN = {
   stadtrand: false, // Runde 33: Rasen auf Nutzerwunsch wieder aus (Runde 32 hatte ihn an)
   waldweg: false,
+  // Runde 44: Lagerplatz – Wiese (Blumen kommen v. a. als Poly-Haven-Modelle ph-blume-* aus lager.py), etwas weniger Gras
+  lager: {
+    gras: [
+      { art: 'gras', proKachel: 0.7, hoehe: [10, 16] },
+      { art: 'gras_wispy_a', proKachel: 0.18, hoehe: [12, 18] },
+      { art: 'gras_hoch', proKachel: 0.06, hoehe: [16, 24], farbe: [0.8, 1.05] },
+      { art: 'blumen', proKachel: 0.08, hoehe: [9, 13], farbe: [0.95, 1.12] },
+    ],
+  },
 };
 
 /** Nur Büschel innerhalb dieses Abstands (px) um die Kamera werden gezeichnet (Dreiecke sparen) */

@@ -514,5 +514,35 @@
     "urheber": "Kenney (www.kenney.nl) via OpenGameArt",
     "lizenz": "CC0",
     "url": "https://opengameart.org/content/nature-kit"
+  },
+  {
+    "paket": "Some interior pack (si-*.glb: Kommoden, Stühle, Sofas, Schreibtisch, Stehlampe, Regal, Frisiertisch, Heizkörper, Kühlschrank, Spüle, Getränkeautomat)",
+    "urheber": "photon (that one larry) via Sketchfab",
+    "lizenz": "CC-BY 4.0",
+    "url": "https://skfb.ly/pJPEx"
+  },
+  {
+    "paket": "Stone Pack (sp-*.glb: Felsen, Steine, Runensteine)",
+    "urheber": "ashkan.fancy via Sketchfab",
+    "lizenz": "CC-BY 4.0",
+    "url": "https://skfb.ly/opCKY"
+  },
+  {
+    "paket": "Grass patches (gp-gras-*.glb: Grasbüschel)",
+    "urheber": "DJMaesen via Sketchfab",
+    "lizenz": "CC-BY 4.0",
+    "url": "https://skfb.ly/onMCA"
+  },
+  {
+    "paket": "Skelett-Zombie „ZombieBB“ (3d/zombies/skelett.glb, Rig + Animationen selbst gebaut)",
+    "urheber": "ssaraksh via Sketchfab",
+    "lizenz": "CC-BY 4.0",
+    "url": "https://sketchfab.com/ssaraksh"
+  },
+  {
+    "paket": "Poly Haven (CC0): Texturen bark_brown_02, brown_planks_07, hessian_230 (lg-palisade, lg-palisadentor, lg-zelt*) und Modelle flower_empodium, flower_gazania (ph-blume-*)",
+    "urheber": "Poly Haven (polyhaven.com)",
+    "lizenz": "CC0",
+    "url": "https://polyhaven.com"
   }
 ]

@@ -4,7 +4,13 @@ Generator für server/spiel/karten/lager.js – Zone "Lagerplatz" (Runde 42/43):
     python3 werkzeuge/karten/lager.py
 
 Runde 43: ein Holzzaun (wooden-fence) umschließt den Platz, draußen nur Rasen + Bäume (8 Kacheln Ring); Tor im Osten mit
-Fackeln. Zonen-Felder `friedlich` (niemand nimmt Schaden, Hunger/Durst/Kälte pausieren) und `festeZeit` (Licht/Himmel immer
+Fackeln.
+Runde 44: hohe Palisade (lg-palisade, Rundhölzer) statt Zaun, geschlossenes Palisadentor im Osten – wer 5 s davor steht, reist
+zum Stadtrand (Übergang innen vor dem Tor, Countdown wie alle Übergänge). Wald-Ring RING Kacheln breit (man sieht beim
+Rauszoomen kein Kartenende). Neue Zelte (lg-zelt*), Gartenbänke rundum, Buffet auf den Tischen (spawnpunkte `buffet`: Essen/
+Trinken kommt nach ~10 s wieder), Teller/Krüge mit Objekt-Feld `z` (Höhe in m), Grasbüschel (gp-gras-*), Steine (sp-*),
+ein paar Bäume im Lager. Blumen = Natur-Streuung (client/darstellung/naturKonfiguration.js ZONEN.lager).
+Zonen-Felder `friedlich` (niemand nimmt Schaden, Hunger/Durst/Kälte pausieren) und `festeZeit` (Licht/Himmel immer
 Sonnenuntergang; Server-Uhr läuft normal weiter). Gartenbänke: Modell-Front ist hinten → drehung +180 (sitze.js MODELL_FRONT).
 Gebaut wird im „Innen-Raum“ (alte 40×34-Koordinaten), am Ende um (SX, SY) verschoben und mit dem Rasenring umgeben.
 
@@ -68,17 +74,20 @@ def typ_fuer(stem, hoehe=None, blockiert=False, sitz=None):
     return typ_id, eb, et
 
 
-def deko(stem, cx, cy, hoehe=None, drehung=0, blockiert=False, sitz=None):
-    """Modell mit Mittelpunkt (cx, cy) in Kacheln. drehung 0 = Front Süd, 90 West, 180 Nord, 270 Ost."""
+def deko(stem, cx, cy, hoehe=None, drehung=0, blockiert=False, sitz=None, z=None, sperre=True):
+    """Modell mit Mittelpunkt (cx, cy) in Kacheln. drehung 0 = Front Süd, 90 West, 180 Nord, 270 Ost. z = Aufstellhöhe (m)."""
     typ_id, b, t = typ_fuer(stem, hoehe, blockiert, sitz)
     viertel = round(drehung / 90) % 4
     if viertel % 2 == 1:
         b, t = t, b
     extra = {'drehung': drehung} if drehung else {}
+    if z:
+        extra['z'] = z
     if blockiert:
         extra['blockiert'] = True
     o(typ_id, round(cx - b / 2, 2), round(cy - t / 2, 2), b, t, **extra)
-    sperre_rund(cx, cy, max(b, t) / 2 + 0.3)
+    if sperre:
+        sperre_rund(cx, cy, max(b, t) / 2 + 0.3)
 
 
 def licht(cx, cy, hoehe, radius=4.0, farbe='#ffcf8a', staerke=0.7, flackern=False):
@@ -90,7 +99,7 @@ def licht(cx, cy, hoehe, radius=4.0, farbe='#ffcf8a', staerke=0.7, flackern=Fals
 # Zaun (Innen-Raum-Koordinaten): Rechteck ZX0..ZX1 × ZY0..ZY1 (Kachelreihen), Tor im Osten (Reihen TOR)
 ZX0, ZX1, ZY0, ZY1 = 5, 37, 3, 31
 TOR = (16, 17, 18)
-RING = 11                                  # Rasen + Bäume außerhalb des Zauns (2 Kacheln Rasen, dahinter Wald)
+RING = 30                                  # Runde 44: Rasen + Wald außerhalb der Palisade (breit → kein Kartenende beim Rauszoomen)
 SX, SY = RING - ZX0, RING - ZY0            # Verschiebung Innen-Raum → Karte
 B2, H2 = ZX1 + SX + 1 + RING, ZY1 + SY + 1 + RING
 
@@ -136,8 +145,9 @@ sperre_rund(MX, MY, 2.2)
 # Bänke im Kreis ums Feuer – ALLE mit Blick zum Feuer: Norden/Süden lange Bank (ohne Lehne), Osten/Westen Gartenbank mit Lehne
 # (⚠ Gartenbank-Modell: Front zeigt nach hinten → drehung +180, die Sitzrichtung korrigiert sitze.js MODELL_FRONT), dazwischen Stümpfe
 R = 3.0
-deko('bench', MX, MY - R, hoehe=0.5, drehung=0, blockiert=True, sitz=0.42)            # Norden, Blick nach Süden
-deko('bench', MX, MY + R, hoehe=0.5, drehung=180, blockiert=True, sitz=0.42)          # Süden, Blick nach Norden
+# Runde 44: auch Norden/Süden die hellen Gartenbänke (vorher dunkle Bank ohne Lehne)
+deko('garden-bench', MX, MY - R - 0.1, hoehe=0.78, drehung=180, blockiert=True, sitz=0.44)  # Norden, Lehne im Norden, Blick nach Süden
+deko('garden-bench', MX, MY + R + 0.1, hoehe=0.78, drehung=0, blockiert=True, sitz=0.44)    # Süden, Lehne im Süden, Blick nach Norden
 deko('garden-bench', MX - R - 0.1, MY, hoehe=0.78, drehung=90, blockiert=True, sitz=0.44)   # Westen, Lehne im Westen, Blick nach Osten
 deko('garden-bench', MX + R + 0.1, MY, hoehe=0.78, drehung=270, blockiert=True, sitz=0.44)  # Osten, Lehne im Osten, Blick nach Westen
 for winkel in (45, 135, 225, 315):
@@ -171,11 +181,12 @@ for a, b in zip(PFOSTEN, PFOSTEN[1:] + PFOSTEN[:1]):
 # Langer Holztisch im Südosten mit Bänken und Stühlen an den Enden (Stühle mit Blick zum Tisch)
 TX, TY = 29.0, 23.2
 deko('table-big', TX, TY, hoehe=0.8, blockiert=True)
-deko('bench', TX - 1.25, TY, hoehe=0.5, drehung=270, blockiert=True, sitz=0.42)   # Westseite, Blick nach Osten
-deko('bench', TX + 1.25, TY, hoehe=0.5, drehung=90, blockiert=True, sitz=0.42)    # Ostseite, Blick nach Westen
+# Runde 44: Tischbänke nicht blockierend – man tritt an den Tisch heran und greift ans Buffet
+deko('bench', TX - 1.25, TY, hoehe=0.5, drehung=270, sitz=0.42)   # Westseite, Blick nach Osten
+deko('bench', TX + 1.25, TY, hoehe=0.5, drehung=90, sitz=0.42)    # Ostseite, Blick nach Westen
 deko('wooden-chair', TX, TY - 2.25, drehung=0, blockiert=True, sitz=0.46)          # Nordende
 deko('wooden-chair', TX, TY + 2.25, drehung=180, blockiert=True, sitz=0.46)        # Südende
-deko('table-lamp', TX + 0.1, TY - 0.6, hoehe=0.45)
+deko('table-lamp', TX + 0.1, TY - 0.6, hoehe=0.45, z=0.8, sperre=False)
 licht(TX + 0.1, TY - 0.6, hoehe=1.2, radius=3.0, farbe='#ffc070', staerke=0.55, flackern=True)
 deko('barrel-1', TX + 2.6, TY + 1.9, blockiert=True)
 deko('crate-1', TX + 2.5, TY + 0.9, blockiert=True)
@@ -185,14 +196,44 @@ for cx, cy in ((11.4, 21.0), (14.6, 25.0)):
     deko('table-1', cx, cy, hoehe=0.72, blockiert=True)
     for dx, dy, dreh in ((0, -1.05, 0), (0, 1.05, 180), (-1.05, 0, 270), (1.05, 0, 90)):
         deko('wooden-chair', cx + dx, cy + dy, drehung=dreh, blockiert=True, sitz=0.46)
-deko('candle-melted', 11.4, 21.0, hoehe=0.25)
+deko('candle-melted', 11.4, 21.0, hoehe=0.25, z=0.72, sperre=False)
 licht(11.4, 21.0, hoehe=1.1, radius=2.6, farbe='#ffb060', staerke=0.45, flackern=True)
 
 # ---------------------------------------------------------------------------------------------------------------------
+# Runde 44: Buffet – Essen/Trinken auf den Tischen (Spawnpunkte `buffet`: kommt ~10 s nach dem Nehmen wieder, auch wenn
+# Leute daneben stehen). Dazu Teller/Krüge/Flaschen als Deko (Objekt-Feld z = Tischhöhe).
+spawnpunkte = []
+
+
+def buffet(x, y, inhalt, hoehe, menge=None):
+    p = {'x': round(x, 2), 'y': round(y, 2), 'inhalt': inhalt, 'chance': 100, 'intervall': round(10 / 60, 4), 'hoehe': hoehe, 'buffet': True}
+    if menge:
+        p['menge'] = menge
+    spawnpunkte.append(p)
+
+
+LANG = 0.8  # Höhe table-big (m)
+for dy, inhalt in ((-1.45, 'brot'), (-0.85, 'kaese'), (-0.25, 'fleisch_gebraten'), (0.35, 'pfannkuchen'), (0.95, 'apfel'), (1.5, 'erdbeere')):
+    buffet(TX - 0.18, TY + dy, inhalt, LANG)
+for dy, inhalt in ((-1.2, 'milch'), (-0.3, 'wasserflasche'), (0.6, 'kaffee'), (1.35, 'energydrink')):
+    buffet(TX + 0.22, TY + dy, inhalt, LANG)
+for dy in (-1.1, 0.0, 1.1):
+    deko('plate', TX - 0.2, TY + dy + 0.3, hoehe=0.03, z=LANG, sperre=False)
+deko('glass-cup', TX + 0.25, TY - 0.75, hoehe=0.12, z=LANG, sperre=False)
+deko('bottle', TX + 0.3, TY + 0.15, hoehe=0.3, z=LANG, sperre=False)
+deko('coffee-cup', TX + 0.2, TY + 1.0, hoehe=0.1, z=LANG, sperre=False)
+for (cx, cy), (essen, trinken) in zip(((11.4, 21.0), (14.6, 25.0)), (('sandwich', 'wasserflasche'), ('broetchen', 'milch'))):
+    buffet(cx - 0.22, cy + 0.15, essen, 0.72)
+    buffet(cx + 0.24, cy - 0.12, trinken, 0.72)
+    deko('plate', cx - 0.22, cy + 0.15, hoehe=0.03, z=0.72, sperre=False)
+deko('tea-cup', 14.6 + 0.05, 25.0 - 0.3, hoehe=0.1, z=0.72, sperre=False)
+
+# ---------------------------------------------------------------------------------------------------------------------
 # Zelte im Norden, Holzgestell, Brennholz
-deko('tent', 12.0, 9.0, hoehe=2.2, drehung=20, blockiert=True)
-deko('nk-tent-detailed-open', 19.6, 6.6, hoehe=1.8, drehung=0, blockiert=True)
-deko('nk-tent-detailed-open', 27.6, 8.6, hoehe=1.7, drehung=335, blockiert=True)
+# Runde 44: eigene Firstzelte mit Leinwand-Textur (werkzeuge/assets/r44/baue_lager_modelle_r44.py), Eingang nach Süden
+deko('lg-zelt-gruen', 12.0, 9.0, drehung=20, blockiert=True)
+deko('lg-zelt', 19.6, 6.6, drehung=0, blockiert=True)
+deko('lg-zelt', 27.6, 8.6, drehung=335, blockiert=True)
 deko('wood-tent-1', 31.6, 12.4, hoehe=1.3, drehung=90, blockiert=True)            # Holzgestell (Trockengestell)
 deko('nk-log-stack-large', 33.2, 14.0, drehung=90, blockiert=True)
 deko('nk-log-stack-large', 31.4, 27.4, drehung=0, blockiert=True)
@@ -234,15 +275,40 @@ while buesche < 14 and versuche < 6000:
         for xx in range(x - 1, x + 3):
             belegt.add((xx, yy))
     buesche += 1
-for stem, anzahl in (('nk-flower-yellow-a', 12), ('nk-flower-purple-a', 8), ('nk-flower-red-a', 6)):
-    n = v = 0
-    while n < anzahl and v < 3000:
-        v += 1
-        x, y = zufall.randint(ZX0 + 1, ZX1 - 1), zufall.randint(ZY0 + 1, ZY1 - 1)
-        if (x, y) in belegt or g[y][x] != ',':
-            continue
-        deko(stem, x + zufall.uniform(0.2, 0.8), y + zufall.uniform(0.2, 0.8), drehung=zufall.randrange(0, 360, 30))
-        n += 1
+# Runde 44: ein paar Bäume im Lager (gemütlich), Steine (Stone Pack) und Grasbüschel (Grass patches) statt Kenney-Blumen –
+# Blumen kommen aus der Natur-Streuung (naturKonfiguration ZONEN.lager)
+for bx, by in ((7.2, 26.0), (33.0, 5.6), (7.0, 5.4), (24.5, 28.2)):
+    if all((xx, yy) not in belegt for xx in range(int(bx), int(bx) + 3) for yy in range(int(by), int(by) + 3)):
+        o('baum', bx, by, 3.0, 3.0, ebene='oben')
+        sperre_rund(bx + 1.5, by + 1.5, 2.0)
+for stem, cx, cy, dreh in (('sp-fels-2', 7.4, 29.0, 30), ('sp-stein-3', 9.6, 29.4, 80), ('sp-stein-1', 34.6, 29.0, 200), ('sp-fels-4', 35.0, 4.8, 120),
+                           ('sp-stein-6', 33.6, 6.6, 10), ('sp-stein-5', 6.4, 9.8, 300), ('sp-runenstein-5', ZX1 - 2.0, TOR[0] - 2.4, 270),
+                           ('sp-runenstein-6', ZX1 - 2.0, TOR[-1] + 3.2, 270), ('sp-stein-8', 16.4, 4.6, 45)):
+    if (int(cx), int(cy)) not in belegt:
+        deko(stem, cx, cy, drehung=dreh, blockiert=True)
+gras = v = 0
+while gras < 22 and v < 4000:
+    v += 1
+    x, y = zufall.randint(ZX0 + 1, ZX1 - 2), zufall.randint(ZY0 + 1, ZY1 - 2)
+    if (x, y) in belegt or g[y][x] != ',':
+        continue
+    deko(f'gp-gras-{zufall.randint(1, 3)}', x + 0.5, y + 0.5, drehung=zufall.randrange(0, 360, 15), sperre=False)
+    belegt.add((x, y))
+    gras += 1
+# Blumen (Poly Haven, CC0) in kleinen Gruppen – echte Modelle statt Kenney-Würfelblumen
+BLUMEN = ['ph-blume-empodium-a', 'ph-blume-empodium-b', 'ph-blume-empodium-c', 'ph-blume-gazania-d', 'ph-blume-gazania-e',
+          'ph-blume-gazania-f', 'ph-blume-gazania-g', 'ph-blume-gazania-h']
+gruppen = v = 0
+while gruppen < 13 and v < 4000:
+    v += 1
+    x, y = zufall.randint(ZX0 + 1, ZX1 - 2), zufall.randint(ZY0 + 1, ZY1 - 2)
+    if (x, y) in belegt or g[y][x] != ',':
+        continue
+    art = zufall.choice(BLUMEN[:3]) if zufall.random() < 0.45 else zufall.choice(BLUMEN[3:])
+    for _ in range(zufall.randint(3, 5)):
+        deko(art, x + zufall.uniform(0.1, 0.9), y + zufall.uniform(0.1, 0.9), drehung=zufall.randrange(0, 360, 20), sperre=False)
+    belegt.add((x, y))
+    gruppen += 1
 
 for sx, sy in STARTS:
     assert g[sy][sx] in ',&', (sx, sy, g[sy][sx])
@@ -260,6 +326,8 @@ for b in bauwerke:
     b['tx'], b['ty'] = b['tx'] + SX, b['ty'] + SY
 for k in lichterketten:
     k['von'], k['bis'] = list(schiebe(*k['von'])), list(schiebe(*k['bis']))
+for p in spawnpunkte:
+    p['x'], p['y'] = schiebe(p['x'], p['y'])
 innen_g = g
 B, H = B2, H2
 g = [[',' for _ in range(B)] for _ in range(H)]
@@ -274,34 +342,37 @@ tor = {t + SY for t in TOR}
 zaun = 0
 
 
-def zaun_strecke(a, b, fest, waagerecht):
-    """Segmente von Kachel a bis b (inkl.) entlang der Reihe/Spalte `fest`."""
+PALISADE = 3.6  # Segmentbreite (m) von lg-palisade
+
+
+def zaun_strecke(a, b, fest, waagerecht, drehung):
+    """Palisaden-Segmente von Kachel a bis b (inkl.) entlang der Reihe/Spalte `fest`. Querbalken (Modell -z) zeigen nach innen:
+    Norden 180, Süden 0, Westen 90, Osten 270."""
     global zaun
     laenge = b - a + 1
-    n = max(1, math.ceil(laenge / 1.8))
+    n = max(1, math.ceil(laenge / PALISADE))
     schritt = laenge / n
     for i in range(n):
         m = a + schritt * (i + 0.5)
         if waagerecht:
-            deko('wooden-fence', m, fest + 0.5, drehung=0, blockiert=True)
+            deko('lg-palisade', m, fest + 0.5, drehung=drehung, blockiert=True)
         else:
-            deko('wooden-fence', fest + 0.5, m, drehung=90, blockiert=True)
+            deko('lg-palisade', fest + 0.5, m, drehung=drehung, blockiert=True)
         zaun += 1
 
 
-zaun_strecke(zx0, zx1, zy0, True)
-zaun_strecke(zx0, zx1, zy1, True)
-zaun_strecke(zy0 + 1, zy1 - 1, zx0, False)
-zaun_strecke(zy0 + 1, min(tor) - 1, zx1, False)
-zaun_strecke(max(tor) + 1, zy1 - 1, zx1, False)
+zaun_strecke(zx0, zx1, zy0, True, 180)
+zaun_strecke(zx0, zx1, zy1, True, 0)
+zaun_strecke(zy0 + 1, zy1 - 1, zx0, False, 90)
+zaun_strecke(zy0 + 1, min(tor) - 1, zx1, False, 270)
+zaun_strecke(max(tor) + 1, zy1 - 1, zx1, False, 270)
+# Geschlossenes Tor (blockiert) – davor innen der Übergang zum Stadtrand (5 s warten)
+deko('lg-palisadentor', zx1 + 0.5, (min(tor) + max(tor) + 1) / 2, drehung=270, blockiert=True)
 
 # Draußen: nur Rasen und Bäume (Gang vom Tor zum Ostrand bleibt frei)
 belegt = set()
 for y in range(zy0 - 2, zy1 + 3):   # Rasenstreifen direkt am Zaun bleibt frei
     for x in range(zx0 - 2, zx1 + 3):
-        belegt.add((x, y))
-for y in range(min(tor) - 2, max(tor) + 3):
-    for x in range(zx1, B):
         belegt.add((x, y))
 baeume = 0
 versuche = 0
@@ -375,6 +446,8 @@ js += ['  ],', '  raeume: {},',
        '  },',
        '  bauwerke: [']
 js += [f'    {js_flach(b)},' for b in bauwerke]
+js += ['  ],', '  // Runde 44: Buffet (Essen/Trinken auf den Tischen, kommt nach ~10 s wieder)', '  spawnpunkte: [']
+js += [f'    {js_flach(p)},' for p in spawnpunkte]
 js += ['  ],', '  lichterketten: [']
 js += [f'    {js_flach(k)},' for k in lichterketten]
 js += ['  ],', '  objekte: [']
@@ -384,8 +457,8 @@ for k, v in typen.items():
     sitz = f", sitz: {zahl(v['sitz'])}" if 'sitz' in v else ''
     js.append(f"    {k}: {{ name: '{v['name']}', kategorie: '{v['kategorie']}', b: {zahl(v['b'])}, h: {zahl(v['h'])}, hoehe3d: {zahl(v['hoehe3d'])}, blockiert: {'true' if v['blockiert'] else 'false'}, farbe: '{v['farbe']}', glbDatei: '{v['glbDatei']}'{sitz} }},")
 js += ['  },', '  uebergaenge: [',
-       f"    {{ x: {B - 1}, y: {min(tor) - 1}, b: 1, h: {len(tor) + 2}, ziel: 'stadtrand', ankunft: 'lager', name: 'Stadtrand (Osten)' }},",
-       '  ],', '  ankuenfte: {', f'    ost: {{ x: {zx1 - 3}, y: {min(tor) + 1} }}, // wer vom Stadtrand kommt (innen am Tor)', '  },', '};']
+       f"    {{ x: {zx1 - 2}, y: {min(tor)}, b: 2, h: {len(tor)}, ziel: 'stadtrand', ankunft: 'lager', name: 'Stadtrand' }}, // Runde 44: innen vor dem geschlossenen Tor",
+       '  ],', '  ankuenfte: {', f'    ost: {{ x: {zx1 - 5}, y: {min(tor) + 1} }}, // wer vom Stadtrand kommt (innen, ein Stück vor dem Tor)', '  },', '};']
 ZIEL.write_text('\n'.join(js) + '\n', encoding='utf-8')
 print(f'{ZIEL} geschrieben ({B} × {H}, {len(objekte)} Objekte, {baeume} Bäume, {buesche} Büsche, {zaun} Zaunteile, {len(typen)} Modell-Typen, '
       f'{len(lichterketten)} Lichterketten, {sum(1 for e in objekte if e["typ"] == "licht")} Lichter)')
