@@ -8,7 +8,7 @@
  * Regen/Gewitter halbieren die Wachstumszeit der Pflanzen (bauSystem, WACHSTUM_REGEN_FAKTOR) und löschen Lagerfeuer.
  * Runde 26: Stufe 0 = Flaute (Ton ganz aus). Runde 24: Grundwind `wetter.wind` 0..1 (ruhig ≈0,1 · leicht ≈0,35 · frisch ≈0,6 · stark ≈0,85) wechselt alle
  * windMin…windMax Sekunden sein Ziel und gleitet langsam dorthin; Sturmwetter zieht ihn hoch, Nebel runter.
- * Geht als ZUSTAND.wind mit – der Client legt Böen drüber (Ton + Bäume/Gras aus derselben Kurve).
+ * Runde 44: `wetter.windstill` (Zonen-Einstellung) → Wind immer 0. Geht als ZUSTAND.wind mit – der Client legt Böen drüber (Ton + Bäume/Gras aus derselben Kurve).
  * Runde 38: Nässe `wetter.nass` 0..1 (Asphalt, ZUSTAND.nass): nach `nassVerzoegerung` s Regen steigt sie in `nassAnstieg` s auf 1, nach Regenende
  * fällt sie in `trocknenDauer` s auf 0 (≈ halb nach 1 min). `spuleWetterVor` (Schlafen/Zeitsprung/Zonen-Nachholen) rechnet Phasenwechsel + Nässe
  * stückweise exakt nach – Wetter läuft in Spielzeit-Sekunden, dieselben wie die Uhr.
@@ -107,6 +107,10 @@ export function setzeWetter(spielWelt, art, sekunden = 120) {
 /** Ziel-Windstärke würfeln und langsam angleichen; das Wetter setzt Unter-/Obergrenzen. */
 function aktualisiereWind(spielWelt, w, dt) {
   const k = spielWelt.konfiguration.wetter;
+  if (k.windstill) {
+    w.wind = w.windZiel = 0; // Runde 44: Zone ohne Wind (Lagerplatz)
+    return;
+  }
   w.wind ??= 0.35;
   w.windZiel ??= 0.35;
   w.windRest = (w.windRest ?? 0) - dt;

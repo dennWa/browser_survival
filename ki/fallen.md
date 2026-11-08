@@ -3,6 +3,8 @@
 > ⚠ Alles, worin schon jemand reingetappt ist. Vor Änderungen an Server/Welt/Netz überfliegen.
 
 ## 6 · Fallen & Invarianten (⚠ schon reingetappt)
+- **Runde 44 – Three.js-Animation:** `PropertyMixer` schreibt eine Clip-Spur nur, wenn sich ihr Wert ändert → konstante Spuren (alle `.position`, Quaternius-IK-Ziele `Foot*`/`PT*`) überschreiben prozedurale Änderungen NICHT mehr. Wer Knochen verbiegt, muss sie selbst zurücksetzen (`figurHaltung.merkeFuesse`/`setzeStuhlZurueck`, Arme: `armRuhe`/`loeseArm`) und darf nie aus deren „aktueller“ Lage rechnen.
+- **Runde 44 – Lampen-Pool:** nur die nächsten N Lichter bekommen ein echtes Licht; wichtige Quellen (ewiges Lagerfeuer) brauchen `vorrang`, sonst verschwinden sie, sobald näher Lichterketten/Kerzen da sind. Weitere Taschenlampen → `fremdeLampen` (nur Strahl + Bodenfleck).
 - **Basisbau (v0.11):** Welt speichert Bauwerke je **Ebene** (`welt.ebenenAnKachel[idx] = {objekt,boden,wand,tuer,dach}`; `bauwerkBei(tx,ty,ebene='objekt')`, `bauwerkeAn`) – `bauwerkAnKachel` gibt es nicht mehr. Wand = ganze Kachel (kachelbasierte Kollision/Sicht), Boden/Dach blockieren nie. Neue Bauteile: Registry `teile.js` + `BAUWERKE` + Geometrie – nicht in Systeme hineinschreiben.
 - Flaggen liegen NUR in `spielWelt.territorium` (Zone) + `spieler.flaggeKarte` (Spielstand, 1 Flagge über alle Zonen) – sie sind kein Bauwerk und nie im Netz außer als `spielerDaten.flagge` an den Besitzer. Rote Ring = Client-only (`renderer.zeigeGebiet`).
 - Server-Prüfung = `pruefeBauteil` (gemeinsam) + Kosten + `kachelBesetzt`; Client zeigt dieselbe Funktion als Hologramm (Client-Territorium kennt nur die eigene Flagge → „Fremdes Baugebiet“ kommt erst vom Server).

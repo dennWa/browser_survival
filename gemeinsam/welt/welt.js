@@ -58,7 +58,7 @@ export class Welt {
     this.tuerAnKachel = new Map(); // Kachelindex → Tür-ID
     for (const tuer of this.tueren) for (const { tx, ty } of tuer.kacheln) this.tuerAnKachel.set(ty * this.breite + tx, tuer.id);
     this.geschlosseneTueren = new Set();
-    /** [{ id, typ, art, werkzeug, werkzeuge, x, y, radius, objekt }]  x/y = Mitte in Weltpixeln */
+    /** [{ id, typ, art, werkzeug, werkzeuge, ohneWerkzeug?, x, y, radius, objekt }]  x/y = Mitte in Weltpixeln (Runde 44: ohneWerkzeug = Busch, Zweige per Hand) */
     this.ressourcen = findeRessourcen(this);
     this.ressourceAnKachel = new Map(); // Kachelindex → Ressourcen-ID (nur blockierende, z. B. Steine)
     for (const r of this.ressourcen) {
@@ -495,7 +495,7 @@ function findeRessourcen(welt) {
     const groesse = def.nachMass ? (o.b * o.h >= FELS_GROSS_AB ? 'gross' : 'klein') : o.groesse ?? 'klein';
     const gross = groesse === 'gross';
     const radius = def.nachMass ? (Math.max(o.b, o.h) * g) / 2 : gross ? def.radius * 1.2 : def.radius;
-    liste.push({ id: liste.length, typ: o.typ, art: def.art, werkzeug: def.werkzeug, werkzeuge: def.werkzeuge ?? [def.werkzeug], groesse, x: (o.x + o.b / 2) * g, y: (o.y + o.h / 2) * g, radius, objekt: o });
+    liste.push({ id: liste.length, typ: o.typ, art: def.art, werkzeug: def.werkzeug, werkzeuge: def.werkzeuge ?? [def.werkzeug], ...(def.ohneWerkzeug ? { ohneWerkzeug: true } : {}), groesse, x: (o.x + o.b / 2) * g, y: (o.y + o.h / 2) * g, radius, objekt: o });
   }
   return liste;
 }

@@ -13,6 +13,9 @@ ein paar Bäume im Lager. Blumen = Natur-Streuung (client/darstellung/naturKonfi
 Zonen-Felder `friedlich` (niemand nimmt Schaden, Hunger/Durst/Kälte pausieren) und `festeZeit` (Licht/Himmel immer
 Sonnenuntergang; Server-Uhr läuft normal weiter). Gartenbänke: Modell-Front ist hinten → drehung +180 (sitze.js MODELL_FRONT).
 Gebaut wird im „Innen-Raum“ (alte 40×34-Koordinaten), am Ende um (SX, SY) verschoben und mit dem Rasenring umgeben.
+Runde 44: späte Dämmerung (festeZeit 20.75), Wetter aus + windstill, keine Hasen (einstellungen), Lager-Katze (Kartenfeld `tiere`),
+geparktes Auto (Deko), zwei große Bäume (tree-3/tree-2, Stamm = unsichtbares `hang`-Hindernis), Kerze auf jedem Tisch und die
+Tischlampe auf der Platte (Objektfeld `z` in m).
 
 Innen: ein Lagerfeuer in der Mitte (kartenfestes Bauwerk, `ewig` = brennt immer, auch bei
 Regen), Bänken im Kreis ums Feuer, Lichterketten zwischen Holzpfosten (Kartenfeld `lichterketten` + `licht`-Objekte mit
@@ -188,6 +191,9 @@ deko('wooden-chair', TX, TY - 2.25, drehung=0, blockiert=True, sitz=0.46)       
 deko('wooden-chair', TX, TY + 2.25, drehung=180, blockiert=True, sitz=0.46)        # Südende
 deko('table-lamp', TX + 0.1, TY - 0.6, hoehe=0.45, z=0.8, sperre=False)
 licht(TX + 0.1, TY - 0.6, hoehe=1.2, radius=3.0, farbe='#ffc070', staerke=0.55, flackern=True)
+# Runde 44 (2): Kerze auf jeden Tisch (Gemütlichkeit) – auf der Platte (z), neben dem Buffet; Licht knapp über der Flamme
+deko('candle-melted', TX + 0.55, TY + 0.25, hoehe=0.22, z=0.8, sperre=False)
+licht(TX + 0.55, TY + 0.25, hoehe=1.15, radius=2.4, farbe='#ffb060', staerke=0.42, flackern=True)
 deko('barrel-1', TX + 2.6, TY + 1.9, blockiert=True)
 deko('crate-1', TX + 2.5, TY + 0.9, blockiert=True)
 
@@ -196,8 +202,8 @@ for cx, cy in ((11.4, 21.0), (14.6, 25.0)):
     deko('table-1', cx, cy, hoehe=0.72, blockiert=True)
     for dx, dy, dreh in ((0, -1.05, 0), (0, 1.05, 180), (-1.05, 0, 270), (1.05, 0, 90)):
         deko('wooden-chair', cx + dx, cy + dy, drehung=dreh, blockiert=True, sitz=0.46)
-deko('candle-melted', 11.4, 21.0, hoehe=0.25, z=0.72, sperre=False)
-licht(11.4, 21.0, hoehe=1.1, radius=2.6, farbe='#ffb060', staerke=0.45, flackern=True)
+    deko('candle-melted', cx + 0.2, cy + 0.25, hoehe=0.22, z=0.72, sperre=False)   # Runde 44 (2): auf jedem Tisch eine Kerze
+    licht(cx + 0.2, cy + 0.25, hoehe=1.05, radius=2.6, farbe='#ffb060', staerke=0.45, flackern=True)
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Runde 44: Buffet – Essen/Trinken auf den Tischen (Spawnpunkte `buffet`: kommt ~10 s nach dem Nehmen wieder, auch wenn
@@ -240,6 +246,16 @@ deko('nk-log-stack-large', 31.4, 27.4, drehung=0, blockiert=True)
 deko('nk-log-stack', 33.0, 26.6, drehung=90, blockiert=True)
 deko('nk-campfire-stones', MX, MY, hoehe=0.24)
 deko('crate', 8.0, 14.6, hoehe=0.7, drehung=15, blockiert=True)
+
+# Runde 44: geparktes Auto (Deko, nicht fahrbar) im Nordosten neben dem Holzgestell, Schnauze Richtung Tor
+deko('car', 33.6, 7.4, drehung=270, blockiert=True)
+deko('cardboard-boxes', 30.4, 6.0, drehung=20, blockiert=True)
+
+# Runde 44: zwei große Bäume im Lager (nur der Stamm blockiert – unsichtbares Hindernis darunter)
+for stem, bx, by, bh, dreh in (('tree-3', 8.6, 6.6, 12.0, 30), ('tree-2', 24.4, 28.2, 11.0, 200)):
+    deko(stem, bx, by, hoehe=bh, drehung=dreh)
+    o('hang', int(bx), int(by), 1, 1, ebene='unsichtbar', blockiert=True)
+    sperre_rund(bx, by, 1.6)
 deko('barrel', 9.0, 13.7, hoehe=1.0, blockiert=True)
 
 # Tor im Osten: Fackeln links/rechts innen am Zaun, Wegweiser
@@ -247,6 +263,9 @@ for fy in (TOR[0] - 0.5, TOR[-1] + 1.5):
     deko('wooden-torch', ZX1 - 0.6, fy, hoehe=2.3, blockiert=True)
     licht(ZX1 - 0.6, fy, hoehe=2.2, radius=3.2, farbe='#ff9a40', staerke=0.6, flackern=True)
 deko('wooden-sign', ZX1 - 1.6, TOR[0] - 1.6, blockiert=True)
+
+# Runde 44: Lager-Katze startet am Feuer (Südwestseite, frei begehbar)
+KATZE = (FX - 2, FY + 2)
 
 # Spieler-Starts (neue Charaktere) im Kreis um die Feuerstelle, außerhalb der Bänke
 STARTS = [(15, 17), (25, 17), (20, 23), (20, 12), (16, 13), (24, 13)]
@@ -424,7 +443,8 @@ def js_flach(d):
 
 js = ['''/**
  * Zone "Lagerplatz" – gemütlicher Startplatz für neue Charaktere (erzeugt von werkzeuge/karten/lager.py, dort ändern!).
- * Runde 43: Holzzaun rundherum, draußen nur Rasen + Bäume; `friedlich` (kein Schaden) + `festeZeit` (immer Sonnenuntergang).
+ * Runde 43: Holzzaun rundherum, draußen nur Rasen + Bäume; `friedlich` (kein Schaden) + `festeZeit` (feste Abendstimmung).
+ * Runde 44: späte Dämmerung, immer klar + windstill, keine Hasen, Lager-Katze (`tiere`), Auto, große Bäume, Kerze je Tisch.
  * Lagerfeuer in der Mitte (Bauwerk `ewig` = brennt immer), Bänke im Kreis, Lichterketten zwischen
  * Holzpfosten (`lichterketten` + `licht` mit `hoehe`), langer Holztisch, zwei Tische mit Stühlen, Zelte, Brennholz.
  * Sitzen auf Bänken/Stühlen: Ä bzw. ☰ Sitzen (gemeinsam/welt/sitze.js, Typ-Feld `sitz`). Keine Zombies, kein Loot.
@@ -440,10 +460,12 @@ export const LAGER = {
 js += [f"    '{z}'," for z in zeilen]
 js += ['  ],', '  raeume: {},',
        '  friedlich: true, // Runde 43: niemand nimmt Schaden, Hunger/Durst/Kälte pausieren',
-       '  festeZeit: 20.45, // Runde 43: Licht/Himmel immer Sonnenuntergang (Stunde; Server-Uhr läuft normal)',
+       '  festeZeit: 20.75, // Runde 44: späte Dämmerung, fast Nacht (Runde 43: 20.45 Sonnenuntergang); Server-Uhr läuft normal',
        '  einstellungen: {',
-       '    wetter: { regenAnteil: 0, dauerMin: 40, dauerMax: 120, pauseMin: 400, pauseMax: 900 },',
+       '    wetter: { aktiv: false, windstill: true }, // Runde 44: immer klar, kein Wind (Ton/Bäume/Blätter still)',
+       '    tiere: { hasenMax: 0 }, // Runde 44: keine Kaninchen im Lager',
        '  },',
+       f"  tiere: [{{ art: 'katze', x: {KATZE[0] + SX}, y: {KATZE[1] + SY} }}], // Runde 44: streunende Lager-Katze (startTiere, haustierSystem)",
        '  bauwerke: [']
 js += [f'    {js_flach(b)},' for b in bauwerke]
 js += ['  ],', '  // Runde 44: Buffet (Essen/Trinken auf den Tischen, kommt nach ~10 s wieder)', '  spawnpunkte: [']

@@ -668,7 +668,7 @@ export class ClientSpiel {
     const bettNaeher = behaelter && this.welt.naechstesObjekt(x, y, Math.min(BETT_REICHWEITE, abstandZumBehaelter(behaelter, x, y, this.welt.kachelGroesse)), (o) => o.typ.startsWith('bett'));
     if (behaelter && !bettNaeher) return { art: 'behaelter', nr: behaelter.nr, text: `${BEHAELTER[behaelter.art].name} durchsuchen`, symbol: BEHAELTER[behaelter.art].symbol };
     const inventar = this.spielerDaten?.inventar ?? [];
-    // Runde 31: Machete/Messer in der Hand → am Baum „Rinde abschneiden“ (max. 3×), Busch → „Ast abschneiden“; Knoten ohne passendes Werkzeug werden übergangen
+    // Runde 31: Machete/Messer in der Hand → am Baum „Rinde abschneiden“ (max. 3×); Busch → „Zweig sammeln“ (Runde 44: mit der Hand); Knoten ohne passendes Werkzeug werden übergangen
     const handId = this.spielerDaten?.ausgeruestet != null ? inventar[this.spielerDaten.ausgeruestet]?.defId ?? null : null;
     const hatItem = (id) => inventar.some((e) => e?.defId === id);
     const wahl = (r) => abbauArtFuer(r, handId, hatItem, this.welt.rindeAb.get(r.id) ?? 0);

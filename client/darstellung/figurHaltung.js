@@ -11,7 +11,8 @@ const haltungFuer = (name) => haltungMitHaenden(name) ?? modellHaltung(name);
  *
  * Spielerfiguren (client/assets/3d/figur_mann|frau.glb): Beim Holz-/Steinabbau, Zerlegen und Hacken macht ein Clip den Schlag
  * (hacken/spitzhacke/abbauen/hacke, figur.klips) – hier wird nur das Werkzeug zwischen die Hände gelegt (platziereHackwerkzeug).
- * Sitzen: Clip „sitzen“ (falls vorhanden), sonst prozedural. Runde 42: auf Stuhl/Bank (e.arbeitOrt.sitz) Beine prozedural (stuhlBeine).
+ * Sitzen: Clip „sitzen“ (falls vorhanden), sonst prozedural. Runde 44: auf Stuhl/Bank (e.arbeitOrt.sitz) Steh-Clip + stuhlSitz
+ * (Becken auf die Sitzfläche, Beine/Arme prozedural).
  *
  * Haltungen (Runde 19): ohne Waffe hängen die Arme locker (Clip); Taschenlampe nur nachts mit Licht an, schräg nach vorn-unten;
  * Schusswaffen (Pistole, Gewehr) und Nahkampfwaffen außer Arbeitswerkzeug hängen locker neben dem Körper und gehen erst beim
@@ -139,22 +140,15 @@ export function aktualisiereHaltung(figur, e, jetzt, dunkel = 1) {
   }
   setzeWaffe(figur, waffenName, e.waffeMods);
 
-  // Sitzen mit eigenem Clip: Arme/Beine kommen aus dem Clip (Boden-Sitzpose). Runde 42: auf Stuhl/Bank (arbeitOrt.sitz)
-  // hängen die Unterschenkel nach unten, die Oberschenkel liegen waagerecht auf der Sitzfläche.
-  if (haltungsName === 'sitzen' && klips.has('sitzen')) {
-    if (!e.arbeitOrt?.sitz) return loeseArme(figur);
-    stuhlBeine(figur);
-    // Hände auf die Oberschenkel (der Clip legt sie auf die hochgezogenen Knie)
-    const gruppe = figur.gruppe;
-    for (const seite of ['rechts', 'links']) {
-      const [oberarm, unterarm, hand] = figur.knochen[seite];
-      const r = seite === 'rechts' ? -1 : 1;
-      richteKnochen(oberarm, unterarm, inWelt(v(0.06 * r, -0.92, 0.32), gruppe));
-      richteKnochen(unterarm, hand, inWelt(v(0.1 * r, -0.4, 1), gruppe));
-      figur.armGesetzt[seite] = true;
-    }
+  // Runde 44: auf Stuhl/Bank (arbeitOrt.sitz) – aufrechter Oberkörper aus dem Steh-Clip (der Renderer spielt „stehen“), Becken genau
+  // auf die Sitzfläche, Oberschenkel waagerecht, Unterschenkel senkrecht, Hände auf den Oberschenkeln (stuhlSitz).
+  // Runde 42 nahm dafür den Boden-Clip „sitzen“ – Becken nach hinten gekippt, Hände verdreht („sieht schlimm aus“).
+  if (haltungsName === 'sitzen' && e.arbeitOrt?.sitz && figur.beine?.rechts && figur.beine?.links) {
+    stuhlSitz(figur);
     return;
   }
+  // Sitzen auf dem Boden mit eigenem Clip: Arme/Beine kommen ganz aus dem Clip
+  if (haltungsName === 'sitzen' && klips.has('sitzen')) return loeseArme(figur);
   // Survivor: den Schlag macht ein Clip (hacken/spitzhacke/abbauen/hacke/nahkampf) – hier nur das Werkzeug in die Hände legen
   // (figur.schlagKlip setzt der Renderer, wenn er gerade einen Werkzeug-Clip abspielt)
   if ((haltungsName === 'hacken' || haltungsName === 'nahkampf') && figur.schlagKlip) {
@@ -263,31 +257,113 @@ export function aktualisiereHaltung(figur, e, jetzt, dunkel = 1) {
  * ⚠ Quaternius-Rig: Foot.* sind freie IK-Ziel-Knochen am Root (keine Kinder des Unterschenkels) → Fuß nach dem Drehen
  * selbst an das Ende des Unterschenkels setzen und mitdrehen, sonst zieht sich das Netz wie Gummi zum alten Fußpunkt.
  */
+/** Runde 44: Maße der Stuhl-Sitzpose in Figur-Pixeln (Figur ≈ 64 px hoch) */
+export const STUHL_SITZ = { ueberSitz: 2.6, zurueck: 4.5 };
+
+/**
+ * Runde 44: Sitzpose auf Stuhl/Bank. Die Gruppe steht auf der Sitzfläche (Renderer); hier wird das Modell so verschoben, dass die
+ * Mitte der Hüftgelenke knapp über der Fläche und etwas hinter der Sitzmitte liegt – dann Beine (stuhlBeine) und Arme.
+ * Der Versatz gilt nur in dieser Pose (`figur.stuhlVersatz`); der Renderer setzt das Modell danach zurück (setzeStuhlZurueck).
+ */
+function stuhlSitz(figur) {
+  const { gruppe, modell } = figur;
+  figur.modellBasis ??= modell.position.clone();
+  modell.position.copy(figur.modellBasis);
+  gruppe.updateMatrixWorld(true);
+  // ⚠ Three.js schreibt konstante Clip-Spuren nur einmal (PropertyMixer: nur bei Wertänderung) – die Fuß-IK-Ziele (Foot*, Kinder von
+  // Root) behalten also, was wir setzen. Darum beim Hinsetzen Fuß-Lage + Schienbeinlänge merken und beim Aufstehen zurückschreiben.
+  if (!figur.stuhlVersatz) merkeFuesse(figur);
+  const becken = gruppe.worldToLocal(figur.beine.rechts[0].getWorldPosition(_a)).add(gruppe.worldToLocal(figur.beine.links[0].getWorldPosition(_b))).multiplyScalar(0.5);
+  modell.position.x -= becken.x;
+  modell.position.y += STUHL_SITZ.ueberSitz - becken.y;
+  modell.position.z -= STUHL_SITZ.zurueck + becken.z;
+  figur.stuhlVersatz = true;
+  gruppe.updateMatrixWorld(true);
+  stuhlBeine(figur);
+  // Hände ruhen auf den Oberschenkeln: Oberarm hängt leicht nach vorn, Unterarm liegt nach vorn-unten auf dem Bein, Handfläche nach unten
+  for (const seite of ['rechts', 'links']) {
+    const [oberarm, unterarm, hand] = figur.knochen[seite];
+    const r = seite === 'rechts' ? -1 : 1;
+    richteKnochen(oberarm, unterarm, inWelt(v(STUHL_ARME.oberarm[0] * r, STUHL_ARME.oberarm[1], STUHL_ARME.oberarm[2]), gruppe));
+    const unterRichtung = inWelt(v(STUHL_ARME.unterarm[0] * r, STUHL_ARME.unterarm[1], STUHL_ARME.unterarm[2]), gruppe);
+    richteKnochen(unterarm, hand, unterRichtung);
+    drehUmAchse(hand, unterRichtung, STUHL_ARME.handDrehung); // gespiegelte Knochen: gleicher Winkel dreht beide Handflächen nach unten
+    figur.armGesetzt[seite] = true;
+  }
+}
+
+/** Runde 44: Arm-Richtungen im Sitzen (Figur-Raum, rechte Seite; links gespiegelt) + Drehung der Hand um den Unterarm (rad) */
+const STUHL_ARME = { oberarm: [0.08, -0.94, 0.22], unterarm: [0.04, -0.62, 1], handDrehung: -1.4 };
+
+/** Dreht `knochen` in Weltkoordinaten um `achse` (normiert) um `winkel`. */
+function drehUmAchse(knochen, achse, winkel) {
+  knochen.getWorldQuaternion(_qw);
+  _q.setFromAxisAngle(achse, winkel);
+  knochen.parent.getWorldQuaternion(_qp).invert();
+  knochen.quaternion.copy(_qp.multiply(_q.multiply(_qw)));
+  knochen.updateMatrixWorld(true);
+}
+
+/** Fuß-Lage (lokal), Schienbeinlänge und Fuß-Drehung relativ zur Gruppe im Moment des Hinsetzens (= aufrechte Clip-Pose). */
+function merkeFuesse(figur) {
+  const gq = figur.gruppe.getWorldQuaternion(new THREE.Quaternion()).invert();
+  figur.fussVorher = {};
+  for (const seite of ['rechts', 'links']) {
+    const [, unterschenkel, fuss] = figur.beine[seite];
+    figur.fussVorher[seite] = {
+      position: fuss.position.clone(),
+      quaternion: fuss.quaternion.clone(),
+      laenge: fuss.getWorldPosition(new THREE.Vector3()).distanceTo(unterschenkel.getWorldPosition(new THREE.Vector3())),
+      drehung: gq.clone().multiply(fuss.getWorldQuaternion(new THREE.Quaternion())), // Fuß flach, Spitze nach vorn
+    };
+  }
+}
+
+/** Runde 44: Stuhl-Versatz des Modells und die Füße zurücknehmen (nach dem Aufstehen, beim Sterben …). */
+export function setzeStuhlZurueck(figur) {
+  if (!figur.stuhlVersatz) return;
+  figur.modell.position.copy(figur.modellBasis);
+  for (const seite of ['rechts', 'links']) {
+    const f = figur.fussVorher?.[seite];
+    const fuss = figur.beine?.[seite]?.[2];
+    if (!f || !fuss) continue;
+    fuss.position.copy(f.position);
+    fuss.quaternion.copy(f.quaternion);
+  }
+  figur.stuhlVersatz = false;
+}
+
+/**
+ * Beine auf dem Stuhl: Oberschenkel waagerecht nach vorn (leicht gespreizt), Unterschenkel über die eigene Knochenachse (+Y = zum
+ * Kind) senkrecht nach unten, Fuß ans Schienbein-Ende, flach wie im Stehen. ⚠ Quaternius-Rig: Foot* sind IK-Ziele am Root (keine
+ * Kinder von LowerLeg) → Fuß selbst setzen (sonst Gummi-Beine); nichts aus der Fuß-Lage des Clips ableiten (ist evtl. veraltet, s. o.).
+ */
 function stuhlBeine(figur) {
   const gruppe = figur.gruppe;
   gruppe.updateMatrixWorld(true);
+  const gq = gruppe.getWorldQuaternion(new THREE.Quaternion());
   for (const seite of ['rechts', 'links']) {
     const bein = figur.beine?.[seite];
-    if (!bein) continue;
+    const vorher = figur.fussVorher?.[seite];
+    if (!bein || !vorher) continue;
     const [oberschenkel, unterschenkel, fuss] = bein;
-    const knie0 = unterschenkel.getWorldPosition(new THREE.Vector3());
-    const schienbein = fuss.getWorldPosition(new THREE.Vector3()).sub(knie0); // Knie → Fuß (Clip-Pose, passt zusammen)
-    const laenge = schienbein.length();
-    const qs0 = unterschenkel.getWorldQuaternion(new THREE.Quaternion());
-    const qf0 = fuss.getWorldQuaternion(new THREE.Quaternion());
-    richteKnochen(oberschenkel, unterschenkel, inWelt(v(seite === 'rechts' ? -0.12 : 0.12, -0.04, 1), gruppe));
-    // Unterschenkel hat sich mit dem Oberschenkel mitgedreht → Fuß gedanklich mitnehmen, dann senkrecht stellen
-    const knie1 = unterschenkel.getWorldPosition(new THREE.Vector3());
-    const mit = unterschenkel.getWorldQuaternion(new THREE.Quaternion()).multiply(qs0.clone().invert());
-    setzeWeltPosition(fuss, knie1.clone().add(schienbein.clone().applyQuaternion(mit)));
-    const runter = inWelt(v(0, -1, 0.1), gruppe);
-    richteKnochen(unterschenkel, fuss, runter);
-    const gesamt = unterschenkel.getWorldQuaternion(new THREE.Quaternion()).multiply(qs0.invert());
-    setzeWeltPosition(fuss, knie1.add(runter.multiplyScalar(laenge)));
+    richteKnochen(oberschenkel, unterschenkel, inWelt(v(seite === 'rechts' ? -0.1 : 0.1, -0.04, 1), gruppe));
+    const runter = inWelt(v(0, -1, 0.06), gruppe);
+    richteAchse(unterschenkel, runter);
+    setzeWeltPosition(fuss, unterschenkel.getWorldPosition(new THREE.Vector3()).add(runter.multiplyScalar(vorher.laenge)));
     fuss.parent.getWorldQuaternion(_qp).invert();
-    fuss.quaternion.copy(_qp.multiply(gesamt.multiply(qf0)));
+    fuss.quaternion.copy(_qp.multiply(gq.clone().multiply(vorher.drehung)));
     fuss.updateMatrixWorld(true);
   }
+}
+
+/** Dreht `knochen` so, dass seine eigene Achse (+Y, zeigt bei Quaternius zum Kind) in Welt-Richtung `ziel` zeigt. */
+function richteAchse(knochen, ziel) {
+  knochen.getWorldQuaternion(_qw);
+  _q.setFromUnitVectors(_p0.set(0, 1, 0).applyQuaternion(_qw), ziel);
+  knochen.parent.getWorldQuaternion(_qp).invert();
+  knochen.quaternion.copy(_qp.multiply(_q.multiply(_qw)));
+  knochen.updateMatrixWorld(true);
 }
 
 /** Knochen an eine Weltposition setzen (über das Eltern-Koordinatensystem). */

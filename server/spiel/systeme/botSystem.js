@@ -4,6 +4,7 @@ import { findePfad } from '../../../gemeinsam/physik/pfadfindung.js';
 import { sichtlinieFrei } from '../../../gemeinsam/physik/strahl.js';
 import { GEGENSTAENDE } from '../konfiguration/gegenstaende.js';
 import { pruefeAussehen } from '../../../gemeinsam/spieler/aussehen.js';
+import { hatLagerAlltag, lagerAlltag } from './botLager.js';
 
 /**
  * Bots (Runde 23, zum Testen): Spieler-Entitäten ohne Verbindung (`spieler.bot`), die sich wie Menschen verhalten –
@@ -13,6 +14,8 @@ import { pruefeAussehen } from '../../../gemeinsam/spieler/aussehen.js';
  * (Zombies nur mit freier Sichtlinie). Nicht gespeichert, keine Zonenwechsel, zählen nicht beim Schlafen mit.
  * Anzahl je Zone: konfiguration.bots.proKarte (Zone legt sie an); Admin: Bot setzen/entfernen per Klick (adminSystem).
  * Runde 29: Wer einen Bot trifft, wird für FEIND_ZEIT s sein Ziel (wehreDich, kampfSystem) – auch ohne PvP, er schießt zurück.
+ * Runde 44: In friedlichen Zonen (Lagerplatz) und mit Chat-Befehl „setzt euch“ übernimmt botLager.js (Sitzen, am Feuer wärmen,
+ * Dinge anschauen, schlendern; „aufstehen“ beendet den Befehl).
  */
 const NAMEN = ['Anna', 'Ben', 'Clara', 'David', 'Emil', 'Frieda', 'Greta', 'Hugo', 'Ida', 'Jonas', 'Karla', 'Lenny'];
 const SICHT = 430; // px, so weit „sieht“ ein Bot Zombies
@@ -123,6 +126,7 @@ function denke(spielWelt, bot, dt) {
     b.steckt = 0;
     b.ziel = null;
     b.pfad = null;
+    b.taetigkeit = null; // Runde 44: Lager-Tätigkeit ebenfalls neu wählen
     b.pause = 0.3 + z.zahl();
   }
 }
@@ -207,6 +211,7 @@ function waehleWaffe(spielWelt, bot) {
 function folgeZiel(spielWelt, bot, dt) {
   const b = bot.bot;
   const z = spielWelt.zufall;
+  if (hatLagerAlltag(spielWelt, bot)) return lagerAlltag(spielWelt, bot, dt); // Runde 44
   if (b.pause > 0) {
     b.pause -= dt;
     b.schauen -= dt;

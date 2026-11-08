@@ -1,5 +1,6 @@
 import { BETT_TYPEN } from '../../gemeinsam/welt/einrichtung.js';
 import { pruefeMusikWahl } from './systeme/musikSystem.js';
+import { botBefehl } from './systeme/botLager.js';
 import {
   BENUTZERNAME_MUSTER,
   GAST_MUSTER,
@@ -585,7 +586,12 @@ export class SpielServer {
     const spieler = this.#spieler(sitzung);
     const nachricht = { typ: NACHRICHT.CHAT, von: sitzung.benutzername, text, admin: !!spieler?.admin };
     if (global) this.#anAlle({ ...nachricht, global: true, zone: sitzung.zone?.name ?? null });
-    else this.#anZone(sitzung.zone, nachricht);
+    else {
+      this.#anZone(sitzung.zone, nachricht);
+      // Runde 44: „setzt euch“ / „aufstehen“ → Bots der Zone gehorchen und antworten im Chat
+      const welt = sitzung.zone?.spielWelt;
+      if (welt) for (const a of botBefehl(welt, spieler, text)) this.#anZone(sitzung.zone, { typ: NACHRICHT.CHAT, von: a.name, text: a.text, bot: true });
+    }
   }
 
   /** Runde 24 (P15): WebRTC-Signal an einen Spieler derselben Zone weiterreichen (Sprachchat, client/audio/stimmChat.js). */

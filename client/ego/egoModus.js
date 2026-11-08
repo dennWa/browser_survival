@@ -10,7 +10,9 @@
  *   - Alt gedrückt halten = Maus frei (HUD/Inventar anklicken), loslassen fängt sie wieder
  *   - eigene Figur ausgeblendet, Wand-Schnitt aus, Fadenkreuz-Overlay
  * Der Renderer ruft nur `renderer.egoHaken(kamera, fokus)` auf (eine Zeile in renderer.zeichne).
+ * Runde 44: im Sitzen kommen die Augen vom Kopf-Knochen der (ausgeblendeten) eigenen Figur (#kopfAugen).
  */
+import * as THREE from 'three';
 const AUGENHOEHE = 54;
 const FOV_EGO = 78;
 const NEAR_EGO = 2;
@@ -158,6 +160,21 @@ export class EgoModus {
     this.beiUmschalten?.(false);
   }
 
+  /** Runde 44: Augenposition (Welt) aus dem Kopf-Knochen der eigenen Figur – etwas über dem Kopfgelenk und leicht nach vorn. */
+  #kopfAugen(figur) {
+    const kopf = figur && (figur.kopfKnochen ??= figur.modell?.getObjectByName('Head') ?? null);
+    if (!kopf) return null;
+    figur.gruppe.updateMatrixWorld(true);
+    const p = kopf.getWorldPosition(this.#augen);
+    const w = -figur.gruppe.rotation.y + Math.PI / 2; // Blickrichtung der Figur (Gruppe dreht um π/2 − blick)
+    p.x += Math.cos(w) * 2.5;
+    p.z += Math.sin(w) * 2.5;
+    p.y += 6;
+    return Number.isFinite(p.x + p.y + p.z) ? p : null;
+  }
+
+  #augen = new THREE.Vector3();
+
   /** Pro Frame vom Renderer: Kamera ins Auge setzen, eigene Figur ausblenden. */
   #haken(renderer, kamera, fokus) {
     const jetzt = performance.now();
@@ -199,6 +216,13 @@ export class EgoModus {
     }
     const cp = Math.cos(this.#pitch);
     hoehe += renderer.bodenHoehe?.(augenX, augenY) ?? 0; // Gelände: Augen über dem Boden darunter
+    // Runde 44: im Sitzen (Stuhl/Bank/Boden) sitzen die Augen dort, wo der Kopf der Figur ist – nicht in Stehhöhe neben dem Stuhl
+    const augen = fokus.arbeit === 'sitzen' && !fokus.fahrzeugId ? this.#kopfAugen(renderer.figuren.get(fokus.id)) : null;
+    if (augen) {
+      augenX = augen.x;
+      augenY = augen.z;
+      hoehe = augen.y;
+    }
     kamera.position.set(augenX, hoehe, augenY);
     kamera.lookAt(augenX + Math.cos(this.#yaw) * cp * 100, hoehe + Math.sin(this.#pitch) * 100, augenY + Math.sin(this.#yaw) * cp * 100);
     const figur = renderer.figuren.get(fokus.id);

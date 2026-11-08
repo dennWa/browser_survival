@@ -55,12 +55,13 @@ Playwright-Skripte: nach Login auf `#laden` hidden warten (Aufwärmphase), sonst
 | `ki/runde39.md` | Runde 39 (neueste: Gottmodus-Paket, Kaminfeuer GLB + Ein-/Ausblenden, Auto-Crash stumm, Lautstärken, Item-Namen-Radius) |
 | `ki/runde40.md` | Runde 40 (Zone Waldsee westlich Stadtrand, Steg-Kachel `|`, Kenney Nature Kit `nk-*`) |
 | `ki/runde41.md` | Runde 41 (Waldsee-Bäume = Startkarte, Wild Reh/Hirsch/Fuchs animiert + scheu, `tiere.wild`; Studio weicher Pinsel `bodenMalerei`) |
-| `ki/runde44.md` | Runde 44 (neueste: Figuren neu gerigged (A-Pose-Fix, Bone Heat), Skelett-Zombie, Pakete si-/sp-/gp-/lg-/ph-blume, Büsche-Fix, Lager Palisade/Tor-Übergang/Buffet `spawnpunkte.buffet`, Objekt-`z`, Deko-Instancing) |
+| `ki/runde44.md` | Runde 44 (Figuren neu gerigged (A-Pose-Fix, Bone Heat), Skelett-Zombie, Pakete si-/sp-/gp-/lg-/ph-blume, Büsche-Fix, Lager Palisade/Tor-Übergang/Buffet `spawnpunkte.buffet`, Objekt-`z`, Deko-Instancing) |
 | `ki/runde43.md` | Runde 43 (Lagerplatz: Lagerplatz Zaun + Wald-/Rasenring, `friedlich`, `festeZeit` Sonnenuntergang, Gartenbank-`sitzFront`; Konzept `docs/konzepte/PERFORMANCE_UND_KI_WORKFLOW.md`) |
+| `ki/runde44_2.md` | Runde 44 (2) (neueste: Lager Nacht/windstill/Katze/Kerzen, Bots `botLager.js` + Chat „setzt euch“, Stuhl-Sitzpose, Rucksack am `Chest`, Ego im Sitzen, Feuer-Licht-Vorrang, fremde Taschenlampen, Zweig sammeln) |
 | `ki/runde42.md` | Runde 42 (Startzone Lagerplatz `lager`, ewiges Lagerfeuer, Lichterketten, Sitzen auf Stühlen/Bänken) |
 | `ki/runde32.md` | Runde 32 ( Nutzer-Modellpakete → Bäume/Gras/Steine/Items/Waffen/Tiere/Figuren, Zelt, Sound/Wetter/Licht, Gameplay) |
 
-**Faustregel:** Spiellogik/Netz → `ki/kern.md` + `ki/fallen.md`. Datei suchen → `ki/dateikarte.md`. Neueste Änderungen → `ki/runde44.md`. Editor → `ki/editor.md`.
+**Faustregel:** Spiellogik/Netz → `ki/kern.md` + `ki/fallen.md`. Datei suchen → `ki/dateikarte.md`. Neueste Änderungen → `ki/runde44_2.md` (+ `ki/runde44.md`). Editor → `ki/editor.md`.
 Ausführliches Handbuch (für Menschen): `project_manifest.md` (ebenfalls aufgeteilt unter `ki/handbuch/`).
 
 ## Pflege (Pflicht am Auftragsende)

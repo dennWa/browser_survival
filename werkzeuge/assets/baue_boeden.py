@@ -27,13 +27,17 @@ GROESSE = 256
 # name: (ambientCG-ID, Kacheln je Bild, Sättigung, Helligkeit) – leicht entsättigt, passend zum Low-Poly-Look
 BOEDEN = {
     'rasen': ('Grass004', 4, 0.85, 0.9),
-    'gras': ('Grass001', 4, 1.0, 1.0),  # Runde 36: Standard-Rasen der Welt (Zeichen ,) – vorher flache Atlas-Kachel (Schachbrett-Optik)
+    'gras': ('Grass001', 4, 1.25, 1.0),  # Runde 44: satter (vorher 1,0). Runde 36: Standard-Rasen der Welt (Zeichen ,) – vorher flache Atlas-Kachel (Schachbrett-Optik)
     'wiese': ('Ground037', 4, 0.9, 0.95),
     'erde': ('Ground106', 4, 0.9, 1.0),
     'kies': ('Gravel043', 3, 0.8, 1.0),
     'pflaster': ('PavingStones138', 4, 0.85, 0.95),
     'waldboden': ('Ground078', 4, 0.85, 0.85),
     'sand': ('Ground054', 4, 0.9, 1.05),
+}
+# Runde 44: Farbstich je Boden (R, G, B als Faktoren) nach Sättigung/Helligkeit – Rasen „ein Tick grüner statt so blass“ (Nutzer-Wunsch)
+TON = {
+    'gras': (0.84, 1.07, 0.9),
 }
 
 
@@ -108,6 +112,9 @@ def main():
         bild = Image.open(QUELLEN / f'{quelle}.jpg').convert('RGB').resize((GROESSE, GROESSE), Image.LANCZOS)
         bild = ImageEnhance.Color(bild).enhance(saett)
         bild = ImageEnhance.Brightness(bild).enhance(hell)
+        if name in TON:
+            kanaele = [k.point(lambda v, f=f: min(255, round(v * f))) for k, f in zip(bild.split(), TON[name])]
+            bild = Image.merge('RGB', kanaele)
         bild.save(ZIEL / f'{name}.jpg', quality=82, optimize=True)
         index[name] = {'datei': f'boden/{name}.jpg', 'kacheln': kacheln, 'quelle': f'https://ambientcg.com/view?id={quelle}', 'lizenz': 'CC0'}
     # Phase 4.13: zusammengesetzter Boden (Quellen: Ground078 + ScatteredLeaves008, Pilze/Moos/Zweige prozedural)

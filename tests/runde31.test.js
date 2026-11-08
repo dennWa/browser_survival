@@ -47,17 +47,14 @@ const anzahl = (spieler, defId) => spieler.inventar.reduce((s, e) => s + (e?.def
 const slotVon = (spieler, defId) => spieler.inventar.findIndex((e) => e?.defId === defId);
 const zu = (spieler, r) => Object.assign(spieler, { x: r.x, y: r.y + r.radius + 12 });
 
-test('Busch: Machete/Axt/Messer schneiden einen Ast, ohne Werkzeug nicht; Busch verschwindet und wächst nach', () => {
+test('Busch: Zweig sammeln (Runde 44: mit bloßen Händen, vorher Machete/Messer); Busch verschwindet und wächst nach', () => {
   const { welt, spieler, w } = welt31({ ressourcen: { ast: { dauer: 0.1, chanceAufMehr: 0, nachwachsen: 5 } } });
   const busch = w.ressourcen.find((r) => r.typ === 'busch');
-  assert.ok(busch && busch.art === 'ast' && busch.werkzeuge.includes('machete'));
+  assert.ok(busch && busch.art === 'ast' && busch.ohneWerkzeug);
   zu(spieler, busch);
   aktion(welt, spieler, { art: AKTIONEN.ABBAUEN });
-  assert.ok(welt.meldungen.some((x) => x.text.includes('Machete')), 'Hinweis ohne Werkzeug');
-  assert.equal(spieler.arbeit, null);
-  fuegeZumInventarHinzu(spieler, 'kuechenmesser', 1);
-  aktion(welt, spieler, { art: AKTIONEN.ABBAUEN });
-  assert.equal(spieler.arbeit?.art, 'ast');
+  assert.equal(spieler.arbeit?.art, 'ast', 'ohne Werkzeug');
+  assert.equal(spieler.arbeit.werkzeug, null);
   laufe(welt, 12);
   assert.equal(anzahl(spieler, 'ast'), 1);
   assert.ok(!w.istRessourceDa(busch.id), 'Busch ist weg');

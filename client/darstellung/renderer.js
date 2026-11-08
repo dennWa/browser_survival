@@ -18,7 +18,7 @@ import { kleidungsVorlage, kleideFigur, outfitFuer } from './kleidungModell.js';
 import { AUSSEHEN, skinFuer, pruefeAussehen, aussehenOption } from '../../gemeinsam/spieler/aussehen.js';
 import { itemGeometrie, itemVarianten, ladeGlbItemModelle, ladeR32ItemModelle, itemMaterialFuer, ITEM_MATERIAL, rucksackTeile } from './itemModelle.js';
 import { zeichneBeschriftung, zeichneItemName, zeichneSprechblase } from './beschriftung.js';
-import { richteFigurEin, aktualisiereHaltung, ARBEIT_KLIP, istBeidhaendigerSchlag } from './figurHaltung.js';
+import { richteFigurEin, aktualisiereHaltung, setzeStuhlZurueck, ARBEIT_KLIP, istBeidhaendigerSchlag } from './figurHaltung.js';
 import { erzeugeWaffe, WAFFEN_NAMEN , ladeR32Waffen } from './waffenModelle.js';
 import { erzeugeTier } from './tierModelle.js';
 import { erzeugeAngel } from './angelModell.js';
@@ -136,9 +136,12 @@ const TASCHENLAMPE = { winkel: 0.56, rand: 0.95, reichweite: 330, decay: 1.5, st
 // Je Scheinwerfer (zwei pro Auto, Runde 20): etwas mehr als die Hälfte des früheren Einzel-Lichts, Ziel = px vor der Front
 const SCHEINWERFER = { decay: 1, winkel: 0.4, rand: 0.55, reichweite: 620, staerke: 280, staerkeNacht: 1500, ziel: 360 };
 const SITZ_TIEFE = 24; // so weit sinkt die Figur beim Sitzen am Feuer
-const STUHL_KORREKTUR = 0; // Runde 42: Clip „sitzen“ – Hüfte über dem Figur-Ursprung (px), abgezogen von der Sitzhöhe
-const STUHL_ZURUECK = 0; // Runde 42: Figur so weit nach hinten (gegen die Blickrichtung), damit die Hüfte auf der Fläche sitzt
 const ITEM_AUF_MOEBEL = 0.5; // Runde 44: Größe von Items mit hoehe (auf Tisch/Möbel) gegenüber Boden-Items
+const FEUER_VORRANG_WEITE = 1400; // Runde 44: Lagerfeuer bis zu dieser Entfernung (px) immer im Lampen-Pool
+/** Runde 44: Rucksack am Brust-Knochen – Versatz zur Brust (px bei 64-px-Figur), Maßstab der Grundform (15×17×7), leicht nach vorn geneigt */
+const RUCKSACK_SITZ = { hoch: -4.5, hinten: 5.6, breite: 0.84, hoehe: 0.9, tiefe: 0.75, neigung: 0.05 };
+const _rucksackPos = new THREE.Vector3();
+const FREMDE_LAMPEN = 6; // Runde 44: so viele weitere Taschenlampen (nur Strahl + Bodenfleck) über das Licht-Budget hinaus
 const SICHTWEITE = 1300; // weiter entfernte Figuren werden nicht animiert/gezeichnet
 const ANIM_HALB_AB = 650; // Zombies weiter weg werden nur jedes 2. Bild animiert (mit doppeltem dt)
 const NEUE_FIGUREN_JE_BILD = 2; // höchstens so viele Zombie-Figuren pro Bild neu aufbauen (Horden-Spawn ruckelte)
@@ -217,8 +220,12 @@ const EGO_SICHT_FAKTOR = 1;
 const TAG = { sonne: new THREE.Color(0xfff1dc), himmel: new THREE.Color(0xbfd8ff), boden: new THREE.Color(0x4a4636), hintergrund: new THREE.Color(0x9cc3e4), zenit: new THREE.Color(0x2f78e0), wolken: new THREE.Color(0xffffff) };
 const NACHT = { sonne: new THREE.Color(0x7489c8), himmel: new THREE.Color(0x1f2842), boden: new THREE.Color(0x0a0b0e), hintergrund: new THREE.Color(0x02030a), zenit: new THREE.Color(0x000105), wolken: new THREE.Color(0x0b0e18) };
 const DAEMMERUNG = { sonne: new THREE.Color(0xff9a4d), hintergrund: new THREE.Color(0xe08a5a), zenit: new THREE.Color(0x5a5aa8), wolken: new THREE.Color(0xffb48a) };
-/** Runde 43: Zonen mit `festeZeit` (Lagerplatz) – kräftiger, warmer Sonnenuntergang (goldenes Licht, orange-rosa Himmel) */
-const SONNENUNTERGANG = { sonne: new THREE.Color(0xff7a32), himmel: new THREE.Color(0xe08a68), boden: new THREE.Color(0x2a1a14), hintergrund: new THREE.Color(0x8a4a3c), sonnenStaerke: 1.25, umgebungStaerke: 0.62 }; // Runde 44: dunkler (Hintergrund 0xf0905c → 0x8a4a3c)
+/**
+ * Runde 44: Zonen mit `festeZeit` (Lagerplatz, 20:45) – späte Dämmerung, fast Nacht: kühles Restlicht (lavendel), tiefblau-violetter
+ * Himmel mit letztem Rotschimmer am Horizont. Hell genug, um alles zu erkennen – das Licht machen Feuer, Kerzen und Lichterketten.
+ * (Runde 43 war ein heller Sonnenuntergang.)
+ */
+const SPAETABEND = { sonne: new THREE.Color(0x8f86d6), himmel: new THREE.Color(0x46507e), boden: new THREE.Color(0x1c1612), hintergrund: new THREE.Color(0x3a2a48), sonneMin: 0.62, umgebungMin: 0.5 };
 /** Himmel (himmel.js): Die Welt endet per Kamera-Ferne (Vielfaches des Kameraabstands) – darüber, am oberen Bildrand, beginnt der Himmel. */
 const BODEN_SPEICHER_MB = { pc: 512, handy: 192 }; // Grafikspeicher für die Bodentextur einer Zone (wird hinter dem Ladebild komplett hochgeladen)
 const HIMMEL_FERNE = 1.36; // Welt endet erst knapp über dem oberen Bildrand – der Himmel verdeckt das Spielfeld nicht
@@ -940,7 +947,10 @@ export class Renderer {
           const daten = b.typ === 'kamin' ? this.bauwerke.get(b.id)?.gruppe.userData : null;
           return l
             ? { x: (b.tx + 0.5) * g, y: l.hoehe, z: (b.ty + 0.5) * g, farbe: new THREE.Color(l.farbe), reichweite: l.reichweite, staerke: l.staerke, objekt: { feuer: !!l.flackern, x: b.tx, y: b.ty }, ...(daten ? { daten } : {}) }
-            : { x: (b.tx + 0.5) * g, y: 22, z: (b.ty + 0.5) * g, farbe: new THREE.Color(0xff9a40), reichweite: 300, staerke: 320, objekt: { feuer: true, x: b.tx, y: b.ty } };
+            : b.ewig
+              ? // Runde 44: ewiges Lagerfeuer (Lagerplatz) – größerer Lichtkreis, bekommt im Pool Vorrang (sonst „klauten“ die näheren Lichterketten ihm den Platz)
+                { x: (b.tx + 0.5) * g, y: 26, z: (b.ty + 0.5) * g, farbe: new THREE.Color(0xff9a40), reichweite: 560, staerke: 560, vorrang: true, objekt: { feuer: true, x: b.tx, y: b.ty } }
+              : { x: (b.tx + 0.5) * g, y: 22, z: (b.ty + 0.5) * g, farbe: new THREE.Color(0xff9a40), reichweite: 300, staerke: 320, vorrang: b.typ === 'lagerfeuer', objekt: { feuer: true, x: b.tx, y: b.ty } };
         });
       this.naechsteLampen = null;
     }
@@ -1282,13 +1292,15 @@ export class Renderer {
       if (l.target) this.szene.remove(l.target);
       l.dispose();
     }
-    for (const k of this.taschenKegel ?? []) {
+    for (const k of [...(this.taschenKegel ?? []), ...(this.fremdeLampen ?? []).flatMap((f) => [f.kegel, f.fleck])]) {
       this.szene.remove(k);
       k.geometry.dispose();
       k.material.dispose();
     }
     this.taschenlampen = Array.from({ length: budget.taschen }, (_, i) => this.#neueTaschenlampe(i === 0));
     this.taschenKegel = Array.from({ length: budget.taschen }, () => this.#neuerLichtKegel()); // sichtbarer Strahl
+    // Runde 44: Taschenlampen weiterer Spieler (über das Licht-Budget hinaus) – nur sichtbarer Strahl + Lichtfleck am Boden, kein echtes Licht
+    this.fremdeLampen = Array.from({ length: FREMDE_LAMPEN }, () => ({ kegel: this.#neuerLichtKegel(), fleck: this.#neuerLichtFleck() }));
     this.lampenPool = Array.from({ length: budget.lampen[art] }, () => this.#neuesPunktlicht(0xffffff, 300));
     this.kegelPool = Array.from({ length: budget.kegel[art] }, () => this.#neuesKegellicht());
     this.muendungslichter = Array.from({ length: budget.muendung }, () => this.#neuesPunktlicht(0xffc070, 380));
@@ -1374,6 +1386,24 @@ export class Renderer {
     const mesh = new THREE.Mesh(geometrie, material);
     mesh.visible = false;
     mesh.frustumCulled = false;
+    this.szene.add(mesh);
+    return mesh;
+  }
+
+  /** Runde 44: weicher, warmer Lichtfleck am Boden (additiv, Ellipse in Blickrichtung) – Ersatz für ein echtes Spotlicht. */
+  #neuerLichtFleck() {
+    const geometrie = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+    const material = new THREE.ShaderMaterial({
+      uniforms: { farbe: { value: new THREE.Color(0xffe2a8) }, deckkraft: { value: 0 } },
+      vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+      fragmentShader: `uniform vec3 farbe; uniform float deckkraft; varying vec2 vUv;
+        void main() { float d = length(vUv - 0.5) * 2.0; float a = smoothstep(1.0, 0.15, d); gl_FragColor = vec4(farbe, deckkraft * a * a); }`,
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+    });
+    const mesh = new THREE.Mesh(geometrie, material);
+    mesh.visible = false;
+    mesh.renderOrder = 2;
     this.szene.add(mesh);
     return mesh;
   }
@@ -1566,11 +1596,10 @@ export class Renderer {
         f.gruppe.position.set(e.arbeitOrt.x - (laengs ? 0 : 30), 20 + this.#hy(e.arbeitOrt.x, e.arbeitOrt.y), e.arbeitOrt.y + (laengs ? 30 : 0));
         f.gruppe.rotation.set(-Math.PI / 2, laengs ? 0 : -Math.PI / 2, 0, 'YXZ');
       } else if (e.arbeit === 'sitzen' && e.arbeitOrt?.sitz) {
-        // Runde 42: auf Stuhl/Bank – Figur auf die Sitzfläche (Clip „sitzen“ = Hüfte am Boden → um die Sitzhöhe anheben)
+        // Runde 44: auf Stuhl/Bank – Gruppe steht auf der Sitzfläche, figurHaltung.stuhlSitz rückt das Becken drauf (Steh-Clip als Basis)
         const ort = e.arbeitOrt;
-        const hoch = f.aktionen?.sitzen ? ort.hoehe - STUHL_KORREKTUR : ort.hoehe - SITZ_TIEFE + 4;
-        const zurueck = f.aktionen?.sitzen ? STUHL_ZURUECK : 0;
-        f.gruppe.position.set(ort.x - Math.cos(ort.blick) * zurueck, this.#hy(ort.x, ort.y) + hoch, ort.y - Math.sin(ort.blick) * zurueck);
+        const stuhl = f.survivor && f.beine?.rechts && f.beine?.links;
+        f.gruppe.position.set(ort.x, this.#hy(ort.x, ort.y) + (stuhl ? ort.hoehe : ort.hoehe - SITZ_TIEFE + 4), ort.y);
         f.gruppe.rotation.set(0, Math.PI / 2 - ort.blick, 0, 'YXZ');
         f.wasserTiefe = 0;
       } else {
@@ -1593,6 +1622,7 @@ export class Renderer {
         const k = f.aktionen;
         const arbeitsKlip = ARBEIT_KLIP[e.arbeit];
         if (e.tot || e.niedergestreckt) name = 'sterben'; // Runde 24: niedergestreckt liegt am Boden
+        else if (e.arbeit === 'sitzen' && e.arbeitOrt?.sitz) name = 'stehen'; // Runde 44: Stuhl/Bank – aufrechter Oberkörper, Beine macht stuhlSitz
         else if (e.arbeit === 'sitzen' && k.sitzen) name = 'sitzen';
         else if (arbeitsKlip && k[arbeitsKlip]) name = arbeitsKlip;
         else if (arbeitsKlip && (HACK_ARBEIT.has(e.arbeit) || e.arbeit === 'zerlegen')) name = 'hacken';
@@ -1661,7 +1691,9 @@ export class Renderer {
       f.animRest = 0;
       this.#merkeAufschlag(f, e, name);
       if (f.waffe) f.waffe.visible = !e.tot && !e.niedergestreckt;
+      if (f.stuhlVersatz && !(e.arbeit === 'sitzen' && e.arbeitOrt?.sitz && !e.tot)) setzeStuhlZurueck(f); // Runde 44: aufgestanden
       if (!schlaeft && !e.tot && !e.niedergestreckt) aktualisiereHaltung(f, e, jetzt, this.dunkel ?? 0); // am Boden keine Arm-Haltung (Bots zuckten sonst)
+      if (f.rucksack && !f.rucksackAngelegt) this.#legeRucksackAn(f); // Runde 44: an den Brust-Knochen (erst in aufrechter Pose)
     }
     // Runde 32: tote Zombies bleiben liegen (Sterbe-Clip, ZOMBIE_LEICHE_S lang, max. ZOMBIE_LEICHEN_MAX), statt sofort zu verschwinden
     this.zombieLeichen ??= new Map();
@@ -1767,9 +1799,34 @@ export class Renderer {
     this.rucksackGeometrie ??= vereineGeometrien(rucksackTeile(), { mitFarbe: true });
     const mesh = new THREE.Mesh(this.rucksackGeometrie, ITEM_MATERIAL);
     mesh.castShadow = true;
-    mesh.position.set(0, FIGUR_HOEHE * 0.6, -8.5);
-    figur.gruppe.add(mesh);
     figur.rucksack = mesh;
+    figur.rucksackAngelegt = false;
+    // Runde 44: Spielerfiguren tragen ihn am Brust-Knochen (bewegt sich mit Oberkörper/Animation) – sonst wie früher fest an der Gruppe
+    figur.rucksackKnochen = figur.survivor ? figur.modell?.getObjectByName('Chest') ?? null : null;
+    if (!figur.rucksackKnochen) {
+      mesh.position.set(0, FIGUR_HOEHE * 0.6, -8.5);
+      figur.gruppe.add(mesh);
+      figur.rucksackAngelegt = true;
+    }
+  }
+
+  /**
+   * Runde 44: Rucksack eng auf den Rücken setzen und an den Brust-Knochen hängen (attach behält die Lage) – nur in aufrechter Pose
+   * (stehen/gehen/laufen), damit er beim Anlegen im Sitzen/Liegen nicht schief „festfriert“. Höhe/Abstand aus der Brust-Position.
+   */
+  #legeRucksackAn(f) {
+    if (!['stehen', 'gehen', 'laufen'].includes(f.aktuell) || f.stuhlVersatz) return;
+    const g = f.gruppe;
+    g.updateMatrixWorld(true);
+    const brust = g.worldToLocal(f.rucksackKnochen.getWorldPosition(_rucksackPos));
+    const s = FIGUR_HOEHE / 64; // Maße unten für die 64-px-Figur
+    f.rucksack.position.set(brust.x, brust.y + RUCKSACK_SITZ.hoch * s, brust.z - RUCKSACK_SITZ.hinten * s);
+    f.rucksack.rotation.set(RUCKSACK_SITZ.neigung, 0, 0);
+    f.rucksack.scale.set(RUCKSACK_SITZ.breite * s, RUCKSACK_SITZ.hoehe * s, RUCKSACK_SITZ.tiefe * s);
+    g.add(f.rucksack);
+    g.updateMatrixWorld(true);
+    f.rucksackKnochen.attach(f.rucksack);
+    f.rucksackAngelegt = true;
   }
 
   /** Materialien einer Spielerfigur (je Variante geteilt; nachts schwaches Eigenleuchten in der Grundfarbe wie bei den alten Skins). */
@@ -2155,6 +2212,31 @@ export class Renderer {
         }
       }
     });
+    // Runde 44: alle weiteren Spieler in Sichtweite – ihr Strahl erschien sonst erst, wenn sie zu den nächsten 1–2 gehörten
+    this.fremdeLampen?.forEach(({ kegel, fleck }, j) => {
+      const s = spieler[this.taschenlampen.length + j];
+      const sichtbar = s && dunkel > 0.05 && s.fahrzeugId == null && !s.fahrzeug && Math.abs(s.x - fokus.x) < SICHTWEITE && Math.abs(s.y - fokus.y) < SICHTWEITE;
+      kegel.visible = fleck.visible = false;
+      if (!sichtbar) return;
+      const vx = Math.cos(s.blick);
+      const vz = Math.sin(s.blick);
+      const frei = this.welt ? strahlGegenWaende(this.welt, s.x, s.y, s.blick, TASCHENLAMPE.kegelLaenge + TASCHENLAMPEN_ANSATZ.vorn).laenge - TASCHENLAMPEN_ANSATZ.vorn : TASCHENLAMPE.kegelLaenge;
+      const anteil = Math.max(0, Math.min(1, frei / TASCHENLAMPE.kegelLaenge));
+      if (anteil <= 0.03) return;
+      kegel.visible = true;
+      kegel.scale.setScalar(anteil);
+      kegel.position.set(s.x + vx * TASCHENLAMPEN_ANSATZ.vorn, 30 + this.#hy(s.x, s.y), s.y + vz * TASCHENLAMPEN_ANSATZ.vorn);
+      kegel.rotation.y = -s.blick;
+      kegel.material.uniforms.deckkraft.value = 0.09 * dunkel;
+      const weg = TASCHENLAMPEN_ANSATZ.vorn + Math.min(TASCHENLAMPE.ziel, frei * 0.75);
+      const fx = s.x + vx * weg;
+      const fz = s.y + vz * weg;
+      fleck.visible = true;
+      fleck.position.set(fx, this.#hy(fx, fz) + 0.8, fz);
+      fleck.rotation.y = -s.blick;
+      fleck.scale.set(150 * anteil, 1, 105 * anteil); // länglich in Blickrichtung
+      fleck.material.uniforms.deckkraft.value = (this.nachtsicht ? 0.2 : 0.55) * dunkel;
+    });
   }
 
   /**
@@ -2203,7 +2285,9 @@ export class Renderer {
       this.lampenSortiert = jetzt;
       const lampen = this.feuerLampen.length > 0 ? [...this.karte.lampen, ...this.feuerLampen] : this.karte.lampen;
       const abstand = (a, b) => Math.hypot(a.x - fokus.x, a.z - fokus.y) - Math.hypot(b.x - fokus.x, b.z - fokus.y);
-      this.naechsteLampen = lampen.filter((l) => l.objekt.art !== 'kegel' && !l.aus && !(l.daten && !(l.daten.glanz > 0.005))).sort(abstand).slice(0, this.lampenPool.length);
+      // Runde 44: Lagerfeuer in Sichtweite zuerst – sein Licht soll nicht verschwinden, nur weil Lampen/Lichterketten näher sind
+      const rang = (l) => (l.vorrang && Math.hypot(l.x - fokus.x, l.z - fokus.y) < FEUER_VORRANG_WEITE ? -1e6 : 0) + Math.hypot(l.x - fokus.x, l.z - fokus.y);
+      this.naechsteLampen = lampen.filter((l) => l.objekt.art !== 'kegel' && !l.aus && !(l.daten && !(l.daten.glanz > 0.005))).sort((a, b) => rang(a) - rang(b)).slice(0, this.lampenPool.length);
       this.naechsteKegel = lampen.filter((l) => l.objekt.art === 'kegel' && !l.aus).sort(abstand).slice(0, this.kegelPool.length);
     }
     this.kegelPool.forEach((licht, i) => {
@@ -2346,14 +2430,13 @@ export class Renderer {
     this.umgebung.intensity = NACHT_UMGEBUNG + hell * (1.3 - NACHT_UMGEBUNG);
     this.szene.background.copy(NACHT.hintergrund).lerp(TAG.hintergrund, hell).lerp(DAEMMERUNG.hintergrund, daemmerung * 0.5);
     if (this.welt?.festeZeit != null && !this.nachtsicht) {
-      // Runde 43: feste Abendstimmung – Sonne tief und golden, Himmel/Umgebung warm
-      // Runde 44: dunkler und gemütlicher (Nutzerwunsch) – Lichterketten/Feuer/Fackeln tragen das Bild (vorher Sonne ≥ 2,1, Umgebung ≥ 1,0)
-      this.mond.color.lerp(SONNENUNTERGANG.sonne, 0.75);
-      this.mond.intensity = SONNENUNTERGANG.sonnenStaerke;
-      this.umgebung.color.lerp(SONNENUNTERGANG.himmel, 0.55);
-      this.umgebung.groundColor.lerp(SONNENUNTERGANG.boden, 0.6);
-      this.umgebung.intensity = SONNENUNTERGANG.umgebungStaerke;
-      this.szene.background.lerp(SONNENUNTERGANG.hintergrund, 0.8);
+      // Runde 44: feste Abendstimmung – spätes, kühles Dämmerlicht (nicht mehr golden/hell wie Runde 43); Mindestlicht hält Umrisse lesbar
+      this.mond.color.lerp(SPAETABEND.sonne, 0.75);
+      this.mond.intensity = Math.max(this.mond.intensity, SPAETABEND.sonneMin);
+      this.umgebung.color.lerp(SPAETABEND.himmel, 0.6);
+      this.umgebung.groundColor.lerp(SPAETABEND.boden, 0.6);
+      this.umgebung.intensity = Math.max(this.umgebung.intensity, SPAETABEND.umgebungMin);
+      this.szene.background.lerp(SPAETABEND.hintergrund, 0.7);
     }
     this.szene.fog.color.copy(this.szene.background);
     // Sonnenschatten: nachts (Mond ≈ 0) keinen Szenen-Durchgang; Schattenkamera nur so groß wie der sichtbare Bereich (zoomabhängig)

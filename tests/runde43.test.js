@@ -41,13 +41,13 @@ test('Lagerplatz ist friedlich: kein Schaden an Spielern, Hunger/Durst/Kälte pa
   assert.equal(stadt.welt.friedlich, false);
 });
 
-test('Lagerplatz: feste Abendstimmung (festeZeit) – Dämmerung, nicht Nacht; tageszeitUm trifft die Stunde', () => {
+test('Lagerplatz: feste Abendstimmung (festeZeit) – späte Dämmerung (Runde 44: dunkler), nicht Nacht; tageszeitUm trifft die Stunde', () => {
   const daten = ladeKarte('lager').daten;
   assert.ok(daten.festeZeit >= 19.5 && daten.festeZeit < 21, `festeZeit ${daten.festeZeit}`);
   const dauer = { tagSekunden: 600, nachtSekunden: 300 };
   const t = tageszeitUm(daten.festeZeit, dauer);
   assert.equal(t.istNacht, false);
-  assert.ok(t.helligkeit > 0.2 && t.helligkeit < 0.8, `Dämmerungs-Helligkeit (${t.helligkeit})`);
+  assert.ok(t.helligkeit > 0.03 && t.helligkeit < 0.3, `späte Dämmerung (${t.helligkeit})`);
   assert.equal(t.stunde, Math.floor(daten.festeZeit));
   assert.equal(tageszeitUm(13, dauer).helligkeit, 1);
   assert.equal(tageszeitUm(2, dauer).istNacht, true);

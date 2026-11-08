@@ -921,6 +921,7 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | pfad | Bedeutung | Bereich | Hinweis |
 |---|---|---|---|
 | `wetter.aktiv` | Wetter an | true/false |  |
+| `wetter.windstill` | Windstill | true/false | Runde 44: kein Wind (Ton, Bäume, Blätter) |
 | `wetter.regenAnteil` | Regen-Anteil | 0–1 | Rest = Nebel/Sturm |
 | `wetter.gewitterAnteil` | Gewitter-Anteil | 0–1 | vom Regen: Gewitter (Schneezone: Schneesturm) |
 | `wetter.sturmAnteil` | Sturm-Anteil | 0–1 | vom Rest: Sturm statt Nebel |

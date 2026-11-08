@@ -93,6 +93,7 @@ browser_survival/
 │   │   │   ├── territoriumSystem.js (v0.11) Basis-Flagge setzen/entfernen, Radius (+Skill-Haken), Speichern/Laden der Flaggen
 │   │   │   ├── spawnSystem.js     (v0.11) Bett = Spawn Point (setzen, Respawn-Punkt, Bett weg → vergessen)
 │   │   │   ├── fahrzeugSystem.js  Ein-/Aussteigen, Fahren, Zombies anfahren
+│   │   │   ├── botLager.js        (Runde 44) Bot-Alltag in friedlichen Zonen (sitzen/wärmen/anschauen) + Chat-Befehle „setzt euch“/„aufstehen“
 │   │   │   ├── zonenSystem.js     Übergangs-Rechtecke erkennen → spieler.zonenwechsel
 │   │   │   ├── ueberlebenSystem.js Hunger, Durst, Heilung, Wiederbelebung
 │   │   │   ├── zielSystem.js      Überlebens-Tagebuch: zählt Ereignisse, hakt Kapitel-Ziele ab (XP), bleibt über den Tod (Daten: konfiguration/ziele.js)

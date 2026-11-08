@@ -37,6 +37,10 @@ export function wildWerte(k, art) {
 export function spawneStartTiere(spielWelt) {
   const k = spielWelt.konfiguration.tiere;
   const welt = spielWelt.welt;
+  // Runde 44: feste Start-Tiere der Karte (z. B. die Lager-Katze am Feuer) – streunen ohne Besitzer (haustierSystem)
+  for (const t of spielWelt.karte.startTiere ?? []) {
+    spielWelt.hinzufuegen(erzeugeTier({ id: spielWelt.neueId(), art: t.art, x: (t.x + 0.5) * welt.kachelGroesse, y: (t.y + 0.5) * welt.kachelGroesse, konfiguration: spielWelt.konfiguration }));
+  }
   // Hasen-Bereiche aus der Karte (Map-Editor): dann nur dort, je Bereich `anzahl`
   const bereiche = spielWelt.karte.tierBereiche ?? [];
   if (bereiche.length) {

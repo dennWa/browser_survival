@@ -65,7 +65,7 @@ for (const id of Object.keys(KARTEN)) {
   test(`Karte "${id}": jedes Objekt hat eine Grafik`, () => {
     const { daten } = ladeKarte(id);
     for (const o of daten.objekte) {
-      if (PROZEDURAL.has(o.typ)) continue;
+      if (PROZEDURAL.has(o.typ) || o.ebene === 'unsichtbar') continue; // Runde 44: unsichtbare Hindernisse (Baumstamm) brauchen keine Grafik
       // Eigene 3D-Modelle (Spielordner/Editor): die .glb muss es geben
       const glb = daten.typen?.[o.typ]?.glbDatei;
       if (glb) {

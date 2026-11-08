@@ -101,7 +101,7 @@ const ROH_GEGENSTAENDE = {
   muell: { name: 'Müll', kategorie: 'material', stapelbar: 10, beschreibung: 'Aus dem See gefischt – nutzlos' },
   schrott: { name: 'Schrott', kategorie: 'material', stapelbar: 10, beschreibung: 'Rostiges Metall aus dem See' },
   // Runde 31: Büsche (Machete/Axt/Messer) geben Äste, Bäume Rinde (Machete/Messer in der Hand, 3× je Baum); Papier/Rinde/Stoff/Verband = Brennstoff fürs Lagerfeuer-Rezept
-  ast: { name: 'Ast', kategorie: 'material', stapelbar: 20, beschreibung: 'Von einem Busch abgeschnitten – mit Rinde zum Feuerbohrer' },
+  ast: { name: 'Ast', kategorie: 'material', stapelbar: 20, beschreibung: 'Zweig, an einem Busch gesammelt – mit Rinde zum Feuerbohrer' },
   rinde: { name: 'Baumrinde', kategorie: 'material', stapelbar: 20, beschreibung: 'Mit Machete oder Messer vom Baum geschnitten – Zunder fürs Lagerfeuer, mit einem Ast ein Feuerbohrer' },
   papier: { name: 'Papier', kategorie: 'material', stapelbar: 20, mengeBeimFund: [1, 3], beschreibung: 'Zerknüllt – brennt gut, Zunder fürs Lagerfeuer' },
   bretter: { name: 'Bretter', kategorie: 'material', stapelbar: 10, beschreibung: 'Vor einer geschlossenen Tür benutzen: verstärkt sie' },

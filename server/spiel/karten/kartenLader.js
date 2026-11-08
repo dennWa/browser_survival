@@ -47,6 +47,7 @@ export const KARTEN = Object.freeze({
  *   → unsichtbare Hindernisse (Objekt typ 'hang', ebene 'unsichtbar'). Alte Exporte nur mit terrain.steil [[x, y]] gelten weiter.
  *   bauwerke [{ typ, tx, ty, drehung?, ewig? }] → kartenfeste Bauwerke ohne Besitzer (SpielWelt setzt sie; ewig = Lagerfeuer brennt immer)
  *   tierBereiche [{ x, y, b, h, art, anzahl, respawnZeit? }] → Hasen nur dort (tierSystem); art hase|reh|hirsch|fuchs (Runde 41)
+ *   tiere [{ art: katze|hund|huhn, x, y }] → Runde 44: streunende Haustiere, die beim Zonenstart genau dort stehen (startTiere)
  *   einstellungen → Zonen-Werte (zonenEinstellungen.js), musik → daten.musik (Client: Musik-Ordner)
  *   klaenge → daten.klaenge (Klanglandschaft, gemeinsam/audio/klanglandschaft.js; nur mit Datei/eingebetteten Daten)
  *   lootZonen → zusätzliche lootPunkte mit `lootZone` (Regeln: lootZonen.js; nur Server, der Client sieht nur die Items)
@@ -255,9 +256,19 @@ export function verarbeiteKarte(definition, kachelGroesse = KACHEL_GROESSE, { au
     einstellungen: pruefeZonenEinstellungen(definition.einstellungen),
     bauwerke,
     tierBereiche,
+    startTiere: pruefeStartTiere(definition.tiere, breite, hoehe),
     // Tutorial-Zone (server/spiel/tutorial/): Orte für das Skript – nur der Server kennt sie
     tutorial: definition.tutorial && typeof definition.tutorial === 'object' ? definition.tutorial : null,
   };
+}
+
+/** Runde 44: Start-Tiere der Karte (streunende Haustiere an fester Stelle, Kachel-Koordinaten). Ungültiges fällt still weg. */
+function pruefeStartTiere(roh, breite, hoehe) {
+  if (!Array.isArray(roh)) return [];
+  return roh
+    .filter((t) => t && ['katze', 'hund', 'huhn'].includes(t.art) && Number.isFinite(t.x) && Number.isFinite(t.y) && t.x >= 0 && t.y >= 0 && t.x < breite && t.y < hoehe)
+    .slice(0, 20)
+    .map((t) => ({ art: t.art, x: t.x, y: t.y }));
 }
 
 /**

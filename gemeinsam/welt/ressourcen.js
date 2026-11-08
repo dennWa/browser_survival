@@ -23,8 +23,8 @@ export const RESSOURCEN_OBJEKTE = Object.freeze({
   baum: { art: 'holz', werkzeug: 'axt', radius: 18, blockiert: false, aktion: 'Baum fällen' },
   baum_herbst: { art: 'holz', werkzeug: 'axt', radius: 18, blockiert: false, aktion: 'Baum fällen' },
   tanne: { art: 'holz', werkzeug: 'axt', radius: 17, blockiert: false, aktion: 'Baum fällen' },
-  // Runde 31: Büsche geben Äste – `werkzeuge` = alle passenden Items (sonst gilt `werkzeug`)
-  busch: { art: 'ast', werkzeug: 'machete', werkzeuge: ['machete', 'axt', 'feuerwehrbeil', 'kuechenmesser', 'kampfmesser'], radius: 16, blockiert: false, aktion: 'Ast abschneiden' },
+  // Runde 31: Büsche geben Äste. Runde 44: „Zweig sammeln“ mit bloßen Händen (ohneWerkzeug – vorher „Ast abschneiden“ mit Machete/Messer)
+  busch: { art: 'ast', werkzeug: null, werkzeuge: [], ohneWerkzeug: true, radius: 16, blockiert: false, aktion: 'Zweig sammeln' },
   stein: { art: 'stein', werkzeug: 'spitzhacke', radius: 16, blockiert: true, aktion: 'Stein abbauen' },
   eisenerz: { art: 'eisenerz', werkzeug: 'spitzhacke', radius: 16, blockiert: true, aktion: 'Eisenerz abbauen' },
 });
@@ -43,6 +43,7 @@ export const RINDE_MAX = 3;
  */
 export function abbauArtFuer(r, handId, hat, rindeAb = 0) {
   if (r.art === 'holz' && RINDE_WERKZEUGE.includes(handId) && rindeAb < RINDE_MAX) return { art: 'rinde', werkzeug: handId };
+  if (r.ohneWerkzeug) return { art: r.art, werkzeug: null }; // Runde 44: Zweige sammelt man mit der Hand
   const werkzeug = (r.werkzeuge ?? [r.werkzeug]).find((id) => id === handId && hat(id)) ?? (r.werkzeuge ?? [r.werkzeug]).find(hat);
   return werkzeug ? { art: r.art, werkzeug } : null;
 }

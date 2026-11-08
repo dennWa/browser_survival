@@ -12,6 +12,7 @@ export const ZONEN_EINSTELLUNGEN = Object.freeze({
     titel: 'Wetter',
     werte: [
       { name: 'aktiv', label: 'Wetter an', typ: 'haken' },
+      { name: 'windstill', label: 'Windstill', typ: 'haken', hilfe: 'Runde 44: kein Wind (Ton, Bäume, Blätter)' },
       { name: 'regenAnteil', label: 'Regen-Anteil', typ: 'zahl', min: 0, max: 1, schritt: 0.05, hilfe: 'Rest = Nebel/Sturm' },
       { name: 'gewitterAnteil', label: 'Gewitter-Anteil', typ: 'zahl', min: 0, max: 1, schritt: 0.05, hilfe: 'vom Regen: Gewitter (Schneezone: Schneesturm)' },
       { name: 'sturmAnteil', label: 'Sturm-Anteil', typ: 'zahl', min: 0, max: 1, schritt: 0.05, hilfe: 'vom Rest: Sturm statt Nebel' },
