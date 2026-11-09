@@ -11,7 +11,7 @@
 ## Bauwerke (`G:welt/bauwerke.js` BAUWERKE, `bauwerkAktion`, `pruefePlatz`)
 - `S:systeme/bauSystem.js` (platzieren, `neuesBauwerk`, Feuer/Zünden `zuendQuelle` Feuerzeug>Feuerbohrer, Beete/Wachstum (Regen ×2), Ertrag Eier/Honig, Wasser `fuelleFlasche`, `aktualisiereBauwerke` = Brennen/Verderb/Fallen/Behälter-Nachfüllen). Weltstand-Felder: Whitelist `spielWelt.pruefeBauwerk` (neues Bauwerk-Feld dort eintragen!).
 - Stationen `S:systeme/stationSystem.js`: Lagerfeuer (Koch-Plätze, Garzeit nur bei `brennt`, Holz-Hand + LMB legt nach) + Schmelzofen; NACHRICHT `station` nur an den Öffner; UI `C:ui/stationFenster.js`. Ewiges Lagerfeuer (Kartenbauwerk `ewig`, Lager-Zone). Sitzen → ki/spieler.md.
-- Möbel/Cozy (`moebel:true`, `G:welt/einrichtung.js`: Licht, Strom/Generator, Kamin, `istGemuetlich`), Modelle `C:darstellung/moebelModelle.js` (GLB aus `assets/eigene` + prozedural; Kaminfeuer `baueKaminFeuer` mit Ein-/Ausblenden), Musik `S:systeme/musikSystem.js` + `C:audio/hausMusik.js`. Fallen → ki/kampf.md. Zelt = Schlafplatz.
+- Möbel/Cozy (`moebel:true`, `G:welt/einrichtung.js`: Licht, Strom/Generator, Kamin, `istGemuetlich`), Modelle `C:darstellung/moebelModelle.js` (GLB aus `assets/eigene` + prozedural; Kaminfeuer `baueKaminFeuer` mit Ein-/Ausblenden), Musik `S:systeme/musikSystem.js` + `C:audio/hausMusik.js`. Fallen → ki/kampf.md. Zelt = Schlafplatz. Ereignis-Bauwerke `heliwrack`/`absturzkiste` (`ereignis: true`, Feld `bis`) → ki/npc.md.
 - 3D: `C:darstellung/bauwerkModelle.js erzeugeBauwerk` (default-Hook → moebelModelle).
 
 ## Crafting · Kochen
@@ -28,7 +28,7 @@
 - Wasser: `leere_flasche` füllen (dreckig) → abkochen am Feuer; Regentonne/Brunnen.
 
 ## Kisten · Behälter · Kofferraum · Leiche
-- `S:systeme/kistenSystem.js`: Lagerkiste (Bauwerk, `KISTE_PLAETZE` 16, Inhalt nie ins Netz außer an den Öffner), Karten-Behälter (`G:welt/behaelter.js`, `oeffneBehaelter` würfelt Loot beim 1. Öffnen, Nachfüllen nach K `loot.behaelterNachfuellen`), Kofferraum (`spieler.offeneKiste = 'f<fzId>'`, Taste G/Tab hinter dem Auto), Leiche (`'l<ID>'`). Gemeinsame Nachricht `kiste{id,inhalt,titel}`; UI `C:ui/kisteFenster.js` (2 Spalten, „Alles nehmen“). Items in Kisten laufen über `spielstand.pruefeEintrag`.
+- `S:systeme/kistenSystem.js`: Lagerkiste (Bauwerk, `KISTE_PLAETZE` 16, Inhalt nie ins Netz außer an den Öffner), Karten-Behälter (`G:welt/behaelter.js`, `oeffneBehaelter` würfelt Loot beim 1. Öffnen, Nachfüllen nach K `loot.behaelterNachfuellen`), Kofferraum (`spieler.offeneKiste = 'f<fzId>'`, Taste G/Tab hinter dem Auto), Leiche (`'l<ID>'`). Kofferraum-Ansicht trägt zusätzlich `auto` (Auto-Menü, ki/fahrzeuge.md). Gemeinsame Nachricht `kiste{id,inhalt,titel}`; UI `C:ui/kisteFenster.js` (2 Spalten, „Alles nehmen“). Items in Kisten laufen über `spielstand.pruefeEintrag`.
 - Loot: `S:systeme/lootSystem.js` + K:`lootTabellen.js` ★ (Raumtypen), Loot-Zonen/Spawnpunkte (→ ki/karten.md).
 
 ## Tests

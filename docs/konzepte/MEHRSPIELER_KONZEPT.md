@@ -1,6 +1,6 @@
 # Konzept: Mit Freunden spielen (DayZ-Anlehnung)
 
-Stand 2026-11-09 · Status: **Runde 47 in Arbeit** – Auswahl unten (Teil A) wird umgesetzt, Teil B ist die Merkliste.
+Stand 2026-11-09 · Status: **Teil A in Runde 47 umgesetzt** (Details in den `ki/*.md`), Teil B ist die Merkliste.
 
 ## 1. Entscheidungen (Nutzer)
 
@@ -17,15 +17,15 @@ Stand 2026-11-09 · Status: **Runde 47 in Arbeit** – Auswahl unten (Teil A) wi
 
 | Thema | Kern | Status |
 |---|---|---|
-| Tastenbelegung | Sprechen, Funken, Ducken, Emotes … frei belegbar (⚙ Einstellungen) | in Arbeit |
-| Funkgerät | Item im Start-Inventar, an/aus, Frequenz, Funk-PTT, Funk-Klang | in Arbeit |
-| Emotes | Emoji-Auswahl, Emoji über dem Kopf für alle sichtbar | in Arbeit |
-| Kartenmarker | Rechtsklick auf Karte → Text; Gruppe sieht die Marker | in Arbeit |
-| Verarzten | Verband/Schiene/Medizin am Mitspieler | in Arbeit |
-| Ducken | Tempo ≈ Gehen, Zombies bemerken einen später, Hock-Haltung | in Arbeit |
-| Auto-Teile | Tank, 4 Reifen, Batterie, Verbrauch, Auto-Menü, Loot | in Arbeit |
-| Heli-Absturz | Event ~10 min, zufällige Zone, Wrack + Rauch + Loot + 5 Zombies | in Arbeit |
-| Server hosten | Browser-Host per WebRTC, Einladungscode/Link, Kick, PvP-Schalter | in Arbeit |
+| Tastenbelegung | Sprechen, Funken, Ducken, Emotes … frei belegbar (⚙ Einstellungen) | ✅ umgesetzt |
+| Funkgerät | Item im Start-Inventar, an/aus, Frequenz, Funk-PTT, Funk-Klang | ✅ umgesetzt |
+| Emotes | Emoji-Auswahl, Emoji über dem Kopf für alle sichtbar | ✅ umgesetzt |
+| Kartenmarker | Rechtsklick auf Karte → Text; Gruppe sieht die Marker | ✅ umgesetzt |
+| Verarzten | Verband/Schiene/Medizin am Mitspieler | ✅ umgesetzt |
+| Ducken | Tempo ≈ Gehen, Zombies bemerken einen später, Hock-Haltung | ✅ umgesetzt |
+| Auto-Teile | Tank, 4 Reifen, Batterie, Verbrauch, Auto-Menü, Loot | ✅ umgesetzt |
+| Heli-Absturz | Event ~10 min, zufällige Zone, Wrack + Rauch + Loot + 5 Zombies | ✅ umgesetzt |
+| Server hosten | Browser-Host per WebRTC, Einladungscode/Link, Kick, PvP-Schalter | ✅ umgesetzt |
 
 ## 3. Teil B – Merkliste (später)
 

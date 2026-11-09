@@ -4,7 +4,7 @@
 
 ## Schaden-Pipeline
 - **Einzige Schadensstelle:** `S:systeme/kampfSystem.js fuegeSchadenZu(welt, ziel, schaden, quelle, winkel, optionen)` (Optionen `rueckstoss`, `durchschlag`, `explosion`, `ohneXp`). Darin: Rüstung `kleidungsSchutz` (≤60 %), Panzer-Zombies, `friedlich`-Zone (kein Spielerschaden), Gottmodus, Tutorial-Ohnmacht, Bots wehren sich (`wehreDich`), Gesundheit `nachTreffer` (Blutung/Bruch/Infektion). Hund & Katze unsterblich. → `toeten` (XP, Leiche/Niederstrecken, Wild-Fleisch `wildWerte().fleisch`).
-- PvP: K `kampf.pvp` (Standard false); `moeglicheZiele` (gezähmte Tiere nie, Bots immer treffbar).
+- PvP: K `kampf.pvp` (Standard false; gehosteter Browser-Server: beim Erstellen gewählt, fest); `moeglicheZiele` (gezähmte Tiere nie, Bots immer treffbar).
 - Schuss: `aktualisiereKampf` → `schiessen` → `feuereStrahl` (DDA `G:physik/strahl.js`, erste Wand stoppt; Autos `strahlTrifftBox` → `schlageFahrzeug` × K `fahrzeug.schussFaktor`; Höhen-Treffer `trifftHoehe` bei Gelände). Ereignisse `feuer{item,leise}`, `schuss{stoff,treffer,fz,pfeil}` → C: Sound (`clientSpiel SCHUSS_KLANG`), Einschusslöcher `C:darstellung/einschlaege.js`, Mündungsblitz.
 - Lärm: `alarmiereZombies` (Hörweite × Waffe `laerm`). Nach Spielertod `raeumeZombiesWeg`.
 - ⚠ Linksklick-Flanke: `behandleAngelKlick` läuft VOR dem Angriff und pflegt `spieler.angriffVorher` – nie davor `continue`n.
@@ -21,7 +21,7 @@
 - Effekte C: `C:darstellung/effekte.js` (Ereignisse → Listen) → `sonderEffekte.js` (Spuckbogen, Feuerball, Würfe, Brände, Kamerawackeln).
 
 ## Admin · Gottmodus
-- `S:systeme/adminSystem.js` (ADMIN_BEFEHLE in `G:protokoll.js`, spielServer validiert): Gottmodus (koppelt ∞ Munition + ∞ Ausdauer, füllt Werte, `GOTT_AUSRUESTUNG`), fliegen, waffeGeben, botSetzen/-Entfernen, zeitVor12, spieltagVor, wetter. Client `clientSpiel.admin()`, Tabelle `#admin-tabelle` in `client/index.html`.
+- `S:systeme/adminSystem.js` (ADMIN_BEFEHLE in `G:protokoll.js`, spielServer validiert): Gottmodus (koppelt ∞ Munition + ∞ Ausdauer, füllt Werte, `GOTT_AUSRUESTUNG`), fliegen, waffeGeben, botSetzen/-Entfernen, zeitVor12, spieltagVor, wetter, kick (Name → `SpielServer.kicke`, gesperrt bis Neustart; Host-UI `C:ui/hostFenster.js`). Client `clientSpiel.admin()`, Tabelle `#admin-tabelle` in `client/index.html`.
 
 ## Tests
 `gameplay` (Kampf, Gottmodus), `runde24` (P2–P5 Waffen/Sprengstoff/Fallen), `runde26` (Waffenpaket), `runde29` (Bots wehren sich, Autos beschießbar), `runde13` (Admin).

@@ -4,12 +4,15 @@
 
 ## Zombies
 - Entität `S:entitaeten/zombie.js` (`waehleZombieVariante(zufall, konf, tag, extra)`; ⚠ ohne Tag = Tag 1). Varianten K `zombie.varianten`: normal, laeufer, halb, brocken (Boss) + Sonder mit `abTag`: sprinter 3, spucker 5, gepanzert 8, explosiv 10.
-- KI `S:systeme/zombieSystem.js`: Sicht (`siehtZiel`, nicht ins Haus `istInnen` – außer eigenes Ziel), Hören (`alarmiereZombies`, `wittere`), A* `G:physik/pfadfindung.js` (watet), Tür-Engstellen-Reservierung, Stuck-Check NACH `trenneZombies` (`tickStartX/Y`), `gibAuf` bei unerreichbarem Ziel, Autos: Anlaufpunkt `autoAnlaufpunkt` + Schlag ab 22 px. Sitzende/Innen-Spieler werden nicht gewittert. Türen brechen sie auf (`tuerSystem`), öffnen nie.
+- KI `S:systeme/zombieSystem.js`: Sicht (`siehtZiel`, nicht ins Haus `istInnen` – außer eigenes Ziel), Hören (`alarmiereZombies`, `wittere`), A* `G:physik/pfadfindung.js` (watet), Tür-Engstellen-Reservierung, Stuck-Check NACH `trenneZombies` (`tickStartX/Y`), `gibAuf` bei unerreichbarem Ziel, Autos: Anlaufpunkt `autoAnlaufpunkt` + Schlag ab 22 px. Sitzende/Innen-Spieler werden nicht gewittert; Geduckte: Bemerk-Radius × K `zombie.duckSichtFaktor` (0,55), Witterung nur im verkleinerten Radius. Türen brechen sie auf (`tuerSystem`), öffnen nie.
 - Sonder-Verhalten `S:systeme/sonderZombieSystem.js` (Spucke als Flug, Explosion via `explosionSystem`, Panzer in `fuegeSchadenZu`).
 - Horde/Progression `S:systeme/tageszeitSystem.js hordeFuer(konf, tag)` (normal|boss|blutmond) → `schickeHorde`; `spielWelt.nachtArt` → Client Blutmond.
 - Spawns: Karten-`Z`-Marker + `zombieBereiche` (`S:karten/zombieBereiche.js`), Zonen-Einstellung `zombie.dichte/respawnZeit/nachtHorde`.
 - Darstellung (Renderer `ZOMBIE_MODELLE` + `zombieModellFuer(e)`): normal/laeufer → `skelett` (`client/assets/3d/zombies/skelett.glb`, eigene Textur, eigene Clips inkl. sterben), Sonder → `gruen` (`eigene/zombie-2.glb`) + Tönung `SONDER_TOENE` + Anbauteile `#sonderTeile`, brocken → `koloss`, halb → `halb`; UV-Atlas `C:darstellung/zombieTextur.js` (für die Quaternius-GLBs). Kenney-FBX nur Fallback. Leichen bleiben 120 s (Client, `ZOMBIE_LEICHEN_MAX` 25). Fern = halbe Animationsrate, Pool `#holeFigur`, max. 2 neue Figuren je Bild.
 - Sounds: `clientSpiel.#zombieSound` (räumlich, dumpf ohne Sichtlinie), Ereignisse zombie_stoehnen/angriff/schrei/tod/ferne.
+
+## Heli-Absturz (Ereignis, `S:systeme/absturzSystem.js`)
+- `SpielServer.#heliAbsturz` (K `absturz` {aktiv, intervall 600 s, dauer 1200 s, zombies 5, lootWuerfe 7}): nur wenn Spieler online, zufällige bereite Zone (`zone.bereit`) ohne `friedlich`/Tutorial → `lasseAbstuerzen`: Bauwerke `heliwrack` (blockiert, Feuer/Rauch/Licht im Client) + `absturzkiste` (Loot-Tabelle `absturz`, Militär), beide mit `bis`; 5 Zombies mit `absturz`-Ablauf drumherum; Ereignis `absturz` (Knall). Funkgeräte (`funkBereit`) bekommen einen Mayday mit Zone + Himmelsrichtung, Spieler in der Zone den Knall. `raeumeAbsturzAuf` alle 5 s. Karte: 🚁/🪂. Test/Konsole: `server.loeseAbsturzAus(zonenId)`.
 
 ## Wild & Hasen (`S:systeme/tierSystem.js`, Entität `S:entitaeten/tier.js`)
 - `WILD_ARTEN` hase|reh|hirsch|fuchs, Werte `wildWerte(k, art)` aus K `tiere.wild[art]` (Hase = alte `hasen*`-Felder). Sehr scheu: `schreckQuelle` (Spieler im scheuRadius, Sprint/Auto ×, Schüsse), Flucht im Zickzack + Haken, Herde flieht mit (380 px). Spawn nur in `tierBereiche` mit `art`. ⚠ Tiere ignorieren unsichtbare Spieler (`ich().unsichtbar = true` zum Nah-Prüfen).
@@ -24,4 +27,4 @@
 - Lager-Alltag `S:systeme/botLager.js` (friedliche Zone oder `bot.befehl==='feuer'`, aus `botSystem.folgeZiel`): sitzen (freier Sitz, 25–70 s), wärmen, anschauen, schlendern. Chat-Befehle `botBefehl(spielWelt, von, text)` ← `spielServer.#chat` (nur Zonen-Chat; Regex SETZEN/AUFSTEHEN; Bot-Name im Text = nur dieser), Antwort als CHAT `{von: botName, bot:true}`. Test-Chat: `browserSurvival.spiel.chat('setzt euch')`.
 
 ## Tests
-`gameplay` (KI, Türen-Stress, Haus-Tarnung), `runde24` (P2 Sonder/Horde, P9 Haustiere), `runde27` (Zähmen), `runde41` (Wild), `runde23` (Hase, Bots), `runde29` (Bots wehren sich), `runde44_2` (Bot-Alltag/Befehle, Lager-Katze), `zombieBereiche`.
+`gameplay` (KI, Türen-Stress, Haus-Tarnung), `runde24` (P2 Sonder/Horde, P9 Haustiere), `runde27` (Zähmen), `runde41` (Wild), `runde23` (Hase, Bots), `runde29` (Bots wehren sich), `runde44_2` (Bot-Alltag/Befehle, Lager-Katze), `zombieBereiche`, `runde47` (Ducken vs. Sicht, Heli-Absturz).

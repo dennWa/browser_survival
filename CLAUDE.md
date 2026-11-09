@@ -14,18 +14,18 @@ Kürzel in `ki/`: S: `server/spiel/` · C: `client/` · G: `gemeinsam/` · K: `s
 | Thema | Datei | Wichtigste Code-Stellen |
 |---|---|---|
 | Häufige Aufträge als Checklisten | `ki/rezepte.md` | – |
-| Architektur, Netz, Protokoll, AKTIONEN, Spielstand, Lokal-Modus, Admin | `ki/architektur.md` | S:`spielServer.js` `zone.js` `spielWelt.js` · G:`protokoll.js` · C:`kern/clientSpiel.js` `main.js` |
+| Architektur, Netz, Protokoll, AKTIONEN, Spielstand, Lokal-Modus, Browser-Hosting, Admin | `ki/architektur.md` | S:`spielServer.js` `zone.js` `spielWelt.js` · G:`protokoll.js` · C:`kern/clientSpiel.js` `main.js` |
 | Karten, Zonen, Generatoren, Kacheln, Kartenfelder, Sitze/Behälter | `ki/karten.md` | S:`karten/kartenLader.js` · `werkzeuge/karten/*.py` · G:`welt/{welt,kacheln,sitze}.js` |
-| Spieler: Items, Inventar, Überleben, Schlafen/Sitzen, Tod, Skills, Mehrspieler, Tutorial | `ki/spieler.md` | K:`gegenstaende.js` `spielKonfiguration.js` · S:`systeme/{inventar,ueberleben,gesundheit,arbeit,station,mehrspieler}System.js` |
+| Spieler: Items, Inventar, Überleben, Schlafen/Sitzen, Ducken, Tod, Skills, Mehrspieler (Funk, Emotes, Marker, Verarzten), Tutorial | `ki/spieler.md` | K:`gegenstaende.js` `spielKonfiguration.js` · S:`systeme/{inventar,ueberleben,gesundheit,arbeit,station,mehrspieler}System.js` |
 | Kampf, Waffen, Explosionen, Fallen, Gottmodus | `ki/kampf.md` | S:`systeme/{kampf,waffen,explosion,fallen,admin}System.js` |
-| Zombies, Wild, Haustiere, Bots | `ki/npc.md` | S:`systeme/{zombie,sonderZombie,tier,haustier,bot}System.js` `botLager.js` |
+| Zombies, Wild, Haustiere, Bots, Heli-Absturz | `ki/npc.md` | S:`systeme/{zombie,sonderZombie,tier,haustier,bot}System.js` `botLager.js` |
 | Bauen, Crafting, Ressourcen/Abbau, Farm, Angeln, Kisten | `ki/bauen.md` | G:`basisbau/*` `welt/{bauwerke,ressourcen}.js` · S:`systeme/{bau,basisbau,crafting,kisten,arbeit}…` · K:`rezepte.js` |
-| Autos | `ki/fahrzeuge.md` | G:`physik/fahrzeug.js` · S:`systeme/fahrzeugSystem.js` |
+| Autos, Auto-Teile (Sprit/Reifen/Batterie) | `ki/fahrzeuge.md` | G:`physik/fahrzeug.js` · S:`systeme/fahrzeugSystem.js` |
 | 3D-Darstellung: Renderer, Karte, Boden, Bäume, Effekte, Kamera, Ego, Performance | `ki/darstellung.md` | C:`darstellung/{renderer,kartenModell,bodenTextur,baumModell}.js` |
 | Licht, Tageszeit, Wetter, Himmel | `ki/licht_wetter.md` | C:`renderer.js #tageslicht/#aktualisiereLampenPool` `darstellung/wetterEffekt.js` · S:`systeme/wetterSystem.js` |
 | Figuren, Animation, Haltung/Sitzpose, Kleidung, Zombie-/Tiermodelle | `ki/figuren.md` | C:`darstellung/figurHaltung.js` · `renderer.js #aktualisiereFiguren` |
 | Audio, Sounds, Musik | `ki/audio.md` | C:`audio/{sound,eigeneSounds,schritte}.js` · G:`audio/umgebung.js` |
-| UI, HUD, Menüs, Tasten, Touch | `ki/ui.md` | C:`ui/*` `kern/{eingabe,touchSteuerung}.js` · `client/index.html` · `client/stil.css` |
+| UI, HUD, Menüs, Tasten(-belegung), Touch | `ki/ui.md` | C:`ui/*` `kern/{eingabe,touchSteuerung}.js` · `client/index.html` · `client/stil.css` |
 | Assets, Modelle, Icons, Lizenzen, Pipelines | `ki/assets.md` | `werkzeuge/assets/*` · `client/assets/eigene/{index,credits}.json` |
 | Map-Editor (Web) | `ki/editor.md` (nur Überblick oben lesen, Rest greppen) | `editor/` |
 | Studio (Desktop, Electron) | `ki/studio.md` (dito) | `studio/` |

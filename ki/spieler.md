@@ -3,7 +3,7 @@
 > Kürzel: S: `server/spiel/` · C: `client/` · G: `gemeinsam/` · K: `server/spiel/konfiguration/` · Werte = K:`spielKonfiguration.js` ★
 
 ## Bewegung
-- `G:physik/bewegung.js wendeEingabeAn` (Server + Vorhersage identisch): Grundtempo K `spieler.geschwindigkeit` 100 (leichtes Joggen), Shift+Ausdauer `sprintFaktor` 1,7, erschöpft `joggFaktor` 1,25; Wasser `wasserFaktor` 0,5 (`gehBlockiert`); `tempoFaktor` (Skills × Bein × Erschöpfung, gesetzt von `gesundheitSystem` jeden Tick). Admin-Flug `spieler.fliegen`. Autorun Taste `^`.
+- `G:physik/bewegung.js wendeEingabeAn` (Server + Vorhersage identisch): Grundtempo K `spieler.geschwindigkeit` 100 (leichtes Joggen), Shift+Ausdauer `sprintFaktor` 1,7, erschöpft `joggFaktor` 1,25; Wasser `wasserFaktor` 0,5 (`gehBlockiert`); `tempoFaktor` (Skills × Bein × Erschöpfung, gesetzt von `gesundheitSystem` jeden Tick). Admin-Flug `spieler.fliegen`. Autorun Taste `^`. Runde 47: Ducken (Eingabe `ducken`, Umschalter im Client `clientSpiel.duckenSetzen`) → `duckFaktor` 0,55 (über `physikParameter`!), Shift hebt es auf, `koerper.duckt` → öffentlich `duckt` (Clips ducken/schleichen, ki/figuren.md), Zombies `zombie.duckSichtFaktor` 0,55.
 
 ## Items & Inventar
 - Items: K:`gegenstaende.js` ★ (Kategorie, `inHand`, `haltbarkeit`, `naehrwert`/`durstwert`, `heilt[]`, `buff`, `verdirbt`/`verdirbtZu`, `slot`+`waerme`/`schutz`/`regenschutz`/`plaetze` bei Kleidung, Waffenwerte → ki/kampf.md). ⚠ `GEGENSTAENDE`-Einträge nicht einfrieren (Developer-Modus schreibt); Stapelgrößen aus `normalisiere()`. Studio-Item-Editor schreibt `K:studioDaten.js` (nicht von Hand).
@@ -30,13 +30,17 @@
 - Erkundung `G:welt/erkundung.js` (Bitfeld base64 je Karte), Karte `C:ui/karte.js` (M/K).
 
 ## Mehrspieler (`S:systeme/mehrspielerSystem.js`, K `mehrspieler`)
-- Gruppe (Flaggen-Besitzer + `flagge.mitglieder`), Handel (`spielWelt.handel`, Slots, bereit), Wiederbeleben (`helfen`, Erste-Hilfe-Kasten). UI `C:ui/mehrspielerFenster.js` (E an Mitspieler).
-- Chat nur Zone (`spielServer.#chat`), `/a Text` global; Sprechblasen `renderer.zeigeSprechblase`. Bot-Befehle im Zonen-Chat → ki/npc.md. Spielerliste `SPIELER_LISTE` ~1/s (Taste I).
-- Sprachchat `C:audio/stimmChat.js` (WebRTC P2P ≤700 px, Signal über NACHRICHT.STIMME; Taste C halten / 🎤; ⚠ C schaltet zugleich die Ego-Ansicht um – Doppelbelegung, offen).
+- Gruppe (Flaggen-Besitzer + `flagge.mitglieder`), Handel (`spielWelt.handel`, Slots, bereit), Wiederbeleben (`helfen`, Erste-Hilfe-Kasten), Verarzten (AKTION `verarzten` {ziel, slot} → Arbeit 'verarzten' = konsum.dauer, bricht ab bei > reichweite×1,5; Kasten an Niedergestreckten = `helfen`). UI `C:ui/mehrspielerFenster.js` (E an Mitspieler: Handeln, Einladen, 🩹 je Medizin).
+- Chat nur Zone (`spielServer.#chat`), `/a Text` global; Sprechblasen `renderer.zeigeSprechblase`. Bot-Befehle im Zonen-Chat → ki/npc.md. Spielerliste `SPIELER_LISTE` ~1/s (Taste I; `anzeige` = Charaktername).
+- Emotes: AKTION `emote` {wert = Index in `G:spieler/emotes.js` EMOTES (nur hinten anhängen!)}, Sperre `EMOTE_PAUSE_TICKS`, Ereignis `emote` → `renderer.zeigeEmote` (Overlay, `beschriftung.zeichneEmote`).
+- Kartenmarker `S:systeme/markerSystem.js`: `spieler.marker` [{id, karte, x, y, text, sicht ich|gruppe|alle}] (Spielstand, max 20), AKTION `marker`, `SpielServer.#sendeMarker` (alle 10 Ticks, Gruppen aus ALLEN Zonen-Flaggen) → NACHRICHT.MARKER → `karte.marker` (große Karte + Minikarte, Rechtsklick/langes Tippen = Dialog).
+- Funkgerät `S:systeme/funkSystem.js`: Item `funkgeraet` (Startausrüstung; alte Stände bekommen es einmalig), `spieler.funk` {an, frequenz 875–1080 (Zehntel-MHz)} im Spielstand, AKTION `funk` {was an|aus|frequenz|senden}; `SpielServer.#sendeFunk` → NACHRICHT.FUNK {an, bereit, geraet, frequenz, funkt, partner[{sid,name,funkt}]} (zonenübergreifend). Heli-Absturz schickt Funkgeräten einen Mayday.
+- Sprach-/Funk-Audio `C:audio/stimmChat.js` (WebRTC P2P; Adresse = Sitzungs-ID `sid` (bleibt über Zonenwechsel), Signal NACHRICHT.STIMME – Server erlaubt gleiche Zone ODER Funkpartner). Je Verbindung 2 Transceiver in fester Reihenfolge: 0 = Nähe (Abstand/Stereo), 1 = Funk (Bandpass + Sättigung, Knacken, Rauschen). `zustand()` für Tests. Tasten V (Nähe) / Z (Funk), 🎤/📻-Knöpfe.
+- Kick: Admin-Befehl `kick` {wert: Name} → `SpielServer.kicke` (Name bis Neustart in `gesperrt`).
 
 ## Tutorial · Tagebuch
 - Tutorial = eigener SpielServer im Tab (`lokalerServer.oeffneTutorialKanal`, Karte `S:karten/tutorial.js` ← `tutorial.py`), Ablauf als Daten `S:tutorial/skript.js` (KAPITEL/aufgaben/FUNK), Engine `S:systeme/tutorialSystem.js` (liest `spielWelt.ereignisse`), UI `C:ui/tutorialAnzeige.js`, Stimme `C:audio/funkstimme.js` (`werkzeuge/audio/tutorial_stimme.py`). Tests `tests/tutorial.test.js` (Durchspiel-Bot). ⚠ Zombies öffnen keine Türen (brechen auf).
 - Tagebuch/Ziele: K:`ziele.js` (KAPITEL, Zähler) → `S:systeme/zielSystem.js` → `C:ui/tagebuchAnzeige.js` (J). Tests `tests/ziele.test.js`.
 
 ## Tests
-`gameplay` (Kampf, Tod, Ressourcen), `skills`, `spielstand`, `runde13` (Hand-Items, Haltbarkeit), `runde23` (Kälte/Kleidung), `runde24` (Gesundheit P11, Wasser P12, Miteinander P14), `runde28` (Nässe/Blutung), `runde29` (Konsum), `runde42`/`runde44_2` (Sitzen), `runde45` (Sitzpose-Darstellung).
+`gameplay` (Kampf, Tod, Ressourcen), `skills`, `spielstand`, `runde13` (Hand-Items, Haltbarkeit), `runde23` (Kälte/Kleidung), `runde24` (Gesundheit P11, Wasser P12, Miteinander P14), `runde28` (Nässe/Blutung), `runde29` (Konsum), `runde42`/`runde44_2` (Sitzen), `runde45` (Sitzpose-Darstellung), `runde47` (Tasten, Funk, Emotes, Marker, Verarzten, Ducken, Auto-Teile, Absturz, Hosten).
