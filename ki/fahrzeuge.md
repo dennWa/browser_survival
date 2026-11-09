@@ -13,7 +13,7 @@
 - Lenkung nur in freie Pose drehen (`passt(…, winkel)`, Fallback ½/¼) – nie Winkel ungeprüft ändern; `steckt` = Freifahr-Modus.
 - Fahrzeug-Kacheln blockieren auch die Vorhersage; Client entfernt Kacheln von Autos, die nicht mehr im (gefilterten) Schnappschuss sind.
 - `fz.antrieb` muss im Fahrer-Paket (`spielerZuNetzwerk`) mit, sonst sagt die Vorhersage „Vollgas“ und der Server „kein Sprit“ → Ruckeln. Teile laufen über Weltstand (`pruefeTeile`, alte Stände = voll) und Zonenwechsel mit.
-- Crash/Laterne/Überfahren sind stumm (`fahrzeugSchaden.leise`), Zombie-Schläge/Schüsse aufs Auto nicht.
+- Crash/Laterne/Baum/Überfahren sind stumm (`fahrzeugSchaden.leise`, Client `aufprall` ohne Klang, `abgebaut.fahrzeug` ohne Baum-Krach), Zombie-Schläge/Schüsse aufs Auto und das Wrack (`fahrzeug_kaputt`) nicht.
 
 ## Tests
 `fahrzeuge`, `runde14` (Aufprall, Bäume/Laternen, Roadkill), `runde38` (Anfahren), `zonen` (Auto fährt mit, Kofferraum drüben), `runde29` (beschießbar), `runde47` (Teile, Verbrauch, Tanken, Antrieb).

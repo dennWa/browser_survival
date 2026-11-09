@@ -35,6 +35,13 @@ const BEIN_KNOCHEN = [
 ];
 /** Runde 45: Fingerwurzeln [Zeige-, Mittel-, kleiner Finger] – daraus Handflächen-Normale (handflaeche); nur Quaternius-Rig */
 const FINGER_KNOCHEN = [{ rechts: ['Index1R', 'Middle1R', 'Pinky1R'], links: ['Index1L', 'Middle1L', 'Pinky1L'] }];
+/**
+ * Runde 48: Fingerglieder zum Greifen (Quaternius: Glied 1 = Mittelhand und sitzt am Handgelenk, 2 = Knöchel, 3/4 = Fingerglieder).
+ * Die Knöchel (Glied 2) spannen die Handfläche auf – Glied 1 liegt bei diesem Rig für alle Finger im selben Punkt.
+ */
+const GREIF_FINGER = ['Index', 'Middle', 'Ring', 'Pinky'];
+const GREIF_GLIEDER = [2, 3, 4];
+const DAUMEN_GLIEDER = [2, 3];
 const v = (x, y, z) => new THREE.Vector3(x, y, z).normalize();
 const VORNE = new THREE.Vector3(0, 0, 1);
 
@@ -57,12 +64,15 @@ const HALTUNGEN = {
   // Nichts in der Hand: Arme kommen ganz aus dem Clip (locker hängend / Pendeln beim Gehen)
   locker: { rechts: null, links: null, hand: null },
   lampe: { rechts: null, links: [v(0.1, -0.85, 0.5), v(0.02, -0.35, 1)], hand: 'links' },
-  zombie: { rechts: [v(0.12, 0.05, 1), v(0.05, 0.02, 1)], links: [v(-0.12, 0.05, 1), v(-0.05, 0.02, 1)], hand: null },
+  // Runde 48: Zombie-Arme hängen schlaff nach unten (Nutzer-Wunsch statt vorgestreckt); beim Angriff leicht gehoben (ZOMBIE_ANGRIFF)
+  zombie: { rechts: [v(-0.2, -0.95, 0.22), v(-0.1, -0.85, 0.45)], links: [v(0.2, -0.95, 0.22), v(0.1, -0.85, 0.45)], hand: null },
   // Am Lagerfeuer sitzen: Hände locker auf den Knien
   sitzen: { rechts: [v(-0.05, -0.75, 0.55), v(0.02, -0.3, 1)], links: [v(0.05, -0.75, 0.55), v(-0.02, -0.3, 1)], hand: null },
   // Holzfällen/Steinhacken: beidhändig, Schwung wird in veraendereFuerAktion animiert
   hacken: { rechts: [v(0.2, 0.3, 1), v(0.2, 0.3, 1)], links: [v(-0.35, 0.25, 1), v(-0.2, 0.3, 1)], hand: 'rechts' },
 };
+/** Runde 48: Zombie-Angriff – Ziel [Oberarm, Unterarm] (rechte Seite) beim höchsten Punkt: nur leicht nach vorn-unten gehoben */
+const ZOMBIE_ANGRIFF = [[-0.15, -0.55, 0.8], [-0.08, -0.25, 1]];
 /** Arbeit → Werkzeug in der Hand (zerlegen: das ausgerüstete Werkzeug) */
 const ARBEIT_WERKZEUG = { holz: 'axt', stein: 'spitzhacke', eisenerz: 'spitzhacke' };
 /** Arbeit/Aktion → Clip, der den Schlag macht (wenn die Figur ihn hat) */
@@ -91,9 +101,16 @@ export function richteFigurEin(figur, modell) {
   figur.knochen = waehle(ARM_KNOCHEN);
   figur.beine = waehle(BEIN_KNOCHEN);
   figur.finger = waehle(FINGER_KNOCHEN);
+  figur.greifer = greiferFuer(modell);
   // Runde 19: Ruhestellung der Arm-Knochen merken – Clips bewegen nicht jeden Knochen; ein einmal prozedural gedrehter Arm blieb
   // sonst stehen („nach dem Schießen bleibt eine Hand oben“). Beim Loslassen (Seite ohne Pose) geht er hierhin zurück.
   figur.armRuhe = Object.fromEntries(Object.entries(figur.knochen).map(([seite, k]) => [seite, k.map((x) => x.quaternion.clone())]));
+  // Runde 48: Ruhestellung je Knochen (Arme + Finger) und was der Waffengriff zuletzt gesetzt hat (basisFuerGriff/loeseGriff)
+  figur.ruhe = new Map();
+  for (const seite of ['rechts', 'links']) {
+    for (const k of [...(figur.knochen[seite] ?? []).slice(0, 3), ...greiferKnochen(figur.greifer[seite])]) figur.ruhe.set(k, k.quaternion.clone());
+  }
+  figur.griffGesetzt = new Map();
   figur.armGesetzt = { rechts: false, links: false };
   figur.waffe = null;
   figur.waffenName = null;
@@ -143,6 +160,9 @@ export function aktualisiereHaltung(figur, e, jetzt, dunkel = 1) {
     }
   }
   setzeWaffe(figur, waffenName, e.waffeMods);
+  // Runde 48: Pistole/Gewehr greifen beide Hände (IK + Finger) – alles andere gibt Arme/Finger aus dem Griff frei
+  const griffWaffe = (haltungsName === 'pistole' || haltungsName === 'gewehr') && figur.greifer?.rechts && figur.greifer?.links;
+  if (!griffWaffe) loeseGriff(figur);
 
   // Runde 44: auf Stuhl/Bank (arbeitOrt.sitz) – aufrechter Oberkörper aus dem Steh-Clip (der Renderer spielt „stehen“), Becken genau
   // auf die Sitzfläche, Oberschenkel waagerecht, Unterschenkel senkrecht, Hände auf den Oberschenkeln (stuhlSitz).
@@ -169,6 +189,7 @@ export function aktualisiereHaltung(figur, e, jetzt, dunkel = 1) {
     figur.anschlag += (ziel - figur.anschlag) * Math.min(1, dt * ANSCHLAG_TEMPO);
     if (Math.abs(ziel - figur.anschlag) < 0.01) figur.anschlag = ziel;
   } else figur.anschlag = 0;
+  if (griffWaffe) return schusswaffeHalten(figur, e, haltungsName, fortschritt);
   const basis = HALTUNGEN[haltungsName];
   const pose = { rechts: basis.rechts?.map((r) => r.clone()) ?? null, links: basis.links?.map((r) => r.clone()) ?? null };
   if (ruhe && figur.anschlag < 1) {
@@ -180,6 +201,13 @@ export function aktualisiereHaltung(figur, e, jetzt, dunkel = 1) {
   const beidhaendig = basis.beidhaendig && (!ruhe || figur.anschlag >= 0.5);
   if (haltungsName === 'hacken') (e.arbeit === 'holz' ? seitSchwung : hackSchwung)(pose, e.aktion === 'hacke' && !e.arbeit ? Math.min(1, (fortschritt ?? 1) * 0.55 + 0.45) : (jetzt % HACK_TAKT_MS) / HACK_TAKT_MS);
   else veraendereFuerAktion(pose, haltungsName, e.aktion, fortschritt);
+  if (haltungsName === 'zombie') {
+    // hängende Arme pendeln leicht gegenläufig (je Zombie versetzt), damit sie beim Schlurfen nicht steif wirken
+    const phase = jetzt / 420 + (e.id ?? 0);
+    pose.rechts[0].z += 0.18 * Math.sin(phase);
+    pose.links[0].z -= 0.18 * Math.sin(phase);
+    for (const seite of ['rechts', 'links']) pose[seite][0].normalize();
+  }
 
   const gruppe = figur.gruppe;
   gruppe.updateMatrixWorld(true);
@@ -316,24 +344,28 @@ function handAufOberschenkel(figur, seite) {
   const laenge = huefte.distanceTo(knie);
   const vor = knie.clone().sub(huefte).normalize();
   const ziel = huefte.addScaledVector(vor, laenge * STUHL_HAND.entlang).add(inWelt(_a.set(r * STUHL_HAND.aussen, STUHL_HAND.oben, 0), gruppe).multiplyScalar(laenge));
-  // Zwei-Knochen-IK: Ellbogen auf dem Kreis um die Schulter-Ziel-Linie, Richtung Pol
+  const [px, py, pz] = STUHL_HAND.pol; // rechte Seite, links gespiegelt
+  zweiKnochenIK(figur, seite, ziel, inWelt(_d.set(seite === 'rechts' ? px : -px, py, pz), gruppe));
+  legeHandFlach(figur, seite, vor);
+}
+
+/** Zwei-Knochen-IK: Handgelenk einer Seite auf `ziel` (Welt), Ellbogen auf dem Kreis um die Schulter-Ziel-Linie Richtung `pol` (Welt). */
+function zweiKnochenIK(figur, seite, ziel, pol) {
+  const [oberarm, unterarm, hand] = figur.knochen[seite];
   const schulter = oberarm.getWorldPosition(new THREE.Vector3());
   const ellbogenAlt = unterarm.getWorldPosition(_b);
   const l1 = schulter.distanceTo(ellbogenAlt);
   const l2 = ellbogenAlt.distanceTo(hand.getWorldPosition(_c));
-  const richtung = ziel.sub(schulter);
+  const richtung = _p1.copy(ziel).sub(schulter);
   const d = Math.min(l1 + l2 - 1e-3, Math.max(Math.abs(l1 - l2) + 1e-3, richtung.length()));
   richtung.normalize();
   const a = (l1 * l1 - l2 * l2 + d * d) / (2 * d);
   const h = Math.sqrt(Math.max(0, l1 * l1 - a * a));
-  const [px, py, pz] = STUHL_HAND.pol; // rechte Seite, links gespiegelt
-  const pol = inWelt(_d.set(seite === 'rechts' ? px : -px, py, pz), gruppe);
-  pol.addScaledVector(richtung, -pol.dot(richtung)).normalize();
-  const ellbogen = schulter.clone().addScaledVector(richtung, a).addScaledVector(pol, h);
+  const p = _g.copy(pol).addScaledVector(richtung, -pol.dot(richtung)).normalize();
+  const ellbogen = schulter.clone().addScaledVector(richtung, a).addScaledVector(p, h);
   const handgelenk = schulter.addScaledVector(richtung, d);
   richteKnochen(oberarm, unterarm, _e.copy(ellbogen).sub(oberarm.getWorldPosition(_f)).normalize());
   richteKnochen(unterarm, hand, _e.copy(handgelenk).sub(ellbogen).normalize());
-  legeHandFlach(figur, seite, vor);
 }
 
 /**
@@ -355,7 +387,9 @@ function legeHandFlach(figur, seite, vor) {
 
 /** Runde 45: Normale der Handfläche (zeigt aus der Innenfläche heraus) aus Zeige-/Mittel-/kleinem Finger; gespiegelt für links. */
 function handflaeche(figur, seite, ziel) {
-  const [zeige, mittel, klein] = figur.finger[seite];
+  // Runde 48: wenn vorhanden über die Knöchel – die Fingerwurzeln (Glied 1) fallen beim Quaternius-Rig in einen Punkt
+  const g = figur.greifer?.[seite];
+  const [zeige, mittel, klein] = g ? [g.Index[0], g.Middle[0], g.Pinky[0]] : figur.finger[seite];
   const quer = zeige.getWorldPosition(_b).sub(klein.getWorldPosition(_c));
   const lang = mittel.getWorldPosition(_d).sub(figur.knochen[seite][2].getWorldPosition(_e));
   return ziel.crossVectors(quer, lang).normalize().multiplyScalar(seite === 'rechts' ? 1 : -1);
@@ -547,9 +581,12 @@ function veraendereFuerAktion(pose, haltung, aktion, p) {
       _a.set(0.15, 0.6, 0.75).lerp(_b.set(0.12, 0.08, 1), stoss).clone(),
     ];
   } else if (aktion === 'angriff' && haltung === 'zombie') {
-    // Zombie: Arme hoch und runterkrachen lassen
-    const hub = p < 0.4 ? p / 0.4 : 1 - (p - 0.4) / 0.6;
-    for (const seite of ['rechts', 'links']) for (const r of pose[seite]) r.y += hub * 0.9 - 0.2;
+    // Zombie: Arme nur leicht nach vorn heben (schnell hoch, langsam wieder hängen lassen)
+    const hub = p < 0.35 ? p / 0.35 : 1 - (p - 0.35) / 0.65;
+    for (const seite of ['rechts', 'links']) {
+      const s = seite === 'rechts' ? 1 : -1;
+      ZOMBIE_ANGRIFF.forEach((ziel, i) => pose[seite][i].lerp(_a.set(ziel[0] * s, ziel[1], ziel[2]), hub));
+    }
   }
   for (const seite of ['rechts', 'links']) for (const r of pose[seite] ?? []) r.normalize();
 }
@@ -599,6 +636,208 @@ function greifeMitLinkerHand(figur, gruppe) {
     knochen.getWorldPosition(_c);
     richteKnochen(knochen, kind, _d.copy(ziel).sub(_c).normalize());
   }
+}
+
+/**
+ * Runde 48: Schusswaffen-Griff (Nutzer: „Hand soll schön an der Waffe sein“). Die Waffe liegt fest im Figur-Raum (relativ zur rechten
+ * Schulter, wippt also mit dem Oberkörper), die Handgelenke kommen per Zwei-Knochen-IK an Griff/Vorderschaft, die Hände werden absolut
+ * zur Waffe ausgerichtet und die Finger um den Griff gekrümmt. Maße in Figur-Pixeln (Figur ≈ 64 hoch, Arm bis Handgelenk ≈ 14):
+ * anschlag/unten = Waffenursprung (= Griff) relativ zur rechten Schulter, richtung = Lauf, stuetze = Abstand Vorderschaft entlang
+ * des Laufs (linke Hand; null = linke Hand umfasst die rechte), pol = Ellbogenrichtung (rechte Seite, links gespiegelt).
+ * Pistole unten: einhändig am Arm aus dem Clip (pendelt beim Gehen mit), Gewehr unten: beidhändig schräg vor dem Körper.
+ */
+export const SCHUSS_GRIFF = {
+  pistole: { anschlag: [4.2, -1, 14.6], unten: null, untenRichtung: [0, -0.75, 0.66], stuetze: null, pol: [-0.6, -1, -0.4], kick: 0.35, rueck: 1.2 },
+  // Gewehre sind ×1,5 groß (bis 45 lang) – näher an der Körpermitte, sonst reicht der linke Arm nicht bis zum Handschutz
+  gewehr: { anschlag: [3.8, -1.5, 6.5], unten: [5, -7, 4], untenRichtung: [0.3, -0.5, 0.8], stuetze: 5.5, pol: [-1, -0.7, -0.3], kick: 0.22, rueck: 1.5 },
+};
+/** Hand relativ zur Waffe (Lauf f, oben u, links x): Handrichtung (Handgelenk→Knöchel), Handflächen-Normale, Griffpunkt; Fingerkrümmung je Glied 2/3/4 */
+export const HAND_AN_WAFFE = {
+  rechts: { richtung: [0, -0.83, 0.55], flaeche: [1, 0, 0], griff: [0, -2.6, -0.4] },
+  linksPistole: { richtung: [-0.7, -0.3, 0.65], flaeche: [-0.8, 0.2, 0.3], griff: [1.5, -2.2, 0.6] },
+  linksGewehr: { richtung: [-0.8, 0, 0.6], flaeche: [0, 1, 0], griff: [0, -1.7, 0] },
+  linksMagazin: { richtung: [0, 0.2, 1], flaeche: [0, 1, 0], griff: [0, -4.2, 1.4] },
+};
+export const HAND_MASS = { mitte: 2.5, dicke: 1.1 }; // Handgelenk → Mitte der Handfläche entlang der Hand; Knochenachse → Handflächen-Oberfläche
+export const FINGER_KRUEMMUNG = { faust: [1.3, 1.2, 0.7], abzug: [0.5, 0.5, 0.3], daumen: [0.5, 0.4] };
+const UNTERARM_ANTEIL = 0.5; // so viel der Hand-Drehung um die Unterarm-Achse übernimmt der Unterarm (kein verdrilltes Handgelenk)
+
+function schusswaffeHalten(figur, e, art, p) {
+  const { gruppe } = figur;
+  const lage = SCHUSS_GRIFF[art];
+  basisFuerGriff(figur);
+  gruppe.updateMatrixWorld(true);
+  const lokal = (k) => gruppe.worldToLocal(k.getWorldPosition(new THREE.Vector3()));
+  const schulter = lokal(figur.knochen.rechts[0]);
+  const a = figur.anschlag * figur.anschlag * (3 - 2 * figur.anschlag);
+
+  // Waffen-Lage im Figur-Raum: oben (Anschlag) ↔ unten überblenden
+  const obenPos = schulter.clone().add(_a.fromArray(lage.anschlag));
+  const obenF = VORNE.clone();
+  let untenPos;
+  const untenF = new THREE.Vector3().fromArray(lage.untenRichtung).normalize();
+  if (lage.unten) untenPos = schulter.clone().add(_a.fromArray(lage.unten));
+  else {
+    // am Clip-Arm: Waffe so, dass ihr Griff in der (Clip-)Hand liegt
+    const rahmen = waffenRahmen(untenF);
+    untenPos = lokal(figur.knochen.rechts[2]).sub(handVersatz(HAND_AN_WAFFE.rechts, rahmen));
+  }
+  const pos = untenPos.lerp(obenPos, a);
+  const f = untenF.lerp(obenF, a).normalize();
+  const welle = p === null ? 0 : Math.sin(Math.PI * p);
+  if (e.aktion === 'schiessen' && welle) {
+    pos.addScaledVector(f, -lage.rueck * welle).y += lage.rueck * 0.4 * welle;
+    f.y += lage.kick * welle;
+  } else if (e.aktion === 'nachladen' && welle) {
+    f.y -= 0.45 * welle;
+    pos.y -= 1.5 * welle;
+  }
+  f.normalize();
+  const rahmen = waffenRahmen(f);
+
+  // Rechte Hand an den Griff (unten ohne Gewehr-Lage: Arm bleibt im Clip, nur Hand + Finger)
+  const linkeHand = art === 'gewehr' ? (e.aktion === 'nachladen' && welle > 0.3 ? HAND_AN_WAFFE.linksMagazin : HAND_AN_WAFFE.linksGewehr) : HAND_AN_WAFFE.linksPistole;
+  const griffe = { rechts: HAND_AN_WAFFE.rechts, links: linkeHand };
+  const stuetze = art === 'gewehr' ? lage.stuetze : 0;
+  const linksAnteil = art === 'gewehr' ? 1 : Math.max(0, Math.min(1, (figur.anschlag - 0.3) / 0.6));
+  for (const seite of ['rechts', 'links']) {
+    const anteil = seite === 'rechts' ? 1 : linksAnteil;
+    if (anteil <= 0) continue;
+    const g = griffe[seite];
+    const versatz = handVersatz(g, rahmen);
+    if (seite === 'links' && g !== HAND_AN_WAFFE.linksMagazin) versatz.addScaledVector(rahmen.f, stuetze);
+    const zielLokal = pos.clone().add(versatz);
+    const hand = figur.knochen[seite][2];
+    const istLokal = lokal(hand);
+    const ik = seite === 'links' || lage.unten || a > 0;
+    if (ik) {
+      const ziel = gruppe.localToWorld(istLokal.clone().lerp(zielLokal, anteil));
+      const s = seite === 'rechts' ? 1 : -1;
+      // Pol: Anschlag-Ellbogen ↔ Ellbogen aus dem Clip (dann trifft die IK am Clip-Arm genau dessen Haltung)
+      const polLokal = _a.set(lage.pol[0] * s, lage.pol[1], lage.pol[2]).normalize();
+      if (!lage.unten && seite === 'rechts') {
+        const clipPol = lokal(figur.knochen[seite][1]).sub(schulter.clone().lerp(istLokal, 0.5)).normalize();
+        polLokal.lerp(clipPol, 1 - a).normalize();
+      }
+      zweiKnochenIK(figur, seite, ziel, polLokal.applyQuaternion(gruppe.getWorldQuaternion(_q2)));
+    }
+    richteHandAnWaffe(figur, seite, g, rahmen, anteil);
+    kruemmeFinger(figur, seite, seite === 'rechts' ? 'abzug' : 'faust', anteil);
+  }
+  merkeGriff(figur);
+
+  // Waffe: Ursprung = Griff, Achsen = Waffenrahmen (Modell: +z Lauf, +y oben)
+  const w = figur.waffe;
+  if (!w) return;
+  w.scale.setScalar(1);
+  w.position.copy(pos);
+  w.quaternion.setFromRotationMatrix(_basis.makeBasis(rahmen.x, rahmen.u, rahmen.f));
+  w.updateMatrixWorld(true);
+  const muendung = w.userData.muendung;
+  figur.hatMuendung = !!muendung;
+  if (muendung) figur.muendung.copy(muendung).applyMatrix4(w.matrixWorld);
+}
+
+/** Waffenrahmen aus der Laufrichtung f (Figur-Raum): u = oben (senkrecht zu f), x = links der Waffe. */
+function waffenRahmen(f) {
+  const u = new THREE.Vector3(0, 1, 0).addScaledVector(f, -f.y);
+  if (u.lengthSq() < 1e-6) u.set(0, 0, -1);
+  u.normalize();
+  return { f: f.clone(), u, x: new THREE.Vector3().crossVectors(u, f).normalize() };
+}
+
+/** Vektor im Waffenrahmen [x, u, f] → Figur-Raum. */
+function imRahmen(arr, rahmen, ziel = new THREE.Vector3()) {
+  return ziel.copy(rahmen.x).multiplyScalar(arr[0]).addScaledVector(rahmen.u, arr[1]).addScaledVector(rahmen.f, arr[2]);
+}
+
+/** Versatz Waffenursprung → Handgelenk für einen Griff (Griffpunkt minus halbe Hand entlang der Handrichtung, minus Handdicke). */
+function handVersatz(g, rahmen) {
+  const richtung = imRahmen(g.richtung, rahmen).normalize();
+  const flaeche = imRahmen(g.flaeche, rahmen).normalize();
+  return imRahmen(g.griff, rahmen).addScaledVector(richtung, -HAND_MASS.mitte).addScaledVector(flaeche, -HAND_MASS.dicke);
+}
+
+/** Hand absolut zur Waffe drehen (Knöchel in Griffrichtung, Handfläche zur Waffe); ein Teil der Verdrehung geht in den Unterarm. */
+function richteHandAnWaffe(figur, seite, g, rahmen, anteil) {
+  const { gruppe } = figur;
+  const [, unterarm, hand] = figur.knochen[seite];
+  const gq = gruppe.getWorldQuaternion(_q2);
+  const richtungSoll = imRahmen(g.richtung, rahmen).normalize().applyQuaternion(gq);
+  const flaecheSoll = imRahmen(g.flaeche, rahmen).normalize().applyQuaternion(gq);
+  const knoechel = () => figur.greifer[seite].Middle[0].getWorldPosition(new THREE.Vector3()).sub(hand.getWorldPosition(_a)).normalize();
+  if (anteil < 1) {
+    richtungSoll.lerp(knoechel(), 1 - anteil).normalize();
+    flaecheSoll.lerp(handflaeche(figur, seite, new THREE.Vector3()), 1 - anteil).normalize();
+  }
+  const achse = hand.getWorldPosition(new THREE.Vector3()).sub(unterarm.getWorldPosition(_a)).normalize();
+  drehUmAchse(unterarm, achse, drehWinkel(achse, handflaeche(figur, seite, new THREE.Vector3()), flaecheSoll) * UNTERARM_ANTEIL);
+  dreheInWelt(hand, basisDrehung(knoechel(), handflaeche(figur, seite, new THREE.Vector3()), richtungSoll, flaecheSoll, new THREE.Quaternion()));
+}
+
+/** Finger zur Handfläche krümmen (Glied 2/3/4 je Finger um die Achse Finger × Handfläche), Daumen legt sich an. Absolut ab Ruhe. */
+function kruemmeFinger(figur, seite, art, anteil) {
+  const greifer = figur.greifer[seite];
+  const flaeche = handflaeche(figur, seite, new THREE.Vector3());
+  for (const name of GREIF_FINGER) {
+    const winkel = FINGER_KRUEMMUNG[name === 'Index' ? art : 'faust'];
+    greifer[name].forEach((glied, i) => {
+      const kind = greifer[name][i + 1] ?? null;
+      const von = glied.getWorldPosition(new THREE.Vector3());
+      const richtung = kind ? kind.getWorldPosition(new THREE.Vector3()).sub(von) : von.clone().sub(glied.parent.getWorldPosition(_a));
+      const achse = richtung.cross(flaeche);
+      if (achse.lengthSq() < 1e-8) return;
+      drehUmAchse(glied, achse.normalize(), winkel[i] * anteil);
+    });
+  }
+  const [d2, d3] = greifer.daumen;
+  if (!d2) return;
+  const richtung = (d3 ?? d2).getWorldPosition(new THREE.Vector3()).sub(d2.getWorldPosition(_a));
+  const achse = richtung.cross(flaeche);
+  if (achse.lengthSq() < 1e-8) return;
+  achse.normalize();
+  greifer.daumen.forEach((glied, i) => drehUmAchse(glied, achse, FINGER_KRUEMMUNG.daumen[i] * anteil));
+}
+
+/** Finger-Knochen je Seite: { Index: [Glied 2,3,4], Middle, Ring, Pinky, daumen: [2,3] } – nur wenn alle da sind (Quaternius-Rig). */
+function greiferFuer(modell) {
+  const ergebnis = {};
+  for (const [seite, s] of [['rechts', 'R'], ['links', 'L']]) {
+    const g = { daumen: DAUMEN_GLIEDER.map((n) => modell.getObjectByName(`Thumb${n}${s}`)) };
+    for (const name of GREIF_FINGER) g[name] = GREIF_GLIEDER.map((n) => modell.getObjectByName(`${name}${n}${s}`));
+    if ([...g.daumen, ...GREIF_FINGER.flatMap((n) => g[n])].every(Boolean)) ergebnis[seite] = g;
+  }
+  return ergebnis;
+}
+
+function greiferKnochen(g) {
+  return g ? [...GREIF_FINGER.flatMap((n) => g[n]), ...g.daumen] : [];
+}
+
+/**
+ * Basis je Bild (⚠ PropertyMixer schreibt konstante Spuren nur einmal): Hat der Mixer einen Knochen seit unserem letzten Setzen nicht
+ * angefasst, steht dort noch unser Wert → zurück auf die Ruhe (= konstanter Clip-Wert). Sonst gilt der neue Clip-Wert (Gehen pendelt).
+ */
+function basisFuerGriff(figur) {
+  for (const [k, q] of figur.griffGesetzt) if (k.quaternion.equals(q)) k.quaternion.copy(figur.ruhe.get(k));
+}
+
+function merkeGriff(figur) {
+  for (const seite of ['rechts', 'links']) {
+    for (const k of [...figur.knochen[seite].slice(0, 3), ...greiferKnochen(figur.greifer[seite])]) {
+      const q = figur.griffGesetzt.get(k);
+      if (q) q.copy(k.quaternion);
+      else figur.griffGesetzt.set(k, k.quaternion.clone());
+    }
+    figur.armGesetzt[seite] = true;
+  }
+}
+
+/** Griff verlassen (andere Haltung): Arme und Finger einmal zurück in die Ruhe, danach übernimmt wieder Clip bzw. Haltung. */
+function loeseGriff(figur) {
+  if (!figur.griffGesetzt?.size) return;
+  basisFuerGriff(figur);
+  figur.griffGesetzt.clear();
 }
 
 function setzeWaffe(figur, name, mods = null) {

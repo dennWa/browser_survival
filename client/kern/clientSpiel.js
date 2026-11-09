@@ -1452,7 +1452,8 @@ export class ClientSpiel {
         this.sound.spiele('rinde_schnitzen', { x: e.x, y: e.y });
         break;
       case 'abgebaut':
-        if (e.art !== 'rinde' && e.art !== 'ast') this.sound.spiele(e.art === 'holz' ? 'baum_faellt' : e.art === 'eisenerz' ? 'stein_bricht' : 'felsen_bricht', { x: e.x, y: e.y });
+        // Runde 48: vom Auto umgefahrener Baum ohne Krach (Nutzer: Auto-Crash-Sound „ätzend“)
+        if (e.art !== 'rinde' && e.art !== 'ast' && !e.fahrzeug) this.sound.spiele(e.art === 'holz' ? 'baum_faellt' : e.art === 'eisenerz' ? 'stein_bricht' : 'felsen_bricht', { x: e.x, y: e.y });
         if (e.von === this.eigeneId && e.menge) {
           // Runde 23: „+2 🪵“ dort, wo abgebaut wurde (statt Textmeldung); Bonus-Apfel kurz danach. Runde 38: Holz/Stein/Erz liegen am Boden (e.boden) → kein „+N“
           if (!e.boden) this.hud.weltPopups.plus(e.art, e.menge, e.x, e.y, e.art === 'holz' ? 60 : 36);
@@ -1471,12 +1472,7 @@ export class ClientSpiel {
       case 'laterneUmgefahren':
         break; // Runde 39: kein Crash-Geräusch mehr (Nutzer-Wunsch)
       case 'aufprall':
-        // Runde 23: Zombie/Tier erwischt → matschiges Überfahren (+ dumpfer Schlag). Runde 39: Wand-/Hindernis-Crash stumm (Nutzer-Wunsch)
-        if (e.ziel === 'zombie' || e.ziel === 'tier') {
-          this.sound.spiele('ueberfahren', { x: e.x, y: e.y, lautstaerke: Math.min(1, 0.5 + e.tempo / 300) });
-          this.sound.spiele('treffer_zombie', { x: e.x, y: e.y, lautstaerke: 0.6 });
-        }
-        break;
+        break; // Runde 39: Wand-/Hindernis-Crash stumm; Runde 48: auch Überfahren (Zombie/Tier) ohne Crash-Klang (Nutzer-Wunsch)
       case 'gebaut':
         this.sound.spiele(e.bauwerk === 'beet' ? 'graben' : 'gebaut', { x: e.x, y: e.y });
         break;
