@@ -54,6 +54,9 @@ export const BAUWERKE = Object.freeze({
   // Zaun & Zauntor: blockieren Bewegung (Zombies bleiben draußen), aber nicht die Sicht; Tor = schaltbar wie die Holztür
   zaun: { ...BASIS, name: 'Zaun', ebene: 'wand', blockiert: true },
   zauntor: { ...BASIS, name: 'Zauntor', ebene: 'wand', blockiert: true, schaltbar: true, geschuetzt: true },
+  // Runde 47: Heli-Absturz (server/spiel/systeme/absturzSystem.js) – entsteht nur durch das Ereignis, verschwindet nach `bis`
+  heliwrack: { item: null, name: 'Helikopter-Wrack', blockiert: true, ereignis: true },
+  absturzkiste: { item: null, name: 'Versorgungskiste', blockiert: true, kiste: true, ereignis: true },
   // Lagerkiste: 16 Plätze, Inhalt steht in b.inhalt (nur der Server kennt ihn – geht per KISTE-Nachricht an den, der sie öffnet)
   kiste: { ...BASIS, name: 'Lagerkiste', blockiert: true, geschuetzt: true, kiste: true },
   // Runde 24 (P12): Vorratsschrank = Kiste, in der Essen kaum verdirbt (gesundheit.vorratFaktor)
@@ -254,6 +257,10 @@ export function bauwerkAktion(b, inventar, name = null, flaggeDort = null) {
       return { art: 'station', text: 'Schmelzofen benutzen', symbol: '🏭' };
     case 'kiste':
       return { art: 'oeffnen', text: 'Kiste öffnen', symbol: '📦' };
+    case 'absturzkiste':
+      return { art: 'oeffnen', text: 'Versorgungskiste durchsuchen', symbol: '🪂' }; // Runde 47
+    case 'heliwrack':
+      return { art: 'info', text: 'Helikopter-Wrack – die Versorgungskiste daneben durchsuchen!', symbol: '🚁' };
     case 'vorratsschrank':
       return { art: 'oeffnen', text: 'Vorratsschrank öffnen', symbol: '🗄' };
     case 'regentonne':

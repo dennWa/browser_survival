@@ -101,6 +101,8 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     },
   },
   /** Autos: so viele Zombie-Schläge halten sie aus (ein normaler Zombie = 1 Schlag, Boss mehr); Überfahren kostet nur wenig. */
+  /** Runde 47: Heli-Absturz (systeme/absturzSystem.js, SpielServer) – alle ~intervall s (±25 %) in einer zufälligen Zone, dauer s sichtbar */
+  absturz: { aktiv: true, intervall: 600, dauer: 1200, zombies: 5, lootWuerfe: 7 },
   fahrzeug: {
     haltbarkeit: 10,
     ueberfahrSchaden: 0.5, // pro überfahrenem Zombie (verhindert endloses Zombie-Farmen mit dem Auto)

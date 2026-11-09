@@ -29,7 +29,51 @@ function geometrie(name, bauen) {
   return cache.get(name);
 }
 
+/** Runde 47: Heli-Wrack – gedreht/geneigt aus Boxen & Zylindern (vertexColors), Ursprung = Kachelmitte; Länge ≈ 3 Kacheln. */
+function heliTeile() {
+  const oliv = 0x4a5532;
+  const russ = 0x23231f;
+  const glas = 0x2c3a40;
+  const kipp = (geo, x, y, z, rx, ry, rz) => {
+    const m = new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz)), new THREE.Vector3(1, 1, 1));
+    return m;
+  };
+  return [
+    // Rumpf (leicht auf die Seite gekippt) + Cockpit-Glas + verbrannte Unterseite
+    teil(new THREE.BoxGeometry(46, 22, 26), kipp(0, 11, 0, 0, 0, 0.18), oliv),
+    teil(new THREE.BoxGeometry(18, 16, 22), kipp(28, 9, 0, 0, 0, 0.32), glas),
+    teil(new THREE.BoxGeometry(44, 4, 24), kipp(-1, 1.5, 0, 0, 0, 0.18), russ),
+    teil(new THREE.BoxGeometry(14, 8, 20), kipp(-6, 25, 0, 0, 0, 0.18), russ), // Triebwerk
+    // Heckausleger (abgeknickt) + Heckrotor
+    teil(new THREE.BoxGeometry(40, 6, 6), kipp(-40, 12, 3, 0, 0.25, -0.12), oliv),
+    teil(new THREE.BoxGeometry(6, 16, 3), kipp(-60, 18, 8, 0, 0.25, 0.2), oliv),
+    teil(new THREE.BoxGeometry(2, 18, 2), kipp(-61, 19, 11, 0.4, 0, 0), russ),
+    // Hauptrotor: Mast + verbogene Blätter (eins im Boden)
+    teil(new THREE.CylinderGeometry(1.6, 1.6, 8, 6), kipp(-4, 31, 0, 0, 0, 0.18), russ),
+    teil(new THREE.BoxGeometry(62, 1.2, 4), kipp(10, 34, 4, 0.1, 0.5, 0.05), russ),
+    teil(new THREE.BoxGeometry(50, 1.2, 4), kipp(-12, 22, -22, -0.7, -0.9, 0.3), russ),
+    teil(new THREE.BoxGeometry(44, 1.2, 4), kipp(18, 3, -26, 0.2, 1.3, -0.15), russ),
+    // Kufen
+    teil(new THREE.CylinderGeometry(1, 1, 40, 5).rotateZ(Math.PI / 2), kipp(2, 1.5, 12, 0, 0, 0.05), russ),
+    teil(new THREE.CylinderGeometry(1, 1, 36, 5).rotateZ(Math.PI / 2), kipp(-2, 4, -13, 0.4, 0.1, 0.25), russ),
+    // Trümmer am Boden
+    teil(new THREE.BoxGeometry(8, 2, 6), kipp(22, 1, 20, 0, 0.7, 0), oliv),
+    teil(new THREE.BoxGeometry(6, 2, 9), kipp(-24, 1, -20, 0, -0.4, 0), russ),
+    teil(new THREE.CircleGeometry(30, 12).rotateX(-Math.PI / 2), kipp(0, 0.3, 0, 0, 0, 0), 0x1d1c19), // verbrannte Erde
+  ];
+}
+
 const GEOMETRIEN = {
+  heliwrack: () => geometrie('heliwrack', heliTeile),
+  // Runde 47: Versorgungskiste (Militär-Holzkiste mit weißem Streifen)
+  absturzkiste: () =>
+    geometrie('absturzkiste', () => [
+      teil(new THREE.BoxGeometry(24, 14, 16), matrixAus(0, 7, 0), 0x55603a),
+      teil(new THREE.BoxGeometry(24.4, 2.5, 16.4), matrixAus(0, 12, 0), 0x3c4428),
+      teil(new THREE.BoxGeometry(4, 14.2, 16.3), matrixAus(0, 7, 0), 0xd8d2c0),
+      teil(new THREE.BoxGeometry(1.2, 6, 1.2), matrixAus(-9, 17, -5), 0x222222), // Fallschirm-Leine
+      teil(new THREE.SphereGeometry(5, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2).scale(1.6, 0.5, 1.2), matrixAus(-13, 1, -8), 0xd9d2b5), // eingesunkener Schirm
+    ]),
   // Runde 24: Fallen
   sprengfalle: () =>
     geometrie('sprengfalle', () => [
@@ -185,6 +229,39 @@ export function erzeugeBauwerk(b) {
     case 'kiste':
       gruppe.add(mesh(GEOMETRIEN.kiste()));
       break;
+    case 'absturzkiste': // Runde 47
+      gruppe.add(mesh(GEOMETRIEN.absturzkiste()));
+      break;
+    case 'heliwrack': {
+      // Runde 47: Wrack + Flammen am Triebwerk + Rauchsäule (weit sichtbar, Partikel steigen auf und verwehen)
+      gruppe.add(mesh(GEOMETRIEN.heliwrack()));
+      const flammen = new THREE.Group();
+      for (const [x, z, h, r, mat] of [[-6, 0, 18, 5, FLAMME_AUSSEN], [-2, 4, 12, 3.5, FLAMME_AUSSEN], [-9, -3, 13, 3.5, FLAMME_AUSSEN], [-6, 0, 10, 2.6, FLAMME_INNEN]]) {
+        const fl = new THREE.Mesh(new THREE.ConeGeometry(r, h, 7).translate(0, h / 2, 0), mat);
+        fl.position.set(x, 28, z);
+        flammen.add(fl);
+      }
+      const rauch = new THREE.Group();
+      const RAUCH = new THREE.MeshBasicMaterial({ color: 0x2b2a28, transparent: true, opacity: 0.5, depthWrite: false });
+      for (let i = 0; i < 14; i++) {
+        const w = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 0), RAUCH.clone());
+        w.userData.phase = i / 14;
+        rauch.add(w);
+      }
+      gruppe.add(flammen, rauch);
+      aktualisiere = (_zustand, jetzt) => {
+        const t = jetzt / 1000;
+        flammen.children.forEach((fl, i) => fl.scale.set(1 + Math.sin(t * 12 + i) * 0.1, 0.8 + Math.sin(t * 8.7 + i * 2) * 0.2, 1));
+        for (const w of rauch.children) {
+          const p = (w.userData.phase + t * 0.07) % 1; // 0 = unten am Triebwerk, 1 = oben verweht
+          const r = 6 + p * 34;
+          w.position.set(-6 + p * 60 + Math.sin(t * 0.6 + w.userData.phase * 9) * 6, 34 + p * 260, Math.cos(t * 0.5 + w.userData.phase * 7) * 8);
+          w.scale.setScalar(r);
+          w.material.opacity = 0.55 * (1 - p) ** 1.3;
+        }
+      };
+      break;
+    }
     // Runde 24: Fallen (server/spiel/systeme/fallenSystem.js)
     case 'sprengfalle':
       gruppe.add(mesh(GEOMETRIEN.sprengfalle()));

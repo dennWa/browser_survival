@@ -35,7 +35,10 @@ export class Zone {
     this.log = log;
     this.aktiv = false; // wurde im letzten Tick simuliert
     this.#merkeVersionen();
-    this.geladen = this.#ladeWelt(speicher);
+    this.bereit = false; // Runde 47: Weltstand geladen (Heli-Absturz nur in fertigen Zonen)
+    this.geladen = this.#ladeWelt(speicher).then(() => {
+      this.bereit = true;
+    });
   }
 
   /** Gebaute Sachen, Uhrzeit & Tag vom letzten Mal (Speicher-Schlüssel "welt:<kartenId>"). */

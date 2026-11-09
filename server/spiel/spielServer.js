@@ -35,6 +35,8 @@ import { funkLagen, pruefeFrequenz, sindFunkpartner } from './systeme/funkSystem
 import { EMOTES } from '../../gemeinsam/spieler/emotes.js';
 import { MARKER_SICHTEN, markerLagen } from './systeme/markerSystem.js';
 import { AUTO_WAS } from './systeme/autoTeileSystem.js';
+import { himmelsrichtung, lasseAbstuerzen, raeumeAbsturzAuf } from './systeme/absturzSystem.js';
+import { funkBereit } from './systeme/funkSystem.js';
 
 /** Danach wird die Verbindung getrennt (Schutz gegen Passwort-Raten). */
 const MAX_FEHLVERSUCHE = 5;
@@ -93,6 +95,7 @@ export class SpielServer {
     this.ankunftsKarte = kartenDefinition ? null : (this.konfiguration.welt.ankunftsKarte ?? null);
     this.sitzungen = new Set();
     this.naechsteSid = 0; // Runde 47: Sitzungs-IDs (Sprachchat/Funk-Adresse, bleibt über Zonenwechsel gleich)
+    this.absturzRest = this.konfiguration.absturz?.intervall ?? 600; // Runde 47: Sekunden bis zum nächsten Heli-Absturz
     this.weltGeladen = this.startZone.geladen;
     this.taktgeber = new Taktgeber(TICK_DAUER_MS, () => this.tickAusfuehren());
   }
@@ -247,6 +250,7 @@ export class SpielServer {
 
     if (this.tickZaehler++ % TICK_RATE === 0) this.#sendeSpielerListe();
     this.#sendeFunk(); // Runde 47: nur Änderungen (wer funkt, Partner, Frequenz)
+    this.#heliAbsturz();
     if (this.tickZaehler % 10 === 0) this.#sendeMarker(); // Runde 47: Kartenmarker
     proZone = this.#sitzungenProZone(); // nach den Zonenwechseln
     for (const zone of aktive) zone.versende(proZone.get(zone) ?? [], (sitzung) => this.#sendePrivateDaten(sitzung));
@@ -636,6 +640,39 @@ export class SpielServer {
       if (!er || (s.zone !== sitzung.zone && !sindFunkpartner(ich, er))) continue;
       this.#senden(s, { typ: NACHRICHT.STIMME, von: sitzung.sid, signal: n.signal });
     }
+  }
+
+  /**
+   * Runde 47: Heli-Absturz – Timer läuft nur, wenn jemand spielt; dann zufällige geladene, nicht friedliche Zone (absturzSystem).
+   * Mayday-Funkspruch an alle mit eingeschaltetem Funkgerät (Zone + Himmelsrichtung). Alle 5 s: Abgelaufenes wegräumen.
+   */
+  #heliAbsturz() {
+    const k = this.konfiguration.absturz;
+    if (this.tickZaehler % (TICK_RATE * 5) === 0) for (const zone of this.zonen.values()) if (zone.bereit) raeumeAbsturzAuf(zone.spielWelt, Date.now());
+    if (!k?.aktiv || this.spielerAnzahl === 0) return;
+    this.absturzRest -= TICK_DAUER_S;
+    if (this.absturzRest > 0) return;
+    this.absturzRest = k.intervall * (0.75 + this.startZone.spielWelt.zufall.zahl() * 0.5);
+    this.loeseAbsturzAus();
+  }
+
+  /** Runde 47: Absturz sofort auslösen (Timer, Admin, Tests). @returns { zone, ort } oder null */
+  loeseAbsturzAus(zonenId = null) {
+    const kandidaten = [...this.zonen.values()].filter((z) => z.bereit && !z.spielWelt.welt.friedlich && !z.spielWelt.tutorial && (!zonenId || z.id === zonenId));
+    if (!kandidaten.length) return null;
+    const zone = this.startZone.spielWelt.zufall.auswahl(kandidaten);
+    const ort = lasseAbstuerzen(zone.spielWelt, Date.now());
+    if (!ort) return null;
+    zone.seitAutosave = true;
+    this.log.info?.(`[Server] 🚁 Heli-Absturz in ${zone.name} (${ort.tx}, ${ort.ty})`);
+    const text = `📻 *Rauschen* … Mayday, Mayday! Helikopter stürzt ab – ${zone.name}, ${himmelsrichtung(zone.spielWelt, ort.x, ort.y)}. *Knacken*`;
+    for (const s of this.sitzungen) {
+      const sp = this.#spieler(s);
+      if (!sp) continue;
+      if (funkBereit(sp)) this.#senden(s, { typ: NACHRICHT.MELDUNG, text });
+      else if (s.zone === zone) this.#senden(s, { typ: NACHRICHT.MELDUNG, text: '💥 Ein gewaltiger Knall – irgendwo ist etwas abgestürzt. Siehst du die Rauchsäule?' });
+    }
+    return { zone, ort };
   }
 
   /** Runde 47: Kartenmarker an jeden (eigene + Gruppe + „alle“, über alle Zonen) – alle 10 Ticks, nur bei Änderung. */

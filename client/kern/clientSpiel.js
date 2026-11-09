@@ -1426,6 +1426,9 @@ export class ClientSpiel {
         this.sound.spiele('explosion', { x: e.x, y: e.y, weite: 2400, kurve: 1.2 });
         this.#kampfInDerNaehe(e);
         break;
+      case 'absturz': // Runde 47: Heli-Absturz – weit hörbarer Knall (Wrack + Rauchsäule kommen als Bauwerk)
+        this.sound.spiele('explosion', { x: e.x, y: e.y, weite: 6000, kurve: 0.7 });
+        break;
       case 'leer':
         if (e.von === this.eigeneId) this.sound.spiele('leer');
         break;

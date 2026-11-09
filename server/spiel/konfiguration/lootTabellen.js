@@ -99,6 +99,26 @@ const BASIS_LOOT_TABELLEN = Object.freeze({
     { id: 'energydrink', gewicht: 1 },
   ],
   // Beute der Boss-Zombies (Brocken): immer eine Waffe – die passende Munition kommt dazu (lootSystem.lasseBossLootFallen)
+  // Runde 47: Versorgungskiste am Heli-Absturz (absturzSystem) – Militär-Ausrüstung, Medizin, Auto-Teile
+  absturz: [
+    { id: 'sturmgewehr', gewicht: 1 },
+    { id: 'mp', gewicht: 1 },
+    { id: 'gewehr', gewicht: 1 },
+    { id: 'schrotflinte', gewicht: 1 },
+    { id: 'raketenwerfer', gewicht: 0.15 },
+    { id: 'granate', gewicht: 1 },
+    { id: 'schutzweste', gewicht: 1 },
+    { id: 'helm', gewicht: 0.8 },
+    { id: 'erste_hilfe_kasten', gewicht: 1.2 },
+    { id: 'antibiotika', gewicht: 1 },
+    { id: 'verband', gewicht: 1.5 },
+    { id: 'konservendose', gewicht: 1.2 },
+    { id: 'wasserflasche', gewicht: 1 },
+    { id: 'funkgeraet', gewicht: 0.5 },
+    { id: 'mod_zielfernrohr', gewicht: 0.6 },
+    { id: 'mod_schalldaempfer', gewicht: 0.4 },
+    { id: 'autobatterie', gewicht: 0.4 },
+  ],
   boss: [
     { id: 'sturmgewehr', gewicht: 0.5 }, // Runde 26
     { id: 'raketenwerfer', gewicht: 0.15 }, // Runde 33

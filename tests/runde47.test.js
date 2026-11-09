@@ -409,3 +409,45 @@ test('Auto-Teile: spawnt voll, Sprit wird verbraucht, ohne Teile kein Antrieb, T
   assert.deepEqual(pruefeTeile({ modell: 'x' }, k), { tank: k.tankMax, reifen: 4, batterie: true });
   assert.deepEqual(pruefeTeile({ tank: 999, reifen: 7, batterie: false }, k), { tank: k.tankMax, reifen: 4, batterie: false });
 });
+
+// ---------------------------------------------------------------------------------------------- Heli-Absturz
+
+test('Heli-Absturz: Wrack + Versorgungskiste mit Loot + 5 Zombies, Mayday per Funk, nach Ablauf weggeräumt', async (t) => {
+  const { lasseAbstuerzen, raeumeAbsturzAuf, waehleAbsturzOrt, himmelsrichtung } = await import('../server/spiel/systeme/absturzSystem.js');
+  const { bauwerkAktion } = await import('../gemeinsam/welt/bauwerke.js');
+  const welt = new SpielWelt(erstelleKonfiguration({ server: { zufallsStartwert: 7 } }));
+  const zombiesVorher = [...welt.alleVomTyp('zombie')].length;
+  const ort = waehleAbsturzOrt(welt);
+  assert.ok(ort, 'freier Platz gefunden');
+  const jetzt = 1_000_000;
+  lasseAbstuerzen(welt, jetzt, ort);
+  const typen = [...welt.welt.bauwerke.values()].map((b) => b.typ);
+  assert.ok(typen.includes('heliwrack') && typen.includes('absturzkiste'));
+  const kiste = [...welt.welt.bauwerke.values()].find((b) => b.typ === 'absturzkiste');
+  assert.ok(kiste.inhalt.filter(Boolean).length >= 5, 'Kiste ist gefüllt');
+  assert.equal(bauwerkAktion(kiste, [], 'Fremder', null).art, 'oeffnen', 'jeder darf sie öffnen');
+  const neue = [...welt.alleVomTyp('zombie')].filter((z) => z.absturz);
+  assert.equal(neue.length, welt.konfiguration.absturz.zombies, '5 Zombies stehen drumherum');
+  assert.ok(neue.every((z) => Math.hypot(z.x - ort.x, z.y - ort.y) < 7 * 32));
+  assert.ok(welt.ereignisse.some((e) => e.typ === 'absturz'));
+  assert.match(himmelsrichtung(welt, ort.x, ort.y), /^(im |in der Mitte)/);
+  // Weltstand: bis bleibt erhalten
+  const stand = welt.weltzustand();
+  assert.ok(stand.bauwerke.find((b) => b.typ === 'heliwrack').bis > jetzt);
+  // Ablauf
+  assert.equal(raeumeAbsturzAuf(welt, jetzt + 1000), 0, 'noch nicht abgelaufen');
+  assert.equal(raeumeAbsturzAuf(welt, jetzt + welt.konfiguration.absturz.dauer * 1000 + 1), 2);
+  assert.equal([...welt.alleVomTyp('zombie')].length, zombiesVorher, 'Absturz-Zombies sind weg');
+
+  // Über den Server: Absturz in einer Nicht-Friedenszone, Funk-Spieler bekommt den Mayday
+  const server = new SpielServer({ authentifizierung: new GastAuthentifizierung(), protokoll: stillerLog });
+  t.after(() => server.stoppen());
+  const c = verbinde(server, 'Funker');
+  await warteAuf(() => letzte(c.empfangen, NACHRICHT.ANMELDUNG_OK), 'Login');
+  c.aktion({ art: AKTIONEN.FUNK, was: 'an' });
+  await tickBis(server, () => letzte(c.empfangen, NACHRICHT.FUNK)?.bereit, 'Funk an');
+  await server.startZone.geladen;
+  const r = server.loeseAbsturzAus();
+  assert.ok(r, 'Absturz ausgelöst');
+  await warteAuf(() => c.empfangen.some((n) => n?.typ === NACHRICHT.MELDUNG && /Mayday/.test(n.text)), 'Mayday');
+});

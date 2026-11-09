@@ -983,7 +983,7 @@ export class Renderer {
       this.stromAn = new Set([...welt.bauwerke.values()].filter((b) => LICHTER[b.typ]?.strom && hatStrom(welt, b.tx, b.ty)).map((b) => b.id));
       this.feuerLampen = [...welt.bauwerke.values()]
         // Runde 39: Kamine immer – ihr Licht folgt dem Flammen-Glanz (moebelModelle `userData.glanz`, blendet ein/aus)
-        .filter((b) => (b.typ === 'lagerfeuer' && b.brennt) || b.typ === 'kamin' || leuchtet(welt, b))
+        .filter((b) => (b.typ === 'lagerfeuer' && b.brennt) || b.typ === 'kamin' || b.typ === 'heliwrack' || leuchtet(welt, b)) // Runde 47: brennendes Wrack
         .map((b) => {
           const l = LICHTER[b.typ];
           const daten = b.typ === 'kamin' ? this.bauwerke.get(b.id)?.gruppe.userData : null;

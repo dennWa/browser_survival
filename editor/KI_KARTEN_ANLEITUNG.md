@@ -173,6 +173,8 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `holzdach` | Holzdach | begehbar, ebene dach |
 | `zaun` | Zaun | blockiert, ebene wand |
 | `zauntor` | Zauntor | blockiert, ebene wand |
+| `heliwrack` | Helikopter-Wrack | blockiert, ebene objekt |
+| `absturzkiste` | Versorgungskiste | blockiert, ebene objekt |
 | `kiste` | Lagerkiste | blockiert, ebene objekt |
 | `vorratsschrank` | Vorratsschrank | blockiert, ebene objekt |
 | `regentonne` | Regentonne | blockiert, ebene objekt |
@@ -239,6 +241,7 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `eingangshalle` | energydrink, muesliriegel, wasserflasche |
 | `notaufnahme` | verband, schmerzmittel, erste_hilfe_kasten, feuerwehrbeil |
 | `zombie` | munition_9mm, munition_12, verband, muesliriegel, energydrink, pfeil, munition_gewehr, munition_357 |
+| `absturz` | verband, erste_hilfe_kasten, konservendose, sturmgewehr, mp, gewehr, schrotflinte, granate |
 | `boss` | pistole, schrotflinte, machete, feuerwehrbeil, hammer, munition_357, gewehr, armbrust |
 | `verwaltung` | papier, kaffee, muesliriegel, energydrink, munition_9mm |
 | `kueche` | kuechenmesser, konservendose, kaese, milch, bratpfanne, hammer |

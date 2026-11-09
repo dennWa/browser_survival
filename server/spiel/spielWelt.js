@@ -395,6 +395,7 @@ function pruefeBauwerk(roh, konfiguration) {
     b.wachstum = b.pflanze && Number.isFinite(roh.wachstum) ? Math.min(1, Math.max(0, roh.wachstum)) : 0;
   }
   if (BAUWERKE[b.typ].kiste) b.inhalt = pruefeKistenInhalt(roh.inhalt);
+  if (BAUWERKE[b.typ].ereignis) b.bis = Number.isFinite(roh.bis) ? roh.bis : 0; // Runde 47: Heli-Absturz verschwindet danach (Echtzeit ms)
   if (BAUWERKE[b.typ].schaltbar) b.offen = roh.offen === true;
   if (roh.drehung === 0 || roh.drehung === 1) b.drehung = roh.drehung;
   return b;
