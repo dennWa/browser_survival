@@ -26,6 +26,7 @@ import { Welt } from '../gemeinsam/welt/welt.js';
 import { Karte } from './ui/karte.js';
 import { TastenFenster } from './ui/tastenFenster.js';
 import { FunkFenster } from './ui/funkFenster.js';
+import { EmoteFenster } from './ui/emoteFenster.js';
 
 /**
  * Einstiegspunkt des Clients. Verdrahtet nur die Bausteine – keine Spiellogik hier.
@@ -99,6 +100,9 @@ const tastenFenster = new TastenFenster(document); // Runde 47: ⚙ → ⌨ Tast
 hud.funk = new FunkFenster(document); // Runde 47: Funkgerät (Ü / 📻)
 hud.funk.beiAktion = (was, wert) => aktuellesSpiel?.funk(was, wert);
 document.getElementById('hud-funk').addEventListener('click', () => aktuellesSpiel?.funkgeraetUmschalten());
+hud.emotes = new EmoteFenster(document); // Runde 47: Emoji über dem Kopf (Ö / 😀)
+hud.emotes.beiWahl = (i) => aktuellesSpiel?.emote(i);
+document.getElementById('hud-emotes').addEventListener('click', () => aktuellesSpiel && hud.emotes.umschalten());
 const funkAnzeige = document.getElementById('hud-funk-anzeige');
 let funkAnzeigeText = '';
 hud.funkAnzeige = (zustand) => {
@@ -143,7 +147,8 @@ eingabe.beiTaste('bauen', () => aktuellesSpiel?.bauUmschalten(eingabe.sprint()))
 eingabe.beiTaste('abriss', () => aktuellesSpiel?.bauAbriss());
 eingabe.beiTaste('gebiet', () => aktuellesSpiel?.bauGebiet());
 eingabe.beiTaste('funkgeraet', () => aktuellesSpiel?.funkgeraetUmschalten()); // Runde 47
-eingabe.beiSlotTaste((slot) => aktuellesSpiel?.benutzen(slot));
+eingabe.beiTaste('emotes', () => aktuellesSpiel && hud.emotes.umschalten());
+eingabe.beiSlotTaste((slot) => !hud.emotes.ziffer(slot) && aktuellesSpiel?.benutzen(slot)); // Runde 47: offene Emote-Auswahl → 1–9 wählen
 hud.beiAbmelden(() => aktuellesSpiel?.beenden('Abgemeldet'));
 const tonUmschalten = () => {
   sound.entsperren();

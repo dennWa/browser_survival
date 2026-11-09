@@ -23,6 +23,7 @@ import { wendeItemAn } from './gesundheitSystem.js';
 import { istWasserKachel } from '../../../gemeinsam/welt/wasser.js';
 import { gruppenAktion, handelAktion, helfen } from './mehrspielerSystem.js';
 import { funkAktion } from './funkSystem.js';
+import { EMOTE_PAUSE_TICKS } from '../../../gemeinsam/spieler/emotes.js';
 import { toeten } from './kampfSystem.js';
 
 /**
@@ -60,6 +61,14 @@ export function verarbeiteAktionen(spielWelt) {
       if (spieler.tot) continue;
       if (aktion.art === AKTIONEN.FUNK) {
         funkAktion(spielWelt, spieler, aktion); // Runde 47: auch im Auto und niedergestreckt (Hilferuf!)
+        continue;
+      }
+      if (aktion.art === AKTIONEN.EMOTE) {
+        // Runde 47: Emoji über dem Kopf – kurze Sperre gegen Dauerfeuer
+        if (spielWelt.tick - (spieler.emoteTick ?? -1e9) >= EMOTE_PAUSE_TICKS) {
+          spieler.emoteTick = spielWelt.tick;
+          spielWelt.ereignis({ typ: 'emote', id: spieler.id, e: aktion.wert });
+        }
         continue;
       }
       // Runde 24: niedergestreckt – nur aufgeben (bzw. Anfragen beantworten)

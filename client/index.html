@@ -45,6 +45,7 @@
           <button id="hud-ego" class="nur-touch" type="button" title="Ich-Perspektive an/aus (C)"><svg class="ui-icon" aria-hidden="true"><use href="#i-ego"/></svg></button>
           <button id="hud-bauen" type="button" title="Bauen (B): Basis-Flagge, Wände, Böden, Möbel – mit dem Hammer"><svg class="ui-icon" aria-hidden="true"><use href="#i-bauen"/></svg></button>
           <button id="hud-funk" type="button" title="Funkgerät (Ü)">📻</button>
+          <button id="hud-emotes" type="button" title="Emotes (Ö)">😀</button>
           <button id="hud-skills" type="button" title="Fähigkeiten (U)"><svg class="ui-icon" aria-hidden="true"><use href="#i-skills"/></svg></button>
           <button id="hud-kofferraum" type="button" title="Kofferraum öffnen (G)" hidden><svg class="ui-icon" aria-hidden="true"><use href="#i-kofferraum"/></svg></button>
           <button id="hud-sitzen" class="nur-touch" type="button" title="Hinsetzen / aufstehen (Ä)"><svg class="ui-icon" aria-hidden="true"><use href="#i-sitzen"/></svg></button>
@@ -163,6 +164,16 @@
         <button id="karte-schliessen" type="button" aria-label="Schließen">✕</button>
       </div>
       <div class="karte-rahmen"><canvas id="karte-bild"></canvas></div>
+    </div>
+
+    <!-- Runde 47: Emotes (client/ui/emoteFenster.js) -->
+    <div id="emotes" hidden>
+      <div class="werkbank-kopf">
+        <h2>😀 Emotes</h2>
+        <button id="emotes-schliessen" type="button" aria-label="Schließen">✕</button>
+      </div>
+      <div id="emotes-raster"></div>
+      <p class="werkbank-hinweis">Das Emoji schwebt ein paar Sekunden über deinem Kopf – alle in der Nähe sehen es. Öffnen: <b data-taste="emotes">Ö</b></p>
     </div>
 
     <!-- Runde 47: Funkgerät (client/ui/funkFenster.js) -->

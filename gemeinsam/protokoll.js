@@ -126,6 +126,7 @@ export const AKTIONEN = Object.freeze({
   HANDEL: 'handel', // Runde 24: { was: anfragen{ziel}|annehmen|ablehnen|anbieten{slot}|zurueck{slot}|bereit|abbrechen }
   HELFEN: 'helfen', // Runde 24: { ziel } Niedergestreckten mit Erste-Hilfe-Kasten wiederbeleben
   FUNK: 'funk', // Runde 47: { was: an|aus|frequenz|senden, wert } Funkgerät (funkSystem) – Frequenz in Zehntel-MHz, senden = Funk-Taste gehalten
+  EMOTE: 'emote', // Runde 47: { wert: Index in gemeinsam/spieler/emotes.js } – Emoji über dem Kopf (Ereignis 'emote' an die Zone)
   AUFGEBEN: 'aufgeben', // Runde 24: niedergestreckt → endgültig sterben
   LICHT: 'licht', // Taschenlampe an/aus (aus = Zombies bemerken einen erst aus der Nähe)
   WIEDERBELEBEN: 'wiederbeleben', // tot → sofort am Startpunkt neu spawnen (statt Countdown abzuwarten)

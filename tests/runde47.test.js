@@ -159,3 +159,32 @@ test('Funkgerät: Zustand im Spielstand, alte Stände bekommen das Gerät einmal
   assert.deepEqual(wieder.funk, { an: true, frequenz: 912 }, 'Frequenz + an bleiben');
   assert.equal(wieder.inventar.some((e) => e?.defId === 'funkgeraet'), false, 'weggeworfenes Gerät kommt nicht wieder');
 });
+
+// ---------------------------------------------------------------------------------------------- Emotes
+
+test('Emotes: Ereignis an die Zone, kurze Sperre gegen Dauerfeuer, Server verwirft ungültige Indizes', async (t) => {
+  const { SpielWelt: Welt } = await import('../server/spiel/spielWelt.js');
+  const { TICK_DAUER_S } = await import('../gemeinsam/konstanten.js');
+  const { EMOTES } = await import('../gemeinsam/spieler/emotes.js');
+  const welt = new Welt(erstelleKonfiguration({}));
+  const s = welt.spielerBetrittWelt('Ella');
+  s.aktionsPuffer.push({ art: AKTIONEN.EMOTE, wert: 3 }, { art: AKTIONEN.EMOTE, wert: 4 });
+  welt.aktualisiere(TICK_DAUER_S);
+  const emotes = welt.ereignisse.filter((e) => e.typ === 'emote');
+  assert.deepEqual(emotes, [{ typ: 'emote', id: s.id, e: 3 }], 'zweites Emote im selben Moment wird verschluckt');
+  for (let i = 0; i < 30; i++) welt.aktualisiere(TICK_DAUER_S);
+  s.aktionsPuffer.push({ art: AKTIONEN.EMOTE, wert: 4 });
+  welt.aktualisiere(TICK_DAUER_S);
+  assert.deepEqual(welt.ereignisse.filter((e) => e.typ === 'emote'), [{ typ: 'emote', id: s.id, e: 4 }], 'nach der Pause geht es wieder');
+  assert.equal(EMOTES.length, 16);
+
+  // Über den Server: kaputter Index kommt gar nicht erst in den Puffer
+  const server = new SpielServer({ authentifizierung: new GastAuthentifizierung(), protokoll: stillerLog });
+  t.after(() => server.stoppen());
+  const c = verbinde(server, 'Emil');
+  await warteAuf(() => letzte(c.empfangen, NACHRICHT.ANMELDUNG_OK), 'Login');
+  c.aktion({ art: AKTIONEN.EMOTE, wert: 99 });
+  c.aktion({ art: AKTIONEN.EMOTE, wert: '1' });
+  await warte(20);
+  assert.equal(spielerVon(server, 'Emil').aktionsPuffer.length, 0);
+});

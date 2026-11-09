@@ -17,7 +17,8 @@ import { erzeugeFrisur } from './haarModell.js';
 import { kleidungsVorlage, kleideFigur, outfitFuer } from './kleidungModell.js';
 import { AUSSEHEN, skinFuer, pruefeAussehen, aussehenOption } from '../../gemeinsam/spieler/aussehen.js';
 import { itemGeometrie, itemVarianten, ladeGlbItemModelle, ladeR32ItemModelle, itemMaterialFuer, ITEM_MATERIAL, rucksackTeile } from './itemModelle.js';
-import { zeichneBeschriftung, zeichneItemName, zeichneSprechblase } from './beschriftung.js';
+import { zeichneBeschriftung, zeichneEmote, zeichneItemName, zeichneSprechblase } from './beschriftung.js';
+import { EMOTE_DAUER_MS } from '../../gemeinsam/spieler/emotes.js';
 import { richteFigurEin, aktualisiereHaltung, setzeStuhlZurueck, ARBEIT_KLIP, istBeidhaendigerSchlag } from './figurHaltung.js';
 import { erzeugeWaffe, WAFFEN_NAMEN , ladeR32Waffen } from './waffenModelle.js';
 import { erzeugeTier } from './tierModelle.js';
@@ -408,6 +409,7 @@ export class Renderer {
     this.reifenspuren = new Reifenspuren(this.szene, (x, y) => this.#hy(x, y));
     this.fallendeBaeume = []; // { gruppe, achse, zeit }
     this.sprechblasen = new Map(); // Spielername → { text, bis } (Chat über dem Kopf)
+    this.emotes = new Map(); // Runde 47: Entitäts-ID → { emoji, start, bis } (Emoji über dem Kopf)
     this.fallendeLaternen = []; // { gruppe, achse, zeit } – von Autos umgefahrene Straßenlaternen
     this.bauwerke = new Map(); // Bauwerk-ID → { gruppe, aktualisiere, typ }
     this.bauwerkeStand = -1;
@@ -2886,12 +2888,20 @@ export class Renderer {
     this.sprechblasen.set(name, { text, bis: jetzt + dauer });
   }
 
+  /** Runde 47: Emote (Emoji) über der Figur mit dieser Entitäts-ID – EMOTE_DAUER_MS lang */
+  zeigeEmote(id, emoji, jetzt = performance.now()) {
+    if (id == null || !emoji) return;
+    this.emotes.set(id, { emoji, start: jetzt, bis: jetzt + EMOTE_DAUER_MS });
+  }
+
   #zeichneOverlay(entitaeten, fokus, gegenstaende = [], itemDefinitionen = {}) {
     const ctx = this.octx;
     const jetzt = this.letzteZeit;
     const zuZeichnen = [];
     const blasen = [];
+    const emotes = [];
     for (const [name, b] of this.sprechblasen) if (b.bis <= jetzt) this.sprechblasen.delete(name);
+    for (const [id, em] of this.emotes) if (em.bis <= jetzt) this.emotes.delete(id);
     for (const e of entitaeten) {
       if (e.tot || (e.typ !== 'spieler' && e.typ !== 'zombie' && !(e.typ === 'tier' && e.name))) continue;
       if (Math.abs(e.x - fokus.x) > SICHTWEITE || Math.abs(e.y - fokus.y) > SICHTWEITE) continue;
@@ -2899,6 +2909,8 @@ export class Renderer {
       if (braucht) zuZeichnen.push(e);
       const blase = e.typ === 'spieler' && !this.egoHaken ? this.sprechblasen.get(e.name) : null;
       if (blase) blasen.push({ e, blase });
+      const emote = e.typ === 'spieler' && !(this.egoHaken && e.istEigener) ? this.emotes.get(e.id) : null;
+      if (emote) emotes.push({ e, emote, ueberBlase: !!blase });
     }
     const beschriftet = [];
     if (!this.egoHaken) {
@@ -2908,8 +2920,8 @@ export class Renderer {
         if (itemDefinitionen[g.defId]?.name && this.karte.istEinsehbar(g.x, g.y)) beschriftet.push(g);
       }
     }
-    if (zuZeichnen.length === 0 && beschriftet.length === 0 && blasen.length === 0 && !this.overlayBenutzt) return;
-    this.overlayBenutzt = zuZeichnen.length > 0 || beschriftet.length > 0 || blasen.length > 0;
+    if (zuZeichnen.length === 0 && beschriftet.length === 0 && blasen.length === 0 && emotes.length === 0 && !this.overlayBenutzt) return;
+    this.overlayBenutzt = zuZeichnen.length > 0 || beschriftet.length > 0 || blasen.length > 0 || emotes.length > 0;
     const dpr = this.overlay.width / Math.max(1, this.kamera.breite);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, this.overlay.width, this.overlay.height);
@@ -2926,6 +2938,11 @@ export class Renderer {
       const kopf = this.kamera.weltZuBildschirm(e.x, e.y, FIGUR_HOEHE * (e.groesse ?? 1) + 8);
       const ueberName = e.istEigener ? 4 : 18; // fremde Spieler: über Name + Lebensbalken
       zeichneSprechblase(ctx, blase.text, kopf.x, kopf.y - ueberName, Math.min(1, (blase.bis - jetzt) / 500));
+    }
+    for (const { e, emote, ueberBlase } of emotes) {
+      const kopf = this.kamera.weltZuBildschirm(e.x, e.y, FIGUR_HOEHE * (e.groesse ?? 1) + 8);
+      const ueberName = (e.istEigener ? 4 : 18) + (ueberBlase ? 44 : 0); // über Name/Lebensbalken bzw. über der Sprechblase
+      zeichneEmote(ctx, emote.emoji, kopf.x, kopf.y - ueberName, jetzt - emote.start, emote.bis - jetzt);
     }
   }
 

@@ -28,6 +28,7 @@ import { TagebuchAnzeige } from '../ui/tagebuchAnzeige.js';
 import { GruselDirektor } from './grusel.js';
 import { MehrspielerFenster } from '../ui/mehrspielerFenster.js';
 import { StimmChat } from '../audio/stimmChat.js';
+import { EMOTES } from '../../gemeinsam/spieler/emotes.js';
 
 /** Maximal gemerkte, vom Server noch nicht bestätigte Eingaben (~4 s). */
 const MAX_OFFENE_EINGABEN = 120;
@@ -233,6 +234,7 @@ export class ClientSpiel {
     this.stimme?.entfernen(); // Runde 24: Mikro aus, Verbindungen zu; eigene DOM-Teile weg (nächste Sitzung baut neu)
     this.hud.funkAnzeige?.(null); // Runde 47
     this.hud.funk?.zeige(false);
+    this.hud.emotes?.zeige(false);
     this.mehrspieler?.el.remove();
     this.tagebuch?.entfernen();
     this.grusel?.stoppe();
@@ -483,7 +485,7 @@ export class ClientSpiel {
   /** Ist irgendein Fenster/Modus offen, den Esc zuerst schließen soll? */
   etwasOffen() {
     const h = this.hud;
-    return !!(this.karte.offen || h.inventar.offen || h.skills.offen || h.einstellungen.offen || h.kiste.offen || h.station.offen || this.werkbankOffen || this.musikFenster?.offen || this.mehrspieler?.offen || h.funk?.offen || this.bau.aktiv || this.platzierung || this.autoLauf);
+    return !!(this.karte.offen || h.inventar.offen || h.skills.offen || h.einstellungen.offen || h.kiste.offen || h.station.offen || this.werkbankOffen || this.musikFenster?.offen || this.mehrspieler?.offen || h.funk?.offen || h.emotes?.offen || this.bau.aktiv || this.platzierung || this.autoLauf);
   }
 
   /**
@@ -492,13 +494,13 @@ export class ClientSpiel {
    */
   #spielVerdeckt() {
     const h = this.hud;
-    return !!(this.karte.offen || h.inventar.offen || h.skills.offen || h.kiste.offen || h.station.offen || this.werkbankOffen || this.musikFenster?.offen || this.mehrspieler?.offen || h.funk?.offen);
+    return !!(this.karte.offen || h.inventar.offen || h.skills.offen || h.kiste.offen || h.station.offen || this.werkbankOffen || this.musikFenster?.offen || this.mehrspieler?.offen || h.funk?.offen || h.emotes?.offen);
   }
 
   /** Fenster offen, durch das ein Klick ins Spiel NICHT schießen soll (Bau-/Platzier-Modus brauchen den Klick). */
   fensterOffen() {
     const h = this.hud;
-    return !!(this.karte.offen || h.inventar.offen || h.skills.offen || h.einstellungen.offen || h.kiste.offen || h.station.offen || this.werkbankOffen || this.musikFenster?.offen || this.mehrspieler?.offen || h.funk?.offen);
+    return !!(this.karte.offen || h.inventar.offen || h.skills.offen || h.einstellungen.offen || h.kiste.offen || h.station.offen || this.werkbankOffen || this.musikFenster?.offen || this.mehrspieler?.offen || h.funk?.offen || h.emotes?.offen);
   }
 
   menuesSchliessen() {
@@ -507,6 +509,7 @@ export class ClientSpiel {
     this.karte.zeige(false);
     this.musikFenster?.zeige(null);
     this.hud.funk?.zeige(false); // Runde 47
+    this.hud.emotes?.zeige(false);
     this.hud.statusErklaerungUmschalten?.(false); // Runde 28
     this.hud.entwickler.zeige(false);
     this.hud.inventar.zeige(false);
@@ -921,6 +924,11 @@ export class ClientSpiel {
     this.hud.funk?.umschalten();
   }
 
+  /** Runde 47: Emote (Index in gemeinsam/spieler/emotes.js) → Emoji über dem eigenen Kopf, alle in der Zone sehen es */
+  emote(index) {
+    this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.EMOTE, wert: index });
+  }
+
   /** Runde 47: Funkgerät an/aus/Frequenz (FunkFenster) */
   funk(was, wert) {
     this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.FUNK, was, ...(wert !== undefined ? { wert } : {}) });
@@ -1323,6 +1331,9 @@ export class ClientSpiel {
   #ereignisSound(e) {
     if (!this.sound) return;
     switch (e.typ) {
+      case 'emote': // Runde 47: Emoji über dem Kopf
+        this.renderer.zeigeEmote?.(e.id, EMOTES[e.e]?.[0]);
+        break;
       case 'schuss':
         this.renderer.einschlag?.(e, this.welt.kachelGroesse); // Runde 29: Einschussloch (Wand/Auto)
         break;

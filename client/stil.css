@@ -1475,6 +1475,18 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
 #hud-funk-anzeige { position: fixed; left: 50%; top: 64px; transform: translateX(-50%); z-index: 6; padding: 4px 12px; font-size: 0.9rem; font-weight: 600; color: #ffe2a0; background: rgba(40, 30, 10, 0.75); border: 1px solid rgba(226, 170, 40, 0.6); border-radius: 14px; pointer-events: none; }
 #hud-funk-anzeige[hidden] { display: none; }
 #hud-funk-anzeige.sende { color: #fff; background: rgba(170, 50, 30, 0.85); }
+/* Runde 47: Emote-Auswahl */
+#emotes {
+  position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: 21; pointer-events: auto;
+  width: min(440px, calc(100vw - 24px)); padding: 12px 14px; color: var(--text); background: rgba(16, 18, 22, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 14px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+#emotes #emotes-schliessen { width: 34px; height: 34px; color: var(--text); background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 50%; }
+#emotes-raster { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.emote-knopf { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 58px; padding: 6px 2px; color: var(--text); background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 10px; cursor: pointer; }
+.emote-knopf:hover, .emote-knopf:focus-visible { background: rgba(255, 255, 255, 0.16); }
+.emote-zeichen { font-size: 1.7rem; line-height: 1; }
+.emote-knopf small { font-size: 0.68rem; color: var(--text-gedimmt); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .einst-knopf.aktiv { outline: 2px solid #e0b040; }
 
 /* Grafiktreiber-Absturz (WebGL-Kontext verloren) – main.js grafikAbsturz */

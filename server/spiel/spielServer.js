@@ -32,6 +32,7 @@ import { EBENEN } from '../../gemeinsam/welt/bauwerke.js';
 import { spawnPunkt } from './systeme/spawnSystem.js';
 import { loeseFahrzeugFuerWechsel, parkeZurueck, setzeFahrzeugEin } from './systeme/fahrzeugSystem.js';
 import { funkLagen, pruefeFrequenz, sindFunkpartner } from './systeme/funkSystem.js';
+import { EMOTES } from '../../gemeinsam/spieler/emotes.js';
 
 /** Danach wird die Verbindung getrennt (Schutz gegen Passwort-Raten). */
 const MAX_FEHLVERSUCHE = 5;
@@ -548,6 +549,7 @@ export class SpielServer {
     if (n.art === AKTIONEN.GRUPPE && !['einladen', 'annehmen', 'ablehnen', 'verlassen', 'entfernen'].includes(n.was)) return;
     if (n.art === AKTIONEN.HANDEL && !['anfragen', 'annehmen', 'ablehnen', 'anbieten', 'zurueck', 'bereit', 'abbrechen'].includes(n.was)) return;
     if ((n.art === AKTIONEN.HANDEL && (n.was === 'anbieten' || n.was === 'zurueck')) && !gueltigerSlot(slot)) return;
+    if (n.art === AKTIONEN.EMOTE && !(Number.isInteger(n.wert) && n.wert >= 0 && n.wert < EMOTES.length)) return;
     if (n.art === AKTIONEN.FUNK && !(['an', 'aus'].includes(n.was) || (n.was === 'frequenz' && pruefeFrequenz(n.wert) !== null) || (n.was === 'senden' && typeof n.wert === 'boolean'))) return;
     if (spieler.aktionsPuffer.length >= MAX_AKTIONS_PUFFER) return;
     const aktion = { art: n.art, slot };
@@ -566,6 +568,7 @@ export class SpielServer {
     }
     if (n.art === AKTIONEN.TAUSCHEN || n.art === AKTIONEN.AUFHEBEN) aktion.ziel = n.ziel; // Aufheben: gezielt aus der Umgebungs-Liste (Runde 29)
     if (n.art === AKTIONEN.FUNK) Object.assign(aktion, { was: n.was, wert: n.wert ?? null }); // Runde 47
+    if (n.art === AKTIONEN.EMOTE) aktion.wert = n.wert;
     if (n.art === AKTIONEN.AUSZIEHEN) aktion.stelle = n.stelle;
     if (n.art === AKTIONEN.ABLEGEN) aktion.einzeln = n.einzeln === true;
     if (n.art === AKTIONEN.PLATZIEREN || n.art === AKTIONEN.FELD || n.art === AKTIONEN.FELD_ENTFERNEN) Object.assign(aktion, { tx: n.tx, ty: n.ty });

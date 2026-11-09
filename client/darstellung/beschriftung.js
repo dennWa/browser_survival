@@ -115,3 +115,36 @@ export function zeichneSprechblase(ctx, text, x, y, deckkraft = 1) {
   zeilen.forEach((z, i) => ctx.fillText(z, x, oben + BLASE.rand + i * BLASE.zeile));
   ctx.restore();
 }
+
+/**
+ * Runde 47: Emote über dem Kopf – runde Blase mit großem Emoji. `alter` = ms seit Beginn, `rest` = ms bis Ende:
+ * erst ein kleiner „Plopp“ (wächst über 1 hinaus und federt zurück), schwebt leicht nach oben, blendet am Ende aus.
+ */
+export function zeichneEmote(ctx, emoji, x, y, alter, rest) {
+  const t = Math.min(1, alter / 260);
+  const plopp = t < 1 ? 0.4 + 0.75 * Math.sin((t * Math.PI) / 2) + 0.15 * Math.sin(t * Math.PI) : 1;
+  const deckkraft = Math.max(0, Math.min(1, rest / 600));
+  const r = 17 * plopp;
+  const yy = y - 6 - Math.min(10, alter / 400);
+  ctx.save();
+  ctx.globalAlpha = deckkraft;
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+  ctx.strokeStyle = 'rgba(20, 22, 28, 0.85)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(x, yy - r, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.beginPath(); // kleine Spitze nach unten
+  ctx.moveTo(x - 4, yy - 2);
+  ctx.lineTo(x, yy + 5);
+  ctx.lineTo(x + 4, yy - 2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.font = `${Math.round(20 * plopp)}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#000';
+  ctx.fillText(emoji, x, yy - r + 1);
+  ctx.restore();
+}
