@@ -93,3 +93,4 @@
 | 0.47.3-dev | 2026-11-09 | Neuer Feuer-Sound (SoundReality, 40-s-Schleife) für Kamin und jetzt auch Lagerfeuer, blendet beim Anzünden ein und beim Ausgehen aus |
 | 0.47.4-dev | 2026-11-09 | Schüsse: Leuchtspur und Mündungslicht starten an der echten Waffenmündung des Schützen statt vor der Brust |
 | 0.47.5-dev | 2026-11-09 | Spielstand-Karten im Hauptmenü zeigen jetzt auch die zusätzlichen Figuren (Mann 1–13, Frau 1–13, Sheriff) – Standbild wartet auf das Modell-Laden |
+| 0.47.6-dev | 2026-11-09 | Auto-Tank geht 3× langsamer leer (Verbrauch 0,4 statt 1,2 L je 1000 px) |
