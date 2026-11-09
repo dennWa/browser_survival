@@ -188,3 +188,56 @@ test('Emotes: Ereignis an die Zone, kurze Sperre gegen Dauerfeuer, Server verwir
   await warte(20);
   assert.equal(spielerVon(server, 'Emil').aktionsPuffer.length, 0);
 });
+
+// ---------------------------------------------------------------------------------------------- Kartenmarker
+
+test('Kartenmarker: setzen, ändern, löschen, Text gesäubert, Grenzen, Spielstand', async () => {
+  const { markerAktion, markerText, pruefeMarker, MARKER_MAX } = await import('../server/spiel/systeme/markerSystem.js');
+  const welt = new SpielWelt(erstelleKonfiguration({}));
+  const s = welt.spielerBetrittWelt('Mara');
+  markerAktion(welt, s, { was: 'setzen', x: 100.4, y: 200.6, text: '  Treffpunkt\n\u0007 hier  ', sicht: 'alle' });
+  assert.deepEqual(s.marker, [{ id: 1, karte: welt.karte.daten.id, x: 100, y: 201, text: 'Treffpunkt hier', sicht: 'alle' }]);
+  markerAktion(welt, s, { was: 'setzen', x: -5, y: 10, text: 'draußen', sicht: 'ich' });
+  assert.equal(s.marker.length, 1, 'außerhalb der Karte → verworfen');
+  markerAktion(welt, s, { was: 'setzen', x: 0, y: 0, text: 'x', sicht: 'hacker', id: 1 });
+  assert.deepEqual([s.marker[0].text, s.marker[0].sicht, s.marker[0].x], ['x', 'ich', 100], 'ändern behält die Position, unbekannte Sicht → ich');
+  assert.equal(markerText(''), '📍');
+  assert.equal([...markerText('a'.repeat(100))].length, 40);
+  for (let i = 0; i < MARKER_MAX + 5; i++) markerAktion(welt, s, { was: 'setzen', x: 50, y: 50, text: `m${i}`, sicht: 'ich' });
+  assert.equal(s.marker.length, MARKER_MAX);
+  markerAktion(welt, s, { was: 'entfernen', id: 1 });
+  assert.equal(s.marker.some((m) => m.id === 1), false);
+  // Spielstand
+  const stand = erstelleSpielstand(s, welt.karte.daten.id);
+  stand.marker.push({ id: 999, karte: '../böse', x: 1, y: 1, text: 'x' }, { id: 2, karte: 'lager', x: 1, y: 1, text: 'doppelt' });
+  const neu = welt.spielerBetrittWelt('Mara2');
+  wendeSpielstandAn(neu, stand, welt);
+  assert.equal(neu.marker.length, MARKER_MAX - 1);
+  assert.deepEqual(pruefeMarker('kaputt'), []);
+});
+
+test('Kartenmarker: Sichtbarkeit – nur ich / Gruppe / alle (auch über Zonen)', async (t) => {
+  const { markerLagen } = await import('../server/spiel/systeme/markerSystem.js');
+  const a = { name: 'Anna', marker: [{ id: 1, karte: 'lager', x: 1, y: 1, text: 'geheim', sicht: 'ich' }, { id: 2, karte: 'lager', x: 1, y: 1, text: 'Basis', sicht: 'gruppe' }, { id: 3, karte: 'stadtrand', x: 1, y: 1, text: 'Treff', sicht: 'alle' }] };
+  const b = { name: 'Bert', marker: [] };
+  const c = { name: 'Cleo', marker: [] };
+  const gruppe = new Set(['Anna', 'Bert']);
+  const lagen = markerLagen([a, b, c], (n) => (gruppe.has(n) ? gruppe : undefined));
+  assert.deepEqual(lagen.get(a).map((m) => m.text), ['geheim', 'Basis', 'Treff']);
+  assert.ok(lagen.get(a).every((m) => m.eigen));
+  assert.deepEqual(lagen.get(b).map((m) => m.text), ['Basis', 'Treff'], 'Gruppe sieht Gruppe + alle');
+  assert.deepEqual(lagen.get(c).map((m) => m.text), ['Treff'], 'Fremde sehen nur „alle“');
+  assert.equal(lagen.get(c)[0].von, 'Anna');
+
+  // Über den Server: NACHRICHT.MARKER kommt beim anderen an
+  const server = new SpielServer({ authentifizierung: new GastAuthentifizierung(), protokoll: stillerLog });
+  t.after(() => server.stoppen());
+  const ca = verbinde(server, 'Anna');
+  const cb = verbinde(server, 'Bert');
+  await warteAuf(() => letzte(ca.empfangen, NACHRICHT.ANMELDUNG_OK) && letzte(cb.empfangen, NACHRICHT.ANMELDUNG_OK), 'Logins');
+  ca.aktion({ art: AKTIONEN.MARKER, was: 'setzen', x: 300, y: 300, text: 'Hier!', sicht: 'alle' });
+  ca.aktion({ art: AKTIONEN.MARKER, was: 'setzen', x: 300, y: 300, text: 'Nur für mich', sicht: 'ich' });
+  await tickBis(server, () => letzte(cb.empfangen, NACHRICHT.MARKER)?.liste?.length === 1, 'Bert sieht Annas Marker');
+  assert.deepEqual(letzte(cb.empfangen, NACHRICHT.MARKER).liste.map((m) => [m.text, m.von, m.eigen]), [['Hier!', 'Anna', false]]);
+  assert.equal(letzte(ca.empfangen, NACHRICHT.MARKER).liste.length, 2);
+});

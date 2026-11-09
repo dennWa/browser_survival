@@ -135,6 +135,7 @@ export class ClientSpiel {
       schluessel: `${anmeldeDaten.serverName}:${benutzername.toLowerCase()}:${this.welt.id}`,
     });
     this.karte.beiZielWahl = (tx, ty, erkundet) => this.autoLaufStarten(tx, ty, erkundet);
+    this.karte.beiMarker = (a) => this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.MARKER, ...a }); // Runde 47: Kartenmarker
     if (anmeldeDaten.erkundet) this.karte.uebernimm(anmeldeDaten.erkundet); // vom Server (auch von anderen Geräten)
     this.werkbankOffen = false;
     this.werkbankOrt = 'werkbank'; // Runde 24: welcher Handwerks-Ort gerade offen ist
@@ -1053,6 +1054,12 @@ export class ClientSpiel {
         break;
       case NACHRICHT.STIMME:
         this.stimme?.beiSignal(n.von, n.signal);
+        break;
+      case NACHRICHT.MARKER: // Runde 47: Kartenmarker (eigene, Gruppe, „alle“)
+        if (Array.isArray(n.liste)) {
+          this.karte.marker = n.liste;
+          if (this.karte.offen) this.karte.zeichne(this.karte.letzterSpieler);
+        }
         break;
       case NACHRICHT.FUNK: // Runde 47: Funkgerät-Lage (Partner über alle Zonen)
         this.funkLage = n;

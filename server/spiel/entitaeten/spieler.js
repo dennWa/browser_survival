@@ -75,6 +75,8 @@ export function erzeugeSpieler({ id, benutzername, x, y, konfiguration, admin = 
     /** Runde 47: Funkgerät { an, frequenz } (systeme/funkSystem.js, im Spielstand) und ob gerade gefunkt wird (öffentlich: 📻 über dem Kopf) */
     funk: neuerFunk(),
     funkt: false,
+    /** Runde 47: Kartenmarker [{ id, karte, x, y, text, sicht }] (systeme/markerSystem.js, im Spielstand) */
+    marker: [],
     // [privat]
     admin, // darf Admin-Befehle benutzen (kommt von der Authentifizierung)
     hunger: k.startHunger, // 100 = satt, 0 = verhungert

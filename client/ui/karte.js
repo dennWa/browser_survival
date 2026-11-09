@@ -64,13 +64,129 @@ export class Karte {
     /** Auto-Lauf: Klick/Tippen auf einen erkundeten Ort → beiZielWahl(tx, ty); ziel = aktuelles Ziel (Flagge auf der Karte) */
     this.beiZielWahl = null;
     this.ziel = null;
-    this.leinwand.addEventListener('click', (e) => {
-      const r = this.leinwand.getBoundingClientRect();
-      const tx = Math.floor(((e.clientX - r.left) / r.width) * this.welt.breite);
-      const ty = Math.floor(((e.clientY - r.top) / r.height) * this.welt.hoehe);
-      if (tx < 0 || ty < 0 || tx >= this.welt.breite || ty >= this.welt.hoehe) return;
-      this.beiZielWahl?.(tx, ty, this.erkundet[ty * this.welt.breite + tx] === 1);
+    /** Runde 47: Kartenmarker vom Server [{ id, karte, x, y, text, sicht, von, eigen }]; beiMarker(aktion) → AKTION 'marker' */
+    this.marker = [];
+    this.beiMarker = null;
+    this.dialog = dokument.getElementById('karte-marker');
+    // onclick/oncontextmenu statt addEventListener: die Leinwand bleibt über Zonenwechsel dieselbe – nur die aktuelle Karte reagiert
+    this.leinwand.onclick = (e) => {
+      if (this.#langGedrueckt) return (this.#langGedrueckt = false);
+      const p = this.#punkt(e);
+      if (!p) return;
+      if (this.#markerBei(e)) return this.#oeffneDialog(this.#markerBei(e), e); // Klick auf eigenen Marker = bearbeiten
+      this.beiZielWahl?.(p.tx, p.ty, this.erkundet[p.ty * this.welt.breite + p.tx] === 1);
+    };
+    this.leinwand.oncontextmenu = (e) => {
+      e.preventDefault();
+      if (this.#punkt(e)) this.#oeffneDialog(this.#markerBei(e), e);
+    };
+    // Handy: lange drücken = Marker setzen
+    this.leinwand.onpointerdown = (e) => {
+      if (e.pointerType !== 'touch') return;
+      clearTimeout(this.#langTimer);
+      this.#langTimer = setTimeout(() => {
+        this.#langGedrueckt = true;
+        this.#oeffneDialog(this.#markerBei(e), e);
+      }, 550);
+    };
+    this.leinwand.onpointerup = this.leinwand.onpointercancel = this.leinwand.onpointermove = (e) => {
+      if (e.type !== 'pointermove' || Math.hypot(e.movementX, e.movementY) > 4) clearTimeout(this.#langTimer);
+    };
+  }
+
+  #langTimer = 0;
+  #langGedrueckt = false;
+
+  /** Bildschirm → Kachel + Weltpixel (oder null außerhalb) */
+  #punkt(e) {
+    const r = this.leinwand.getBoundingClientRect();
+    const fx = (e.clientX - r.left) / r.width;
+    const fy = (e.clientY - r.top) / r.height;
+    const tx = Math.floor(fx * this.welt.breite);
+    const ty = Math.floor(fy * this.welt.hoehe);
+    if (tx < 0 || ty < 0 || tx >= this.welt.breite || ty >= this.welt.hoehe) return null;
+    return { tx, ty, x: fx * this.welt.breite * this.welt.kachelGroesse, y: fy * this.welt.hoehe * this.welt.kachelGroesse };
+  }
+
+  /** Eigener Marker unter dem Zeiger (≤ 14 Bildschirmpixel) oder null */
+  #markerBei(e) {
+    const r = this.leinwand.getBoundingClientRect();
+    const proPx = r.width / (this.welt.breite * this.welt.kachelGroesse);
+    let best = null;
+    let bestD = 14;
+    for (const m of this.marker) {
+      if (!m.eigen || m.karte !== this.welt.id) continue;
+      const d = Math.hypot(r.left + m.x * proPx - e.clientX, r.top + m.y * proPx - 8 - e.clientY);
+      if (d < bestD) [best, bestD] = [m, d];
+    }
+    return best;
+  }
+
+  /** Runde 47: kleiner Dialog am Klickpunkt – Text, Sichtbarkeit, Setzen/Löschen. Wird jedes Mal neu gebaut (keine alten Hörer). */
+  #oeffneDialog(vorhanden, e) {
+    const d = this.dialog;
+    if (!d) return;
+    const p = vorhanden ? { x: vorhanden.x, y: vorhanden.y } : this.#punkt(e);
+    if (!p) return;
+    const dok = d.ownerDocument;
+    const knopf = (text, klasse = 'einst-knopf') => Object.assign(dok.createElement('button'), { type: 'button', className: klasse, textContent: text });
+    const titel = Object.assign(dok.createElement('b'), { textContent: vorhanden ? '📍 Marker bearbeiten' : '📍 Marker setzen' });
+    const eingabe = Object.assign(dok.createElement('input'), { type: 'text', maxLength: 40, placeholder: 'z. B. Treffpunkt, Loot, Basis …', value: vorhanden?.text === '📍' ? '' : (vorhanden?.text ?? '') });
+    let sicht = vorhanden?.sicht ?? this.markerSicht ?? 'gruppe';
+    const sichten = dok.createElement('div');
+    sichten.className = 'einst-reihe karte-marker-sicht';
+    const sichtKnoepfe = [['ich', '🔒 Nur ich'], ['gruppe', '👥 Gruppe'], ['alle', '🌍 Alle']].map(([wert, text]) => {
+      const b = knopf(text, 'einst-wahl-knopf');
+      b.addEventListener('click', () => {
+        sicht = wert;
+        for (const k of sichtKnoepfe) k.classList.toggle('aktiv', k === b);
+      });
+      b.classList.toggle('aktiv', wert === sicht);
+      return b;
     });
+    sichten.append(...sichtKnoepfe);
+    const reihe = dok.createElement('div');
+    reihe.className = 'einst-reihe';
+    const ok = knopf(vorhanden ? '✔ Speichern' : '✔ Setzen');
+    const loeschen = vorhanden ? knopf('🗑 Löschen') : null;
+    const abbruch = knopf('Abbrechen');
+    reihe.append(ok, ...(loeschen ? [loeschen] : []), abbruch);
+    const hinweis = Object.assign(dok.createElement('small'), { textContent: 'Gruppe = du + die Mitglieder deiner Basis-Gruppe' });
+    d.replaceChildren(titel, eingabe, sichten, reihe, hinweis);
+    const zu = () => (d.hidden = true);
+    const setzen = () => {
+      this.markerSicht = sicht;
+      this.beiMarker?.({ was: 'setzen', x: p.x, y: p.y, text: eingabe.value, sicht, ...(vorhanden ? { id: vorhanden.id } : {}) });
+      zu();
+    };
+    ok.addEventListener('click', setzen);
+    loeschen?.addEventListener('click', () => {
+      this.beiMarker?.({ was: 'entfernen', id: vorhanden.id });
+      zu();
+    });
+    abbruch.addEventListener('click', zu);
+    eingabe.addEventListener('keydown', (ev) => {
+      ev.stopPropagation(); // Tippen steuert nicht die Figur
+      if (ev.key === 'Enter') setzen();
+      if (ev.key === 'Escape') zu();
+    });
+    // Position: am Klickpunkt, im Fenster gehalten
+    d.hidden = false;
+    const r = d.getBoundingClientRect();
+    const fb = dok.defaultView?.innerWidth ?? 1e4;
+    const fh = dok.defaultView?.innerHeight ?? 1e4;
+    d.style.left = `${Math.max(8, Math.min(fb - r.width - 8, (e?.clientX ?? fb / 2) - r.width / 2))}px`;
+    d.style.top = `${Math.max(8, Math.min(fh - r.height - 8, (e?.clientY ?? fh / 2) + 12))}px`;
+    eingabe.focus();
+  }
+
+  /** Ist der Marker-Dialog offen? (Esc schließt erst ihn) */
+  get dialogOffen() {
+    return !!this.dialog && !this.dialog.hidden;
+  }
+
+  schliesseDialog() {
+    if (this.dialog) this.dialog.hidden = true;
   }
 
   get offen() {
@@ -90,7 +206,7 @@ export class Karte {
 
   zeige(offen = !this.offen) {
     this.el.hidden = !offen;
-    if (!offen) return;
+    if (!offen) return this.schliesseDialog();
     this.zeichne(this.letzterSpieler);
     this.#zentriere();
   }
@@ -236,6 +352,11 @@ export class Karte {
       ctx.fillStyle = '#cfe6ff';
       ctx.fillText(m.name, m.x * s, m.y * s - 10);
     }
+    // Runde 47: Kartenmarker (eigene gelb, von anderen blau mit Namen)
+    for (const m of this.marker) {
+      if (m.karte !== this.welt.id) continue;
+      zeichneMarker(ctx, m, m.x * s, m.y * s, 1);
+    }
     if (this.ziel) {
       // Ziel des Auto-Laufs: Flagge
       const fx = (this.ziel.tx + 0.5) * g * s;
@@ -316,6 +437,13 @@ export class Karte {
     // Wege in andere Zonen (blau), immer sichtbar
     ctx.fillStyle = 'rgba(77, 163, 255, 0.55)';
     for (const u of this.welt.uebergaenge) ctx.fillRect(bildX(u.px.x0), bildY(u.px.y0), (u.px.x1 - u.px.x0) * (proKachel / g), (u.px.y1 - u.px.y0) * (proKachel / g));
+    // Runde 47: Kartenmarker (klein, ohne Text)
+    for (const m of this.marker) {
+      if (m.karte !== this.welt.id) continue;
+      const x = bildX(m.x);
+      const y = bildY(m.y);
+      if (x >= -6 && y >= -6 && x <= gr + 6 && y <= gr + 6) zeichneMarker(ctx, m, x, y, 0.7, false);
+    }
     const farben = { zombie: '#e5483c', spieler: '#4da3ff', tier: '#e8d9b5' };
     for (const p of punkte) {
       const x = bildX(p.x);
@@ -418,4 +546,37 @@ function* bildPortionen(welt, assets) {
     ctx.fillText(raum.name, raum.x * s, raum.y * s - 8);
   }
   return bild;
+}
+
+/** Runde 47: Stecknadel + Text (große Karte) bzw. nur Nadel (Minikarte). x/y = Spitze der Nadel. */
+function zeichneMarker(ctx, m, x, y, groesse = 1, mitText = true) {
+  const r = 7 * groesse;
+  ctx.save();
+  ctx.fillStyle = m.eigen ? '#ffcf3a' : '#5fb0ff';
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.quadraticCurveTo(x - r, y - r * 1.2, x - r, y - r * 2);
+  ctx.arc(x, y - r * 2, r, Math.PI, 0);
+  ctx.quadraticCurveTo(x + r, y - r * 1.2, x, y);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.fill();
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+  ctx.beginPath();
+  ctx.arc(x, y - r * 2, r * 0.38, 0, Math.PI * 2);
+  ctx.fill();
+  if (mitText) {
+    const text = m.eigen ? m.text : `${m.text} (${m.von})`;
+    ctx.font = '600 11px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
+    ctx.strokeText(text, x, y - r * 3.2);
+    ctx.fillStyle = m.eigen ? '#fff1c2' : '#d6ebff';
+    ctx.fillText(text, x, y - r * 3.2);
+  }
+  ctx.restore();
 }

@@ -33,6 +33,7 @@ import { spawnPunkt } from './systeme/spawnSystem.js';
 import { loeseFahrzeugFuerWechsel, parkeZurueck, setzeFahrzeugEin } from './systeme/fahrzeugSystem.js';
 import { funkLagen, pruefeFrequenz, sindFunkpartner } from './systeme/funkSystem.js';
 import { EMOTES } from '../../gemeinsam/spieler/emotes.js';
+import { MARKER_SICHTEN, markerLagen } from './systeme/markerSystem.js';
 
 /** Danach wird die Verbindung getrennt (Schutz gegen Passwort-Raten). */
 const MAX_FEHLVERSUCHE = 5;
@@ -245,6 +246,7 @@ export class SpielServer {
 
     if (this.tickZaehler++ % TICK_RATE === 0) this.#sendeSpielerListe();
     this.#sendeFunk(); // Runde 47: nur Änderungen (wer funkt, Partner, Frequenz)
+    if (this.tickZaehler % 10 === 0) this.#sendeMarker(); // Runde 47: Kartenmarker
     proZone = this.#sitzungenProZone(); // nach den Zonenwechseln
     for (const zone of aktive) zone.versende(proZone.get(zone) ?? [], (sitzung) => this.#sendePrivateDaten(sitzung));
   }
@@ -327,6 +329,7 @@ export class SpielServer {
     sitzung.zonenStand = null;
     sitzung.letzteSpielerDaten = null;
     sitzung.letzterFunk = null; // Runde 47: neue ClientSpiel-Sitzung braucht die Funk-Lage wieder
+    sitzung.letzteMarker = null;
     sitzung.status = 'imSpiel';
     zone.spielWelt.melde(neu.id, `Du betrittst: ${zone.name}`);
     this.letzteSpielerListe = null; // neuer Client nach dem Ladebild braucht die Liste wieder
@@ -549,6 +552,7 @@ export class SpielServer {
     if (n.art === AKTIONEN.GRUPPE && !['einladen', 'annehmen', 'ablehnen', 'verlassen', 'entfernen'].includes(n.was)) return;
     if (n.art === AKTIONEN.HANDEL && !['anfragen', 'annehmen', 'ablehnen', 'anbieten', 'zurueck', 'bereit', 'abbrechen'].includes(n.was)) return;
     if ((n.art === AKTIONEN.HANDEL && (n.was === 'anbieten' || n.was === 'zurueck')) && !gueltigerSlot(slot)) return;
+    if (n.art === AKTIONEN.MARKER && !((n.was === 'entfernen' && Number.isInteger(n.id)) || (n.was === 'setzen' && Number.isFinite(n.x) && Number.isFinite(n.y) && typeof n.text === 'string' && n.text.length <= 200 && MARKER_SICHTEN.includes(n.sicht) && (n.id === undefined || Number.isInteger(n.id))))) return;
     if (n.art === AKTIONEN.EMOTE && !(Number.isInteger(n.wert) && n.wert >= 0 && n.wert < EMOTES.length)) return;
     if (n.art === AKTIONEN.FUNK && !(['an', 'aus'].includes(n.was) || (n.was === 'frequenz' && pruefeFrequenz(n.wert) !== null) || (n.was === 'senden' && typeof n.wert === 'boolean'))) return;
     if (spieler.aktionsPuffer.length >= MAX_AKTIONS_PUFFER) return;
@@ -569,6 +573,7 @@ export class SpielServer {
     if (n.art === AKTIONEN.TAUSCHEN || n.art === AKTIONEN.AUFHEBEN) aktion.ziel = n.ziel; // Aufheben: gezielt aus der Umgebungs-Liste (Runde 29)
     if (n.art === AKTIONEN.FUNK) Object.assign(aktion, { was: n.was, wert: n.wert ?? null }); // Runde 47
     if (n.art === AKTIONEN.EMOTE) aktion.wert = n.wert;
+    if (n.art === AKTIONEN.MARKER) Object.assign(aktion, { was: n.was, id: n.id ?? null, x: n.x ?? null, y: n.y ?? null, text: n.text ?? '', sicht: n.sicht ?? 'ich' });
     if (n.art === AKTIONEN.AUSZIEHEN) aktion.stelle = n.stelle;
     if (n.art === AKTIONEN.ABLEGEN) aktion.einzeln = n.einzeln === true;
     if (n.art === AKTIONEN.PLATZIEREN || n.art === AKTIONEN.FELD || n.art === AKTIONEN.FELD_ENTFERNEN) Object.assign(aktion, { tx: n.tx, ty: n.ty });
@@ -624,6 +629,32 @@ export class SpielServer {
       const er = this.#spieler(s);
       if (!er || (s.zone !== sitzung.zone && !sindFunkpartner(ich, er))) continue;
       this.#senden(s, { typ: NACHRICHT.STIMME, von: sitzung.sid, signal: n.signal });
+    }
+  }
+
+  /** Runde 47: Kartenmarker an jeden (eigene + Gruppe + „alle“, über alle Zonen) – alle 10 Ticks, nur bei Änderung. */
+  #sendeMarker() {
+    const gruppen = new Map(); // name → Set aller Namen der Gruppe (Flaggen aller geladenen Zonen)
+    for (const zone of this.zonen.values()) {
+      for (const f of zone.spielWelt.territorium.flaggen.values()) {
+        const namen = new Set([f.besitzer, ...Object.keys(f.mitglieder ?? {})]);
+        if (namen.size > 1) for (const n of namen) gruppen.set(n, namen);
+      }
+    }
+    const eintraege = [];
+    for (const s of this.sitzungen) {
+      const spieler = this.#spieler(s);
+      if (spieler) eintraege.push({ spieler, sitzung: s });
+    }
+    const lagen = markerLagen(
+      eintraege.map((e) => e.spieler),
+      (name) => gruppen.get(name),
+    );
+    for (const e of eintraege) {
+      const text = kodiere({ typ: NACHRICHT.MARKER, liste: lagen.get(e.spieler) });
+      if (text === e.sitzung.letzteMarker) continue;
+      e.sitzung.letzteMarker = text;
+      e.sitzung.kanal.senden(text);
     }
   }
 

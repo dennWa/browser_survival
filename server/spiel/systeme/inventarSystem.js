@@ -23,6 +23,7 @@ import { wendeItemAn } from './gesundheitSystem.js';
 import { istWasserKachel } from '../../../gemeinsam/welt/wasser.js';
 import { gruppenAktion, handelAktion, helfen } from './mehrspielerSystem.js';
 import { funkAktion } from './funkSystem.js';
+import { markerAktion } from './markerSystem.js';
 import { EMOTE_PAUSE_TICKS } from '../../../gemeinsam/spieler/emotes.js';
 import { toeten } from './kampfSystem.js';
 
@@ -61,6 +62,10 @@ export function verarbeiteAktionen(spielWelt) {
       if (spieler.tot) continue;
       if (aktion.art === AKTIONEN.FUNK) {
         funkAktion(spielWelt, spieler, aktion); // Runde 47: auch im Auto und niedergestreckt (Hilferuf!)
+        continue;
+      }
+      if (aktion.art === AKTIONEN.MARKER) {
+        markerAktion(spielWelt, spieler, aktion); // Runde 47: Kartenmarker
         continue;
       }
       if (aktion.art === AKTIONEN.EMOTE) {

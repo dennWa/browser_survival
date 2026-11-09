@@ -71,6 +71,8 @@ export const NACHRICHT = Object.freeze({
   PONG: 'pong',
   /** Runde 47: { an, bereit, geraet, frequenz, funkt, partner: [{ sid, name, funkt }] } – Funkgerät-Lage, nur bei Änderung (server/spiel/systeme/funkSystem.js) */
   FUNK: 'funk',
+  /** Runde 47: { liste: [{ id, karte, x, y, text, sicht, von, eigen }] } – alle Kartenmarker, die dieser Spieler sehen darf (alle Zonen), nur bei Änderung */
+  MARKER: 'marker',
   /** { von, text, admin, system, global, zone } – Chatnachricht (system = Server-Hinweis wie "X ist beigetreten"; global = per /a an alle Zonen, zone = Zone des Absenders); Typ wie CHAT */
   /** { felder: [{ pfad, name, gruppe, min, max, schritt, einheit, wert, standard }], ueberschreibungen } – nur an Admins */
   DEV_WERTE: 'devWerte',
@@ -126,6 +128,7 @@ export const AKTIONEN = Object.freeze({
   HANDEL: 'handel', // Runde 24: { was: anfragen{ziel}|annehmen|ablehnen|anbieten{slot}|zurueck{slot}|bereit|abbrechen }
   HELFEN: 'helfen', // Runde 24: { ziel } Niedergestreckten mit Erste-Hilfe-Kasten wiederbeleben
   FUNK: 'funk', // Runde 47: { was: an|aus|frequenz|senden, wert } Funkgerät (funkSystem) – Frequenz in Zehntel-MHz, senden = Funk-Taste gehalten
+  MARKER: 'marker', // Runde 47: { was: setzen{x, y, text, sicht: ich|gruppe|alle, id?} | entfernen{id} } – Kartenmarker (markerSystem)
   EMOTE: 'emote', // Runde 47: { wert: Index in gemeinsam/spieler/emotes.js } – Emoji über dem Kopf (Ereignis 'emote' an die Zone)
   AUFGEBEN: 'aufgeben', // Runde 24: niedergestreckt → endgültig sterben
   LICHT: 'licht', // Taschenlampe an/aus (aus = Zombies bemerken einen erst aus der Nähe)
