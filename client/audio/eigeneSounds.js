@@ -30,7 +30,7 @@ export const EREIGNISSE = {
   schnurren: ['Tiere', 'Katze schnurrt (Schleife, wenn sie neben dir schläft)', { loop: true, stumm: true }],
   summen: ['Tiere', 'Bienen summen am Bienenstock (Schleife, nach Abstand)', { loop: true, stumm: true }],
   regen_dach: ['Atmosphäre & Wetter', 'Drinnen: Regen prasselt aufs Dach (Schleife)', { loop: true, stumm: true }],
-  kamin: ['Atmosphäre & Wetter', 'Kaminfeuer knistert (Schleife, lauter je näher)', { loop: true, stumm: true }],
+  kamin: ['Atmosphäre & Wetter', 'Feuer knistert – Kamin & Lagerfeuer (Schleife, lauter je näher, blendet ein/aus)', { loop: true, stumm: true }],
   generator: ['Bauen, Handwerk & Arbeit', 'Generator tuckert (Schleife, lauter je näher)', { loop: true, stumm: true }],
   sturm: ['Atmosphäre & Wetter', 'Sturm – starker, böiger Wind (Schleife; Wetter Sturm/Gewitter)', { loop: true, stumm: true }],
   schneesturm: ['Atmosphäre & Wetter', 'Schneesturm – heulender, kalter Wind (Schleife)', { loop: true, stumm: true }],

@@ -1915,7 +1915,7 @@ export class ClientSpiel {
       blizzard_a,
       blizzard_b,
       regen_dach,
-      kamin: this.#naehe((b) => b.typ === 'kamin' && b.brennt, 420),
+      kamin: this.#naehe((b) => (b.typ === 'kamin' || b.typ === 'lagerfeuer') && b.brennt, 420),
       generator: this.#naehe((b) => b.typ === 'generator' && b.laeuft, 520) * 0.8,
       // Runde 24: Bienen am Stock, schlafende eigene Katze schnurrt
       summen: this.#naehe((b) => b.typ === 'bienenstock', 220),

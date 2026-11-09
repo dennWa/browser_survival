@@ -50,7 +50,7 @@ Tipp: kurze Dateien (< 3 s), Lautstärke der Aufnahme selbst eher normalisiert.
 | Dateiname (ohne Endung) | Wann? |
 |---|---|
 | `regen_dach` | Drinnen: Regen prasselt aufs Dach (Schleife) |
-| `kamin` | Kaminfeuer knistert (Schleife, lauter je näher) |
+| `kamin` | Feuer knistert – Kamin & Lagerfeuer (Schleife, lauter je näher, blendet ein/aus) |
 
 ### Bauen, Handwerk & Arbeit
 
