@@ -99,7 +99,7 @@ export class Effekte {
         if (e.leise && (e.item === 'bogen' || e.item === 'armbrust')) break; // Sehne statt Mündungsfeuer
         const x = e.x + Math.cos(e.winkel) * MUENDUNG_ABSTAND;
         const y = e.y + Math.sin(e.winkel) * MUENDUNG_ABSTAND;
-        this.#feuer.push({ x, y, winkel: e.winkel, alter: 0, dauer: FEUER_DAUER, ...(e.leise ? { staerke: 260 } : {}) });
+        this.#feuer.push({ x, y, von: e.von, winkel: e.winkel, alter: 0, dauer: FEUER_DAUER, ...(e.leise ? { staerke: 260 } : {}) });
         break;
       }
       case 'schuss': {
@@ -108,7 +108,7 @@ export class Effekte {
         const sy = e.y + Math.sin(winkel) * MUENDUNG_ABSTAND;
         // Runde 24: Pfeile/Bolzen fliegen sichtbar (statt Leuchtspur)
         if (e.pfeil) this.#pfeile.push({ x: sx, y: sy, zx: e.zx, zy: e.zy, winkel, alter: 0, dauer: Math.max(0.08, Math.hypot(e.zx - sx, e.zy - sy) / 1300) });
-        else this.#leuchtspuren.push({ x: sx, y: sy, zx: e.zx, zy: e.zy, alter: 0, dauer: LEUCHTSPUR_DAUER });
+        else this.#leuchtspuren.push({ x: sx, y: sy, von: e.von, zx: e.zx, zy: e.zy, alter: 0, dauer: LEUCHTSPUR_DAUER });
         // Einschlag: Staub/Splitter in der Farbe des Materials – Blut gibt es nur bei 'treffer' (Zombie/Spieler/Tier)
         if (e.stoff && e.stoff !== 'fleisch') this.#spritzer(e.zx, e.zy, winkel + Math.PI, 5, STOFF_FARBEN[e.stoff] ?? STOFF_FARBEN.beton, 45, 1.3);
         break;

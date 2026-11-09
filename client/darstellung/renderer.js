@@ -2826,9 +2826,12 @@ export class Renderer {
       const s = leuchtspuren[i];
       const a = this.spurPunkte.array;
       const k = i * 6;
-      a[k] = s.x;
-      a[k + 1] = ZIELHOEHE;
-      a[k + 2] = s.y;
+      // Start an der echten Waffenmündung des Schützen (falls Figur + Waffe sichtbar), sonst Brusthöhe vor der Figur
+      const mf = s.von != null ? this.figuren.get(s.von) : null;
+      const mu = mf?.hatMuendung && mf.gruppe.visible ? mf.muendung : null;
+      a[k] = mu ? mu.x : s.x;
+      a[k + 1] = mu ? mu.y : ZIELHOEHE;
+      a[k + 2] = mu ? mu.z : s.y;
       a[k + 3] = s.zx;
       a[k + 4] = ZIELHOEHE;
       a[k + 5] = s.zy;
@@ -2839,7 +2842,10 @@ export class Renderer {
     this.muendungslichter.forEach((licht, i) => {
       const f = feuer[i];
       licht.intensity = f ? (f.staerke ?? 1400) * (1 - f.alter / f.dauer) : 0;
-      if (f) licht.position.set(f.x, (f.hoehe ?? ZIELHOEHE + 6) + this.#hy(f.x, f.y), f.y);
+      if (!f) return;
+      const mf = f.von != null ? this.figuren.get(f.von) : null;
+      if (mf?.hatMuendung && mf.gruppe.visible) licht.position.copy(mf.muendung);
+      else licht.position.set(f.x, (f.hoehe ?? ZIELHOEHE + 6) + this.#hy(f.x, f.y), f.y);
     });
     // Blutspritzer
     const anzahl = Math.min(partikel.length, 400);
