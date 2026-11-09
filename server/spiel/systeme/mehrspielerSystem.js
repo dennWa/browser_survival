@@ -1,7 +1,8 @@
 import { GEGENSTAENDE } from '../konfiguration/gegenstaende.js';
 import { RECHT } from '../../../gemeinsam/basisbau/rechte.js';
-import { fuegeZumInventarHinzu, legeAufBoden, verbrauche, zusatzVon } from './inventarSystem.js';
+import { fuegeZumInventarHinzu, hatZustand, legeAufBoden, verbrauche, zusatzVon } from './inventarSystem.js';
 import { toeten } from './kampfSystem.js';
+import { wendeItemAn } from './gesundheitSystem.js';
 
 /**
  * Runde 24 (P14): Miteinander spielen – Gruppen, Handel, Niederstrecken & Wiederbeleben. Werte: konfiguration.mehrspieler.
@@ -244,6 +245,50 @@ export function helfen(spielWelt, helfer, zielId) {
   spielWelt.ereignis({ typ: 'wiederbelebt', id: ziel.id, x: ziel.x, y: ziel.y, von: helfer.id });
   spielWelt.melde(ziel.id, `❤ ${helfer.name} hat dich gerettet!`);
   spielWelt.melde(helfer.id, `❤ Du hast ${ziel.name} gerettet`);
+}
+
+/**
+ * Runde 47: Mitspieler verarzten – Medizin aus Platz `slot` am Spieler `zielId` (Reichweite k.reichweite). Startet die Arbeit
+ * 'verarzten' (konsum.dauer Sekunden, arbeitSystem): beide stehen bleiben; erst am Ende wirkt das Item beim Ziel (verarzteFertig).
+ * Erste-Hilfe-Kasten an Niedergestreckten = sofort wiederbeleben (helfen). @returns true = gestartet/erledigt
+ */
+export function verarzte(spielWelt, helfer, zielId, slot) {
+  const k = spielWelt.konfiguration.mehrspieler;
+  const ziel = Number.isInteger(zielId) ? spielWelt.holen(zielId) : null;
+  const eintrag = Number.isInteger(slot) ? helfer.inventar[slot] : null;
+  const def = eintrag && GEGENSTAENDE[eintrag.defId];
+  if (ziel?.typ !== 'spieler' || ziel === helfer || ziel.tot || def?.kategorie !== 'medizin') return false;
+  if (Math.hypot(ziel.x - helfer.x, ziel.y - helfer.y) > k.reichweite) return spielWelt.melde(helfer.id, 'Geh näher heran'), false;
+  if (ziel.niedergestreckt > 0) {
+    if (eintrag.defId === 'erste_hilfe_kasten') return helfen(spielWelt, helfer, ziel.id), true;
+    if (!(def.heilt ?? []).some((was) => hatZustand(ziel, was))) return spielWelt.melde(helfer.id, `${ziel.name} liegt am Boden – nur ein Erste-Hilfe-Kasten holt ihn zurück`), false;
+  }
+  const noetig = ziel.leben < ziel.maxLeben || (def.heilt ?? []).some((was) => hatZustand(ziel, was));
+  if (!noetig) return spielWelt.melde(helfer.id, `${ziel.name} braucht das gerade nicht`), false;
+  const dauer = Math.max(0, spielWelt.konfiguration.konsum?.dauer ?? 0);
+  helfer.arbeit = { art: 'verarzten', dauer, rest: dauer, x: helfer.x, y: helfer.y, slot, defId: eintrag.defId, zielId: ziel.id, klang: 'verband', naechsterSchlag: 0.1 };
+  helfer.nachladenRest = 0;
+  spielWelt.melde(ziel.id, `🩹 ${helfer.anzeigeName ?? helfer.name} verarztet dich – bleib kurz stehen`);
+  if (dauer <= 0) verarzteFertig(spielWelt, helfer, helfer.arbeit);
+  return true;
+}
+
+/** Arbeit 'verarzten' ist durch: Item verbrauchen, beim Ziel wirken lassen. Ziel weg/zu weit → abgebrochen. */
+export function verarzteFertig(spielWelt, helfer, a) {
+  helfer.arbeit = null;
+  const ziel = spielWelt.holen(a.zielId);
+  const k = spielWelt.konfiguration.mehrspieler;
+  if (!ziel || ziel.tot || Math.hypot(ziel.x - helfer.x, ziel.y - helfer.y) > k.reichweite * 1.5) return spielWelt.melde(helfer.id, 'Verarzten abgebrochen – zu weit weg');
+  const slot = helfer.inventar[a.slot]?.defId === a.defId ? a.slot : helfer.inventar.findIndex((e) => e?.defId === a.defId);
+  if (slot < 0) return;
+  const def = GEGENSTAENDE[a.defId];
+  verbrauche(helfer, slot);
+  if (helfer.ausgeruestet === slot && !helfer.inventar[slot]) helfer.ausgeruestet = null;
+  ziel.leben = Math.min(ziel.maxLeben, ziel.leben + (def.heilung ?? 0));
+  wendeItemAn(spielWelt, ziel, def);
+  spielWelt.ereignis({ typ: 'geheilt', von: ziel.id, x: ziel.x, y: ziel.y });
+  spielWelt.melde(ziel.id, `🩹 ${helfer.anzeigeName ?? helfer.name} hat dich mit ${def.name} verarztet`);
+  spielWelt.melde(helfer.id, `🩹 Du hast ${ziel.anzeigeName ?? ziel.name} verarztet (${def.name})`);
 }
 
 /** Pro Tick: Anfragen laufen ab, Handel bricht bei Abstand/Tod ab. */

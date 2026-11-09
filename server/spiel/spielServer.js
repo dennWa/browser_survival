@@ -552,6 +552,7 @@ export class SpielServer {
     if (n.art === AKTIONEN.GRUPPE && !['einladen', 'annehmen', 'ablehnen', 'verlassen', 'entfernen'].includes(n.was)) return;
     if (n.art === AKTIONEN.HANDEL && !['anfragen', 'annehmen', 'ablehnen', 'anbieten', 'zurueck', 'bereit', 'abbrechen'].includes(n.was)) return;
     if ((n.art === AKTIONEN.HANDEL && (n.was === 'anbieten' || n.was === 'zurueck')) && !gueltigerSlot(slot)) return;
+    if (n.art === AKTIONEN.VERARZTEN && !(Number.isInteger(n.ziel) && gueltigerSlot(slot))) return;
     if (n.art === AKTIONEN.MARKER && !((n.was === 'entfernen' && Number.isInteger(n.id)) || (n.was === 'setzen' && Number.isFinite(n.x) && Number.isFinite(n.y) && typeof n.text === 'string' && n.text.length <= 200 && MARKER_SICHTEN.includes(n.sicht) && (n.id === undefined || Number.isInteger(n.id))))) return;
     if (n.art === AKTIONEN.EMOTE && !(Number.isInteger(n.wert) && n.wert >= 0 && n.wert < EMOTES.length)) return;
     if (n.art === AKTIONEN.FUNK && !(['an', 'aus'].includes(n.was) || (n.was === 'frequenz' && pruefeFrequenz(n.wert) !== null) || (n.was === 'senden' && typeof n.wert === 'boolean'))) return;
@@ -573,6 +574,7 @@ export class SpielServer {
     if (n.art === AKTIONEN.TAUSCHEN || n.art === AKTIONEN.AUFHEBEN) aktion.ziel = n.ziel; // Aufheben: gezielt aus der Umgebungs-Liste (Runde 29)
     if (n.art === AKTIONEN.FUNK) Object.assign(aktion, { was: n.was, wert: n.wert ?? null }); // Runde 47
     if (n.art === AKTIONEN.EMOTE) aktion.wert = n.wert;
+    if (n.art === AKTIONEN.VERARZTEN) aktion.ziel = n.ziel;
     if (n.art === AKTIONEN.MARKER) Object.assign(aktion, { was: n.was, id: n.id ?? null, x: n.x ?? null, y: n.y ?? null, text: n.text ?? '', sicht: n.sicht ?? 'ich' });
     if (n.art === AKTIONEN.AUSZIEHEN) aktion.stelle = n.stelle;
     if (n.art === AKTIONEN.ABLEGEN) aktion.einzeln = n.einzeln === true;

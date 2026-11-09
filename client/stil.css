@@ -1449,6 +1449,11 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
 .mehrspieler button:hover, .mehrspieler button.aktiv { background: #4f6a34; }
 .ms-anfrage { top: 70px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; align-items: center; }
 .ms-menue, .ms-nieder { left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; gap: 8px; min-width: 220px; text-align: center; }
+/* Runde 47: Verarzten-Knöpfe im Spieler-Menü */
+.ms-verarzten { display: flex; flex-direction: column; gap: 6px; }
+.ms-heil-knopf { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.ms-heil-knopf canvas { width: 24px; height: 24px; }
+.ms-heil-leer { color: var(--text-gedimmt); font-size: 0.78rem; }
 .ms-nieder { top: 28%; background: rgba(90, 20, 20, 0.92) !important; }
 .ms-handel { left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(460px, calc(100vw - 32px)); max-height: 85vh; overflow: auto; }
 .ms-kopf { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }

@@ -21,7 +21,7 @@ import { legeInStation, nimmAusStation, schliesseStation, setzeAmFeuer, setzeHin
 import { setzeBauBlock, baue, reisseAb } from './basisbauSystem.js';
 import { wendeItemAn } from './gesundheitSystem.js';
 import { istWasserKachel } from '../../../gemeinsam/welt/wasser.js';
-import { gruppenAktion, handelAktion, helfen } from './mehrspielerSystem.js';
+import { gruppenAktion, handelAktion, helfen, verarzte } from './mehrspielerSystem.js';
 import { funkAktion } from './funkSystem.js';
 import { markerAktion } from './markerSystem.js';
 import { EMOTE_PAUSE_TICKS } from '../../../gemeinsam/spieler/emotes.js';
@@ -91,6 +91,10 @@ export function verarbeiteAktionen(spielWelt) {
       }
       if (aktion.art === AKTIONEN.HELFEN) {
         helfen(spielWelt, spieler, aktion.ziel);
+        continue;
+      }
+      if (aktion.art === AKTIONEN.VERARZTEN) {
+        if (!spieler.fahrzeug) verarzte(spielWelt, spieler, aktion.ziel, aktion.slot); // Runde 47
         continue;
       }
       // Im Auto geht nur: aussteigen, Licht, Fähigkeiten, Inventar umsortieren
@@ -527,7 +531,7 @@ export function pflanzeSamenAusHand(spielWelt, spieler, def) {
   return true;
 }
 
-function hatZustand(spieler, was) {
+export function hatZustand(spieler, was) {
   const z = spieler.zustand;
   return !!z && (was === 'blutung' ? z.blutung : was === 'infektion' ? z.infektion > 0 : was === 'vergiftung' ? z.vergiftung > 0 : was === 'bruch' ? z.bruch === 1 : was === 'erkaeltung' ? z.erkaeltung > 0 : false);
 }

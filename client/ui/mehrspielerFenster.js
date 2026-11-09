@@ -1,5 +1,6 @@
 /**
- * Runde 24 (P14): Miteinander – Spieler-Menü (E an Mitspieler: Handeln, In Gruppe einladen), Anfrage-Leiste (Annehmen/Ablehnen),
+ * Runde 24 (P14): Miteinander – Spieler-Menü (E an Mitspieler: Handeln, In Gruppe einladen; Runde 47: 🩹 Verarzten mit jeder
+ * Medizin aus dem eigenen Inventar), Anfrage-Leiste (Annehmen/Ablehnen),
  * Handelsfenster (eigene Items antippen = anbieten, Angebot antippen = zurück, „Bereit“) und Niedergestreckt-Hinweis (Aufgeben).
  * Alles per Tippen bedienbar (Touch). Daten: spielerDaten.anfrage/handel/gruppe/niedergestreckt (server mehrspielerSystem.js).
  * `senden(aktion)` → AKTION { art, was, ziel?, slot?, name? }. DOM wird beim ersten Gebrauch gebaut.
@@ -11,6 +12,8 @@ export class MehrspielerFenster {
   #zeichneIcon;
   #menueZiel = null;
   #handelSchluessel = '';
+  #inventar = []; // Runde 47: eigenes Inventar (Verarzten-Knöpfe)
+  #defs = {};
 
   constructor(dokument, { senden, zeichneIcon }) {
     this.d = dokument;
@@ -19,7 +22,7 @@ export class MehrspielerFenster {
     this.el = Object.assign(dokument.createElement('div'), { className: 'mehrspieler' });
     this.el.innerHTML = `
       <div class="ms-anfrage fenster" hidden><span class="ms-anfrage-text"></span><button type="button" class="ms-ja">✔ Annehmen</button><button type="button" class="ms-nein">✕</button></div>
-      <div class="ms-menue fenster" hidden><b class="ms-menue-titel"></b><button type="button" class="ms-handeln">🤝 Handeln</button><button type="button" class="ms-einladen">👥 In Gruppe einladen</button><button type="button" class="ms-zu">Schließen</button></div>
+      <div class="ms-menue fenster" hidden><b class="ms-menue-titel"></b><button type="button" class="ms-handeln">🤝 Handeln</button><button type="button" class="ms-einladen">👥 In Gruppe einladen</button><div class="ms-verarzten"></div><button type="button" class="ms-zu">Schließen</button></div>
       <div class="ms-nieder fenster" hidden><b>💀 Niedergestreckt</b><span class="ms-nieder-text"></span><button type="button" class="ms-aufgeben">Aufgeben</button></div>
       <div class="ms-handel fenster" hidden>
         <div class="ms-kopf"><b class="ms-handel-titel">🤝 Handel</b><button type="button" class="ms-abbrechen" aria-label="Abbrechen">✕</button></div>
@@ -52,7 +55,32 @@ export class MehrspielerFenster {
   zeigeMenue(ziel) {
     this.#menueZiel = ziel;
     this.menueEl.hidden = !ziel;
-    if (ziel) this.el.querySelector('.ms-menue-titel').textContent = ziel.name;
+    if (!ziel) return;
+    this.el.querySelector('.ms-menue-titel').textContent = ziel.name;
+    this.#baueVerarzten();
+  }
+
+  /** Runde 47: je Medizin-Art im Inventar ein Knopf „🩹 Verband“ … (erster passender Platz) – sonst ein Hinweis. */
+  #baueVerarzten() {
+    const box = this.el.querySelector('.ms-verarzten');
+    const gesehen = new Set();
+    const knoepfe = [];
+    this.#inventar.forEach((e, slot) => {
+      const def = e && this.#defs[e.defId];
+      if (def?.kategorie !== 'medizin' || gesehen.has(e.defId)) return;
+      gesehen.add(e.defId);
+      const b = Object.assign(this.d.createElement('button'), { type: 'button', className: 'ms-heil-knopf', title: def.beschreibung ?? def.name });
+      const c = Object.assign(this.d.createElement('canvas'), { width: 24, height: 24 });
+      this.#zeichneIcon?.(c, e.defId);
+      b.append(c, Object.assign(this.d.createElement('span'), { textContent: `🩹 ${def.name}` }));
+      b.addEventListener('click', () => {
+        if (this.#menueZiel) this.#senden({ art: 'verarzten', ziel: this.#menueZiel.id, slot });
+        this.zeigeMenue(null);
+      });
+      knoepfe.push(b);
+    });
+    if (!knoepfe.length) knoepfe.push(Object.assign(this.d.createElement('small'), { className: 'ms-heil-leer', textContent: '🩹 Verarzten: keine Medizin dabei (Verband, Schiene …)' }));
+    box.replaceChildren(...knoepfe);
   }
 
   #menueAktion(art, was) {
@@ -67,6 +95,8 @@ export class MehrspielerFenster {
 
   /** Jede SPIELER_DATEN-Nachricht. */
   aktualisiere(daten, itemDefinitionen) {
+    this.#inventar = daten.inventar ?? [];
+    this.#defs = itemDefinitionen ?? {};
     const a = daten.anfrage;
     this.anfrageArt = a?.art ?? null;
     this.anfrageEl.hidden = !a;

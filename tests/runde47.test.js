@@ -241,3 +241,52 @@ test('Kartenmarker: Sichtbarkeit – nur ich / Gruppe / alle (auch über Zonen)'
   assert.deepEqual(letzte(cb.empfangen, NACHRICHT.MARKER).liste.map((m) => [m.text, m.von, m.eigen]), [['Hier!', 'Anna', false]]);
   assert.equal(letzte(ca.empfangen, NACHRICHT.MARKER).liste.length, 2);
 });
+
+// ---------------------------------------------------------------------------------------------- Verarzten
+
+test('Verarzten: Medizin am Mitspieler – wirkt nach der Arbeit, bricht ab wenn das Ziel wegläuft, Kasten belebt Niedergestreckte', async () => {
+  const { TICK_DAUER_S } = await import('../gemeinsam/konstanten.js');
+  const welt = new SpielWelt(erstelleKonfiguration({ konsum: { dauer: 1 } }));
+  const arzt = welt.spielerBetrittWelt('Doc');
+  const opfer = welt.spielerBetrittWelt('Opfer');
+  Object.assign(opfer, { x: arzt.x + 30, y: arzt.y, leben: 40 });
+  opfer.zustand = { ...(opfer.zustand ?? {}), blutung: true };
+  arzt.inventar[12] = { defId: 'verband', menge: 2 };
+  const ticks = (n) => {
+    for (let i = 0; i < n; i++) welt.aktualisiere(TICK_DAUER_S);
+  };
+  arzt.aktionsPuffer.push({ art: AKTIONEN.VERARZTEN, ziel: opfer.id, slot: 12 });
+  ticks(2);
+  assert.equal(arzt.arbeit?.art, 'verarzten', 'Arbeit läuft (Fortschrittsbalken)');
+  assert.equal(opfer.zustand.blutung, true, 'wirkt erst am Ende');
+  ticks(40);
+  assert.equal(arzt.arbeit, null);
+  assert.equal(opfer.zustand.blutung, false, 'Blutung gestillt');
+  assert.ok(opfer.leben > 40, 'etwas geheilt');
+  assert.equal(arzt.inventar[12].menge, 1, 'ein Verband verbraucht');
+
+  // Ziel läuft weg → abgebrochen, nichts verbraucht
+  opfer.leben = 30;
+  arzt.aktionsPuffer.push({ art: AKTIONEN.VERARZTEN, ziel: opfer.id, slot: 12 });
+  ticks(2);
+  opfer.x += 500;
+  ticks(40);
+  assert.equal(arzt.inventar[12].menge, 1, 'abgebrochen → Verband bleibt');
+  assert.equal(opfer.leben < 31, true);
+
+  // Nichts zu tun → Meldung, keine Arbeit
+  opfer.x = arzt.x + 30;
+  opfer.leben = opfer.maxLeben;
+  arzt.aktionsPuffer.push({ art: AKTIONEN.VERARZTEN, ziel: opfer.id, slot: 12 });
+  ticks(1);
+  assert.equal(arzt.arbeit, null);
+
+  // Niedergestreckt + Erste-Hilfe-Kasten = wiederbeleben (sofort)
+  Object.assign(opfer, { niedergestreckt: 20, leben: 1 });
+  arzt.inventar[13] = { defId: 'erste_hilfe_kasten', menge: 1 };
+  arzt.aktionsPuffer.push({ art: AKTIONEN.VERARZTEN, ziel: opfer.id, slot: 13 });
+  ticks(1);
+  assert.equal(opfer.niedergestreckt, 0);
+  assert.ok(opfer.leben > 1);
+  assert.equal(arzt.inventar[13], null);
+});

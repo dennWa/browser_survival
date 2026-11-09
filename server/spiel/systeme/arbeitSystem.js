@@ -9,6 +9,7 @@ import { aktualisiereBauwerke } from './bauSystem.js';
 import { spuleWetterVor } from './wetterSystem.js';
 import { BAUWERKE } from '../../../gemeinsam/welt/bauwerke.js';
 import { bettBei } from '../../../gemeinsam/welt/einrichtung.js';
+import { verarzteFertig } from './mehrspielerSystem.js';
 
 /**
  * Arbeiten, die Zeit brauchen: Bäume fällen / Steine abbauen (Werkzeug nötig, nutzt sich ab) und Schlafen im Bett; Sitzen am Feuer (start: stationSystem);
@@ -95,7 +96,7 @@ export function aktualisiereArbeit(spielWelt, dt) {
     // Wer im Bett liegt, bleibt liegen, bis er ausgeschlafen hat – nur Schaden weckt (fuegeSchadenZu → brecheArbeitAb)
     const schlaeft = a.art === 'schlafen';
     // Sitzen/Zerlegen/Konsum: Linksklick (Holz nachlegen, Werkzeug-Schläge, gehaltene Taste) beendet die Arbeit nicht – nur Bewegung
-    const klickErlaubt = a.art === 'sitzen' || a.art === 'zerlegen' || a.art === 'konsum';
+    const klickErlaubt = a.art === 'sitzen' || a.art === 'zerlegen' || a.art === 'konsum' || a.art === 'verarzten';
     if (spieler.tot || (!schlaeft && ((spieler.angriff && !klickErlaubt) || Math.hypot(spieler.x - a.x, spieler.y - a.y) > ABBRUCH_WEG))) {
       spieler.arbeit = null;
       continue;
@@ -121,6 +122,24 @@ export function aktualisiereArbeit(spielWelt, dt) {
     }
     if (a.art === 'konsum') {
       konsumiereWeiter(spielWelt, spieler, a, dt);
+      continue;
+    }
+    if (a.art === 'verarzten') {
+      // Runde 47: Mitspieler verarzten – Verband-Takt, Ziel muss in der Nähe bleiben
+      const ziel = spielWelt.holen(a.zielId);
+      if (!ziel || ziel.tot || Math.hypot(ziel.x - spieler.x, ziel.y - spieler.y) > spielWelt.konfiguration.mehrspieler.reichweite * 1.5) {
+        spieler.arbeit = null;
+        spielWelt.melde(spieler.id, 'Verarzten abgebrochen – zu weit weg');
+        continue;
+      }
+      spieler.blick = Math.atan2(ziel.y - spieler.y, ziel.x - spieler.x);
+      a.naechsterSchlag -= dt;
+      if (a.naechsterSchlag <= 0) {
+        a.naechsterSchlag += KONSUM_TAKT;
+        spielWelt.ereignis({ typ: 'konsumTakt', klang: a.klang, von: spieler.id, x: spieler.x, y: spieler.y });
+      }
+      a.rest -= dt;
+      if (a.rest <= 0) verarzteFertig(spielWelt, spieler, a);
       continue;
     }
     if (!spielWelt.welt.istRessourceDa(a.ressourceId)) {
