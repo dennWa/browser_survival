@@ -234,6 +234,7 @@ export class ClientSpiel {
     this.beendet = true;
     this.stimme?.entfernen(); // Runde 24: Mikro aus, Verbindungen zu; eigene DOM-Teile weg (nächste Sitzung baut neu)
     this.hud.funkAnzeige?.(null); // Runde 47
+    document.body.classList.remove('fenster-offen');
     this.hud.funk?.zeige(false);
     this.hud.emotes?.zeige(false);
     this.mehrspieler?.el.remove();
@@ -919,6 +920,11 @@ export class ClientSpiel {
     this.#aktion(AKTIONEN.BENUTZEN, slot);
   }
 
+  /** Runde 47: Auto-Menü → AKTION 'auto' (tanken, reifenRein/-Raus, batterieRein/-Raus) */
+  autoAktion(was) {
+    this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.AUTO, was });
+  }
+
   /** Runde 47: Ducken/Schleichen an/aus (Taste „ducken“ = Y, 🧎 am Handy) – langsamer, Zombies bemerken einen später. */
   duckenUmschalten() {
     this.duckenSetzen(!this.duckt);
@@ -1094,7 +1100,7 @@ export class ClientSpiel {
         this.hud.station.zeige(n.plaetze ? n : null);
         break;
       case NACHRICHT.KISTE:
-        this.hud.kiste.zeige(n.inhalt, n.titel);
+        this.hud.kiste.zeige(n.inhalt, n.titel, n.auto ?? null);
         if (n.inhalt) this.hud.inventar.zeige(false);
         break;
       case NACHRICHT.RESSOURCEN:
@@ -1832,6 +1838,9 @@ export class ClientSpiel {
 
   /** Minikarte, Angel-Hinweis, Auto-Anzeige, Tab-Liste, Regenton – alles, was nicht jeden Frame neu muss. */
   #oberflaecheAktualisieren(eigen, jetzt) {
+    // Runde 47: großes Fenster offen → Tagebuch-Einblendung oben links weg (lag über Kiste/Auto-Menü)
+    const verdeckt = this.#spielVerdeckt();
+    if (verdeckt !== this.fensterKlasse) document.body.classList.toggle('fenster-offen', (this.fensterKlasse = verdeckt));
     this.hud.zeigeKofferraumKnopf(false); // Runde 28: Kofferraum nur noch unten über den Aktions-Knopf (hinten am Auto)
     this.hud.zeigeAuto(this.lokal.fahrzeug && this.eigeneDaten?.fahrzeug ? this.eigeneDaten.fahrzeug : null);
     this.hud.zeigeTacho(this.lokal.fahrzeug && !this.spielerDaten?.tot ? tempoZuKmh(this.lokal.fahrzeug.tempo) : null);

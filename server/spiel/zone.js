@@ -100,7 +100,7 @@ export class Zone {
         if (k.station) {
           const { spielerId, station, ...daten } = k;
           sitzung.kanal.senden(kodiere({ typ: NACHRICHT.STATION, ...daten }));
-        } else sitzung.kanal.senden(kodiere({ typ: NACHRICHT.KISTE, id: k.id, inhalt: k.inhalt, titel: k.titel }));
+        } else sitzung.kanal.senden(kodiere({ typ: NACHRICHT.KISTE, id: k.id, inhalt: k.inhalt, titel: k.titel, ...(k.auto ? { auto: k.auto } : {}) }));
       }
       for (const text of meldungen.get(sitzung.spielerId) ?? []) sitzung.kanal.senden(kodiere({ typ: NACHRICHT.MELDUNG, text }));
     }

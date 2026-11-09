@@ -274,6 +274,7 @@ export class Hud {
     });
     this.kiste = new KisteFenster(dokument, { zeichneIcon: (canvas, defId) => this.zeichneIcon(canvas, defId) });
     this.kiste.beiAktionen({
+      auto: (was) => this.#aktionen.auto?.(was), // Runde 47: Auto-Menü
       legen: (slot) => this.#aktionen.kisteLegen?.(slot),
       nehmen: (slot) => this.#aktionen.kisteNehmen?.(slot),
       schliessen: () => this.#aktionen.kisteSchliessen?.(),
@@ -527,7 +528,7 @@ export class Hud {
 
   /** Haltbarkeit des eigenen Autos (null = nicht im Auto). */
   zeigeAuto(auto) {
-    const stand = auto ? `${auto.leben}|${auto.maxLeben}` : '';
+    const stand = auto ? `${auto.leben}|${auto.maxLeben}|${Math.round(auto.tank ?? 0)}|${auto.antrieb}` : '';
     if (stand === this.#letzteAutoAnzeige) return;
     this.#letzteAutoAnzeige = stand;
     this.el.auto.hidden = !auto;
@@ -535,7 +536,8 @@ export class Hud {
     const anteil = Math.max(0, auto.leben / auto.maxLeben);
     this.el.auto.querySelector('.fuellung').style.width = `${anteil * 100}%`;
     this.el.auto.classList.toggle('kritisch', anteil < 0.3);
-    this.el.autoText.textContent = `${Math.ceil(auto.leben * 2) / 2} / ${auto.maxLeben}`;
+    // Runde 47: Tank daneben (⛽ L), ohne Antrieb rot (Sprit/Reifen/Batterie fehlt)
+    this.el.autoText.textContent = `${Math.ceil(auto.leben * 2) / 2} / ${auto.maxLeben}${auto.tank !== undefined ? ` · ⛽ ${Math.round(auto.tank)} L` : ''}${auto.antrieb === false ? ' · 🔧' : ''}`;
   }
 
   debugUmschalten() {

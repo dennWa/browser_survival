@@ -182,6 +182,7 @@ hud.beiAktionen({
   kisteLegen: (slot) => aktuellesSpiel?.kisteLegen(slot),
   kisteNehmen: (slot) => aktuellesSpiel?.kisteNehmen(slot),
   kisteSchliessen: () => aktuellesSpiel?.kisteSchliessen(),
+  auto: (was) => aktuellesSpiel?.autoAktion(was), // Runde 47: Auto-Menü (tanken, Reifen, Batterie)
   stationLegen: (slot) => aktuellesSpiel?.stationAktion(AKTIONEN.STATION_LEGEN, slot),
   stationNehmen: (platz) => aktuellesSpiel?.stationAktion(AKTIONEN.STATION_NEHMEN, platz),
   stationSchliessen: () => aktuellesSpiel?.stationSchliessen(),

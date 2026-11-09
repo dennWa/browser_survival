@@ -31,6 +31,7 @@ import { aktualisiereWetter } from './systeme/wetterSystem.js';
 import { pruefeEintrag } from './spielstand.js';
 import { pruefeUebergaenge } from './systeme/zonenSystem.js';
 import { erzeugeFahrzeug, fahrzeugZuNetzwerk } from './entitaeten/fahrzeug.js';
+import { neueTeile, pruefeTeile } from './systeme/autoTeileSystem.js';
 import { FAHRZEUG_MODELLE, fahrzeugAusObjekt, passt } from '../../gemeinsam/physik/fahrzeug.js';
 import { BAUWERKE, PFLANZEN, pruefePlatz } from '../../gemeinsam/welt/bauwerke.js';
 import { aktualisiereTutorial, erstelleTutorial, tutorialKonfiguration } from './systeme/tutorialSystem.js';
@@ -126,7 +127,7 @@ export class SpielWelt {
       this.welt.setzeBauwerk(neu);
     }
     this.bauwerkAenderungen.clear();
-    for (const o of autos) this.hinzufuegen(erzeugeFahrzeug({ id: this.neueId(), ...fahrzeugAusObjekt(o, this.welt.kachelGroesse), haltbarkeit: konfiguration.fahrzeug.haltbarkeit }));
+    for (const o of autos) this.hinzufuegen(erzeugeFahrzeug({ id: this.neueId(), ...fahrzeugAusObjekt(o, this.welt.kachelGroesse), haltbarkeit: konfiguration.fahrzeug.haltbarkeit, teile: neueTeile(konfiguration.fahrzeug.teile) }));
     this.karte.zombieSpawns.forEach((spawn, spawnIndex) => this.spawneZombie(spawnIndex));
     verteileStartLoot(this);
     initialisiereBehaelter(this); // Runde 25: Schränke/Kisten der Karte (Inhalt beim ersten Öffnen)
@@ -146,7 +147,7 @@ export class SpielWelt {
    * gebaute Sachen (inkl. Beete & Pflanzen), Uhrzeit und Tag.
    */
   weltzustand() {
-    const fahrzeuge = [...this.alleVomTyp('fahrzeug')].map(({ modell, x, y, winkel, laenge, breite, leben, maxLeben, kaputt, kofferraum }) => ({ modell, x, y, winkel, laenge, breite, leben, maxLeben, kaputt, kofferraum }));
+    const fahrzeuge = [...this.alleVomTyp('fahrzeug')].map(({ modell, x, y, winkel, laenge, breite, leben, maxLeben, kaputt, kofferraum, tank, reifen, batterie }) => ({ modell, x, y, winkel, laenge, breite, leben, maxLeben, kaputt, kofferraum, tank, reifen, batterie })); // Runde 47: + Teile
     // fahrzeugeAlle: die Liste ist vollständig (Autos können seit Runde 21 die Zone wechseln) – beim Laden ersetzt sie die Kartenautos
     return { version: 1, karte: this.karte.daten.id, zeit: this.zeit, tag: this.tag, bauwerke: [...this.welt.bauwerke.values()], flaggen: territoriumSpeichern(this.territorium), fahrzeuge, fahrzeugeAlle: true, behaelter: behaelterSpeichern(this) };
   }
@@ -179,7 +180,7 @@ export class SpielWelt {
         const ok = FAHRZEUG_MODELLE[f?.modell] && [f.x, f.y, f.winkel, f.laenge, f.breite].every(Number.isFinite) && f.laenge > 0 && f.laenge < 400 && f.breite > 0 && f.breite < 200;
         if (!ok) continue;
         const maxLeben = Number.isFinite(f.maxLeben) && f.maxLeben > 0 ? f.maxLeben : this.konfiguration.fahrzeug.haltbarkeit;
-        const fz = erzeugeFahrzeug({ id: this.neueId(), modell: f.modell, x: f.x, y: f.y, winkel: f.winkel, laenge: f.laenge, breite: f.breite, haltbarkeit: maxLeben });
+        const fz = erzeugeFahrzeug({ id: this.neueId(), modell: f.modell, x: f.x, y: f.y, winkel: f.winkel, laenge: f.laenge, breite: f.breite, haltbarkeit: maxLeben, teile: pruefeTeile(f, this.konfiguration.fahrzeug.teile) });
         if (Number.isFinite(f.leben)) fz.leben = Math.min(fz.maxLeben, Math.max(0, f.leben));
         fz.kaputt = f.kaputt === true || fz.leben <= 0;
         if (Array.isArray(f.kofferraum)) f.kofferraum.slice(0, fz.kofferraum.length).forEach((e, k) => (fz.kofferraum[k] = pruefeEintrag(e)));
@@ -194,6 +195,7 @@ export class SpielWelt {
       const [f] = gespeichert.splice(i, 1);
       const probe = { ...fz, x: f.x, y: f.y, winkel: f.winkel };
       if (passt(probe, f.x, f.y, this.welt)) Object.assign(fz, { x: f.x, y: f.y, winkel: f.winkel, letzteKacheln: '' });
+      Object.assign(fz, pruefeTeile(f, this.konfiguration.fahrzeug.teile)); // Runde 47
       if (Number.isFinite(f.leben)) fz.leben = Math.min(fz.maxLeben, Math.max(0, f.leben));
       fz.kaputt = f.kaputt === true || fz.leben <= 0;
       if (Array.isArray(f.kofferraum)) f.kofferraum.slice(0, fz.kofferraum.length).forEach((e, k) => (fz.kofferraum[k] = pruefeEintrag(e)));

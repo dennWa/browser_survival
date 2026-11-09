@@ -117,6 +117,8 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     laterneNachwachsen: 600, // Sekunden, bis eine umgefahrene Straßenlaterne wieder steht (Bäume: ressourcen.holz.nachwachsen)
     insassenSchaden: 0.3, // Runde 32: Aufprall bei Vollgas gegen Baum/Wand/Auto → 30 % der Lebenspunkte der Insassen (darunter linear ab 17 km/h)
     bombeAuto: 0.5, // Runde 32: überfahrener Bombenzombie → 50 % der Auto-Haltbarkeit
+    /** Runde 47: Auto-Teile (systeme/autoTeileSystem.js) – Tank in Litern, Verbrauch je gefahrenem Pixel (1,2 L je 1000 px ≈ 33 000 px Reichweite), Kanister = Liter */
+    teile: { tankMax: 40, verbrauchProPx: 0.0012, kanisterLiter: 20, spawnVoll: true },
     bombeInsassen: 0.5, // … und 50 % der Lebenspunkte von Fahrer/Beifahrer
     spielerTodKmh: 110, // Runde 38: Fußgänger werden angefahren: Schaden = maxLeben × km/h ÷ 110 – ab 110 km/h sofort tot
     spielerAnfahrMinKmh: 4, // … erst ab diesem Tempo (langsamer Schritt-Tempo-Schieben tut nichts)

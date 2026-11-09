@@ -103,7 +103,9 @@ export function fahrzeugAusObjekt(o, g) {
  * Wand/anderes Fahrzeug getroffen, kmh = Tempo davor, schramm = nur an der Wand entlanggeschrammt, mit = ID des getroffenen Fahrzeugs (Runde 31).
  */
 export function fahre(fz, eingabe, welt, dt) {
-  const gas = Number.isFinite(eingabe.y) ? Math.max(-1, Math.min(1, -eingabe.y)) : 0;
+  let gas = Number.isFinite(eingabe.y) ? Math.max(-1, Math.min(1, -eingabe.y)) : 0;
+  // Runde 47: kein Antrieb (Sprit/Reifen/Batterie fehlt, server autoTeileSystem) → Gas wirkt nicht, Bremsen schon
+  if (fz.antrieb === false && !((gas > 0 && fz.tempo < 0) || (gas < 0 && fz.tempo > 0))) gas = 0;
   const lenken = Number.isFinite(eingabe.x) ? Math.max(-1, Math.min(1, eingabe.x)) : 0;
   const p = FAHRZEUG;
   const haft = haftung(fz, welt);

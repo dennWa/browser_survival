@@ -355,3 +355,57 @@ test('Ducken: Tempo ≈ Gehen, Rennen hebt es auf, Zombies bemerken Geduckte sp�
   assert.equal(s.duckt, false, 'Shift = aufrecht losrennen');
   assert.equal(welt.konfiguration.zombie.duckSichtFaktor, 0.55);
 });
+
+// ---------------------------------------------------------------------------------------------- Auto-Teile
+
+test('Auto-Teile: spawnt voll, Sprit wird verbraucht, ohne Teile kein Antrieb, Tanken/Ein-/Ausbauen, Weltstand', async () => {
+  const { fahre } = await import('../gemeinsam/physik/fahrzeug.js');
+  const { autoAktion, fehlteile, aktualisiereTeile, pruefeTeile } = await import('../server/spiel/systeme/autoTeileSystem.js');
+  const { erzeugeFahrzeug } = await import('../server/spiel/entitaeten/fahrzeug.js');
+  const { TICK_DAUER_S } = await import('../gemeinsam/konstanten.js');
+  const welt = new SpielWelt(erstelleKonfiguration({}));
+  const k = welt.konfiguration.fahrzeug.teile;
+  const s = welt.spielerBetrittWelt('Schrauber');
+  const fz = erzeugeFahrzeug({ id: welt.neueId(), modell: 'limousine', x: s.x + 20, y: s.y, winkel: 0, laenge: 90, breite: 44 });
+  welt.hinzufuegen(fz);
+  assert.deepEqual([fz.tank, fz.reifen, fz.batterie], [k.tankMax, 4, true], 'spawnt voll (Nutzer-Wunsch)');
+  assert.deepEqual(fehlteile(fz), []);
+  // Verbrauch: 1000 px mit Fahrer
+  fz.fahrerId = s.id;
+  aktualisiereTeile(welt, fz);
+  for (let i = 0; i < 10; i++) {
+    fz.x += 100;
+    aktualisiereTeile(welt, fz);
+  }
+  assert.ok(Math.abs(fz.tank - (k.tankMax - 1000 * k.verbrauchProPx)) < 1e-6, `Verbrauch ${fz.tank}`);
+  fz.fahrerId = null;
+  fz.x = s.x + 20; // zurück zum Spieler (für die Werkstatt-Aktionen)
+  aktualisiereTeile(welt, fz);
+  // Reifen abnehmen → kein Antrieb → Gas wirkt nicht (auch in der gemeinsamen Physik = Client-Vorhersage)
+  assert.equal(autoAktion(welt, s, 'reifenRaus'), true);
+  assert.equal(fz.reifen, 3);
+  assert.ok(s.inventar.some((e) => e?.defId === 'reifen'), 'Reifen im Inventar');
+  assert.deepEqual(fehlteile(fz), ['1 Reifen']);
+  assert.equal(fz.antrieb, false);
+  fz.tempo = 0;
+  fahre(fz, { x: 0, y: -1 }, welt.welt, TICK_DAUER_S);
+  assert.equal(fz.tempo, 0, 'ohne Antrieb kein Anfahren');
+  assert.equal(autoAktion(welt, s, 'reifenRein'), true);
+  assert.equal(fz.antrieb, true);
+  fahre(fz, { x: 0, y: -1 }, welt.welt, TICK_DAUER_S);
+  assert.ok(fz.tempo > 0, 'mit allen Teilen fährt es an');
+  // Batterie raus/rein, Tanken mit Kanister
+  assert.equal(autoAktion(welt, s, 'batterieRaus'), true);
+  assert.equal(autoAktion(welt, s, 'batterieRein'), true);
+  fz.tank = 3;
+  assert.equal(autoAktion(welt, s, 'tanken'), false, 'ohne Kanister');
+  s.inventar[14] = { defId: 'benzin', menge: 1 };
+  assert.equal(autoAktion(welt, s, 'tanken'), true);
+  assert.equal(fz.tank, 3 + k.kanisterLiter);
+  assert.equal(s.inventar[14], null, 'Kanister verbraucht');
+  // Weltstand: Teile bleiben, alte Stände ohne Teile → voll, Unsinn begrenzt
+  const stand = welt.weltzustand().fahrzeuge.find((f) => f.tank === fz.tank);
+  assert.ok(stand && stand.reifen === 4 && stand.batterie === true);
+  assert.deepEqual(pruefeTeile({ modell: 'x' }, k), { tank: k.tankMax, reifen: 4, batterie: true });
+  assert.deepEqual(pruefeTeile({ tank: 999, reifen: 7, batterie: false }, k), { tank: k.tankMax, reifen: 4, batterie: false });
+});

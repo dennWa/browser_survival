@@ -176,6 +176,8 @@ const BASIS_LOOT_TABELLEN = Object.freeze({
   ],
   tankstelle: [
     { id: 'benzin', gewicht: 3 },
+    { id: 'autobatterie', gewicht: 0.8 }, // Runde 47
+    { id: 'reifen', gewicht: 0.8 }, // Runde 47
     { id: 'energydrink', gewicht: 4 },
     { id: 'muesliriegel', gewicht: 4 },
     { id: 'wasserflasche', gewicht: 3 },
@@ -188,6 +190,8 @@ const BASIS_LOOT_TABELLEN = Object.freeze({
   werkstatt: [
     { id: 'vorschlaghammer', gewicht: 0.9 }, // Runde 26
     { id: 'benzin', gewicht: 1 },
+    { id: 'reifen', gewicht: 1.2 }, // Runde 47
+    { id: 'autobatterie', gewicht: 1 }, // Runde 47
     { id: 'helm', gewicht: 0.8 },
     { id: 'lederhandschuhe', gewicht: 0.8 },
     { id: 'kampfhose', gewicht: 0.5 },

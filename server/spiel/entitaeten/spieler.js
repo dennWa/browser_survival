@@ -151,7 +151,7 @@ export function spielerZuNetzwerk(s) {
     kleidung: kleidungKompakt(s.kleidung), // Runde 23: angezogene Kleidung (nur belegte Stellen) – Optik am Charakter
     aussehen: aussehenKompakt(s.aussehen), // nur Abweichungen vom Standard (spart ~110 Bytes pro Spieler und Tick)
     // Im Auto: genauer Fahrzustand (der eigene Client rechnet damit die Vorhersage nach)
-    fahrzeug: s.fahrzeug ? { id: s.fahrzeug.id, winkel: s.fahrzeug.winkel, tempo: s.fahrzeug.tempo, lenkung: s.fahrzeug.lenkung ?? 0, laenge: s.fahrzeug.laenge, breite: s.fahrzeug.breite, modell: s.fahrzeug.modell, leben: Math.round(s.fahrzeug.leben * 10) / 10, maxLeben: s.fahrzeug.maxLeben } : null,
+    fahrzeug: s.fahrzeug ? { id: s.fahrzeug.id, winkel: s.fahrzeug.winkel, tempo: s.fahrzeug.tempo, lenkung: s.fahrzeug.lenkung ?? 0, laenge: s.fahrzeug.laenge, breite: s.fahrzeug.breite, modell: s.fahrzeug.modell, leben: Math.round(s.fahrzeug.leben * 10) / 10, maxLeben: s.fahrzeug.maxLeben, antrieb: s.fahrzeug.antrieb !== false, tank: Math.round((s.fahrzeug.tank ?? 0) * 10) / 10 } : null, // Runde 47: antrieb (Vorhersage) + Tank (Anzeige)
     mitfahrt: s.mitfahrt ? s.mitfahrt.id : undefined, // Runde 28: Beifahrer in Fahrzeug-ID (Figur unsichtbar, keine Vorhersage)
     sid: s.sid ?? undefined, // Runde 47: Sprachchat-Adresse (stimmChat.js)
     funkt: s.funkt || undefined, // Runde 47: spricht gerade ins Funkgerät (📻 über dem Kopf)

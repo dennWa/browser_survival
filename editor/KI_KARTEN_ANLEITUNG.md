@@ -244,7 +244,7 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `kueche` | kuechenmesser, konservendose, kaese, milch, bratpfanne, hammer |
 | `wohnung` | apfel, wasserflasche, papier, stoff, broetchen, konservendose, milch, marmelade |
 | `tankstelle` | energydrink, muesliriegel, benzin, wasserflasche, feuerzeug, sandwich, kaffee, fackel |
-| `werkstatt` | hammer, wasserflasche, falle, brecheisen, arbeitsweste, benzin, handschuhe, feuerwehrbeil |
+| `werkstatt` | hammer, wasserflasche, falle, brecheisen, reifen, arbeitsweste, benzin, autobatterie |
 | `supermarkt` | konservendose, wasserflasche, broetchen, apfel, kaese, milch, marmelade, feuerzeug |
 | `polizei` | munition_9mm, munition_357, verband, kaffee, revolver, funkgeraet, schutzweste, pistole |
 | `waffenkammer` | munition_9mm, munition_12, munition_357, pistole, schrotflinte, munition_gewehr, revolver, gewehr |
@@ -269,7 +269,7 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | fernkampf | `pistole` Pistole (9 mm), `schrotflinte` Schrotflinte (Kal. 12), `gewehr` Jagdgewehr, `bogen` Bogen, `revolver` Revolver (.357), `mp` Maschinenpistole, `sturmgewehr` Sturmgewehr, `raketenwerfer` Raketenwerfer (RPG), `armbrust` Armbrust |
 | munition | `munition_9mm` Munition 9 mm, `munition_12` Schrotpatronen Kal. 12, `munition_gewehr` Gewehrpatronen, `rakete` Rakete, `munition_357` Revolverpatronen .357, `pfeil` Pfeile, `bolzen` Armbrustbolzen |
 | mod | `mod_zielfernrohr` Zielfernrohr, `mod_magazin` Erweitertes Magazin, `mod_schalldaempfer` Schalldämpfer |
-| material | `holz` Holz, `stein` Stein, `eisenerz` Eisenerz, `eisenbarren` Eisenbarren, `verkohlt` Verkohltes Essen, `muell` Müll, `schrott` Schrott, `ast` Ast, `rinde` Baumrinde, `papier` Papier, `bretter` Bretter, `schwarzpulver` Schwarzpulver, `huhn` Huhn, `benzin` Benzinkanister, `alkohol` Hochprozentiges, `weizen` Weizen, `mehl` Mehl, `stoff` Stofffetzen |
+| material | `holz` Holz, `stein` Stein, `eisenerz` Eisenerz, `eisenbarren` Eisenbarren, `verkohlt` Verkohltes Essen, `muell` Müll, `schrott` Schrott, `ast` Ast, `rinde` Baumrinde, `papier` Papier, `bretter` Bretter, `schwarzpulver` Schwarzpulver, `huhn` Huhn, `benzin` Benzinkanister, `reifen` Autoreifen, `autobatterie` Autobatterie, `alkohol` Hochprozentiges, `weizen` Weizen, `mehl` Mehl, `stoff` Stofffetzen |
 | rucksack | `rucksack_klein` Kleiner Rucksack, `rucksack` Rucksack, `rucksack_gross` Großer Rucksack |
 | kleidung | `muetze` Wollmütze, `kapuzenpulli` Kapuzenpulli, `winterjacke` Winterjacke, `arbeitsweste` Arbeitsweste, `handschuhe` Handschuhe, `jeans` Jeans, `thermohose` Thermohose, `stiefel` Winterstiefel, `turnschuhe` Turnschuhe, `lederjacke` Lederjacke, `schutzweste` Schutzweste, `regenmantel` Regenmantel, `helm` Bauhelm, `motorradhelm` Motorradhelm, `kampfhose` Cargohose mit Polstern, `gummistiefel` Gummistiefel, `lederhandschuhe` Lederhandschuhe |
 | bauwerk | `werkbank` Werkbank, `lagerfeuer` Lagerfeuer, `schmelzofen` Schmelzofen, `falle` Bärenfalle, `sprengfalle` Sprengfalle, `stacheldraht` Stacheldraht, `fallgrube` Fallgrube (Bausatz), `dosenalarm` Dosenalarm |

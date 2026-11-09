@@ -9,6 +9,7 @@ import { BEHAELTER, BEHAELTER_REICHWEITE, abstandZumBehaelter, findeBehaelter } 
 import { LOOT_TABELLEN } from '../konfiguration/lootTabellen.js';
 import { pruefeEintrag } from '../spielstand.js';
 import { LEICHE_REICHWEITE } from './leichenSystem.js';
+import { teileFuerClient } from './autoTeileSystem.js';
 
 /**
  * Lagerkisten (Bauwerk 'kiste', 16 Plätze, bauwerk.inhalt = Array aus null | { defId, menge, magazin? }).
@@ -159,7 +160,7 @@ function behaelterVon(spielWelt, ref) {
   }
   if (typeof ref === 'string') {
     const fz = spielWelt.holen(Number(ref.slice(1)));
-    return fz?.typ === 'fahrzeug' && fz.kofferraum ? { id: ref, inhalt: fz.kofferraum, titel: '🚗 Kofferraum', fahrzeug: fz } : null;
+    return fz?.typ === 'fahrzeug' && fz.kofferraum ? { id: ref, inhalt: fz.kofferraum, titel: '🚗 Auto', fahrzeug: fz, auto: teileFuerClient(fz, spielWelt.konfiguration.fahrzeug.teile) } : null;
   }
   const b = spielWelt.welt.bauwerke.get(ref);
   return BAUWERKE[b?.typ]?.kiste && b.inhalt ? b : null; // Kiste oder Vorratsschrank
@@ -167,7 +168,13 @@ function behaelterVon(spielWelt, ref) {
 
 function sendeKiste(spielWelt, spieler, behaelter) {
   const k = behaelter.typ === 'fahrzeug' ? behaelterVon(spielWelt, `f${behaelter.id}`) : behaelter; // Kiste-Bauwerk oder Fahrzeug → einheitlich
-  spielWelt.kistenNachrichten.push({ spielerId: spieler.id, id: k.id, titel: k.titel, inhalt: k.inhalt.map((e) => (e ? { ...e } : null)) });
+  spielWelt.kistenNachrichten.push({ spielerId: spieler.id, id: k.id, titel: k.titel, inhalt: k.inhalt.map((e) => (e ? { ...e } : null)), ...(k.auto ? { auto: k.auto } : {}) });
+}
+
+/** Runde 47: Auto-Menü – geändertes Auto bei allen auffrischen, die seinen Kofferraum offen haben. */
+export function aktualisiereAutoAnsicht(spielWelt, fz) {
+  const k = behaelterVon(spielWelt, `f${fz.id}`);
+  if (k) aktualisiereAnsichten(spielWelt, k);
 }
 
 /** Alle, die diesen Behälter offen haben, sehen die Änderung. */

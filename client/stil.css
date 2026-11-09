@@ -1472,6 +1472,17 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
 #funk-knopf { position: fixed; right: 16px; bottom: 210px; z-index: 30; width: 52px; height: 52px; border-radius: 50%; font-size: 1.4rem; border: 2px solid rgba(226, 170, 40, 0.7); background: rgba(30, 30, 34, 0.7); color: #fff; cursor: pointer; touch-action: none; user-select: none; }
 #funk-knopf[hidden] { display: none; }
 #hud-ducken { position: fixed; right: 16px; bottom: 270px; z-index: 30; width: 52px; height: 52px; border-radius: 50%; font-size: 1.4rem; border: 2px solid rgba(255, 255, 255, 0.35); background: rgba(30, 30, 34, 0.7); color: #fff; touch-action: none; }
+/* Runde 47: Auto-Menü im Kofferraum-Fenster */
+#kiste-auto { display: flex; flex-direction: column; gap: 5px; margin: 0 0 10px; padding: 8px 10px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 10px; }
+#kiste-auto[hidden] { display: none; }
+.auto-status { font-weight: 700; color: #8ee08e; }
+.auto-status.fehlt { color: #ffb36b; }
+.auto-zeile { display: grid; grid-template-columns: 1.6em 6.5em 5.5em 1fr; align-items: center; gap: 6px; font-size: 0.88rem; }
+.auto-zeile.fehlt b { color: #ff8a6b; }
+.auto-knoepfe { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+.auto-knoepfe button { min-height: 30px; padding: 3px 8px; font-size: 0.78rem; color: var(--text); background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 7px; }
+.auto-knoepfe button:disabled { opacity: 0.35; }
+@media (max-width: 520px) { .auto-zeile { grid-template-columns: 1.6em 1fr auto; } .auto-knoepfe { grid-column: 1 / -1; justify-content: flex-start; } }
 #hud-ducken.aktiv { background: rgba(60, 120, 200, 0.85); box-shadow: 0 0 12px rgba(90, 160, 255, 0.8); }
 #funk-knopf.sendet { background: rgba(200, 70, 40, 0.9); box-shadow: 0 0 14px rgba(255, 120, 60, 0.85); }
 #funk {
@@ -1579,6 +1590,7 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
 .tagebuch-zahl { font-size: 0.7rem; color: #a8a090; white-space: nowrap; }
 .tagebuch-liste { margin: 5px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 3px; }
 .tagebuch.zu .tagebuch-liste { display: none; }
+body.fenster-offen .tagebuch { display: none; } /* Runde 47: nicht über Kiste/Inventar/Auto-Menü */
 .tagebuch-liste li { display: grid; grid-template-columns: 14px 1fr auto; gap: 2px 6px; align-items: baseline; }
 .tagebuch-liste li.fertig { color: #8fd18f; opacity: 0.7; }
 .tagebuch-liste li.rang { display: block; font-size: 0.7rem; color: #a8a090; font-style: italic; }

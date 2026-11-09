@@ -15,7 +15,7 @@ import { stelleHer } from './craftingSystem.js';
 import { benutzeBauwerk, feuer, platziere, zuendeFackel } from './bauSystem.js';
 import { setzeSkillpunkt } from './levelSystem.js';
 import { fahrzeugAktion } from './fahrzeugSystem.js';
-import { legeInKiste, nimmAusKiste, oeffneBehaelter, oeffneKofferraum, oeffneLeiche, schliesseKiste } from './kistenSystem.js';
+import { aktualisiereAutoAnsicht, legeInKiste, nimmAusKiste, oeffneBehaelter, oeffneKofferraum, oeffneLeiche, schliesseKiste } from './kistenSystem.js';
 import { entferneFeld, legeFeldAn } from './bauSystem.js';
 import { legeInStation, nimmAusStation, schliesseStation, setzeAmFeuer, setzeHin } from './stationSystem.js';
 import { setzeBauBlock, baue, reisseAb } from './basisbauSystem.js';
@@ -24,6 +24,7 @@ import { istWasserKachel } from '../../../gemeinsam/welt/wasser.js';
 import { gruppenAktion, handelAktion, helfen, verarzte } from './mehrspielerSystem.js';
 import { funkAktion } from './funkSystem.js';
 import { markerAktion } from './markerSystem.js';
+import { autoAktion } from './autoTeileSystem.js';
 import { EMOTE_PAUSE_TICKS } from '../../../gemeinsam/spieler/emotes.js';
 import { toeten } from './kampfSystem.js';
 
@@ -95,6 +96,15 @@ export function verarbeiteAktionen(spielWelt) {
       }
       if (aktion.art === AKTIONEN.VERARZTEN) {
         if (!spieler.fahrzeug) verarzte(spielWelt, spieler, aktion.ziel, aktion.slot); // Runde 47
+        continue;
+      }
+      if (aktion.art === AKTIONEN.AUTO) {
+        // Runde 47: tanken, Reifen/Batterie ein- und ausbauen (auch von innen: tanken/einbauen; ausbauen nur draußen)
+        const fz = spieler.fahrzeug;
+        if (autoAktion(spielWelt, spieler, aktion.was)) {
+          const ziel = spieler.offeneKiste?.[0] === 'f' ? spielWelt.holen(Number(spieler.offeneKiste.slice(1))) : fz;
+          if (ziel) aktualisiereAutoAnsicht(spielWelt, ziel);
+        }
         continue;
       }
       // Im Auto geht nur: aussteigen, Licht, Fähigkeiten, Inventar umsortieren

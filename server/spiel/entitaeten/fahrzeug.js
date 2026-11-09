@@ -6,12 +6,13 @@
  */
 import { KOFFERRAUM_PLAETZE } from '../../../gemeinsam/konstanten.js';
 
-export function erzeugeFahrzeug({ id, modell, x, y, winkel, laenge, breite, haltbarkeit = 10 }) {
-  return { id, typ: 'fahrzeug', modell, x, y, winkel, tempo: 0, lenkung: 0, laenge, breite, fahrerId: null, beifahrerId: null, letzteKacheln: '', treffer: new Map(), leben: haltbarkeit, maxLeben: haltbarkeit, kaputt: false, kofferraum: new Array(KOFFERRAUM_PLAETZE).fill(null) }; // kofferraum: [null | { defId, menge, magazin? }] – nur Server
+export function erzeugeFahrzeug({ id, modell, x, y, winkel, laenge, breite, haltbarkeit = 10, teile = null }) {
+  // Runde 47: teile { tank, reifen, batterie } (systeme/autoTeileSystem.js); antrieb = fahrbereit (wirkt in fahre()), setzt das System je Tick
+  return { id, typ: 'fahrzeug', modell, x, y, winkel, tempo: 0, lenkung: 0, laenge, breite, fahrerId: null, beifahrerId: null, letzteKacheln: '', treffer: new Map(), leben: haltbarkeit, maxLeben: haltbarkeit, kaputt: false, kofferraum: new Array(KOFFERRAUM_PLAETZE).fill(null), ...(teile ?? { tank: 40, reifen: 4, batterie: true }), antrieb: true }; // kofferraum: [null | { defId, menge, magazin? }] – nur Server
 }
 
 /** Gerundet wie Zombies – die genauen Fahrwerte für die eigene Vorhersage stehen beim Fahrer (spielerZuNetzwerk). */
 export function fahrzeugZuNetzwerk(f) {
   const r = (v, n = 100) => Math.round(v * n) / n;
-  return { id: f.id, typ: f.typ, modell: f.modell, x: r(f.x), y: r(f.y), winkel: r(f.winkel, 1000), tempo: r(f.tempo, 10), lenkung: r(f.lenkung ?? 0), laenge: r(f.laenge), breite: r(f.breite), fahrerId: f.fahrerId, beifahrerId: f.beifahrerId ?? null, leben: r(f.leben, 10), maxLeben: f.maxLeben, kaputt: f.kaputt };
+  return { id: f.id, typ: f.typ, modell: f.modell, x: r(f.x), y: r(f.y), winkel: r(f.winkel, 1000), tempo: r(f.tempo, 10), lenkung: r(f.lenkung ?? 0), laenge: r(f.laenge), breite: r(f.breite), fahrerId: f.fahrerId, beifahrerId: f.beifahrerId ?? null, leben: r(f.leben, 10), maxLeben: f.maxLeben, kaputt: f.kaputt, ...(f.reifen < 4 ? { reifen: f.reifen } : {}), ...(f.antrieb === false ? { antrieb: false } : {}) };
 }

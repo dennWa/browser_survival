@@ -4,6 +4,8 @@ import { INVENTAR_MAX, KISTE_PLAETZE } from '../../gemeinsam/konstanten.js';
  * Lagerkisten-Fenster (E an einer Kiste/Leiche): links der Behälter, rechts das eigene Inventar (Handy: untereinander).
  * Antippen/Klicken schiebt den ganzen Stapel: Kistenplatz → Inventar bzw. Inventarplatz → Kiste.
  * Der Server prüft alles (kistenSystem.js) und schickt den neuen Inhalt per KISTE-Nachricht zurück.
+ * Runde 47: Beim Auto (Kofferraum, Taste G) oben das Auto-Menü: Tank, Reifen, Batterie, Karosserie + Knöpfe zum Tanken/Ein-/Ausbauen
+ * (KISTE { auto: { tank, tankMax, reifen, batterie, leben, maxLeben, kaputt, fehlt[] } } → AKTION 'auto').
  */
 const ICON = 48;
 
@@ -25,6 +27,7 @@ export class KisteFenster {
     this.titel = dokument.getElementById('kiste-titel');
     this.zaehler = dokument.getElementById('kiste-zaehler');
     this.zaehlerInv = dokument.getElementById('kiste-zaehler-inv');
+    this.autoEl = dokument.getElementById('kiste-auto');
     this.alles = dokument.getElementById('kiste-alles');
     this.alles.addEventListener('click', () => (this.#inhalt ?? []).forEach((e, i) => e && this.#aktionen.nehmen?.(i)));
     dokument.getElementById('kiste-schliessen').addEventListener('click', () => this.#aktionen.schliessen?.());
@@ -42,18 +45,57 @@ export class KisteFenster {
     return !this.el.hidden;
   }
 
-  /** inhalt = Array(16) → öffnen/aktualisieren, null → schließen */
-  zeige(inhalt, titel = null) {
+  /** inhalt = Array(16) → öffnen/aktualisieren, null → schließen; auto = Zustand des Autos (Runde 47) oder null */
+  zeige(inhalt, titel = null, auto = null) {
     this.#inhalt = inhalt;
     this.el.hidden = !inhalt;
     if (inhalt) this.titel.textContent = titel ?? '📦 Lagerkiste';
+    this.#zeigeAuto(inhalt ? auto : null);
     if (inhalt) this.#zeichne();
   }
+
+  /** Runde 47: Auto-Menü – was fehlt, was ist drin; Knöpfe nur, wenn passende Teile im Inventar liegen bzw. ausbaubar sind */
+  #zeigeAuto(a) {
+    this.autoEl.hidden = !a;
+    this.#auto = a;
+    if (!a) return;
+    const d = this.dokument;
+    const hat = (defId) => (this.#daten?.inventar ?? []).some((e) => e?.defId === defId);
+    const zeile = (symbol, name, wert, ok, knoepfe) => {
+      const z = d.createElement('div');
+      z.className = `auto-zeile${ok ? '' : ' fehlt'}`;
+      z.append(Object.assign(d.createElement('span'), { className: 'auto-symbol', textContent: symbol }), Object.assign(d.createElement('span'), { className: 'auto-name', textContent: name }), Object.assign(d.createElement('b'), { textContent: wert }));
+      const leiste = d.createElement('span');
+      leiste.className = 'auto-knoepfe';
+      for (const [text, was, an] of knoepfe) {
+        const b = Object.assign(d.createElement('button'), { type: 'button', textContent: text, disabled: !an });
+        b.addEventListener('click', () => this.#aktionen.auto?.(was));
+        leiste.append(b);
+      }
+      z.append(leiste);
+      return z;
+    };
+    const kopf = d.createElement('div');
+    kopf.className = `auto-status${a.fehlt.length || a.kaputt ? ' fehlt' : ''}`;
+    kopf.textContent = a.kaputt ? '💥 Wrack – nichts mehr zu machen' : a.fehlt.length ? `🔧 Springt nicht an – es fehlt: ${a.fehlt.join(', ')}` : '✅ Fahrbereit';
+    this.autoEl.replaceChildren(
+      kopf,
+      zeile('⛽', 'Tank', `${Math.round(a.tank)} / ${a.tankMax} L`, a.tank > 0, [['Tanken (Benzinkanister)', 'tanken', hat('benzin') && a.tank < a.tankMax]]),
+      zeile('🛞', 'Reifen', `${a.reifen} / 4`, a.reifen >= 4, [['Montieren', 'reifenRein', hat('reifen') && a.reifen < 4], ['Abnehmen', 'reifenRaus', a.reifen > 0]]),
+      zeile('🔋', 'Batterie', a.batterie ? 'drin' : 'fehlt', a.batterie, [['Einbauen', 'batterieRein', hat('autobatterie') && !a.batterie], ['Ausbauen', 'batterieRaus', a.batterie]]),
+      zeile('🚗', 'Karosserie', `${Math.round((a.leben / a.maxLeben) * 100)} %`, !a.kaputt, []),
+    );
+  }
+
+  #auto = null;
 
   setzeDaten(daten, itemDefinitionen) {
     this.#daten = daten;
     this.#itemDefinitionen = itemDefinitionen ?? {};
-    if (this.offen) this.#zeichne();
+    if (this.offen) {
+      this.#zeigeAuto(this.#auto); // Knöpfe hängen am Inventar (Kanister/Reifen/Batterie dabei?)
+      this.#zeichne();
+    }
   }
 
   #baueSlot(raster, index, beiKlick) {

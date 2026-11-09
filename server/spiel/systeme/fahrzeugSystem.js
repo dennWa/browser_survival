@@ -3,6 +3,7 @@ import { fuegeSchadenZu, toeten } from './kampfSystem.js';
 import { schliesseKiste } from './kistenSystem.js';
 import { explodiere } from './sonderZombieSystem.js';
 import { erzeugeFahrzeug } from '../entitaeten/fahrzeug.js';
+import { aktualisiereTeile, fehlteile } from './autoTeileSystem.js';
 
 /**
  * Fahrzeuge: AKTION 'fahrzeug' = einsteigen (nächstes freies Auto in Reichweite) bzw. aussteigen.
@@ -83,6 +84,8 @@ export function fahrzeugAktion(spielWelt, spieler) {
   spieler.nachladenRest = 0;
   spielWelt.ereignis({ typ: 'fahrzeug', ein: true, x: fz.x, y: fz.y, von: spieler.id });
   // Runde 27: Steuer-Hinweis zeigt der Client selbst (Touch und PC unterschiedlich, clientSpiel Ereignis 'fahrzeug')
+  const fehlt = fehlteile(fz); // Runde 47
+  if (fehlt.length) spielWelt.melde(spieler.id, `🔧 Der Wagen springt nicht an – es fehlt: ${fehlt.join(', ')} (Auto-Menü: G)`);
 }
 
 /** Runde 28: Beifahrer sitzt rechts neben der Fahrzeugmitte (Seite = +y im Fahrzeug, bei winkel 0 nach unten). */
@@ -189,6 +192,7 @@ export function aktualisiereFahrzeuge(spielWelt, dt) {
       else fz.treffer.set(id, rest - dt);
     }
     fz.aufprallPause = Math.max(0, (fz.aufprallPause ?? 0) - dt);
+    aktualisiereTeile(spielWelt, fz); // Runde 47: Sprit verbrauchen, Antrieb an/aus
     if (fz.kaputt) {
       fz.tempo = 0;
       fz.aufprall = null;
@@ -381,7 +385,7 @@ export function parkeZurueck(spielWelt, fz) {
  */
 export function setzeFahrzeugEin(spielWelt, alt, spieler, punkt) {
   const g = spielWelt.welt.kachelGroesse;
-  const fz = erzeugeFahrzeug({ id: spielWelt.neueId(), modell: alt.modell, x: punkt.x, y: punkt.y, winkel: alt.winkel, laenge: alt.laenge, breite: alt.breite, haltbarkeit: alt.maxLeben });
+  const fz = erzeugeFahrzeug({ id: spielWelt.neueId(), modell: alt.modell, x: punkt.x, y: punkt.y, winkel: alt.winkel, laenge: alt.laenge, breite: alt.breite, haltbarkeit: alt.maxLeben, teile: { tank: alt.tank, reifen: alt.reifen, batterie: alt.batterie } });
   fz.leben = alt.leben;
   fz.kofferraum = alt.kofferraum;
   const uebergaenge = spielWelt.karte.daten.uebergaenge ?? [];

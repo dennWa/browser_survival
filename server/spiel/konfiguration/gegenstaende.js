@@ -145,7 +145,9 @@ const ROH_GEGENSTAENDE = {
   molotow: { name: 'Molotowcocktail', kategorie: 'wurf', wurf: 'molotow', inHand: true, ausruestung: 'wurf', wurfweite: 300, brandRadius: 64, brandDauer: 9, brandSchaden: 14, beschreibung: 'Werfen (Linksklick): setzt den Boden 9 Sekunden in Brand' },
   schwarzpulver: { name: 'Schwarzpulver', kategorie: 'material', beschreibung: 'Aus Kohle (verkohltes Essen) und Stein – für Sprengstoff' },
   huhn: { name: 'Huhn', kategorie: 'material', beschreibung: 'Eingefangenes Huhn – für einen Hühnerstall (Bau-Menü → Farm)' },
-  benzin: { name: 'Benzinkanister', kategorie: 'material', beschreibung: 'Treibstoff für den Generator (15 min Strom)' },
+  benzin: { name: 'Benzinkanister', kategorie: 'material', beschreibung: 'Treibstoff für Auto (20 Liter, Auto-Menü: G) und Generator (15 min Strom)' },
+  reifen: { name: 'Autoreifen', kategorie: 'material', stapelbar: 1, beschreibung: 'Ersatzreifen fürs Auto – am Auto (G) montieren' }, // Runde 47
+  autobatterie: { name: 'Autobatterie', kategorie: 'material', stapelbar: 1, beschreibung: 'Ohne Batterie springt kein Auto an – am Auto (G) einbauen' }, // Runde 47
   alkohol: { name: 'Hochprozentiges', kategorie: 'material', beschreibung: 'Brennt gut – für Molotowcocktails' },
   // --- Werkzeug & Garten ---
   // Runde 32: Fackel – Nahkampf; im Inventar (Rechtsklick → Anzünden) oder mit F in der Hand anzünden (Feuerzeug/Feuerbohrer).

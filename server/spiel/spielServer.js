@@ -34,6 +34,7 @@ import { loeseFahrzeugFuerWechsel, parkeZurueck, setzeFahrzeugEin } from './syst
 import { funkLagen, pruefeFrequenz, sindFunkpartner } from './systeme/funkSystem.js';
 import { EMOTES } from '../../gemeinsam/spieler/emotes.js';
 import { MARKER_SICHTEN, markerLagen } from './systeme/markerSystem.js';
+import { AUTO_WAS } from './systeme/autoTeileSystem.js';
 
 /** Danach wird die Verbindung getrennt (Schutz gegen Passwort-Raten). */
 const MAX_FEHLVERSUCHE = 5;
@@ -553,6 +554,7 @@ export class SpielServer {
     if (n.art === AKTIONEN.GRUPPE && !['einladen', 'annehmen', 'ablehnen', 'verlassen', 'entfernen'].includes(n.was)) return;
     if (n.art === AKTIONEN.HANDEL && !['anfragen', 'annehmen', 'ablehnen', 'anbieten', 'zurueck', 'bereit', 'abbrechen'].includes(n.was)) return;
     if ((n.art === AKTIONEN.HANDEL && (n.was === 'anbieten' || n.was === 'zurueck')) && !gueltigerSlot(slot)) return;
+    if (n.art === AKTIONEN.AUTO && !AUTO_WAS.includes(n.was)) return;
     if (n.art === AKTIONEN.VERARZTEN && !(Number.isInteger(n.ziel) && gueltigerSlot(slot))) return;
     if (n.art === AKTIONEN.MARKER && !((n.was === 'entfernen' && Number.isInteger(n.id)) || (n.was === 'setzen' && Number.isFinite(n.x) && Number.isFinite(n.y) && typeof n.text === 'string' && n.text.length <= 200 && MARKER_SICHTEN.includes(n.sicht) && (n.id === undefined || Number.isInteger(n.id))))) return;
     if (n.art === AKTIONEN.EMOTE && !(Number.isInteger(n.wert) && n.wert >= 0 && n.wert < EMOTES.length)) return;
@@ -576,6 +578,7 @@ export class SpielServer {
     if (n.art === AKTIONEN.FUNK) Object.assign(aktion, { was: n.was, wert: n.wert ?? null }); // Runde 47
     if (n.art === AKTIONEN.EMOTE) aktion.wert = n.wert;
     if (n.art === AKTIONEN.VERARZTEN) aktion.ziel = n.ziel;
+    if (n.art === AKTIONEN.AUTO) aktion.was = n.was;
     if (n.art === AKTIONEN.MARKER) Object.assign(aktion, { was: n.was, id: n.id ?? null, x: n.x ?? null, y: n.y ?? null, text: n.text ?? '', sicht: n.sicht ?? 'ich' });
     if (n.art === AKTIONEN.AUSZIEHEN) aktion.stelle = n.stelle;
     if (n.art === AKTIONEN.ABLEGEN) aktion.einzeln = n.einzeln === true;

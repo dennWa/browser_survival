@@ -128,6 +128,7 @@ export const AKTIONEN = Object.freeze({
   HANDEL: 'handel', // Runde 24: { was: anfragen{ziel}|annehmen|ablehnen|anbieten{slot}|zurueck{slot}|bereit|abbrechen }
   HELFEN: 'helfen', // Runde 24: { ziel } Niedergestreckten mit Erste-Hilfe-Kasten wiederbeleben
   FUNK: 'funk', // Runde 47: { was: an|aus|frequenz|senden, wert } Funkgerät (funkSystem) – Frequenz in Zehntel-MHz, senden = Funk-Taste gehalten
+  AUTO: 'auto', // Runde 47: { was: tanken|reifenRein|reifenRaus|batterieRein|batterieRaus } am Auto (autoTeileSystem; Auto-Menü = Kofferraum-Fenster)
   VERARZTEN: 'verarzten', // Runde 47: { ziel, slot } Medizin aus dem eigenen Inventar am Mitspieler anwenden (mehrspielerSystem.verarzte)
   MARKER: 'marker', // Runde 47: { was: setzen{x, y, text, sicht: ich|gruppe|alle, id?} | entfernen{id} } – Kartenmarker (markerSystem)
   EMOTE: 'emote', // Runde 47: { wert: Index in gemeinsam/spieler/emotes.js } – Emoji über dem Kopf (Ereignis 'emote' an die Zone)
