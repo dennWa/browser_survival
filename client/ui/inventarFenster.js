@@ -420,6 +420,7 @@ export function itemKontextEintraege(def, eintrag = {}) {
   else if (def.kategorie === 'medizin') liste.push({ text: '🩹 Benutzen', aktion: 'konsumieren' });
   if (def.slot || def.kategorie === 'kleidung' || def.kategorie === 'rucksack') liste.push({ text: '👕 Anziehen', aktion: 'anlegen' });
   if (eintrag.defId === 'fackel') liste.push({ text: '🔥 Anzünden', aktion: 'anzuenden' });
+  if (eintrag.defId === 'funkgeraet') return [{ text: '📻 Einstellen', aktion: 'benutzen' }, { text: '⬇ Ablegen', aktion: 'ablegen' }]; // Runde 47
   if (['nahkampf', 'fernkampf', 'werkzeug', 'wurf', 'bauwerk', 'samen'].includes(def.kategorie) || def.inHand || def.werkzeug) liste.push({ text: '✋ In die Hand nehmen', aktion: 'benutzen' });
   else if (!liste.length) liste.push({ text: '✋ Nutzen', aktion: 'benutzen' });
   if (eintrag.mods?.length) liste.push({ text: '🔧 Aufsätze abnehmen', aktion: 'modsAbnehmen' });

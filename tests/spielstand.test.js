@@ -90,10 +90,12 @@ test('Kaputte oder manipulierte Spielstände werden bereinigt', () => {
         { defId: 'apfel', menge: -3 },
       ],
       ausgeruestet: 1, // Munition ist keine Waffe
+      funk: { an: 'ja', frequenz: 99999 }, // Runde 47: kaputter Funk-Zustand
     },
     welt,
   );
   assert.equal(geladen, true);
+  assert.deepEqual(spieler.funk, { an: false, frequenz: 1000 }, 'Funk-Zustand wird bereinigt');
   assert.deepEqual({ x: spieler.x, y: spieler.y }, start, 'Position in der Wand wird ignoriert');
   assert.equal(spieler.leben, spieler.maxLeben);
   assert.equal(spieler.hunger, 0);

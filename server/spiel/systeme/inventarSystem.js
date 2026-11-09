@@ -22,6 +22,7 @@ import { setzeBauBlock, baue, reisseAb } from './basisbauSystem.js';
 import { wendeItemAn } from './gesundheitSystem.js';
 import { istWasserKachel } from '../../../gemeinsam/welt/wasser.js';
 import { gruppenAktion, handelAktion, helfen } from './mehrspielerSystem.js';
+import { funkAktion } from './funkSystem.js';
 import { toeten } from './kampfSystem.js';
 
 /**
@@ -57,6 +58,10 @@ export function verarbeiteAktionen(spielWelt) {
         continue;
       }
       if (spieler.tot) continue;
+      if (aktion.art === AKTIONEN.FUNK) {
+        funkAktion(spielWelt, spieler, aktion); // Runde 47: auch im Auto und niedergestreckt (Hilferuf!)
+        continue;
+      }
       // Runde 24: niedergestreckt – nur aufgeben (bzw. Anfragen beantworten)
       if (spieler.niedergestreckt > 0) {
         if (aktion.art === AKTIONEN.AUFGEBEN) toeten(spielWelt, spieler, null, { endgueltig: true });

@@ -56,6 +56,7 @@ export const STANDARD_KONFIGURATION = Object.freeze({
       { defId: 'hammer', menge: 1 }, // Baumodus (BUILD): rüstet den Hammer aus
       { defId: 'hacke', menge: 1 }, // Erdfeld anlegen (in der Hand, dann G)
       { defId: 'munition_9mm', menge: 15 },
+      { defId: 'funkgeraet', menge: 1 }, // Runde 47: Funkgerät (Ü einstellen, Z halten = funken)
     ],
   },
   zombie: {

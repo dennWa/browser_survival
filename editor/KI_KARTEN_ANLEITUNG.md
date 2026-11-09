@@ -235,7 +235,7 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `lager` | konservendose, wasserflasche, leere_flasche, marmelade, hammer, stoff, arbeitsweste, machete |
 | `patientenzimmer` | apfel, milch, broetchen, stoff, schmerzmittel |
 | `kantine` | konservendose, sandwich, kaese, broetchen, kuechenmesser, kaffee, milch |
-| `sicherheit` | munition_9mm, pistole, munition_12, energydrink, schrotflinte |
+| `sicherheit` | munition_9mm, pistole, munition_12, energydrink, funkgeraet, schrotflinte |
 | `eingangshalle` | energydrink, muesliriegel, wasserflasche |
 | `notaufnahme` | verband, schmerzmittel, erste_hilfe_kasten, feuerwehrbeil |
 | `zombie` | munition_9mm, munition_12, verband, muesliriegel, energydrink, pfeil, munition_gewehr, munition_357 |
@@ -246,7 +246,7 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | `tankstelle` | energydrink, muesliriegel, benzin, wasserflasche, feuerzeug, sandwich, kaffee, fackel |
 | `werkstatt` | hammer, wasserflasche, falle, brecheisen, arbeitsweste, benzin, handschuhe, feuerwehrbeil |
 | `supermarkt` | konservendose, wasserflasche, broetchen, apfel, kaese, milch, marmelade, feuerzeug |
-| `polizei` | munition_9mm, munition_357, verband, kaffee, revolver, schutzweste, pistole, rucksack_gross |
+| `polizei` | munition_9mm, munition_357, verband, kaffee, revolver, funkgeraet, schutzweste, pistole |
 | `waffenkammer` | munition_9mm, munition_12, munition_357, pistole, schrotflinte, munition_gewehr, revolver, gewehr |
 | `kiosk` | energydrink, muesliriegel, papier, sandwich, wasserflasche, feuerzeug, alkohol, fackel |
 | `angler` | angel, konservendose, wasserflasche, kaffee, verband, feuerzeug, fackel, rucksack_klein |
@@ -274,7 +274,7 @@ Häufige Ablehnungen: unbekannte ID, Koordinate außerhalb des Bereichs, Kachel 
 | kleidung | `muetze` Wollmütze, `kapuzenpulli` Kapuzenpulli, `winterjacke` Winterjacke, `arbeitsweste` Arbeitsweste, `handschuhe` Handschuhe, `jeans` Jeans, `thermohose` Thermohose, `stiefel` Winterstiefel, `turnschuhe` Turnschuhe, `lederjacke` Lederjacke, `schutzweste` Schutzweste, `regenmantel` Regenmantel, `helm` Bauhelm, `motorradhelm` Motorradhelm, `kampfhose` Cargohose mit Polstern, `gummistiefel` Gummistiefel, `lederhandschuhe` Lederhandschuhe |
 | bauwerk | `werkbank` Werkbank, `lagerfeuer` Lagerfeuer, `schmelzofen` Schmelzofen, `falle` Bärenfalle, `sprengfalle` Sprengfalle, `stacheldraht` Stacheldraht, `fallgrube` Fallgrube (Bausatz), `dosenalarm` Dosenalarm |
 | wurf | `granate` Rohrbombe, `dynamit` Dynamit, `molotow` Molotowcocktail |
-| werkzeug | `feuerzeug` Feuerzeug, `feuerbohrer` Feuerbohrer, `angel` Angel |
+| werkzeug | `feuerzeug` Feuerzeug, `feuerbohrer` Feuerbohrer, `funkgeraet` Funkgerät, `angel` Angel |
 | samen | `samen_tomate` Tomatensamen, `samen_gurke` Gurkensamen, `samen_kartoffel` Saatkartoffeln, `samen_paprika` Paprikasamen, `samen_weizen` Weizenkörner, `samen_karotte` Karottensamen, `samen_kuerbis` Kürbiskerne, `samen_erdbeere` Erdbeersamen |
 
 ### Eigene 3D-Modelle (Aktion `modell`, Feld `modell` = Name ohne .glb; `hoehe` = Zielhöhe in m) – 614 Stück

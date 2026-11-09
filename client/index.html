@@ -44,6 +44,7 @@
           <!-- Runde 28: Ich-Perspektive auch am Handy (sitzt mit dem Rucksack unter der Minikarte) -->
           <button id="hud-ego" class="nur-touch" type="button" title="Ich-Perspektive an/aus (C)"><svg class="ui-icon" aria-hidden="true"><use href="#i-ego"/></svg></button>
           <button id="hud-bauen" type="button" title="Bauen (B): Basis-Flagge, Wände, Böden, Möbel – mit dem Hammer"><svg class="ui-icon" aria-hidden="true"><use href="#i-bauen"/></svg></button>
+          <button id="hud-funk" type="button" title="Funkgerät (Ü)">📻</button>
           <button id="hud-skills" type="button" title="Fähigkeiten (U)"><svg class="ui-icon" aria-hidden="true"><use href="#i-skills"/></svg></button>
           <button id="hud-kofferraum" type="button" title="Kofferraum öffnen (G)" hidden><svg class="ui-icon" aria-hidden="true"><use href="#i-kofferraum"/></svg></button>
           <button id="hud-sitzen" class="nur-touch" type="button" title="Hinsetzen / aufstehen (Ä)"><svg class="ui-icon" aria-hidden="true"><use href="#i-sitzen"/></svg></button>
@@ -58,6 +59,7 @@
         </div>
       </div>
       <div id="hud-mehr-menue" hidden></div>
+      <div id="hud-funk-anzeige" hidden></div>
       <div id="hud-werte">
         <div class="wert" id="wert-level" title="Level – 10 XP pro Zombie, beim Tod ist alles weg"><span class="symbol xp-icon"><svg class="ui-icon" aria-hidden="true"><use href="#i-xp"/></svg></span><span class="symbol" id="level-zahl">1</span><div class="balken"><div class="fuellung"></div></div><span id="level-xp"></span></div>
         <div class="wert" id="wert-leben" title="Leben"><span class="symbol"><svg class="ui-icon" aria-hidden="true"><use href="#i-leben"/></svg></span><div class="balken"><div class="fuellung"></div></div><span class="warn" aria-hidden="true">!</span></div>
@@ -163,6 +165,27 @@
       <div class="karte-rahmen"><canvas id="karte-bild"></canvas></div>
     </div>
 
+    <!-- Runde 47: Funkgerät (client/ui/funkFenster.js) -->
+    <div id="funk" hidden>
+      <div class="werkbank-kopf">
+        <h2>📻 Funkgerät</h2>
+        <button id="funk-schliessen" type="button" aria-label="Schließen">✕</button>
+      </div>
+      <div id="funk-geraet">
+        <div class="funk-anzeige"><span id="funk-frequenz">100,0</span><small>MHz</small></div>
+        <div class="einst-reihe funk-tasten">
+          <button type="button" class="einst-knopf" data-funk-schritt="-10" title="−1 MHz">◀◀</button>
+          <button type="button" class="einst-knopf" data-funk-schritt="-1" title="−0,1 MHz">◀</button>
+          <button type="button" class="einst-knopf" data-funk-schritt="1" title="+0,1 MHz">▶</button>
+          <button type="button" class="einst-knopf" data-funk-schritt="10" title="+1 MHz">▶▶</button>
+        </div>
+        <button id="funk-an" type="button" class="einst-knopf">⏻ Einschalten</button>
+        <p id="funk-info" class="werkbank-hinweis"></p>
+        <p class="werkbank-hinweis">Taste <b data-taste="funken">Z</b> (oder 📻) halten = funken. Alle auf derselben Frequenz hören dich – egal wie weit weg, auch in anderen Gebieten. Tipp: Macht mit euren Freunden eine Frequenz aus.</p>
+      </div>
+      <p id="funk-kein" class="werkbank-hinweis" hidden>Du hast kein Funkgerät dabei – such eins (Polizei, Sicherheitsdienst).</p>
+    </div>
+
     <!-- Einstellungen (⚙): Ton, Grafik, Vollbild, Abmelden – auch am Handy erreichbar -->
     <div id="einstellungen" hidden>
       <div class="werkbank-kopf">
@@ -177,10 +200,15 @@
           <h3 class="inv-titel">Sprachchat</h3>
           <div class="einst-reihe">
             <button type="button" class="einst-knopf" data-stimme="aus">Aus</button>
-            <button type="button" class="einst-knopf" data-stimme="ptt">Taste C halten</button>
+            <button type="button" class="einst-knopf" data-stimme="ptt">Taste <span data-taste="sprechen">V</span> halten</button>
             <button type="button" class="einst-knopf" data-stimme="offen">Immer an</button>
           </div>
-          <p class="werkbank-hinweis">Mitspieler in der Nähe hören dich – je näher, desto lauter. 🎤-Knopf: halten bzw. stumm schalten.</p>
+          <p class="werkbank-hinweis">Mitspieler in der Nähe hören dich – je näher, desto lauter. 🎤-Knopf: halten bzw. stumm schalten. Funken übers Funkgerät: Taste <span data-taste="funken">Z</span> halten (Funkgerät einstellen: <span data-taste="funkgeraet">Ü</span>).</p>
+          <div class="nur-maus">
+            <h3 class="inv-titel">Steuerung</h3>
+            <button id="einst-tasten-knopf" type="button" class="einst-knopf einst-details-knopf" aria-expanded="false" aria-controls="einst-tasten">⌨ Tastenbelegung ändern ▾</button>
+            <div id="einst-tasten" hidden></div>
+          </div>
         </div>
         <div>
           <h3 class="inv-titel">Grafik</h3>

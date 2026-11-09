@@ -23,7 +23,8 @@ export const NACHRICHT = Object.freeze({
   PING: 'ping',
   /** { text } – Chatnachricht an die eigene Zone; beginnt sie mit „/a “, an alle Zonen (max. CHAT_MAX_LAENGE Zeichen) */
   CHAT: 'chat',
-  /** Runde 24: { an: spielerId, signal } – WebRTC-Signal für den Sprachchat; Server reicht es als { von, signal } weiter */
+  /** Runde 24: { an: sid, signal } – WebRTC-Signal für Sprachchat/Funk; Server reicht es als { von: sid, signal } weiter.
+   *  Runde 47: Adresse = Sitzungs-ID `sid` (bleibt über Zonenwechsel gleich) – Nähe nur in derselben Zone, Funkpartner überall. */
   STIMME: 'stimme',
   /** {} – Developer-Modus: aktuelle Werte anfordern (nur Admins) */
   DEV_ABFRAGEN: 'devAbfragen',
@@ -68,6 +69,8 @@ export const NACHRICHT = Object.freeze({
   STATION: 'station',
   /** { t } */
   PONG: 'pong',
+  /** Runde 47: { an, bereit, geraet, frequenz, funkt, partner: [{ sid, name, funkt }] } – Funkgerät-Lage, nur bei Änderung (server/spiel/systeme/funkSystem.js) */
+  FUNK: 'funk',
   /** { von, text, admin, system, global, zone } – Chatnachricht (system = Server-Hinweis wie "X ist beigetreten"; global = per /a an alle Zonen, zone = Zone des Absenders); Typ wie CHAT */
   /** { felder: [{ pfad, name, gruppe, min, max, schritt, einheit, wert, standard }], ueberschreibungen } – nur an Admins */
   DEV_WERTE: 'devWerte',
@@ -122,6 +125,7 @@ export const AKTIONEN = Object.freeze({
   GRUPPE: 'gruppe', // Runde 24: { was: einladen{ziel}|annehmen|ablehnen|verlassen|entfernen{name} } (mehrspielerSystem)
   HANDEL: 'handel', // Runde 24: { was: anfragen{ziel}|annehmen|ablehnen|anbieten{slot}|zurueck{slot}|bereit|abbrechen }
   HELFEN: 'helfen', // Runde 24: { ziel } Niedergestreckten mit Erste-Hilfe-Kasten wiederbeleben
+  FUNK: 'funk', // Runde 47: { was: an|aus|frequenz|senden, wert } Funkgerät (funkSystem) – Frequenz in Zehntel-MHz, senden = Funk-Taste gehalten
   AUFGEBEN: 'aufgeben', // Runde 24: niedergestreckt → endgültig sterben
   LICHT: 'licht', // Taschenlampe an/aus (aus = Zombies bemerken einen erst aus der Nähe)
   WIEDERBELEBEN: 'wiederbeleben', // tot → sofort am Startpunkt neu spawnen (statt Countdown abzuwarten)

@@ -7,6 +7,7 @@ import { wendeSkillsAn } from './systeme/levelSystem.js';
 import { SKILLS, leereSkills } from '../../gemeinsam/spieler/skills.js';
 import { pruefeAussehen, CHARAKTERNAME_MUSTER } from '../../gemeinsam/spieler/aussehen.js';
 import { entpackeErkundet, packeErkundet } from '../../gemeinsam/welt/erkundung.js';
+import { FUNK_ITEM, pruefeFunk } from './systeme/funkSystem.js';
 
 /**
  * Spielstand eines Spielers: was beim Ausloggen erhalten bleibt.
@@ -58,6 +59,7 @@ export function erstelleSpielstand(spieler, kartenId) {
     ziele: spieler.ziele ? { zaehler: { ...spieler.ziele.zaehler }, erledigt: [...spieler.ziele.erledigt], kapitel: spieler.ziele.kapitel } : undefined, // Phase 4.15: Tagebuch (bleibt über den Tod)
     spawn: spieler.spawn ? { ...spieler.spawn } : null,
     flaggeKarte: spieler.flaggeKarte,
+    funk: spieler.funk ? { an: spieler.funk.an === true, frequenz: spieler.funk.frequenz } : undefined, // Runde 47
     erkundet,
     gespeichert: new Date().toISOString(),
   };
@@ -126,6 +128,9 @@ export function wendeSpielstandAn(spieler, stand, spielWelt) {
     });
     for (const u of ueberschuss) fuegeZumInventarHinzu(spieler, u.defId, u.menge);
   }
+  // Runde 47: Funkgerät – Stände von vor Runde 47 (ohne `funk`) bekommen das Gerät einmalig nachgeliefert
+  spieler.funk = pruefeFunk(stand.funk);
+  if (stand.funk === undefined && !spieler.inventar.some((e) => e?.defId === FUNK_ITEM)) fuegeZumInventarHinzu(spieler, FUNK_ITEM, 1);
   const slot = stand.ausgeruestet;
   const waffe = Number.isInteger(slot) ? spieler.inventar[slot] : null;
   const kategorie = waffe && GEGENSTAENDE[waffe.defId].kategorie;

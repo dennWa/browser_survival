@@ -333,7 +333,7 @@ export class Hud {
   /** Runde 27: Touch → seltene Knöpfe + Serverzeile ins ☰-Menü (mit Beschriftung), PC → zurück in die obere Leiste. */
   #ordneMehrMenue(istTouch) {
     const leiste = this.el.mehr.parentElement;
-    const knoepfe = ['hud-chat', 'hud-skills', 'hud-sitzen', 'hud-feld', 'hud-zoom', 'hud-admin', 'hud-einstellungen'].map((id) => this.dokument.getElementById(id));
+    const knoepfe = ['hud-chat', 'hud-funk', 'hud-skills', 'hud-sitzen', 'hud-feld', 'hud-zoom', 'hud-admin', 'hud-einstellungen'].map((id) => this.dokument.getElementById(id));
     if (istTouch) {
       this.el.mehrMenue.replaceChildren(this.el.status, ...knoepfe);
       for (const k of knoepfe) {

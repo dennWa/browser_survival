@@ -1,43 +1,16 @@
 import { TouchSteuerung } from './touchSteuerung.js';
+import { TASTEN, aktionenFuer } from './tastenBelegung.js';
 
 /**
  * Alle Eingaben an einer Stelle: Tastatur, Maus und Touch (virtuelle Joysticks).
  * Der Rest des Spiels fragt nur richtung() und blickWinkel() ab – egal welches Gerät.
  *
  * Tastatur nutzt event.code (physische Taste) → WASD klappt auf QWERTZ, QWERTY, AZERTY.
- * Tastenbelegung: TASTEN unten anpassen.
+ * Runde 47: Belegung kommt aus `tastenBelegung.js` (frei einstellbar, ⚙ Einstellungen) und wird bei JEDEM Tastendruck
+ * neu nachgeschlagen – beiTaste(aktion, fn) hängt an der Aktion, nicht an der Taste. Mittlere Maustaste und die
+ * Seitentasten zählen als Tasten `Maus1|Maus3|Maus4` (z. B. Funken auf Maus 4).
  */
-export const TASTEN = Object.freeze({
-  oben: ['KeyW', 'ArrowUp'],
-  unten: ['KeyS', 'ArrowDown'],
-  links: ['KeyA', 'ArrowLeft'],
-  rechts: ['KeyD', 'ArrowRight'],
-  angriff: ['Space'], // zusätzlich: linke Maustaste
-  sprint: ['ShiftLeft', 'ShiftRight'],
-  aufheben: ['KeyE'], // Aufheben / Abbauen / Werkbank / Schlafen – je nachdem, was in der Nähe ist
-  menue: ['Escape'], // offene Menüs schließen
-  karte: ['KeyM', 'KeyK'], // Karte auf/zu (Runde 23: M, K bleibt als Zweitbelegung)
-  inventar: ['Tab'], // Inventar-Fenster auf/zu
-  bauen: ['KeyB'], // Bau-Modus (BUILD) an/aus – R dreht dort das Bauteil; Admin: Umschalt+B = Flugmodus
-  abriss: ['KeyX'], // im Bau-Modus: Abriss-Werkzeug
-  gebiet: ['KeyV'], // roten Baugebiet-Ring ein-/ausblenden (Hammer in der Hand)
-  skills: ['KeyU'], // Fähigkeiten (Skillpunkte verteilen)
-  tagebuch: ['KeyJ'], // Phase 4.15: Überlebens-Tagebuch (Kapitel & Ziele) auf/zu
-  fallenlassen: ['KeyQ'], // Item fallen lassen (unter der Maus im Inventar, sonst das in der Hand)
-  chat: ['KeyT'], // Chat-Eingabe öffnen
-  sprechen: ['KeyC'], // Runde 24: Sprachchat Push-to-talk (halten)
-  spielerliste: ['KeyI'], // Spieler-Info: wer ist online (Level, Kills, überlebte Zeit)
-  kofferraum: ['KeyG'], // Kofferraum des Autos öffnen (daneben stehen oder drinsitzen)
-  autorun: ['Backquote'], // ^ (deutsche Tastatur): Autorun an/aus – läuft sprintend in Blickrichtung, WASD beendet
-  sitzen: ['Quote'], // Ä (deutsche Tastatur; physisch die '-Taste): hinsetzen/aufstehen – überall, am Lagerfeuer heilend
-  tuer: ['KeyF'], // Lagerfeuer an/aus (Name historisch)
-  nachladen: ['KeyR'],
-  licht: ['KeyL'], // Taschenlampe an/aus
-  wiederbeleben: ['Enter'], // tot → sofort neu spawnen
-  admin: ['KeyP'], // Admin-Menü (nur Admins)
-  ton: [], // Ton an/aus (M ist seit Runde 23 die Karte; Ton im ⚙-Menü)
-  debug: ['F3'],
-});
+export { TASTEN } from './tastenBelegung.js';
 
 /** Schnellleiste: Taste n benutzt/rüstet Inventarplatz n-1 aus. */
 const SLOT_TASTEN = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9', 'Digit0']; // 0 = Platz 10
@@ -47,7 +20,7 @@ const TOUCH_FEUER_SCHWELLE = 0.85;
 
 export class Eingabe {
   #gedrueckt = new Set();
-  #tastenHoerer = new Map(); // code → [fn]
+  #tastenHoerer = new Map(); // aktion → [fn]
   #slotHoerer = [];
   #aktiv = false;
   #mausGedrueckt = false;
@@ -66,14 +39,31 @@ export class Eingabe {
 
     fenster.addEventListener('keydown', (e) => {
       if (!this.#aktiv || istEingabefeld(e.target)) return;
-      if (TASTEN.debug.includes(e.code) || TASTEN.angriff.includes(e.code) || TASTEN.inventar.includes(e.code) || TASTEN.chat.includes(e.code)) e.preventDefault();
-      if (!e.repeat) {
-        for (const fn of this.#tastenHoerer.get(e.code) ?? []) fn();
+      const aktionen = aktionenFuer(e.code);
+      if (aktionen.length > 0 && e.code !== 'Escape') e.preventDefault(); // Tab, Leertaste, F3, ' … lösen keine Browser-Aktion aus
+      if (!e.repeat && !e.ctrlKey && !e.metaKey) { // Strg/⌘-Kürzel (Kopieren, Tab schließen …) lösen keine Spielaktion aus
+        this.#loese(aktionen);
         const slot = SLOT_TASTEN.indexOf(e.code);
         if (slot >= 0) for (const fn of this.#slotHoerer) fn(slot);
       }
       this.#gedrueckt.add(e.code);
     });
+    // Runde 47: Maus Mitte (1) und Seitentasten (3/4) als belegbare „Tasten“ – Zurück/Vor des Browsers unterdrücken
+    const mausCode = (e) => (e.pointerType !== 'touch' && [1, 3, 4].includes(e.button) ? `Maus${e.button}` : null);
+    fenster.addEventListener('pointerdown', (e) => {
+      const code = mausCode(e);
+      if (!code || !this.#aktiv || istEingabefeld(e.target)) return;
+      if (aktionenFuer(code).length > 0) e.preventDefault();
+      if (!this.#gedrueckt.has(code)) this.#loese(aktionenFuer(code));
+      this.#gedrueckt.add(code);
+    });
+    fenster.addEventListener('pointerup', (e) => {
+      const code = mausCode(e);
+      if (!code) return;
+      this.#gedrueckt.delete(code);
+      if (this.#aktiv && aktionenFuer(code).length > 0) e.preventDefault();
+    });
+    for (const art of ['mouseup', 'auxclick']) fenster.addEventListener(art, (e) => this.#aktiv && [3, 4].includes(e.button) && e.preventDefault());
     fenster.addEventListener('keyup', (e) => this.#gedrueckt.delete(e.code));
     fenster.addEventListener('blur', () => {
       this.zuruecksetzen();
@@ -156,9 +146,19 @@ export class Eingabe {
     return TASTEN.sprint.some((c) => this.#gedrueckt.has(c)) || this.touch.sprint();
   }
 
-  /** Runde 24: Push-to-talk gehalten? */
+  /** Wird die Taste der Aktion gerade gehalten? (Push-to-talk, Funken …) */
+  gehalten(aktion) {
+    return this.#aktiv && (TASTEN[aktion] ?? []).some((c) => this.#gedrueckt.has(c));
+  }
+
+  /** Runde 24: Push-to-talk (Nähe) gehalten? */
   sprechen() {
-    return this.#aktiv && TASTEN.sprechen.some((c) => this.#gedrueckt.has(c));
+    return this.gehalten('sprechen');
+  }
+
+  /** Runde 47: Funk-Taste gehalten? */
+  funken() {
+    return this.gehalten('funken');
   }
 
   /** fn(slotIndex) bei Tasten 1–9 und 0 (= Platz 10) */
@@ -191,12 +191,14 @@ export class Eingabe {
     return null;
   }
 
-  /** Einmal-Aktion bei Tastendruck (z. B. Debug umschalten). */
+  /** Einmal-Aktion bei Tastendruck (z. B. Debug umschalten) – gilt für die jeweils aktuelle Belegung der Aktion. */
   beiTaste(aktion, fn) {
-    for (const code of TASTEN[aktion]) {
-      if (!this.#tastenHoerer.has(code)) this.#tastenHoerer.set(code, []);
-      this.#tastenHoerer.get(code).push(fn);
-    }
+    if (!this.#tastenHoerer.has(aktion)) this.#tastenHoerer.set(aktion, []);
+    this.#tastenHoerer.get(aktion).push(fn);
+  }
+
+  #loese(aktionen) {
+    for (const aktion of aktionen) for (const fn of this.#tastenHoerer.get(aktion) ?? []) fn();
   }
 
   zuruecksetzen() {

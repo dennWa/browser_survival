@@ -183,6 +183,7 @@ const ROH_GEGENSTAENDE = {
   fisch_barsch_gebraten: { name: 'Gebratener Barsch', kategorie: 'nahrung', naehrwert: 24, verdirbt: 1800 },
   fisch_forelle_gebraten: { name: 'Gebratene Forelle', kategorie: 'nahrung', naehrwert: 30, verdirbt: 1800 },
   fisch_hecht_gebraten: { name: 'Gebratener Hecht', kategorie: 'nahrung', naehrwert: 40, verdirbt: 1800 },
+  funkgeraet: { name: 'Funkgerät', kategorie: 'werkzeug', beschreibung: 'Einschalten + Frequenz einstellen (Ü), Taste Z halten = funken. Alle auf derselben Frequenz hören dich – egal wie weit weg.' }, // Runde 47
   angel: { name: 'Angel', kategorie: 'werkzeug', inHand: true, ausruestung: 'angel', beschreibung: 'Am Ufer Linksklick: auswerfen – wackelt die Pose, nochmal klicken' },
   // Runde 24 (P11/P12): Gesundheit, Wasser, Küche & Vorräte (systeme/gesundheitSystem.js; Orte: gemeinsam/spieler/handwerk.js)
   antibiotika: { name: 'Antibiotika', kategorie: 'medizin', heilung: 5, heilt: ['infektion', 'erkaeltung'], beschreibung: 'Bekämpft eine Wundinfektion und Erkältungen' },

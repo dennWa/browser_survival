@@ -89,6 +89,8 @@ export class ClientSpiel {
 
     this.serverName = anmeldeDaten.serverName;
     this.eigeneId = anmeldeDaten.spielerId;
+    this.eigeneSid = anmeldeDaten.sid ?? null; // Runde 47: Sprachchat-/Funk-Adresse (bleibt über Zonenwechsel gleich)
+    this.funkLage = null; // Runde 47: NACHRICHT.FUNK { an, bereit, geraet, frequenz, funkt, partner }
     this.welt = welt ?? new Welt(anmeldeDaten.karte); // welt: schon vom Ladebildschirm gebaut (main.js)
     this.behaelter = findeBehaelter(this.welt); // Runde 25: Schränke/Kisten der Karte (gleiche Nummern wie der Server)
     this.musikOrdner = anmeldeDaten.karte.musik ?? this.welt.id; // Musik-Ordner der Zone (Map-Editor: Feld musik)
@@ -228,8 +230,9 @@ export class ClientSpiel {
 
   #aufraeumen() {
     this.beendet = true;
-    this.stimme?.beenden(); // Runde 24: Mikro aus, Verbindungen zu; eigene DOM-Teile weg (nächste Sitzung baut neu)
-    this.stimme?.knopf.remove();
+    this.stimme?.entfernen(); // Runde 24: Mikro aus, Verbindungen zu; eigene DOM-Teile weg (nächste Sitzung baut neu)
+    this.hud.funkAnzeige?.(null); // Runde 47
+    this.hud.funk?.zeige(false);
     this.mehrspieler?.el.remove();
     this.tagebuch?.entfernen();
     this.grusel?.stoppe();
@@ -480,7 +483,7 @@ export class ClientSpiel {
   /** Ist irgendein Fenster/Modus offen, den Esc zuerst schließen soll? */
   etwasOffen() {
     const h = this.hud;
-    return !!(this.karte.offen || h.inventar.offen || h.skills.offen || h.einstellungen.offen || h.kiste.offen || h.station.offen || this.werkbankOffen || this.musikFenster?.offen || this.mehrspieler?.offen || this.bau.aktiv || this.platzierung || this.autoLauf);
+    return !!(this.karte.offen || h.inventar.offen || h.skills.offen || h.einstellungen.offen || h.kiste.offen || h.station.offen || this.werkbankOffen || this.musikFenster?.offen || this.mehrspieler?.offen || h.funk?.offen || this.bau.aktiv || this.platzierung || this.autoLauf);
   }
 
   /**
@@ -489,13 +492,13 @@ export class ClientSpiel {
    */
   #spielVerdeckt() {
     const h = this.hud;
-    return !!(this.karte.offen || h.inventar.offen || h.skills.offen || h.kiste.offen || h.station.offen || this.werkbankOffen || this.musikFenster?.offen || this.mehrspieler?.offen);
+    return !!(this.karte.offen || h.inventar.offen || h.skills.offen || h.kiste.offen || h.station.offen || this.werkbankOffen || this.musikFenster?.offen || this.mehrspieler?.offen || h.funk?.offen);
   }
 
   /** Fenster offen, durch das ein Klick ins Spiel NICHT schießen soll (Bau-/Platzier-Modus brauchen den Klick). */
   fensterOffen() {
     const h = this.hud;
-    return !!(this.karte.offen || h.inventar.offen || h.skills.offen || h.einstellungen.offen || h.kiste.offen || h.station.offen || this.werkbankOffen || this.musikFenster?.offen || this.mehrspieler?.offen);
+    return !!(this.karte.offen || h.inventar.offen || h.skills.offen || h.einstellungen.offen || h.kiste.offen || h.station.offen || this.werkbankOffen || this.musikFenster?.offen || this.mehrspieler?.offen || h.funk?.offen);
   }
 
   menuesSchliessen() {
@@ -503,6 +506,7 @@ export class ClientSpiel {
     if (this.schlaeft && !this.etwasOffen()) this.#aktion(AKTIONEN.SCHLAFEN);
     this.karte.zeige(false);
     this.musikFenster?.zeige(null);
+    this.hud.funk?.zeige(false); // Runde 47
     this.hud.statusErklaerungUmschalten?.(false); // Runde 28
     this.hud.entwickler.zeige(false);
     this.hud.inventar.zeige(false);
@@ -905,9 +909,21 @@ export class ClientSpiel {
     if (this.bau.beiWaffenwahl(slot)) return; // Hammer ist schon in der Hand – nicht abrüsten
     this.letzterSlot = slot;
     const eintrag = this.spielerDaten?.inventar[slot];
+    if (eintrag?.defId === 'funkgeraet') return this.funkgeraetUmschalten(); // Runde 47: Funkgerät → Einstellfenster
     const def = eintrag && this.itemDefinitionen[eintrag.defId];
     if (def && def.bauwerk && !this.spielerDaten.tot) return this.#startePlatzierung(slot, eintrag.defId, def);
     this.#aktion(AKTIONEN.BENUTZEN, slot);
+  }
+
+  /** Runde 47: Funkgerät-Fenster auf/zu (Taste Ü, 📻, Inventar). */
+  funkgeraetUmschalten() {
+    this.hud.funk?.setzeLage(this.funkLage ?? { geraet: this.spielerDaten?.inventar.some((e) => e?.defId === 'funkgeraet') });
+    this.hud.funk?.umschalten();
+  }
+
+  /** Runde 47: Funkgerät an/aus/Frequenz (FunkFenster) */
+  funk(was, wert) {
+    this.#senden({ typ: NACHRICHT.AKTION, art: AKTIONEN.FUNK, was, ...(wert !== undefined ? { wert } : {}) });
   }
 
   /** Q: Platz unter der Maus (Inventar offen) → sonst Waffe in der Hand → sonst zuletzt benutzter Schnellleisten-Platz. */
@@ -1029,6 +1045,11 @@ export class ClientSpiel {
         break;
       case NACHRICHT.STIMME:
         this.stimme?.beiSignal(n.von, n.signal);
+        break;
+      case NACHRICHT.FUNK: // Runde 47: Funkgerät-Lage (Partner über alle Zonen)
+        this.funkLage = n;
+        this.stimme?.setzeFunk(n);
+        this.hud.funk?.setzeLage(n);
         break;
       case NACHRICHT.CHAT:
         this.hud.chatNachricht(n);
@@ -1680,15 +1701,24 @@ export class ClientSpiel {
     if (!this.spielerDaten?.tot) this.karte.aktualisiere(eigen, jetzt);
     if (this.physik.ausdauerMax) this.hud.setzeAusdauer(this.lokal.ausdauer / this.physik.ausdauerMax, this.lokal.erschoepft);
     const andere = this.#interpolierteEntitaeten(jetzt);
-    if (this.stimme?.modus !== 'aus') {
-      // Runde 24 (P15): Sprachchat – Push-to-talk (C) und Abstand der Mitspieler
+    if (this.stimme) {
+      // Runde 24 (P15): Sprachchat – Push-to-talk (Taste „sprechen“) und Abstand der Mitspieler
       const c = this.eingabe.sprechen();
       if (c !== this.pttVorher) this.stimme.sprechen(c);
       this.pttVorher = c;
+      // Runde 47: Funken (Taste „funken“ oder 📻 halten) – Server erfährt es (Partner hören Knacken, sehen den Namen)
+      const f = (this.eingabe.funken() || this.stimme.funkKnopfGehalten) && !!this.funkLage?.bereit;
+      if (f !== !!this.funkVorher) {
+        this.stimme.funken(f);
+        this.funk('senden', f);
+      }
+      this.funkVorher = f;
       const mit = [];
       for (const e of andere) if (e.typ === 'spieler' && e.id !== this.eigeneId && !e.bot) mit.push(e);
-      this.stimme.aktualisiere({ id: this.eigeneId, x: eigen.x, y: eigen.y }, mit, (jetzt - (this.stimmZeit ?? jetzt)) / 1000);
+      this.stimme.aktualisiere({ sid: this.eigeneSid, x: eigen.x, y: eigen.y }, mit, (jetzt - (this.stimmZeit ?? jetzt)) / 1000);
       this.stimmZeit = jetzt;
+      const sprecher = f ? null : this.stimme.funkSprecher;
+      this.hud.funkAnzeige?.(f ? { sende: true } : sprecher?.length ? { namen: sprecher } : null);
     }
     // Eigenes Auto: aus der Vorhersage (weich interpoliert) statt aus den verzögerten Schnappschüssen
     const fz = this.lokal.fahrzeug;

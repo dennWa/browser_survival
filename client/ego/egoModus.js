@@ -1,3 +1,4 @@
+import { beiAenderung, tasteVon } from '../kern/tastenBelegung.js';
 /**
  * EGO-PROTOTYP (Ich-Perspektive) – Taste C bzw. (Runde 28) Ego-Knopf im HUD am Handy.
  * Handy: rechter Stick dreht den Blick (links/rechts = drehen, hoch/runter = neigen; ganz ausgelenkt schießt er wie sonst),
@@ -40,14 +41,13 @@ export class EgoModus {
     this.fadenkreuz = Object.assign(document.createElement('div'), { id: 'ego-fadenkreuz', hidden: true });
     this.fadenkreuz.style.cssText = 'position:fixed;left:50%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;pointer-events:none;z-index:5;' +
       'background:radial-gradient(circle,#fff 0 1.5px,transparent 2px),linear-gradient(#fff,#fff) center/1.5px 100% no-repeat,linear-gradient(#fff,#fff) center/100% 1.5px no-repeat;opacity:.8;mix-blend-mode:difference';
-    this.hinweis = Object.assign(document.createElement('div'), { hidden: true, textContent: 'Ich-Perspektive: Klick = Maus fangen · Alt halten = Maus frei fürs HUD · C = zurück' });
+    this.hinweis = Object.assign(document.createElement('div'), { hidden: true });
     this.hinweis.style.cssText = 'position:fixed;left:50%;bottom:90px;transform:translateX(-50%);padding:6px 14px;background:rgba(0,0,0,.6);color:#fff;border-radius:14px;z-index:5;pointer-events:none;font-size:.85rem';
     document.body.append(this.fadenkreuz, this.hinweis);
 
-    window.addEventListener('keydown', (e) => {
-      if (e.code !== 'KeyC' || e.repeat || e.ctrlKey || e.metaKey || ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target?.tagName)) return;
-      this.umschalten();
-    });
+    eingabe.beiTaste('ego', () => this.umschalten()); // Runde 47: Taste frei belegbar (Standard C)
+    beiAenderung(() => this.#hinweisText());
+    this.#hinweisText();
     document.addEventListener('mousemove', (e) => {
       if (!this.#aktiv || document.pointerLockElement !== this.leinwand) return;
       if (this.holeSpiel()?.abbauBlick?.() != null) return; // Runde 38: beim Fällen/Abbauen ist der Blick fixiert
@@ -78,6 +78,10 @@ export class EgoModus {
       }
     });
     window.addEventListener('blur', () => (this.#altGehalten = false));
+  }
+
+  #hinweisText() {
+    this.hinweis.textContent = `Ich-Perspektive: Klick = Maus fangen · Alt halten = Maus frei fürs HUD · ${tasteVon('ego')} = zurück`;
   }
 
   umschalten() {

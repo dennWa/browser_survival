@@ -1015,6 +1015,15 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
 .einst-wahl-knopf.aktiv { background: var(--akzent); border-color: var(--akzent); color: #fff; }
 .einst-wahl-knopf.auto-wert { border: 1px dashed var(--akzent-hell); }
 #einst-details-hilfe { margin-top: 8px; }
+/* Runde 47: Tastenbelegung (⚙ → ⌨) – je Aktion Name + 2 Plätze; nur mit Maus/Tastatur sichtbar */
+#einst-tasten { margin-top: 4px; }
+.tasten-gruppe { margin: 10px 0 2px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-gedimmt); }
+.tasten-zeile { display: grid; grid-template-columns: 1fr 6.2em 6.2em; align-items: center; gap: 4px; margin-top: 3px; font-size: 0.85rem; }
+.tasten-platz { min-height: 30px; }
+.tasten-platz.leer { opacity: 0.55; }
+.tasten-fuss { margin-top: 10px; }
+.tasten-meldung { min-height: 2.4em; }
+@media (hover: none) and (pointer: coarse) { .nur-maus { display: none; } }
 @media (max-width: 420px) {
   .einst-detail { grid-template-columns: 1fr; }
 }
@@ -1448,6 +1457,24 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
 #stimm-knopf { position: fixed; right: 16px; bottom: 150px; z-index: 30; width: 52px; height: 52px; border-radius: 50%; font-size: 1.4rem; border: 2px solid rgba(255, 255, 255, 0.35); background: rgba(30, 30, 34, 0.7); color: #fff; cursor: pointer; touch-action: none; user-select: none; }
 #stimm-knopf[hidden] { display: none; }
 #stimm-knopf.sendet { background: rgba(40, 150, 70, 0.85); box-shadow: 0 0 14px rgba(80, 220, 120, 0.8); }
+/* Runde 47: Funkgerät – Sprechknopf über dem Mikrofon, Fenster, HUD-Anzeige „📻 Name“ */
+#funk-knopf { position: fixed; right: 16px; bottom: 210px; z-index: 30; width: 52px; height: 52px; border-radius: 50%; font-size: 1.4rem; border: 2px solid rgba(226, 170, 40, 0.7); background: rgba(30, 30, 34, 0.7); color: #fff; cursor: pointer; touch-action: none; user-select: none; }
+#funk-knopf[hidden] { display: none; }
+#funk-knopf.sendet { background: rgba(200, 70, 40, 0.9); box-shadow: 0 0 14px rgba(255, 120, 60, 0.85); }
+#funk {
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 21; pointer-events: auto;
+  width: min(360px, calc(100vw - 24px)); padding: 14px 16px; color: var(--text); background: rgba(16, 18, 22, 0.97);
+  border: 1px solid rgba(226, 170, 40, 0.45); border-radius: 14px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+#funk #funk-schliessen { width: 38px; height: 38px; font-size: 1.1rem; color: var(--text); background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 50%; }
+.funk-anzeige { display: flex; align-items: baseline; justify-content: center; gap: 6px; margin: 6px 0 10px; padding: 10px; font: 700 2.2rem/1 ui-monospace, monospace; color: #5d7a5d; background: #121612; border-radius: 10px; letter-spacing: 0.06em; }
+.funk-anzeige small { font-size: 0.9rem; }
+#funk.an .funk-anzeige { color: #8ee08e; text-shadow: 0 0 8px rgba(120, 230, 120, 0.6); }
+.funk-tasten { margin-bottom: 8px; }
+#funk-an { width: 100%; }
+#hud-funk-anzeige { position: fixed; left: 50%; top: 64px; transform: translateX(-50%); z-index: 6; padding: 4px 12px; font-size: 0.9rem; font-weight: 600; color: #ffe2a0; background: rgba(40, 30, 10, 0.75); border: 1px solid rgba(226, 170, 40, 0.6); border-radius: 14px; pointer-events: none; }
+#hud-funk-anzeige[hidden] { display: none; }
+#hud-funk-anzeige.sende { color: #fff; background: rgba(170, 50, 30, 0.85); }
 .einst-knopf.aktiv { outline: 2px solid #e0b040; }
 
 /* Grafiktreiber-Absturz (WebGL-Kontext verloren) – main.js grafikAbsturz */

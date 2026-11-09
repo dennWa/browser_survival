@@ -8,6 +8,7 @@ import { leereSkills } from '../../../gemeinsam/spieler/skills.js';
 import { tutorialFuerClient } from '../systeme/tutorialSystem.js';
 import { aussehenKompakt, pruefeAussehen } from '../../../gemeinsam/spieler/aussehen.js';
 import { gruppeFuerClient, handelFuerClient } from '../systeme/mehrspielerSystem.js';
+import { neuerFunk } from '../systeme/funkSystem.js';
 
 /**
  * Spieler-Entität ("Männeken").
@@ -69,6 +70,11 @@ export function erzeugeSpieler({ id, benutzername, x, y, konfiguration, admin = 
     flaggeKarte: null,
     /** Aussehen (gemeinsam/spieler/aussehen.js) – öffentlich */
     aussehen: pruefeAussehen(null),
+    /** Runde 47: Sitzungs-ID (SpielServer setzt sie, bleibt über Zonenwechsel gleich) – Adresse für Sprachchat/Funk; Bots: null */
+    sid: null,
+    /** Runde 47: Funkgerät { an, frequenz } (systeme/funkSystem.js, im Spielstand) und ob gerade gefunkt wird (öffentlich: 📻 über dem Kopf) */
+    funk: neuerFunk(),
+    funkt: false,
     // [privat]
     admin, // darf Admin-Befehle benutzen (kommt von der Authentifizierung)
     hunger: k.startHunger, // 100 = satt, 0 = verhungert
@@ -144,6 +150,8 @@ export function spielerZuNetzwerk(s) {
     // Im Auto: genauer Fahrzustand (der eigene Client rechnet damit die Vorhersage nach)
     fahrzeug: s.fahrzeug ? { id: s.fahrzeug.id, winkel: s.fahrzeug.winkel, tempo: s.fahrzeug.tempo, lenkung: s.fahrzeug.lenkung ?? 0, laenge: s.fahrzeug.laenge, breite: s.fahrzeug.breite, modell: s.fahrzeug.modell, leben: Math.round(s.fahrzeug.leben * 10) / 10, maxLeben: s.fahrzeug.maxLeben } : null,
     mitfahrt: s.mitfahrt ? s.mitfahrt.id : undefined, // Runde 28: Beifahrer in Fahrzeug-ID (Figur unsichtbar, keine Vorhersage)
+    sid: s.sid ?? undefined, // Runde 47: Sprachchat-Adresse (stimmChat.js)
+    funkt: s.funkt || undefined, // Runde 47: spricht gerade ins Funkgerät (📻 über dem Kopf)
     seq: s.letzteVerarbeiteteSeq,
   };
 }

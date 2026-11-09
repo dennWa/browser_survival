@@ -31,6 +31,7 @@ import { BAUTEILE } from '../../gemeinsam/basisbau/teile.js';
 import { EBENEN } from '../../gemeinsam/welt/bauwerke.js';
 import { spawnPunkt } from './systeme/spawnSystem.js';
 import { loeseFahrzeugFuerWechsel, parkeZurueck, setzeFahrzeugEin } from './systeme/fahrzeugSystem.js';
+import { funkLagen, pruefeFrequenz, sindFunkpartner } from './systeme/funkSystem.js';
 
 /** Danach wird die Verbindung getrennt (Schutz gegen Passwort-Raten). */
 const MAX_FEHLVERSUCHE = 5;
@@ -88,6 +89,7 @@ export class SpielServer {
     /** Runde 42: Zone für neue Charaktere (Lagerplatz) – mit eigener Testkarte aus (Tests behalten ihre Startkarte) */
     this.ankunftsKarte = kartenDefinition ? null : (this.konfiguration.welt.ankunftsKarte ?? null);
     this.sitzungen = new Set();
+    this.naechsteSid = 0; // Runde 47: Sitzungs-IDs (Sprachchat/Funk-Adresse, bleibt über Zonenwechsel gleich)
     this.weltGeladen = this.startZone.geladen;
     this.taktgeber = new Taktgeber(TICK_DAUER_MS, () => this.tickAusfuehren());
   }
@@ -241,6 +243,7 @@ export class SpielServer {
     this.autosaveAuftraege.shift()?.();
 
     if (this.tickZaehler++ % TICK_RATE === 0) this.#sendeSpielerListe();
+    this.#sendeFunk(); // Runde 47: nur Änderungen (wer funkt, Partner, Frequenz)
     proZone = this.#sitzungenProZone(); // nach den Zonenwechseln
     for (const zone of aktive) zone.versende(proZone.get(zone) ?? [], (sitzung) => this.#sendePrivateDaten(sitzung));
   }
@@ -299,6 +302,7 @@ export class SpielServer {
     this.#aktiviere(zone);
     const neu = zone.spielWelt.spielerBetrittWelt(sitzung.benutzername, { admin: spieler.admin });
     wendeSpielstandAn(neu, stand, zone.spielWelt);
+    neu.sid = sitzung.sid;
     // Respawn am Bett einer anderen Zone: neben dem Bett aufwachen (fehlt es inzwischen, normaler Start dieser Zone)
     let punkt = null;
     if (spawn) {
@@ -321,6 +325,7 @@ export class SpielServer {
     sitzung.spielerId = neu.id;
     sitzung.zonenStand = null;
     sitzung.letzteSpielerDaten = null;
+    sitzung.letzterFunk = null; // Runde 47: neue ClientSpiel-Sitzung braucht die Funk-Lage wieder
     sitzung.status = 'imSpiel';
     zone.spielWelt.melde(neu.id, `Du betrittst: ${zone.name}`);
     this.letzteSpielerListe = null; // neuer Client nach dem Ladebild braucht die Liste wieder
@@ -332,6 +337,7 @@ export class SpielServer {
   #startDaten(zone, spieler) {
     return {
       spielerId: spieler.id,
+      sid: spieler.sid ?? null, // Runde 47: eigene Sprachchat-/Funk-Adresse
       serverName: this.konfiguration.server.name,
       tickRate: TICK_RATE,
       start: { x: spieler.x, y: spieler.y },
@@ -456,6 +462,8 @@ export class SpielServer {
     this.#aktiviere(zone);
     const spieler = zone.spielWelt.spielerBetrittWelt(name, { admin: ergebnis.admin === true });
     const geladen = wendeSpielstandAn(spieler, spielstand, zone.spielWelt);
+    sitzung.sid ??= ++this.naechsteSid;
+    spieler.sid = sitzung.sid;
     // Beim Login gewählte Figur gilt (und landet im Spielstand)
     if (nachricht.aussehen && typeof nachricht.aussehen === 'object') spieler.aussehen = pruefeAussehen(nachricht.aussehen);
     // Charaktername (Anzeige über dem Kopf/Spielerliste); Konto-/Gastname bleibt die Kennung
@@ -540,6 +548,7 @@ export class SpielServer {
     if (n.art === AKTIONEN.GRUPPE && !['einladen', 'annehmen', 'ablehnen', 'verlassen', 'entfernen'].includes(n.was)) return;
     if (n.art === AKTIONEN.HANDEL && !['anfragen', 'annehmen', 'ablehnen', 'anbieten', 'zurueck', 'bereit', 'abbrechen'].includes(n.was)) return;
     if ((n.art === AKTIONEN.HANDEL && (n.was === 'anbieten' || n.was === 'zurueck')) && !gueltigerSlot(slot)) return;
+    if (n.art === AKTIONEN.FUNK && !(['an', 'aus'].includes(n.was) || (n.was === 'frequenz' && pruefeFrequenz(n.wert) !== null) || (n.was === 'senden' && typeof n.wert === 'boolean'))) return;
     if (spieler.aktionsPuffer.length >= MAX_AKTIONS_PUFFER) return;
     const aktion = { art: n.art, slot };
     if (n.art === AKTIONEN.ADMIN) aktion.befehl = n.befehl;
@@ -556,6 +565,7 @@ export class SpielServer {
       Object.assign(aktion, { was: n.was ?? null, ziel: Number.isInteger(n.ziel) ? n.ziel : null, name: typeof n.name === 'string' ? n.name.slice(0, 20) : null });
     }
     if (n.art === AKTIONEN.TAUSCHEN || n.art === AKTIONEN.AUFHEBEN) aktion.ziel = n.ziel; // Aufheben: gezielt aus der Umgebungs-Liste (Runde 29)
+    if (n.art === AKTIONEN.FUNK) Object.assign(aktion, { was: n.was, wert: n.wert ?? null }); // Runde 47
     if (n.art === AKTIONEN.AUSZIEHEN) aktion.stelle = n.stelle;
     if (n.art === AKTIONEN.ABLEGEN) aktion.einzeln = n.einzeln === true;
     if (n.art === AKTIONEN.PLATZIEREN || n.art === AKTIONEN.FELD || n.art === AKTIONEN.FELD_ENTFERNEN) Object.assign(aktion, { tx: n.tx, ty: n.ty });
@@ -594,16 +604,39 @@ export class SpielServer {
     }
   }
 
-  /** Runde 24 (P15): WebRTC-Signal an einen Spieler derselben Zone weiterreichen (Sprachchat, client/audio/stimmChat.js). */
+  /**
+   * Runde 24 (P15): WebRTC-Signal weiterreichen (Sprachchat/Funk, client/audio/stimmChat.js). Runde 47: Adresse = Sitzungs-ID;
+   * erlaubt in derselben Zone (Nähe) oder zwischen Funkpartnern (gleiche Frequenz, beide an) – auch über Zonen hinweg.
+   */
   #stimme(sitzung, n) {
     if (!Number.isInteger(n.an) || !n.signal || typeof n.signal !== 'object') return;
     const jetzt = Date.now();
     if (jetzt - (sitzung.stimmFenster ?? 0) > 1000) Object.assign(sitzung, { stimmFenster: jetzt, stimmZahl: 0 });
     if (++sitzung.stimmZahl > 60) return; // Flut-Schutz
     if (JSON.stringify(n.signal).length > 12000) return;
+    const ich = this.#spieler(sitzung);
+    if (!ich) return;
     for (const s of this.sitzungen) {
-      if (s.status !== 'imSpiel' || s.zone !== sitzung.zone || s.spielerId !== n.an || s === sitzung) continue;
-      this.#senden(s, { typ: NACHRICHT.STIMME, von: sitzung.spielerId, signal: n.signal });
+      if (s.status !== 'imSpiel' || s.sid !== n.an || s === sitzung) continue;
+      const er = this.#spieler(s);
+      if (!er || (s.zone !== sitzung.zone && !sindFunkpartner(ich, er))) continue;
+      this.#senden(s, { typ: NACHRICHT.STIMME, von: sitzung.sid, signal: n.signal });
+    }
+  }
+
+  /** Runde 47: Funk-Lage (Frequenz, Partner über alle Zonen, wer sendet) an jeden – nur bei Änderung. */
+  #sendeFunk() {
+    const eintraege = [];
+    for (const s of this.sitzungen) {
+      const spieler = this.#spieler(s);
+      if (spieler) eintraege.push({ spieler, sid: s.sid, sitzung: s });
+    }
+    const lagen = funkLagen(eintraege);
+    for (const e of eintraege) {
+      const text = kodiere({ typ: NACHRICHT.FUNK, ...lagen.get(e.spieler) });
+      if (text === e.sitzung.letzterFunk) continue;
+      e.sitzung.letzterFunk = text;
+      e.sitzung.kanal.senden(text);
     }
   }
 

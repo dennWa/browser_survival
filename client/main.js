@@ -24,6 +24,8 @@ import { AKTIONEN, NACHRICHT } from '../gemeinsam/protokoll.js';
 import { EgoModus } from './ego/egoModus.js'; // EGO-PROTOTYP (siehe docs/EGO_PROTOTYP.md)
 import { Welt } from '../gemeinsam/welt/welt.js';
 import { Karte } from './ui/karte.js';
+import { TastenFenster } from './ui/tastenFenster.js';
+import { FunkFenster } from './ui/funkFenster.js';
 
 /**
  * Einstiegspunkt des Clients. Verdrahtet nur die Bausteine – keine Spiellogik hier.
@@ -93,11 +95,25 @@ for (const art of ['pointerdown', 'mousedown', 'touchstart', 'keydown']) window.
 hud.zeigeTon(sound.stumm);
 hud.einstellungen.verbinde({ sound, renderer: () => renderer, spiel: () => aktuellesSpiel });
 hud.einstellungen.verbindeHandy({ hud, touch: eingabe.touch });
+const tastenFenster = new TastenFenster(document); // Runde 47: ⚙ → ⌨ Tastenbelegung + [data-taste]-Hinweise
+hud.funk = new FunkFenster(document); // Runde 47: Funkgerät (Ü / 📻)
+hud.funk.beiAktion = (was, wert) => aktuellesSpiel?.funk(was, wert);
+document.getElementById('hud-funk').addEventListener('click', () => aktuellesSpiel?.funkgeraetUmschalten());
+const funkAnzeige = document.getElementById('hud-funk-anzeige');
+let funkAnzeigeText = '';
+hud.funkAnzeige = (zustand) => {
+  const text = !zustand ? '' : zustand.sende ? '📻 Du funkst …' : `📻 ${zustand.namen.join(', ')}`;
+  if (text === funkAnzeigeText) return;
+  funkAnzeigeText = text;
+  funkAnzeige.textContent = text;
+  funkAnzeige.hidden = !text;
+  funkAnzeige.classList.toggle('sende', !!zustand?.sende);
+};
 hud.einstellungen.verbindeHaustiere({ liste: () => aktuellesSpiel?.haustiere() ?? [], freilassen: (h) => aktuellesSpiel?.haustierFreilassen(h) });
 
 let aktuellesSpiel = null;
 hauptmenueMusik(); // Runde 31: Musik sofort vorbereiten (nach der Deklaration von aktuellesSpiel)
-const ego = new EgoModus({ eingabe, leinwand, holeRenderer: () => renderer, holeSpiel: () => aktuellesSpiel }); // EGO-PROTOTYP: Taste C / Ego-Knopf (Handy)
+const ego = new EgoModus({ eingabe, leinwand, holeRenderer: () => renderer, holeSpiel: () => aktuellesSpiel }); // EGO-PROTOTYP: Taste C (frei belegbar) / Ego-Knopf (Handy)
 ego.beiUmschalten = (an) => hud.zeigeEgo(an);
 let assets = null;
 
@@ -126,6 +142,7 @@ eingabe.beiTaste('autorun', () => aktuellesSpiel?.autorunUmschalten());
 eingabe.beiTaste('bauen', () => aktuellesSpiel?.bauUmschalten(eingabe.sprint())); // Umschalt+B (Admin): Flugmodus
 eingabe.beiTaste('abriss', () => aktuellesSpiel?.bauAbriss());
 eingabe.beiTaste('gebiet', () => aktuellesSpiel?.bauGebiet());
+eingabe.beiTaste('funkgeraet', () => aktuellesSpiel?.funkgeraetUmschalten()); // Runde 47
 eingabe.beiSlotTaste((slot) => aktuellesSpiel?.benutzen(slot));
 hud.beiAbmelden(() => aktuellesSpiel?.beenden('Abgemeldet'));
 const tonUmschalten = () => {

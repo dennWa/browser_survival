@@ -64,6 +64,7 @@ const BASIS_LOOT_TABELLEN = Object.freeze({
     { id: 'milch', gewicht: 2 },
   ],
   sicherheit: [
+    { id: 'funkgeraet', gewicht: 1 }, // Runde 47
     { id: 'munition_9mm', gewicht: 4 },
     { id: 'pistole', gewicht: 2 },
     { id: 'munition_12', gewicht: 2 },
@@ -236,6 +237,7 @@ const BASIS_LOOT_TABELLEN = Object.freeze({
     { id: 'samen_paprika', gewicht: 1.5 },
   ],
   polizei: [
+    { id: 'funkgeraet', gewicht: 1 }, // Runde 47
     { id: 'revolver', gewicht: 1.2 }, // Runde 26
     { id: 'mp', gewicht: 0.6 }, // Runde 26
     { id: 'munition_357', gewicht: 2 }, // Runde 26

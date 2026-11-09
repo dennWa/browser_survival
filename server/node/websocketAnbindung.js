@@ -7,7 +7,8 @@ import { WebSocketServer, WebSocket } from 'ws';
 const MAX_NACHRICHT_BYTES = 16 * 1024;
 /** Hängt ein Client so weit hinterher, werden Nachrichten verworfen statt den Speicher zu füllen. */
 const MAX_PUFFER_BYTES = 1024 * 1024;
-const HERZSCHLAG_MS = 15000;
+/** Runde 47: per Env `HERZSCHLAG_MS` änderbar (Rauchtests mit mehreren Software-3D-Browsern brauchen mehr Geduld). */
+const HERZSCHLAG_MS = Number(process.env.HERZSCHLAG_MS) > 0 ? Number(process.env.HERZSCHLAG_MS) : 15000;
 
 export function bindeWebsocketServer(httpServer, spielServer, { pfad = '/ws' } = {}) {
   const wss = new WebSocketServer({

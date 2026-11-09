@@ -1059,6 +1059,27 @@
     "b": 49,
     "h": 41,
     "weltGroesse": 20
+   },
+   "autobatterie": {
+    "x": 504,
+    "y": 1300,
+    "b": 72,
+    "h": 63,
+    "weltGroesse": 24
+   },
+   "funkgeraet": {
+    "x": 11,
+    "y": 1368,
+    "b": 49,
+    "h": 72,
+    "weltGroesse": 20
+   },
+   "reifen": {
+    "x": 72,
+    "y": 1368,
+    "b": 72,
+    "h": 72,
+    "weltGroesse": 26
    }
   }
  },
@@ -1450,6 +1471,24 @@
   {
    "paket": "Raketenwerfer",
    "urheber": "Low poly Weapons Pack 001 (Nutzer-Paket, Runde 32)",
+   "lizenz": "CC0",
+   "url": "https://github.com/dennwa/browser_survival"
+  },
+  {
+   "paket": "Autobatterie",
+   "urheber": "Browser Survival (eigene Zeichnung, Runde 47)",
+   "lizenz": "CC0",
+   "url": "https://github.com/dennwa/browser_survival"
+  },
+  {
+   "paket": "Funkgerät",
+   "urheber": "Browser Survival (eigene Zeichnung, Runde 47)",
+   "lizenz": "CC0",
+   "url": "https://github.com/dennwa/browser_survival"
+  },
+  {
+   "paket": "Autoreifen",
+   "urheber": "Browser Survival (eigene Zeichnung, Runde 47)",
    "lizenz": "CC0",
    "url": "https://github.com/dennwa/browser_survival"
   }

@@ -25,3 +25,6 @@ Alle Grafiken stammen aus frei nutzbaren Paketen. Bei **CC-BY** ist die Namensne
 | [Dynamit](https://github.com/dennwa/browser_survival) | Low poly Weapons Pack 001 (Nutzer-Paket, Runde 32) | CC0 | Item-Icon Dynamit |
 | [Rakete](https://github.com/dennwa/browser_survival) | Low poly Weapons Pack 001 (Nutzer-Paket, Runde 32) | CC0 | Item-Icon Rakete |
 | [Raketenwerfer](https://github.com/dennwa/browser_survival) | Low poly Weapons Pack 001 (Nutzer-Paket, Runde 32) | CC0 | Item-Icon Raketenwerfer |
+| [Autobatterie](https://github.com/dennwa/browser_survival) | Browser Survival (eigene Zeichnung, Runde 47) | CC0 | Item-Icon Autobatterie |
+| [Funkgerät](https://github.com/dennwa/browser_survival) | Browser Survival (eigene Zeichnung, Runde 47) | CC0 | Item-Icon Funkgerät |
+| [Autoreifen](https://github.com/dennwa/browser_survival) | Browser Survival (eigene Zeichnung, Runde 47) | CC0 | Item-Icon Autoreifen |
