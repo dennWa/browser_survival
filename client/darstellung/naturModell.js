@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from '../vendor/three/addons.js';
 import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
 import { BAUM_WIND } from './baumModell.js';
-import { STREUUNG, ZONEN, NATUR_SICHTWEITE, NATUR_SICHTWEITE_EGO, HANDY_DICHTE, NATUR_BLOCK } from './naturKonfiguration.js';
+import { STREUUNG, ZONEN, NATUR_SICHTWEITE, NATUR_SICHTWEITE_EGO, NATUR_SICHTWEITE_MAX, HANDY_DICHTE, NATUR_BLOCK } from './naturKonfiguration.js';
 
 /**
  * Natur-Schicht: streut 3D-Modelle (Gras u. a., Konfiguration in naturKonfiguration.js) auf den Untergrund der Karte – anstelle der
@@ -220,8 +220,11 @@ export class NaturSchicht {
   }
 
   /** Pro Frame: nur Blöcke in Sichtweite zeichnen; bei neuen/entfernten Spielerbauten Büschel darunter ausblenden. */
-  aktualisiere(fokus, bauwerkeVersion, ego = false) {
-    const radius2 = ego ? this.blockRadiusEgo2 : this.blockRadius2;
+  aktualisiere(fokus, bauwerkeVersion, ego = false, sichtRadius = 0) {
+    // Draufsicht: Radius = sichtbarer Bildausschnitt (gedeckelt) → Gras poppt nicht mehr im Bild ein/aus; Ego bleibt kurz
+    const blockPuffer = NATUR_BLOCK * this.welt.kachelGroesse * 0.75;
+    const bildRadius = !ego && Number.isFinite(sichtRadius) && sichtRadius > 0 ? Math.min(sichtRadius, NATUR_SICHTWEITE_MAX) : 0;
+    const radius2 = ego ? this.blockRadiusEgo2 : Math.max(this.blockRadius2, (bildRadius + blockPuffer + 24) ** 2);
     for (const b of this.bloecke) {
       const d2 = (b.x - fokus.x) ** 2 + (b.z - fokus.y) ** 2;
       const sichtbar = d2 < radius2;
@@ -231,7 +234,7 @@ export class NaturSchicht {
       }
       if (!sichtbar) continue;
       // LOD nach Abstand: nah volle Dichte, mittel gut die Hälfte, fern nur ein Viertel (Dreiecke sparen, kaum sichtbar)
-      const stufe = d2 < LOD_NAH2 ? 0 : d2 < LOD_MITTEL2 ? 1 : 2;
+      const stufe = bildRadius ? 0 : d2 < LOD_NAH2 ? 0 : d2 < LOD_MITTEL2 ? 1 : 2; // im Bild keine LOD-Sprünge
       if (stufe !== b.stufe) {
         b.stufe = stufe;
         for (const mesh of b.gruppe.children) mesh.count = Math.ceil(mesh.userData.gesamt * LOD_ANTEIL[stufe]);

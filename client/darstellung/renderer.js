@@ -260,6 +260,7 @@ const REGEN_WOLKEN = new THREE.Color(0x62666e);
 const WIND_WOLKEN = new THREE.Color(0x8a8f98); // Runde 27: hellere graue Wolken bei Wind (Vorstufe von Regen)
 
 const _ziel = new THREE.Vector3();
+const _sichtEcke = new THREE.Vector3();
 const _kameraZiel = new THREE.Vector3();
 const _sichtFrustum = new THREE.Frustum();
 const _sichtMatrix = new THREE.Matrix4();
@@ -470,6 +471,20 @@ export class Renderer {
     this.octx.clearRect(0, 0, this.overlay.width, this.overlay.height);
   }
 
+  /** Größter Abstand (px) vom Fokus zu den Bildecken auf dem Boden – Gras bleibt so überall im Bild geladen, außerhalb nicht. */
+  #sichtRadiusBoden(bodenY) {
+    const k = this.kamera3d;
+    k.updateMatrixWorld();
+    let max = 0;
+    for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      _sichtEcke.set(sx, sy, 0.5).unproject(k).sub(k.position);
+      if (_sichtEcke.y >= -0.01) { max = Infinity; continue; } // Blick zum Horizont: Treffer unendlich weit
+      const t = (bodenY - k.position.y) / _sichtEcke.y;
+      max = Math.max(max, Math.hypot(k.position.x + _sichtEcke.x * t - _ziel.x, k.position.z + _sichtEcke.z * t - _ziel.z));
+    }
+    return max;
+  }
+
   /** Rein-/Rauszoomen. @param faktor > 1 = raus, < 1 = rein */
   zoomen(faktor) {
     this.zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, this.zoom * faktor));
@@ -653,7 +668,7 @@ export class Renderer {
     this.karte.dachDoppelseitig?.(!!this.egoHaken);
     this.#innenAbschirmung(dt, fokus);
     this.karte.aktualisiereDurchsicht(dt, fokus.x, fokus.y, !this.egoHaken);
-    this.natur?.aktualisiere(fokus, this.welt.bauwerkeVersion, !!this.egoHaken);
+    this.natur?.aktualisiere(fokus, this.welt.bauwerkeVersion, !!this.egoHaken, this.#sichtRadiusBoden(_ziel.y));
     const tuerAbstand = this.karte.aktualisiereTuerSchimmer(fokus);
     this.blaetter?.aktualisiere(dt, fokus, jetzt, dunkel, Math.max(this.wetterEffekt.sturm, Math.min(1, Math.max(0, this.wetterEffekt.windStufe - 0.2) / 2.6)));
     this.muell?.aktualisiere(dt, fokus, Math.max(0, Math.min(1, (this.wetterEffekt.windStufe - 1.3) / 1.4)) * Math.max(this.wetterEffekt.regen, this.wetterEffekt.sturm));

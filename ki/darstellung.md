@@ -23,7 +23,7 @@
 ## Boden · Bäume · Natur
 - `C:darstellung/bodenTextur.js`: prozedurale Kacheln (Asphalt-Tönung `#weicherTon`, Innenböden `#innenBoden`, Steg, Schnee/Eis) + Fotos `client/assets/boden/<name>.jpg` (← `werkzeuge/assets/baue_boeden.py`, `#fotoStueck` weltfest), weiche Übergänge `#weicheRaender`/`WEICHE_BOEDEN`, Malschicht `C:darstellung/malSchicht.js`. ⚠ Alles deterministisch aus Weltkoordinaten (Blöcke müssen nahtlos passen) – nie `Math.random`.
 - Bäume `C:darstellung/baumModell.js`: Varianten `client/assets/3d/baeume/*.glb` + `baeume.json`, `BAUM_MISCHUNG` je Zone (`standard`, `waldweg`), `LAUB_AUSGELASSEN`, Büsche `BUESCHE`, Wind-Shader `baumWindMaterial` (`BAUM_WIND`), Stammdicke `STAMM_BREITE`. Laub-Material je Variante; Platzhalter-Map → kein Shader-Neubau beim Tausch.
-- Gras/Blumen `C:darstellung/naturModell.js` + `naturKonfiguration.js` (`ZONEN`: nur `lager` an; Profil niedrig = aus). Blätter `blaetterEffekt.js`, Bodennebel `bodenNebel.js` (morgens).
+- Gras/Blumen `C:darstellung/naturModell.js` + `naturKonfiguration.js` (`ZONEN`: nur `lager` an; Profil niedrig = aus). Draufsicht: Block-Sichtweite = echter Bildausschnitt (`renderer #sichtRadiusBoden`, gedeckelt `NATUR_SICHTWEITE_MAX`), keine LOD-Stufen im Bild → kein Ein-/Ausploppen; Ego bleibt kurz. Blätter `blaetterEffekt.js`, Bodennebel `bodenNebel.js` (morgens).
 
 ## Effekte & Kleinkram
 `effekte.js` (Ereignisse → Partikel/Licht) · `sonderEffekte.js` (Spucke, Explosion, Würfe, Brände) · `einschlaege.js` · `blutspuren.js` · `fussspuren.js` · `reifenspuren.js` · `muellEffekt.js` · `itemModelle.js` (Bodenitems: prozedural + `r32_*`-GLBs; auf Möbeln ×`ITEM_AUF_MOEBEL`) · `geometrie.js vereineGeometrien` · `glbGeometrien.js`.

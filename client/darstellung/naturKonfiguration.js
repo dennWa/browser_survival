@@ -45,6 +45,8 @@ export const ZONEN = {
 
 /** Nur Büschel innerhalb dieses Abstands (px) um die Kamera werden gezeichnet (Dreiecke sparen) */
 export const NATUR_SICHTWEITE = 440;
+/** Obergrenze (px) für die bildabhängige Sichtweite der Draufsicht (Schutz vor zu vielen Dreiecken beim Rauszoomen) */
+export const NATUR_SICHTWEITE_MAX = 900;
 /** In der Ego-Ansicht (flacher Blick, teurer) noch kürzer */
 export const NATUR_SICHTWEITE_EGO = 300;
 /** Handys zeichnen nur diesen Anteil der Büschel */
