@@ -17,7 +17,7 @@ Voraussetzung: Node.js ≥ 20 und einmal `npm install`. Das Studio braucht **kei
 
 ```
 ┌ Menü: Datei · Bearbeiten · Ansicht · Zone · Werkzeuge · KI · Hilfe ──────────── [▶ Testen] ┐
-├ Werkzeugleiste (Q W E R │ B N H T │ O G K I P)                  Rückgängig · Speichern · Ins Spiel ┤
+├ Werkzeugleiste (Q U E R │ B J N H T L C │ O G K I P M Z)                  Rückgängig · Speichern · Ins Spiel ┤
 ├ Optionsleiste (Einstellungen des aktiven Werkzeugs)                                         ┤
 ├ ZONEN / SZENE │            3D-/2D-ANSICHT                 │ EIGENSCHAFTEN · PRÜFUNG · KI   ┤
 │               ├──────────────────────────────────────────┤                                │
@@ -59,13 +59,13 @@ Voraussetzung: Node.js ≥ 20 und einmal `npm install`. Das Studio braucht **kei
 | E | Drehen | Ring ziehen, rastet in 15°-Schritten |
 | R | Größe | Größer/kleiner – **die Grundfläche (Kollision) wächst mit** (0,25× – 4×) |
 | B | Boden malen | Kachel unten in *Böden* wählen; Pinsel / Rechteck / Füllen; `[` `]` = Pinselgröße |
-| J | Weicher Pinsel | Rasen, Wiese, Erde/Weg, Kies, Sand, Wasser … **rund mit weichem Rand** aufmalen (statt eckiger Kacheln). Radius, **Härte** (0 = Rand läuft blass aus, 1 = scharfe Kante), Deckkraft; Umschalt = radieren, `[` `]` = Radius. Nur Optik – Begehbarkeit/echtes Wasser bestimmt weiter die Kachel (darunter ggf. mit *B* Kacheln malen) |
+| J | Weicher Pinsel | Rasen, Wiese, Erde/Weg, Kies, Sand, Wasser … **rund mit weichem Rand** aufmalen (statt eckiger Kacheln). Radius, Boden aus der Liste **oder einfach unten in *Böden* anklicken** (Straße, Gehweg, Fliesen, Holz, Steg … alle Bodenarten). **Härte** (0 = Rand läuft blass aus, 1 = scharfe Kante), Deckkraft; Umschalt = radieren, `[` `]` = Radius. Nur Optik – Begehbarkeit/echtes Wasser bestimmt weiter die Kachel (darunter ggf. mit *B* Kacheln malen) |
 | N | Wand ziehen | Wand, Fenster oder Tür als gerade Linie |
 | H | Raum bauen | Rechteck ziehen → Wände, Innenboden, Tür und (optional) Loot-Raum in einem Schritt |
 | T | Gelände | Heben, senken, glätten, ebnen (Radius/Stärke in der Optionsleiste) |
 | L | Straße | Linie ziehen → Fahrbahn, Gehwege, Mittelmarkierung, Laternen; Objekte auf der Fahrbahn verschwinden |
-| S | Streuen | Wald, Nadelwald, Gebüsch, Felsen oder das gewählte Asset „aufsprühen“ (nur Naturboden, kein Überlappen). Umschalt = radieren, `[` `]` = Radius |
-| O | Objekt platzieren | Asset wählen (Natur, Möbel, Modelle, Vorlagen …), Klick setzt. `Strg+Rad` dreht, Umschalt = weiter setzen, „Variieren“ = zufällige Größe/Drehung (natürlicher Wald) |
+| C | Streuen | Wald, Nadelwald, Gebüsch, Felsen oder das gewählte Asset „aufsprühen“ (nur Naturboden, kein Überlappen). Umschalt = radieren, `[` `]` = Radius |
+| O | Objekt platzieren | Asset wählen (Natur, Möbel, Modelle, Vorlagen …), Klick setzt. Das Objekt erscheint vorher als **echtes Modell** am Mauszeiger (grüner Rahmen = passt, rot = belegt). `R` = 90° weiter, `R` halten = stufenlos drehen (Umschalt+R andersrum), `Strg+Rad` dreht, Umschalt = weiter setzen, „Variieren“ = zufällige Größe/Drehung (natürlicher Wald) |
 | G | Bereich markieren | Rechteck: Loot-Zone, Tier-Bereich (Hasen, Rehe, Hirsche, Füchse – Wild ist sehr scheu, flieht im Galopp), Übergang (Zielzone + Ankunft) oder Klangzone |
 | K | Klang setzen | Punktklang mit Hörweite – **Klick auf ein Objekt hängt den Klang ans Objekt** (wandert und kopiert sich mit) |
 | I | Item-Spawnpunkt | Item oder Loot-Tabelle mit Chance und Intervall; **über einem Möbel wird es automatisch draufgelegt** |

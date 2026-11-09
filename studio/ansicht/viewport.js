@@ -14,6 +14,7 @@ import { BASIS_MATERIAL, bauteilGeometrie, wirdInstanziert } from '../../client/
 import { festesItem } from '../kern/lootVorschau.js';
 import { entpacke, MAL_AUFLOESUNG } from '../../gemeinsam/welt/bodenMalerei.js';
 import { maleSchichten } from '../../client/darstellung/malSchicht.js';
+import { EchteModelle } from './echteModelle.js';
 
 /**
  * Ansicht des Studios (Three.js): dieselbe Szene als 3D (Perspektive, Orbit wie Unity) oder 2D (Draufsicht, orthografisch).
@@ -122,6 +123,14 @@ export class Viewport {
     this.ebenenZustand = null; // Dokument.ebenen (sichtbar/gesperrt je Ebene)
     this.beiGizmo = null;
     this.beiKamera = null;
+    // Echte Modelle (wie im Spiel) statt Platzhalter-Klötze – Schalter in der Ansichtsleiste (app.js)
+    this.echteAn = true;
+    this.echte = new EchteModelle(this.renderer);
+    this.echte.beiFertig = () => {
+      this.objekteSchmutzig = true;
+      if (this.letzterGeist) this.setzeGeist(...this.letzterGeist);
+      this.anfordern();
+    };
     this.#baueFormen();
     this.#baueHilfen();
     this.#baueGizmo();
@@ -149,6 +158,7 @@ export class Viewport {
   setzeKarte(karte, { kameraZuruecksetzen = true } = {}) {
     this.karte = karte;
     this.malCache = null; // Runde 41: Malschicht neu entpacken
+    this.echte.leeren(); // eigene Typen sind je Zone verschieden
     for (const s of this.sektoren.values()) this.#entsorgeSektor(s);
     this.sektoren.clear();
     for (const m of this.modelle.values()) this.gruppen.modelle.remove(m.gruppe);
@@ -190,7 +200,10 @@ export class Viewport {
         const [x, y] = ausSchluessel(op.k);
         this.schmutzig.add(sektorVon(x, y));
       } else if (op.s === 'raster') return this.setzeKarte(k, { kameraZuruecksetzen: false });
-      else if (op.s === 'objekte' || op.s === 'typen') this.objekteSchmutzig = true;
+      else if (op.s === 'objekte' || op.s === 'typen') {
+        if (op.s === 'typen') this.echte.leeren(); // Typ (Modell/Höhe) geändert → Vorlagen neu bauen
+        this.objekteSchmutzig = true;
+      }
       else this.overlaysSchmutzig = true;
     }
     this.anfordern();
@@ -207,6 +220,22 @@ export class Viewport {
     this.modus = modus === '2d' ? '2d' : '3d';
     this.transform.camera = this.kamera;
     this.#groesse();
+    this.anfordern();
+    this.beiKamera?.();
+  }
+
+  /** Echte Modelle (Spiel-Optik je Objekt) an/aus – aus = schnelle Platzhalter-Klötze */
+  setzeEchteModelle(an) {
+    this.echteAn = !!an;
+    this.objekteSchmutzig = true;
+    this.anfordern();
+  }
+
+  /** Kamera-Stand lesen (ohne Argument) bzw. setzen – Studio merkt ihn je Zone */
+  kameraStand(stand) {
+    if (!stand) return { ziel: this.ziel.clone(), abstand: this.abstand, gier: this.gier, neigung: this.neigung };
+    this.ziel.copy(stand.ziel);
+    Object.assign(this, { abstand: stand.abstand, gier: stand.gier, neigung: stand.neigung });
     this.anfordern();
     this.beiKamera?.();
   }
@@ -534,6 +563,8 @@ export class Viewport {
       jeForm[form].push({ schl, matrix: mat.clone(), farbe });
     };
     const objekteAn = !this.ebenenZustand || this.ebenenZustand.objekte?.sichtbar !== false;
+    const jeEcht = new Map(); // `vorlage|teil` → { quelle, liste[{ schl, matrix, farbe }] }
+    const objMatrix = new THREE.Matrix4();
     for (const [id, o] of k.s('objekte')) {
       if (o.ebene === 'unsichtbar' || !objekteAn) continue;
       const cx = o.x + o.b / 2;
@@ -548,6 +579,18 @@ export class Viewport {
       if (mt) {
         genutzt.add(id);
         this.#modellObjekt(id, o, mt, cx, boden, cz, dreh, eigen);
+        continue;
+      }
+      const vorlage = this.echteAn && o.ebene !== 'boden' ? this.echte.hole(o, k) : null;
+      if (vorlage) {
+        q.setFromAxisAngle(achse, dreh);
+        objMatrix.compose(new THREE.Vector3(cx, boden, cz), q, new THREE.Vector3(1, 1, 1));
+        const vs = EchteModelle.schluessel(o);
+        vorlage.teile.forEach((t, i) => {
+          const sk = `${vs}#${i}`;
+          if (!jeEcht.has(sk)) jeEcht.set(sk, { quelle: t.quelle, liste: [] });
+          jeEcht.get(sk).liste.push({ schl, matrix: objMatrix.clone().multiply(t.matrix), farbe: t.farbe });
+        });
         continue;
       }
       const z = streu(o.x, o.y);
@@ -571,6 +614,41 @@ export class Viewport {
       if (genutzt.has(id)) continue;
       this.gruppen.modelle.remove(m.gruppe);
       this.modelle.delete(id);
+    }
+    // Echte Teile: je Vorlagen-Teil ein InstancedMesh (Geometrie/Material geteilt mit der Vorlage – nie freigeben)
+    for (const [sk, e] of this.instanzen) {
+      if (!sk.startsWith('echt:') || jeEcht.has(sk.slice(5))) continue;
+      this.gruppen.objekte.remove(e.mesh);
+      e.mesh.dispose();
+      this.instanzen.delete(sk);
+    }
+    for (const [sk, { quelle, liste }] of jeEcht) {
+      let e = this.instanzen.get(`echt:${sk}`);
+      const mitFarbe = liste.some((l) => l.farbe);
+      if (!e || e.mesh.instanceMatrix.count < liste.length || e.mesh.material !== quelle.material) {
+        if (e) {
+          this.gruppen.objekte.remove(e.mesh);
+          e.mesh.dispose();
+        }
+        const mesh = new THREE.InstancedMesh(quelle.geometry, quelle.material, Math.max(4, Math.ceil(liste.length * 1.5)));
+        if (mitFarbe) mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(mesh.instanceMatrix.count * 3).fill(1), 3);
+        mesh.userData.geteilt = true;
+        this.gruppen.objekte.add(mesh);
+        e = { mesh, schluessel: [] };
+        this.instanzen.set(`echt:${sk}`, e);
+      }
+      const { mesh } = e;
+      if (mesh.geometry !== quelle.geometry) mesh.geometry = quelle.geometry; // Baum-/Möbel-GLB nachgeladen
+      e.schluessel = liste.map((l) => l.schl);
+      liste.forEach((l, i) => {
+        mesh.setMatrixAt(i, l.matrix);
+        if (l.farbe && mesh.instanceColor) mesh.setColorAt(i, l.farbe);
+      });
+      mesh.count = liste.length;
+      mesh.instanceMatrix.needsUpdate = true;
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+      mesh.computeBoundingSphere();
+      mesh.computeBoundingBox?.();
     }
     for (const form of FORMEN) {
       const liste = jeForm[form];
@@ -1215,12 +1293,29 @@ export class Viewport {
    */
   setzeGeist(liste, gueltig = true) {
     const g = this.gruppen.geist;
-    g.traverse((t) => t.geometry?.dispose());
+    g.traverse((t) => {
+      if (t.userData.geteilt) return;
+      if (t.geometry && !Object.values(this.formGeo).includes(t.geometry)) t.geometry.dispose();
+      t.material?.dispose?.();
+    });
     g.clear();
+    this.letzterGeist = liste?.length ? [liste, gueltig] : null;
     if (!liste?.length) return this.anfordern();
     const farbe = gueltig ? 0x46c27a : 0xef5d5d;
     for (const e of liste.slice(0, 4000)) {
       const hoehe = Math.max(0.05, e.hoehe ?? 0.1);
+      const echt = e.objekt ? this.#geistModell(e) : null;
+      if (echt) {
+        // Echtes Modell + dünner Rahmen der Grundfläche (grün = passt, rot = Platz belegt)
+        g.add(echt);
+        const rahmen = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0)), new THREE.LineBasicMaterial({ color: farbe, transparent: true, opacity: 0.9, depthTest: false }));
+        rahmen.scale.set(e.b, Math.max(0.04, gueltig ? 0.04 : hoehe), e.h);
+        rahmen.rotation.y = e.dreh ?? 0;
+        rahmen.position.set(e.x + (e.mitte ? 0 : e.b / 2), this.hoeheBei(e.x, e.y) + 0.02, e.y + (e.mitte ? 0 : e.h / 2));
+        rahmen.renderOrder = 13;
+        g.add(rahmen);
+        continue;
+      }
       const m = new THREE.Mesh(this.formGeo.kasten, new THREE.MeshBasicMaterial({ color: farbe, transparent: true, opacity: 0.32, depthWrite: false }));
       m.scale.set(e.b, hoehe, e.h);
       m.rotation.y = e.dreh ?? 0;
@@ -1229,6 +1324,58 @@ export class Viewport {
       g.add(m);
     }
     this.anfordern();
+  }
+
+  /** Platzier-Geist als echtes Modell (Spiel-Optik): Objekt-Vorlage, eigenes GLB oder Bauwerk – null = noch nicht da/keins */
+  #geistModell(e) {
+    const o = e.objekt;
+    const cx = e.x + (e.mitte ? 0 : e.b / 2);
+    const cz = e.y + (e.mitte ? 0 : e.h / 2);
+    const boden = this.hoeheBei(cx, cz);
+    if (e.bauwerk) {
+      const m = this.#bauwerkModell(o, {});
+      return m;
+    }
+    const dreh = (-(o.drehung ?? 0) * Math.PI) / 180;
+    const mt = this.karte && this.#modellTyp(o);
+    if (mt) {
+      const url = eigenesModellUrl(mt.glbDatei ? { glbDatei: mt.glbDatei } : mt);
+      this.geistGlb ??= new Map();
+      const szene = this.geistGlb.get(url);
+      if (szene === undefined) {
+        this.geistGlb.set(url, null);
+        ladeEigenesModell(url)
+          .then((sz) => {
+            this.geistGlb.set(url, sz);
+            if (this.letzterGeist) this.setzeGeist(...this.letzterGeist);
+          })
+          .catch(() => {});
+      }
+      if (!szene) return null;
+      const eigen = eigeneGroesse(o);
+      const inhalt = eigenesModellInhalt(szene, { b: eigen.b, h: eigen.h, hoehe: (mt.hoehe3d ?? 1) * (o.skalierung ?? 1), einheit: 1 });
+      geteilt(inhalt);
+      const gr = new THREE.Group();
+      gr.add(inhalt);
+      gr.position.set(cx, boden, cz);
+      gr.rotation.y = dreh;
+      return gr;
+    }
+    if (!this.echteAn || o.ebene === 'boden') return null;
+    const v = this.echte.hole(o, this.karte);
+    if (!v) return null;
+    const gr = new THREE.Group();
+    const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), dreh);
+    const basis = new THREE.Matrix4().compose(new THREE.Vector3(cx, boden, cz), q, new THREE.Vector3(1, 1, 1));
+    for (const t of v.teile) {
+      const m = new THREE.InstancedMesh(t.quelle.geometry, t.quelle.material, 1);
+      m.setMatrixAt(0, basis.clone().multiply(t.matrix));
+      if (t.farbe) m.setColorAt(0, t.farbe);
+      m.userData.geteilt = true;
+      m.frustumCulled = false;
+      gr.add(m);
+    }
+    return gr;
   }
 
   // ---------- Treffer ----------
@@ -1371,6 +1518,14 @@ export class Viewport {
       tasten.delete(e.key.toLowerCase());
     });
     this.istKameraZiehen = () => ziehen?.art === 'drehen' || ziehen?.art === 'schieben';
+    // WASD schiebt die Kamera immer (auch ohne rechte Maustaste) – app.js leitet die Tasten hierher (nicht beim Tippen)
+    this.flugTaste = (taste, an) => {
+      if (an) {
+        tasten.add(taste);
+        this.#flug(tasten);
+      } else tasten.delete(taste);
+    };
+    addEventListener('blur', () => tasten.clear());
   }
 
   #flug(tasten) {
@@ -1385,7 +1540,7 @@ export class Viewport {
       const dt = Math.min(0.05, (jetzt - letzte) / 1000);
       letzte = jetzt;
       const tempo = this.abstand * 1.2 * dt;
-      const vor = new THREE.Vector3(-Math.sin(this.gier), 0, -Math.cos(this.gier));
+      const vor = this.modus === '2d' ? new THREE.Vector3(0, 0, -1) : new THREE.Vector3(-Math.sin(this.gier), 0, -Math.cos(this.gier));
       const rechts = new THREE.Vector3(-vor.z, 0, vor.x);
       if (tasten.has('w')) this.ziel.addScaledVector(vor, tempo);
       if (tasten.has('s')) this.ziel.addScaledVector(vor, -tempo);
@@ -1394,6 +1549,7 @@ export class Viewport {
       if (tasten.has('e')) this.abstand = Math.max(4, this.abstand * (1 - dt));
       if (tasten.has('q')) this.abstand = Math.min(900, this.abstand * (1 + dt));
       this.anfordern();
+      this.beiKamera?.();
       requestAnimationFrame(schritt);
     };
     requestAnimationFrame(schritt);

@@ -44,6 +44,23 @@ export class VorschauBilder {
     return null;
   }
 
+  /**
+   * Alle Bausteine auf einmal vorbereiten (Knopf „Alle Icons laden“): stellt jedes Asset ohne Bild in die Warteschlange.
+   * beiFortschritt(fertig, gesamt) meldet den Stand; Promise endet, wenn alles erzeugt ist.
+   */
+  ladeAlle(liste, beiFortschritt) {
+    const ids = new Set();
+    const neu = liste.filter((a) => !this.urls.has(a.id) && !this.warte.some((w) => w.id === a.id) && !ids.has(a.id) && ids.add(a.id));
+    this.fortschritt = { gesamt: neu.length, fertig: 0, melde: beiFortschritt };
+    this.warte.unshift(...neu);
+    beiFortschritt?.(0, neu.length);
+    if (!neu.length) return Promise.resolve(0);
+    return new Promise((ok) => {
+      this.fortschritt.ende = () => ok(neu.length);
+      this.#lauf();
+    });
+  }
+
   async loescheCache() {
     this.urls.clear();
     await this.nativ.aufruf('vorschau.leeren').catch(() => {});
@@ -69,6 +86,15 @@ export class VorschauBilder {
         }
         this.urls.set(a.id, url);
         if (url) this.beiFertig?.(a.id, url);
+        const f = this.fortschritt;
+        if (f && f.fertig < f.gesamt) {
+          f.fertig++;
+          f.melde?.(f.fertig, f.gesamt);
+          if (f.fertig >= f.gesamt) {
+            this.fortschritt = null;
+            f.ende?.();
+          }
+        }
         await new Promise((r) => setTimeout(r, 0)); // Seite bleibt bedienbar
       }
     } finally {

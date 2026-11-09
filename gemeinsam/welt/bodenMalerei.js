@@ -11,7 +11,7 @@
  */
 export const MAL_AUFLOESUNG = 4;
 /** Böden, die man weich malen kann (Kachel-Namen aus gemeinsam/welt/kacheln.js) */
-export const MAL_BOEDEN = ['rasen', 'wiese', 'gras', 'waldboden', 'wildwald', 'erde', 'kies', 'sand', 'pflaster', 'asphalt', 'wasser', 'schnee'];
+export const MAL_BOEDEN = ['rasen', 'wiese', 'gras', 'waldboden', 'wildwald', 'erde', 'kies', 'sand', 'pflaster', 'asphalt', 'strasse', 'gehweg', 'beton', 'fliesen', 'holz', 'steg', 'wasser', 'schnee'];
 const STUFEN = 17; // Werte werden auf 16 Stufen (0, 17, 34 … 255) gerundet → kürzere Läufe; sieht wegen der weichen Vergrößerung gleich aus
 
 export function leereMaske(breite, hoehe, aufloesung = MAL_AUFLOESUNG) {

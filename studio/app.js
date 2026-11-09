@@ -10,7 +10,7 @@ import { spielordnerListe } from '../editor/kern/spielordner.js';
 import { Viewport } from './ansicht/viewport.js';
 import { SpielOptik } from './ansicht/spielOptik.js';
 import { Stimmung } from './ansicht/stimmung.js';
-import { Werkzeuge, WERKZEUGE, MIT_GIZMO } from './ansicht/werkzeuge.js';
+import { Werkzeuge, WERKZEUGE, MIT_GIZMO, ITEM_LISTE } from './ansicht/werkzeuge.js';
 import { Menues, tooltips } from './oberflaeche/menue.js';
 import { ZonenPanel, SzenePanel, AssetPanel, PruefPanel } from './oberflaeche/panels.js';
 import { Inspektor } from './oberflaeche/inspektor.js';
@@ -68,6 +68,11 @@ class Studio {
     this.befehle = new Befehle();
     this.menues = new Menues(this.befehle, document.getElementById('menues'));
     this.ansicht = new Viewport(document.getElementById('leinwand'));
+    try {
+      if (localStorage.getItem('browserSurvival.studio.echteModelle') === '0') this.ansicht.echteAn = false;
+    } catch {
+      // egal
+    }
     this.werkzeuge = new Werkzeuge(this);
     this.ansicht.spielOptik = new SpielOptik(this.ansicht);
     this.ansicht.spielOptik.beiStatus = (t) => (t ? this.hinweis(t) : this.hinweis('Spiel-Optik aktuell', 'erfolg'));
@@ -81,6 +86,7 @@ class Studio {
     this.ansicht.ebenenZustand = this.dok.ebenen;
     this.ansicht.vorlagenName = (id) => this.vorlagenListe.find((v) => v.id === id)?.name ?? id;
     this.asset = null;
+    this.kameraJeZone = new WeakMap(); // EditorKarte → Kamera-Stand
     this.vorlagenListe = [];
     this.klangListe = [];
     this.zwischenablage = null;
@@ -281,7 +287,8 @@ class Studio {
       if (a.kategorie === 'Mauern') {
         this.werkzeuge.opt.wand.art = a.zeichen === 'T' ? 'tuer' : a.zeichen === 'F' ? 'fenster' : 'wand';
         this.werkzeuge.waehle('wand');
-      } else this.werkzeuge.waehle('boden');
+      } else if (this.werkzeuge.aktiv === 'weich' && this.werkzeuge.uebernimmBoden(a)) this.meldeOptionen();
+      else this.werkzeuge.waehle('boden');
     } else if (a.art === 'item') {
       this.werkzeuge.opt.spawn.inhalt = a.id;
       this.werkzeuge.waehle('spawn');
@@ -316,9 +323,18 @@ class Studio {
   #zoneGewechselt() {
     const z = this.dok.aktiv;
     setTimeout(() => this.zeigeVorschlaege(), 0);
-    this.ansicht.setzeKarte(z?.karte ?? null);
-    if (this.ansicht.spielOptik.an && z) this.ansicht.spielOptik.baue(this.dok.definition());
-    this.#lootVorschau(this.lootVorschauAn && !!z, { still: true });
+    // Nur bei echtem Zonenwechsel neu aufbauen – 'zonen' kommt auch beim (Auto-)Speichern, dann sprang die Kamera zurück.
+    // Kamera je Zone merken: zurück zu einer Zone = gleicher Blick wie vorher.
+    const neueKarte = this.ansicht.karte !== (z?.karte ?? null);
+    if (neueKarte) {
+      const a = this.ansicht;
+      if (a.karte) this.kameraJeZone.set(a.karte, a.kameraStand());
+      a.setzeKarte(z?.karte ?? null);
+      const gemerkt = z && this.kameraJeZone.get(z.karte);
+      if (gemerkt) a.kameraStand(gemerkt);
+      if (a.spielOptik.an && z) a.spielOptik.baue(this.dok.definition());
+      this.#lootVorschau(this.lootVorschauAn && !!z, { still: true });
+    }
     document.getElementById('ansicht-leer').classList.toggle('versteckt', !!z);
     document.getElementById('zonen-titel').innerHTML = z ? `${z.quelle === 'vorlage' ? 'Vorlage' : 'Zone'} <b>${esc(z.karte.name)}</b>` : '';
     this.zonenPanel.zeichne();
@@ -429,10 +445,21 @@ class Studio {
       const tippt = e.target.closest?.('input, textarea, select');
       if (tippt && !(e.ctrlKey && ['s', 'z', 'y'].includes(e.key.toLowerCase()))) return;
       if (e.key === '[' || e.key === ']') return werkzeuge.groesse(e.key === ']' ? 1 : -1);
+      const t = e.key.toLowerCase();
+      if ('wasd'.includes(t) && t.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey && !tippt && this.dok.karte) {
+        e.preventDefault();
+        return ansicht.flugTaste(t, true);
+      }
+      if (werkzeuge.taste(e)) return e.preventDefault();
       const b = this.befehle.zuTaste(e);
       if (!b) return;
       e.preventDefault();
       this.befehle.aus(b.id);
+    });
+    document.addEventListener('keyup', (e) => {
+      const t = e.key.toLowerCase();
+      if ('wasd'.includes(t) && t.length === 1) ansicht.flugTaste(t, false);
+      werkzeuge.tasteLos(e);
     });
     // Ziehbarer Teiler über den Assets
     const teiler = document.getElementById('teiler-assets');
@@ -487,15 +514,38 @@ class Studio {
     }
     const knopf = (id, ic, titel, kuerzel, text = '') => `<button class="wz" data-befehl="${id}" data-tipp="${esc(titel)}" data-kuerzel="${esc(kuerzel ?? '')}" data-text="${esc(text)}">${icon(ic, 18)}</button>`;
     el.innerHTML = `${gruppen.map((g) => `<div class="wz-gruppe">${g.map((w) => knopf(`werkzeug.${w.id}`, w.icon, w.titel, w.kuerzel, w.text)).join('')}</div>`).join('')}<div class="wz-abstand"></div>
+      <div class="wz-gruppe">${knopf('ansicht.echteModelle', 'spielOptik', 'Echte Modelle', 'Umschalt+E', 'Objekte wie im Spiel zeigen statt als Platzhalter-Klötze')}${knopf('ansicht.alleIcons', 'hochladen', 'Alle Icons laden', '', 'Vorschaubilder aller Objekte, Möbel und Items jetzt erzeugen – danach ist die Asset-Liste sofort fertig')}<div id="icon-fortschritt" class="icon-fortschritt versteckt"><div class="balken"><i></i></div><span></span></div></div>
       <div class="wz-gruppe">${knopf('bearbeiten.rueckgaengig', 'rueckgaengig', 'Rückgängig', 'Strg+Z')}${knopf('bearbeiten.wiederholen', 'wiederholen', 'Wiederholen', 'Strg+Y')}</div>
       <div class="wz-gruppe">${knopf('zone.speichern', 'speichern', 'Entwurf speichern', 'Strg+S', 'Arbeitsstand sichern (nicht ins Spiel)')}${knopf('zone.insSpiel', 'insSpiel', 'Ins Spiel übernehmen', 'Strg+Umschalt+E', 'Kartendatei schreiben und im Spiel eintragen')}${knopf('zone.pruefen', 'pruefen', 'Prüfen')}${knopf('ki.oeffnen', 'ki', 'KI-Assistent')}</div>`;
     this.#werkzeugleisteAktiv();
   }
 
+  /** Alle Vorschaubilder (Objekte, Bauwerke, Items) auf einmal erzeugen – mit Fortschrittsbalken in der Werkzeugleiste */
+  async #alleIcons() {
+    if (this.iconsLaufen) return;
+    const el = document.getElementById('icon-fortschritt');
+    const liste = [...katalog().filter((e) => e.art === 'objekt' || e.art === 'bauwerk').map((e) => ({ ...e, id: e.id.split('@')[0] })), ...ITEM_LISTE.map((i) => ({ art: 'item', id: i.id, name: i.name, kategorie: i.kategorie }))];
+    this.iconsLaufen = true;
+    el.classList.remove('versteckt');
+    const zeige = (f, g) => {
+      el.querySelector('i').style.width = `${g ? Math.round((f / g) * 100) : 100}%`;
+      el.querySelector('span').textContent = g ? `${f} / ${g}` : 'alle da';
+      el.dataset.tipp = `Vorschaubilder: ${f} von ${g} fertig`;
+    };
+    try {
+      const n = await this.vorschau.ladeAlle(liste, zeige);
+      this.hinweis(n ? `${n} Vorschaubilder fertig` : 'Alle Vorschaubilder sind schon da', 'erfolg');
+      this.assets.zeichne();
+    } finally {
+      this.iconsLaufen = false;
+      setTimeout(() => el.classList.add('versteckt'), 2500);
+    }
+  }
+
   #werkzeugleisteAktiv() {
     for (const b of document.querySelectorAll('#werkzeugleiste [data-befehl]')) {
       const id = b.dataset.befehl;
-      b.classList.toggle('aktiv', id === `werkzeug.${this.werkzeuge.aktiv}`);
+      b.classList.toggle('aktiv', id === `werkzeug.${this.werkzeuge.aktiv}` || (id === 'ansicht.echteModelle' && this.ansicht.echteAn));
       b.disabled = !this.befehle.istAktiv(id);
     }
   }
@@ -525,7 +575,7 @@ class Studio {
       if (!f) return;
       this.werkzeuge.setzeOption(f.dataset.opt, f.type === 'checkbox' ? f.checked : f.type === 'number' ? Number(f.value) : f.value);
     };
-    document.getElementById('ansicht-hinweis').textContent = 'Rechte Maus drehen · Mitte/Leertaste schieben · Rad Zoom · RMT + WASD fliegen · F1 Hilfe';
+    document.getElementById('ansicht-hinweis').textContent = 'WASD bewegen · Rechte Maus drehen · Mitte/Leertaste schieben · Rad Zoom · F1 Hilfe';
   }
 
   #ansichtsLeiste() {
@@ -579,6 +629,8 @@ class Studio {
       { id: 'zone.aktualisieren', gruppe: 'Datei', titel: 'Zonenliste neu laden', icon: 'wiederholen', ausfuehren: () => this.zonenPanel.laden() },
       { id: 'asset.importModell', gruppe: 'Datei', titel: 'Modell importieren …', icon: 'hochladen', ausfuehren: () => this.#dialogModellImport() },
       { id: 'asset.importKlang', gruppe: 'Datei', titel: 'Klang importieren …', icon: 'audio', aktiv: echteZone, ausfuehren: () => this.#dialogKlangImport() },
+      { id: 'ansicht.echteModelle', gruppe: 'Ansicht', titel: 'Echte Modelle (wie im Spiel)', icon: 'spielOptik', kuerzel: 'Umschalt+E', angehakt: () => ansicht.echteAn, ausfuehren: () => { ansicht.setzeEchteModelle(!ansicht.echteAn); try { localStorage.setItem('browserSurvival.studio.echteModelle', ansicht.echteAn ? '1' : '0'); } catch { /* egal */ } this.#werkzeugleisteAktiv(); this.hinweis(ansicht.echteAn ? 'Objekte wie im Spiel' : 'Schnelle Platzhalter-Klötze'); } },
+      { id: 'ansicht.alleIcons', gruppe: 'Ansicht', titel: 'Alle Icons laden', icon: 'hochladen', ausfuehren: () => this.#alleIcons() },
       { id: 'ansicht.vorschauNeu', gruppe: 'Ansicht', titel: 'Vorschaubilder neu erzeugen', icon: 'wiederholen', ausfuehren: async () => { await this.vorschau.loescheCache(); this.assets.zeichne(); this.hinweis('Vorschaubilder werden neu erzeugt …'); } },
       { id: 'projekt.veroeffentlichen', gruppe: 'Datei', titel: 'Veröffentlichen (Tests, Commit, Push) …', icon: 'insSpiel', kuerzel: 'Strg+Umschalt+P', ausfuehren: async () => { await oeffneVeroeffentlichen(this); this.gitAktualisieren(); } },
       { id: 'asset.internet', gruppe: 'Datei', titel: 'Im Internet suchen (Modelle, Texturen, Klänge) …', icon: 'suche', kuerzel: 'Strg+Umschalt+I', ausfuehren: () => oeffneAssetSuche(this) },
@@ -1327,7 +1379,7 @@ class Studio {
 
   #hilfeTasten() {
     const zeilen = [...this.befehle.liste.values()].filter((b) => b.kuerzel).map((b) => `<div class="menue-eintrag" style="pointer-events:none"><span class="gruppe" style="width:90px;color:var(--text-3)">${esc(b.gruppe)}</span>${b.icon ? icon(b.icon, 15) : ''}<span>${esc(b.titel)}</span><span class="kuerzel">${esc([].concat(b.kuerzel).join(' / '))}</span></div>`);
-    zeilen.push('<div class="menue-trenner"></div><div class="menue-eintrag" style="pointer-events:none"><span>Kamera</span><span class="kuerzel">Rechte Maus drehen · Mitte/Leertaste schieben · Rad Zoom · RMT+WASD/QE fliegen</span></div><div class="menue-eintrag" style="pointer-events:none"><span>Pinselgröße</span><span class="kuerzel">[ ]</span></div><div class="menue-eintrag" style="pointer-events:none"><span>Objekt drehen beim Setzen</span><span class="kuerzel">Strg+Rad</span></div>');
+    zeilen.push('<div class="menue-trenner"></div><div class="menue-eintrag" style="pointer-events:none"><span>Kamera</span><span class="kuerzel">Rechte Maus drehen · Mitte/Leertaste schieben · Rad Zoom · WASD schieben (RMT+Q/E Höhe)</span></div><div class="menue-eintrag" style="pointer-events:none"><span>Pinselgröße</span><span class="kuerzel">[ ]</span></div><div class="menue-eintrag" style="pointer-events:none"><span>Objekt drehen beim Setzen</span><span class="kuerzel">Strg+Rad</span></div>');
     dialog({ titel: 'Tastenkürzel', icon: 'hilfe', breit: true, inhalt: `<div>${zeilen.join('')}</div>`, knoepfe: [{ text: 'Schließen', wert: true, art: 'primaer' }] });
   }
 

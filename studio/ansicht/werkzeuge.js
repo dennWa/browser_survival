@@ -7,18 +7,19 @@ import * as A from '../kern/aktionen.js';
 import * as B from '../kern/bauhilfen.js';
 import { objektHoehe } from './viewport.js';
 import { MAL_AUFLOESUNG, strich } from '../../gemeinsam/welt/bodenMalerei.js';
+import { KACHELN } from '../../gemeinsam/welt/kacheln.js';
 
 /**
  * Werkzeuge der Kartenbearbeitung – bekommen die Zeiger-Ereignisse der Ansicht (linke Maustaste) und ändern die Karte
  * NUR über Dokument.aendere/gruppe mit den Aktionen aus kern/aktionen.js. Optionen je Werkzeug → Optionsleiste
- * (`optionen(id)` liefert Felder, app.js zeichnet sie). Tastenkürzel stehen in WERKZEUGE (Q W E R B N H T O F K I P).
+ * (`optionen(id)` liefert Felder, app.js zeichnet sie). Tastenkürzel stehen in WERKZEUGE (Q U E R B J N H T L C O G K I P M Z; W A S D = Kamera).
  * Runde 41: „Weicher Pinsel“ (J) malt Böden rund mit weichem Rand in die Malschicht (gemeinsam/welt/bodenMalerei.js) –
  *   während des Strichs nur Vorschau (ansicht.malVorschau), beim Loslassen 1 Op (Undo = ganzer Strich).
  *   Bereich-Werkzeug: Tiere jetzt mit Art (Hasen, Rehe, Hirsche, Füchse).
  */
 export const WERKZEUGE = [
   { id: 'auswahl', titel: 'Auswählen', icon: 'auswahl', kuerzel: 'Q', text: 'Klicken wählt, Ziehen auf freier Fläche = Rahmen, Ziehen auf Gewähltem = verschieben. Umschalt = hinzufügen.' },
-  { id: 'bewegen', titel: 'Bewegen', icon: 'bewegen', kuerzel: 'W', text: 'Pfeile des Gizmos ziehen. Strg = auf ganze Kacheln einrasten.' },
+  { id: 'bewegen', titel: 'Bewegen', icon: 'bewegen', kuerzel: 'U', text: 'Pfeile des Gizmos ziehen. Strg = auf ganze Kacheln einrasten.' },
   { id: 'drehen', titel: 'Drehen', icon: 'drehen', kuerzel: 'E', text: 'Ring ziehen – rastet in 15°-Schritten.' },
   { id: 'skalieren', titel: 'Größe', icon: 'skalieren', kuerzel: 'R', text: 'Größer/kleiner – die Grundfläche (Kollision) wächst mit.' },
   { trenner: true },
@@ -28,9 +29,9 @@ export const WERKZEUGE = [
   { id: 'raum', titel: 'Raum bauen', icon: 'raum', kuerzel: 'H', text: 'Rechteck ziehen: Wände, Boden, Tür und Loot in einem Schritt.' },
   { id: 'gelaende', titel: 'Gelände', icon: 'gelaende', kuerzel: 'T', text: 'Heben, senken, glätten, ebnen – Maus gedrückt halten formt weiter.' },
   { id: 'strasse', titel: 'Straße', icon: 'strasse', kuerzel: 'L', text: 'Linie ziehen: Fahrbahn, Gehwege, Markierung und Laternen in einem Zug.' },
-  { id: 'streuen', titel: 'Streuen', icon: 'streuen', kuerzel: 'S', text: 'Bäume, Büsche, Steine „aufsprühen“ – Umschalt = radieren.' },
+  { id: 'streuen', titel: 'Streuen', icon: 'streuen', kuerzel: 'C', text: 'Bäume, Büsche, Steine „aufsprühen“ – Umschalt = radieren.' },
   { trenner: true },
-  { id: 'objekt', titel: 'Objekt platzieren', icon: 'objekt', kuerzel: 'O', text: 'Asset wählen, klicken zum Setzen. Strg+Rad = drehen, Umschalt = weiter setzen.' },
+  { id: 'objekt', titel: 'Objekt platzieren', icon: 'objekt', kuerzel: 'O', text: 'Asset wählen, klicken zum Setzen. R = 90° drehen, R halten = stufenlos drehen (auch Strg+Rad), Umschalt = weiter setzen.' },
   { id: 'flaeche', titel: 'Bereich markieren', icon: 'flaeche', kuerzel: 'G', text: 'Rechteck ziehen: Loot-Zone, Tiere (Hasen, Rehe, Hirsche, Füchse), Übergang oder Klangzone.' },
   { id: 'klang', titel: 'Klang setzen', icon: 'klang', kuerzel: 'K', text: 'Punktklang mit Hörweite setzen (oder an ein Objekt hängen).' },
   { id: 'spawn', titel: 'Item-Spawnpunkt', icon: 'spawn', kuerzel: 'I', text: 'Ein Item mit Chance & Intervall. Über Möbeln wird es automatisch draufgelegt.' },
@@ -87,9 +88,18 @@ export class Werkzeuge {
     if (this.aktiv === 'messen' && id !== 'messen') this.messenEnde(true);
     this.aktiv = id;
     this.zug = null;
+    if (id === 'weich') this.uebernimmBoden(this.studio.asset);
     this.ansicht.setzeGeist(null);
     this.ansicht.setzeGizmo(MIT_GIZMO[id] ?? null);
     this.studio.meldeOptionen();
+  }
+
+  /** Weicher Pinsel: gewählte Boden-Kachel aus den Assets übernehmen (Straße, Gehweg, Fliesen …). @returns true = übernommen */
+  uebernimmBoden(asset) {
+    const name = asset?.art === 'kachel' ? KACHELN[asset.zeichen]?.name : null;
+    if (!name || !(name in A.MAL_NAMEN)) return false;
+    this.opt.weich.boden = name;
+    return true;
   }
 
   /** Felder für die Optionsleiste: [{ art: 'auswahl'|'zahl'|'text'|'schalter'|'hinweis', feld, titel, werte?, min?, max?, schritt? }] */
@@ -213,6 +223,7 @@ export class Werkzeuge {
   }
 
   schweben(e) {
+    this.letzterZeiger = { clientX: e.clientX, clientY: e.clientY, shiftKey: e.shiftKey, ctrlKey: e.ctrlKey };
     const p = this.#punkt(e);
     const k = this.dok.karte;
     if (!p || !k) return this.ansicht.setzeSchwebe(null);
@@ -278,7 +289,9 @@ export class Werkzeuge {
     if (v.vorlage) return this.ansicht.setzeGeist([{ x: v.x, y: v.y, b: v.b, h: v.h, hoehe: 0.3 }], true);
     const ok = pruefeObjekt(this.dok.karte, v.neu).ok;
     const hoehe = objektHoehe(v.neu, this.dok.karte);
-    this.ansicht.setzeGeist([{ x: v.x + v.b / 2, y: v.y + v.h / 2, b: v.b, h: v.h, hoehe, mitte: true }], ok);
+    const bauwerk = v.katalogId.startsWith('bauwerk:');
+    // Geist = echtes Modell (Spiel-Optik) + Rahmen; dreh = Drehung des Rahmens (Grundfläche ist schon getauscht → nur Rest)
+    this.ansicht.setzeGeist([{ x: v.x + v.b / 2, y: v.y + v.h / 2, b: v.b, h: v.h, hoehe, mitte: true, objekt: v.neu, bauwerk }], ok);
     this.studio.hinweis(ok ? `${v.neu.typ} · ${r2(v.b)} × ${r2(v.h)} Kacheln` : pruefeObjekt(this.dok.karte, v.neu).grund);
   }
 
@@ -660,6 +673,46 @@ export class Werkzeuge {
     } catch (f) {
       this.studio.hinweis(f.message, 'fehler');
     }
+  }
+
+  #drehe(grad) {
+    const o = this.opt.objekt;
+    o.drehung = Math.round(((((Number(o.drehung) || 0) + grad) % 360) + 360) % 360 * 10) / 10;
+    this.studio.meldeOptionen();
+    if (this.letzterZeiger) this.schweben(this.letzterZeiger);
+  }
+
+  /**
+   * Taste im Objekt-Werkzeug: R kurz = 90° weiter, R halten = stufenlos drehen (Umschalt = andersrum).
+   * @returns true = verbraucht (app.js führt dann keinen Befehl aus)
+   */
+  taste(e) {
+    if (this.aktiv !== 'objekt' || e.key.toLowerCase() !== 'r' || e.ctrlKey || e.altKey || e.metaKey) return false;
+    if (e.repeat || this.rDreh) return true;
+    const dreh = (this.rDreh = { start: performance.now(), richtung: e.shiftKey ? -1 : 1, gehalten: false, letzte: performance.now() });
+    const schritt = (jetzt) => {
+      if (this.rDreh !== dreh) return;
+      if (jetzt - dreh.start > 220) {
+        dreh.gehalten = true;
+        this.#drehe(dreh.richtung * 75 * Math.min(0.05, (jetzt - dreh.letzte) / 1000)); // 75°/s – genau genug zum Ausrichten
+      }
+      dreh.letzte = jetzt;
+      requestAnimationFrame(schritt);
+    };
+    requestAnimationFrame(schritt);
+    return true;
+  }
+
+  tasteLos(e) {
+    if (e.key.toLowerCase() !== 'r' || !this.rDreh) return;
+    const d = this.rDreh;
+    this.rDreh = null;
+    if (!d.gehalten) {
+      // kurz getippt: auf das nächste 90°-Raster weiter
+      const w = Number(this.opt.objekt.drehung) || 0;
+      const ziel = d.richtung > 0 ? Math.floor(w / 90 + 1e-6) * 90 + 90 : Math.ceil(w / 90 - 1e-6) * 90 - 90;
+      this.#drehe(ziel - w);
+    } else this.opt.objekt.drehung = Math.round(Number(this.opt.objekt.drehung)) % 360;
   }
 
   /** Strg+Rad im Objekt-Werkzeug: Geist drehen. @returns true = verbraucht */

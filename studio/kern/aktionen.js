@@ -65,7 +65,7 @@ export function pinselOps(karte, x, y, groesse, zeichen, { rund = false, waendeS
 export const TIER_ARTEN = [['hase', 'Hasen'], ['reh', 'Rehe'], ['hirsch', 'Hirsche'], ['fuchs', 'Füchse']];
 
 /** Runde 41: Anzeigenamen der weich malbaren Böden (gemeinsam/welt/bodenMalerei.MAL_BOEDEN) */
-export const MAL_NAMEN = { rasen: 'Rasen', wiese: 'Wiese', gras: 'Gras (alt)', waldboden: 'Waldboden', wildwald: 'Wildwald', erde: 'Erde/Weg', kies: 'Kies', sand: 'Sand', pflaster: 'Pflaster', asphalt: 'Asphalt', wasser: 'Wasser', schnee: 'Schnee' };
+export const MAL_NAMEN = { rasen: 'Rasen', wiese: 'Wiese', gras: 'Gras (alt)', waldboden: 'Waldboden', wildwald: 'Wildwald', erde: 'Erde/Weg', kies: 'Kies', sand: 'Sand', pflaster: 'Pflaster', asphalt: 'Asphalt', strasse: 'Straße', gehweg: 'Gehweg', beton: 'Beton', fliesen: 'Fliesen', holz: 'Holzdielen', steg: 'Steg', wasser: 'Wasser', schnee: 'Schnee' };
 
 /** Runde 41: aktuelle Maske einer weichen Malschicht (Kopie; leer, wenn es sie noch nicht gibt) */
 export function malMaske(karte, boden) {
