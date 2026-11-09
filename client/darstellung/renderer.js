@@ -668,7 +668,7 @@ export class Renderer {
     this.karte.dachDoppelseitig?.(!!this.egoHaken);
     this.#innenAbschirmung(dt, fokus);
     this.karte.aktualisiereDurchsicht(dt, fokus.x, fokus.y, !this.egoHaken);
-    this.natur?.aktualisiere(fokus, this.welt.bauwerkeVersion, !!this.egoHaken, this.#sichtRadiusBoden(_ziel.y));
+    if (this.natur?.gruppe.visible) this.natur.aktualisiere(fokus, this.welt.bauwerkeVersion, !!this.egoHaken, this.#sichtRadiusBoden(_ziel.y));
     const tuerAbstand = this.karte.aktualisiereTuerSchimmer(fokus);
     this.blaetter?.aktualisiere(dt, fokus, jetzt, dunkel, Math.max(this.wetterEffekt.sturm, Math.min(1, Math.max(0, this.wetterEffekt.windStufe - 0.2) / 2.6)));
     this.muell?.aktualisiere(dt, fokus, Math.max(0, Math.min(1, (this.wetterEffekt.windStufe - 1.3) / 1.4)) * Math.max(this.wetterEffekt.regen, this.wetterEffekt.sturm));

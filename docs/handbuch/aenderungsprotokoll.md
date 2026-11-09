@@ -95,3 +95,4 @@
 | 0.47.5-dev | 2026-11-09 | Spielstand-Karten im Hauptmenü zeigen jetzt auch die zusätzlichen Figuren (Mann 1–13, Frau 1–13, Sheriff) – Standbild wartet auf das Modell-Laden |
 | 0.47.6-dev | 2026-11-09 | Auto-Tank geht 3× langsamer leer (Verbrauch 0,4 statt 1,2 L je 1000 px) |
 | 0.47.7-dev | 2026-11-09 | Gras im Lager: Sichtweite folgt dem Bildausschnitt, kein Ein-/Ausploppen und keine LOD-Sprünge mehr im Bild |
+| 0.47.8-dev | 2026-11-09 | Gras ausgeschaltet (Einstellung „Gras & Blumen“ = Aus) kostet keine Rechenzeit mehr |
