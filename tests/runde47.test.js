@@ -290,3 +290,68 @@ test('Verarzten: Medizin am Mitspieler – wirkt nach der Arbeit, bricht ab wenn
   assert.ok(opfer.leben > 1);
   assert.equal(arzt.inventar[13], null);
 });
+
+// ---------------------------------------------------------------------------------------------- Ducken / Schleichen
+
+test('Hock-Clips: Körper tiefer, Knöchel bleibt am Fuß (jede Abtastung), keine Aufaddier-Fehler bei konstanten Spuren', async () => {
+  const THREE = await import('three');
+  const { backeHockClip } = await import('../client/darstellung/hockClips.js');
+  // Mini-Skelett wie die Quaternius-Figur: Root → Body → (Hips → Head, UpperLegL → LowerLegL), Fuß am Root (IK-Ziel)
+  const knochen = (name, x, y, z, eltern) => {
+    const b = new THREE.Bone();
+    b.name = name;
+    b.position.set(x, y, z);
+    eltern.add(b);
+    return b;
+  };
+  const modell = new THREE.Group();
+  const root = knochen('Root', 0, 0, 0, modell);
+  const body = knochen('Body', 0, 0.95, 0, root);
+  const hips = knochen('Hips', 0, 0.03, 0, body);
+  knochen('Head', 0, 0.7, 0, hips);
+  const ober = knochen('UpperLegL', 0.12, 0, 0, body);
+  knochen('LowerLegL', 0, -0.45, 0, ober);
+  knochen('FootL', 0.12, 0.05, 0, root);
+  const oberR = knochen('UpperLegR', -0.12, 0, 0, body);
+  knochen('LowerLegR', 0, -0.45, 0, oberR);
+  knochen('FootR', -0.12, 0.05, 0, root);
+  // Steh-Clip mit KONSTANTEN Spuren (Worst Case: Mixer schreibt sie nur einmal)
+  const stehen = new THREE.AnimationClip('stehen', 2, [
+    new THREE.VectorKeyframeTrack('Body.position', [0, 2], [0, 0.95, 0, 0, 0.95, 0]),
+    new THREE.QuaternionKeyframeTrack('Hips.quaternion', [0, 2], [0, 0, 0, 1, 0, 0, 0, 1]),
+    new THREE.VectorKeyframeTrack('FootL.position', [0, 2], [0.12, 0.05, 0, 0.12, 0.05, 0]),
+  ]);
+  const ducken = backeHockClip(modell, stehen, stehen, { name: 'ducken', tiefe: 0.34, vorlage: 0.42, kopf: -0.3 });
+  assert.ok(ducken);
+  assert.equal(body.position.y, 0.95, 'Vorlage danach unverändert');
+  const mixer = new THREE.AnimationMixer(modell);
+  mixer.clipAction(ducken).play();
+  const welt = (n) => modell.getObjectByName(n).getWorldPosition(new THREE.Vector3());
+  const hoehen = [];
+  for (const t of [0, 0.7, 1.4, 1.99]) {
+    mixer.setTime(t);
+    modell.updateMatrixWorld(true);
+    hoehen.push(welt('Body').y);
+    const unter = modell.getObjectByName('LowerLegL');
+    const knoechel = unter.localToWorld(new THREE.Vector3(0, -0.45, 0)); // Unterschenkel-Länge im Ruhe-Raum
+    assert.ok(knoechel.distanceTo(welt('FootL')) < 0.02, `t=${t}: Knöchel sitzt am Fuß (${knoechel.distanceTo(welt('FootL')).toFixed(3)})`);
+    assert.ok(welt('LowerLegL').z > 0.05, 'Knie zeigt nach vorn');
+  }
+  for (const h of hoehen) assert.ok(Math.abs(h - (0.95 - 0.34 * (0.45 + 0.45))) < 0.01, `Körper gleich tief abgesenkt (${h.toFixed(3)})`);
+});
+
+test('Ducken: Tempo ≈ Gehen, Rennen hebt es auf, Zombies bemerken Geduckte später', async () => {
+  const { wendeEingabeAn } = await import('../gemeinsam/physik/bewegung.js');
+  const { TICK_DAUER_S } = await import('../gemeinsam/konstanten.js');
+  const welt = new SpielWelt(erstelleKonfiguration({}));
+  const p = welt.physikParameter();
+  assert.equal(p.duckFaktor, 0.55, 'duckFaktor geht an den Client (Vorhersage)');
+  const s = welt.spielerBetrittWelt('Schleicher');
+  const x0 = s.x;
+  wendeEingabeAn(s, { x: 1, y: 0, ducken: true }, welt.welt, p, TICK_DAUER_S);
+  assert.equal(s.duckt, true);
+  assert.ok(Math.abs(s.x - x0 - p.geschwindigkeit * 0.55 * TICK_DAUER_S) < 1e-6, 'geduckt = 55 % Tempo');
+  wendeEingabeAn(s, { x: 1, y: 0, ducken: true, sprint: true }, welt.welt, p, TICK_DAUER_S);
+  assert.equal(s.duckt, false, 'Shift = aufrecht losrennen');
+  assert.equal(welt.konfiguration.zombie.duckSichtFaktor, 0.55);
+});

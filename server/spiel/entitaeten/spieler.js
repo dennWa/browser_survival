@@ -134,6 +134,7 @@ export function spielerZuNetzwerk(s) {
     unendlichAusdauer: s.unendlichAusdauer || undefined,
     unendlichMunition: s.unendlichMunition || undefined, // nur für den Admin-Schalter (gelb)
     sprintet: s.sprintet,
+    duckt: s.duckt || undefined, // Runde 47: geduckt (Clip „ducken“/„schleichen“)
     lichtAn: s.lichtAn,
     gottmodus: s.gottmodus,
     unsichtbar: s.unsichtbar,

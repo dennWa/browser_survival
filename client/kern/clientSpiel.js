@@ -919,6 +919,17 @@ export class ClientSpiel {
     this.#aktion(AKTIONEN.BENUTZEN, slot);
   }
 
+  /** Runde 47: Ducken/Schleichen an/aus (Taste „ducken“ = Y, 🧎 am Handy) – langsamer, Zombies bemerken einen später. */
+  duckenUmschalten() {
+    this.duckenSetzen(!this.duckt);
+  }
+
+  duckenSetzen(an) {
+    if (an && (this.spielerDaten?.tot || this.lokal.fahrzeug)) return;
+    this.duckt = !!an;
+    this.hud.zeigeDucken?.(this.duckt);
+  }
+
   /** Runde 47: Funkgerät-Fenster auf/zu (Taste Ü, 📻, Inventar). */
   funkgeraetUmschalten() {
     this.hud.funk?.setzeLage(this.funkLage ?? { geraet: this.spielerDaten?.inventar.some((e) => e?.defId === 'funkgeraet') });
@@ -1259,13 +1270,17 @@ export class ClientSpiel {
       this.letzterKlick = angriff;
       angriff = false;
     }
+    const sprint = !tot && (this.eingabe.sprint() || !!this.autorun);
+    // Runde 47: Ducken (Umschalter) – Rennen, Auto, Tod, Sitzen/Schlafen heben es auf
+    if (this.duckt && (sprint || tot || this.lokal.fahrzeug || this.schlaeft || this.mitfahrt || this.eigeneDaten?.arbeit === 'sitzen')) this.duckenSetzen(false);
     const eingabe = {
       seq: ++this.seq,
       x: richtung.x,
       y: richtung.y,
       blick: autoBlick ?? this.#blick(),
       angriff,
-      sprint: !tot && (this.eingabe.sprint() || !!this.autorun),
+      sprint,
+      ...(this.duckt ? { ducken: true } : {}),
     };
     // Ego-Ansicht: Blickneigung mitschicken (Server prüft damit Treffer auf Gelände in der Höhe)
     const neigung = this.eingabe.neigung?.();
@@ -1714,6 +1729,7 @@ export class ClientSpiel {
       bewegungsWinkel: Math.atan2(dy, dx),
       istEigener: true,
       sprintet: this.lokal.sprintet ?? this.eigeneDaten?.sprintet, // Vorhersage statt verzögertem Serverwert (Lauf-Animation)
+      duckt: this.lokal.duckt ?? this.duckt, // Runde 47: Hock-Clip sofort (Vorhersage)
     };
     if (this.karte.offen) this.karte.mitspieler = this.#mitspieler();
     if (!this.spielerDaten?.tot) this.karte.aktualisiere(eigen, jetzt);

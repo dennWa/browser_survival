@@ -42,6 +42,7 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     startDurst: 85,
     sprintFaktor: 1.7, // Rennen (Shift + Ausdauer) = 1,7 × Grundtempo = 170 px/s (Runde 21: vorher 150)
     joggFaktor: 1.25, // Shift gehalten, aber Ausdauer leer/erschöpft → schnelleres Joggen = 125 px/s
+    duckFaktor: 0.55, // Runde 47: Ducken/Schleichen ≈ normales Gehen (55 px/s) – Zombies sehen/hören einen schlechter (zombie.duck*)
     ausdauerMax: 100,
     ausdauerVerbrauch: 22, // pro Sekunde Sprint (≈ 4,5 s am Stück)
     ausdauerRegeneration: 14, // pro Sekunde ohne Sprint
@@ -66,6 +67,7 @@ export const STANDARD_KONFIGURATION = Object.freeze({
     leben: 60,
     aggroRadius: 170, // ab dieser Entfernung (px) wird ein sichtbarer Spieler bemerkt
     dunkelFaktor: 0.45, // Nachts mit Taschenlampe aus → Spieler wird erst ab aggroRadius × dunkelFaktor bemerkt
+    duckSichtFaktor: 0.55, // Runde 47: geduckt → Bemerk-Radius (und Witterung der Nacht-Horde) × diesen Faktor
     nachtLichtFaktor: 1.2, // Nachts mit Taschenlampe an → leuchtet wie ein Leuchtturm
     nachtTempoFaktor: 1.1, // nachts jagen Zombies schneller (bleiben unter dem Renn-Tempo)
     nachtHorde: 8, // zusätzliche Zombies, die bei Einbruch der Nacht auftauchen (verschwinden morgens)

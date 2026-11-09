@@ -1471,6 +1471,8 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
 /* Runde 47: Funkgerät – Sprechknopf über dem Mikrofon, Fenster, HUD-Anzeige „📻 Name“ */
 #funk-knopf { position: fixed; right: 16px; bottom: 210px; z-index: 30; width: 52px; height: 52px; border-radius: 50%; font-size: 1.4rem; border: 2px solid rgba(226, 170, 40, 0.7); background: rgba(30, 30, 34, 0.7); color: #fff; cursor: pointer; touch-action: none; user-select: none; }
 #funk-knopf[hidden] { display: none; }
+#hud-ducken { position: fixed; right: 16px; bottom: 270px; z-index: 30; width: 52px; height: 52px; border-radius: 50%; font-size: 1.4rem; border: 2px solid rgba(255, 255, 255, 0.35); background: rgba(30, 30, 34, 0.7); color: #fff; touch-action: none; }
+#hud-ducken.aktiv { background: rgba(60, 120, 200, 0.85); box-shadow: 0 0 12px rgba(90, 160, 255, 0.8); }
 #funk-knopf.sendet { background: rgba(200, 70, 40, 0.9); box-shadow: 0 0 14px rgba(255, 120, 60, 0.85); }
 #funk {
   position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 21; pointer-events: auto;

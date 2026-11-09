@@ -19,6 +19,7 @@ import { AUSSEHEN, skinFuer, pruefeAussehen, aussehenOption } from '../../gemein
 import { itemGeometrie, itemVarianten, ladeGlbItemModelle, ladeR32ItemModelle, itemMaterialFuer, ITEM_MATERIAL, rucksackTeile } from './itemModelle.js';
 import { zeichneBeschriftung, zeichneEmote, zeichneItemName, zeichneSprechblase } from './beschriftung.js';
 import { EMOTE_DAUER_MS } from '../../gemeinsam/spieler/emotes.js';
+import { ergaenzeHockClips } from './hockClips.js';
 import { richteFigurEin, aktualisiereHaltung, setzeStuhlZurueck, ARBEIT_KLIP, istBeidhaendigerSchlag } from './figurHaltung.js';
 import { erzeugeWaffe, WAFFEN_NAMEN , ladeR32Waffen } from './waffenModelle.js';
 import { erzeugeTier } from './tierModelle.js';
@@ -1165,6 +1166,7 @@ export class Renderer {
           const gltf = await new GLTFLoader().loadAsync(new URL(pfad, ASSETS).href);
           const hoehe = new THREE.Box3().setFromObject(gltf.scene).getSize(new THREE.Vector3()).y;
           const clips = Object.fromEntries(gltf.animations.map((c) => [c.name, c]));
+          ergaenzeHockClips(gltf.scene, clips); // Runde 47: „ducken“ + „schleichen“ (gebacken, gelten auch für Zusatzfiguren)
           figuren[name] = { modell: gltf.scene, clips, massstab: FIGUR_HOEHE / hoehe, materialien: new Map() };
         }),
       );
@@ -1826,9 +1828,11 @@ export class Renderer {
         else if (arbeitsKlip && (HACK_ARBEIT.has(e.arbeit) || e.arbeit === 'zerlegen')) name = 'hacken';
         else if (e.aktion === 'hacke' && !e.arbeit && k.hacke) name = 'hacke';
         else if (k.nahkampf && f.nahkampfBis > jetzt) name = 'nahkampf';
+        else if (e.duckt && k.ducken) name = tempo > 12 && k.schleichen ? 'schleichen' : 'ducken'; // Runde 47: Hock-Clips (hockClips.js)
         else if (tempo > 12) name = k.gehen && tempo < GEH_GRENZE ? 'gehen' : 'laufen';
         else name = 'stehen';
         const fk = f.koerper === 'frau' ? 'frau' : 'mann';
+        if (name === 'schleichen') zeitfaktor = Math.max(0.5, Math.min(2, tempo / GEH_TEMPO[fk]));
         if (name === 'laufen') zeitfaktor = Math.max(0.6, Math.min(2.4, tempo / LAUF_TEMPO[fk]));
         if (name === 'gehen') zeitfaktor = Math.max(0.5, Math.min(2.4, tempo / GEH_TEMPO[fk]));
         // Hacken-Schlag: jeder neue Schlag (neuer aktionTick) startet den Einmal-Clip von vorn

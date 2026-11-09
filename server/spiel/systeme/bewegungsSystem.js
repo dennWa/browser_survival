@@ -18,6 +18,7 @@ export function verarbeiteSpielerEingaben(spielWelt) {
       const eingabe = spieler.eingabePuffer.shift();
       if (spieler.arbeit?.art === 'schlafen' || spieler.niedergestreckt > 0 || spieler.mitfahrt) {
         spieler.angriff = false; // im Bett / als Beifahrer (Runde 28): festgehalten, Position bestimmt der Server
+        spieler.duckt = false;
       } else if (!spieler.tot) {
         const sprintet = wendeEingabeAn(spieler, eingabe, spielWelt.welt, parameter, TICK_DAUER_S);
         spieler.angriff = eingabe.angriff && !spieler.fahrzeug; // im Auto wird nicht geschossen

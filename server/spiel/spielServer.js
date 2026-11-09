@@ -521,6 +521,7 @@ export class SpielServer {
       blick: Number.isFinite(n.blick) ? n.blick : spieler.blick,
       angriff: n.angriff === true,
       sprint: n.sprint === true,
+      ducken: n.ducken === true, // Runde 47: Ducken/Schleichen (gemeinsam/physik/bewegung.js)
       // Ego-Ansicht: Blickneigung (Radiant, + = nach oben) – nur dann zählt die Höhe beim Schießen (Gelände, Editor 2.0)
       neigung: Number.isFinite(n.neigung) ? Math.max(-1.5, Math.min(1.5, n.neigung)) : null,
       abstand: Number.isFinite(n.abstand) ? Math.max(0, Math.min(2000, n.abstand)) : null, // Runde 24: Mausabstand = Wurfweite

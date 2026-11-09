@@ -156,7 +156,8 @@ function waehleZiel(spielWelt, z, lebendeSpieler, k) {
     if (sitztAmFeuer(s)) continue; // wer am Lagerfeuer sitzt, fällt nicht auf (es sei denn, der Zombie jagt schon)
     const abstand = Math.hypot(s.x - z.x, s.y - z.y);
     // Im Dunkeln (Taschenlampe aus) fällt man erst aus der Nähe auf
-    const bemerkRadius = !spielWelt.istNacht ? k.aggroRadius : k.aggroRadius * (s.lichtAn ? k.nachtLichtFaktor : k.dunkelFaktor);
+    // Runde 47: geduckt fällt man später auf (duckSichtFaktor)
+    const bemerkRadius = (!spielWelt.istNacht ? k.aggroRadius : k.aggroRadius * (s.lichtAn ? k.nachtLichtFaktor : k.dunkelFaktor)) * (s.duckt ? (k.duckSichtFaktor ?? 1) : 1);
     if (abstand < bemerkRadius && abstand < bestAbstand && siehtZiel(spielWelt.welt, z, s)) {
       bester = s;
       bestAbstand = abstand;
@@ -303,6 +304,7 @@ function wittere(spielWelt, z, lebendeSpieler, dt) {
     const abstand = Math.hypot(s.x - z.x, s.y - z.y);
     if (spielWelt.welt.istInnen(s.x, s.y) && !spielWelt.welt.istInnen(z.x, z.y)) continue; // drinnen = nicht zu wittern
     if (sitztAmFeuer(s)) continue;
+    if (s.duckt && abstand > HORDE_WITTERUNG * (spielWelt.konfiguration.zombie.duckSichtFaktor ?? 1)) continue; // Runde 47: geduckt schwerer zu wittern
     if (abstand < bestAbstand) {
       bester = s;
       bestAbstand = abstand;

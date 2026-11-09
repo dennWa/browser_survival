@@ -148,6 +148,10 @@ eingabe.beiTaste('abriss', () => aktuellesSpiel?.bauAbriss());
 eingabe.beiTaste('gebiet', () => aktuellesSpiel?.bauGebiet());
 eingabe.beiTaste('funkgeraet', () => aktuellesSpiel?.funkgeraetUmschalten()); // Runde 47
 eingabe.beiTaste('emotes', () => aktuellesSpiel && hud.emotes.umschalten());
+eingabe.beiTaste('ducken', () => aktuellesSpiel?.duckenUmschalten()); // Runde 47
+const duckKnopf = document.getElementById('hud-ducken');
+duckKnopf.addEventListener('click', () => aktuellesSpiel?.duckenUmschalten());
+hud.zeigeDucken = (an) => duckKnopf.classList.toggle('aktiv', !!an);
 eingabe.beiSlotTaste((slot) => !hud.emotes.ziffer(slot) && aktuellesSpiel?.benutzen(slot)); // Runde 47: offene Emote-Auswahl → 1–9 wählen
 hud.beiAbmelden(() => aktuellesSpiel?.beenden('Abgemeldet'));
 const tonUmschalten = () => {

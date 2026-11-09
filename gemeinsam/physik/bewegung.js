@@ -41,6 +41,7 @@ export function wendeEingabeAn(koerper, eingabe, welt, parameter, dt) {
     koerper.y = koerper.fahrzeug.y;
     if (Number.isFinite(eingabe.blick)) koerper.blick = eingabe.blick;
     koerper.sprintet = false;
+    koerper.duckt = false;
     aktualisiereAusdauer(koerper, false, parameter, dt);
     return false;
   }
@@ -52,13 +53,17 @@ export function wendeEingabeAn(koerper, eingabe, welt, parameter, dt) {
     koerper.y = begrenze(koerper.y + richtung.y * weg, parameter.radius, welt.hoehe * welt.kachelGroesse - parameter.radius);
     if (Number.isFinite(eingabe.blick)) koerper.blick = eingabe.blick;
     koerper.sprintet = false;
+    koerper.duckt = false;
     return false;
   }
   const willSprinten = eingabe.sprint === true && Math.hypot(richtung.x, richtung.y) > 0.1;
   const sprintet = aktualisiereAusdauer(koerper, willSprinten, parameter, dt);
+  // Runde 47: Ducken/Schleichen – langsamer (duckFaktor ≈ Gehen), Shift hebt es auf (man rennt aufrecht los)
+  const duckt = eingabe.ducken === true && !willSprinten;
+  koerper.duckt = duckt;
   // Gangarten (Runde 18): ohne Shift gehen; Shift = rennen (kostet Ausdauer); Shift ohne Ausdauer = joggen
   // Runde 28: sprintMalus (Erkältung) bremst nur das Rennen
-  const faktor = sprintet ? parameter.sprintFaktor * (koerper.sprintMalus ?? 1) : willSprinten ? (parameter.joggFaktor ?? 1) : 1;
+  const faktor = sprintet ? parameter.sprintFaktor * (koerper.sprintMalus ?? 1) : willSprinten ? (parameter.joggFaktor ?? 1) : duckt ? (parameter.duckFaktor ?? 1) : 1;
   // tempoFaktor: Skill "Schnelligkeit" (Server setzt ihn am Spieler, der Client übernimmt ihn für die Vorhersage)
   const tempo = parameter.geschwindigkeit * (koerper.tempoFaktor ?? 1) * faktor * wasserFaktor(welt, koerper.x, koerper.y);
   if (welt.istEis?.(koerper.x, koerper.y)) {
