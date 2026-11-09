@@ -519,7 +519,13 @@ export class Hauptmenue {
   #bildFuer(bild, aussehen) {
     const schluessel = JSON.stringify(aussehen);
     if (!this.#fotos.has(schluessel)) {
-      const url = this.fotografiere?.(aussehen);
+      // Eigenes Figur-Modell lädt noch → Bild kommt nachträglich in dieselbe Karte
+      const url = this.fotografiere?.(aussehen, (spaet) => {
+        if (!spaet) return;
+        this.#fotos.set(schluessel, spaet);
+        bild.classList.remove('hm-bild-leer');
+        bild.replaceChildren(Object.assign(this.d.createElement('img'), { src: spaet, alt: '' }));
+      });
       if (url) this.#fotos.set(schluessel, url);
     }
     const url = this.#fotos.get(schluessel);

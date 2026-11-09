@@ -92,3 +92,4 @@
 | 0.47.2-dev | 2026-11-09 | Runde 48: Hände greifen Pistole/Gewehr (Waffe am Körper verankert, Zwei-Knochen-IK an Griff + Vorderschaft, gekrümmte Finger, Rückstoß; Pistole gesenkt einhändig, Gewehr gesenkt beidhändig), Zombie-Arme hängen statt vorgestreckt (Angriff hebt sie leicht), Überfahren/Baum-Umfahren ohne Crash-Klang. Test `runde48` |
 | 0.47.3-dev | 2026-11-09 | Neuer Feuer-Sound (SoundReality, 40-s-Schleife) für Kamin und jetzt auch Lagerfeuer, blendet beim Anzünden ein und beim Ausgehen aus |
 | 0.47.4-dev | 2026-11-09 | Schüsse: Leuchtspur und Mündungslicht starten an der echten Waffenmündung des Schützen statt vor der Brust |
+| 0.47.5-dev | 2026-11-09 | Spielstand-Karten im Hauptmenü zeigen jetzt auch die zusätzlichen Figuren (Mann 1–13, Frau 1–13, Sheriff) – Standbild wartet auf das Modell-Laden |

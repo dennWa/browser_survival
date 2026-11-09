@@ -64,7 +64,7 @@ const erstellungsVorschau = new CharakterVorschau(document.getElementById('ce-vo
 const login = new Hauptmenue(document, {
   serverListe: SERVER_LISTE,
   erstellung: new CharakterErstellung(document, { vorschau: erstellungsVorschau, meldung: (t, f) => login.zeigeMeldung(t, f) }),
-  fotografiere: (aussehen) => fotografiere(renderer, aussehen),
+  fotografiere: (aussehen, spaeter) => fotografiere(renderer, aussehen, 240, 320, spaeter),
 });
 const hud = new Hud(document, { debug: DEBUG_START });
 hud.inventar.figurQuelle = () => ({ aussehen: aktuellesSpiel?.eigeneDaten?.aussehen, name: aktuellesSpiel?.benutzername }); // Inventar-Charakter

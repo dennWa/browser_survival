@@ -32,7 +32,7 @@ let foto = null; // { renderer, szene, kamera, canvas } – ein gemeinsamer Kont
 /**
  * Runde 28: Standbild einer Figur (Spielstand-Karten im Hauptmenü) als Data-URL – oder null (3D noch nicht da / kein WebGL).
  */
-export function fotografiere(spielRenderer, aussehen, breite = 240, hoehe = 320) {
+export function fotografiere(spielRenderer, aussehen, breite = 240, hoehe = 320, spaeter = null) {
   if (!spielRenderer?.vorschauFigur) return null;
   try {
     if (!foto) {
@@ -43,6 +43,11 @@ export function fotografiere(spielRenderer, aussehen, breite = 240, hoehe = 320)
     }
     const figur = spielRenderer.vorschauFigur(aussehen, null);
     if (!figur) return null;
+    // Eigenes Figur-Modell (Mann 1–13 …) lädt noch → erst nach dem Laden fotografieren und per `spaeter(url)` nachreichen
+    if (figur.wartet) {
+      figur.wartet.then(() => spaeter?.(fotografiere(spielRenderer, aussehen, breite, hoehe)), () => {});
+      return null;
+    }
     figur.mixer.update(0.4);
     figur.gruppe.rotation.y = -0.3;
     foto.szene.add(figur.gruppe);
