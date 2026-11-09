@@ -52,7 +52,9 @@ export function erstelleStatischenServer(wurzel) {
       return;
     }
     if (pfadname === '/' || pfadname === '/index.html') {
-      antwort.writeHead(302, { Location: '/client/' }).end();
+      // Runde 47: Query mitnehmen (Einladungslink ?beitreten=CODE, ?signal=…)
+      const query = new URL(anfrage.url, 'http://localhost').search;
+      antwort.writeHead(302, { Location: `/client/${query}` }).end();
       return;
     }
     if (pfadname.endsWith('/')) pfadname += 'index.html';

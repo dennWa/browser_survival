@@ -44,6 +44,7 @@
           <!-- Runde 28: Ich-Perspektive auch am Handy (sitzt mit dem Rucksack unter der Minikarte) -->
           <button id="hud-ego" class="nur-touch" type="button" title="Ich-Perspektive an/aus (C)"><svg class="ui-icon" aria-hidden="true"><use href="#i-ego"/></svg></button>
           <button id="hud-bauen" type="button" title="Bauen (B): Basis-Flagge, Wände, Böden, Möbel – mit dem Hammer"><svg class="ui-icon" aria-hidden="true"><use href="#i-bauen"/></svg></button>
+          <button id="hud-einladen" type="button" title="Freunde einladen (nur als Host)" hidden>🏠</button>
           <button id="hud-funk" type="button" title="Funkgerät (Ü)">📻</button>
           <button id="hud-emotes" type="button" title="Emotes (Ö)">😀</button>
           <button id="hud-skills" type="button" title="Fähigkeiten (U)"><svg class="ui-icon" aria-hidden="true"><use href="#i-skills"/></svg></button>
@@ -166,6 +167,23 @@
       </div>
       <div class="karte-rahmen"><canvas id="karte-bild"></canvas></div>
       <div id="karte-marker" hidden></div>
+    </div>
+
+    <!-- Runde 47: Einladen (nur Host eines Browser-Servers, client/ui/hostFenster.js) -->
+    <div id="host-fenster" hidden>
+      <div class="werkbank-kopf">
+        <h2 id="host-titel">🏠 Server</h2>
+        <button id="host-schliessen" type="button" aria-label="Schließen">✕</button>
+      </div>
+      <p class="werkbank-hinweis">Einladungscode für deine Freunde:</p>
+      <div class="host-code-zeile"><span id="host-code" class="host-code">——</span><button id="host-code-kopieren" type="button" class="einst-knopf">📋 Code</button></div>
+      <div class="host-link-zeile"><input id="host-link" type="text" readonly /><button id="host-link-kopieren" type="button" class="einst-knopf">🔗 Link kopieren</button><button id="host-teilen" type="button" class="einst-knopf">📤 Teilen</button></div>
+      <p id="host-kopiert" class="host-kopiert"></p>
+      <p id="host-regeln" class="werkbank-hinweis"></p>
+      <p id="host-status" class="host-status"></p>
+      <h3 class="inv-titel">Mitspieler</h3>
+      <div id="host-spieler"></div>
+      <p class="werkbank-hinweis">Freunde: Multiplayer → „Mit Einladungscode beitreten“ oder einfach den Link öffnen. Der Server läuft, solange dieses Spiel bei dir offen ist – alles wird bei dir gespeichert.</p>
     </div>
 
     <!-- Runde 47: Emotes (client/ui/emoteFenster.js) -->
@@ -458,7 +476,31 @@
       <!-- Multiplayer: Serverauswahl -->
       <section class="hm-seite" data-seite="mp" hidden>
         <header class="hm-kopf"><button class="hm-zurueck" type="button" data-zurueck="start">Zurück</button><h2>Multiplayer</h2><span class="hm-kopf-info">Server wählen</span></header>
+        <!-- Runde 47: Browser-Hosting (client/netzwerk/p2p.js) – ohne eigenen Server mit Freunden spielen -->
+        <div class="hm-liste hm-p2p-wahl">
+          <button id="hm-hosten" type="button" class="hm-karte hm-server hm-p2p"><span class="hm-server-name">🏠 Eigenen Server hosten</span><span class="hm-server-adresse">Läuft in deinem Browser – Freunde kommen per Einladungscode dazu</span><span class="hm-pfeil">›</span></button>
+          <button id="hm-code" type="button" class="hm-karte hm-server hm-p2p"><span class="hm-server-name">🔑 Mit Einladungscode beitreten</span><span class="hm-server-adresse">Code oder Link vom Host</span><span class="hm-pfeil">›</span></button>
+        </div>
         <div id="hm-server" class="hm-liste"></div>
+      </section>
+
+      <!-- Runde 47: Server hosten – Einstellungen gelten fest ab dem Erstellen, alles bleibt beim Host gespeichert -->
+      <section class="hm-seite" data-seite="host" hidden>
+        <header class="hm-kopf"><button class="hm-zurueck" type="button" data-zurueck="mp">Zurück</button><h2>Server hosten</h2><span class="hm-kopf-info">Welt &amp; Spielstände bleiben bei dir</span></header>
+        <div class="hm-mp-raster">
+          <form id="hm-host-neu" class="hm-karte hm-mp-login">
+            <h3>Neuer Server</h3>
+            <label>Name<input id="hm-host-name" type="text" maxlength="30" value="Mein Server" spellcheck="false" /></label>
+            <div class="hm-feld">PvP (Spieler können sich verletzen)
+              <div class="hm-umschalter" id="hm-host-pvp"><button type="button" data-pvp="aus" class="aktiv">Aus</button><button type="button" data-pvp="an">An</button></div>
+            </div>
+            <label>Max. Spieler (mit dir)<select id="hm-host-max"><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option><option>8</option></select></label>
+            <label>Passwort (optional)<input id="hm-host-passwort" type="text" maxlength="40" spellcheck="false" autocapitalize="off" placeholder="leer = nur der Code zählt" /></label>
+            <p class="hm-klein">PvP, Spielerzahl und Passwort stehen ab dem Erstellen fest. Solange du spielst, ist der Server offen.</p>
+            <button type="submit" class="hm-knopf hm-primaer">Server erstellen</button>
+          </form>
+          <div id="hm-host-liste" class="hm-karte hm-mp-charakter"></div>
+        </div>
       </section>
 
       <!-- Multiplayer: Charakter auf dem gewählten Server -->
@@ -471,7 +513,8 @@
               <button type="button" data-art="konto" class="aktiv">Konto</button>
               <button type="button" data-art="gast">Gast</button>
             </div>
-            <label id="hm-mp-adresse-feld" hidden>Serveradresse<input id="hm-mp-adresse-eingabe" type="text" placeholder="wss://mein-server.de/ws" spellcheck="false" autocapitalize="off" /></label>
+            <label id="hm-mp-adresse-feld" hidden><span id="hm-mp-adresse-label">Serveradresse</span><input id="hm-mp-adresse-eingabe" type="text" placeholder="wss://mein-server.de/ws" spellcheck="false" autocapitalize="off" /></label>
+            <label id="hm-mp-code-pw-feld" hidden>Server-Passwort (falls der Host eins gesetzt hat)<input id="hm-mp-code-passwort" type="text" spellcheck="false" autocapitalize="off" /></label>
             <div class="hm-konto-felder">
               <label>Benutzername<input id="hm-mp-name" type="text" autocomplete="username" maxlength="20" spellcheck="false" autocapitalize="off" /></label>
               <label>Passwort<input id="hm-mp-passwort" type="password" autocomplete="current-password" /></label>

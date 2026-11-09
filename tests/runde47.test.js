@@ -451,3 +451,69 @@ test('Heli-Absturz: Wrack + Versorgungskiste mit Loot + 5 Zombies, Mayday per Fu
   assert.ok(r, 'Absturz ausgelöst');
   await warteAuf(() => c.empfangen.some((n) => n?.typ === NACHRICHT.MELDUNG && /Mayday/.test(n.text)), 'Mayday');
 });
+
+// ---------------------------------------------------------------------------------------------- Server hosten (Browser)
+
+test('Hosten: Einladungscode, Stückelung großer Nachrichten im DataChannel, Trenn-Grund', async () => {
+  const { neuerCode, pruefeCode, kanalAus, hostKennung } = await import('../client/netzwerk/p2p.js');
+  const code = neuerCode();
+  assert.match(code, /^[A-HJ-NP-Z2-9]{6}$/, 'ohne verwechselbare Zeichen');
+  assert.equal(pruefeCode(' k7p-2xq '), 'K7P2XQ');
+  assert.equal(pruefeCode('??'), null);
+  assert.equal(hostKennung('ABC123'), 'browsersurvival-ABC123');
+  // Zwei verbundene Schein-DataChannels
+  const neuerDc = () => {
+    const hoerer = { message: [], close: [] };
+    return { readyState: 'open', gegenstelle: null, gesendet: 0, addEventListener: (art, fn) => hoerer[art]?.push(fn), send(text) { this.gesendet++; for (const fn of this.gegenstelle.hoerer.message) fn({ data: text }); }, close() { if (this.readyState === 'closed') return; this.readyState = 'closed'; for (const fn of hoerer.close) fn(); this.gegenstelle.close(); }, hoerer }; // wie echt: beide Seiten gehen zu
+  };
+  const a = neuerDc();
+  const b = neuerDc();
+  a.gegenstelle = b;
+  b.gegenstelle = a;
+  const ka = kanalAus(a, null);
+  const kb = kanalAus(b, null);
+  const angekommen = [];
+  kb.beiNachricht((t) => angekommen.push(t));
+  const gross = JSON.stringify({ typ: 'anmeldungOk', karte: 'x'.repeat(250_000) });
+  ka.senden('{"typ":"pong"}');
+  ka.senden(gross);
+  assert.equal(angekommen.length, 2);
+  assert.equal(angekommen[1], gross, 'große Nachricht kommt heil an');
+  assert.ok(a.gesendet >= 5, 'in Stücken verschickt');
+  const gruende = [];
+  kb.beiTrennung((g) => gruende.push(g));
+  ka.trennen('Du wurdest vom Host vom Server geworfen');
+  await warte(250);
+  assert.deepEqual(gruende, ['Du wurdest vom Host vom Server geworfen'], 'Grund kommt beim Gast an');
+});
+
+test('Hosten: Kick wirft raus und sperrt den Namen bis zum Neustart, nur Admins dürfen', async (t) => {
+  const { ADMIN_BEFEHLE } = await import('../gemeinsam/protokoll.js');
+  const server = new SpielServer({
+    authentifizierung: { pruefe: async () => ({ ok: false }), pruefeGast: async (name) => ({ ok: true, benutzername: name, admin: name === 'Gast-0001' }) },
+    protokoll: stillerLog,
+  });
+  t.after(() => server.stoppen());
+  const verbindeGast = (name) => {
+    const { clientSeite, serverSeite } = erstelleSpeicherKanalPaar();
+    const empfangen = [];
+    let getrennt = null;
+    clientSeite.beiNachricht((x) => empfangen.push(dekodiere(x)));
+    clientSeite.beiTrennung((g) => (getrennt = g));
+    server.verbindungHinzufuegen(serverSeite);
+    clientSeite.senden(kodiere({ typ: NACHRICHT.ANMELDEN, benutzername: name, gast: true, protokoll: PROTOKOLL_VERSION }));
+    return { empfangen, getrennt: () => getrennt, aktion: (a) => clientSeite.senden(kodiere({ typ: NACHRICHT.AKTION, ...a })) };
+  };
+  const host = verbindeGast('Gast-0001');
+  const freund = verbindeGast('Gast-0002');
+  await warteAuf(() => letzte(host.empfangen, NACHRICHT.ANMELDUNG_OK) && letzte(freund.empfangen, NACHRICHT.ANMELDUNG_OK), 'Logins');
+  freund.aktion({ art: AKTIONEN.ADMIN, befehl: ADMIN_BEFEHLE.KICK, wert: 'Gast-0001' });
+  await warte(20);
+  assert.equal(server.spielerAnzahl, 2, 'Nicht-Admin darf nicht kicken');
+  host.aktion({ art: AKTIONEN.ADMIN, befehl: ADMIN_BEFEHLE.KICK, wert: 'Gast-0002' });
+  await warteAuf(() => freund.getrennt(), 'gekickt');
+  assert.match(freund.getrennt(), /geworfen/);
+  const nochmal = verbindeGast('Gast-0002');
+  await warteAuf(() => letzte(nochmal.empfangen, NACHRICHT.ANMELDUNG_FEHLER), 'Wiederbeitritt abgelehnt');
+  assert.match(letzte(nochmal.empfangen, NACHRICHT.ANMELDUNG_FEHLER).grund, /geworfen/);
+});

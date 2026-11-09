@@ -2,13 +2,16 @@
  * Fester Simulationstakt (Fixed Timestep). Läuft in Node und im Browser (nur setTimeout + performance.now).
  * Holt verpasste Ticks nach (max. MAX_NACHHOLEN am Stück), damit die Simulation nicht driftet,
  * springt aber bei langen Pausen (z. B. Browser-Tab im Hintergrund) einfach weiter.
+ * Runde 47: `planer` { setTimeout, clearTimeout } austauschbar – der Browser-Host (client/netzwerk/workerTakt.js) nimmt einen
+ * Web-Worker-Takt, weil Timer im Hintergrund-Tab sonst auf ~1/s gedrosselt werden (Freunde hätten dann Standbild).
  */
 const MAX_NACHHOLEN = 5;
 
 export class Taktgeber {
-  constructor(tickDauerMs, beiTick) {
+  constructor(tickDauerMs, beiTick, planer = null) {
     this.tickDauerMs = tickDauerMs;
     this.beiTick = beiTick;
+    this.planer = planer ?? { setTimeout: (fn, ms) => setTimeout(fn, ms), clearTimeout: (id) => clearTimeout(id) };
     this.timer = null;
     this.naechsterTick = 0;
   }
@@ -24,7 +27,7 @@ export class Taktgeber {
   }
 
   stoppen() {
-    clearTimeout(this.timer);
+    this.planer.clearTimeout(this.timer);
     this.timer = null;
   }
 
@@ -44,6 +47,6 @@ export class Taktgeber {
     }
     if (jetzt - this.naechsterTick > this.tickDauerMs * MAX_NACHHOLEN) this.naechsterTick = jetzt;
     const warten = Math.max(0, this.naechsterTick - performance.now());
-    this.timer = setTimeout(() => this.#planen(), warten);
+    this.timer = this.planer.setTimeout(() => this.#planen(), warten);
   }
 }

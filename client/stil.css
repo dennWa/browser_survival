@@ -1499,6 +1499,23 @@ a.zweitknopf { display: block; text-align: center; text-decoration: none; border
 #hud-funk-anzeige { position: fixed; left: 50%; top: 64px; transform: translateX(-50%); z-index: 6; padding: 4px 12px; font-size: 0.9rem; font-weight: 600; color: #ffe2a0; background: rgba(40, 30, 10, 0.75); border: 1px solid rgba(226, 170, 40, 0.6); border-radius: 14px; pointer-events: none; }
 #hud-funk-anzeige[hidden] { display: none; }
 #hud-funk-anzeige.sende { color: #fff; background: rgba(170, 50, 30, 0.85); }
+/* Runde 47: Einladen-Fenster (Host) */
+#host-fenster {
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 21; pointer-events: auto;
+  width: min(460px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow-y: auto; padding: 14px 16px; color: var(--text);
+  background: rgba(16, 18, 22, 0.97); border: 1px solid rgba(111, 179, 111, 0.5); border-radius: 14px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+#host-fenster #host-schliessen { width: 38px; height: 38px; color: var(--text); background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 50%; }
+.host-code-zeile, .host-link-zeile { display: flex; gap: 8px; align-items: center; margin: 4px 0; }
+.host-code { flex: 1; font: 700 2rem/1.2 ui-monospace, monospace; letter-spacing: 0.25em; color: #9fe39f; }
+.host-link-zeile input { flex: 1; min-width: 0; padding: 7px 8px; font-size: 0.8rem; color: var(--text); background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 7px; }
+.host-code-zeile .einst-knopf, .host-link-zeile .einst-knopf { flex: none; }
+.host-kopiert { min-height: 1.2em; margin: 2px 0; font-size: 0.8rem; color: #9fe39f; }
+.host-status { font-weight: 600; }
+.host-status.fehler { color: #ff8a6b; }
+.host-spieler { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.07); font-size: 0.9rem; }
+.host-spieler button { padding: 3px 10px; color: var(--text); background: rgba(192, 57, 43, 0.5); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 7px; }
+#hud-einladen.warnung { box-shadow: 0 0 0 2px #e05a3c inset; }
 /* Runde 47: Emote-Auswahl */
 #emotes {
   position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: 21; pointer-events: auto;
@@ -1764,6 +1781,16 @@ body.fenster-offen .tagebuch { display: none; } /* Runde 47: nicht über Kiste/I
 .hm-umschalter button { padding: 9px; border-radius: 0; background: transparent; color: var(--hm-gedimmt); font-family: var(--hm-schrift); letter-spacing: 0.12em; text-transform: uppercase; font-size: 0.82rem; }
 .hm-umschalter button.aktiv { background: rgba(214, 161, 72, 0.18); color: var(--hm-akzent-hell); }
 .hm-gast-info { margin: 0; font-size: 0.88rem; line-height: 1.5; }
+/* Runde 47: Hosten / Beitreten per Code */
+.hm-p2p-wahl { margin-bottom: 14px; }
+.hm-p2p { border-left-color: #6fb36f; }
+.hm-feld { display: flex; flex-direction: column; gap: 6px; color: var(--hm-gedimmt); font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; font-family: var(--hm-schrift); }
+.hm select { padding: 7px 8px; background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 3px; color: var(--hm-text); font-family: system-ui, sans-serif; }
+.hm-host-zeile { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+.hm-host-zeile:last-child { border-bottom: none; }
+.hm-host-zeile h3 { margin: 0; }
+.hm-host-code { font-family: ui-monospace, monospace; font-size: 1.05rem; letter-spacing: 0.18em; color: var(--hm-akzent-hell); }
+.hm-host-zeile .hm-slot-knoepfe { grid-column: 2; grid-row: 1 / span 2; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .hm-mp-slot { padding: 0; border: none; background: none; -webkit-backdrop-filter: none; backdrop-filter: none; display: grid; grid-template-columns: 170px 1fr; gap: 16px; }
 .hm-mp-slot .hm-slot-bild { grid-row: 1 / span 2; height: 230px; }
 .hm-mp-slot .hm-slot-knoepfe { align-self: end; }

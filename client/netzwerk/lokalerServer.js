@@ -6,6 +6,9 @@ import { ArbeitsspeicherSpeicher } from '../../server/spiel/speicher/arbeitsspei
 import { LOKALE_LATENZ_MS } from '../konfiguration.js';
 import { TUTORIAL } from '../../server/spiel/karten/tutorial.js';
 import { slotPraefix, slotGespielt } from './spielstandSlots.js';
+import { Host } from './p2p.js';
+import { hostPraefix, aktualisiereHostWelt } from './hostWelten.js';
+import { workerPlaner } from './workerTakt.js';
 
 /**
  * Lokal-Modus: Der ECHTE SpielServer läuft hier im Browser-Tab.
@@ -68,8 +71,56 @@ export async function stoppeLokal() {
   server = null;
   serverSlot = null;
   serverSpeicher = null;
-  await alt.stoppen('Spielstand gewechselt');
+  host?.stoppen(); // Runde 47: Freunde werden getrennt, Vermittler abgemeldet
+  host = null;
+  hostWeltId = null;
+  await alt.stoppen('Der Host hat das Spiel beendet');
   sp?.leeren?.();
+}
+
+/** Runde 47: laufendes Hosting (p2p.js Host) – für das Einladen-Fenster im Spiel; null = kein Hosting. */
+let host = null;
+let hostWeltId = null;
+export function laufenderHost() {
+  return host;
+}
+
+/**
+ * Runde 47: „Server hosten“ – eigener SpielServer im Tab mit den Einstellungen des Hosts (PvP, Max. Spieler, Name), Speicher je Welt
+ * (alles beim Host), Freunde kommen über p2p.Host (Einladungscode) dazu. Admin ist nur der Host selbst (sein Gastname).
+ * @returns Text-Kanal für den eigenen Client
+ */
+export async function oeffneHostKanal(welt, { hostName, beiStatus = null } = {}) {
+  if (server && hostWeltId !== welt.id) await stoppeLokal();
+  if (!server) {
+    serverSpeicher = new BrowserSpeicher({ praefix: hostPraefix(welt.id) });
+    serverSlot = null;
+    hostWeltId = welt.id;
+    const lokal = ladeLokaleEinstellungen();
+    server = new SpielServer({
+      authentifizierung: {
+        pruefe: async () => ({ ok: false, grund: 'Auf diesem Server spielt man als Gast' }),
+        pruefeGast: async (name) => ({ ok: true, benutzername: name, admin: name === hostName }),
+      },
+      konfiguration: {
+        bots: { proKarte: 0 },
+        ...lokal,
+        welt: { ankunftsKarte: 'lager', ...lokal.welt },
+        kampf: { ...lokal.kampf, pvp: welt.pvp === true },
+        server: { name: welt.name, maxSpieler: welt.maxSpieler },
+      },
+      speicher: serverSpeicher,
+      einstellungsSpeicher: lokalerEinstellungsSpeicher,
+      planer: workerPlaner(), // Hintergrund-Tab: Takt bleibt bei 30/s (sonst gedrosselt)
+    });
+    server.starten();
+    host = new Host({ server, code: welt.code, passwort: welt.passwort, maxGaeste: Math.max(1, welt.maxSpieler - 1), beiStatus });
+    host.starten().catch(() => {}); // Status (auch Fehler) meldet beiStatus – allein spielen geht trotzdem
+    aktualisiereHostWelt(welt.id, { zuletzt: new Date().toISOString() });
+  } else if (host) host.beiStatus = beiStatus;
+  const { clientSeite, serverSeite } = erstelleSpeicherKanalPaar({ latenzMs: LOKALE_LATENZ_MS });
+  server.verbindungHinzufuegen(serverSeite, { adresse: 'host' });
+  return clientSeite;
 }
 
 window.addEventListener('pagehide', () => lokalSichern());

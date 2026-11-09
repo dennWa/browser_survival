@@ -71,7 +71,7 @@ export class SpielServer {
    * @param {{ speichern: Function }} [optionen.einstellungsSpeicher] speichert Developer-Änderungen dauerhaft
    *        (Node: server/daten/einstellungen.json, Lokal-Modus: localStorage). Ohne → nur bis zum Neustart.
    */
-  constructor({ authentifizierung, konfiguration = {}, protokoll = console, kartenDefinition, kartenDefinitionen = {}, speicher, einstellungsSpeicher = null }) {
+  constructor({ authentifizierung, konfiguration = {}, protokoll = console, kartenDefinition, kartenDefinitionen = {}, speicher, einstellungsSpeicher = null, planer = null }) {
     if (!authentifizierung) throw new Error('SpielServer braucht eine Authentifizierung');
     this.authentifizierung = authentifizierung;
     this.speicher = speicher ?? new ArbeitsspeicherSpeicher();
@@ -94,10 +94,11 @@ export class SpielServer {
     /** Runde 42: Zone für neue Charaktere (Lagerplatz) – mit eigener Testkarte aus (Tests behalten ihre Startkarte) */
     this.ankunftsKarte = kartenDefinition ? null : (this.konfiguration.welt.ankunftsKarte ?? null);
     this.sitzungen = new Set();
+    this.gesperrt = new Set(); // Runde 47: gekickte Namen (klein) – bis zum Neustart kein Wiederbeitritt
     this.naechsteSid = 0; // Runde 47: Sitzungs-IDs (Sprachchat/Funk-Adresse, bleibt über Zonenwechsel gleich)
     this.absturzRest = this.konfiguration.absturz?.intervall ?? 600; // Runde 47: Sekunden bis zum nächsten Heli-Absturz
     this.weltGeladen = this.startZone.geladen;
-    this.taktgeber = new Taktgeber(TICK_DAUER_MS, () => this.tickAusfuehren());
+    this.taktgeber = new Taktgeber(TICK_DAUER_MS, () => this.tickAusfuehren(), planer); // Runde 47: planer = Worker-Takt im Browser-Host
   }
 
   /** Die SpielWelt der Startzone (Kurzform für Tests, Konsolen-Helfer, Developer-Werte). */
@@ -446,6 +447,7 @@ export class SpielServer {
         s.benutzername?.toLowerCase() === name.toLowerCase(),
     );
     if (bereitsDa) return this.#loginAblehnen(sitzung, 'Dieser Account ist bereits eingeloggt');
+    if (this.gesperrt.has(name.toLowerCase())) return this.#loginAblehnen(sitzung, 'Du wurdest von diesem Server geworfen');
     sitzung.status = 'laedtSpielstand';
     sitzung.benutzername = name;
 
@@ -550,6 +552,7 @@ export class SpielServer {
     if ((n.art === AKTIONEN.KISTE_LEGEN || n.art === AKTIONEN.KISTE_NEHMEN || n.art === AKTIONEN.STATION_LEGEN || n.art === AKTIONEN.STATION_NEHMEN) && slot === null) return;
     if (n.art === AKTIONEN.FELD_ENTFERNEN && !(Number.isInteger(n.tx) && Number.isInteger(n.ty))) return;
     if (n.art === AKTIONEN.ADMIN && !GUELTIGE_ADMIN_BEFEHLE.has(n.befehl)) return;
+    if (n.art === AKTIONEN.ADMIN && n.befehl === ADMIN_BEFEHLE.KICK) return void (spieler.admin && typeof n.wert === 'string' && this.kicke(n.wert, spieler.name)); // Runde 47
     if (n.art === AKTIONEN.ADMIN && n.befehl === ADMIN_BEFEHLE.WAFFE_GEBEN && !(typeof n.wert === 'string' && ['fernkampf', 'nahkampf'].includes(GEGENSTAENDE[n.wert]?.kategorie))) return;
     if (n.art === AKTIONEN.HERSTELLEN && !Object.hasOwn(REZEPTE, n.rezept)) return;
     if (n.art === AKTIONEN.MUSIK && !(Number.isInteger(n.ziel) && pruefeMusikWahl(n.quelle, n.wert))) return;
@@ -656,6 +659,20 @@ export class SpielServer {
     this.loeseAbsturzAus();
   }
 
+  /** Runde 47: Spieler (Name oder Charaktername) vom Server werfen und bis zum Neustart sperren. @returns true, wenn jemand flog */
+  kicke(name, von = null) {
+    const ziel = String(name).toLowerCase();
+    for (const s of this.sitzungen) {
+      const sp = this.#spieler(s);
+      if (!sp || sp.name === von || (sp.name.toLowerCase() !== ziel && (sp.anzeigeName ?? '').toLowerCase() !== ziel)) continue;
+      this.gesperrt.add(sp.name.toLowerCase());
+      this.#anAlle({ typ: NACHRICHT.CHAT, system: true, text: `${sp.anzeigeName ?? sp.name} wurde vom Host entfernt` });
+      s.kanal.trennen('Du wurdest vom Host vom Server geworfen');
+      return true;
+    }
+    return false;
+  }
+
   /** Runde 47: Absturz sofort auslösen (Timer, Admin, Tests). @returns { zone, ort } oder null */
   loeseAbsturzAus(zonenId = null) {
     const kandidaten = [...this.zonen.values()].filter((z) => z.bereit && !z.spielWelt.welt.friedlich && !z.spielWelt.tutorial && (!zonenId || z.id === zonenId));
@@ -722,7 +739,7 @@ export class SpielServer {
     const liste = [];
     for (const s of this.sitzungen) {
       const sp = this.#spieler(s);
-      if (sp) liste.push({ name: sp.name, level: sp.level, zombies: sp.statistik.zombies, spieler: sp.statistik.spieler, ueberlebt: Math.floor(sp.statistik.ueberlebt), tot: !!sp.tot, zone: s.zone.name });
+      if (sp) liste.push({ name: sp.name, ...(sp.anzeigeName ? { anzeige: sp.anzeigeName } : {}), level: sp.level, zombies: sp.statistik.zombies, spieler: sp.statistik.spieler, ueberlebt: Math.floor(sp.statistik.ueberlebt), tot: !!sp.tot, zone: s.zone.name });
     }
     // Runde 23: Bots aktiver Zonen mit in die Liste (Name beginnt mit „Bot “)
     for (const zone of this.zonen.values()) {

@@ -487,7 +487,7 @@ export class ClientSpiel {
   /** Ist irgendein Fenster/Modus offen, den Esc zuerst schließen soll? */
   etwasOffen() {
     const h = this.hud;
-    return !!(this.karte.offen || h.inventar.offen || h.skills.offen || h.einstellungen.offen || h.kiste.offen || h.station.offen || this.werkbankOffen || this.musikFenster?.offen || this.mehrspieler?.offen || h.funk?.offen || h.emotes?.offen || this.bau.aktiv || this.platzierung || this.autoLauf);
+    return !!(this.karte.offen || h.inventar.offen || h.skills.offen || h.einstellungen.offen || h.kiste.offen || h.station.offen || this.werkbankOffen || this.musikFenster?.offen || this.mehrspieler?.offen || h.funk?.offen || h.emotes?.offen || h.host?.offen || this.bau.aktiv || this.platzierung || this.autoLauf);
   }
 
   /**
@@ -496,13 +496,13 @@ export class ClientSpiel {
    */
   #spielVerdeckt() {
     const h = this.hud;
-    return !!(this.karte.offen || h.inventar.offen || h.skills.offen || h.kiste.offen || h.station.offen || this.werkbankOffen || this.musikFenster?.offen || this.mehrspieler?.offen || h.funk?.offen || h.emotes?.offen);
+    return !!(this.karte.offen || h.inventar.offen || h.skills.offen || h.kiste.offen || h.station.offen || this.werkbankOffen || this.musikFenster?.offen || this.mehrspieler?.offen || h.funk?.offen || h.emotes?.offen || h.host?.offen);
   }
 
   /** Fenster offen, durch das ein Klick ins Spiel NICHT schießen soll (Bau-/Platzier-Modus brauchen den Klick). */
   fensterOffen() {
     const h = this.hud;
-    return !!(this.karte.offen || h.inventar.offen || h.skills.offen || h.einstellungen.offen || h.kiste.offen || h.station.offen || this.werkbankOffen || this.musikFenster?.offen || this.mehrspieler?.offen || h.funk?.offen || h.emotes?.offen);
+    return !!(this.karte.offen || h.inventar.offen || h.skills.offen || h.einstellungen.offen || h.kiste.offen || h.station.offen || this.werkbankOffen || this.musikFenster?.offen || this.mehrspieler?.offen || h.funk?.offen || h.emotes?.offen || h.host?.offen);
   }
 
   menuesSchliessen() {
@@ -512,6 +512,7 @@ export class ClientSpiel {
     this.musikFenster?.zeige(null);
     this.hud.funk?.zeige(false); // Runde 47
     this.hud.emotes?.zeige(false);
+    this.hud.host?.zeige(false);
     this.hud.statusErklaerungUmschalten?.(false); // Runde 28
     this.hud.entwickler.zeige(false);
     this.hud.inventar.zeige(false);

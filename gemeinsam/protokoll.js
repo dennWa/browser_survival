@@ -142,6 +142,7 @@ export const AKTIONEN = Object.freeze({
 /** Admin-Befehle (AKTION { art: 'admin', befehl }). Der Server prüft das Admin-Recht des Spielers. */
 export const ADMIN_BEFEHLE = Object.freeze({
   GOTTMODUS: 'gottmodus', // an/aus: kein Schaden, kein Hunger/Durst
+  KICK: 'kick', // Runde 47: { name } Spieler vom Server werfen (bis zum Neustart gesperrt) – SpielServer selbst, nicht adminSystem
   UNSICHTBAR: 'unsichtbar', // an/aus: Zombies ignorieren einen
   HEILEN: 'heilen', // Leben, Hunger, Durst, Ausdauer voll
   AUSRUESTEN: 'ausruesten', // Waffen + Munition ins Inventar

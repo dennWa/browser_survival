@@ -1,10 +1,14 @@
 import { SLOT_ANZAHL, ladeSlots, slotMeta, ladeMpCharakter, loescheSlot, datumText } from '../netzwerk/spielstandSlots.js';
+import { ladeHostWelten, neueHostWelt, aktualisiereHostWelt, loescheHostWelt } from '../netzwerk/hostWelten.js';
+import { pruefeCode } from '../netzwerk/p2p.js';
 
 /**
  * Runde 28: Hauptmenü (ersetzt den alten Login-Bildschirm).
  *
  *   Start ─┬─ Singleplayer → 3 Spielstand-Slots (Laden | Neu erstellen → Charaktererstellung → Laden = Spiel startet)
  *          ├─ Multiplayer  → Serverauswahl → Charakter dieses Servers (Anmeldung Konto/Gast; Beitreten | Neu erstellen)
+ *          │                Runde 47: 🏠 Server hosten (Seite 'host': neue/gespeicherte Welten → Charakter → Start) ·
+ *          │                🔑 Mit Einladungscode beitreten (Seite 'mpCharakter' im Code-Modus, nur Gast; Link ?beitreten=CODE)
  *          ├─ Developer (Ecke oben rechts) → Passwortabfrage (noch ohne Prüfung) → Map-Editor
  *          └─ Tutorial, Credits (Fußzeile)
  *
@@ -56,6 +60,8 @@ export class Hauptmenue {
   #seite = 'start';
   #mpServer = null; // gewählter Servereintrag
   #mpArt = 'konto';
+  #hostPvp = false; // Runde 47: Umschalter auf der Host-Seite
+  #beitretenCode = null; // Runde 47: ?beitreten=CODE (einmal beim ersten Anzeigen)
   #fotos = new Map();
 
   /**
@@ -110,10 +116,101 @@ export class Hauptmenue {
     // Android-Zurück / Esc: eine Ebene zurück
     dokument.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape' || this.el.overlay.hidden || dokument.querySelector('dialog[open]')) return;
-      const zurueck = { sp: 'start', mp: 'start', mpCharakter: 'mp' }[this.#seite];
+      const zurueck = { sp: 'start', mp: 'start', mpCharakter: 'mp', host: 'mp' }[this.#seite];
       if (zurueck) this.zeigeSeite(zurueck);
     });
     this.#baueServerListe();
+    // Runde 47: Hosten & Beitreten per Code
+    $('hm-hosten').addEventListener('click', () => this.zeigeSeite('host'));
+    $('hm-code').addEventListener('click', () => this.#oeffneCodeBeitritt(null));
+    for (const k of $('hm-host-pvp').querySelectorAll('button')) {
+      k.addEventListener('click', () => {
+        this.#hostPvp = k.dataset.pvp === 'an';
+        for (const b of $('hm-host-pvp').querySelectorAll('button')) b.classList.toggle('aktiv', b === k);
+      });
+    }
+    $('hm-host-neu').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const welt = neueHostWelt({ name: $('hm-host-name').value, pvp: this.#hostPvp, passwort: $('hm-host-passwort').value, maxSpieler: Number($('hm-host-max').value) });
+      this.#hostStarten(welt);
+    });
+    try {
+      this.#beitretenCode = pruefeCode(new URLSearchParams(globalThis.location?.search ?? '').get('beitreten'));
+    } catch {
+      this.#beitretenCode = null;
+    }
+  }
+
+  /** Runde 47: Seite „Mit Code beitreten“ (Gast) – optional mit vorausgefülltem Code (Einladungslink). */
+  #oeffneCodeBeitritt(code) {
+    this.#mpServer = { id: 'p2p', typ: 'p2p', name: 'Mit Einladungscode', adresse: null };
+    this.el.mpTitel.dataset.server = ''; // gemerkte Anmeldung neu laden
+    this.zeigeSeite('mpCharakter');
+    if (code) {
+      this.el.mpAdresseEingabe.value = code;
+      this.#zeigeMpCharakter();
+    }
+  }
+
+  /** Runde 47: gehosteten Server starten – ohne Charakter erst die Erstellung. */
+  #hostStarten(welt) {
+    const daten = (charakter, neu) => ({
+      server: { id: `host:${welt.id}`, typ: 'host', name: welt.name, welt },
+      benutzername: gastName(),
+      passwort: '',
+      gast: true,
+      charakterName: charakter.name,
+      aussehen: charakter.aussehen,
+      neuerCharakter: neu,
+    });
+    if (welt.charakter) {
+      this.#seite = 'host';
+      return this.#beiStart?.(daten(welt.charakter, false));
+    }
+    this.zeigeSeite('erstellung');
+    this.erstellung.oeffne({
+      titel: welt.name,
+      aussehen: lies(AUSSEHEN_SCHLUESSEL),
+      name: '',
+      beiAbbruch: () => this.zeigeSeite('host'),
+      beiFertig: ({ aussehen, name }) => {
+        schreib(AUSSEHEN_SCHLUESSEL, aussehen);
+        const charakter = { name, aussehen };
+        aktualisiereHostWelt(welt.id, { charakter });
+        this.#seite = 'host';
+        this.#beiStart?.(daten(charakter, true));
+      },
+    });
+  }
+
+  /** Runde 47: gespeicherte gehostete Server */
+  #zeigeHost() {
+    const d = this.d;
+    const box = d.getElementById('hm-host-liste');
+    const welten = ladeHostWelten();
+    box.replaceChildren(Object.assign(d.createElement('h3'), { textContent: welten.length ? 'Deine Server' : 'Noch kein eigener Server' }));
+    if (!welten.length) box.append(Object.assign(d.createElement('p'), { className: 'hm-klein', textContent: 'Erstelle links einen Server. Danach bekommst du einen Einladungscode und einen Link für deine Freunde.' }));
+    for (const w of welten) {
+      const zeile = Object.assign(d.createElement('div'), { className: 'hm-host-zeile' });
+      const info = d.createElement('div');
+      info.append(
+        Object.assign(d.createElement('h3'), { textContent: w.name }),
+        Object.assign(d.createElement('div'), { className: 'hm-host-code', textContent: `Code ${w.code}` }),
+        Object.assign(d.createElement('p'), { className: 'hm-klein', textContent: `PvP ${w.pvp ? 'an' : 'aus'} · bis ${w.maxSpieler} Spieler${w.passwort ? ' · mit Passwort' : ''} · ${w.charakter ? `Dein Charakter: ${w.charakter.name}` : 'noch kein Charakter'} · zuletzt ${datumText(w.zuletzt)}` }),
+      );
+      const knoepfe = Object.assign(d.createElement('div'), { className: 'hm-slot-knoepfe' });
+      knoepfe.append(
+        this.#knopf(w.charakter ? 'Starten' : 'Charakter erstellen', 'hm-primaer', () => this.#hostStarten(w)),
+        this.#knopf('Löschen', '', async () => {
+          if (await this.frage('Server löschen?', `„${w.name}“ samt Welt, Basen und allen Spielständen deiner Freunde wird gelöscht.`, 'Löschen')) {
+            loescheHostWelt(w.id);
+            this.#zeigeHost();
+          }
+        }),
+      );
+      zeile.append(info, knoepfe);
+      box.append(zeile);
+    }
   }
 
   /** fn(daten) – Spiel starten (siehe Kopfkommentar) */
@@ -144,7 +241,12 @@ export class Hauptmenue {
     this.el.overlay.hidden = false;
     this.setzeBeschaeftigt(false);
     if (this.#seite === 'erstellung') this.#seite = 'start';
-    this.zeigeSeite(this.#seite);
+    if (this.#beitretenCode) {
+      // Runde 47: Einladungslink ?beitreten=CODE → direkt zur Beitreten-Seite (nur beim ersten Mal)
+      const code = this.#beitretenCode;
+      this.#beitretenCode = null;
+      this.#oeffneCodeBeitritt(code);
+    } else this.zeigeSeite(this.#seite);
     this.zeigeMeldung(meldung, true);
   }
 
@@ -172,6 +274,7 @@ export class Hauptmenue {
     this.zeigeMeldung('');
     if (seite === 'sp') this.#zeigeSlots();
     if (seite === 'mpCharakter') this.#zeigeMpCharakter();
+    if (seite === 'host') this.#zeigeHost();
   }
 
   // ------------------------------------------------------------- Singleplayer
@@ -265,6 +368,7 @@ export class Hauptmenue {
   #mpSchluessel() {
     const s = this.#mpServer;
     if (!s) return null;
+    if (s.typ === 'p2p') return `p2p:${pruefeCode(this.el.mpAdresseEingabe.value) ?? ''}`; // Runde 47: Charakter je Einladungscode
     return s.adresse ? s.id : `eigene:${this.el.mpAdresseEingabe.value.trim()}`;
   }
 
@@ -298,10 +402,17 @@ export class Hauptmenue {
       this.el.mpPasswort.value = '';
       this.el.mpAdresseEingabe.value = gemerkt.adresse ?? '';
       this.el.mpAdresseFeld.hidden = !!s.adresse;
-      this.#mpArt = gemerkt.art === 'gast' ? 'gast' : 'konto';
+      // Runde 47: Code-Modus – Feld heißt „Einladungscode“, nur Gast, optionales Server-Passwort
+      const p2p = s.typ === 'p2p';
+      this.d.getElementById('hm-mp-adresse-label').textContent = p2p ? 'Einladungscode' : 'Serveradresse';
+      this.el.mpAdresseEingabe.placeholder = p2p ? 'z. B. K7P2XQ' : 'wss://mein-server.de/ws';
+      this.d.getElementById('hm-mp-code-pw-feld').hidden = !p2p;
+      this.el.mpLogin.querySelector('.hm-umschalter').hidden = p2p;
+      this.el.mpLogin.querySelector('.hm-klein').textContent = p2p ? 'Der Host gibt dir Code (und ggf. Passwort). Dein Charakter wird beim Host gespeichert.' : 'Keine Registrierung – Konten vergibt der Server-Admin.';
+      this.#mpArt = p2p ? 'gast' : gemerkt.art === 'gast' ? 'gast' : 'konto';
       return this.#setzeMpArt(this.#mpArt);
     }
-    this.el.mpTitel.textContent = s.name.replace(/\s*\(.*\)\s*$/, '').replace(/ …$/, '');
+    this.el.mpTitel.textContent = s.typ === 'p2p' ? `🔑 ${pruefeCode(this.el.mpAdresseEingabe.value) ?? 'Einladungscode'}` : s.name.replace(/\s*\(.*\)\s*$/, '').replace(/ …$/, '');
     this.el.mpAdresse.textContent = s.adresse ?? '';
     const meta = ladeMpCharakter(this.#mpSchluessel());
     const karte = this.el.mpCharakter;
@@ -340,6 +451,15 @@ export class Hauptmenue {
   #mpAnmeldung() {
     const s = this.#mpServer;
     const adresse = s.adresse ? '' : this.el.mpAdresseEingabe.value.trim();
+    if (s.typ === 'p2p') {
+      const code = pruefeCode(adresse);
+      if (!code) {
+        this.zeigeMeldung('Bitte den Einladungscode vom Host eingeben (z. B. K7P2XQ).', true);
+        this.el.mpAdresseEingabe.focus();
+        return null;
+      }
+      return { benutzername: gastName(), passwort: '', gast: true, adresse: code, serverPasswort: this.d.getElementById('hm-mp-code-passwort').value };
+    }
     if (!s.adresse && !adresse) {
       this.zeigeMeldung('Bitte eine Serveradresse eingeben.', true);
       this.el.mpAdresseEingabe.focus();

@@ -4,6 +4,8 @@
   <head>
     <meta charset="utf-8" />
     <meta http-equiv="refresh" content="0; url=client/" />
+    <!-- Runde 47: Query (Einladungslink ?beitreten=CODE) mitnehmen – das Meta-Refresh oben ist nur der Rückfall ohne JavaScript -->
+    <script>location.replace('client/' + location.search + location.hash);</script>
     <title>Browser Survival</title>
   </head>
   <body><a href="client/">Zum Spiel</a></body>

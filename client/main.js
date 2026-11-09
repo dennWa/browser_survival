@@ -20,13 +20,15 @@ import { TutorialAnzeige, tutorialGeschafft } from './ui/tutorialAnzeige.js';
 import { KAPITEL } from '../server/spiel/tutorial/skript.js';
 import { ladeEditorTest, zeigeTestBanner, istVonAudio, zeigeAudioBanner } from './ui/editorTest.js';
 import { starteDebugLauf } from './debug/debugLauf.js';
-import { AKTIONEN, NACHRICHT } from '../gemeinsam/protokoll.js';
+import { ADMIN_BEFEHLE, AKTIONEN, NACHRICHT } from '../gemeinsam/protokoll.js';
 import { EgoModus } from './ego/egoModus.js'; // EGO-PROTOTYP (siehe docs/EGO_PROTOTYP.md)
 import { Welt } from '../gemeinsam/welt/welt.js';
 import { Karte } from './ui/karte.js';
 import { TastenFenster } from './ui/tastenFenster.js';
 import { FunkFenster } from './ui/funkFenster.js';
 import { EmoteFenster } from './ui/emoteFenster.js';
+import { HostFenster } from './ui/hostFenster.js';
+import { P2P_PROTOKOLL } from './netzwerk/p2p.js';
 
 /**
  * Einstiegspunkt des Clients. Verdrahtet nur die Bausteine – keine Spiellogik hier.
@@ -100,6 +102,7 @@ const tastenFenster = new TastenFenster(document); // Runde 47: ⚙ → ⌨ Tast
 hud.funk = new FunkFenster(document); // Runde 47: Funkgerät (Ü / 📻)
 hud.funk.beiAktion = (was, wert) => aktuellesSpiel?.funk(was, wert);
 document.getElementById('hud-funk').addEventListener('click', () => aktuellesSpiel?.funkgeraetUmschalten());
+hud.host = new HostFenster(document, { holeSpiel: () => aktuellesSpiel, kicke: (name) => aktuellesSpiel?.admin(ADMIN_BEFEHLE.KICK, name) }); // Runde 47: Einladen (Host)
 hud.emotes = new EmoteFenster(document); // Runde 47: Emoji über dem Kopf (Ö / 😀)
 hud.emotes.beiWahl = (i) => aktuellesSpiel?.emote(i);
 document.getElementById('hud-emotes').addEventListener('click', () => aktuellesSpiel && hud.emotes.umschalten());
@@ -220,6 +223,7 @@ window.browserSurvival = {
     return tutorialServerInstanz() ?? lokalerServer();
   },
   sound, // Tests/Audio-Zentrale: sound.quelleVon('wind') → 'eigen' | 'sample' | 'synth'
+  p2p: P2P_PROTOKOLL, // Runde 47: Hosting-Fehlersuche (Vermittler, Angebote, Verbindungszustand)
   ...konsolenHelfer({ spiel: () => aktuellesSpiel, server: () => tutorialServerInstanz() ?? lokalerServer() }),
   tutorial,
 };
@@ -242,7 +246,7 @@ let lokalStopp = Promise.resolve(); // Singleplayer: Server wird beim Verlassen 
  * `neuerSlot` = Slot neu anlegen (alter Inhalt wird erst JETZT gelöscht), `mpSchluessel` = Multiplayer-Charakter merken,
  * `charakterName`/`neuerCharakter` gehen mit dem Login an den Server.
  */
-async function anmeldungStarten({ server, adresse, benutzername, passwort, gast = false, aussehen = null, slot = null, neuerSlot = false, charakterName = null, neuerCharakter = false, mpSchluessel = null }) {
+async function anmeldungStarten({ server, adresse, benutzername, passwort, gast = false, aussehen = null, slot = null, neuerSlot = false, charakterName = null, neuerCharakter = false, mpSchluessel = null, serverPasswort = '' }) {
   sound.entsperren(); // Klick = Nutzeraktion → Browser erlaubt ab jetzt Ton
   if (!renderer) {
     login.zeigeMeldung('Dein Browser kann keine 3D-Grafik (WebGL) – leider geht es ohne nicht.', true);
@@ -257,7 +261,9 @@ async function anmeldungStarten({ server, adresse, benutzername, passwort, gast 
       const jetzt = new Date().toISOString();
       speichereSlotMeta(slot, { name: benutzername, aussehen, erstellt: jetzt, zuletzt: jetzt });
     }
-    verbindung = await verbindungAufbauen(server, adresse, { slot });
+    // Runde 47: Host → eigener Server im Tab (Status ins Einladen-Fenster); p2p → Einladungscode + Server-Passwort
+    hud.host.setzeWelt(server.typ === 'host' ? server.welt : null);
+    verbindung = await verbindungAufbauen(server, adresse, { slot, passwort: serverPasswort, hostName: benutzername, beiHostStatus: (st) => hud.host.setzeStatus(st) });
     let anmeldeDaten;
     const login_ = () => anmelden(verbindung, { benutzername, passwort, gast, aussehen, charakterName, neuerCharakter });
     try {
@@ -267,13 +273,17 @@ async function anmeldungStarten({ server, adresse, benutzername, passwort, gast 
       if (!gast || !/bereits eingeloggt/.test(fehler.message)) throw fehler;
       if (!verbindung.getrennt) verbindung.trennen('Neuer Gastname');
       benutzername = gastName(true);
-      verbindung = await verbindungAufbauen(server, adresse, { slot });
+      verbindung = await verbindungAufbauen(server, adresse, { slot, passwort: serverPasswort, hostName: benutzername, beiHostStatus: (st) => hud.host.setzeStatus(st) });
       anmeldeDaten = await login_();
     }
     if (mpSchluessel) merkeMpCharakter(mpSchluessel, anmeldeDaten.charakter, { benutzername, gast, neu: neuerCharakter, charakterName, aussehen });
-    await spielStarten(verbindung, anmeldeDaten, benutzername, { tutorialZone: server.typ === 'tutorial', slot, mpSchluessel });
+    await spielStarten(verbindung, anmeldeDaten, benutzername, { tutorialZone: server.typ === 'tutorial', slot, mpSchluessel, hosten: server.typ === 'host' });
   } catch (fehler) {
     if (verbindung && !verbindung.getrennt) verbindung.trennen('Login abgebrochen');
+    if (server.typ === 'host') {
+      hud.host.setzeWelt(null);
+      lokalStopp = stoppeLokal().catch(() => {}); // Runde 47: gehosteten Server nicht im Hintergrund weiterlaufen lassen
+    }
     login.anzeigen(fehler.message);
   }
 }
@@ -297,7 +307,7 @@ function merkeMpCharakter(schluessel, charakter, { benutzername, gast, neu, char
  * erst wenn es ruhig läuft, verschwindet der Ladebildschirm (sonst ruckeln die ersten Sekunden).
  * Auch beim Zonenwechsel (zone = Name der neuen Zone, seq = Eingabe-Zähler der alten Sitzung).
  */
-async function spielStarten(verbindung, anmeldeDaten, benutzername, { zone = null, seq = 0, tutorialZone = false, slot = null, mpSchluessel = null } = {}) {
+async function spielStarten(verbindung, anmeldeDaten, benutzername, { zone = null, seq = 0, tutorialZone = false, slot = null, mpSchluessel = null, hosten = false } = {}) {
   const vorab = []; // Nachrichten, die während des Ladens ankommen, gehen nicht verloren
   const vorabAbmelden = verbindung.beiNachricht((n) => vorab.push(n));
   let getrennt = null;
@@ -324,7 +334,8 @@ async function spielStarten(verbindung, anmeldeDaten, benutzername, { zone = nul
       if (meta) speichereMpCharakter(mpSchluessel, { ...meta, zuletzt: new Date().toISOString() });
     }
     // Singleplayer verlassen: lokalen Server beenden (speichert Spieler + Welt sofort; nichts läuft im Menü weiter)
-    if (slot) lokalStopp = stoppeLokal().catch(() => {});
+    if (slot || hosten) lokalStopp = stoppeLokal().catch(() => {});
+    if (hosten) hud.host.setzeWelt(null); // Runde 47: Einladen-Knopf weg, Freunde getrennt (stoppeLokal → Host.stoppen)
     login.anzeigen(grund === 'Abgemeldet' ? '' : grund);
   };
   eingabe.aktiv = false;
@@ -364,7 +375,7 @@ async function spielStarten(verbindung, anmeldeDaten, benutzername, { zone = nul
     // Übergang betreten → diese Sitzung abräumen, neue Zone aufbauen (Verbindung bleibt dieselbe)
     beiZonenwechsel: (daten, alt) => {
       alt.uebergeben();
-      spielStarten(verbindung, daten, benutzername, { zone: daten.zone ?? daten.karte?.name, seq: alt.seq, slot, mpSchluessel });
+      spielStarten(verbindung, daten, benutzername, { zone: daten.zone ?? daten.karte?.name, seq: alt.seq, slot, mpSchluessel, hosten });
     },
   });
   if (spiel.beendet) return; // während des Nachholens schon weitergezogen
